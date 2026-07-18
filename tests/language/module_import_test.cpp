@@ -38,8 +38,8 @@ int main() {
       {std::filesystem::path{JANUS_STDLIB_DIR}}};
   const janus::ast::Program program =
       loader.load(std::filesystem::path{JANUS_ARRAY_EXAMPLE});
-  expect(program.classes.size() == 1 && program.classes.front().name == "Array",
-         "import std.array loads the standard Array class");
+  expect(program.classes.size() == 3,
+         "import std.array loads Array and its iterator support");
   expect(program.enums.size() == 1 && program.enums.front().name == "Option",
          "Array imports Option for its safe operations");
   expect(program.functions.size() == 1 &&
@@ -77,6 +77,14 @@ int main() {
          "Array.find combines closures with Option");
   expect(ir.find("define i1 @Array__int__isEmpty") != std::string::npos,
          "Array.isEmpty exposes its empty state");
+  expect(ir.find("define ptr @Array__int__iterator") != std::string::npos,
+         "Array.iterator creates a lazy iterator");
+  expect(ir.find("define %enum.Option__int @Iterator__int__next") !=
+             std::string::npos,
+         "Iterator.next returns Option");
+  expect(ir.find("define internal void @Iterator__int__destructor") !=
+             std::string::npos,
+         "Iterator owns its state closures");
   expect(ir.find("call void %action.code") != std::string::npos,
          "Array.foreach invokes Unit closures indirectly");
   expect(ir.find("define i32 @main()") != std::string::npos,

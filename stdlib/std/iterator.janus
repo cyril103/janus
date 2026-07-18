@@ -1,0 +1,17 @@
+module std.iterator
+import std.option
+
+class Iterator[T](
+    private val advance : () => Option[T],
+    private val release : () => Unit
+) {
+    def next() : Option[T] {
+        return advance()
+    }
+
+    destructor {
+        release()
+        delete advance
+        delete release
+    }
+}

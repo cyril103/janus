@@ -1,5 +1,24 @@
 module std.array
 import std.option
+import std.iterator
+
+class ArrayIteratorState[T](
+    private val source : Array[T],
+    private var index : usize
+) {
+    def next() : Option[T] {
+        if index >= source.size() {
+            return Option.None[T]()
+        }
+        val value : Option[T] = source.getOption(index)
+        index = index + usize(1)
+        return value
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+}
 
 class Array[T](initialCapacity : usize) {
     private var data : Ptr[T] = alloc[T](initialCapacity)
@@ -31,6 +50,15 @@ class Array[T](initialCapacity : usize) {
 
     def isEmpty() : bool {
         return length == usize(0)
+    }
+
+    def iterator() : Iterator[T] {
+        val state : ArrayIteratorState[T] =
+            new ArrayIteratorState[T](this, usize(0))
+        return new Iterator[T](
+            () => state.next(),
+            () => state.dispose()
+        )
     }
 
     def get(index : usize) : T {
