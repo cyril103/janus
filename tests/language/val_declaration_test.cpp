@@ -97,6 +97,7 @@ def main() : int {
   val glyph : char = '😀'
   val ready : bool = true
   val stopped : bool = false
+  val message : string = "Bonjour 😀\n"
   return 0
 }
 )"};
@@ -121,6 +122,12 @@ def main() : int {
          "true initializes bool");
   expect(builtin_ir.find("store i1 false") != std::string::npos,
          "false initializes bool");
+  expect(builtin_ir.find("%message = alloca { ptr, i64 }") != std::string::npos,
+         "string storage contains a pointer and a length");
+  expect(builtin_ir.find("i64 13") != std::string::npos,
+         "string stores its UTF-8 byte length without the terminator");
+  expect(builtin_ir.find("@.str.0") != std::string::npos,
+         "string literal data is stored in a private global constant");
 
   expect_compile_error("def main() : int { val x int = 5 return 0 }",
                        "expected ':'");
@@ -152,6 +159,12 @@ def main() : int {
                        "exactly one Unicode character");
   expect_compile_error("def main() : int { return false }",
                        "expression of type 'bool'");
+  expect_compile_error(
+      "def main() : int { val message : string = 'x' return 0 }",
+      "expression of type 'char'");
+  expect_compile_error(
+      "def main() : int { val message : string = \"unterminated }",
+      "unterminated string literal");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

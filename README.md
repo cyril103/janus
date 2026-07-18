@@ -31,10 +31,17 @@ Janus possède actuellement cinq types primitifs :
 | `byte` | entier signé sur 8 bits | `i8` |
 | `char` | scalaire Unicode sur 32 bits | `i32` |
 | `bool` | valeur `true` ou `false` | `i1` |
+| `string` | chaîne Unicode UTF-8 immuable | `{ ptr, i64 }` |
 
 LLVM ne distingue pas directement les entiers signés des entiers non signés
 dans ses types. Cette information est donc conservée par le système de types
 de Janus.
+
+Les chaînes `string` sont immuables et encodées en UTF-8. Leur représentation
+contient un pointeur vers les octets et une longueur `i64` exprimée en octets.
+Les littéraux sont stockés dans des constantes globales LLVM. Un zéro terminal
+est ajouté pour faciliter une future interopérabilité avec C, mais il n'est pas
+compté dans la longueur Janus.
 
 ## Prérequis
 
@@ -102,7 +109,7 @@ conserver dans un fichier :
 L'IR obtenu peut ensuite être transformé en fichier objet puis en exécutable :
 
 ```bash
-llc -filetype=obj value.ll -o value.o
+llc -relocation-model=pic -filetype=obj value.ll -o value.o
 clang value.o -fuse-ld=lld -o value
 ./value
 ```
@@ -154,6 +161,7 @@ Fonctionnalités disponibles :
 - type `byte`, signé sur 8 bits, avec contrôle de débordement des littéraux ;
 - type `char` et littéraux Unicode comme `'é'` ou `'😀'` ;
 - type `bool` et littéraux `true` et `false` ;
+- type `string` et littéraux Unicode UTF-8 comme `"Bonjour 🌍"` ;
 - littéraux entiers décimaux positifs ;
 - point-virgule optionnel après une déclaration ;
 - plusieurs déclarations dans le corps d'une fonction ;
@@ -194,6 +202,7 @@ Les tests couvrent actuellement :
 - son abaissement vers LLVM `i32` ;
 - les propriétés et l'abaissement LLVM de `double`, `byte`, `char` et `bool` ;
 - les littéraux flottants, booléens et Unicode ;
+- les littéraux `string`, leur validation UTF-8 et leur longueur en octets ;
 - le contrôle de la plage des littéraux affectés à `byte` ;
 - la reconnaissance et la validation de `def main() : int` ;
 - l'analyse de `val x : int = 5` ;

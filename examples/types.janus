@@ -4,5 +4,6 @@ def main() : int {
     val glyph : char = '😀'
     val ready : bool = true
     val stopped : bool = false
+    val message : string = "Bonjour 🌍"
     return 0
 }

@@ -27,6 +27,11 @@ const Type &Type::bool_type() noexcept {
   return type;
 }
 
+const Type &Type::string_type() noexcept {
+  static const Type type{TypeKind::String, "string", 0, false};
+  return type;
+}
+
 Type::Type(TypeKind kind, std::string_view name, std::uint32_t bit_width,
            bool is_signed) noexcept
     : kind_{kind}, name_{name}, bit_width_{bit_width}, is_signed_{is_signed} {}
@@ -48,6 +53,8 @@ bool Type::is_floating_point() const noexcept {
 bool Type::is_character() const noexcept { return kind_ == TypeKind::Char; }
 
 bool Type::is_boolean() const noexcept { return kind_ == TypeKind::Bool; }
+
+bool Type::is_string() const noexcept { return kind_ == TypeKind::String; }
 
 bool Type::is_signed() const noexcept { return is_signed_; }
 

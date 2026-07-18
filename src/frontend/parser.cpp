@@ -11,44 +11,23 @@
 
 namespace {
 
-char32_t decode_character_literal(const janus::frontend::Token &token) {
-  const std::string_view content =
-      token.lexeme.substr(1, token.lexeme.size() - 2);
-
-  if (content.size() == 2 && content.front() == '\\') {
-    switch (content.back()) {
-    case '0':
-      return U'\0';
-    case 'n':
-      return U'\n';
-    case 'r':
-      return U'\r';
-    case 't':
-      return U'\t';
-    case '\\':
-      return U'\\';
-    case '\'':
-      return U'\'';
-    default:
-      throw janus::CompileError{token.location,
-                                "unknown character escape sequence"};
-    }
-  }
-
-  if (content.empty()) {
-    throw janus::CompileError{
-        token.location,
-        "character literal must contain exactly one Unicode character"};
-  }
-
+char32_t decode_utf8_scalar(std::string_view content, std::size_t &position,
+                            janus::SourceLocation location,
+                            std::string_view literal_kind) {
   const auto byte = [&content](std::size_t index) {
     return static_cast<std::uint8_t>(content[index]);
   };
 
+  if (position >= content.size()) {
+    throw janus::CompileError{location, "incomplete UTF-8 sequence in " +
+                                            std::string{literal_kind} +
+                                            " literal"};
+  }
+
   char32_t code_point{};
   std::size_t length{};
   char32_t minimum{};
-  const std::uint8_t first = byte(0);
+  const std::uint8_t first = byte(position);
 
   if (first <= 0x7F) {
     code_point = first;
@@ -67,32 +46,113 @@ char32_t decode_character_literal(const janus::frontend::Token &token) {
     length = 4;
     minimum = 0x10000;
   } else {
-    throw janus::CompileError{token.location,
-                              "invalid UTF-8 in character literal"};
+    throw janus::CompileError{
+        location, "invalid UTF-8 in " + std::string{literal_kind} + " literal"};
   }
 
-  if (content.size() != length) {
-    throw janus::CompileError{
-        token.location,
-        "character literal must contain exactly one Unicode character"};
+  if (position + length > content.size()) {
+    throw janus::CompileError{location, "incomplete UTF-8 sequence in " +
+                                            std::string{literal_kind} +
+                                            " literal"};
   }
 
   for (std::size_t index = 1; index < length; ++index) {
-    const std::uint8_t continuation = byte(index);
+    const std::uint8_t continuation = byte(position + index);
     if ((continuation & 0xC0) != 0x80) {
-      throw janus::CompileError{token.location,
-                                "invalid UTF-8 in character literal"};
+      throw janus::CompileError{location, "invalid UTF-8 in " +
+                                              std::string{literal_kind} +
+                                              " literal"};
     }
     code_point = (code_point << 6) | (continuation & 0x3F);
   }
 
   if (code_point < minimum || code_point > 0x10FFFF ||
       (code_point >= 0xD800 && code_point <= 0xDFFF)) {
-    throw janus::CompileError{token.location,
-                              "invalid Unicode scalar in character literal"};
+    throw janus::CompileError{location, "invalid Unicode scalar in " +
+                                            std::string{literal_kind} +
+                                            " literal"};
   }
 
+  position += length;
   return code_point;
+}
+
+char decode_escape(char escaped, janus::SourceLocation location,
+                   std::string_view literal_kind) {
+  switch (escaped) {
+  case '0':
+    return '\0';
+  case 'n':
+    return '\n';
+  case 'r':
+    return '\r';
+  case 't':
+    return '\t';
+  case '\\':
+    return '\\';
+  case '\'':
+    return '\'';
+  case '"':
+    return '"';
+  default:
+    throw janus::CompileError{location, "unknown escape sequence in " +
+                                            std::string{literal_kind} +
+                                            " literal"};
+  }
+}
+
+char32_t decode_character_literal(const janus::frontend::Token &token) {
+  const std::string_view content =
+      token.lexeme.substr(1, token.lexeme.size() - 2);
+
+  if (content.size() == 2 && content.front() == '\\') {
+    return static_cast<unsigned char>(
+        decode_escape(content.back(), token.location, "character"));
+  }
+
+  if (content.empty()) {
+    throw janus::CompileError{
+        token.location,
+        "character literal must contain exactly one Unicode character"};
+  }
+
+  std::size_t position = 0;
+  const char32_t code_point =
+      decode_utf8_scalar(content, position, token.location, "character");
+  if (position != content.size()) {
+    throw janus::CompileError{
+        token.location,
+        "character literal must contain exactly one Unicode character"};
+  }
+  return code_point;
+}
+
+std::string decode_string_literal(const janus::frontend::Token &token) {
+  const std::string_view content =
+      token.lexeme.substr(1, token.lexeme.size() - 2);
+  std::string decoded;
+  decoded.reserve(content.size());
+
+  std::size_t position = 0;
+  while (position < content.size()) {
+    if (content[position] == '\\') {
+      if (position + 1 >= content.size()) {
+        throw janus::CompileError{token.location,
+                                  "incomplete escape in string literal"};
+      }
+      decoded.push_back(
+          decode_escape(content[position + 1], token.location, "string"));
+      position += 2;
+      continue;
+    }
+
+    const std::size_t scalar_start = position;
+    static_cast<void>(
+        decode_utf8_scalar(content, position, token.location, "string"));
+    decoded.append(content.substr(scalar_start, position - scalar_start));
+  }
+
+  return decoded;
 }
 
 } // namespace
@@ -206,6 +266,12 @@ ast::Expression Parser::parse_expression() {
                                            literal.location};
   }
 
+  if (current_.kind == TokenKind::StringLiteral) {
+    const Token literal = expect(TokenKind::StringLiteral);
+    return ast::StringLiteralExpression{decode_string_literal(literal),
+                                        literal.location};
+  }
+
   if (current_.kind == TokenKind::True || current_.kind == TokenKind::False) {
     const bool value = current_.kind == TokenKind::True;
     const Token literal = current_;
@@ -234,6 +300,9 @@ const Type *Parser::parse_type() {
   }
   if (type_name.lexeme == "bool") {
     return &Type::bool_type();
+  }
+  if (type_name.lexeme == "string") {
+    return &Type::string_type();
   }
 
   throw CompileError{type_name.location,

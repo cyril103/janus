@@ -2,6 +2,7 @@
 
 #include "janus/backend/llvm/type_lowering.hpp"
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <type_traits>
@@ -10,22 +11,49 @@
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/Support/CodeGen.h>
+#include <llvm/TargetParser/Host.h>
+#include <llvm/TargetParser/Triple.h>
 
 namespace {
 
 ::llvm::Value *lower_expression(const janus::ast::Expression &expression,
                                 const janus::Type &expected_type,
-                                ::llvm::IRBuilder<> &builder) {
+                                ::llvm::IRBuilder<> &builder,
+                                ::llvm::Module &module,
+                                std::size_t &string_literal_index) {
   ::llvm::Type *llvm_type =
       janus::backend::llvm::lower_type(expected_type, builder.getContext());
 
   return std::visit(
-      [llvm_type, &expected_type](const auto &literal) -> ::llvm::Value * {
+      [llvm_type, &expected_type, &builder, &module,
+       &string_literal_index](const auto &literal) -> ::llvm::Value * {
         using Literal = std::decay_t<decltype(literal)>;
         if constexpr (std::is_same_v<Literal,
-                                     janus::ast::DoubleLiteralExpression>) {
+                                     janus::ast::StringLiteralExpression>) {
+          ::llvm::Constant *data = ::llvm::ConstantDataArray::getString(
+              builder.getContext(), literal.value, true);
+          auto *global = new ::llvm::GlobalVariable(
+              module, data->getType(), true,
+              ::llvm::GlobalValue::PrivateLinkage, data,
+              ".str." + std::to_string(string_literal_index++));
+          global->setUnnamedAddr(::llvm::GlobalValue::UnnamedAddr::Global);
+
+          ::llvm::Constant *zero = builder.getInt32(0);
+          const std::array<::llvm::Constant *, 2> indices{zero, zero};
+          ::llvm::Constant *pointer =
+              ::llvm::ConstantExpr::getInBoundsGetElementPtr(data->getType(),
+                                                             global, indices);
+          ::llvm::Constant *length = ::llvm::ConstantInt::get(
+              builder.getInt64Ty(), literal.value.size(), false);
+          return ::llvm::ConstantStruct::get(
+              ::llvm::cast<::llvm::StructType>(llvm_type), {pointer, length});
+        } else if constexpr (std::is_same_v<
+                                 Literal,
+                                 janus::ast::DoubleLiteralExpression>) {
           return ::llvm::ConstantFP::get(llvm_type, literal.value);
         } else if constexpr (std::is_same_v<
                                  Literal,
@@ -57,6 +85,11 @@ IrGenerator::generate(const ast::Program &program,
                       std::string_view module_name) {
   auto module =
       std::make_unique<::llvm::Module>(std::string{module_name}, context_);
+  module->setTargetTriple(
+      ::llvm::Triple{::llvm::sys::getDefaultTargetTriple()});
+  module->setPICLevel(::llvm::PICLevel::BigPIC);
+  module->setPIELevel(::llvm::PIELevel::Large);
+  std::size_t string_literal_index = 0;
 
   for (const ast::FunctionDeclaration &function : program.functions) {
     ::llvm::IRBuilder<> builder{context_};
@@ -77,15 +110,17 @@ IrGenerator::generate(const ast::Program &program,
             builder.CreateAlloca(storage_type, nullptr, declaration->name);
 
         ::llvm::Value *initializer = lower_expression(
-            declaration->initializer, *declaration->declared_type, builder);
+            declaration->initializer, *declaration->declared_type, builder,
+            *module, string_literal_index);
 
         builder.CreateStore(initializer, storage);
         continue;
       }
 
       const auto &return_statement = std::get<ast::ReturnStatement>(statement);
-      ::llvm::Value *return_value = lower_expression(
-          return_statement.expression, *function.return_type, builder);
+      ::llvm::Value *return_value =
+          lower_expression(return_statement.expression, *function.return_type,
+                           builder, *module, string_literal_index);
       builder.CreateRet(return_value);
     }
   }

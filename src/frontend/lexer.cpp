@@ -67,6 +67,29 @@ Token Lexer::next() {
                  start};
   }
 
+  if (character == '"') {
+    advance();
+    bool escaped = false;
+    while (!at_end()) {
+      if (!escaped && current() == '"') {
+        advance();
+        return Token{TokenKind::StringLiteral,
+                     source_.substr(start_position, position_ - start_position),
+                     start};
+      }
+      if (current() == '\n') {
+        break;
+      }
+      if (!escaped && current() == '\\') {
+        escaped = true;
+      } else {
+        escaped = false;
+      }
+      advance();
+    }
+    throw CompileError{start, "unterminated string literal"};
+  }
+
   if (character == '\'') {
     advance();
     bool escaped = false;

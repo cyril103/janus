@@ -30,9 +30,15 @@ struct BooleanLiteralExpression {
   SourceLocation location;
 };
 
+struct StringLiteralExpression {
+  std::string value;
+  SourceLocation location;
+};
+
 using Expression =
     std::variant<IntegerLiteralExpression, DoubleLiteralExpression,
-                 CharacterLiteralExpression, BooleanLiteralExpression>;
+                 CharacterLiteralExpression, BooleanLiteralExpression,
+                 StringLiteralExpression>;
 
 struct ValueDeclaration {
   std::string name;

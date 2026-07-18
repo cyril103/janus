@@ -16,6 +16,7 @@ enum class TokenKind {
   IntegerLiteral,
   DoubleLiteral,
   CharacterLiteral,
+  StringLiteral,
   LeftParen,
   RightParen,
   LeftBrace,
@@ -52,6 +53,8 @@ struct Token {
     return "double literal";
   case TokenKind::CharacterLiteral:
     return "character literal";
+  case TokenKind::StringLiteral:
+    return "string literal";
   case TokenKind::LeftParen:
     return "'('";
   case TokenKind::RightParen:

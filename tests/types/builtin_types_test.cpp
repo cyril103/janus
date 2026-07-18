@@ -52,11 +52,26 @@ int main() {
   expect(janus::backend::llvm::lower_type(bool_type, context)->isIntegerTy(1),
          "bool lowers to LLVM i1");
 
+  const janus::Type &string_type = janus::Type::string_type();
+  expect(string_type.name() == "string", "string has the expected name");
+  expect(string_type.is_string(), "string is a string type");
+  auto *llvm_string_type = llvm::dyn_cast<llvm::StructType>(
+      janus::backend::llvm::lower_type(string_type, context));
+  expect(llvm_string_type != nullptr, "string lowers to an LLVM structure");
+  expect(llvm_string_type != nullptr && llvm_string_type->getNumElements() == 2,
+         "string contains a pointer and a length");
+  expect(llvm_string_type != nullptr &&
+             llvm_string_type->getElementType(0)->isPointerTy(),
+         "string data is represented by a pointer");
+  expect(llvm_string_type != nullptr &&
+             llvm_string_type->getElementType(1)->isIntegerTy(64),
+         "string byte length is represented by i64");
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;
   }
 
-  std::cout << "double, byte, char and bool lower to LLVM types\n";
+  std::cout << "primitive types lower to their LLVM representations\n";
   return 0;
 }

@@ -115,8 +115,11 @@ Analyzer::expression_type(const ast::Expression &expression) const noexcept {
         } else if constexpr (std::is_same_v<Literal,
                                             ast::CharacterLiteralExpression>) {
           return Type::char_type();
-        } else {
+        } else if constexpr (std::is_same_v<Literal,
+                                            ast::BooleanLiteralExpression>) {
           return Type::bool_type();
+        } else {
+          return Type::string_type();
         }
       },
       expression);
