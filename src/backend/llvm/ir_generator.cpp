@@ -875,6 +875,9 @@ private:
                 visit(*arm.expression, arm_bound);
               }
             } else if constexpr (std::is_same_v<Node,
+                                                janus::ast::MoveExpression>) {
+              visit(*node.operand, active_bound);
+            } else if constexpr (std::is_same_v<Node,
                                                 janus::ast::UnaryExpression>) {
               visit(*node.operand, active_bound);
             } else if constexpr (std::is_same_v<Node,
@@ -1125,6 +1128,9 @@ private:
                                           Local{nullptr, &payload_type});
             }
             return expression_type(*arm.expression, substitutions, arm_locals);
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::MoveExpression>) {
+            return expression_type(*node.operand, substitutions, locals);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::UnaryExpression>) {
             if (node.operation == janus::ast::UnaryOperator::LogicalNot)
@@ -1824,6 +1830,10 @@ private:
             for (const auto &[value, block] : incoming)
               result->addIncoming(value, block);
             return result;
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::MoveExpression>) {
+            return emit_expression(*node.operand, expected_type, substitutions,
+                                   locals, builder);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::UnaryExpression>) {
             const janus::Type *operand_type =

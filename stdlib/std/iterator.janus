@@ -91,7 +91,7 @@ class Iterator[T](
 
     def map[U](transform : (T) => U) : Iterator[U] {
         val state : MapIteratorState[T, U] =
-            new MapIteratorState[T, U](this, transform)
+            new MapIteratorState[T, U](move this, move transform)
         return new Iterator[U](
             () => state.next(),
             () => state.dispose()
@@ -100,7 +100,7 @@ class Iterator[T](
 
     def filter(predicate : (T) => bool) : Iterator[T] {
         val state : FilterIteratorState[T] =
-            new FilterIteratorState[T](this, predicate)
+            new FilterIteratorState[T](move this, move predicate)
         return new Iterator[T](
             () => state.next(),
             () => state.dispose()
@@ -109,7 +109,7 @@ class Iterator[T](
 
     def take(count : usize) : Iterator[T] {
         val state : TakeIteratorState[T] =
-            new TakeIteratorState[T](this, count)
+            new TakeIteratorState[T](move this, count)
         return new Iterator[T](
             () => state.next(),
             () => state.dispose()

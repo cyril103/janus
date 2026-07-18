@@ -529,9 +529,21 @@ propriétaire du tableau retourné et doit le supprimer. L’`Array` source rest
 emprunté et doit vivre jusqu’à la destruction ou la consommation de
 l’itérateur.
 
-Comme Janus ne possède pas encore de vérification statique d’ownership, le
+Janus ne déduit pas automatiquement tous les transferts d’ownership : le
 programmeur ne doit pas réutiliser un itérateur après l’avoir transmis à un
 adaptateur ou après avoir appelé `collect()`.
+
+Le mot-clé `move` rend ces transferts explicites pour les valeurs possédantes :
+
+```janus
+val first : Box = new Box(42)
+val second : Box = move first
+delete second
+```
+
+Après le déplacement, `first` est considéré comme non initialisé et ne peut
+plus être lu ou supprimé. `move` s’applique aux objets, closures, pointeurs et
+valeurs génériques, mais pas aux valeurs primitives copiables.
 
 Une boucle `for` consomme également son itérateur et le détruit à la sortie
 normale :

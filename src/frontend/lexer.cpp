@@ -43,6 +43,8 @@ Token Lexer::next() {
       kind = TokenKind::Class;
     } else if (lexeme == "new") {
       kind = TokenKind::New;
+    } else if (lexeme == "move") {
+      kind = TokenKind::Move;
     } else if (lexeme == "delete") {
       kind = TokenKind::Delete;
     } else if (lexeme == "destructor") {

@@ -682,6 +682,11 @@ ast::Expression Parser::parse_multiplicative() {
 }
 
 ast::Expression Parser::parse_unary() {
+  if (current_.kind == TokenKind::Move) {
+    const Token move_token = expect(TokenKind::Move);
+    return ast::MoveExpression{std::make_unique<ast::Expression>(parse_unary()),
+                               move_token.location};
+  }
   if (current_.kind == TokenKind::Minus || current_.kind == TokenKind::Bang) {
     const Token operation = current_;
     advance();

@@ -1267,6 +1267,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                        enum_declaration.name +
                                        "': missing case(s): " + missing_cases};
               return *result_type;
+            } else if constexpr (std::is_same_v<Node, ast::MoveExpression>) {
+              const auto *identifier =
+                  std::get_if<ast::IdentifierExpression>(&node.operand->value);
+              if (identifier == nullptr)
+                throw CompileError{node.location,
+                                   "move requires a local value identifier"};
+              const SemanticType moved_type = expression_type(*node.operand);
+              if (moved_type.is_concrete() || moved_type.is_enum())
+                throw CompileError{
+                    node.location,
+                    "move requires an owning class, function, pointer, or "
+                    "generic value"};
+              active_symbols->at(identifier->name).is_initialized = false;
+              return moved_type;
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
               if (node.operation == ast::UnaryOperator::LogicalNot) {
