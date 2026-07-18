@@ -542,6 +542,19 @@ for value in values.iterator().filter((value : int) => value > 0) {
 }
 ```
 
+`std.range` fournit un intervalle entier croissant, semi-ouvert :
+
+```janus
+import std.range
+
+for value in range(0, 10) {
+    println(value)
+}
+```
+
+`range(start, end)` produit paresseusement les valeurs de `start` inclus à
+`end` exclu et retourne directement un `Iterator[int]`.
+
 Le tableau possède son buffer, mais pas les objets éventuellement stockés. Un
 `Array[Point]` copie les pointeurs vers les `Point` : le programmeur doit
 continuer à supprimer chaque objet séparément.

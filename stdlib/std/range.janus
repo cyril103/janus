@@ -1,0 +1,29 @@
+module std.range
+import std.iterator
+import std.option
+
+class Range(
+    private var current : int,
+    private val end : int
+) {
+    def next() : Option[int] {
+        if current >= end {
+            return Option.None[int]()
+        }
+        val value : int = current
+        current = current + 1
+        return Option.Some[int](value)
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+}
+
+def range(start : int, end : int) : Iterator[int] {
+    val state : Range = new Range(start, end)
+    return new Iterator[int](
+        () => state.next(),
+        () => state.dispose()
+    )
+}

@@ -1,0 +1,9 @@
+import std.range
+
+def main() : int {
+    var total : int = 0
+    for value in range(1, 5) {
+        total = total + value
+    }
+    return total
+}

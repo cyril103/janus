@@ -141,6 +141,28 @@ int main() {
   expect(algebraic_ir.find("switch i32") != std::string::npos,
          "standard algebraic types can be exhaustively matched");
 
+  const janus::ast::Program range_program =
+      loader.load(std::filesystem::path{JANUS_RANGE_EXAMPLE});
+  expect(std::any_of(range_program.classes.begin(), range_program.classes.end(),
+                     [](const janus::ast::ClassDeclaration &declaration) {
+                       return declaration.name == "Range";
+                     }),
+         "std.range provides the Range iterator state");
+  static_cast<void>(analyzer.analyze(range_program));
+  llvm::LLVMContext range_context;
+  janus::backend::llvm::IrGenerator range_generator{range_context};
+  const std::unique_ptr<llvm::Module> range_module =
+      range_generator.generate(range_program, "range");
+  std::string range_ir;
+  llvm::raw_string_ostream range_output{range_ir};
+  range_module->print(range_output, nullptr);
+  range_output.flush();
+  expect(range_ir.find("define ptr @range(i32 %start, i32 %end)") !=
+             std::string::npos,
+         "range constructs a lazy integer iterator");
+  expect(range_ir.find("for.next") != std::string::npos,
+         "Range values work with for-in");
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;
