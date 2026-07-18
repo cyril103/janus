@@ -1,0 +1,8 @@
+def main() : int {
+    print("Janus sait afficher : ")
+    println(42)
+    println(3.141592653589793)
+    println(true)
+    println('λ')
+    return 0
+}

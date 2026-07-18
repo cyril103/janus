@@ -355,6 +355,22 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.panic COMMAND panic_test)
 
+    add_executable(standard_output_test
+        tests/language/standard_output_test.cpp
+    )
+    target_link_libraries(standard_output_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(standard_output_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.standard_output COMMAND standard_output_test)
+
     add_executable(dynamic_array_test
         tests/language/dynamic_array_test.cpp
     )

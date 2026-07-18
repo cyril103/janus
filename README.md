@@ -182,6 +182,12 @@ Le fichier `examples/panic.janus` présente un contrôle d'exécution :
 ./build/janusc examples/panic.janus
 ```
 
+Le fichier `examples/output.janus` présente l'affichage sur la sortie standard :
+
+```bash
+./build/janusc examples/output.janus
+```
+
 Le fichier `examples/array.janus` importe et utilise le tableau dynamique de la
 bibliothèque standard :
 
@@ -364,6 +370,19 @@ contrôles d'exécution des structures de la bibliothèque :
 if index >= size {
     panic("index out of bounds\n")
 }
+```
+
+### Sortie standard
+
+`print(value)` écrit une valeur sans retour à la ligne et `println(value)`
+ajoute un retour à la ligne. Les deux primitives retournent `Unit` et acceptent
+les types primitifs `int`, `double`, `byte`, `char`, `bool`, `string` et
+`usize`. Les caractères sont encodés en UTF-8.
+
+```janus
+print("résultat : ")
+println(42)
+println('λ')
 ```
 
 ### Tableau dynamique générique

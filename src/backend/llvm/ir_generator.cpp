@@ -143,6 +143,95 @@ private:
     return *pointer_elements_.at(std::string{pointer_type.name()});
   }
 
+  ::llvm::Function *ensure_print_char_function() {
+    if (::llvm::Function *function = module_->getFunction("__janus_print_char"))
+      return function;
+
+    auto *function = ::llvm::Function::Create(
+        ::llvm::FunctionType::get(::llvm::Type::getVoidTy(context_),
+                                  {::llvm::Type::getInt32Ty(context_)}, false),
+        ::llvm::GlobalValue::InternalLinkage, "__janus_print_char", *module_);
+    function->getArg(0)->setName("codepoint");
+
+    ::llvm::BasicBlock *entry =
+        ::llvm::BasicBlock::Create(context_, "entry", function);
+    ::llvm::BasicBlock *ascii =
+        ::llvm::BasicBlock::Create(context_, "ascii", function);
+    ::llvm::BasicBlock *two_check =
+        ::llvm::BasicBlock::Create(context_, "two.check", function);
+    ::llvm::BasicBlock *two =
+        ::llvm::BasicBlock::Create(context_, "two", function);
+    ::llvm::BasicBlock *three_check =
+        ::llvm::BasicBlock::Create(context_, "three.check", function);
+    ::llvm::BasicBlock *three =
+        ::llvm::BasicBlock::Create(context_, "three", function);
+    ::llvm::BasicBlock *four =
+        ::llvm::BasicBlock::Create(context_, "four", function);
+    ::llvm::BasicBlock *done =
+        ::llvm::BasicBlock::Create(context_, "done", function);
+
+    ::llvm::IRBuilder<> builder{entry};
+    ::llvm::Value *codepoint = function->getArg(0);
+    builder.CreateCondBr(
+        builder.CreateICmpULE(codepoint, builder.getInt32(0x7f)), ascii,
+        two_check);
+
+    ::llvm::FunctionCallee dprintf_function = module_->getOrInsertFunction(
+        "dprintf", ::llvm::FunctionType::get(
+                       builder.getInt32Ty(),
+                       {builder.getInt32Ty(), builder.getPtrTy()}, true));
+    ::llvm::Value *format = builder.CreateGlobalString("%c");
+    const auto emit_byte = [&](::llvm::IRBuilder<> &active_builder,
+                               ::llvm::Value *byte) {
+      static_cast<void>(active_builder.CreateCall(
+          dprintf_function, {active_builder.getInt32(1), format, byte}));
+    };
+    const auto utf8_byte = [&](::llvm::IRBuilder<> &active_builder,
+                               unsigned shift, unsigned mask, unsigned prefix) {
+      ::llvm::Value *shifted =
+          active_builder.CreateLShr(codepoint, active_builder.getInt32(shift));
+      return active_builder.CreateOr(
+          active_builder.CreateAnd(shifted, active_builder.getInt32(mask)),
+          active_builder.getInt32(prefix));
+    };
+
+    builder.SetInsertPoint(ascii);
+    emit_byte(builder, codepoint);
+    builder.CreateBr(done);
+
+    builder.SetInsertPoint(two_check);
+    builder.CreateCondBr(
+        builder.CreateICmpULE(codepoint, builder.getInt32(0x7ff)), two,
+        three_check);
+
+    builder.SetInsertPoint(two);
+    emit_byte(builder, utf8_byte(builder, 6, 0x1f, 0xc0));
+    emit_byte(builder, utf8_byte(builder, 0, 0x3f, 0x80));
+    builder.CreateBr(done);
+
+    builder.SetInsertPoint(three_check);
+    builder.CreateCondBr(
+        builder.CreateICmpULE(codepoint, builder.getInt32(0xffff)), three,
+        four);
+
+    builder.SetInsertPoint(three);
+    emit_byte(builder, utf8_byte(builder, 12, 0x0f, 0xe0));
+    emit_byte(builder, utf8_byte(builder, 6, 0x3f, 0x80));
+    emit_byte(builder, utf8_byte(builder, 0, 0x3f, 0x80));
+    builder.CreateBr(done);
+
+    builder.SetInsertPoint(four);
+    emit_byte(builder, utf8_byte(builder, 18, 0x07, 0xf0));
+    emit_byte(builder, utf8_byte(builder, 12, 0x3f, 0x80));
+    emit_byte(builder, utf8_byte(builder, 6, 0x3f, 0x80));
+    emit_byte(builder, utf8_byte(builder, 0, 0x3f, 0x80));
+    builder.CreateBr(done);
+
+    builder.SetInsertPoint(done);
+    builder.CreateRetVoid();
+    return function;
+  }
+
   std::string
   class_key(std::string_view name,
             const std::vector<const janus::Type *> &type_arguments) const {
@@ -528,7 +617,8 @@ private:
             return *locals.at(node.name).type;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
-            if (node.callee == "panic")
+            if (node.callee == "panic" || node.callee == "print" ||
+                node.callee == "println")
               return janus::Type::unit_type();
             if (node.callee == "alloc" || node.callee == "realloc" ||
                 node.callee == "null") {
@@ -663,6 +753,89 @@ private:
                 local.storage, node.name + ".value");
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
+            if (node.callee == "print" || node.callee == "println") {
+              const janus::Type &argument_type = expression_type(
+                  *node.arguments.front(), substitutions, locals);
+              ::llvm::Value *argument =
+                  emit_expression(*node.arguments.front(), argument_type,
+                                  substitutions, locals, builder);
+              ::llvm::FunctionCallee write_function =
+                  module_->getOrInsertFunction(
+                      "write", ::llvm::FunctionType::get(builder.getInt64Ty(),
+                                                         {builder.getInt32Ty(),
+                                                          builder.getPtrTy(),
+                                                          builder.getInt64Ty()},
+                                                         false));
+              ::llvm::FunctionCallee dprintf_function =
+                  module_->getOrInsertFunction(
+                      "dprintf",
+                      ::llvm::FunctionType::get(
+                          builder.getInt32Ty(),
+                          {builder.getInt32Ty(), builder.getPtrTy()}, true));
+              ::llvm::Value *result = nullptr;
+              switch (argument_type.kind()) {
+              case janus::TypeKind::String: {
+                ::llvm::Value *data =
+                    builder.CreateExtractValue(argument, 0, "print.data");
+                ::llvm::Value *length =
+                    builder.CreateExtractValue(argument, 1, "print.length");
+                result = builder.CreateCall(
+                    write_function, {builder.getInt32(1), data, length});
+                break;
+              }
+              case janus::TypeKind::Int:
+                result = builder.CreateCall(dprintf_function,
+                                            {builder.getInt32(1),
+                                             builder.CreateGlobalString("%d"),
+                                             argument});
+                break;
+              case janus::TypeKind::Byte:
+                result = builder.CreateCall(
+                    dprintf_function,
+                    {builder.getInt32(1), builder.CreateGlobalString("%d"),
+                     builder.CreateSExt(argument, builder.getInt32Ty(),
+                                        "print.byte")});
+                break;
+              case janus::TypeKind::USize:
+                result = builder.CreateCall(dprintf_function,
+                                            {builder.getInt32(1),
+                                             builder.CreateGlobalString("%llu"),
+                                             argument});
+                break;
+              case janus::TypeKind::Double:
+                result = builder.CreateCall(
+                    dprintf_function,
+                    {builder.getInt32(1), builder.CreateGlobalString("%.17g"),
+                     argument});
+                break;
+              case janus::TypeKind::Bool: {
+                ::llvm::Value *true_text = builder.CreateGlobalString("true");
+                ::llvm::Value *false_text = builder.CreateGlobalString("false");
+                ::llvm::Value *data = builder.CreateSelect(
+                    argument, true_text, false_text, "print.bool.data");
+                ::llvm::Value *length = builder.CreateSelect(
+                    argument, builder.getInt64(4), builder.getInt64(5),
+                    "print.bool.length");
+                result = builder.CreateCall(
+                    write_function, {builder.getInt32(1), data, length});
+                break;
+              }
+              case janus::TypeKind::Char: {
+                result = builder.CreateCall(ensure_print_char_function(),
+                                            {argument});
+                break;
+              }
+              default:
+                break;
+              }
+              if (node.callee == "println") {
+                ::llvm::Value *newline = builder.CreateGlobalString("\n");
+                result = builder.CreateCall(
+                    write_function,
+                    {builder.getInt32(1), newline, builder.getInt64(1)});
+              }
+              return result;
+            }
             if (node.callee == "panic") {
               ::llvm::Value *message = emit_expression(
                   *node.arguments.front(), janus::Type::string_type(),

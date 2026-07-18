@@ -428,6 +428,29 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               }
               return iterator->second.type;
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              if (node.callee == "print" || node.callee == "println") {
+                if (!node.type_arguments.empty() || node.arguments.size() != 1)
+                  throw CompileError{node.location,
+                                     node.callee +
+                                         " expects one printable argument and "
+                                         "no type argument"};
+                const SemanticType argument =
+                    expression_type(*node.arguments.front());
+                if (!argument.is_concrete() ||
+                    (argument.concrete->kind() != TypeKind::Int &&
+                     argument.concrete->kind() != TypeKind::Double &&
+                     argument.concrete->kind() != TypeKind::Byte &&
+                     argument.concrete->kind() != TypeKind::Char &&
+                     argument.concrete->kind() != TypeKind::Bool &&
+                     argument.concrete->kind() != TypeKind::String &&
+                     argument.concrete->kind() != TypeKind::USize))
+                  throw CompileError{
+                      node.location,
+                      node.callee +
+                          " supports int, double, byte, char, bool, string, "
+                          "and usize values"};
+                return SemanticType{&Type::unit_type()};
+              }
               if (node.callee == "panic") {
                 if (!node.type_arguments.empty() || node.arguments.size() != 1)
                   throw CompileError{
