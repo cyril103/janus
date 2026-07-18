@@ -76,27 +76,6 @@ public:
       if (function->type_parameters.empty())
         static_cast<void>(emit_function(*function, {}));
     }
-    std::unordered_set<std::string> emitted_specializations;
-    while (emitted_specializations.size() < class_specializations_.size()) {
-      std::vector<std::string> keys;
-      for (const auto &[key, specialization] : class_specializations_) {
-        static_cast<void>(specialization);
-        if (!emitted_specializations.contains(key))
-          keys.push_back(key);
-      }
-      for (const std::string &key : keys) {
-        emitted_specializations.insert(key);
-        const ClassSpecialization &specialization =
-            class_specializations_.at(key);
-        for (const janus::ast::FunctionDeclaration &method :
-             specialization.declaration->methods) {
-          if (method.type_parameters.empty())
-            static_cast<void>(
-                emit_function(method, {}, specialization.declaration,
-                              &specialization.substitutions, key));
-        }
-      }
-    }
     return std::move(module_);
   }
 

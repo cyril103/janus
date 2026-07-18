@@ -2,6 +2,14 @@ module std.iterator
 import std.option
 import std.array
 
+enum ZipItem[A, B] {
+    Zipped(A, B)
+}
+
+enum Indexed[T] {
+    IndexValue(usize, T)
+}
+
 class MapIteratorState[A, B](
     private val source : Iterator[A],
     private val transform : (A) => B
@@ -81,6 +89,115 @@ class TakeIteratorState[T](
     }
 }
 
+class ZipIteratorState[A, B](
+    private val left : Iterator[A],
+    private val right : Iterator[B]
+) {
+    private def combine(leftValue : A) : Option[ZipItem[A, B]] {
+        val rightValue : Option[B] = right.next()
+        return match rightValue {
+            Some(value) =>
+                Option.Some[ZipItem[A, B]](
+                    ZipItem.Zipped[A, B](leftValue, value)
+                ),
+            None => Option.None[ZipItem[A, B]]()
+        }
+    }
+
+    def next() : Option[ZipItem[A, B]] {
+        val leftValue : Option[A] = left.next()
+        return match leftValue {
+            Some(value) => this.combine(value),
+            None => Option.None[ZipItem[A, B]]()
+        }
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        delete left
+        delete right
+    }
+}
+
+class EnumerateIteratorState[T](
+    private val source : Iterator[T],
+    private var index : usize
+) {
+    private def attachIndex(value : T) : Option[Indexed[T]] {
+        val current : usize = index
+        index = index + usize(1)
+        return Option.Some[Indexed[T]](
+            Indexed.IndexValue[T](current, value)
+        )
+    }
+
+    def next() : Option[Indexed[T]] {
+        val value : Option[T] = source.next()
+        return match value {
+            Some(item) => this.attachIndex(item),
+            None => Option.None[Indexed[T]]()
+        }
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        delete source
+    }
+}
+
+class FlatMapIteratorState[A, B](
+    private val source : Iterator[A],
+    private val transform : (A) => Iterator[B],
+    private var current : Iterator[B]
+) {
+    private var hasCurrent : bool = false
+
+    private def start(nextIterator : Iterator[B]) : Option[B] {
+        current = move nextIterator
+        hasCurrent = true
+        return this.next()
+    }
+
+    def next() : Option[B] {
+        if hasCurrent {
+            val value : Option[B] = current.next()
+            val available : bool = match value {
+                Some(item) => true,
+                None => false
+            }
+            if available {
+                return value
+            }
+            delete current
+            hasCurrent = false
+        }
+
+        val outer : Option[A] = source.next()
+        return match outer {
+            Some(item) => this.start(transform(item)),
+            None => Option.None[B]()
+        }
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        if hasCurrent {
+            delete current
+        }
+        delete transform
+        delete source
+    }
+}
+
 class Iterator[T](
     private val advance : () => Option[T],
     private val release : () => Unit
@@ -111,6 +228,37 @@ class Iterator[T](
         val state : TakeIteratorState[T] =
             new TakeIteratorState[T](move this, count)
         return new Iterator[T](
+            () => state.next(),
+            () => state.dispose()
+        )
+    }
+
+    def zip[U](other : Iterator[U]) : Iterator[ZipItem[T, U]] {
+        val state : ZipIteratorState[T, U] =
+            new ZipIteratorState[T, U](move this, move other)
+        return new Iterator[ZipItem[T, U]](
+            () => state.next(),
+            () => state.dispose()
+        )
+    }
+
+    def enumerate() : Iterator[Indexed[T]] {
+        val state : EnumerateIteratorState[T] =
+            new EnumerateIteratorState[T](move this, usize(0))
+        return new Iterator[Indexed[T]](
+            () => state.next(),
+            () => state.dispose()
+        )
+    }
+
+    def flatMap[U](transform : (T) => Iterator[U]) : Iterator[U] {
+        val state : FlatMapIteratorState[T, U] =
+            new FlatMapIteratorState[T, U](
+                move this,
+                move transform,
+                Iterator[U](usize(0))
+            )
+        return new Iterator[U](
             () => state.next(),
             () => state.dispose()
         )

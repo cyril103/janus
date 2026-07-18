@@ -567,6 +567,16 @@ for value in range(0, 10) {
 `range(start, end)` produit paresseusement les valeurs de `start` inclus à
 `end` exclu et retourne directement un `Iterator[int]`.
 
+Les adaptateurs supplémentaires restent eux aussi paresseux :
+
+- `zip[U](Iterator[U]) : Iterator[ZipItem[T, U]]` ;
+- `enumerate() : Iterator[Indexed[T]]` ;
+- `flatMap[U]((T) => Iterator[U]) : Iterator[U]`.
+
+`ZipItem` se déstructure avec `Zipped(left, right)` et `Indexed` avec
+`IndexValue(index, value)`. `zip` s’arrête avec l’itérateur le plus court.
+`flatMap` détruit chaque itérateur intérieur dès qu’il est épuisé.
+
 Le tableau possède son buffer, mais pas les objets éventuellement stockés. Un
 `Array[Point]` copie les pointeurs vers les `Point` : le programmeur doit
 continuer à supprimer chaque objet séparément.

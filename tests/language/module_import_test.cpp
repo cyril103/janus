@@ -48,7 +48,10 @@ int main() {
   expect(has_class("Array") && has_class("Iterator") &&
              has_class("ArrayIteratorState"),
          "import std.array loads Array and its iterator support");
-  expect(program.enums.size() == 1 && program.enums.front().name == "Option",
+  expect(std::any_of(program.enums.begin(), program.enums.end(),
+                     [](const janus::ast::EnumDeclaration &declaration) {
+                       return declaration.name == "Option";
+                     }),
          "Array imports Option for its safe operations");
   expect(program.functions.size() == 1 &&
              program.functions.front().name == "main",
@@ -162,6 +165,27 @@ int main() {
          "range constructs a lazy integer iterator");
   expect(range_ir.find("for.next") != std::string::npos,
          "Range values work with for-in");
+
+  const janus::ast::Program adapters_program =
+      loader.load(std::filesystem::path{JANUS_ITERATOR_ADAPTERS_EXAMPLE});
+  static_cast<void>(analyzer.analyze(adapters_program));
+  llvm::LLVMContext adapters_context;
+  janus::backend::llvm::IrGenerator adapters_generator{adapters_context};
+  const std::unique_ptr<llvm::Module> adapters_module =
+      adapters_generator.generate(adapters_program, "iterator_adapters");
+  std::string adapters_ir;
+  llvm::raw_string_ostream adapters_output{adapters_ir};
+  adapters_module->print(adapters_output, nullptr);
+  adapters_output.flush();
+  expect(adapters_ir.find("Iterator__int__zip__int") != std::string::npos,
+         "zip combines two lazy iterators");
+  expect(adapters_ir.find("Iterator__int__enumerate") != std::string::npos,
+         "enumerate attaches indices lazily");
+  expect(adapters_ir.find("Iterator__int__flatMap__int") != std::string::npos,
+         "flatMap switches between lazy inner iterators");
+  expect(adapters_ir.find("%enum.ZipItem__int__int = type") !=
+             std::string::npos,
+         "zip items are represented inline");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

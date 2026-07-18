@@ -54,7 +54,7 @@ class Box[T](var value : T) {
 
 def main() : int {
     val integers : Box[int] = new Box[int](41)
-    val result : int = integers.set(42)
+    val result : int = integers.set(42) + integers.get()
     val text : Box[string] = new Box[string]("Janus")
     val message : string = text.get()
     val nested : Box[Box[int]] = new Box[Box[int]](integers)
