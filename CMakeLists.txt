@@ -258,6 +258,21 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.generic_class COMMAND generic_class_test)
 
+    add_executable(generic_method_test
+        tests/language/generic_method_test.cpp
+    )
+    target_link_libraries(generic_method_test
+        PRIVATE
+            janus_semantic
+    )
+    target_compile_options(generic_method_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.generic_method COMMAND generic_method_test)
+
     add_executable(control_flow_test
         tests/language/control_flow_test.cpp
     )
