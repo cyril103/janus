@@ -148,6 +148,13 @@ instructions :
 ./build/janusc examples/unit.janus
 ```
 
+Le fichier `examples/constructor.janus` présente les paramètres de constructeur
+temporaires et l'initialisation ordonnée des champs :
+
+```bash
+./build/janusc examples/constructor.janus
+```
+
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
 conserver dans un fichier :
 
@@ -363,6 +370,20 @@ possèdent des layouts LLVM, des méthodes et des destructeurs distincts. Une
 spécialisation qui n'est jamais utilisée ne génère pas de code.
 
 ## Classes et allocation manuelle
+
+Un paramètre de constructeur sans `val` ou `var` est disponible pendant
+l'initialisation, mais ne devient pas un champ :
+
+```janus
+class Counter(initialValue : int, private val step : int) {
+    private val initial : int = initialValue
+    private var current : int = initial
+}
+```
+
+Les paramètres simples doivent précéder les paramètres `val`/`var`. Les champs
+du corps sont initialisés dans leur ordre de déclaration et peuvent lire les
+paramètres du constructeur ainsi que les champs déjà initialisés.
 
 Les paramètres `val` et `var` d'une classe sont à la fois des paramètres du
 constructeur et des champs publics :

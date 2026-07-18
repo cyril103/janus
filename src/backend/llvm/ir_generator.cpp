@@ -660,31 +660,55 @@ private:
             ::llvm::Value *object = builder.CreateCall(
                 malloc_function, {::llvm::ConstantExpr::getSizeOf(class_type)},
                 node.class_name + ".new");
+            auto initializer_locals = locals;
+            const std::size_t parameter_count =
+                class_declaration.constructor_parameters.size();
+            for (std::size_t index = 0; index < parameter_count; ++index) {
+              const auto &parameter =
+                  class_declaration.constructor_parameters[index];
+              const janus::Type &parameter_type =
+                  resolve(parameter.type, specialization.substitutions);
+              ::llvm::Value *storage = builder.CreateAlloca(
+                  janus::backend::llvm::lower_type(parameter_type, context_),
+                  nullptr, parameter.name + ".constructor");
+              builder.CreateStore(emit_expression(*node.arguments[index],
+                                                  parameter_type, substitutions,
+                                                  locals, builder),
+                                  storage);
+              initializer_locals.insert_or_assign(
+                  parameter.name, Local{storage, &parameter_type});
+            }
             unsigned field_index = 0;
-            for (std::size_t index = 0; index < node.arguments.size();
-                 ++index) {
-              const janus::Type &field_type = resolve(
-                  class_declaration.constructor_fields[index].declared_type,
-                  specialization.substitutions);
+            for (std::size_t index = 0;
+                 index < class_declaration.constructor_fields.size(); ++index) {
+              const auto &field_declaration =
+                  class_declaration.constructor_fields[index];
+              const janus::Type &field_type =
+                  resolve(field_declaration.declared_type,
+                          specialization.substitutions);
               ::llvm::Value *field =
                   builder.CreateStructGEP(class_type, object, field_index++);
-              builder.CreateStore(emit_expression(*node.arguments[index],
-                                                  field_type, substitutions,
-                                                  locals, builder),
-                                  field);
+              builder.CreateStore(
+                  emit_expression(*node.arguments[parameter_count + index],
+                                  field_type, substitutions, locals, builder),
+                  field);
+              initializer_locals.insert_or_assign(field_declaration.name,
+                                                  Local{field, &field_type});
             }
             for (const auto &field_declaration : class_declaration.fields) {
               ::llvm::Value *field =
                   builder.CreateStructGEP(class_type, object, field_index++);
+              const janus::Type &field_type =
+                  resolve(field_declaration.declared_type,
+                          specialization.substitutions);
               if (field_declaration.initializer.has_value()) {
-                const janus::Type &field_type =
-                    resolve(field_declaration.declared_type,
-                            specialization.substitutions);
                 builder.CreateStore(
                     emit_expression(*field_declaration.initializer, field_type,
-                                    substitutions, locals, builder),
+                                    substitutions, initializer_locals, builder),
                     field);
               }
+              initializer_locals.insert_or_assign(field_declaration.name,
+                                                  Local{field, &field_type});
             }
             return object;
           } else if constexpr (std::is_same_v<

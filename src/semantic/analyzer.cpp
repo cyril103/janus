@@ -177,8 +177,26 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                            "type parameter '" + parameter +
                                "' conflicts with a built-in type"};
     }
+    std::unordered_set<std::string> constructor_names;
+    for (const ast::FunctionDeclaration::Parameter &parameter :
+         class_declaration.constructor_parameters) {
+      if (!constructor_names.insert(parameter.name).second)
+        throw CompileError{parameter.location, "constructor parameter '" +
+                                                   parameter.name +
+                                                   "' is already declared"};
+      const SemanticType parameter_type =
+          resolve_type(parameter.type, parameters, &class_arities);
+      if (parameter_type.is_concrete() &&
+          parameter_type.concrete->kind() == TypeKind::Unit)
+        throw CompileError{parameter.location,
+                           "Unit cannot be used as a parameter type"};
+    }
     for (const ast::ValueDeclaration &field :
          class_declaration.constructor_fields) {
+      if (!constructor_names.insert(field.name).second)
+        throw CompileError{field.location, "constructor parameter '" +
+                                               field.name +
+                                               "' is already declared"};
       const SemanticType field_type =
           resolve_type(field.declared_type, parameters, &class_arities);
       if (field_type.is_concrete() &&
@@ -432,25 +450,62 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               const std::unordered_set<std::string> class_parameters{
                   class_declaration.type_parameters.begin(),
                   class_declaration.type_parameters.end()};
-              if (node.arguments.size() !=
-                  class_declaration.constructor_fields.size())
+              const std::size_t parameter_count =
+                  class_declaration.constructor_parameters.size();
+              const std::size_t field_count =
+                  class_declaration.constructor_fields.size();
+              if (node.arguments.size() != parameter_count + field_count)
                 throw CompileError{
                     node.location,
                     "constructor '" + node.class_name + "' expects " +
-                        std::to_string(
-                            class_declaration.constructor_fields.size()) +
+                        std::to_string(parameter_count + field_count) +
                         " argument(s), got " +
                         std::to_string(node.arguments.size())};
-              for (std::size_t index = 0; index < node.arguments.size();
-                   ++index) {
-                const SemanticType field_type = resolve_type(
-                    class_declaration.constructor_fields[index].declared_type,
-                    class_parameters, &class_arities);
+              SymbolTable initializer_symbols;
+              for (std::size_t index = 0; index < parameter_count; ++index) {
+                const auto &parameter =
+                    class_declaration.constructor_parameters[index];
+                SemanticType parameter_type = resolve_type(
+                    parameter.type, class_parameters, &class_arities);
+                parameter_type =
+                    substitute(std::move(parameter_type), substitutions);
                 validate_expression(
-                    *node.arguments[index],
-                    substitute(field_type, substitutions),
+                    *node.arguments[index], parameter_type,
                     expression_location(*node.arguments[index]));
+                initializer_symbols.emplace(
+                    parameter.name, Symbol{parameter_type, false, true});
               }
+              for (std::size_t index = 0; index < field_count; ++index) {
+                const auto &field = class_declaration.constructor_fields[index];
+                const SemanticType field_type = resolve_type(
+                    field.declared_type, class_parameters, &class_arities);
+                const SemanticType concrete_field_type =
+                    substitute(field_type, substitutions);
+                validate_expression(
+                    *node.arguments[parameter_count + index],
+                    concrete_field_type,
+                    expression_location(
+                        *node.arguments[parameter_count + index]));
+                initializer_symbols.emplace(
+                    field.name,
+                    Symbol{concrete_field_type, field.is_mutable, true});
+              }
+
+              SymbolTable *previous_symbols = active_symbols;
+              active_symbols = &initializer_symbols;
+              for (const ast::ValueDeclaration &field :
+                   class_declaration.fields) {
+                SemanticType field_type = resolve_type(
+                    field.declared_type, class_parameters, &class_arities);
+                field_type = substitute(std::move(field_type), substitutions);
+                if (field.initializer.has_value())
+                  validate_expression(*field.initializer, field_type,
+                                      field.location);
+                initializer_symbols.emplace(
+                    field.name, Symbol{field_type, field.is_mutable,
+                                       field.initializer.has_value()});
+              }
+              active_symbols = previous_symbols;
               return instance_type;
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {

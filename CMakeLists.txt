@@ -268,4 +268,21 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.unit_type COMMAND unit_type_test)
+
+    add_executable(constructor_initialization_test
+        tests/language/constructor_initialization_test.cpp
+    )
+    target_link_libraries(constructor_initialization_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(constructor_initialization_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.constructor_initialization
+        COMMAND constructor_initialization_test)
 endif()

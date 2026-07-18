@@ -193,22 +193,40 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
   }
 
   static_cast<void>(expect(TokenKind::LeftParen));
+  std::vector<ast::FunctionDeclaration::Parameter> constructor_parameters;
   std::vector<ast::ValueDeclaration> constructor_fields;
+  bool parsed_field = false;
   if (current_.kind != TokenKind::RightParen) {
     do {
       const bool is_private = current_.kind == TokenKind::Private;
       if (is_private)
         advance();
-      const bool is_mutable = current_.kind == TokenKind::Var;
-      const Token keyword =
-          expect(is_mutable ? TokenKind::Var : TokenKind::Val);
-      const Token field = expect(TokenKind::Identifier);
-      static_cast<void>(expect(TokenKind::Colon));
-      ast::ValueDeclaration declaration{std::string{field.lexeme}, parse_type(),
-                                        is_mutable, std::nullopt,
-                                        keyword.location};
-      declaration.is_private = is_private;
-      constructor_fields.push_back(std::move(declaration));
+      if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
+        parsed_field = true;
+        const bool is_mutable = current_.kind == TokenKind::Var;
+        const Token keyword =
+            expect(is_mutable ? TokenKind::Var : TokenKind::Val);
+        const Token field = expect(TokenKind::Identifier);
+        static_cast<void>(expect(TokenKind::Colon));
+        ast::ValueDeclaration declaration{std::string{field.lexeme},
+                                          parse_type(), is_mutable,
+                                          std::nullopt, keyword.location};
+        declaration.is_private = is_private;
+        constructor_fields.push_back(std::move(declaration));
+      } else {
+        if (is_private)
+          throw CompileError{
+              current_.location,
+              "a non-field constructor parameter cannot be private"};
+        if (parsed_field)
+          throw CompileError{
+              current_.location,
+              "non-field constructor parameters must precede val/var fields"};
+        const Token parameter = expect(TokenKind::Identifier);
+        static_cast<void>(expect(TokenKind::Colon));
+        constructor_parameters.push_back(ast::FunctionDeclaration::Parameter{
+            std::string{parameter.lexeme}, parse_type(), parameter.location});
+      }
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -249,6 +267,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
   static_cast<void>(expect(TokenKind::RightBrace));
   return ast::ClassDeclaration{std::string{name.lexeme},
                                std::move(type_parameters),
+                               std::move(constructor_parameters),
                                std::move(constructor_fields),
                                std::move(fields),
                                std::move(methods),

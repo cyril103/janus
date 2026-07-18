@@ -1,0 +1,16 @@
+class Counter(initialValue : int, private val step : int) {
+    private val initial : int = initialValue
+    private var current : int = initial
+
+    def next() : int {
+        current = current + step
+        return current
+    }
+}
+
+def main() : int {
+    val counter : Counter = new Counter(40, 2)
+    val result : int = counter.next()
+    delete counter
+    return result
+}

@@ -209,6 +209,7 @@ struct DestructorDeclaration {
 struct ClassDeclaration {
   std::string name;
   std::vector<std::string> type_parameters;
+  std::vector<FunctionDeclaration::Parameter> constructor_parameters;
   std::vector<ValueDeclaration> constructor_fields;
   std::vector<ValueDeclaration> fields;
   std::vector<FunctionDeclaration> methods;
