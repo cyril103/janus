@@ -155,6 +155,13 @@ temporaires et l'initialisation ordonnée des champs :
 ./build/janusc examples/constructor.janus
 ```
 
+Le fichier `examples/destructor.janus` présente un destructeur qui libère un
+objet possédé :
+
+```bash
+./build/janusc examples/destructor.janus
+```
+
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
 conserver dans un fichier :
 
@@ -439,8 +446,9 @@ bloc `destructor`. Une méthode reçoit un paramètre `this` implicite. Elle peu
 accéder aux champs directement avec `x` ou explicitement avec `this.x`, et
 modifier les champs déclarés avec `var`.
 
-Les méthodes génériques et les instructions d'un destructeur non vide ne sont
-pas encore prises en charge.
+Les corps de destructeurs acceptent les mêmes instructions qu'une fonction
+`Unit`, notamment les conditions, les boucles, les appels et `delete`. Les
+méthodes génériques ne sont pas encore prises en charge.
 
 ### Membres privés
 

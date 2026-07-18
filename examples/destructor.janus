@@ -1,0 +1,17 @@
+class Leaf(val value : int) {
+    destructor {
+    }
+}
+
+class Owner(private val leaf : Leaf) {
+    destructor {
+        delete leaf
+    }
+}
+
+def main() : int {
+    val leaf : Leaf = new Leaf(42)
+    val owner : Owner = new Owner(leaf)
+    delete owner
+    return 42
+}

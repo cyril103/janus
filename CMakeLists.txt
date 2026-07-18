@@ -285,4 +285,20 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.constructor_initialization
         COMMAND constructor_initialization_test)
+
+    add_executable(destructor_body_test
+        tests/language/destructor_body_test.cpp
+    )
+    target_link_libraries(destructor_body_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(destructor_body_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.destructor_body COMMAND destructor_body_test)
 endif()

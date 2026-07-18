@@ -159,11 +159,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     }
     class_arities.emplace(class_declaration.name,
                           class_declaration.type_parameters.size());
-    if (class_declaration.destructor.has_value() &&
-        !class_declaration.destructor->body.empty()) {
-      throw CompileError{class_declaration.destructor->location,
-                         "non-empty destructor bodies are not yet supported"};
-    }
   }
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
     std::unordered_set<std::string> parameters;
@@ -217,10 +212,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
   struct FunctionContext {
     const ast::FunctionDeclaration *function;
     const ast::ClassDeclaration *owner;
+    const ast::DestructorDeclaration *destructor;
   };
   std::vector<FunctionContext> contexts;
   for (const ast::FunctionDeclaration &function : program.functions) {
-    contexts.push_back(FunctionContext{&function, nullptr});
+    contexts.push_back(FunctionContext{&function, nullptr, nullptr});
     if (!functions.emplace(function.name, &function).second) {
       throw CompileError{function.location, "function '" + function.name +
                                                 "' is already declared"};
@@ -235,8 +231,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                "' is already declared in class '" +
                                class_declaration.name + "'"};
       }
-      contexts.push_back(FunctionContext{&method, &class_declaration});
+      contexts.push_back(FunctionContext{&method, &class_declaration, nullptr});
     }
+    if (class_declaration.destructor.has_value())
+      contexts.push_back(FunctionContext{nullptr, &class_declaration,
+                                         &*class_declaration.destructor});
   }
 
   const auto main_iterator = functions.find("main");
@@ -246,33 +245,49 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
   }
 
   for (const FunctionContext &context : contexts) {
-    const ast::FunctionDeclaration &function = *context.function;
+    const bool is_destructor = context.destructor != nullptr;
     const ast::ClassDeclaration *owner = context.owner;
+    const std::vector<std::string> empty_type_parameters;
+    const std::vector<ast::FunctionDeclaration::Parameter> empty_parameters;
+    const std::vector<std::string> &function_type_parameters =
+        is_destructor ? empty_type_parameters
+                      : context.function->type_parameters;
+    const std::vector<ast::FunctionDeclaration::Parameter> &parameters =
+        is_destructor ? empty_parameters : context.function->parameters;
+    const std::vector<ast::Statement> &body =
+        is_destructor ? context.destructor->body : context.function->body;
+    const SourceLocation function_location = is_destructor
+                                                 ? context.destructor->location
+                                                 : context.function->location;
+    const std::string function_name =
+        is_destructor ? "destructor" : context.function->name;
     std::unordered_set<std::string> type_parameters;
     if (owner != nullptr) {
       type_parameters.insert(owner->type_parameters.begin(),
                              owner->type_parameters.end());
     }
-    for (const std::string &parameter : function.type_parameters) {
+    for (const std::string &parameter : function_type_parameters) {
       if (!type_parameters.insert(parameter).second) {
-        throw CompileError{function.location, "type parameter '" + parameter +
+        throw CompileError{function_location, "type parameter '" + parameter +
                                                   "' is already declared"};
       }
       if (builtin_type(parameter) != nullptr) {
-        throw CompileError{function.location,
+        throw CompileError{function_location,
                            "type parameter '" + parameter +
                                "' conflicts with a built-in type"};
       }
     }
 
     const SemanticType return_type =
-        resolve_type(function.return_type, type_parameters, &class_arities);
-    if (owner == nullptr && function.name == "main") {
-      if (!function.type_parameters.empty() || !function.parameters.empty() ||
+        is_destructor ? SemanticType{&Type::unit_type()}
+                      : resolve_type(context.function->return_type,
+                                     type_parameters, &class_arities);
+    if (!is_destructor && owner == nullptr && function_name == "main") {
+      if (!function_type_parameters.empty() || !parameters.empty() ||
           !return_type.is_concrete() ||
           return_type.concrete->kind() != TypeKind::Int) {
         throw CompileError{
-            function.location,
+            function_location,
             "entry point must have signature 'def main() : int'"};
       }
     }
@@ -299,8 +314,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                field.initializer.has_value()});
       }
     }
-    for (const ast::FunctionDeclaration::Parameter &parameter :
-         function.parameters) {
+    for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
       const SemanticType parameter_type =
           resolve_type(parameter.type, type_parameters, &class_arities);
       if (parameter_type.is_concrete() &&
@@ -889,15 +903,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       return has_return;
     };
 
-    const bool has_return = validate_block(function.body, symbols);
+    const bool has_return = validate_block(body, symbols);
 
     if (!has_return && (!return_type.is_concrete() ||
                         return_type.concrete->kind() != TypeKind::Unit)) {
-      throw CompileError{function.location, "function '" + function.name +
+      throw CompileError{function_location, "function '" + function_name +
                                                 "' must return a value"};
     }
     const std::string analysis_name =
-        owner == nullptr ? function.name : owner->name + "." + function.name;
+        owner == nullptr ? function_name : owner->name + "." + function_name;
     result.functions.emplace(analysis_name, std::move(symbols));
   }
 

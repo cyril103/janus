@@ -176,12 +176,13 @@ private:
     return name;
   }
 
-  ::llvm::Function *
-  emit_function(const janus::ast::FunctionDeclaration &function,
-                const std::vector<const janus::Type *> &type_arguments,
-                const janus::ast::ClassDeclaration *owner = nullptr,
-                const Substitutions *owner_substitutions = nullptr,
-                std::string_view owner_key = {}) {
+  ::llvm::Function *emit_function(
+      const janus::ast::FunctionDeclaration &function,
+      const std::vector<const janus::Type *> &type_arguments,
+      const janus::ast::ClassDeclaration *owner = nullptr,
+      const Substitutions *owner_substitutions = nullptr,
+      std::string_view owner_key = {},
+      const std::vector<janus::ast::Statement> *body_override = nullptr) {
     const std::string llvm_name =
         (owner == nullptr ? std::string{} : std::string{owner_key} + "__") +
         mangle(function, type_arguments);
@@ -211,7 +212,8 @@ private:
         janus::backend::llvm::lower_type(return_type, context_),
         parameter_types, false);
     const ::llvm::GlobalValue::LinkageTypes linkage =
-        owner != nullptr && function.is_private
+        owner != nullptr &&
+                (function.is_private || function.name == "destructor")
             ? ::llvm::Function::InternalLinkage
             : ::llvm::Function::ExternalLinkage;
     auto *llvm_function =
@@ -426,7 +428,8 @@ private:
       }
       return false;
     };
-    const bool emitted_return = emit_block(function.body, locals);
+    const bool emitted_return = emit_block(
+        body_override == nullptr ? function.body : *body_override, locals);
     if (!emitted_return && return_type.kind() == janus::TypeKind::Unit)
       builder.CreateRetVoid();
     return llvm_function;
@@ -457,16 +460,22 @@ private:
     const std::string name = class_name + "__destructor";
     if (const auto iterator = emitted_.find(name); iterator != emitted_.end())
       return iterator->second;
-    auto *type = ::llvm::FunctionType::get(
-        ::llvm::Type::getVoidTy(context_),
-        {::llvm::PointerType::getUnqual(context_)}, false);
-    auto *function = ::llvm::Function::Create(
-        type, ::llvm::Function::InternalLinkage, name, *module_);
-    emitted_.emplace(name, function);
-    auto *entry = ::llvm::BasicBlock::Create(context_, "entry", function);
-    ::llvm::IRBuilder<> builder{entry};
-    builder.CreateRetVoid();
-    return function;
+    const ClassSpecialization &specialization =
+        class_specializations_.at(class_name);
+    const janus::SourceLocation location =
+        specialization.declaration->destructor.has_value()
+            ? specialization.declaration->destructor->location
+            : specialization.declaration->location;
+    janus::ast::FunctionDeclaration destructor_function{
+        "destructor", {},
+        {},           janus::ast::TypeReference{"Unit", location, {}},
+        {},           location};
+    const std::vector<janus::ast::Statement> empty_body;
+    const auto &body = specialization.declaration->destructor.has_value()
+                           ? specialization.declaration->destructor->body
+                           : empty_body;
+    return emit_function(destructor_function, {}, specialization.declaration,
+                         &specialization.substitutions, class_name, &body);
   }
 
   const janus::Type &

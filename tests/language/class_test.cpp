@@ -144,10 +144,6 @@ def main() : int {
   expect_compile_error("def main() : int { delete 1 return 0 }",
                        "delete requires an object");
   expect_compile_error(
-      "class Resource() { destructor { var state : int = 0 } } "
-      "def main() : int { return 0 }",
-      "non-empty destructor bodies are not yet supported");
-  expect_compile_error(
       "class Point(var x : int) { def set(value : int) : int { x = value "
       "return x } } def main() : int { val p : Point = new Point(1) "
       "return p.set(true) }",
