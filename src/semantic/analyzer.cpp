@@ -14,6 +14,9 @@
 
 namespace {
 
+constexpr std::size_t enum_arity_marker =
+    std::numeric_limits<std::size_t>::max() / 2;
+
 const janus::Type *builtin_type(std::string_view name) {
   if (name == "int")
     return &janus::Type::int_type();
@@ -90,13 +93,21 @@ resolve_type(const janus::ast::TypeReference &reference,
   if (class_arities != nullptr) {
     if (const auto iterator = class_arities->find(reference.name);
         iterator != class_arities->end()) {
-      if (iterator->second == std::numeric_limits<std::size_t>::max()) {
-        if (!reference.type_arguments.empty())
-          throw janus::CompileError{reference.location,
-                                    "enum '" + reference.name +
-                                        "' does not accept type arguments"};
-        return janus::semantic::SemanticType{nullptr, reference.name, false,
-                                             {},      false,          true};
+      if (iterator->second >= enum_arity_marker) {
+        const std::size_t arity = iterator->second - enum_arity_marker;
+        if (reference.type_arguments.size() != arity)
+          throw janus::CompileError{
+              reference.location,
+              "enum '" + reference.name + "' expects " + std::to_string(arity) +
+                  " type argument(s), got " +
+                  std::to_string(reference.type_arguments.size())};
+        std::vector<janus::semantic::SemanticType> arguments;
+        for (const janus::ast::TypeReference &argument :
+             reference.type_arguments)
+          arguments.push_back(
+              resolve_type(argument, type_parameters, class_arities));
+        return janus::semantic::SemanticType{
+            nullptr, reference.name, false, std::move(arguments), false, true};
       }
       if (reference.type_arguments.size() != iterator->second)
         throw janus::CompileError{
@@ -131,7 +142,10 @@ bool same_type(const janus::semantic::SemanticType &left,
                       right.type_arguments.begin(), same_type);
   if (left.is_enum() || right.is_enum())
     return left.is_enum() && right.is_enum() &&
-           left.parameter == right.parameter;
+           left.parameter == right.parameter &&
+           left.type_arguments.size() == right.type_arguments.size() &&
+           std::equal(left.type_arguments.begin(), left.type_arguments.end(),
+                      right.type_arguments.begin(), same_type);
   if (left.is_function() || right.is_function())
     return left.is_function() && right.is_function() &&
            left.type_arguments.size() == right.type_arguments.size() &&
@@ -283,7 +297,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                          "enum '" + enum_declaration.name +
                              "' is already declared"};
     class_arities.emplace(enum_declaration.name,
-                          std::numeric_limits<std::size_t>::max());
+                          enum_arity_marker +
+                              enum_declaration.type_parameters.size());
+    std::unordered_set<std::string> enum_parameters;
+    for (const std::string &parameter : enum_declaration.type_parameters) {
+      if (!enum_parameters.insert(parameter).second)
+        throw CompileError{enum_declaration.location,
+                           "type parameter '" + parameter +
+                               "' is already declared"};
+      if (builtin_type(parameter) != nullptr || parameter == "Function")
+        throw CompileError{enum_declaration.location,
+                           "type parameter '" + parameter +
+                               "' conflicts with a built-in type"};
+    }
     std::unordered_set<std::string> case_names;
     for (const ast::EnumDeclaration::Case &enum_case : enum_declaration.cases) {
       if (!case_names.insert(enum_case.name).second)
@@ -310,6 +336,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     }
     class_arities.emplace(class_declaration.name,
                           class_declaration.type_parameters.size());
+  }
+  for (const ast::EnumDeclaration &enum_declaration : program.enums) {
+    const std::unordered_set<std::string> parameters{
+        enum_declaration.type_parameters.begin(),
+        enum_declaration.type_parameters.end()};
+    for (const ast::EnumDeclaration::Case &enum_case : enum_declaration.cases) {
+      for (const ast::TypeReference &payload_type : enum_case.payload_types) {
+        const SemanticType resolved =
+            resolve_type(payload_type, parameters, &class_arities);
+        if (resolved.is_concrete() &&
+            resolved.concrete->kind() == TypeKind::Unit)
+          throw CompileError{payload_type.location,
+                             "Unit cannot be stored in an enum variant"};
+      }
+    }
   }
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
     std::unordered_set<std::string> parameters;
@@ -737,6 +778,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                          "' expects exactly one argument"};
                 const SemanticType source_type =
                     expression_type(*node.arguments.front());
+                const auto enum_has_payload = [&](const SemanticType &type) {
+                  if (!type.is_enum())
+                    return false;
+                  const ast::EnumDeclaration &declaration =
+                      *enums.at(type.parameter);
+                  return std::any_of(
+                      declaration.cases.begin(), declaration.cases.end(),
+                      [](const ast::EnumDeclaration::Case &enum_case) {
+                        return !enum_case.payload_types.empty();
+                      });
+                };
+                if (enum_has_payload(source_type) ||
+                    enum_has_payload(destination_type))
+                  throw CompileError{
+                      node.location,
+                      "enums with payloads cannot be explicitly cast"};
                 if (!can_explicitly_cast(source_type, destination_type))
                   throw CompileError{node.location,
                                      "cannot explicitly cast type '" +
@@ -878,6 +935,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   identifier != nullptr && enums.contains(identifier->name)) {
                 const ast::EnumDeclaration &enum_declaration =
                     *enums.at(identifier->name);
+                if (!enum_declaration.type_parameters.empty())
+                  throw CompileError{
+                      node.location,
+                      "generic enum cases require constructor syntax '" +
+                          enum_declaration.name + "." + node.member +
+                          "[Types](...)'"};
                 const auto enum_case =
                     std::find_if(enum_declaration.cases.begin(),
                                  enum_declaration.cases.end(),
@@ -888,6 +951,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   throw CompileError{node.location,
                                      "enum '" + enum_declaration.name +
                                          "' has no case '" + node.member + "'"};
+                if (!enum_case->payload_types.empty())
+                  throw CompileError{node.location,
+                                     "enum case '" + enum_declaration.name +
+                                         "." + node.member +
+                                         "' requires constructor arguments"};
                 return SemanticType{
                     nullptr, enum_declaration.name, false, {}, false, true};
               }
@@ -937,6 +1005,54 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                      "' has no field '" + node.member + "'"};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MethodCallExpression>) {
+              if (const auto *identifier =
+                      std::get_if<ast::IdentifierExpression>(
+                          &node.object->value);
+                  identifier != nullptr && enums.contains(identifier->name)) {
+                const ast::EnumDeclaration &enum_declaration =
+                    *enums.at(identifier->name);
+                const SemanticType instance_type = resolve_type(
+                    ast::TypeReference{enum_declaration.name, node.location,
+                                       node.type_arguments},
+                    *active_type_parameters, &class_arities);
+                const auto enum_case =
+                    std::find_if(enum_declaration.cases.begin(),
+                                 enum_declaration.cases.end(),
+                                 [&](const ast::EnumDeclaration::Case &item) {
+                                   return item.name == node.method;
+                                 });
+                if (enum_case == enum_declaration.cases.end())
+                  throw CompileError{node.location,
+                                     "enum '" + enum_declaration.name +
+                                         "' has no case '" + node.method + "'"};
+                if (node.arguments.size() != enum_case->payload_types.size())
+                  throw CompileError{
+                      node.location,
+                      "enum case '" + enum_declaration.name + "." +
+                          node.method + "' expects " +
+                          std::to_string(enum_case->payload_types.size()) +
+                          " argument(s), got " +
+                          std::to_string(node.arguments.size())};
+                std::unordered_map<std::string, SemanticType> substitutions;
+                for (std::size_t index = 0;
+                     index < enum_declaration.type_parameters.size(); ++index)
+                  substitutions.emplace(enum_declaration.type_parameters[index],
+                                        instance_type.type_arguments[index]);
+                const std::unordered_set<std::string> enum_parameters{
+                    enum_declaration.type_parameters.begin(),
+                    enum_declaration.type_parameters.end()};
+                for (std::size_t index = 0; index < node.arguments.size();
+                     ++index) {
+                  SemanticType expected =
+                      resolve_type(enum_case->payload_types[index],
+                                   enum_parameters, &class_arities);
+                  validate_expression(
+                      *node.arguments[index],
+                      substitute(std::move(expected), substitutions),
+                      expression_location(*node.arguments[index]));
+                }
+                return instance_type;
+              }
               const SemanticType object_type = expression_type(*node.object);
               if (object_type.is_pointer()) {
                 if (!node.type_arguments.empty())
@@ -1134,6 +1250,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   throw CompileError{
                       node.location,
                       "equality operators require primitive operands"};
+                }
+                if (left_type.is_enum()) {
+                  const ast::EnumDeclaration &declaration =
+                      *enums.at(left_type.parameter);
+                  if (std::any_of(
+                          declaration.cases.begin(), declaration.cases.end(),
+                          [](const ast::EnumDeclaration::Case &enum_case) {
+                            return !enum_case.payload_types.empty();
+                          }))
+                    throw CompileError{
+                        node.location,
+                        "enums with payloads must be inspected with match"};
                 }
                 return SemanticType{&Type::bool_type(), {}};
               case ast::BinaryOperator::LogicalAnd:

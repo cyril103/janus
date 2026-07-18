@@ -47,9 +47,16 @@ enum Direction {
     West = -2
 }
 
+enum Option[T] {
+    Some(T),
+    None
+}
+
 def main() : int {
     val current : Direction = Direction.South
     val unchecked : Direction = Direction(99)
+    val present : Option[int] = Option.Some[int](42)
+    val absent : Option[int] = Option.None[int]()
     if current == Direction.South {
         return int(current)
     }
@@ -59,7 +66,7 @@ def main() : int {
 
   janus::frontend::Parser parser{source};
   const janus::ast::Program program = parser.parse_program();
-  expect(program.enums.size() == 1, "parser retains the enum declaration");
+  expect(program.enums.size() == 2, "parser retains enum declarations");
   expect(program.enums.front().cases.size() == 4,
          "parser retains every enum case");
   expect(program.enums.front().cases[0].value == 0,
@@ -83,10 +90,15 @@ def main() : int {
   module->print(output, nullptr);
   output.flush();
 
-  expect(ir.find("%current = alloca i32") != std::string::npos,
-         "enums use a compact signed 32-bit representation");
-  expect(ir.find("store i32 5, ptr %current") != std::string::npos,
+  expect(ir.find("%enum.Direction = type { i32 }") != std::string::npos,
+         "plain enums store a signed 32-bit tag");
+  expect(ir.find("%enum.Option__int = type { i32, i32 }") != std::string::npos,
+         "generic payload enums specialize their inline representation");
+  expect(ir.find("store %enum.Direction { i32 5 }, ptr %current") !=
+             std::string::npos,
          "enum cases lower to their discriminants");
+  expect(ir.find("%enum.Option__int { i32 0, i32 42 }") != std::string::npos,
+         "payload constructors store their associated value inline");
   expect(ir.find("icmp eq i32") != std::string::npos,
          "values of the same enum can be compared");
 
@@ -102,6 +114,14 @@ def main() : int {
       "operands must have the same type");
   expect_compile_error("enum Empty {} def main() : int { return 0 }",
                        "must declare at least one case");
+  expect_compile_error(
+      "enum Option[T] { Some(T), None } def main() : int { "
+      "val value : Option[int] = Option.Some[int]() return 0 }",
+      "expects 1 argument");
+  expect_compile_error(
+      "enum Option[T] { Some(T), None } def main() : int { "
+      "val value : Option[int] = Option.Some[double](1.0) return 0 }",
+      "where type 'Option[int]' is required");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

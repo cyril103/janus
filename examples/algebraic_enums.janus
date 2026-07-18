@@ -1,0 +1,10 @@
+enum Option[T] {
+    Some(T),
+    None
+}
+
+def main() : int {
+    val value : Option[int] = Option.Some[int](42)
+    val empty : Option[int] = Option.None[int]()
+    return 0
+}

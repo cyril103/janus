@@ -193,12 +193,36 @@ ast::Program Parser::parse_program() {
 ast::EnumDeclaration Parser::parse_enum_declaration() {
   const Token enum_token = expect(TokenKind::Enum);
   const Token name = expect(TokenKind::Identifier);
+  std::vector<std::string> type_parameters;
+  if (current_.kind == TokenKind::LeftBracket) {
+    advance();
+    do {
+      type_parameters.emplace_back(expect(TokenKind::Identifier).lexeme);
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+    static_cast<void>(expect(TokenKind::RightBracket));
+  }
   static_cast<void>(expect(TokenKind::LeftBrace));
 
   std::vector<ast::EnumDeclaration::Case> cases;
   std::int64_t next_value = 0;
   while (current_.kind != TokenKind::RightBrace) {
     const Token case_name = expect(TokenKind::Identifier);
+    std::vector<ast::TypeReference> payload_types;
+    if (current_.kind == TokenKind::LeftParen) {
+      advance();
+      if (current_.kind != TokenKind::RightParen) {
+        do {
+          payload_types.push_back(parse_type());
+          if (current_.kind != TokenKind::Comma)
+            break;
+          advance();
+        } while (true);
+      }
+      static_cast<void>(expect(TokenKind::RightParen));
+    }
     if (next_value > static_cast<std::int64_t>(
                          std::numeric_limits<std::int32_t>::max()) &&
         current_.kind != TokenKind::Equal)
@@ -231,9 +255,9 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
       value = negative ? -static_cast<std::int64_t>(magnitude)
                        : static_cast<std::int64_t>(magnitude);
     }
-    cases.push_back(ast::EnumDeclaration::Case{std::string{case_name.lexeme},
-                                               static_cast<std::int32_t>(value),
-                                               case_name.location});
+    cases.push_back(ast::EnumDeclaration::Case{
+        std::string{case_name.lexeme}, static_cast<std::int32_t>(value),
+        std::move(payload_types), case_name.location});
 
     if (value == std::numeric_limits<std::int32_t>::max()) {
       next_value =
@@ -256,7 +280,8 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
     throw CompileError{enum_token.location,
                        "enum '" + std::string{name.lexeme} +
                            "' must declare at least one case"};
-  return ast::EnumDeclaration{std::string{name.lexeme}, std::move(cases),
+  return ast::EnumDeclaration{std::string{name.lexeme},
+                              std::move(type_parameters), std::move(cases),
                               enum_token.location};
 }
 

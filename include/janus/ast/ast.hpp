@@ -231,10 +231,12 @@ struct EnumDeclaration {
   struct Case {
     std::string name;
     std::int32_t value;
+    std::vector<TypeReference> payload_types;
     SourceLocation location;
   };
 
   std::string name;
+  std::vector<std::string> type_parameters;
   std::vector<Case> cases;
   SourceLocation location;
 };
