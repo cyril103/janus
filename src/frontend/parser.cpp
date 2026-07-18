@@ -326,7 +326,8 @@ ast::Statement Parser::parse_statement() {
     return parse_variable_declaration();
   }
   if (current_.kind == TokenKind::Identifier) {
-    return parse_assignment_statement();
+    return starts_assignment() ? ast::Statement{parse_assignment_statement()}
+                               : ast::Statement{parse_expression_statement()};
   }
   if (current_.kind == TokenKind::Return) {
     return parse_return_statement();
@@ -387,8 +388,16 @@ ast::DeleteStatement Parser::parse_delete_statement() {
 
 ast::ReturnStatement Parser::parse_return_statement() {
   const Token return_token = expect(TokenKind::Return);
-  ast::Expression expression = parse_expression();
+  std::optional<ast::Expression> expression;
+  if (current_.kind != TokenKind::RightBrace &&
+      current_.kind != TokenKind::Semicolon)
+    expression.emplace(parse_expression());
   return ast::ReturnStatement{std::move(expression), return_token.location};
+}
+
+ast::ExpressionStatement Parser::parse_expression_statement() {
+  const SourceLocation location = current_.location;
+  return ast::ExpressionStatement{parse_expression(), location};
 }
 
 std::shared_ptr<ast::IfStatement> Parser::parse_if_statement() {
@@ -719,6 +728,17 @@ Token Parser::expect(TokenKind kind) {
   const Token token = current_;
   advance();
   return token;
+}
+
+bool Parser::starts_assignment() const {
+  Lexer lookahead = lexer_;
+  Token next = lookahead.next();
+  if (next.kind == TokenKind::Equal)
+    return true;
+  if (next.kind != TokenKind::Dot)
+    return false;
+  static_cast<void>(lookahead.next());
+  return lookahead.next().kind == TokenKind::Equal;
 }
 
 void Parser::advance() { current_ = lexer_.next(); }

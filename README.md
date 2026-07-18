@@ -23,7 +23,7 @@ Tout programme Janus doit déclarer exactement un point d'entrée
 `val` crée une liaison immuable : après sa déclaration, `x` ne peut pas être
 réaffecté.
 
-Janus possède actuellement six types primitifs :
+Janus possède actuellement six types primitifs et le type de retour `Unit` :
 
 | Type Janus | Signification | Représentation LLVM |
 | --- | --- | --- |
@@ -33,6 +33,11 @@ Janus possède actuellement six types primitifs :
 | `char` | scalaire Unicode sur 32 bits | `i32` |
 | `bool` | valeur `true` ou `false` | `i1` |
 | `string` | chaîne Unicode UTF-8 immuable | `{ ptr, i64 }` |
+| `Unit` | absence de valeur de retour | `void` |
+
+`Unit` s'utilise comme retour d'une fonction ou d'une méthode qui ne produit
+pas de valeur. Il ne peut pas servir de type à une variable, un champ ou un
+paramètre.
 
 LLVM ne distingue pas directement les entiers signés des entiers non signés
 dans ses types. Cette information est donc conservée par le système de types
@@ -136,6 +141,13 @@ Le fichier `examples/control_flow.janus` présente `if`/`else` et `while` :
 ./build/janusc examples/control_flow.janus
 ```
 
+Le fichier `examples/unit.janus` présente `Unit` et les appels utilisés comme
+instructions :
+
+```bash
+./build/janusc examples/unit.janus
+```
+
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
 conserver dans un fichier :
 
@@ -208,6 +220,8 @@ Fonctionnalités disponibles :
 - mot-clé `def` pour déclarer une fonction ;
 - point d'entrée obligatoire et unique `main() : int` ;
 - mot-clé `return` pour retourner un entier ;
+- type de retour `Unit`, retour nu `return` et retour implicite en fin de bloc ;
+- appels de fonctions et de méthodes utilisés comme instructions ;
 - mot-clé `val` pour déclarer une valeur immuable ;
 - mot-clé `var` pour déclarer une variable mutable ;
 - déclarations `var` sans initialiseur et analyse de l'initialisation ;

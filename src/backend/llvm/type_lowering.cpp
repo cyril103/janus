@@ -23,6 +23,8 @@ namespace janus::backend::llvm {
   case TypeKind::String:
     return ::llvm::StructType::get(::llvm::PointerType::getUnqual(context),
                                    ::llvm::Type::getInt64Ty(context));
+  case TypeKind::Unit:
+    return ::llvm::Type::getVoidTy(context);
   case TypeKind::Class:
     return ::llvm::PointerType::getUnqual(context);
   }

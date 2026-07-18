@@ -23,6 +23,7 @@ private:
   [[nodiscard]] ast::AssignmentStatement parse_assignment_statement();
   [[nodiscard]] ast::DeleteStatement parse_delete_statement();
   [[nodiscard]] ast::ReturnStatement parse_return_statement();
+  [[nodiscard]] ast::ExpressionStatement parse_expression_statement();
   [[nodiscard]] std::shared_ptr<ast::IfStatement> parse_if_statement();
   [[nodiscard]] std::shared_ptr<ast::WhileStatement> parse_while_statement();
   [[nodiscard]] ast::Expression parse_expression();
@@ -36,6 +37,7 @@ private:
   [[nodiscard]] ast::Expression parse_primary();
   [[nodiscard]] ast::TypeReference parse_type();
   [[nodiscard]] Token expect(TokenKind kind);
+  [[nodiscard]] bool starts_assignment() const;
   void advance();
 
   Lexer lexer_;

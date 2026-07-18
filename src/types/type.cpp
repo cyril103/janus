@@ -32,6 +32,11 @@ const Type &Type::string_type() {
   return type;
 }
 
+const Type &Type::unit_type() {
+  static const Type type{TypeKind::Unit, "Unit", 0, false};
+  return type;
+}
+
 Type Type::class_type(std::string_view name) {
   return Type{TypeKind::Class, name, 0, false};
 }
@@ -59,6 +64,8 @@ bool Type::is_character() const noexcept { return kind_ == TypeKind::Char; }
 bool Type::is_boolean() const noexcept { return kind_ == TypeKind::Bool; }
 
 bool Type::is_string() const noexcept { return kind_ == TypeKind::String; }
+
+bool Type::is_unit() const noexcept { return kind_ == TypeKind::Unit; }
 
 bool Type::is_signed() const noexcept { return is_signed_; }
 

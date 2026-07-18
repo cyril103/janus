@@ -3,6 +3,7 @@
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/types/type.hpp"
 
+#include <concepts>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -121,6 +122,7 @@ struct Expression {
                    MethodCallExpression, UnaryExpression, BinaryExpression>;
 
   template <typename T>
+    requires std::constructible_from<Value, T>
   Expression(T expression) : value{std::move(expression)} {}
 
   Expression(Expression &&) noexcept = default;
@@ -153,6 +155,11 @@ struct DeleteStatement {
 };
 
 struct ReturnStatement {
+  std::optional<Expression> expression;
+  SourceLocation location;
+};
+
+struct ExpressionStatement {
   Expression expression;
   SourceLocation location;
 };
@@ -162,8 +169,8 @@ struct WhileStatement;
 
 using Statement =
     std::variant<ValueDeclaration, AssignmentStatement, DeleteStatement,
-                 ReturnStatement, std::shared_ptr<IfStatement>,
-                 std::shared_ptr<WhileStatement>>;
+                 ReturnStatement, ExpressionStatement,
+                 std::shared_ptr<IfStatement>, std::shared_ptr<WhileStatement>>;
 
 struct IfStatement {
   Expression condition;

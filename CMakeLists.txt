@@ -252,4 +252,20 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.control_flow COMMAND control_flow_test)
+
+    add_executable(unit_type_test
+        tests/language/unit_type_test.cpp
+    )
+    target_link_libraries(unit_type_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(unit_type_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.unit_type COMMAND unit_type_test)
 endif()

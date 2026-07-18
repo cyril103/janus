@@ -38,6 +38,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::bool_type();
   if (name == "string")
     return &janus::Type::string_type();
+  if (name == "Unit")
+    return &janus::Type::unit_type();
   return nullptr;
 }
 
@@ -402,16 +404,31 @@ private:
           continue;
         }
 
+        if (const auto *expression_statement =
+                std::get_if<janus::ast::ExpressionStatement>(&statement)) {
+          const janus::Type &type = expression_type(
+              expression_statement->expression, substitutions, block_locals);
+          static_cast<void>(emit_expression(expression_statement->expression,
+                                            type, substitutions, block_locals,
+                                            builder));
+          continue;
+        }
+
         const auto &return_statement =
             std::get<janus::ast::ReturnStatement>(statement);
-        builder.CreateRet(emit_expression(return_statement.expression,
-                                          return_type, substitutions,
-                                          block_locals, builder));
+        if (return_statement.expression.has_value())
+          builder.CreateRet(emit_expression(*return_statement.expression,
+                                            return_type, substitutions,
+                                            block_locals, builder));
+        else
+          builder.CreateRetVoid();
         return true;
       }
       return false;
     };
-    static_cast<void>(emit_block(function.body, locals));
+    const bool emitted_return = emit_block(function.body, locals);
+    if (!emitted_return && return_type.kind() == janus::TypeKind::Unit)
+      builder.CreateRetVoid();
     return llvm_function;
   }
 
@@ -618,8 +635,10 @@ private:
                                                   parameter_type, substitutions,
                                                   locals, builder));
             }
-            return builder.CreateCall(target, arguments,
-                                      node.callee + ".result");
+            return target->getReturnType()->isVoidTy()
+                       ? builder.CreateCall(target, arguments)
+                       : builder.CreateCall(target, arguments,
+                                            node.callee + ".result");
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::NewExpression>) {
             const auto &class_declaration = *classes_.at(node.class_name);
@@ -715,8 +734,10 @@ private:
                                                   parameter_type, substitutions,
                                                   locals, builder));
             }
-            return builder.CreateCall(target, arguments,
-                                      node.method + ".result");
+            return target->getReturnType()->isVoidTy()
+                       ? builder.CreateCall(target, arguments)
+                       : builder.CreateCall(target, arguments,
+                                            node.method + ".result");
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::UnaryExpression>) {
             const janus::Type *operand_type =

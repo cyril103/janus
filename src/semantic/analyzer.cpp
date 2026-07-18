@@ -27,6 +27,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::bool_type();
   if (name == "string")
     return &janus::Type::string_type();
+  if (name == "Unit")
+    return &janus::Type::unit_type();
   return nullptr;
 }
 
@@ -176,12 +178,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                "' conflicts with a built-in type"};
     }
     for (const ast::ValueDeclaration &field :
-         class_declaration.constructor_fields)
-      static_cast<void>(
-          resolve_type(field.declared_type, parameters, &class_arities));
-    for (const ast::ValueDeclaration &field : class_declaration.fields)
-      static_cast<void>(
-          resolve_type(field.declared_type, parameters, &class_arities));
+         class_declaration.constructor_fields) {
+      const SemanticType field_type =
+          resolve_type(field.declared_type, parameters, &class_arities);
+      if (field_type.is_concrete() &&
+          field_type.concrete->kind() == TypeKind::Unit)
+        throw CompileError{field.location,
+                           "Unit cannot be used as a field type"};
+    }
+    for (const ast::ValueDeclaration &field : class_declaration.fields) {
+      const SemanticType field_type =
+          resolve_type(field.declared_type, parameters, &class_arities);
+      if (field_type.is_concrete() &&
+          field_type.concrete->kind() == TypeKind::Unit)
+        throw CompileError{field.location,
+                           "Unit cannot be used as a field type"};
+    }
   }
 
   struct FunctionContext {
@@ -273,6 +285,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
          function.parameters) {
       const SemanticType parameter_type =
           resolve_type(parameter.type, type_parameters, &class_arities);
+      if (parameter_type.is_concrete() &&
+          parameter_type.concrete->kind() == TypeKind::Unit)
+        throw CompileError{parameter.location,
+                           "Unit cannot be used as a parameter type"};
       if (!symbols.emplace(parameter.name, Symbol{parameter_type, false, true})
                .second) {
         throw CompileError{parameter.location, "value '" + parameter.name +
@@ -692,6 +708,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 std::get_if<ast::ValueDeclaration>(&statement)) {
           const SemanticType declared_type = resolve_type(
               declaration->declared_type, type_parameters, &class_arities);
+          if (declared_type.is_concrete() &&
+              declared_type.concrete->kind() == TypeKind::Unit)
+            throw CompileError{declaration->location,
+                               "Unit cannot be used as a value type"};
           if (block_symbols.contains(declaration->name))
             throw CompileError{declaration->location,
                                "value '" + declaration->name +
@@ -780,10 +800,34 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           continue;
         }
 
+        if (const auto *expression_statement =
+                std::get_if<ast::ExpressionStatement>(&statement)) {
+          if (!std::holds_alternative<ast::CallExpression>(
+                  expression_statement->expression.value) &&
+              !std::holds_alternative<ast::MethodCallExpression>(
+                  expression_statement->expression.value))
+            throw CompileError{
+                expression_statement->location,
+                "only function and method calls can be used as statements"};
+          static_cast<void>(expression_type(expression_statement->expression));
+          continue;
+        }
+
         const auto &return_statement =
             std::get<ast::ReturnStatement>(statement);
-        validate_expression(return_statement.expression, return_type,
-                            return_statement.location);
+        if (return_type.is_concrete() &&
+            return_type.concrete->kind() == TypeKind::Unit) {
+          if (return_statement.expression.has_value())
+            throw CompileError{return_statement.location,
+                               "a Unit function cannot return a value"};
+        } else {
+          if (!return_statement.expression.has_value())
+            throw CompileError{return_statement.location,
+                               "return requires a value of type '" +
+                                   return_type.name() + "'"};
+          validate_expression(*return_statement.expression, return_type,
+                              return_statement.location);
+        }
         has_return = true;
       }
       active_symbols = previous_symbols;
@@ -792,7 +836,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
 
     const bool has_return = validate_block(function.body, symbols);
 
-    if (!has_return) {
+    if (!has_return && (!return_type.is_concrete() ||
+                        return_type.concrete->kind() != TypeKind::Unit)) {
       throw CompileError{function.location, "function '" + function.name +
                                                 "' must return a value"};
     }

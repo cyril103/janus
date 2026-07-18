@@ -1,0 +1,18 @@
+class Counter(var value : int) {
+    def set(next : int) : Unit {
+        value = next
+    }
+}
+
+def observe(value : int) : Unit {
+    return
+}
+
+def main() : int {
+    val counter : Counter = new Counter(0)
+    observe(42)
+    counter.set(42)
+    val result : int = counter.value
+    delete counter
+    return result
+}
