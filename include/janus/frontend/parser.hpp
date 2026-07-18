@@ -37,6 +37,7 @@ private:
   [[nodiscard]] ast::Expression parse_unary();
   [[nodiscard]] ast::Expression parse_primary();
   [[nodiscard]] ast::TypeReference parse_type();
+  [[nodiscard]] bool starts_lambda() const;
   [[nodiscard]] std::string parse_qualified_name();
   [[nodiscard]] Token expect(TokenKind kind);
   [[nodiscard]] bool starts_assignment() const;

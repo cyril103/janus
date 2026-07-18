@@ -52,6 +52,18 @@ struct IdentifierExpression {
 
 struct Expression;
 
+struct LambdaExpression {
+  struct Parameter {
+    std::string name;
+    TypeReference type;
+    SourceLocation location;
+  };
+
+  std::vector<Parameter> parameters;
+  std::unique_ptr<Expression> body;
+  SourceLocation location;
+};
+
 struct CallExpression {
   std::string callee;
   std::vector<TypeReference> type_arguments;
@@ -118,8 +130,9 @@ struct Expression {
       std::variant<IntegerLiteralExpression, DoubleLiteralExpression,
                    CharacterLiteralExpression, BooleanLiteralExpression,
                    StringLiteralExpression, IdentifierExpression,
-                   CallExpression, NewExpression, MemberAccessExpression,
-                   MethodCallExpression, UnaryExpression, BinaryExpression>;
+                   LambdaExpression, CallExpression, NewExpression,
+                   MemberAccessExpression, MethodCallExpression,
+                   UnaryExpression, BinaryExpression>;
 
   template <typename T>
     requires std::constructible_from<Value, T>

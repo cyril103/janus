@@ -113,10 +113,24 @@ private:
     Substitutions substitutions;
   };
 
+  struct FunctionSignature {
+    std::vector<const janus::Type *> parameters;
+    const janus::Type *return_type;
+  };
+
   const janus::Type &resolve(const janus::ast::TypeReference &reference,
                              const Substitutions &substitutions) {
     if (const janus::Type *type = builtin_type(reference.name))
       return *type;
+    if (reference.name == "Function") {
+      std::vector<const janus::Type *> signature;
+      signature.reserve(reference.type_arguments.size());
+      for (const janus::ast::TypeReference &argument : reference.type_arguments)
+        signature.push_back(&resolve(argument, substitutions));
+      std::vector<const janus::Type *> parameters{signature.begin(),
+                                                  signature.end() - 1};
+      return ensure_function_type(parameters, *signature.back());
+    }
     if (const auto iterator = substitutions.find(reference.name);
         iterator != substitutions.end())
       return *iterator->second;
@@ -146,6 +160,34 @@ private:
 
   const janus::Type &pointer_element(const janus::Type &pointer_type) const {
     return *pointer_elements_.at(std::string{pointer_type.name()});
+  }
+
+  std::string function_key(const std::vector<const janus::Type *> &parameters,
+                           const janus::Type &return_type) const {
+    std::string key{"Function"};
+    for (const janus::Type *parameter : parameters)
+      key += "__" + std::string{parameter->name()};
+    key += "__to__" + std::string{return_type.name()};
+    return key;
+  }
+
+  const janus::Type &
+  ensure_function_type(const std::vector<const janus::Type *> &parameters,
+                       const janus::Type &return_type) {
+    const std::string key = function_key(parameters, return_type);
+    if (const auto iterator = function_types_.find(key);
+        iterator != function_types_.end())
+      return iterator->second;
+    auto [iterator, inserted] =
+        function_types_.emplace(key, janus::Type::function_type(key));
+    static_cast<void>(inserted);
+    function_signatures_.emplace(key,
+                                 FunctionSignature{parameters, &return_type});
+    return iterator->second;
+  }
+
+  const FunctionSignature &function_signature(const janus::Type &type) const {
+    return function_signatures_.at(std::string{type.name()});
   }
 
   const janus::Type &ensure_enum(std::string_view name) {
@@ -541,15 +583,19 @@ private:
 
         if (const auto *deletion =
                 std::get_if<janus::ast::DeleteStatement>(&statement)) {
-          const auto *identifier =
-              std::get_if<janus::ast::IdentifierExpression>(
-                  &deletion->expression.value);
-          const Local &local = block_locals.at(identifier->name);
-          ::llvm::Value *pointer =
-              builder.CreateLoad(::llvm::PointerType::getUnqual(context_),
-                                 local.storage, identifier->name + ".object");
-          builder.CreateCall(emit_destructor(std::string{local.type->name()}),
-                             {pointer});
+          const janus::Type &deleted_type = expression_type(
+              deletion->expression, substitutions, block_locals);
+          ::llvm::Value *deleted_value =
+              emit_expression(deletion->expression, deleted_type, substitutions,
+                              block_locals, builder);
+          ::llvm::Value *pointer = deleted_value;
+          if (deleted_type.kind() == janus::TypeKind::Function) {
+            pointer = builder.CreateExtractValue(deleted_value, 1,
+                                                 "lambda.environment");
+          } else {
+            builder.CreateCall(
+                emit_destructor(std::string{deleted_type.name()}), {pointer});
+          }
           ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
               "free", ::llvm::FunctionType::get(builder.getVoidTy(),
                                                 {builder.getPtrTy()}, false));
@@ -629,6 +675,164 @@ private:
                          &specialization.substitutions, class_name, &body);
   }
 
+  std::vector<std::string> collect_captures(
+      const janus::ast::LambdaExpression &lambda,
+      const std::unordered_map<std::string, Local> &available) const {
+    std::vector<std::string> captures;
+    std::unordered_set<std::string> captured;
+    std::unordered_set<std::string> bound;
+    for (const auto &parameter : lambda.parameters)
+      bound.insert(parameter.name);
+
+    std::function<void(const janus::ast::Expression &,
+                       const std::unordered_set<std::string> &)>
+        visit;
+    visit = [&](const janus::ast::Expression &expression,
+                const std::unordered_set<std::string> &active_bound) {
+      const auto capture = [&](std::string_view name) {
+        const std::string key{name};
+        if (!active_bound.contains(key) && available.contains(key) &&
+            captured.insert(key).second)
+          captures.push_back(key);
+      };
+      std::visit(
+          [&](const auto &node) {
+            using Node = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<Node,
+                                         janus::ast::IdentifierExpression>) {
+              capture(node.name);
+            } else if constexpr (std::is_same_v<Node,
+                                                janus::ast::LambdaExpression>) {
+              auto nested_bound = active_bound;
+              for (const auto &parameter : node.parameters)
+                nested_bound.insert(parameter.name);
+              visit(*node.body, nested_bound);
+            } else if constexpr (std::is_same_v<Node,
+                                                janus::ast::CallExpression>) {
+              capture(node.callee);
+              for (const auto &argument : node.arguments)
+                visit(*argument, active_bound);
+            } else if constexpr (std::is_same_v<Node,
+                                                janus::ast::NewExpression>) {
+              for (const auto &argument : node.arguments)
+                visit(*argument, active_bound);
+            } else if constexpr (std::is_same_v<
+                                     Node,
+                                     janus::ast::MemberAccessExpression>) {
+              visit(*node.object, active_bound);
+            } else if constexpr (std::is_same_v<
+                                     Node, janus::ast::MethodCallExpression>) {
+              visit(*node.object, active_bound);
+              for (const auto &argument : node.arguments)
+                visit(*argument, active_bound);
+            } else if constexpr (std::is_same_v<Node,
+                                                janus::ast::UnaryExpression>) {
+              visit(*node.operand, active_bound);
+            } else if constexpr (std::is_same_v<Node,
+                                                janus::ast::BinaryExpression>) {
+              visit(*node.left, active_bound);
+              visit(*node.right, active_bound);
+            }
+          },
+          expression.value);
+    };
+    visit(*lambda.body, bound);
+    return captures;
+  }
+
+  ::llvm::Value *
+  emit_lambda(const janus::ast::LambdaExpression &lambda,
+              const janus::Type &function_type,
+              const Substitutions &substitutions,
+              const std::unordered_map<std::string, Local> &locals,
+              ::llvm::IRBuilder<> &builder) {
+    const FunctionSignature &signature = function_signature(function_type);
+    const std::vector<std::string> capture_names =
+        collect_captures(lambda, locals);
+    std::vector<::llvm::Type *> capture_types;
+    capture_types.reserve(capture_names.size());
+    for (const std::string &name : capture_names)
+      capture_types.push_back(
+          janus::backend::llvm::lower_type(*locals.at(name).type, context_));
+
+    const std::size_t lambda_index = lambda_index_++;
+    ::llvm::StructType *environment_type = ::llvm::StructType::create(
+        context_, capture_types, "lambda.env." + std::to_string(lambda_index));
+    ::llvm::Value *environment =
+        ::llvm::ConstantPointerNull::get(builder.getPtrTy());
+    if (!capture_names.empty()) {
+      ::llvm::FunctionCallee malloc_function = module_->getOrInsertFunction(
+          "malloc", ::llvm::FunctionType::get(builder.getPtrTy(),
+                                              {builder.getInt64Ty()}, false));
+      environment = builder.CreateCall(
+          malloc_function, {::llvm::ConstantExpr::getSizeOf(environment_type)},
+          "lambda.environment");
+    }
+    for (std::size_t index = 0; index < capture_names.size(); ++index) {
+      const Local &capture = locals.at(capture_names[index]);
+      ::llvm::Value *value = builder.CreateLoad(
+          janus::backend::llvm::lower_type(*capture.type, context_),
+          capture.storage, capture_names[index] + ".capture");
+      builder.CreateStore(
+          value, builder.CreateStructGEP(environment_type, environment,
+                                         static_cast<unsigned>(index)));
+    }
+
+    std::vector<::llvm::Type *> parameter_types{builder.getPtrTy()};
+    for (const janus::Type *parameter : signature.parameters)
+      parameter_types.push_back(
+          janus::backend::llvm::lower_type(*parameter, context_));
+    auto *llvm_function_type = ::llvm::FunctionType::get(
+        janus::backend::llvm::lower_type(*signature.return_type, context_),
+        parameter_types, false);
+    ::llvm::Function *lambda_function = ::llvm::Function::Create(
+        llvm_function_type, ::llvm::Function::InternalLinkage,
+        "__janus_lambda_" + std::to_string(lambda_index), *module_);
+    auto *entry =
+        ::llvm::BasicBlock::Create(context_, "entry", lambda_function);
+    ::llvm::IRBuilder<> lambda_builder{entry};
+    std::unordered_map<std::string, Local> lambda_locals;
+
+    auto argument = lambda_function->arg_begin();
+    ::llvm::Argument &environment_argument = *argument++;
+    environment_argument.setName("environment");
+    for (std::size_t index = 0; index < capture_names.size(); ++index) {
+      const Local &capture = locals.at(capture_names[index]);
+      lambda_locals.emplace(capture_names[index],
+                            Local{lambda_builder.CreateStructGEP(
+                                      environment_type, &environment_argument,
+                                      static_cast<unsigned>(index),
+                                      capture_names[index] + ".capture.addr"),
+                                  capture.type});
+    }
+    for (std::size_t index = 0; index < lambda.parameters.size(); ++index) {
+      ::llvm::Argument &parameter = *argument++;
+      parameter.setName(lambda.parameters[index].name);
+      const janus::Type *parameter_type = signature.parameters[index];
+      ::llvm::Value *storage = lambda_builder.CreateAlloca(
+          janus::backend::llvm::lower_type(*parameter_type, context_), nullptr,
+          lambda.parameters[index].name);
+      lambda_builder.CreateStore(&parameter, storage);
+      lambda_locals.emplace(lambda.parameters[index].name,
+                            Local{storage, parameter_type});
+    }
+
+    ::llvm::Value *result =
+        emit_expression(*lambda.body, *signature.return_type, substitutions,
+                        lambda_locals, lambda_builder);
+    if (signature.return_type->kind() == janus::TypeKind::Unit)
+      lambda_builder.CreateRetVoid();
+    else
+      lambda_builder.CreateRet(result);
+
+    auto *closure_type = ::llvm::cast<::llvm::StructType>(
+        janus::backend::llvm::lower_type(function_type, context_));
+    ::llvm::Value *closure = ::llvm::UndefValue::get(closure_type);
+    closure =
+        builder.CreateInsertValue(closure, lambda_function, 0, "lambda.code");
+    return builder.CreateInsertValue(closure, environment, 1, "lambda.value");
+  }
+
   const janus::Type &
   expression_type(const janus::ast::Expression &expression,
                   const Substitutions &substitutions,
@@ -657,7 +861,25 @@ private:
                                    Node, janus::ast::IdentifierExpression>) {
             return *locals.at(node.name).type;
           } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::LambdaExpression>) {
+            std::unordered_map<std::string, Local> lambda_locals = locals;
+            std::vector<const janus::Type *> parameters;
+            parameters.reserve(node.parameters.size());
+            for (const auto &parameter : node.parameters) {
+              const janus::Type &type = resolve(parameter.type, substitutions);
+              parameters.push_back(&type);
+              lambda_locals.insert_or_assign(parameter.name,
+                                             Local{nullptr, &type});
+            }
+            const janus::Type &return_type =
+                expression_type(*node.body, substitutions, lambda_locals);
+            return ensure_function_type(parameters, return_type);
+          } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
+            if (const auto local = locals.find(node.callee);
+                local != locals.end() &&
+                local->second.type->kind() == janus::TypeKind::Function)
+              return *function_signature(*local->second.type).return_type;
             if (node.callee == "panic" || node.callee == "print" ||
                 node.callee == "println")
               return janus::Type::unit_type();
@@ -794,7 +1016,41 @@ private:
                 janus::backend::llvm::lower_type(*local.type, context_),
                 local.storage, node.name + ".value");
           } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::LambdaExpression>) {
+            return emit_lambda(node, expected_type, substitutions, locals,
+                               builder);
+          } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
+            if (const auto local = locals.find(node.callee);
+                local != locals.end() &&
+                local->second.type->kind() == janus::TypeKind::Function) {
+              const FunctionSignature &signature =
+                  function_signature(*local->second.type);
+              ::llvm::Value *closure = builder.CreateLoad(
+                  janus::backend::llvm::lower_type(*local->second.type,
+                                                   context_),
+                  local->second.storage, node.callee + ".closure");
+              ::llvm::Value *code =
+                  builder.CreateExtractValue(closure, 0, node.callee + ".code");
+              ::llvm::Value *environment = builder.CreateExtractValue(
+                  closure, 1, node.callee + ".environment");
+              std::vector<::llvm::Value *> arguments{environment};
+              for (std::size_t index = 0; index < node.arguments.size();
+                   ++index)
+                arguments.push_back(emit_expression(
+                    *node.arguments[index], *signature.parameters[index],
+                    substitutions, locals, builder));
+              std::vector<::llvm::Type *> parameter_types{builder.getPtrTy()};
+              for (const janus::Type *parameter : signature.parameters)
+                parameter_types.push_back(
+                    janus::backend::llvm::lower_type(*parameter, context_));
+              auto *callee_type = ::llvm::FunctionType::get(
+                  janus::backend::llvm::lower_type(*signature.return_type,
+                                                   context_),
+                  parameter_types, false);
+              return builder.CreateCall(callee_type, code, arguments,
+                                        node.callee + ".call");
+            }
             if (node.callee == "print" || node.callee == "println") {
               const janus::Type &argument_type = expression_type(
                   *node.arguments.front(), substitutions, locals);
@@ -1373,8 +1629,11 @@ private:
   std::unordered_map<std::string, ClassSpecialization> class_specializations_;
   std::unordered_map<std::string, janus::Type> pointer_types_;
   std::unordered_map<std::string, const janus::Type *> pointer_elements_;
+  std::unordered_map<std::string, janus::Type> function_types_;
+  std::unordered_map<std::string, FunctionSignature> function_signatures_;
   std::unordered_map<std::string, ::llvm::Function *> emitted_;
   std::size_t string_literal_index_{};
+  std::size_t lambda_index_{};
 };
 
 } // namespace

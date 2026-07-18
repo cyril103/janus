@@ -143,6 +143,8 @@ Token Lexer::next() {
     bool is_two_character_token = true;
     if (character == '=' && next_character == '=') {
       kind = TokenKind::EqualEqual;
+    } else if (character == '=' && next_character == '>') {
+      kind = TokenKind::Arrow;
     } else if (character == '!' && next_character == '=') {
       kind = TokenKind::BangEqual;
     } else if (character == '<' && next_character == '=') {

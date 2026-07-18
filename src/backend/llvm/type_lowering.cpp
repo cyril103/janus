@@ -29,6 +29,9 @@ namespace janus::backend::llvm {
     return ::llvm::Type::getInt64Ty(context);
   case TypeKind::Enum:
     return ::llvm::Type::getInt32Ty(context);
+  case TypeKind::Function:
+    return ::llvm::StructType::get(::llvm::PointerType::getUnqual(context),
+                                   ::llvm::PointerType::getUnqual(context));
   case TypeKind::Pointer:
     return ::llvm::PointerType::getUnqual(context);
   case TypeKind::Class:

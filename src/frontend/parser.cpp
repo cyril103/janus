@@ -657,6 +657,27 @@ ast::Expression Parser::parse_unary() {
 
 ast::Expression Parser::parse_primary() {
   if (current_.kind == TokenKind::LeftParen) {
+    if (starts_lambda()) {
+      const Token left_parenthesis = expect(TokenKind::LeftParen);
+      std::vector<ast::LambdaExpression::Parameter> parameters;
+      if (current_.kind != TokenKind::RightParen) {
+        do {
+          const Token name = expect(TokenKind::Identifier);
+          static_cast<void>(expect(TokenKind::Colon));
+          parameters.push_back(ast::LambdaExpression::Parameter{
+              std::string{name.lexeme}, parse_type(), name.location});
+          if (current_.kind != TokenKind::Comma)
+            break;
+          advance();
+        } while (true);
+      }
+      static_cast<void>(expect(TokenKind::RightParen));
+      static_cast<void>(expect(TokenKind::Arrow));
+      return ast::LambdaExpression{
+          std::move(parameters),
+          std::make_unique<ast::Expression>(parse_expression()),
+          left_parenthesis.location};
+    }
     advance();
     ast::Expression expression = parse_expression();
     static_cast<void>(expect(TokenKind::RightParen));
@@ -816,6 +837,23 @@ ast::Expression Parser::parse_primary() {
 }
 
 ast::TypeReference Parser::parse_type() {
+  if (current_.kind == TokenKind::LeftParen) {
+    const Token left_parenthesis = expect(TokenKind::LeftParen);
+    std::vector<ast::TypeReference> arguments;
+    if (current_.kind != TokenKind::RightParen) {
+      do {
+        arguments.push_back(parse_type());
+        if (current_.kind != TokenKind::Comma)
+          break;
+        advance();
+      } while (true);
+    }
+    static_cast<void>(expect(TokenKind::RightParen));
+    static_cast<void>(expect(TokenKind::Arrow));
+    arguments.push_back(parse_type());
+    return ast::TypeReference{"Function", left_parenthesis.location,
+                              std::move(arguments)};
+  }
   const Token type_name = expect(TokenKind::Identifier);
   std::vector<ast::TypeReference> type_arguments;
   if (current_.kind == TokenKind::LeftBracket) {
@@ -830,6 +868,18 @@ ast::TypeReference Parser::parse_type() {
   }
   return ast::TypeReference{std::string{type_name.lexeme}, type_name.location,
                             std::move(type_arguments)};
+}
+
+bool Parser::starts_lambda() const {
+  if (current_.kind != TokenKind::LeftParen)
+    return false;
+  Lexer lookahead = lexer_;
+  const Token first = lookahead.next();
+  if (first.kind == TokenKind::RightParen)
+    return lookahead.next().kind == TokenKind::Arrow;
+  if (first.kind != TokenKind::Identifier)
+    return false;
+  return lookahead.next().kind == TokenKind::Colon;
 }
 
 Token Parser::expect(TokenKind kind) {

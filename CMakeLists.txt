@@ -178,6 +178,22 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.generic_function COMMAND generic_function_test)
 
+    add_executable(first_class_function_test
+        tests/language/first_class_function_test.cpp
+    )
+    target_link_libraries(first_class_function_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(first_class_function_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.first_class_function COMMAND first_class_function_test)
+
     add_executable(mutable_variable_test
         tests/language/mutable_variable_test.cpp
     )

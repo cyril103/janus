@@ -1,0 +1,26 @@
+def apply[T](function : (T) => T, value : T) : T {
+    return function(value)
+}
+
+def makeAdder(amount : int) : (int) => int {
+    return (value : int) => value + amount
+}
+
+def makeIdentity[T]() : (T) => T {
+    return (value : T) => value
+}
+
+def main() : int {
+    val increment : (int) => int = (value : int) => value + 1
+    val first : int = apply[int](increment, 41)
+    delete increment
+
+    val addTen : (int) => int = makeAdder(10)
+    val second : int = addTen(first)
+    delete addTen
+
+    val identity : (int) => int = makeIdentity[int]()
+    val result : int = identity(second)
+    delete identity
+    return result
+}

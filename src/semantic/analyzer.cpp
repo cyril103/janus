@@ -46,6 +46,25 @@ resolve_type(const janus::ast::TypeReference &reference,
                                     "' does not accept type arguments"};
     return janus::semantic::SemanticType{type, {}};
   }
+  if (reference.name == "Function") {
+    if (reference.type_arguments.empty())
+      throw janus::CompileError{reference.location,
+                                "a function type must declare a return type"};
+    std::vector<janus::semantic::SemanticType> signature;
+    signature.reserve(reference.type_arguments.size());
+    for (const janus::ast::TypeReference &argument : reference.type_arguments)
+      signature.push_back(
+          resolve_type(argument, type_parameters, class_arities));
+    for (std::size_t index = 0; index + 1 < signature.size(); ++index) {
+      if (signature[index].is_concrete() &&
+          signature[index].concrete->kind() == janus::TypeKind::Unit)
+        throw janus::CompileError{
+            reference.location,
+            "Unit cannot be used as a function parameter type"};
+    }
+    return janus::semantic::SemanticType{
+        nullptr, "Function", false, std::move(signature), false, false, true};
+  }
   if (type_parameters.contains(reference.name)) {
     if (!reference.type_arguments.empty())
       throw janus::CompileError{reference.location,
@@ -113,6 +132,11 @@ bool same_type(const janus::semantic::SemanticType &left,
   if (left.is_enum() || right.is_enum())
     return left.is_enum() && right.is_enum() &&
            left.parameter == right.parameter;
+  if (left.is_function() || right.is_function())
+    return left.is_function() && right.is_function() &&
+           left.type_arguments.size() == right.type_arguments.size() &&
+           std::equal(left.type_arguments.begin(), left.type_arguments.end(),
+                      right.type_arguments.begin(), same_type);
   if (left.is_pointer() || right.is_pointer())
     return left.is_pointer() && right.is_pointer() &&
            left.type_arguments.size() == 1 &&
@@ -217,6 +241,17 @@ namespace janus::semantic {
 std::string SemanticType::name() const {
   if (is_concrete())
     return std::string{concrete->name()};
+  if (is_function()) {
+    std::string result{"("};
+    for (std::size_t index = 0; index + 1 < type_arguments.size(); ++index) {
+      if (index != 0)
+        result += ", ";
+      result += type_arguments[index].name();
+    }
+    result += ") => ";
+    result += type_arguments.back().name();
+    return result;
+  }
   std::string result = parameter;
   if (!type_arguments.empty()) {
     result += '[';
@@ -238,7 +273,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
   std::unordered_map<std::string, std::size_t> class_arities;
 
   for (const ast::EnumDeclaration &enum_declaration : program.enums) {
-    if (builtin_type(enum_declaration.name) != nullptr)
+    if (builtin_type(enum_declaration.name) != nullptr ||
+        enum_declaration.name == "Function")
       throw CompileError{enum_declaration.location,
                          "enum '" + enum_declaration.name +
                              "' conflicts with a built-in type"};
@@ -258,6 +294,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     }
   }
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
+    if (builtin_type(class_declaration.name) != nullptr ||
+        class_declaration.name == "Function")
+      throw CompileError{class_declaration.location,
+                         "class '" + class_declaration.name +
+                             "' conflicts with a built-in type"};
     if (enums.contains(class_declaration.name))
       throw CompileError{class_declaration.location,
                          "class '" + class_declaration.name +
@@ -277,7 +318,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
         throw CompileError{class_declaration.location,
                            "type parameter '" + parameter +
                                "' is already declared"};
-      if (builtin_type(parameter) != nullptr)
+      if (builtin_type(parameter) != nullptr || parameter == "Function")
         throw CompileError{class_declaration.location,
                            "type parameter '" + parameter +
                                "' conflicts with a built-in type"};
@@ -381,7 +422,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
         throw CompileError{function_location, "type parameter '" + parameter +
                                                   "' is already declared"};
       }
-      if (builtin_type(parameter) != nullptr) {
+      if (builtin_type(parameter) != nullptr || parameter == "Function") {
         throw CompileError{function_location,
                            "type parameter '" + parameter +
                                "' conflicts with a built-in type"};
@@ -515,7 +556,68 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                        "' is used before initialization"};
               }
               return iterator->second.type;
+            } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
+              SymbolTable lambda_symbols = *active_symbols;
+              std::unordered_set<std::string> parameter_names;
+              std::vector<SemanticType> signature;
+              signature.reserve(node.parameters.size() + 1);
+              for (const ast::LambdaExpression::Parameter &parameter :
+                   node.parameters) {
+                if (!parameter_names.insert(parameter.name).second)
+                  throw CompileError{parameter.location,
+                                     "lambda parameter '" + parameter.name +
+                                         "' is already declared"};
+                SemanticType parameter_type = resolve_type(
+                    parameter.type, *active_type_parameters, &class_arities);
+                if (active_type_substitutions != nullptr)
+                  parameter_type = substitute(std::move(parameter_type),
+                                              *active_type_substitutions);
+                if (parameter_type.is_concrete() &&
+                    parameter_type.concrete->kind() == TypeKind::Unit)
+                  throw CompileError{
+                      parameter.location,
+                      "Unit cannot be used as a lambda parameter type"};
+                signature.push_back(parameter_type);
+                lambda_symbols.insert_or_assign(
+                    parameter.name, Symbol{parameter_type, false, true});
+              }
+              SymbolTable *previous_symbols = active_symbols;
+              active_symbols = &lambda_symbols;
+              signature.push_back(expression_type(*node.body));
+              active_symbols = previous_symbols;
+              return SemanticType{
+                  nullptr, "Function", false, std::move(signature),
+                  false,   false,      true};
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              if (const auto local = active_symbols->find(node.callee);
+                  local != active_symbols->end()) {
+                if (!local->second.is_initialized)
+                  throw CompileError{node.location,
+                                     "function value '" + node.callee +
+                                         "' is used before initialization"};
+                if (!local->second.type.is_function())
+                  throw CompileError{node.location, "value '" + node.callee +
+                                                        "' is not callable"};
+                if (!node.type_arguments.empty())
+                  throw CompileError{
+                      node.location,
+                      "a function value does not accept type arguments"};
+                const std::vector<SemanticType> &signature =
+                    local->second.type.type_arguments;
+                const std::size_t parameter_count = signature.size() - 1;
+                if (node.arguments.size() != parameter_count)
+                  throw CompileError{node.location,
+                                     "function value '" + node.callee +
+                                         "' expects " +
+                                         std::to_string(parameter_count) +
+                                         " argument(s), got " +
+                                         std::to_string(node.arguments.size())};
+                for (std::size_t index = 0; index < parameter_count; ++index)
+                  validate_expression(
+                      *node.arguments[index], signature[index],
+                      expression_location(*node.arguments[index]));
+                return signature.back();
+              }
               if (node.callee == "print" || node.callee == "println") {
                 if (!node.type_arguments.empty() || node.arguments.size() != 1)
                   throw CompileError{node.location,
@@ -1156,8 +1258,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 std::get_if<ast::DeleteStatement>(&statement)) {
           const SemanticType deleted_type =
               expression_type(deletion->expression);
-          if (!deleted_type.is_class())
-            throw CompileError{deletion->location, "delete requires an object"};
+          if (!deleted_type.is_class() && !deleted_type.is_function())
+            throw CompileError{deletion->location,
+                               "delete requires an object or a function value"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value))
             block_symbols.at(identifier->name).is_initialized = false;

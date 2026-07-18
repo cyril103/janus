@@ -38,6 +38,7 @@ enum class TokenKind {
   Colon,
   Comma,
   Equal,
+  Arrow,
   EqualEqual,
   Bang,
   BangEqual,
@@ -127,6 +128,8 @@ struct Token {
     return "','";
   case TokenKind::Equal:
     return "'='";
+  case TokenKind::Arrow:
+    return "'=>'";
   case TokenKind::EqualEqual:
     return "'=='";
   case TokenKind::Bang:

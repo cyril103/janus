@@ -46,6 +46,10 @@ Type Type::enum_type(std::string_view name) {
   return Type{TypeKind::Enum, name, 32, true};
 }
 
+Type Type::function_type(std::string_view name) {
+  return Type{TypeKind::Function, name, 0, false};
+}
+
 Type Type::pointer_type(std::string_view name) {
   return Type{TypeKind::Pointer, name, 0, false};
 }

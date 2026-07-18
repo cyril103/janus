@@ -112,6 +112,13 @@ Le fichier `examples/generics.janus` présente une fonction générique :
 ./build/janusc examples/generics.janus
 ```
 
+Le fichier `examples/functions.janus` présente les lambdas, captures et
+fonctions d'ordre supérieur génériques :
+
+```bash
+./build/janusc examples/functions.janus
+```
+
 Le fichier `examples/generic_classes.janus` présente une classe générique :
 
 ```bash
@@ -520,6 +527,56 @@ identity[int]    -> identity__int(i32) -> i32
 identity[double] -> identity__double(double) -> double
 ```
 
+### Fonctions de première classe
+
+Une signature de fonction est un type comme les autres :
+
+```janus
+val increment : (int) => int = (value : int) => value + 1
+val sum : (int, int) => int =
+    (left : int, right : int) => left + right
+```
+
+Une lambda peut capturer les valeurs visibles, être affectée à une variable,
+passée en argument ou retournée :
+
+```janus
+def apply[T](function : (T) => T, value : T) : T {
+    return function(value)
+}
+
+def makeAdder(amount : int) : (int) => int {
+    return (value : int) => value + amount
+}
+```
+
+Les captures sont copiées lors de la création de la lambda. Une fonction est
+représentée par un pointeur de code et un pointeur vers son environnement,
+alloué sur le tas lorsqu'au moins une valeur est capturée. Une lambda sans
+capture utilise un environnement nul et ne provoque aucune allocation. Comme
+pour un objet, les copies d'une closure sont non propriétaires et le
+propriétaire doit libérer manuellement l'environnement :
+
+```janus
+val addTen : (int) => int = makeAdder(10)
+val result : int = addTen(32)
+delete addTen
+```
+
+Une lambda utilise les paramètres de types de la fonction générique qui la
+construit. Chaque utilisation produit donc une closure monomorphisée sans
+boxing :
+
+```janus
+def makeIdentity[T]() : (T) => T {
+    return (value : T) => value
+}
+```
+
+Utiliser une copie après la suppression du propriétaire, oublier `delete` ou
+supprimer deux copies du même environnement relève de la responsabilité du
+programmeur.
+
 Les paramètres restent immuables. Les valeurs locales peuvent être immuables
 avec `val` ou mutables avec `var`. Le compilateur vérifie le nombre d'arguments
 de types, le nombre d'arguments ordinaires et la compatibilité exacte de leurs
@@ -702,6 +759,9 @@ Les tests couvrent actuellement :
 - l'obligation de retourner une valeur depuis `main` ;
 - les paramètres et références aux valeurs ;
 - les appels de fonctions ;
+- les types fonction, lambdas, captures et appels indirects ;
+- le passage, le retour et la libération manuelle des closures ;
+- les fonctions d'ordre supérieur génériques monomorphisées ;
 - les paramètres de types génériques ;
 - la vérification des appels génériques invalides ;
 - la monomorphisation de fonctions pour plusieurs types ;
