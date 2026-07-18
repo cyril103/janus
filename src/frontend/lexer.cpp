@@ -127,8 +127,16 @@ Token Lexer::next() {
   case '}':
     return Token{TokenKind::RightBrace, source_.substr(start_position, 1),
                  start};
+  case '[':
+    return Token{TokenKind::LeftBracket, source_.substr(start_position, 1),
+                 start};
+  case ']':
+    return Token{TokenKind::RightBracket, source_.substr(start_position, 1),
+                 start};
   case ':':
     return Token{TokenKind::Colon, source_.substr(start_position, 1), start};
+  case ',':
+    return Token{TokenKind::Comma, source_.substr(start_position, 1), start};
   case '=':
     return Token{TokenKind::Equal, source_.substr(start_position, 1), start};
   case ';':

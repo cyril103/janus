@@ -156,4 +156,20 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.val_declaration COMMAND val_declaration_test)
+
+    add_executable(generic_function_test
+        tests/language/generic_function_test.cpp
+    )
+    target_link_libraries(generic_function_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(generic_function_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.generic_function COMMAND generic_function_test)
 endif()

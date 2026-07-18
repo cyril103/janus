@@ -7,8 +7,20 @@
 
 namespace janus::semantic {
 
+struct SemanticType {
+  const Type *concrete{};
+  std::string parameter;
+
+  [[nodiscard]] bool is_concrete() const noexcept {
+    return concrete != nullptr;
+  }
+  [[nodiscard]] std::string name() const {
+    return is_concrete() ? std::string{concrete->name()} : parameter;
+  }
+};
+
 struct Symbol {
-  const Type *type;
+  SemanticType type;
   bool is_mutable;
 };
 
@@ -21,13 +33,6 @@ struct AnalysisResult {
 class Analyzer final {
 public:
   [[nodiscard]] AnalysisResult analyze(const ast::Program &program) const;
-
-private:
-  void validate_expression(const ast::Expression &expression,
-                           const Type &expected_type,
-                           SourceLocation location) const;
-  [[nodiscard]] const Type &
-  expression_type(const ast::Expression &expression) const noexcept;
 };
 
 } // namespace janus::semantic

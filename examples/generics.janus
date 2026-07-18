@@ -1,0 +1,10 @@
+def identity[T](value : T) : T {
+    return value
+}
+
+def main() : int {
+    val integer : int = identity[int](5)
+    val floating : double = identity[double](2.5)
+    val message : string = identity[string]("Janus")
+    return integer
+}

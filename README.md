@@ -99,6 +99,12 @@ Le fichier `examples/types.janus` présente tous les types primitifs :
 ./build/janusc examples/types.janus
 ```
 
+Le fichier `examples/generics.janus` présente une fonction générique :
+
+```bash
+./build/janusc examples/generics.janus
+```
+
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
 conserver dans un fichier :
 
@@ -170,6 +176,43 @@ Fonctionnalités disponibles :
 - diagnostics avec ligne et colonne ;
 - validation de l'IR généré par LLVM.
 
+## Fonctions et généricité
+
+Une fonction peut recevoir des paramètres fortement typés :
+
+```janus
+def select(value : int) : int {
+    return value
+}
+```
+
+Les paramètres de types utilisent une syntaxe inspirée de Scala :
+
+```janus
+def identity[T](value : T) : T {
+    return value
+}
+```
+
+Les arguments de types doivent actuellement être indiqués explicitement :
+
+```janus
+val integer : int = identity[int](5)
+val floating : double = identity[double](2.5)
+```
+
+Le backend applique une monomorphisation. Une fonction LLVM spécialisée est
+générée pour chaque combinaison de types utilisée :
+
+```text
+identity[int]    -> identity__int(i32) -> i32
+identity[double] -> identity__double(double) -> double
+```
+
+Les paramètres et valeurs locales restent immuables. Le compilateur vérifie le
+nombre d'arguments de types, le nombre d'arguments ordinaires et la
+compatibilité exacte de leurs types.
+
 Exemples d'erreurs détectées :
 
 ```janus
@@ -183,10 +226,11 @@ def main() : int {
 }
 ```
 
-Les expressions arithmétiques, les nombres négatifs, les références à des
-valeurs, les paramètres de fonctions, les appels de fonctions et les autres
-types ne sont pas encore implémentés. Les littéraux `double` utilisent
-actuellement la forme décimale simple, sans notation exponentielle.
+Les expressions arithmétiques, les nombres négatifs, l'inférence des arguments
+génériques, les contraintes de types, les types génériques définis par
+l'utilisateur et les autres types ne sont pas encore implémentés. Les
+littéraux `double` utilisent actuellement la forme décimale simple, sans
+notation exponentielle.
 
 ## Tests
 
@@ -208,6 +252,11 @@ Les tests couvrent actuellement :
 - l'analyse de `val x : int = 5` ;
 - l'immutabilité d'une déclaration `val` ;
 - l'obligation de retourner une valeur depuis `main` ;
+- les paramètres et références aux valeurs ;
+- les appels de fonctions ;
+- les paramètres de types génériques ;
+- la vérification des appels génériques invalides ;
+- la monomorphisation de fonctions pour plusieurs types ;
 - la table des symboles et les déclarations dupliquées ;
 - la génération de l'allocation et du stockage LLVM ;
 - plusieurs erreurs de syntaxe et de type.

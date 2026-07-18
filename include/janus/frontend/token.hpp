@@ -21,7 +21,10 @@ enum class TokenKind {
   RightParen,
   LeftBrace,
   RightBrace,
+  LeftBracket,
+  RightBracket,
   Colon,
+  Comma,
   Equal,
   Semicolon,
   End,
@@ -63,8 +66,14 @@ struct Token {
     return "'{'";
   case TokenKind::RightBrace:
     return "'}'";
+  case TokenKind::LeftBracket:
+    return "'['";
+  case TokenKind::RightBracket:
+    return "']'";
   case TokenKind::Colon:
     return "':'";
+  case TokenKind::Comma:
+    return "','";
   case TokenKind::Equal:
     return "'='";
   case TokenKind::Semicolon:

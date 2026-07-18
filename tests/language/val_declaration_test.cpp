@@ -49,7 +49,7 @@ int main() {
   expect(program.functions.size() == 1, "one function is parsed");
   expect(program.functions.front().name == "main",
          "the entry point is named main");
-  expect(program.functions.front().return_type == &janus::Type::int_type(),
+  expect(program.functions.front().return_type.name == "int",
          "main returns int");
   expect(program.functions.front().body.size() == 2,
          "main contains a declaration and a return");
@@ -58,13 +58,12 @@ int main() {
         std::get<janus::ast::ValueDeclaration>(
             program.functions.front().body.front());
     expect(declaration.name == "x", "the identifier is x");
-    expect(declaration.declared_type == &janus::Type::int_type(),
-           "the declared type is int");
+    expect(declaration.declared_type.name == "int", "the declared type is int");
     expect(!declaration.is_mutable, "a val declaration is immutable");
-    expect(
-        std::get<janus::ast::IntegerLiteralExpression>(declaration.initializer)
-                .value == 5,
-        "the initializer is the integer literal 5");
+    expect(std::get<janus::ast::IntegerLiteralExpression>(
+               declaration.initializer.value)
+                   .value == 5,
+           "the initializer is the integer literal 5");
   }
 
   janus::semantic::Analyzer analyzer;
@@ -72,8 +71,9 @@ int main() {
   const janus::semantic::SymbolTable &symbols = analysis.functions.at("main");
   expect(symbols.contains("x"), "x is entered in the symbol table");
   expect(!symbols.at("x").is_mutable, "x is immutable");
-  expect(symbols.at("x").type->is_signed(), "x has a signed type");
-  expect(symbols.at("x").type->bit_width() == 32, "x has a 32-bit type");
+  expect(symbols.at("x").type.concrete->is_signed(), "x has a signed type");
+  expect(symbols.at("x").type.concrete->bit_width() == 32,
+         "x has a 32-bit type");
 
   llvm::LLVMContext context;
   janus::backend::llvm::IrGenerator generator{context};

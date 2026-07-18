@@ -19,7 +19,7 @@ private:
   [[nodiscard]] ast::ValueDeclaration parse_value_declaration();
   [[nodiscard]] ast::ReturnStatement parse_return_statement();
   [[nodiscard]] ast::Expression parse_expression();
-  [[nodiscard]] const Type *parse_type();
+  [[nodiscard]] ast::TypeReference parse_type();
   [[nodiscard]] Token expect(TokenKind kind);
   void advance();
 
