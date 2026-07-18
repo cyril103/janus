@@ -220,4 +220,20 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.primitive_operations COMMAND primitive_operations_test)
+
+    add_executable(generic_class_test
+        tests/language/generic_class_test.cpp
+    )
+    target_link_libraries(generic_class_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(generic_class_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.generic_class COMMAND generic_class_test)
 endif()

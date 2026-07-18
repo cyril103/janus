@@ -2,6 +2,7 @@
 
 #include "janus/diagnostics/compile_error.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -32,15 +33,41 @@ const janus::Type *builtin_type(std::string_view name) {
 janus::semantic::SemanticType
 resolve_type(const janus::ast::TypeReference &reference,
              const std::unordered_set<std::string> &type_parameters,
-             const std::unordered_set<std::string> *class_names = nullptr) {
+             const std::unordered_map<std::string, std::size_t> *class_arities =
+                 nullptr) {
   if (const janus::Type *type = builtin_type(reference.name)) {
+    if (!reference.type_arguments.empty())
+      throw janus::CompileError{reference.location,
+                                "built-in type '" + reference.name +
+                                    "' does not accept type arguments"};
     return janus::semantic::SemanticType{type, {}};
   }
   if (type_parameters.contains(reference.name)) {
+    if (!reference.type_arguments.empty())
+      throw janus::CompileError{reference.location,
+                                "type parameter '" + reference.name +
+                                    "' does not accept type arguments"};
     return janus::semantic::SemanticType{nullptr, reference.name};
   }
-  if (class_names != nullptr && class_names->contains(reference.name)) {
-    return janus::semantic::SemanticType{nullptr, reference.name, true};
+  if (class_arities != nullptr) {
+    if (const auto iterator = class_arities->find(reference.name);
+        iterator != class_arities->end()) {
+      if (reference.type_arguments.size() != iterator->second)
+        throw janus::CompileError{
+            reference.location,
+            "class '" + reference.name + "' expects " +
+                std::to_string(iterator->second) + " type argument(s), got " +
+                std::to_string(reference.type_arguments.size())};
+      std::vector<janus::semantic::SemanticType> arguments;
+      arguments.reserve(reference.type_arguments.size());
+      for (const janus::ast::TypeReference &argument :
+           reference.type_arguments) {
+        arguments.push_back(
+            resolve_type(argument, type_parameters, class_arities));
+      }
+      return janus::semantic::SemanticType{nullptr, reference.name, true,
+                                           std::move(arguments)};
+    }
   }
   throw janus::CompileError{reference.location,
                             "unknown type '" + reference.name + "'"};
@@ -52,7 +79,10 @@ bool same_type(const janus::semantic::SemanticType &left,
     return false;
   if (left.is_class() || right.is_class())
     return left.is_class() && right.is_class() &&
-           left.parameter == right.parameter;
+           left.parameter == right.parameter &&
+           left.type_arguments.size() == right.type_arguments.size() &&
+           std::equal(left.type_arguments.begin(), left.type_arguments.end(),
+                      right.type_arguments.begin(), same_type);
   return left.is_concrete() ? left.concrete->kind() == right.concrete->kind()
                             : left.parameter == right.parameter;
 }
@@ -61,12 +91,14 @@ janus::semantic::SemanticType
 substitute(janus::semantic::SemanticType type,
            const std::unordered_map<std::string, janus::semantic::SemanticType>
                &substitutions) {
-  if (!type.is_concrete()) {
+  if (!type.is_concrete() && !type.is_class()) {
     if (const auto iterator = substitutions.find(type.parameter);
         iterator != substitutions.end()) {
       return iterator->second;
     }
   }
+  for (janus::semantic::SemanticType &argument : type.type_arguments)
+    argument = substitute(std::move(argument), substitutions);
   return type;
 }
 
@@ -95,11 +127,27 @@ integer_literal_value(const janus::ast::Expression &expression) {
 
 namespace janus::semantic {
 
+std::string SemanticType::name() const {
+  if (is_concrete())
+    return std::string{concrete->name()};
+  std::string result = parameter;
+  if (!type_arguments.empty()) {
+    result += '[';
+    for (std::size_t index = 0; index < type_arguments.size(); ++index) {
+      if (index != 0)
+        result += ", ";
+      result += type_arguments[index].name();
+    }
+    result += ']';
+  }
+  return result;
+}
+
 AnalysisResult Analyzer::analyze(const ast::Program &program) const {
   AnalysisResult result;
   std::unordered_map<std::string, const ast::FunctionDeclaration *> functions;
   std::unordered_map<std::string, const ast::ClassDeclaration *> classes;
-  std::unordered_set<std::string> class_names;
+  std::unordered_map<std::string, std::size_t> class_arities;
 
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
     if (!classes.emplace(class_declaration.name, &class_declaration).second) {
@@ -107,12 +155,33 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                          "class '" + class_declaration.name +
                              "' is already declared"};
     }
-    class_names.insert(class_declaration.name);
+    class_arities.emplace(class_declaration.name,
+                          class_declaration.type_parameters.size());
     if (class_declaration.destructor.has_value() &&
         !class_declaration.destructor->body.empty()) {
       throw CompileError{class_declaration.destructor->location,
                          "non-empty destructor bodies are not yet supported"};
     }
+  }
+  for (const ast::ClassDeclaration &class_declaration : program.classes) {
+    std::unordered_set<std::string> parameters;
+    for (const std::string &parameter : class_declaration.type_parameters) {
+      if (!parameters.insert(parameter).second)
+        throw CompileError{class_declaration.location,
+                           "type parameter '" + parameter +
+                               "' is already declared"};
+      if (builtin_type(parameter) != nullptr)
+        throw CompileError{class_declaration.location,
+                           "type parameter '" + parameter +
+                               "' conflicts with a built-in type"};
+    }
+    for (const ast::ValueDeclaration &field :
+         class_declaration.constructor_fields)
+      static_cast<void>(
+          resolve_type(field.declared_type, parameters, &class_arities));
+    for (const ast::ValueDeclaration &field : class_declaration.fields)
+      static_cast<void>(
+          resolve_type(field.declared_type, parameters, &class_arities));
   }
 
   struct FunctionContext {
@@ -150,6 +219,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     const ast::FunctionDeclaration &function = *context.function;
     const ast::ClassDeclaration *owner = context.owner;
     std::unordered_set<std::string> type_parameters;
+    if (owner != nullptr) {
+      type_parameters.insert(owner->type_parameters.begin(),
+                             owner->type_parameters.end());
+    }
     for (const std::string &parameter : function.type_parameters) {
       if (!type_parameters.insert(parameter).second) {
         throw CompileError{function.location, "type parameter '" + parameter +
@@ -163,7 +236,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     }
 
     const SemanticType return_type =
-        resolve_type(function.return_type, type_parameters, &class_names);
+        resolve_type(function.return_type, type_parameters, &class_arities);
     if (owner == nullptr && function.name == "main") {
       if (!function.type_parameters.empty() || !function.parameters.empty() ||
           !return_type.is_concrete() ||
@@ -176,24 +249,30 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
 
     SymbolTable symbols;
     if (owner != nullptr) {
-      symbols.emplace("this", Symbol{SemanticType{nullptr, owner->name, true},
+      std::vector<SemanticType> owner_arguments;
+      for (const std::string &parameter : owner->type_parameters)
+        owner_arguments.push_back(SemanticType{nullptr, parameter});
+      symbols.emplace("this", Symbol{SemanticType{nullptr, owner->name, true,
+                                                  std::move(owner_arguments)},
                                      false, true});
       for (const ast::ValueDeclaration &field : owner->constructor_fields) {
-        symbols.emplace(field.name, Symbol{resolve_type(field.declared_type, {},
-                                                        &class_names),
-                                           field.is_mutable, true});
+        symbols.emplace(field.name,
+                        Symbol{resolve_type(field.declared_type,
+                                            type_parameters, &class_arities),
+                               field.is_mutable, true});
       }
       for (const ast::ValueDeclaration &field : owner->fields) {
-        symbols.emplace(
-            field.name,
-            Symbol{resolve_type(field.declared_type, {}, &class_names),
-                   field.is_mutable, field.initializer.has_value()});
+        symbols.emplace(field.name,
+                        Symbol{resolve_type(field.declared_type,
+                                            type_parameters, &class_arities),
+                               field.is_mutable,
+                               field.initializer.has_value()});
       }
     }
     for (const ast::FunctionDeclaration::Parameter &parameter :
          function.parameters) {
       const SemanticType parameter_type =
-          resolve_type(parameter.type, type_parameters, &class_names);
+          resolve_type(parameter.type, type_parameters, &class_arities);
       if (!symbols.emplace(parameter.name, Symbol{parameter_type, false, true})
                .second) {
         throw CompileError{parameter.location, "value '" + parameter.name +
@@ -205,6 +284,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     std::function<void(const ast::Expression &, const SemanticType &,
                        SourceLocation)>
         validate_expression;
+    const auto class_substitutions =
+        [](const ast::ClassDeclaration &class_declaration,
+           const SemanticType &instance) {
+          std::unordered_map<std::string, SemanticType> substitutions;
+          for (std::size_t index = 0;
+               index < class_declaration.type_parameters.size(); ++index) {
+            substitutions.emplace(class_declaration.type_parameters[index],
+                                  instance.type_arguments[index]);
+          }
+          return substitutions;
+        };
 
     validate_expression = [&](const ast::Expression &expression,
                               const SemanticType &expected,
@@ -292,7 +382,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 substitutions.emplace(callee.type_parameters[index],
                                       resolve_type(node.type_arguments[index],
                                                    type_parameters,
-                                                   &class_names));
+                                                   &class_arities));
               }
               const std::unordered_set<std::string> callee_parameters{
                   callee.type_parameters.begin(), callee.type_parameters.end()};
@@ -300,14 +390,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                    ++index) {
                 SemanticType expected =
                     resolve_type(callee.parameters[index].type,
-                                 callee_parameters, &class_names);
+                                 callee_parameters, &class_arities);
                 expected = substitute(std::move(expected), substitutions);
                 validate_expression(
                     *node.arguments[index], expected,
                     expression_location(*node.arguments[index]));
               }
               return substitute(resolve_type(callee.return_type,
-                                             callee_parameters, &class_names),
+                                             callee_parameters, &class_arities),
                                 substitutions);
             } else if constexpr (std::is_same_v<Node, ast::NewExpression>) {
               const auto iterator = classes.find(node.class_name);
@@ -316,6 +406,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                    "unknown class '" + node.class_name + "'"};
               const ast::ClassDeclaration &class_declaration =
                   *iterator->second;
+              const SemanticType instance_type = resolve_type(
+                  ast::TypeReference{node.class_name, node.location,
+                                     node.type_arguments},
+                  type_parameters, &class_arities);
+              const auto substitutions =
+                  class_substitutions(class_declaration, instance_type);
+              const std::unordered_set<std::string> class_parameters{
+                  class_declaration.type_parameters.begin(),
+                  class_declaration.type_parameters.end()};
               if (node.arguments.size() !=
                   class_declaration.constructor_fields.size())
                 throw CompileError{
@@ -329,12 +428,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                    ++index) {
                 const SemanticType field_type = resolve_type(
                     class_declaration.constructor_fields[index].declared_type,
-                    {}, &class_names);
+                    class_parameters, &class_arities);
                 validate_expression(
-                    *node.arguments[index], field_type,
+                    *node.arguments[index],
+                    substitute(field_type, substitutions),
                     expression_location(*node.arguments[index]));
               }
-              return SemanticType{nullptr, node.class_name, true};
+              return instance_type;
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {
               const SemanticType object_type = expression_type(*node.object);
@@ -343,6 +443,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                    "member access requires an object"};
               const ast::ClassDeclaration &class_declaration =
                   *classes.at(object_type.parameter);
+              const auto substitutions =
+                  class_substitutions(class_declaration, object_type);
+              const std::unordered_set<std::string> class_parameters{
+                  class_declaration.type_parameters.begin(),
+                  class_declaration.type_parameters.end()};
               for (const auto &field : class_declaration.constructor_fields) {
                 if (field.name == node.member) {
                   if (field.is_private &&
@@ -352,7 +457,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                        "field '" + node.member +
                                            "' is private in class '" +
                                            class_declaration.name + "'"};
-                  return resolve_type(field.declared_type, {}, &class_names);
+                  return substitute(resolve_type(field.declared_type,
+                                                 class_parameters,
+                                                 &class_arities),
+                                    substitutions);
                 }
               }
               for (const auto &field : class_declaration.fields) {
@@ -364,7 +472,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                        "field '" + node.member +
                                            "' is private in class '" +
                                            class_declaration.name + "'"};
-                  return resolve_type(field.declared_type, {}, &class_names);
+                  return substitute(resolve_type(field.declared_type,
+                                                 class_parameters,
+                                                 &class_arities),
+                                    substitutions);
                 }
               }
               throw CompileError{node.location,
@@ -378,6 +489,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                    "method call requires an object"};
               const ast::ClassDeclaration &class_declaration =
                   *classes.at(object_type.parameter);
+              const auto substitutions =
+                  class_substitutions(class_declaration, object_type);
+              const std::unordered_set<std::string> class_parameters{
+                  class_declaration.type_parameters.begin(),
+                  class_declaration.type_parameters.end()};
               const ast::FunctionDeclaration *method = nullptr;
               for (const ast::FunctionDeclaration &candidate :
                    class_declaration.methods) {
@@ -406,13 +522,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                         std::to_string(node.arguments.size())};
               for (std::size_t index = 0; index < node.arguments.size();
                    ++index) {
-                const SemanticType expected = resolve_type(
-                    method->parameters[index].type, {}, &class_names);
+                const SemanticType expected =
+                    resolve_type(method->parameters[index].type,
+                                 class_parameters, &class_arities);
                 validate_expression(
-                    *node.arguments[index], expected,
+                    *node.arguments[index], substitute(expected, substitutions),
                     expression_location(*node.arguments[index]));
               }
-              return resolve_type(method->return_type, {}, &class_names);
+              return substitute(resolve_type(method->return_type,
+                                             class_parameters, &class_arities),
+                                substitutions);
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
               if (node.operation == ast::UnaryOperator::LogicalNot) {
@@ -520,7 +639,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       if (const auto *declaration =
               std::get_if<ast::ValueDeclaration>(&statement)) {
         const SemanticType declared_type = resolve_type(
-            declaration->declared_type, type_parameters, &class_names);
+            declaration->declared_type, type_parameters, &class_arities);
         if (symbols.contains(declaration->name)) {
           throw CompileError{declaration->location,
                              "value '" + declaration->name +
@@ -549,6 +668,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                                          "' is not alive"};
           const ast::ClassDeclaration &class_declaration =
               *classes.at(object->second.type.parameter);
+          const auto substitutions =
+              class_substitutions(class_declaration, object->second.type);
+          const std::unordered_set<std::string> class_parameters{
+              class_declaration.type_parameters.begin(),
+              class_declaration.type_parameters.end()};
           const ast::ValueDeclaration *matched = nullptr;
           for (const auto &field : class_declaration.constructor_fields)
             if (field.name == assignment->name)
@@ -572,7 +696,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                    assignment->name + "'"};
           validate_expression(
               assignment->expression,
-              resolve_type(matched->declared_type, {}, &class_names),
+              substitute(resolve_type(matched->declared_type, class_parameters,
+                                      &class_arities),
+                         substitutions),
               assignment->location);
           continue;
         }

@@ -16,6 +16,7 @@ namespace janus::ast {
 struct TypeReference {
   std::string name;
   SourceLocation location;
+  std::vector<TypeReference> type_arguments;
 };
 
 struct IntegerLiteralExpression {
@@ -59,6 +60,7 @@ struct CallExpression {
 
 struct NewExpression {
   std::string class_name;
+  std::vector<TypeReference> type_arguments;
   std::vector<std::unique_ptr<Expression>> arguments;
   SourceLocation location;
 };
@@ -181,6 +183,7 @@ struct DestructorDeclaration {
 
 struct ClassDeclaration {
   std::string name;
+  std::vector<std::string> type_parameters;
   std::vector<ValueDeclaration> constructor_fields;
   std::vector<ValueDeclaration> fields;
   std::vector<FunctionDeclaration> methods;

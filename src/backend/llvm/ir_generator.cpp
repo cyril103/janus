@@ -7,6 +7,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -52,40 +53,40 @@ public:
     for (const janus::ast::ClassDeclaration &class_declaration :
          program.classes) {
       classes_.emplace(class_declaration.name, &class_declaration);
-      class_types_.emplace(class_declaration.name,
-                           janus::Type::class_type(class_declaration.name));
-      llvm_class_types_.emplace(
-          class_declaration.name,
-          ::llvm::StructType::create(context_,
-                                     "class." + class_declaration.name));
-    }
-    for (const janus::ast::ClassDeclaration &class_declaration :
-         program.classes) {
-      std::vector<::llvm::Type *> fields;
-      for (const auto &field : class_declaration.constructor_fields)
-        fields.push_back(janus::backend::llvm::lower_type(
-            resolve(field.declared_type, {}), context_));
-      for (const auto &field : class_declaration.fields)
-        fields.push_back(janus::backend::llvm::lower_type(
-            resolve(field.declared_type, {}), context_));
-      llvm_class_types_.at(class_declaration.name)->setBody(fields);
     }
     for (const janus::ast::FunctionDeclaration &function : program.functions)
       functions_.emplace(function.name, &function);
   }
 
   std::unique_ptr<::llvm::Module> generate() {
+    for (const auto &[name, class_declaration] : classes_) {
+      if (class_declaration->type_parameters.empty())
+        static_cast<void>(ensure_class(name, {}));
+    }
     for (const auto &[name, function] : functions_) {
       static_cast<void>(name);
       if (function->type_parameters.empty())
         static_cast<void>(emit_function(*function, {}));
     }
-    for (const auto &[class_name, class_declaration] : classes_) {
-      static_cast<void>(class_name);
-      for (const janus::ast::FunctionDeclaration &method :
-           class_declaration->methods) {
-        if (method.type_parameters.empty())
-          static_cast<void>(emit_function(method, {}, class_declaration));
+    std::unordered_set<std::string> emitted_specializations;
+    while (emitted_specializations.size() < class_specializations_.size()) {
+      std::vector<std::string> keys;
+      for (const auto &[key, specialization] : class_specializations_) {
+        static_cast<void>(specialization);
+        if (!emitted_specializations.contains(key))
+          keys.push_back(key);
+      }
+      for (const std::string &key : keys) {
+        emitted_specializations.insert(key);
+        const ClassSpecialization &specialization =
+            class_specializations_.at(key);
+        for (const janus::ast::FunctionDeclaration &method :
+             specialization.declaration->methods) {
+          if (method.type_parameters.empty())
+            static_cast<void>(
+                emit_function(method, {}, specialization.declaration,
+                              &specialization.substitutions, key));
+        }
       }
     }
     return std::move(module_);
@@ -99,14 +100,67 @@ private:
     const janus::Type *type;
   };
 
+  struct ClassSpecialization {
+    const janus::ast::ClassDeclaration *declaration;
+    Substitutions substitutions;
+  };
+
   const janus::Type &resolve(const janus::ast::TypeReference &reference,
-                             const Substitutions &substitutions) const {
+                             const Substitutions &substitutions) {
     if (const janus::Type *type = builtin_type(reference.name))
       return *type;
-    if (const auto iterator = class_types_.find(reference.name);
+    if (const auto iterator = substitutions.find(reference.name);
+        iterator != substitutions.end())
+      return *iterator->second;
+    std::vector<const janus::Type *> type_arguments;
+    type_arguments.reserve(reference.type_arguments.size());
+    for (const janus::ast::TypeReference &argument : reference.type_arguments)
+      type_arguments.push_back(&resolve(argument, substitutions));
+    return ensure_class(reference.name, type_arguments);
+  }
+
+  std::string
+  class_key(std::string_view name,
+            const std::vector<const janus::Type *> &type_arguments) const {
+    std::string key{name};
+    for (const janus::Type *argument : type_arguments)
+      key += "__" + std::string{argument->name()};
+    return key;
+  }
+
+  const janus::Type &
+  ensure_class(std::string_view name,
+               const std::vector<const janus::Type *> &type_arguments) {
+    const std::string key = class_key(name, type_arguments);
+    if (const auto iterator = class_types_.find(key);
         iterator != class_types_.end())
       return iterator->second;
-    return *substitutions.at(reference.name);
+
+    const janus::ast::ClassDeclaration &declaration =
+        *classes_.at(std::string{name});
+    Substitutions substitutions;
+    for (std::size_t index = 0; index < type_arguments.size(); ++index)
+      substitutions.emplace(declaration.type_parameters[index],
+                            type_arguments[index]);
+
+    auto [type_iterator, inserted] =
+        class_types_.emplace(key, janus::Type::class_type(key));
+    static_cast<void>(inserted);
+    ::llvm::StructType *llvm_class_type =
+        ::llvm::StructType::create(context_, "class." + key);
+    llvm_class_types_.emplace(key, llvm_class_type);
+    class_specializations_.emplace(
+        key, ClassSpecialization{&declaration, substitutions});
+
+    std::vector<::llvm::Type *> fields;
+    for (const auto &field : declaration.constructor_fields)
+      fields.push_back(janus::backend::llvm::lower_type(
+          resolve(field.declared_type, substitutions), context_));
+    for (const auto &field : declaration.fields)
+      fields.push_back(janus::backend::llvm::lower_type(
+          resolve(field.declared_type, substitutions), context_));
+    llvm_class_type->setBody(fields);
+    return type_iterator->second;
   }
 
   std::string mangle(const janus::ast::FunctionDeclaration &function,
@@ -122,15 +176,19 @@ private:
   ::llvm::Function *
   emit_function(const janus::ast::FunctionDeclaration &function,
                 const std::vector<const janus::Type *> &type_arguments,
-                const janus::ast::ClassDeclaration *owner = nullptr) {
+                const janus::ast::ClassDeclaration *owner = nullptr,
+                const Substitutions *owner_substitutions = nullptr,
+                std::string_view owner_key = {}) {
     const std::string llvm_name =
-        (owner == nullptr ? std::string{} : owner->name + "__") +
+        (owner == nullptr ? std::string{} : std::string{owner_key} + "__") +
         mangle(function, type_arguments);
     if (const auto iterator = emitted_.find(llvm_name);
         iterator != emitted_.end())
       return iterator->second;
 
     Substitutions substitutions;
+    if (owner_substitutions != nullptr)
+      substitutions = *owner_substitutions;
     for (std::size_t index = 0; index < type_arguments.size(); ++index)
       substitutions.emplace(function.type_parameters[index],
                             type_arguments[index]);
@@ -165,7 +223,7 @@ private:
     if (owner != nullptr) {
       ::llvm::Argument &this_argument = *argument_iterator++;
       this_argument.setName("this");
-      const janus::Type &owner_type = class_types_.at(owner->name);
+      const janus::Type &owner_type = class_types_.at(std::string{owner_key});
       ::llvm::Value *this_storage =
           builder.CreateAlloca(builder.getPtrTy(), nullptr, "this.addr");
       builder.CreateStore(&this_argument, this_storage);
@@ -174,20 +232,24 @@ private:
       unsigned field_index = 0;
       for (const janus::ast::ValueDeclaration &field :
            owner->constructor_fields) {
-        const janus::Type &field_type = resolve(field.declared_type, {});
-        locals.emplace(field.name, Local{builder.CreateStructGEP(
-                                             llvm_class_types_.at(owner->name),
-                                             &this_argument, field_index++,
-                                             field.name + ".addr"),
-                                         &field_type});
+        const janus::Type &field_type =
+            resolve(field.declared_type, substitutions);
+        locals.emplace(
+            field.name,
+            Local{builder.CreateStructGEP(
+                      llvm_class_types_.at(std::string{owner_key}),
+                      &this_argument, field_index++, field.name + ".addr"),
+                  &field_type});
       }
       for (const janus::ast::ValueDeclaration &field : owner->fields) {
-        const janus::Type &field_type = resolve(field.declared_type, {});
-        locals.emplace(field.name, Local{builder.CreateStructGEP(
-                                             llvm_class_types_.at(owner->name),
-                                             &this_argument, field_index++,
-                                             field.name + ".addr"),
-                                         &field_type});
+        const janus::Type &field_type =
+            resolve(field.declared_type, substitutions);
+        locals.emplace(
+            field.name,
+            Local{builder.CreateStructGEP(
+                      llvm_class_types_.at(std::string{owner_key}),
+                      &this_argument, field_index++, field.name + ".addr"),
+                  &field_type});
       }
     }
 
@@ -275,16 +337,20 @@ private:
 
   std::pair<unsigned, const janus::Type *>
   find_field(std::string_view class_name, std::string_view field_name) {
-    const auto &class_declaration = *classes_.at(std::string{class_name});
+    const ClassSpecialization &specialization =
+        class_specializations_.at(std::string{class_name});
+    const auto &class_declaration = *specialization.declaration;
     unsigned index = 0;
     for (const auto &field : class_declaration.constructor_fields) {
       if (field.name == field_name)
-        return {index, &resolve(field.declared_type, {})};
+        return {index,
+                &resolve(field.declared_type, specialization.substitutions)};
       ++index;
     }
     for (const auto &field : class_declaration.fields) {
       if (field.name == field_name)
-        return {index, &resolve(field.declared_type, {})};
+        return {index,
+                &resolve(field.declared_type, specialization.substitutions)};
       ++index;
     }
     return {0, nullptr};
@@ -346,7 +412,11 @@ private:
             return resolve(callee.return_type, callee_substitutions);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::NewExpression>) {
-            return class_types_.at(node.class_name);
+            std::vector<const janus::Type *> type_arguments;
+            for (const janus::ast::TypeReference &argument :
+                 node.type_arguments)
+              type_arguments.push_back(&resolve(argument, substitutions));
+            return ensure_class(node.class_name, type_arguments);
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::MemberAccessExpression>) {
             const janus::Type &object_type =
@@ -356,11 +426,13 @@ private:
                                    Node, janus::ast::MethodCallExpression>) {
             const janus::Type &object_type =
                 expression_type(*node.object, substitutions, locals);
-            const auto &class_declaration =
-                *classes_.at(std::string{object_type.name()});
+            const ClassSpecialization &specialization =
+                class_specializations_.at(std::string{object_type.name()});
+            const auto &class_declaration = *specialization.declaration;
             for (const auto &method : class_declaration.methods) {
               if (method.name == node.method)
-                return resolve(method.return_type, {});
+                return resolve(method.return_type,
+                               specialization.substitutions);
             }
             return janus::Type::int_type();
           } else if constexpr (std::is_same_v<Node,
@@ -471,8 +543,16 @@ private:
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::NewExpression>) {
             const auto &class_declaration = *classes_.at(node.class_name);
+            std::vector<const janus::Type *> type_arguments;
+            for (const janus::ast::TypeReference &argument :
+                 node.type_arguments)
+              type_arguments.push_back(&resolve(argument, substitutions));
+            const janus::Type &object_type =
+                ensure_class(node.class_name, type_arguments);
+            const ClassSpecialization &specialization =
+                class_specializations_.at(std::string{object_type.name()});
             ::llvm::StructType *class_type =
-                llvm_class_types_.at(node.class_name);
+                llvm_class_types_.at(std::string{object_type.name()});
             ::llvm::FunctionCallee malloc_function =
                 module_->getOrInsertFunction(
                     "malloc",
@@ -486,7 +566,7 @@ private:
                  ++index) {
               const janus::Type &field_type = resolve(
                   class_declaration.constructor_fields[index].declared_type,
-                  {});
+                  specialization.substitutions);
               ::llvm::Value *field =
                   builder.CreateStructGEP(class_type, object, field_index++);
               builder.CreateStore(emit_expression(*node.arguments[index],
@@ -499,7 +579,8 @@ private:
                   builder.CreateStructGEP(class_type, object, field_index++);
               if (field_declaration.initializer.has_value()) {
                 const janus::Type &field_type =
-                    resolve(field_declaration.declared_type, {});
+                    resolve(field_declaration.declared_type,
+                            specialization.substitutions);
                 builder.CreateStore(
                     emit_expression(*field_declaration.initializer, field_type,
                                     substitutions, locals, builder),
@@ -530,24 +611,26 @@ private:
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);
             const Local &object = locals.at(identifier->name);
-            const auto &class_declaration =
-                *classes_.at(std::string{object.type->name()});
+            const ClassSpecialization &specialization =
+                class_specializations_.at(std::string{object.type->name()});
+            const auto &class_declaration = *specialization.declaration;
             const janus::ast::FunctionDeclaration *method = nullptr;
             for (const janus::ast::FunctionDeclaration &candidate :
                  class_declaration.methods) {
               if (candidate.name == node.method)
                 method = &candidate;
             }
-            ::llvm::Function *target =
-                emit_function(*method, {}, &class_declaration);
+            ::llvm::Function *target = emit_function(
+                *method, {}, &class_declaration, &specialization.substitutions,
+                object.type->name());
             std::vector<::llvm::Value *> arguments;
             arguments.push_back(
                 builder.CreateLoad(builder.getPtrTy(), object.storage,
                                    identifier->name + ".object"));
             for (std::size_t index = 0; index < node.arguments.size();
                  ++index) {
-              const janus::Type &parameter_type =
-                  resolve(method->parameters[index].type, {});
+              const janus::Type &parameter_type = resolve(
+                  method->parameters[index].type, specialization.substitutions);
               arguments.push_back(emit_expression(*node.arguments[index],
                                                   parameter_type, substitutions,
                                                   locals, builder));
@@ -726,6 +809,7 @@ private:
       classes_;
   std::unordered_map<std::string, janus::Type> class_types_;
   std::unordered_map<std::string, ::llvm::StructType *> llvm_class_types_;
+  std::unordered_map<std::string, ClassSpecialization> class_specializations_;
   std::unordered_map<std::string, ::llvm::Function *> emitted_;
   std::size_t string_literal_index_{};
 };

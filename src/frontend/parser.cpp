@@ -178,6 +178,20 @@ ast::Program Parser::parse_program() {
 ast::ClassDeclaration Parser::parse_class_declaration() {
   const Token class_token = expect(TokenKind::Class);
   const Token name = expect(TokenKind::Identifier);
+
+  std::vector<std::string> type_parameters;
+  if (current_.kind == TokenKind::LeftBracket) {
+    advance();
+    do {
+      const Token parameter = expect(TokenKind::Identifier);
+      type_parameters.emplace_back(parameter.lexeme);
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+    static_cast<void>(expect(TokenKind::RightBracket));
+  }
+
   static_cast<void>(expect(TokenKind::LeftParen));
   std::vector<ast::ValueDeclaration> constructor_fields;
   if (current_.kind != TokenKind::RightParen) {
@@ -233,10 +247,13 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       advance();
   }
   static_cast<void>(expect(TokenKind::RightBrace));
-  return ast::ClassDeclaration{
-      std::string{name.lexeme}, std::move(constructor_fields),
-      std::move(fields),        std::move(methods),
-      std::move(destructor),    class_token.location};
+  return ast::ClassDeclaration{std::string{name.lexeme},
+                               std::move(type_parameters),
+                               std::move(constructor_fields),
+                               std::move(fields),
+                               std::move(methods),
+                               std::move(destructor),
+                               class_token.location};
 }
 
 ast::DestructorDeclaration Parser::parse_destructor_declaration() {
@@ -499,6 +516,17 @@ ast::Expression Parser::parse_primary() {
   if (current_.kind == TokenKind::New) {
     const Token new_token = expect(TokenKind::New);
     const Token class_name = expect(TokenKind::Identifier);
+    std::vector<ast::TypeReference> type_arguments;
+    if (current_.kind == TokenKind::LeftBracket) {
+      advance();
+      do {
+        type_arguments.push_back(parse_type());
+        if (current_.kind != TokenKind::Comma)
+          break;
+        advance();
+      } while (true);
+      static_cast<void>(expect(TokenKind::RightBracket));
+    }
     static_cast<void>(expect(TokenKind::LeftParen));
     std::vector<std::unique_ptr<ast::Expression>> arguments;
     if (current_.kind != TokenKind::RightParen) {
@@ -512,7 +540,8 @@ ast::Expression Parser::parse_primary() {
     }
     static_cast<void>(expect(TokenKind::RightParen));
     return ast::NewExpression{std::string{class_name.lexeme},
-                              std::move(arguments), new_token.location};
+                              std::move(type_arguments), std::move(arguments),
+                              new_token.location};
   }
 
   if (current_.kind == TokenKind::Identifier) {
@@ -638,7 +667,19 @@ ast::Expression Parser::parse_primary() {
 
 ast::TypeReference Parser::parse_type() {
   const Token type_name = expect(TokenKind::Identifier);
-  return ast::TypeReference{std::string{type_name.lexeme}, type_name.location};
+  std::vector<ast::TypeReference> type_arguments;
+  if (current_.kind == TokenKind::LeftBracket) {
+    advance();
+    do {
+      type_arguments.push_back(parse_type());
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+    static_cast<void>(expect(TokenKind::RightBracket));
+  }
+  return ast::TypeReference{std::string{type_name.lexeme}, type_name.location,
+                            std::move(type_arguments)};
 }
 
 Token Parser::expect(TokenKind kind) {

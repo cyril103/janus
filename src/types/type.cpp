@@ -2,42 +2,42 @@
 
 namespace janus {
 
-const Type &Type::int_type() noexcept {
+const Type &Type::int_type() {
   static const Type type{TypeKind::Int, "int", 32, true};
   return type;
 }
 
-const Type &Type::double_type() noexcept {
+const Type &Type::double_type() {
   static const Type type{TypeKind::Double, "double", 64, false};
   return type;
 }
 
-const Type &Type::byte_type() noexcept {
+const Type &Type::byte_type() {
   static const Type type{TypeKind::Byte, "byte", 8, true};
   return type;
 }
 
-const Type &Type::char_type() noexcept {
+const Type &Type::char_type() {
   static const Type type{TypeKind::Char, "char", 32, false};
   return type;
 }
 
-const Type &Type::bool_type() noexcept {
+const Type &Type::bool_type() {
   static const Type type{TypeKind::Bool, "bool", 1, false};
   return type;
 }
 
-const Type &Type::string_type() noexcept {
+const Type &Type::string_type() {
   static const Type type{TypeKind::String, "string", 0, false};
   return type;
 }
 
-Type Type::class_type(std::string_view name) noexcept {
+Type Type::class_type(std::string_view name) {
   return Type{TypeKind::Class, name, 0, false};
 }
 
 Type::Type(TypeKind kind, std::string_view name, std::uint32_t bit_width,
-           bool is_signed) noexcept
+           bool is_signed)
     : kind_{kind}, name_{name}, bit_width_{bit_width}, is_signed_{is_signed} {}
 
 TypeKind Type::kind() const noexcept { return kind_; }

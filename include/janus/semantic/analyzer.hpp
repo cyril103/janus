@@ -4,21 +4,29 @@
 
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace janus::semantic {
 
 struct SemanticType {
+  SemanticType() = default;
+  SemanticType(const Type *concrete_type, std::string parameter_name = {},
+               bool is_class_type = false,
+               std::vector<SemanticType> arguments = {})
+      : concrete{concrete_type}, parameter{std::move(parameter_name)},
+        class_type{is_class_type}, type_arguments{std::move(arguments)} {}
+
   const Type *concrete{};
   std::string parameter;
   bool class_type{};
+  std::vector<SemanticType> type_arguments;
 
   [[nodiscard]] bool is_concrete() const noexcept {
     return concrete != nullptr;
   }
   [[nodiscard]] bool is_class() const noexcept { return class_type; }
-  [[nodiscard]] std::string name() const {
-    return is_concrete() ? std::string{concrete->name()} : parameter;
-  }
+  [[nodiscard]] std::string name() const;
 };
 
 struct Symbol {

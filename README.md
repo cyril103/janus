@@ -106,6 +106,12 @@ Le fichier `examples/generics.janus` présente une fonction générique :
 ./build/janusc examples/generics.janus
 ```
 
+Le fichier `examples/generic_classes.janus` présente une classe générique :
+
+```bash
+./build/janusc examples/generic_classes.janus
+```
+
 Le fichier `examples/variables.janus` présente les variables mutables :
 
 ```bash
@@ -281,6 +287,40 @@ avec `val` ou mutables avec `var`. Le compilateur vérifie le nombre d'arguments
 de types, le nombre d'arguments ordinaires et la compatibilité exacte de leurs
 types.
 
+### Classes génériques
+
+Une classe peut déclarer un ou plusieurs paramètres de types avec la même
+syntaxe :
+
+```janus
+class Box[T](var value : T) {
+    def get() : T {
+        return value
+    }
+
+    def set(next : T) : T {
+        value = next
+        return value
+    }
+}
+```
+
+Les arguments de types sont obligatoires dans une annotation et après `new` :
+
+```janus
+val integers : Box[int] = new Box[int](41)
+val text : Box[string] = new Box[string]("Janus")
+```
+
+Les références de types peuvent être imbriquées, par exemple
+`Box[Box[int]]`. Le compilateur vérifie l'arité, substitue les paramètres dans
+les champs, les paramètres et les retours de méthodes, et refuse d'affecter
+une spécialisation à une autre.
+
+Le backend monomorphise également les classes. `Box[int]` et `Box[string]`
+possèdent des layouts LLVM, des méthodes et des destructeurs distincts. Une
+spécialisation qui n'est jamais utilisée ne génère pas de code.
+
 ## Classes et allocation manuelle
 
 Les paramètres `val` et `var` d'une classe sont à la fois des paramètres du
@@ -379,10 +419,9 @@ def main() : int {
 }
 ```
 
-L'inférence des arguments génériques, les contraintes de types, les types
-génériques définis par l'utilisateur et les autres types ne sont pas encore
-implémentés. Les littéraux `double` utilisent actuellement la forme décimale
-simple, sans notation exponentielle.
+L'inférence des arguments génériques, les contraintes de types et les autres
+types ne sont pas encore implémentés. Les littéraux `double` utilisent
+actuellement la forme décimale simple, sans notation exponentielle.
 
 ## Tests
 
@@ -413,6 +452,9 @@ Les tests couvrent actuellement :
 - les paramètres de types génériques ;
 - la vérification des appels génériques invalides ;
 - la monomorphisation de fonctions pour plusieurs types ;
+- les classes génériques et leurs références de types imbriquées ;
+- la substitution des types dans les champs et les méthodes ;
+- la monomorphisation de plusieurs spécialisations d'une classe ;
 - les classes et leurs champs constructeurs ;
 - l'allocation manuelle avec `new` ;
 - l'accès et la mutation des champs `var` ;
