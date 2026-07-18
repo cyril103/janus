@@ -95,6 +95,12 @@ def main() : int {
   expect_compile_error("enum E { A, B } def main() : int { val e : E = E.A() "
                        "return match e { A => 0, B => 1.0 } }",
                        "match cases must have the same type");
+  expect_compile_error("enum E { A, B } def main() : int { val e : E = E.A() "
+                       "return match e { A => 0 } }",
+                       "non-exhaustive match for enum 'E': missing case(s): B");
+  expect_compile_error("enum E { A, B } def main() : int { val e : E = E.A() "
+                       "return match e { A => 0, A => 1, B => 2 } }",
+                       "match case 'A' is already handled");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

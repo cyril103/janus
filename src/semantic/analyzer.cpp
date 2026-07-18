@@ -1252,6 +1252,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                           "'"};
                 }
               }
+              std::string missing_cases;
+              for (const ast::EnumDeclaration::Case &enum_case :
+                   enum_declaration.cases) {
+                if (matched_cases.contains(enum_case.name))
+                  continue;
+                if (!missing_cases.empty())
+                  missing_cases += ", ";
+                missing_cases += enum_case.name;
+              }
+              if (!missing_cases.empty())
+                throw CompileError{node.location,
+                                   "non-exhaustive match for enum '" +
+                                       enum_declaration.name +
+                                       "': missing case(s): " + missing_cases};
               return *result_type;
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
