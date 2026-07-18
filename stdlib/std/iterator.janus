@@ -1,5 +1,6 @@
 module std.iterator
 import std.option
+import std.array
 
 class MapIteratorState[A, B](
     private val source : Iterator[A],
@@ -113,6 +114,20 @@ class Iterator[T](
             () => state.next(),
             () => state.dispose()
         )
+    }
+
+    def collect() : Array[T] {
+        val result : Array[T] = new Array[T](usize(0))
+        var hasNext : bool = true
+        while hasNext {
+            val value : Option[T] = this.next()
+            hasNext = match value {
+                Some(item) => result.push(item) > usize(0),
+                None => false
+            }
+        }
+        delete this
+        return result
     }
 
     destructor {

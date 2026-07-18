@@ -110,6 +110,8 @@ int main() {
   expect(ir.find("define internal void @TakeIteratorState__int__destructor") !=
              std::string::npos,
          "a take iterator owns its source");
+  expect(ir.find("define ptr @Iterator__int__collect") != std::string::npos,
+         "Iterator.collect materializes the lazy pipeline");
   expect(ir.find("call void %action.code") != std::string::npos,
          "Array.foreach invokes Unit closures indirectly");
   expect(ir.find("define i32 @main()") != std::string::npos,

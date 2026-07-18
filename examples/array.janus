@@ -6,17 +6,18 @@ def main() : int {
     values.push(20)
     values.push(12)
 
-    val iterator : Iterator[int] =
+    val collected : Array[int] =
         values.iterator()
             .map[int]((value : int) => value * 2)
             .filter((value : int) => value > 25)
             .take(usize(1))
-    val first : Option[int] = iterator.next()
+            .collect()
+    val first : Option[int] = collected.getOption(usize(0))
     val firstValue : int = match first {
         Some(value) => value,
         None => 0
     }
-    delete iterator
+    delete collected
 
     values.foreach((value : int) => print(""))
     val halved : Array[double] =

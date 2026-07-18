@@ -504,6 +504,35 @@ d’erreur. Leurs variantes `getOption` et `popOption`, ainsi que `find`,
 retournent `None` lorsque aucune valeur n’est disponible. `std.array` importe
 automatiquement `std.option`.
 
+### Itérateurs paresseux
+
+`Array.iterator()` crée un `Iterator[T]` qui emprunte le tableau source. Ses
+adaptateurs ne créent aucun tableau intermédiaire :
+
+```janus
+val selected : Array[int] =
+    values.iterator()
+        .map[int]((value : int) => value * 2)
+        .filter((value : int) => value > 10)
+        .take(usize(5))
+        .collect()
+```
+
+`map`, `filter` et `take` sont paresseux : une valeur ne traverse la chaîne que
+lorsque `next()` ou `collect()` la demande. Chaque étage possède l’itérateur
+précédent ; supprimer l’itérateur final détruit récursivement toute la chaîne.
+`map` et `filter` prennent également possession de la closure reçue.
+
+`collect()` est une opération terminale : elle construit un nouvel `Array[T]`,
+consomme puis détruit automatiquement l’itérateur. L’appelant devient
+propriétaire du tableau retourné et doit le supprimer. L’`Array` source reste
+emprunté et doit vivre jusqu’à la destruction ou la consommation de
+l’itérateur.
+
+Comme Janus ne possède pas encore de vérification statique d’ownership, le
+programmeur ne doit pas réutiliser un itérateur après l’avoir transmis à un
+adaptateur ou après avoir appelé `collect()`.
+
 Le tableau possède son buffer, mais pas les objets éventuellement stockés. Un
 `Array[Point]` copie les pointeurs vers les `Point` : le programmeur doit
 continuer à supprimer chaque objet séparément.
