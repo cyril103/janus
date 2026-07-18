@@ -382,10 +382,10 @@ est non nulle. Ces conversions ne vérifient pas que l'adresse, le type cible ou
 l'alignement sont valides : leur utilisation est aussi dangereuse qu'un cast de
 pointeur en C. `string` et `Unit` ne sont pas des cibles de cast.
 
-### Types énumérés
+### Types énumérés et filtrage par motif
 
-Un `enum` définit un type nominal distinct, représenté par un entier signé de
-32 bits :
+Un `enum` définit un type nominal distinct. Une variante simple contient
+uniquement un discriminant signé de 32 bits :
 
 ```janus
 enum ExitCode {
@@ -406,6 +406,28 @@ enum peuvent être comparées avec `==` et `!=`, mais deux enums différents
 restent incompatibles. Les casts explicites permettent de convertir un enum
 vers ou depuis les types scalaires ; comme en C, un cast entier vers un enum ne
 vérifie pas que la valeur correspond à un cas déclaré.
+
+Les enums peuvent aussi être génériques et transporter des valeurs :
+
+```janus
+enum Option[T] {
+    Some(T),
+    None
+}
+
+val option : Option[int] = Option.Some[int](42)
+val value : int = match option {
+    Some(number) => number,
+    None => 0
+}
+```
+
+`match` est une expression : toutes ses branches doivent produire le même
+type. Les valeurs d’une variante sont déstructurées dans des bindings
+immuables, limités à la branche concernée. Le compilateur rejette les cas
+inconnus, dupliqués ou absents ; chaque `match` doit donc être exhaustif. Les
+enums avec payload sont représentés en ligne par un discriminant suivi de leurs
+champs, sans allocation implicite.
 
 ### Pointeurs et mémoire brute
 
@@ -497,9 +519,16 @@ Les déclarations importées sont actuellement accessibles sans qualification :
 
 ```janus
 import std.array
+import std.option
+import std.result
 
 val values : Array[int] = new Array[int](usize(4))
+val maybeValue : Option[int] = Option.Some[int](42)
+val result : Result[int, string] = Result.Ok[int, string](42)
 ```
+
+La bibliothèque fournit `Option[T]` avec `Some(T)`/`None`, et `Result[T, E]`
+avec `Ok(T)`/`Error(E)`.
 
 Le chargeur traite les dépendances récursivement, ne charge un fichier qu'une
 fois et vérifie que le nom déclaré par celui-ci correspond au nom importé.

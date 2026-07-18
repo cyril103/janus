@@ -69,11 +69,33 @@ int main() {
   expect(ir.find("define i32 @main()") != std::string::npos,
          "the merged program produces its entry point");
 
+  const janus::ast::Program algebraic_program =
+      loader.load(std::filesystem::path{JANUS_OPTION_RESULT_EXAMPLE});
+  expect(algebraic_program.enums.size() == 2,
+         "Option and Result are loaded from the standard library");
+  static_cast<void>(analyzer.analyze(algebraic_program));
+  llvm::LLVMContext algebraic_context;
+  janus::backend::llvm::IrGenerator algebraic_generator{algebraic_context};
+  const std::unique_ptr<llvm::Module> algebraic_module =
+      algebraic_generator.generate(algebraic_program, "option_result");
+  std::string algebraic_ir;
+  llvm::raw_string_ostream algebraic_output{algebraic_ir};
+  algebraic_module->print(algebraic_output, nullptr);
+  algebraic_output.flush();
+  expect(algebraic_ir.find("%enum.Option__int = type { i32, i32 }") !=
+             std::string::npos,
+         "the standard Option type is specialized");
+  expect(algebraic_ir.find("%enum.Result__int__string = type") !=
+             std::string::npos,
+         "the standard Result type is specialized");
+  expect(algebraic_ir.find("switch i32") != std::string::npos,
+         "standard algebraic types can be exhaustively matched");
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;
   }
 
-  std::cout << "qualified imports load Array from the standard library\n";
+  std::cout << "qualified imports load the standard library\n";
   return 0;
 }

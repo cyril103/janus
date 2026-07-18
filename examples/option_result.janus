@@ -1,0 +1,17 @@
+import std.option
+import std.result
+
+def main() : int {
+    val option : Option[int] = Option.Some[int](40)
+    val result : Result[int, string] = Result.Ok[int, string](2)
+
+    val left : int = match option {
+        Some(value) => value,
+        None => 0
+    }
+    val right : int = match result {
+        Ok(value) => value,
+        Error(message) => 0
+    }
+    return left + right
+}

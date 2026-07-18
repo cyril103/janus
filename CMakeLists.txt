@@ -495,6 +495,7 @@ if(BUILD_TESTING)
         PRIVATE
             JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
             JANUS_ARRAY_EXAMPLE="${PROJECT_SOURCE_DIR}/examples/array.janus"
+            JANUS_OPTION_RESULT_EXAMPLE="${PROJECT_SOURCE_DIR}/examples/option_result.janus"
     )
     target_compile_options(module_import_test
         PRIVATE
