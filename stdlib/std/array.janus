@@ -79,6 +79,81 @@ class Array[T](initialCapacity : usize) {
         length = usize(0)
     }
 
+    def foreach(action : (T) => Unit) : Unit {
+        var index : usize = usize(0)
+        while index < length {
+            action(data.load(index))
+            index = index + usize(1)
+        }
+    }
+
+    def map[U](transform : (T) => U) : Array[U] {
+        val result : Array[U] = new Array[U](length)
+        var index : usize = usize(0)
+        while index < length {
+            result.push(transform(data.load(index)))
+            index = index + usize(1)
+        }
+        return result
+    }
+
+    def filter(predicate : (T) => bool) : Array[T] {
+        val result : Array[T] = new Array[T](length)
+        var index : usize = usize(0)
+        while index < length {
+            val value : T = data.load(index)
+            if predicate(value) {
+                result.push(value)
+            }
+            index = index + usize(1)
+        }
+        return result
+    }
+
+    def fold[U](initial : U, combine : (U, T) => U) : U {
+        var accumulator : U = initial
+        var index : usize = usize(0)
+        while index < length {
+            accumulator = combine(accumulator, data.load(index))
+            index = index + usize(1)
+        }
+        return accumulator
+    }
+
+    def any(predicate : (T) => bool) : bool {
+        var index : usize = usize(0)
+        while index < length {
+            if predicate(data.load(index)) {
+                return true
+            }
+            index = index + usize(1)
+        }
+        return false
+    }
+
+    def all(predicate : (T) => bool) : bool {
+        var index : usize = usize(0)
+        while index < length {
+            if !predicate(data.load(index)) {
+                return false
+            }
+            index = index + usize(1)
+        }
+        return true
+    }
+
+    def count(predicate : (T) => bool) : usize {
+        var matches : usize = usize(0)
+        var index : usize = usize(0)
+        while index < length {
+            if predicate(data.load(index)) {
+                matches = matches + usize(1)
+            }
+            index = index + usize(1)
+        }
+        return matches
+    }
+
     destructor {
         free(data)
     }

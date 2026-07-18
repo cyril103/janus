@@ -57,6 +57,15 @@ int main() {
   expect(ir.find("%class.Array__int = type { ptr, i64, i64 }") !=
              std::string::npos,
          "an imported generic class is monomorphized");
+  expect(ir.find("%class.Array__double = type { ptr, i64, i64 }") !=
+             std::string::npos,
+         "Array.map creates a specialization for its output type");
+  expect(ir.find("define ptr @Array__int__map__double") != std::string::npos,
+         "Array.map is monomorphized with its method type argument");
+  expect(ir.find("define i32 @Array__int__fold__int") != std::string::npos,
+         "Array.fold is monomorphized with its accumulator type");
+  expect(ir.find("call void %action.code") != std::string::npos,
+         "Array.foreach invokes Unit closures indirectly");
   expect(ir.find("define i32 @main()") != std::string::npos,
          "the merged program produces its entry point");
 

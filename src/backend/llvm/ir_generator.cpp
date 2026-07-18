@@ -1055,6 +1055,8 @@ private:
                   janus::backend::llvm::lower_type(*signature.return_type,
                                                    context_),
                   parameter_types, false);
+              if (signature.return_type->kind() == janus::TypeKind::Unit)
+                return builder.CreateCall(callee_type, code, arguments);
               return builder.CreateCall(callee_type, code, arguments,
                                         node.callee + ".call");
             }

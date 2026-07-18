@@ -463,6 +463,16 @@ L'API initiale comprend :
 - `get(index)` et `set(index, value)` avec contrôle de limites ;
 - `push(value)` et `pop()` ;
 - `reserve(capacity)` et `clear()`.
+- `foreach((T) => Unit)` ;
+- `map[U]((T) => U) : Array[U]` ;
+- `filter((T) => bool) : Array[T]` ;
+- `fold[U](U, (U, T) => U) : U` ;
+- `any`, `all` et `count` avec un prédicat `(T) => bool`.
+
+Les méthodes fonctionnelles empruntent la closure reçue et ne la détruisent
+pas. L'appelant conserve sa responsabilité : une closure capturante doit être
+supprimée après l'appel. `map` et `filter` allouent un nouveau tableau dont
+l'appelant devient propriétaire.
 
 Le tableau possède son buffer, mais pas les objets éventuellement stockés. Un
 `Array[Point]` copie les pointeurs vers les `Point` : le programmeur doit
@@ -687,8 +697,22 @@ accéder aux champs directement avec `x` ou explicitement avec `this.x`, et
 modifier les champs déclarés avec `var`.
 
 Les corps de destructeurs acceptent les mêmes instructions qu'une fonction
-`Unit`, notamment les conditions, les boucles, les appels et `delete`. Les
-méthodes génériques ne sont pas encore prises en charge.
+`Unit`, notamment les conditions, les boucles, les appels et `delete`.
+
+Une méthode peut déclarer ses propres paramètres de types, en plus de ceux de
+sa classe. Les arguments sont explicites à l'appel et chaque combinaison est
+monomorphisée :
+
+```janus
+class Converter[T]() {
+    def convert[U](value : T, transform : (T) => U) : U {
+        return transform(value)
+    }
+}
+
+val result : double =
+    converter.convert[double](42, (value : int) => double(value))
+```
 
 ### Membres privés
 

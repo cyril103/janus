@@ -5,8 +5,32 @@ def main() : int {
     values.push(10)
     values.push(20)
     values.push(12)
-    values.set(usize(0), values.get(usize(0)) + values.pop())
-    val result : int = values.get(usize(0)) + values.get(usize(1))
+
+    values.foreach((value : int) => print(""))
+    val halved : Array[double] =
+        values.map[double]((value : int) => double(value) / 2.0)
+
+    val threshold : int = 11
+    val aboveThreshold : (int) => bool =
+        (value : int) => value > threshold
+    val filtered : Array[int] = values.filter(aboveThreshold)
+    delete aboveThreshold
+
+    val sum : int =
+        values.fold[int](0, (total : int, value : int) => total + value)
+    val hasTwenty : bool =
+        values.any((value : int) => value == 20)
+    val allPositive : bool =
+        values.all((value : int) => value > 0)
+    val largeCount : usize =
+        values.count((value : int) => value > 11)
+
+    val result : int = sum + int(halved.get(usize(0))) +
+        int(hasTwenty) + int(allPositive) + int(largeCount) +
+        int(filtered.size())
+
+    delete filtered
+    delete halved
     delete values
     return result
 }
