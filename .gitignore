@@ -1,0 +1,58 @@
+# Build directories
+/build/
+/build-*/
+/cmake-build-*/
+/out/
+
+# CMake and Ninja generated files
+/CMakeCache.txt
+/CMakeFiles/
+/cmake_install.cmake
+/CTestTestfile.cmake
+/Makefile
+/build.ninja
+/.ninja_deps
+/.ninja_log
+/compile_commands.json
+/CMakeUserPresets.json
+
+# C/C++ build artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.d
+*.dep
+*.gch
+*.pch
+*.pdb
+*.ilk
+*.exe
+
+# Test, coverage, profiling, and sanitizer output
+/Testing/
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+coverage/
+
+# Clang tooling caches
+/.cache/
+/.clangd/
+
+# Editors and IDEs
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
