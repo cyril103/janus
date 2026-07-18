@@ -577,6 +577,22 @@ Les adaptateurs supplémentaires restent eux aussi paresseux :
 `IndexValue(index, value)`. `zip` s’arrête avec l’itérateur le plus court.
 `flatMap` détruit chaque itérateur intérieur dès qu’il est épuisé.
 
+### Propagation de `Option` et `Result`
+
+L’opérateur postfixé `?` extrait `Some` ou `Ok` et retourne immédiatement
+`None` ou `Error` depuis la fonction courante :
+
+```janus
+def convert(input : Result[int, string]) : Result[double, string] {
+    val value : int = input?
+    return Result.Ok[double, string](double(value))
+}
+```
+
+La fonction englobante doit retourner le même type algébrique. Pour `Result`,
+le type d’erreur doit être identique ; le type de succès peut changer. `?`
+n’est pas encore autorisé dans une lambda littérale.
+
 Le tableau possède son buffer, mais pas les objets éventuellement stockés. Un
 `Array[Point]` copie les pointeurs vers les `Point` : le programmeur doit
 continuer à supprimer chaque objet séparément.

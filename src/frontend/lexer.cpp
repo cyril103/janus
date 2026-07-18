@@ -221,6 +221,8 @@ Token Lexer::next() {
                  start};
   case '.':
     return Token{TokenKind::Dot, source_.substr(start_position, 1), start};
+  case '?':
+    return Token{TokenKind::Question, source_.substr(start_position, 1), start};
   default:
     throw CompileError{start, "unexpected character '" +
                                   std::string(1, character) + "'"};

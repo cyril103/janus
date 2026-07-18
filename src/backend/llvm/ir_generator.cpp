@@ -740,8 +740,11 @@ private:
       }
       return false;
     };
+    const janus::Type *previous_return_type = active_return_type_;
+    active_return_type_ = &return_type;
     const bool emitted_return = emit_block(
         body_override == nullptr ? function.body : *body_override, locals);
+    active_return_type_ = previous_return_type;
     if (!emitted_return && return_type.kind() == janus::TypeKind::Unit)
       builder.CreateRetVoid();
     return llvm_function;
@@ -857,6 +860,9 @@ private:
                                                 janus::ast::MoveExpression>) {
               visit(*node.operand, active_bound);
             } else if constexpr (std::is_same_v<Node,
+                                                janus::ast::TryExpression>) {
+              visit(*node.operand, active_bound);
+            } else if constexpr (std::is_same_v<Node,
                                                 janus::ast::UnaryExpression>) {
               visit(*node.operand, active_bound);
             } else if constexpr (std::is_same_v<Node,
@@ -945,9 +951,12 @@ private:
                             Local{storage, parameter_type});
     }
 
+    const janus::Type *previous_return_type = active_return_type_;
+    active_return_type_ = signature.return_type;
     ::llvm::Value *result =
         emit_expression(*lambda.body, *signature.return_type, substitutions,
                         lambda_locals, lambda_builder);
+    active_return_type_ = previous_return_type;
     if (signature.return_type->kind() == janus::TypeKind::Unit)
       lambda_builder.CreateRetVoid();
     else
@@ -1110,6 +1119,22 @@ private:
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::MoveExpression>) {
             return expression_type(*node.operand, substitutions, locals);
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::TryExpression>) {
+            const janus::Type &enum_type =
+                expression_type(*node.operand, substitutions, locals);
+            const EnumSpecialization &specialization =
+                enum_specializations_.at(std::string{enum_type.name()});
+            const std::string_view success_case =
+                specialization.declaration->name == "Option" ? "Some" : "Ok";
+            const auto enum_case = std::find_if(
+                specialization.declaration->cases.begin(),
+                specialization.declaration->cases.end(),
+                [&](const janus::ast::EnumDeclaration::Case &candidate) {
+                  return candidate.name == success_case;
+                });
+            return resolve(enum_case->payload_types.front(),
+                           specialization.substitutions);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::UnaryExpression>) {
             if (node.operation == janus::ast::UnaryOperator::LogicalNot)
@@ -1814,6 +1839,58 @@ private:
             return emit_expression(*node.operand, expected_type, substitutions,
                                    locals, builder);
           } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::TryExpression>) {
+            const janus::Type &operand_type =
+                expression_type(*node.operand, substitutions, locals);
+            const EnumSpecialization &operand_specialization =
+                enum_specializations_.at(std::string{operand_type.name()});
+            const bool is_option =
+                operand_specialization.declaration->name == "Option";
+            const std::string_view success_case = is_option ? "Some" : "Ok";
+            const std::string_view failure_case = is_option ? "None" : "Error";
+            ::llvm::Value *operand = emit_expression(
+                *node.operand, operand_type, substitutions, locals, builder);
+            ::llvm::Value *tag =
+                builder.CreateExtractValue(operand, 0, "try.tag");
+            ::llvm::Function *function = builder.GetInsertBlock()->getParent();
+            auto *success_block =
+                ::llvm::BasicBlock::Create(context_, "try.success", function);
+            auto *failure_block =
+                ::llvm::BasicBlock::Create(context_, "try.failure", function);
+            builder.CreateCondBr(
+                builder.CreateICmpEQ(
+                    tag, builder.getInt32(enum_case_value(operand_type.name(),
+                                                          success_case))),
+                success_block, failure_block);
+
+            builder.SetInsertPoint(failure_block);
+            const janus::Type &return_type = *active_return_type_;
+            auto *llvm_return_type = ::llvm::cast<::llvm::StructType>(
+                lower_type(return_type, context_));
+            ::llvm::Value *failure = ::llvm::UndefValue::get(llvm_return_type);
+            failure = builder.CreateInsertValue(
+                failure,
+                builder.getInt32(
+                    enum_case_value(return_type.name(), failure_case)),
+                0, "try.failure.tag");
+            if (!is_option) {
+              ::llvm::Value *error = builder.CreateExtractValue(
+                  operand,
+                  enum_case_payload_start(operand_type.name(), failure_case),
+                  "try.error");
+              failure = builder.CreateInsertValue(
+                  failure, error,
+                  enum_case_payload_start(return_type.name(), failure_case),
+                  "try.failure.value");
+            }
+            builder.CreateRet(failure);
+
+            builder.SetInsertPoint(success_block);
+            return builder.CreateExtractValue(
+                operand,
+                enum_case_payload_start(operand_type.name(), success_case),
+                "try.value");
+          } else if constexpr (std::is_same_v<Node,
                                               janus::ast::UnaryExpression>) {
             const janus::Type *operand_type =
                 &expression_type(*node.operand, substitutions, locals);
@@ -2006,6 +2083,7 @@ private:
   std::unordered_map<std::string, janus::Type> function_types_;
   std::unordered_map<std::string, FunctionSignature> function_signatures_;
   std::unordered_map<std::string, ::llvm::Function *> emitted_;
+  const janus::Type *active_return_type_{};
   std::size_t string_literal_index_{};
   std::size_t lambda_index_{};
 };

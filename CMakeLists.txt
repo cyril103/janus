@@ -354,6 +354,22 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.match_expression COMMAND match_expression_test)
 
+    add_executable(try_operator_test
+        tests/language/try_operator_test.cpp
+    )
+    target_link_libraries(try_operator_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(try_operator_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.try_operator COMMAND try_operator_test)
+
     add_executable(unit_type_test
         tests/language/unit_type_test.cpp
     )

@@ -117,6 +117,11 @@ struct MoveExpression {
   SourceLocation location;
 };
 
+struct TryExpression {
+  std::unique_ptr<Expression> operand;
+  SourceLocation location;
+};
+
 enum class UnaryOperator {
   Negate,
   LogicalNot,
@@ -158,8 +163,8 @@ struct Expression {
                    StringLiteralExpression, IdentifierExpression,
                    LambdaExpression, CallExpression, NewExpression,
                    MemberAccessExpression, MethodCallExpression, IfExpression,
-                   MatchExpression, MoveExpression, UnaryExpression,
-                   BinaryExpression>;
+                   MatchExpression, MoveExpression, TryExpression,
+                   UnaryExpression, BinaryExpression>;
 
   template <typename T>
     requires std::constructible_from<Value, T>

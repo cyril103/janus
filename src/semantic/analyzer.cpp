@@ -524,6 +524,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
         &type_parameters;
     const std::unordered_map<std::string, SemanticType>
         *active_type_substitutions = nullptr;
+    bool inside_lambda = false;
 
     std::function<SemanticType(const ast::Expression &)> expression_type;
     std::function<void(const ast::Expression &, const SemanticType &,
@@ -624,7 +625,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               }
               SymbolTable *previous_symbols = active_symbols;
               active_symbols = &lambda_symbols;
+              const bool previous_inside_lambda = inside_lambda;
+              inside_lambda = true;
               signature.push_back(expression_type(*node.body));
+              inside_lambda = previous_inside_lambda;
               active_symbols = previous_symbols;
               return SemanticType{
                   nullptr, "Function", false, std::move(signature),
@@ -1281,6 +1285,34 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                     "generic value"};
               active_symbols->at(identifier->name).is_initialized = false;
               return moved_type;
+            } else if constexpr (std::is_same_v<Node, ast::TryExpression>) {
+              if (inside_lambda)
+                throw CompileError{
+                    node.location,
+                    "operator '?' is not supported inside lambda literals"};
+              const SemanticType operand_type = expression_type(*node.operand);
+              if (!operand_type.is_enum() ||
+                  (operand_type.parameter != "Option" &&
+                   operand_type.parameter != "Result"))
+                throw CompileError{
+                    node.location,
+                    "operator '?' requires an Option[T] or Result[T, E]"};
+              if (!return_type.is_enum() ||
+                  return_type.parameter != operand_type.parameter)
+                throw CompileError{
+                    node.location,
+                    "operator '?' requires the enclosing function to return " +
+                        operand_type.parameter};
+              if (operand_type.parameter == "Result" &&
+                  !same_type(operand_type.type_arguments[1],
+                             return_type.type_arguments[1]))
+                throw CompileError{
+                    node.location,
+                    "operator '?' cannot propagate error type '" +
+                        operand_type.type_arguments[1].name() +
+                        "' from a function returning error type '" +
+                        return_type.type_arguments[1].name() + "'"};
+              return operand_type.type_arguments.front();
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
               if (node.operation == ast::UnaryOperator::LogicalNot) {

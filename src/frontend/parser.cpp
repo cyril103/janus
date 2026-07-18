@@ -942,7 +942,15 @@ ast::TypeReference Parser::parse_type() {
 }
 
 ast::Expression Parser::parse_postfix(ast::Expression expression) {
-  while (current_.kind == TokenKind::Dot) {
+  while (current_.kind == TokenKind::Dot ||
+         current_.kind == TokenKind::Question) {
+    if (current_.kind == TokenKind::Question) {
+      const Token question = expect(TokenKind::Question);
+      expression = ast::TryExpression{
+          std::make_unique<ast::Expression>(std::move(expression)),
+          question.location};
+      continue;
+    }
     advance();
     const Token member = expect(TokenKind::Identifier);
     std::vector<ast::TypeReference> type_arguments;

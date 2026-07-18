@@ -1,0 +1,35 @@
+import std.option
+import std.result
+
+def convertOption(input : Option[int]) : Option[double] {
+    val value : int = input?
+    return Option.Some[double](double(value) + 1.0)
+}
+
+def convertResult(input : Result[int, string]) : Result[double, string] {
+    val value : int = input?
+    return Result.Ok[double, string](double(value) * 2.0)
+}
+
+def main() : int {
+    val option : Option[double] =
+        convertOption(Option.Some[int](21))
+    val result : Result[double, string] =
+        convertResult(Result.Ok[int, string](10))
+    val failed : Result[double, string] =
+        convertResult(Result.Error[int, string]("failure"))
+
+    val optionValue : int = match option {
+        Some(value) => int(value),
+        None => 0
+    }
+    val resultValue : int = match result {
+        Ok(value) => int(value),
+        Error(message) => 0
+    }
+    val propagated : int = match failed {
+        Ok(value) => 0,
+        Error(message) => 1
+    }
+    return optionValue + resultValue + propagated
+}
