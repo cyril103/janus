@@ -7,7 +7,10 @@ def main() : int {
     values.push(12)
 
     val iterator : Iterator[int] =
-        values.iterator().map[int]((value : int) => value * 2)
+        values.iterator()
+            .map[int]((value : int) => value * 2)
+            .filter((value : int) => value > 25)
+            .take(usize(1))
     val first : Option[int] = iterator.next()
     val firstValue : int = match first {
         Some(value) => value,

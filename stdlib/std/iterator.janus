@@ -23,6 +23,63 @@ class MapIteratorState[A, B](
     }
 }
 
+class FilterIteratorState[T](
+    private val source : Iterator[T],
+    private val predicate : (T) => bool
+) {
+    def next() : Option[T] {
+        var result : Option[Option[T]] = Option.None[Option[T]]()
+        while match result {
+            Some(value) => false,
+            None => true
+        } {
+            val value : Option[T] = source.next()
+            result = match value {
+                Some(item) => if predicate(item) {
+                    Option.Some[Option[T]](Option.Some[T](item))
+                } else {
+                    Option.None[Option[T]]()
+                },
+                None => Option.Some[Option[T]](Option.None[T]())
+            }
+        }
+        return match result {
+            Some(value) => value,
+            None => this.next()
+        }
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        delete predicate
+        delete source
+    }
+}
+
+class TakeIteratorState[T](
+    private val source : Iterator[T],
+    private var remaining : usize
+) {
+    def next() : Option[T] {
+        if remaining == usize(0) {
+            return Option.None[T]()
+        }
+        remaining = remaining - usize(1)
+        return source.next()
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        delete source
+    }
+}
+
 class Iterator[T](
     private val advance : () => Option[T],
     private val release : () => Unit
@@ -35,6 +92,24 @@ class Iterator[T](
         val state : MapIteratorState[T, U] =
             new MapIteratorState[T, U](this, transform)
         return new Iterator[U](
+            () => state.next(),
+            () => state.dispose()
+        )
+    }
+
+    def filter(predicate : (T) => bool) : Iterator[T] {
+        val state : FilterIteratorState[T] =
+            new FilterIteratorState[T](this, predicate)
+        return new Iterator[T](
+            () => state.next(),
+            () => state.dispose()
+        )
+    }
+
+    def take(count : usize) : Iterator[T] {
+        val state : TakeIteratorState[T] =
+            new TakeIteratorState[T](this, count)
+        return new Iterator[T](
             () => state.next(),
             () => state.dispose()
         )

@@ -99,6 +99,17 @@ int main() {
       ir.find("define internal void @MapIteratorState__int__int__destructor") !=
           std::string::npos,
       "a mapped iterator owns its transform and source iterator");
+  expect(ir.find("define ptr @Iterator__int__filter") != std::string::npos,
+         "Iterator.filter builds a lazy filtering stage");
+  expect(ir.find("define ptr @Iterator__int__take") != std::string::npos,
+         "Iterator.take limits demand from its source");
+  expect(
+      ir.find("define internal void @FilterIteratorState__int__destructor") !=
+          std::string::npos,
+      "a filtered iterator owns its predicate and source");
+  expect(ir.find("define internal void @TakeIteratorState__int__destructor") !=
+             std::string::npos,
+         "a take iterator owns its source");
   expect(ir.find("call void %action.code") != std::string::npos,
          "Array.foreach invokes Unit closures indirectly");
   expect(ir.find("define i32 @main()") != std::string::npos,
