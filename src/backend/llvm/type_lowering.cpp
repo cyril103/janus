@@ -25,6 +25,8 @@ namespace janus::backend::llvm {
                                    ::llvm::Type::getInt64Ty(context));
   case TypeKind::Unit:
     return ::llvm::Type::getVoidTy(context);
+  case TypeKind::USize:
+    return ::llvm::Type::getInt64Ty(context);
   case TypeKind::Class:
     return ::llvm::PointerType::getUnqual(context);
   }

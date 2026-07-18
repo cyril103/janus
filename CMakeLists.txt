@@ -301,4 +301,20 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.destructor_body COMMAND destructor_body_test)
+
+    add_executable(usize_test
+        tests/language/usize_test.cpp
+    )
+    target_link_libraries(usize_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(usize_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.usize COMMAND usize_test)
 endif()

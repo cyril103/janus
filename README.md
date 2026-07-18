@@ -23,7 +23,7 @@ Tout programme Janus doit déclarer exactement un point d'entrée
 `val` crée une liaison immuable : après sa déclaration, `x` ne peut pas être
 réaffecté.
 
-Janus possède actuellement six types primitifs et le type de retour `Unit` :
+Janus possède actuellement sept types primitifs et le type de retour `Unit` :
 
 | Type Janus | Signification | Représentation LLVM |
 | --- | --- | --- |
@@ -33,6 +33,7 @@ Janus possède actuellement six types primitifs et le type de retour `Unit` :
 | `char` | scalaire Unicode sur 32 bits | `i32` |
 | `bool` | valeur `true` ou `false` | `i1` |
 | `string` | chaîne Unicode UTF-8 immuable | `{ ptr, i64 }` |
+| `usize` | entier non signé pour les tailles mémoire | `i64` |
 | `Unit` | absence de valeur de retour | `void` |
 
 `Unit` s'utilise comme retour d'une fonction ou d'une méthode qui ne produit
@@ -160,6 +161,13 @@ objet possédé :
 
 ```bash
 ./build/janusc examples/destructor.janus
+```
+
+Le fichier `examples/usize.janus` présente les tailles et conversions
+explicites :
+
+```bash
+./build/janusc examples/usize.janus
 ```
 
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
@@ -303,6 +311,11 @@ UTF-8.
 Le débordement de `int` et `byte` suit une arithmétique modulo 2^32 et 2^8.
 Comme pour les entiers C, une division ou un reste par zéro n'est pas une
 opération valide.
+
+`usize` suit une arithmétique non signée modulo 2^64. Janus ne convertit pas
+implicitement les entiers : `usize(value)`, `int(value)` et `byte(value)`
+effectuent les conversions explicites, avec extension ou troncature selon les
+largeurs concernées.
 
 ## Fonctions et généricité
 

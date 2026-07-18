@@ -29,6 +29,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::string_type();
   if (name == "Unit")
     return &janus::Type::unit_type();
+  if (name == "usize")
+    return &janus::Type::usize_type();
   return nullptr;
 }
 
@@ -402,6 +404,29 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               }
               return iterator->second.type;
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              const Type *conversion_type = builtin_type(node.callee);
+              const bool is_integer_conversion =
+                  conversion_type != nullptr &&
+                  (conversion_type->kind() == TypeKind::Int ||
+                   conversion_type->kind() == TypeKind::Byte ||
+                   conversion_type->kind() == TypeKind::USize);
+              if (is_integer_conversion) {
+                if (!node.type_arguments.empty() || node.arguments.size() != 1)
+                  throw CompileError{node.location,
+                                     "integer conversion '" + node.callee +
+                                         "' expects exactly one argument"};
+                const SemanticType source_type =
+                    expression_type(*node.arguments.front());
+                if (!source_type.is_concrete() ||
+                    (source_type.concrete->kind() != TypeKind::Int &&
+                     source_type.concrete->kind() != TypeKind::Byte &&
+                     source_type.concrete->kind() != TypeKind::USize))
+                  throw CompileError{
+                      node.location,
+                      "integer conversion '" + node.callee +
+                          "' requires an int, byte, or usize argument"};
+                return SemanticType{conversion_type};
+              }
               const auto callee_iterator = functions.find(node.callee);
               if (callee_iterator == functions.end()) {
                 throw CompileError{node.location,
@@ -654,9 +679,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               const bool is_concrete = left_type.is_concrete();
               const TypeKind kind =
                   is_concrete ? left_type.concrete->kind() : TypeKind::Int;
-              const bool is_numeric = is_concrete && (kind == TypeKind::Int ||
-                                                      kind == TypeKind::Byte ||
-                                                      kind == TypeKind::Double);
+              const bool is_numeric =
+                  is_concrete &&
+                  (kind == TypeKind::Int || kind == TypeKind::Byte ||
+                   kind == TypeKind::Double || kind == TypeKind::USize);
               const bool is_orderable =
                   is_numeric || (is_concrete && kind == TypeKind::Char);
 
@@ -669,16 +695,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   throw CompileError{
                       node.location,
                       "arithmetic operators require operands of type 'int', "
-                      "'byte', or 'double'"};
+                      "'byte', 'usize', or 'double'"};
                 }
                 return left_type;
               case ast::BinaryOperator::Remainder:
                 if (!is_concrete ||
-                    (kind != TypeKind::Int && kind != TypeKind::Byte)) {
+                    (kind != TypeKind::Int && kind != TypeKind::Byte &&
+                     kind != TypeKind::USize)) {
                   throw CompileError{
                       node.location,
-                      "operator '%' requires operands of type 'int' or "
-                      "'byte'"};
+                      "operator '%' requires operands of type 'int', 'byte', "
+                      "or 'usize'"};
                 }
                 return left_type;
               case ast::BinaryOperator::Less:
@@ -689,7 +716,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   throw CompileError{
                       node.location,
                       "comparison operators require operands of type 'int', "
-                      "'byte', 'double', or 'char'"};
+                      "'byte', 'usize', 'double', or 'char'"};
                 }
                 return SemanticType{&Type::bool_type(), {}};
               case ast::BinaryOperator::Equal:

@@ -37,6 +37,11 @@ const Type &Type::unit_type() {
   return type;
 }
 
+const Type &Type::usize_type() {
+  static const Type type{TypeKind::USize, "usize", 64, false};
+  return type;
+}
+
 Type Type::class_type(std::string_view name) {
   return Type{TypeKind::Class, name, 0, false};
 }
@@ -52,7 +57,8 @@ std::string_view Type::name() const noexcept { return name_; }
 std::uint32_t Type::bit_width() const noexcept { return bit_width_; }
 
 bool Type::is_integer() const noexcept {
-  return kind_ == TypeKind::Int || kind_ == TypeKind::Byte;
+  return kind_ == TypeKind::Int || kind_ == TypeKind::Byte ||
+         kind_ == TypeKind::USize;
 }
 
 bool Type::is_floating_point() const noexcept {

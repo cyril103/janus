@@ -40,6 +40,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::string_type();
   if (name == "Unit")
     return &janus::Type::unit_type();
+  if (name == "usize")
+    return &janus::Type::usize_type();
   return nullptr;
 }
 
@@ -507,6 +509,12 @@ private:
             return *locals.at(node.name).type;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
+            if (const janus::Type *conversion_type = builtin_type(node.callee);
+                conversion_type != nullptr &&
+                (conversion_type->kind() == janus::TypeKind::Int ||
+                 conversion_type->kind() == janus::TypeKind::Byte ||
+                 conversion_type->kind() == janus::TypeKind::USize))
+              return *conversion_type;
             const auto &callee = *functions_.at(node.callee);
             Substitutions callee_substitutions;
             for (std::size_t index = 0; index < node.type_arguments.size();
@@ -621,6 +629,21 @@ private:
                 local.storage, node.name + ".value");
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
+            if (const janus::Type *conversion_type = builtin_type(node.callee);
+                conversion_type != nullptr &&
+                (conversion_type->kind() == janus::TypeKind::Int ||
+                 conversion_type->kind() == janus::TypeKind::Byte ||
+                 conversion_type->kind() == janus::TypeKind::USize)) {
+              const janus::Type &source_type = expression_type(
+                  *node.arguments.front(), substitutions, locals);
+              ::llvm::Value *source =
+                  emit_expression(*node.arguments.front(), source_type,
+                                  substitutions, locals, builder);
+              return builder.CreateIntCast(
+                  source,
+                  janus::backend::llvm::lower_type(*conversion_type, context_),
+                  source_type.is_signed(), node.callee + ".conversion");
+            }
             const janus::ast::FunctionDeclaration &callee =
                 *functions_.at(node.callee);
             std::vector<const janus::Type *> type_arguments;
@@ -830,6 +853,9 @@ private:
                 *node.right, operand_type, substitutions, locals, builder);
             const bool is_double =
                 operand_type.kind() == janus::TypeKind::Double;
+            const bool is_unsigned_integer =
+                operand_type.kind() == janus::TypeKind::Char ||
+                operand_type.kind() == janus::TypeKind::USize;
 
             switch (node.operation) {
             case janus::ast::BinaryOperator::Add:
@@ -843,31 +869,35 @@ private:
                                : builder.CreateMul(left, right, "mul");
             case janus::ast::BinaryOperator::Divide:
               return is_double ? builder.CreateFDiv(left, right, "div")
-                               : builder.CreateSDiv(left, right, "div");
+                     : is_unsigned_integer
+                         ? builder.CreateUDiv(left, right, "div")
+                         : builder.CreateSDiv(left, right, "div");
             case janus::ast::BinaryOperator::Remainder:
-              return builder.CreateSRem(left, right, "rem");
+              return is_unsigned_integer
+                         ? builder.CreateURem(left, right, "rem")
+                         : builder.CreateSRem(left, right, "rem");
             case janus::ast::BinaryOperator::Less:
               if (is_double)
                 return builder.CreateFCmpOLT(left, right, "cmp");
-              return operand_type.kind() == janus::TypeKind::Char
+              return is_unsigned_integer
                          ? builder.CreateICmpULT(left, right, "cmp")
                          : builder.CreateICmpSLT(left, right, "cmp");
             case janus::ast::BinaryOperator::LessEqual:
               if (is_double)
                 return builder.CreateFCmpOLE(left, right, "cmp");
-              return operand_type.kind() == janus::TypeKind::Char
+              return is_unsigned_integer
                          ? builder.CreateICmpULE(left, right, "cmp")
                          : builder.CreateICmpSLE(left, right, "cmp");
             case janus::ast::BinaryOperator::Greater:
               if (is_double)
                 return builder.CreateFCmpOGT(left, right, "cmp");
-              return operand_type.kind() == janus::TypeKind::Char
+              return is_unsigned_integer
                          ? builder.CreateICmpUGT(left, right, "cmp")
                          : builder.CreateICmpSGT(left, right, "cmp");
             case janus::ast::BinaryOperator::GreaterEqual:
               if (is_double)
                 return builder.CreateFCmpOGE(left, right, "cmp");
-              return operand_type.kind() == janus::TypeKind::Char
+              return is_unsigned_integer
                          ? builder.CreateICmpUGE(left, right, "cmp")
                          : builder.CreateICmpSGE(left, right, "cmp");
             case janus::ast::BinaryOperator::Equal:

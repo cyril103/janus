@@ -14,6 +14,7 @@ enum class TypeKind {
   Bool,
   String,
   Unit,
+  USize,
   Class,
 };
 
@@ -26,6 +27,7 @@ public:
   [[nodiscard]] static const Type &bool_type();
   [[nodiscard]] static const Type &string_type();
   [[nodiscard]] static const Type &unit_type();
+  [[nodiscard]] static const Type &usize_type();
   [[nodiscard]] static Type class_type(std::string_view name);
 
   [[nodiscard]] TypeKind kind() const noexcept;

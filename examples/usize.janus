@@ -1,0 +1,13 @@
+def main() : int {
+    val source : int = 5
+    val limit : usize = usize(source)
+    var index : usize = usize(0)
+    var total : usize = usize(0)
+
+    while index < limit {
+        total = total + index
+        index = index + usize(1)
+    }
+
+    return int(total)
+}
