@@ -2,7 +2,10 @@
 
 #include "janus/diagnostics/compile_error.hpp"
 
+#include <cstdint>
+#include <limits>
 #include <string>
+#include <type_traits>
 #include <variant>
 
 namespace janus::semantic {
@@ -43,16 +46,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                  "' is already declared"};
         }
 
-        const Type &initializer_type =
-            expression_type(declaration->initializer);
-        if (declaration->declared_type->kind() != initializer_type.kind()) {
-          throw CompileError{
-              declaration->location,
-              "cannot initialize value of type '" +
-                  std::string{declaration->declared_type->name()} +
-                  "' with an expression of type '" +
-                  std::string{initializer_type.name()} + "'"};
-        }
+        validate_expression(declaration->initializer,
+                            *declaration->declared_type, declaration->location);
 
         symbols.emplace(declaration->name, Symbol{declaration->declared_type,
                                                   declaration->is_mutable});
@@ -60,11 +55,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       }
 
       const auto &return_statement = std::get<ast::ReturnStatement>(statement);
-      const Type &returned_type = expression_type(return_statement.expression);
-      if (returned_type.kind() != function.return_type->kind()) {
-        throw CompileError{return_statement.location,
-                           "return type does not match function return type"};
-      }
+      validate_expression(return_statement.expression, *function.return_type,
+                          return_statement.location);
       has_return = true;
     }
 
@@ -84,10 +76,49 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
   return result;
 }
 
+void Analyzer::validate_expression(const ast::Expression &expression,
+                                   const Type &expected_type,
+                                   SourceLocation location) const {
+  const Type &actual_type = expression_type(expression);
+  if (actual_type.kind() == expected_type.kind()) {
+    return;
+  }
+
+  if (expected_type.kind() == TypeKind::Byte) {
+    if (const auto *literal =
+            std::get_if<ast::IntegerLiteralExpression>(&expression)) {
+      if (literal->value >= std::numeric_limits<std::int8_t>::min() &&
+          literal->value <= std::numeric_limits<std::int8_t>::max()) {
+        return;
+      }
+      throw CompileError{literal->location,
+                         "integer literal is outside the signed 8-bit range"};
+    }
+  }
+
+  throw CompileError{location,
+                     "cannot use expression of type '" +
+                         std::string{actual_type.name()} + "' where type '" +
+                         std::string{expected_type.name()} + "' is required"};
+}
+
 const Type &
 Analyzer::expression_type(const ast::Expression &expression) const noexcept {
   return std::visit(
-      [](const auto &) -> const Type & { return Type::int_type(); },
+      [](const auto &literal) -> const Type & {
+        using Literal = std::decay_t<decltype(literal)>;
+        if constexpr (std::is_same_v<Literal, ast::IntegerLiteralExpression>) {
+          return Type::int_type();
+        } else if constexpr (std::is_same_v<Literal,
+                                            ast::DoubleLiteralExpression>) {
+          return Type::double_type();
+        } else if constexpr (std::is_same_v<Literal,
+                                            ast::CharacterLiteralExpression>) {
+          return Type::char_type();
+        } else {
+          return Type::bool_type();
+        }
+      },
       expression);
 }
 

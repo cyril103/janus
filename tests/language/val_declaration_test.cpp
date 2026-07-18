@@ -90,6 +90,38 @@ int main() {
   expect(ir.find("ret i32 0") != std::string::npos,
          "LLVM returns the value from main");
 
+  janus::frontend::Parser builtin_parser{R"(
+def main() : int {
+  val ratio : double = 3.5
+  val small : byte = 127
+  val glyph : char = '😀'
+  val ready : bool = true
+  val stopped : bool = false
+  return 0
+}
+)"};
+  const janus::ast::Program builtin_program = builtin_parser.parse_program();
+  static_cast<void>(analyzer.analyze(builtin_program));
+  const std::unique_ptr<llvm::Module> builtin_module =
+      generator.generate(builtin_program, "builtin_literals");
+  std::string builtin_ir;
+  llvm::raw_string_ostream builtin_output{builtin_ir};
+  builtin_module->print(builtin_output, nullptr);
+  builtin_output.flush();
+
+  expect(builtin_ir.find("%ratio = alloca double") != std::string::npos,
+         "double storage uses LLVM double");
+  expect(builtin_ir.find("%small = alloca i8") != std::string::npos,
+         "byte storage uses LLVM i8");
+  expect(builtin_ir.find("store i8 127") != std::string::npos,
+         "a checked integer literal initializes byte");
+  expect(builtin_ir.find("store i32 128512") != std::string::npos,
+         "a Unicode scalar initializes char");
+  expect(builtin_ir.find("store i1 true") != std::string::npos,
+         "true initializes bool");
+  expect(builtin_ir.find("store i1 false") != std::string::npos,
+         "false initializes bool");
+
   expect_compile_error("def main() : int { val x int = 5 return 0 }",
                        "expected ':'");
   expect_compile_error("def main() : int { val x : unknown = 5 return 0 }",
@@ -110,6 +142,16 @@ int main() {
                        "must return a value");
   expect_compile_error("def main() : int { return 0 val x : int = 5 }",
                        "statement after return is unreachable");
+  expect_compile_error("def main() : int { val value : byte = 128 return 0 }",
+                       "outside the signed 8-bit range");
+  expect_compile_error("def main() : int { val value : bool = 1 return 0 }",
+                       "expression of type 'int'");
+  expect_compile_error("def main() : int { val value : double = 1 return 0 }",
+                       "expression of type 'int'");
+  expect_compile_error("def main() : int { val value : char = 'ab' return 0 }",
+                       "exactly one Unicode character");
+  expect_compile_error("def main() : int { return false }",
+                       "expression of type 'bool'");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

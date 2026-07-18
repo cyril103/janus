@@ -23,6 +23,9 @@ public:
   [[nodiscard]] AnalysisResult analyze(const ast::Program &program) const;
 
 private:
+  void validate_expression(const ast::Expression &expression,
+                           const Type &expected_type,
+                           SourceLocation location) const;
   [[nodiscard]] const Type &
   expression_type(const ast::Expression &expression) const noexcept;
 };

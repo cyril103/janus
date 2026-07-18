@@ -15,7 +15,24 @@ struct IntegerLiteralExpression {
   SourceLocation location;
 };
 
-using Expression = std::variant<IntegerLiteralExpression>;
+struct DoubleLiteralExpression {
+  double value;
+  SourceLocation location;
+};
+
+struct CharacterLiteralExpression {
+  char32_t value;
+  SourceLocation location;
+};
+
+struct BooleanLiteralExpression {
+  bool value;
+  SourceLocation location;
+};
+
+using Expression =
+    std::variant<IntegerLiteralExpression, DoubleLiteralExpression,
+                 CharacterLiteralExpression, BooleanLiteralExpression>;
 
 struct ValueDeclaration {
   std::string name;

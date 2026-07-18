@@ -1,0 +1,8 @@
+def main() : int {
+    val ratio : double = 3.5
+    val small : byte = 127
+    val glyph : char = '😀'
+    val ready : bool = true
+    val stopped : bool = false
+    return 0
+}

@@ -22,10 +22,19 @@ Tout programme Janus doit déclarer exactement un point d'entrée
 `val` crée une liaison immuable : après sa déclaration, `x` ne peut pas être
 réaffecté.
 
-Le type `int` est toujours un entier signé sur 32 bits. Il est abaissé vers le
-type LLVM `i32`. LLVM ne distingue pas directement les entiers signés des
-entiers non signés dans ses types ; cette information est donc conservée par
-le système de types de Janus.
+Janus possède actuellement cinq types primitifs :
+
+| Type Janus | Signification | Représentation LLVM |
+| --- | --- | --- |
+| `int` | entier signé sur 32 bits | `i32` |
+| `double` | nombre flottant sur 64 bits | `double` |
+| `byte` | entier signé sur 8 bits | `i8` |
+| `char` | scalaire Unicode sur 32 bits | `i32` |
+| `bool` | valeur `true` ou `false` | `i1` |
+
+LLVM ne distingue pas directement les entiers signés des entiers non signés
+dans ses types. Cette information est donc conservée par le système de types
+de Janus.
 
 ## Prérequis
 
@@ -75,6 +84,12 @@ Un programme d'exemple est fourni dans `examples/value.janus` :
 
 ```bash
 ./build/janusc examples/value.janus
+```
+
+Le fichier `examples/types.janus` présente tous les types primitifs :
+
+```bash
+./build/janusc examples/types.janus
 ```
 
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
@@ -135,6 +150,10 @@ Fonctionnalités disponibles :
 - identifiants commençant par une lettre ou `_`, puis composés de lettres,
   chiffres et `_` ;
 - type `int`, signé sur 32 bits ;
+- type `double` et littéraux comme `3.14` ;
+- type `byte`, signé sur 8 bits, avec contrôle de débordement des littéraux ;
+- type `char` et littéraux Unicode comme `'é'` ou `'😀'` ;
+- type `bool` et littéraux `true` et `false` ;
 - littéraux entiers décimaux positifs ;
 - point-virgule optionnel après une déclaration ;
 - plusieurs déclarations dans le corps d'une fonction ;
@@ -158,7 +177,8 @@ def main() : int {
 
 Les expressions arithmétiques, les nombres négatifs, les références à des
 valeurs, les paramètres de fonctions, les appels de fonctions et les autres
-types ne sont pas encore implémentés.
+types ne sont pas encore implémentés. Les littéraux `double` utilisent
+actuellement la forme décimale simple, sans notation exponentielle.
 
 ## Tests
 
@@ -172,6 +192,9 @@ Les tests couvrent actuellement :
 
 - les propriétés sémantiques du type `int` ;
 - son abaissement vers LLVM `i32` ;
+- les propriétés et l'abaissement LLVM de `double`, `byte`, `char` et `bool` ;
+- les littéraux flottants, booléens et Unicode ;
+- le contrôle de la plage des littéraux affectés à `byte` ;
 - la reconnaissance et la validation de `def main() : int` ;
 - l'analyse de `val x : int = 5` ;
 - l'immutabilité d'une déclaration `val` ;

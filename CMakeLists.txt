@@ -126,6 +126,21 @@ if(BUILD_TESTING)
     )
     add_test(NAME types.int COMMAND int_type_test)
 
+    add_executable(builtin_types_test
+        tests/types/builtin_types_test.cpp
+    )
+    target_link_libraries(builtin_types_test
+        PRIVATE
+            janus_llvm_backend
+    )
+    target_compile_options(builtin_types_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME types.builtins COMMAND builtin_types_test)
+
     add_executable(val_declaration_test
         tests/language/val_declaration_test.cpp
     )

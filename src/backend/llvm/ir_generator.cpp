@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 #include <variant>
 
 #include <llvm/IR/BasicBlock.h>
@@ -11,6 +12,40 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
+
+namespace {
+
+::llvm::Value *lower_expression(const janus::ast::Expression &expression,
+                                const janus::Type &expected_type,
+                                ::llvm::IRBuilder<> &builder) {
+  ::llvm::Type *llvm_type =
+      janus::backend::llvm::lower_type(expected_type, builder.getContext());
+
+  return std::visit(
+      [llvm_type, &expected_type](const auto &literal) -> ::llvm::Value * {
+        using Literal = std::decay_t<decltype(literal)>;
+        if constexpr (std::is_same_v<Literal,
+                                     janus::ast::DoubleLiteralExpression>) {
+          return ::llvm::ConstantFP::get(llvm_type, literal.value);
+        } else if constexpr (std::is_same_v<
+                                 Literal,
+                                 janus::ast::CharacterLiteralExpression>) {
+          return ::llvm::ConstantInt::get(
+              llvm_type, static_cast<std::uint32_t>(literal.value), false);
+        } else if constexpr (std::is_same_v<
+                                 Literal,
+                                 janus::ast::BooleanLiteralExpression>) {
+          return ::llvm::ConstantInt::get(llvm_type, literal.value, false);
+        } else {
+          return ::llvm::ConstantInt::get(
+              llvm_type, static_cast<std::uint64_t>(literal.value),
+              expected_type.is_signed());
+        }
+      },
+      expression);
+}
+
+} // namespace
 
 namespace janus::backend::llvm {
 
@@ -41,22 +76,16 @@ IrGenerator::generate(const ast::Program &program,
         ::llvm::Value *storage =
             builder.CreateAlloca(storage_type, nullptr, declaration->name);
 
-        ::llvm::Value *initializer = std::visit(
-            [&builder](const auto &expression) -> ::llvm::Value * {
-              return builder.getInt32(expression.value);
-            },
-            declaration->initializer);
+        ::llvm::Value *initializer = lower_expression(
+            declaration->initializer, *declaration->declared_type, builder);
 
         builder.CreateStore(initializer, storage);
         continue;
       }
 
       const auto &return_statement = std::get<ast::ReturnStatement>(statement);
-      ::llvm::Value *return_value = std::visit(
-          [&builder](const auto &expression) -> ::llvm::Value * {
-            return builder.getInt32(expression.value);
-          },
-          return_statement.expression);
+      ::llvm::Value *return_value = lower_expression(
+          return_statement.expression, *function.return_type, builder);
       builder.CreateRet(return_value);
     }
   }

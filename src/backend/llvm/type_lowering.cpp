@@ -12,6 +12,14 @@ namespace janus::backend::llvm {
   switch (type.kind()) {
   case TypeKind::Int:
     return ::llvm::Type::getInt32Ty(context);
+  case TypeKind::Double:
+    return ::llvm::Type::getDoubleTy(context);
+  case TypeKind::Byte:
+    return ::llvm::Type::getInt8Ty(context);
+  case TypeKind::Char:
+    return ::llvm::Type::getInt32Ty(context);
+  case TypeKind::Bool:
+    return ::llvm::Type::getInt1Ty(context);
   }
 
   return nullptr;

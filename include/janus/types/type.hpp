@@ -7,16 +7,27 @@ namespace janus {
 
 enum class TypeKind {
   Int,
+  Double,
+  Byte,
+  Char,
+  Bool,
 };
 
 class Type final {
 public:
   [[nodiscard]] static const Type &int_type() noexcept;
+  [[nodiscard]] static const Type &double_type() noexcept;
+  [[nodiscard]] static const Type &byte_type() noexcept;
+  [[nodiscard]] static const Type &char_type() noexcept;
+  [[nodiscard]] static const Type &bool_type() noexcept;
 
   [[nodiscard]] TypeKind kind() const noexcept;
   [[nodiscard]] std::string_view name() const noexcept;
   [[nodiscard]] std::uint32_t bit_width() const noexcept;
   [[nodiscard]] bool is_integer() const noexcept;
+  [[nodiscard]] bool is_floating_point() const noexcept;
+  [[nodiscard]] bool is_character() const noexcept;
+  [[nodiscard]] bool is_boolean() const noexcept;
   [[nodiscard]] bool is_signed() const noexcept;
 
 private:

@@ -10,8 +10,12 @@ enum class TokenKind {
   Def,
   Return,
   Val,
+  True,
+  False,
   Identifier,
   IntegerLiteral,
+  DoubleLiteral,
+  CharacterLiteral,
   LeftParen,
   RightParen,
   LeftBrace,
@@ -36,10 +40,18 @@ struct Token {
     return "'return'";
   case TokenKind::Val:
     return "'val'";
+  case TokenKind::True:
+    return "'true'";
+  case TokenKind::False:
+    return "'false'";
   case TokenKind::Identifier:
     return "identifier";
   case TokenKind::IntegerLiteral:
     return "integer literal";
+  case TokenKind::DoubleLiteral:
+    return "double literal";
+  case TokenKind::CharacterLiteral:
+    return "character literal";
   case TokenKind::LeftParen:
     return "'('";
   case TokenKind::RightParen:

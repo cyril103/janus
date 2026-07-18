@@ -37,6 +37,10 @@ Token Lexer::next() {
       kind = TokenKind::Return;
     } else if (lexeme == "val") {
       kind = TokenKind::Val;
+    } else if (lexeme == "true") {
+      kind = TokenKind::True;
+    } else if (lexeme == "false") {
+      kind = TokenKind::False;
     }
     return Token{kind, lexeme, start};
   }
@@ -47,9 +51,43 @@ Token Lexer::next() {
     } while (!at_end() &&
              std::isdigit(static_cast<unsigned char>(current())) != 0);
 
-    return Token{TokenKind::IntegerLiteral,
+    TokenKind kind = TokenKind::IntegerLiteral;
+    if (!at_end() && current() == '.' && position_ + 1 < source_.size() &&
+        std::isdigit(static_cast<unsigned char>(source_[position_ + 1])) != 0) {
+      kind = TokenKind::DoubleLiteral;
+      advance();
+      while (!at_end() &&
+             std::isdigit(static_cast<unsigned char>(current())) != 0) {
+        advance();
+      }
+    }
+
+    return Token{kind,
                  source_.substr(start_position, position_ - start_position),
                  start};
+  }
+
+  if (character == '\'') {
+    advance();
+    bool escaped = false;
+    while (!at_end()) {
+      if (!escaped && current() == '\'') {
+        advance();
+        return Token{TokenKind::CharacterLiteral,
+                     source_.substr(start_position, position_ - start_position),
+                     start};
+      }
+      if (current() == '\n') {
+        break;
+      }
+      if (!escaped && current() == '\\') {
+        escaped = true;
+      } else {
+        escaped = false;
+      }
+      advance();
+    }
+    throw CompileError{start, "unterminated character literal"};
   }
 
   advance();
