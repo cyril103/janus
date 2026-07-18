@@ -42,14 +42,21 @@ int main() {
   constexpr std::string_view source = R"(
 class Point(var x : int, var y : int) {
     val label : string = "point"
+    def setX(value : int) : int {
+        x = value
+        return x
+    }
+    def currentX() : int {
+        return this.x
+    }
     destructor {
     }
 }
 
 def main() : int {
     val point : Point = new Point(1, 2)
-    point.x = 6
-    val result : int = point.x
+    val changed : int = point.setX(6)
+    val result : int = point.currentX()
     delete point
     return result
 }
@@ -65,6 +72,8 @@ def main() : int {
          "var constructor fields are mutable");
   expect(program.classes.front().fields.size() == 1,
          "the class body can declare fields");
+  expect(program.classes.front().methods.size() == 2,
+         "the class body can declare methods");
   expect(program.classes.front().destructor.has_value(),
          "the destructor is parsed");
 
@@ -87,8 +96,16 @@ def main() : int {
          "new allocates Point with malloc");
   expect(ir.find("store i32 1") != std::string::npos,
          "the constructor initializes x");
-  expect(ir.find("store i32 6") != std::string::npos,
-         "a mutable field can be reassigned");
+  expect(ir.find("call i32 @Point__setX(ptr %point.object, i32 6)") !=
+             std::string::npos,
+         "a method receives the value used to mutate a field");
+  expect(ir.find("define i32 @Point__setX(ptr %this, i32 %value)") !=
+             std::string::npos,
+         "a method receives an implicit this pointer");
+  expect(ir.find("call i32 @Point__setX") != std::string::npos,
+         "an instance method can be called");
+  expect(ir.find("call i32 @Point__currentX") != std::string::npos,
+         "a method can read a member through this");
   expect(ir.find("call void @Point__destructor") != std::string::npos,
          "delete invokes the destructor");
   expect(ir.find("call void @free") != std::string::npos,
@@ -117,9 +134,14 @@ def main() : int {
       "def main() : int { return 0 }",
       "non-empty destructor bodies are not yet supported");
   expect_compile_error(
-      "class Point(var x : int) { def current() : int { return x } } "
-      "def main() : int { val p : Point = new Point(1) return p.current() }",
-      "method calls are not yet supported");
+      "class Point(var x : int) { def set(value : int) : int { x = value "
+      "return x } } def main() : int { val p : Point = new Point(1) "
+      "return p.set(true) }",
+      "expression of type 'bool'");
+  expect_compile_error(
+      "class Point(val x : int) { def change(value : int) : int { x = value "
+      "return x } } def main() : int { return 0 }",
+      "cannot assign to immutable value 'x'");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

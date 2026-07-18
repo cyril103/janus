@@ -98,10 +98,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     }
   }
 
+  struct FunctionContext {
+    const ast::FunctionDeclaration *function;
+    const ast::ClassDeclaration *owner;
+  };
+  std::vector<FunctionContext> contexts;
   for (const ast::FunctionDeclaration &function : program.functions) {
+    contexts.push_back(FunctionContext{&function, nullptr});
     if (!functions.emplace(function.name, &function).second) {
       throw CompileError{function.location, "function '" + function.name +
                                                 "' is already declared"};
+    }
+  }
+  for (const ast::ClassDeclaration &class_declaration : program.classes) {
+    std::unordered_set<std::string> method_names;
+    for (const ast::FunctionDeclaration &method : class_declaration.methods) {
+      if (!method_names.insert(method.name).second) {
+        throw CompileError{method.location,
+                           "method '" + method.name +
+                               "' is already declared in class '" +
+                               class_declaration.name + "'"};
+      }
+      contexts.push_back(FunctionContext{&method, &class_declaration});
     }
   }
 
@@ -111,7 +129,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                        "program must declare an entry point 'main'"};
   }
 
-  for (const ast::FunctionDeclaration &function : program.functions) {
+  for (const FunctionContext &context : contexts) {
+    const ast::FunctionDeclaration &function = *context.function;
+    const ast::ClassDeclaration *owner = context.owner;
     std::unordered_set<std::string> type_parameters;
     for (const std::string &parameter : function.type_parameters) {
       if (!type_parameters.insert(parameter).second) {
@@ -127,7 +147,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
 
     const SemanticType return_type =
         resolve_type(function.return_type, type_parameters, &class_names);
-    if (function.name == "main") {
+    if (owner == nullptr && function.name == "main") {
       if (!function.type_parameters.empty() || !function.parameters.empty() ||
           !return_type.is_concrete() ||
           return_type.concrete->kind() != TypeKind::Int) {
@@ -138,6 +158,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     }
 
     SymbolTable symbols;
+    if (owner != nullptr) {
+      symbols.emplace("this", Symbol{SemanticType{nullptr, owner->name, true},
+                                     false, true});
+      for (const ast::ValueDeclaration &field : owner->constructor_fields) {
+        symbols.emplace(field.name, Symbol{resolve_type(field.declared_type, {},
+                                                        &class_names),
+                                           field.is_mutable, true});
+      }
+      for (const ast::ValueDeclaration &field : owner->fields) {
+        symbols.emplace(
+            field.name,
+            Symbol{resolve_type(field.declared_type, {}, &class_names),
+                   field.is_mutable, field.initializer.has_value()});
+      }
+    }
     for (const ast::FunctionDeclaration::Parameter &parameter :
          function.parameters) {
       const SemanticType parameter_type =
@@ -304,8 +339,41 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                  "class '" + class_declaration.name +
                                      "' has no field '" + node.member + "'"};
             } else {
-              throw CompileError{node.location,
-                                 "method calls are not yet supported"};
+              const SemanticType object_type = expression_type(*node.object);
+              if (!object_type.is_class())
+                throw CompileError{node.location,
+                                   "method call requires an object"};
+              const ast::ClassDeclaration &class_declaration =
+                  *classes.at(object_type.parameter);
+              const ast::FunctionDeclaration *method = nullptr;
+              for (const ast::FunctionDeclaration &candidate :
+                   class_declaration.methods) {
+                if (candidate.name == node.method)
+                  method = &candidate;
+              }
+              if (method == nullptr)
+                throw CompileError{node.location,
+                                   "class '" + class_declaration.name +
+                                       "' has no method '" + node.method + "'"};
+              if (!method->type_parameters.empty())
+                throw CompileError{node.location,
+                                   "generic methods are not yet supported"};
+              if (node.arguments.size() != method->parameters.size())
+                throw CompileError{
+                    node.location,
+                    "method '" + node.method + "' expects " +
+                        std::to_string(method->parameters.size()) +
+                        " argument(s), got " +
+                        std::to_string(node.arguments.size())};
+              for (std::size_t index = 0; index < node.arguments.size();
+                   ++index) {
+                const SemanticType expected = resolve_type(
+                    method->parameters[index].type, {}, &class_names);
+                validate_expression(
+                    *node.arguments[index], expected,
+                    expression_location(*node.arguments[index]));
+              }
+              return resolve_type(method->return_type, {}, &class_names);
             }
           },
           expression.value);
@@ -410,7 +478,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       throw CompileError{function.location, "function '" + function.name +
                                                 "' must return a value"};
     }
-    result.functions.emplace(function.name, std::move(symbols));
+    const std::string analysis_name =
+        owner == nullptr ? function.name : owner->name + "." + function.name;
+    result.functions.emplace(analysis_name, std::move(symbols));
   }
 
   return result;

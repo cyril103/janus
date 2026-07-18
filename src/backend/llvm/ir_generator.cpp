@@ -80,6 +80,14 @@ public:
       if (function->type_parameters.empty())
         static_cast<void>(emit_function(*function, {}));
     }
+    for (const auto &[class_name, class_declaration] : classes_) {
+      static_cast<void>(class_name);
+      for (const janus::ast::FunctionDeclaration &method :
+           class_declaration->methods) {
+        if (method.type_parameters.empty())
+          static_cast<void>(emit_function(method, {}, class_declaration));
+      }
+    }
     return std::move(module_);
   }
 
@@ -113,8 +121,11 @@ private:
 
   ::llvm::Function *
   emit_function(const janus::ast::FunctionDeclaration &function,
-                const std::vector<const janus::Type *> &type_arguments) {
-    const std::string llvm_name = mangle(function, type_arguments);
+                const std::vector<const janus::Type *> &type_arguments,
+                const janus::ast::ClassDeclaration *owner = nullptr) {
+    const std::string llvm_name =
+        (owner == nullptr ? std::string{} : owner->name + "__") +
+        mangle(function, type_arguments);
     if (const auto iterator = emitted_.find(llvm_name);
         iterator != emitted_.end())
       return iterator->second;
@@ -127,7 +138,10 @@ private:
     const janus::Type &return_type =
         resolve(function.return_type, substitutions);
     std::vector<::llvm::Type *> parameter_types;
-    parameter_types.reserve(function.parameters.size());
+    parameter_types.reserve(function.parameters.size() +
+                            (owner == nullptr ? 0 : 1));
+    if (owner != nullptr)
+      parameter_types.push_back(::llvm::PointerType::getUnqual(context_));
     for (const auto &parameter : function.parameters)
       parameter_types.push_back(janus::backend::llvm::lower_type(
           resolve(parameter.type, substitutions), context_));
@@ -143,8 +157,39 @@ private:
     ::llvm::IRBuilder<> builder{entry};
     std::unordered_map<std::string, Local> locals;
 
+    auto argument_iterator = llvm_function->arg_begin();
+    if (owner != nullptr) {
+      ::llvm::Argument &this_argument = *argument_iterator++;
+      this_argument.setName("this");
+      const janus::Type &owner_type = class_types_.at(owner->name);
+      ::llvm::Value *this_storage =
+          builder.CreateAlloca(builder.getPtrTy(), nullptr, "this.addr");
+      builder.CreateStore(&this_argument, this_storage);
+      locals.emplace("this", Local{this_storage, &owner_type});
+
+      unsigned field_index = 0;
+      for (const janus::ast::ValueDeclaration &field :
+           owner->constructor_fields) {
+        const janus::Type &field_type = resolve(field.declared_type, {});
+        locals.emplace(field.name, Local{builder.CreateStructGEP(
+                                             llvm_class_types_.at(owner->name),
+                                             &this_argument, field_index++,
+                                             field.name + ".addr"),
+                                         &field_type});
+      }
+      for (const janus::ast::ValueDeclaration &field : owner->fields) {
+        const janus::Type &field_type = resolve(field.declared_type, {});
+        locals.emplace(field.name, Local{builder.CreateStructGEP(
+                                             llvm_class_types_.at(owner->name),
+                                             &this_argument, field_index++,
+                                             field.name + ".addr"),
+                                         &field_type});
+      }
+    }
+
     std::size_t parameter_index = 0;
-    for (::llvm::Argument &argument : llvm_function->args()) {
+    for (; argument_iterator != llvm_function->arg_end(); ++argument_iterator) {
+      ::llvm::Argument &argument = *argument_iterator;
       const auto &parameter = function.parameters[parameter_index++];
       const janus::Type &type = resolve(parameter.type, substitutions);
       argument.setName(parameter.name);
@@ -394,7 +439,34 @@ private:
                 janus::backend::llvm::lower_type(*field_type, context_),
                 field_pointer, node.member + ".value");
           } else {
-            return nullptr;
+            const auto *identifier =
+                std::get_if<janus::ast::IdentifierExpression>(
+                    &node.object->value);
+            const Local &object = locals.at(identifier->name);
+            const auto &class_declaration =
+                *classes_.at(std::string{object.type->name()});
+            const janus::ast::FunctionDeclaration *method = nullptr;
+            for (const janus::ast::FunctionDeclaration &candidate :
+                 class_declaration.methods) {
+              if (candidate.name == node.method)
+                method = &candidate;
+            }
+            ::llvm::Function *target =
+                emit_function(*method, {}, &class_declaration);
+            std::vector<::llvm::Value *> arguments;
+            arguments.push_back(
+                builder.CreateLoad(builder.getPtrTy(), object.storage,
+                                   identifier->name + ".object"));
+            for (std::size_t index = 0; index < node.arguments.size();
+                 ++index) {
+              const janus::Type &parameter_type =
+                  resolve(method->parameters[index].type, {});
+              arguments.push_back(emit_expression(*node.arguments[index],
+                                                  parameter_type, substitutions,
+                                                  locals, builder));
+            }
+            return builder.CreateCall(target, arguments,
+                                      node.method + ".result");
           }
         },
         expression.value);

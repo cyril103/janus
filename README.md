@@ -256,6 +256,15 @@ constructeur et des champs publics :
 
 ```janus
 class Point(var x : int, var y : int) {
+    def setX(value : int) : int {
+        x = value
+        return x
+    }
+
+    def currentX() : int {
+        return this.x
+    }
+
     destructor {
     }
 }
@@ -265,8 +274,8 @@ Une instance est toujours allouée explicitement sur le tas :
 
 ```janus
 val point : Point = new Point(1, 2)
-point.x = 6
-val result : int = point.x
+val changed : int = point.setX(6)
+val result : int = point.currentX()
 delete point
 ```
 
@@ -281,11 +290,13 @@ détecte les doubles suppressions et utilisations après `delete` les plus
 directes sur une variable locale. Comme en C, les usages invalides passant par
 des alias ne pourront pas tous être détectés statiquement.
 
-Le bloc de classe accepte les champs `val` et `var`, les déclarations `def` et
-un bloc `destructor`. La première version exécutable couvre la construction,
-les champs et l'appel d'un destructeur vide. La génération du corps des
-méthodes et des instructions d'un destructeur non vide sera ajoutée dans
-l'étape suivante.
+Le bloc de classe accepte les champs `val` et `var`, les méthodes `def` et un
+bloc `destructor`. Une méthode reçoit un paramètre `this` implicite. Elle peut
+accéder aux champs directement avec `x` ou explicitement avec `this.x`, et
+modifier les champs déclarés avec `var`.
+
+Les méthodes génériques et les instructions d'un destructeur non vide ne sont
+pas encore prises en charge.
 
 Exemples d'erreurs détectées :
 
@@ -338,6 +349,8 @@ Les tests couvrent actuellement :
 - les classes et leurs champs constructeurs ;
 - l'allocation manuelle avec `new` ;
 - l'accès et la mutation des champs `var` ;
+- les méthodes, leur receveur `this` implicite et les appels sur une instance ;
+- l'accès direct ou explicite aux membres depuis une méthode ;
 - l'appel du destructeur et la libération avec `delete` ;
 - plusieurs erreurs de construction et de durée de vie locale ;
 - la table des symboles et les déclarations dupliquées ;

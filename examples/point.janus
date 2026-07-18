@@ -1,12 +1,21 @@
 class Point(var x : int, var y : int) {
+    def setX(value : int) : int {
+        x = value
+        return x
+    }
+
+    def currentX() : int {
+        return this.x
+    }
+
     destructor {
     }
 }
 
 def main() : int {
     val point : Point = new Point(1, 2)
-    point.x = 6
-    val result : int = point.x
+    val changed : int = point.setX(6)
+    val result : int = point.currentX()
     delete point
     return result
 }
