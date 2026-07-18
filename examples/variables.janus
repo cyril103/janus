@@ -1,0 +1,8 @@
+def main() : int {
+    var x : int = 5
+    x = 6 // reassignment is allowed
+
+    var y : int
+    y = x
+    return y
+}

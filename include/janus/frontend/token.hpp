@@ -8,8 +8,13 @@ namespace janus::frontend {
 
 enum class TokenKind {
   Def,
+  Class,
+  New,
+  Delete,
+  Destructor,
   Return,
   Val,
+  Var,
   True,
   False,
   Identifier,
@@ -27,6 +32,7 @@ enum class TokenKind {
   Comma,
   Equal,
   Semicolon,
+  Dot,
   End,
 };
 
@@ -40,10 +46,20 @@ struct Token {
   switch (kind) {
   case TokenKind::Def:
     return "'def'";
+  case TokenKind::Class:
+    return "'class'";
+  case TokenKind::New:
+    return "'new'";
+  case TokenKind::Delete:
+    return "'delete'";
+  case TokenKind::Destructor:
+    return "'destructor'";
   case TokenKind::Return:
     return "'return'";
   case TokenKind::Val:
     return "'val'";
+  case TokenKind::Var:
+    return "'var'";
   case TokenKind::True:
     return "'true'";
   case TokenKind::False:
@@ -78,6 +94,8 @@ struct Token {
     return "'='";
   case TokenKind::Semicolon:
     return "';'";
+  case TokenKind::Dot:
+    return "'.'";
   case TokenKind::End:
     return "end of file";
   }

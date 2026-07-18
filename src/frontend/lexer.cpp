@@ -33,10 +33,20 @@ Token Lexer::next() {
     TokenKind kind = TokenKind::Identifier;
     if (lexeme == "def") {
       kind = TokenKind::Def;
+    } else if (lexeme == "class") {
+      kind = TokenKind::Class;
+    } else if (lexeme == "new") {
+      kind = TokenKind::New;
+    } else if (lexeme == "delete") {
+      kind = TokenKind::Delete;
+    } else if (lexeme == "destructor") {
+      kind = TokenKind::Destructor;
     } else if (lexeme == "return") {
       kind = TokenKind::Return;
     } else if (lexeme == "val") {
       kind = TokenKind::Val;
+    } else if (lexeme == "var") {
+      kind = TokenKind::Var;
     } else if (lexeme == "true") {
       kind = TokenKind::True;
     } else if (lexeme == "false") {
@@ -142,6 +152,8 @@ Token Lexer::next() {
   case ';':
     return Token{TokenKind::Semicolon, source_.substr(start_position, 1),
                  start};
+  case '.':
+    return Token{TokenKind::Dot, source_.substr(start_position, 1), start};
   default:
     throw CompileError{start, "unexpected character '" +
                                   std::string(1, character) + "'"};
@@ -171,9 +183,21 @@ void Lexer::advance() noexcept {
 }
 
 void Lexer::skip_whitespace() noexcept {
-  while (!at_end() &&
-         std::isspace(static_cast<unsigned char>(current())) != 0) {
-    advance();
+  while (!at_end()) {
+    if (std::isspace(static_cast<unsigned char>(current())) != 0) {
+      advance();
+      continue;
+    }
+
+    if (current() == '/' && position_ + 1 < source_.size() &&
+        source_[position_ + 1] == '/') {
+      while (!at_end() && current() != '\n') {
+        advance();
+      }
+      continue;
+    }
+
+    break;
   }
 }
 

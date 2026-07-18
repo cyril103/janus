@@ -49,6 +49,27 @@ public:
         ::llvm::Triple{::llvm::sys::getDefaultTargetTriple()});
     module_->setPICLevel(::llvm::PICLevel::BigPIC);
     module_->setPIELevel(::llvm::PIELevel::Large);
+    for (const janus::ast::ClassDeclaration &class_declaration :
+         program.classes) {
+      classes_.emplace(class_declaration.name, &class_declaration);
+      class_types_.emplace(class_declaration.name,
+                           janus::Type::class_type(class_declaration.name));
+      llvm_class_types_.emplace(
+          class_declaration.name,
+          ::llvm::StructType::create(context_,
+                                     "class." + class_declaration.name));
+    }
+    for (const janus::ast::ClassDeclaration &class_declaration :
+         program.classes) {
+      std::vector<::llvm::Type *> fields;
+      for (const auto &field : class_declaration.constructor_fields)
+        fields.push_back(janus::backend::llvm::lower_type(
+            resolve(field.declared_type, {}), context_));
+      for (const auto &field : class_declaration.fields)
+        fields.push_back(janus::backend::llvm::lower_type(
+            resolve(field.declared_type, {}), context_));
+      llvm_class_types_.at(class_declaration.name)->setBody(fields);
+    }
     for (const janus::ast::FunctionDeclaration &function : program.functions)
       functions_.emplace(function.name, &function);
   }
@@ -74,6 +95,9 @@ private:
                              const Substitutions &substitutions) const {
     if (const janus::Type *type = builtin_type(reference.name))
       return *type;
+    if (const auto iterator = class_types_.find(reference.name);
+        iterator != class_types_.end())
+      return iterator->second;
     return *substitutions.at(reference.name);
   }
 
@@ -139,10 +163,55 @@ private:
         ::llvm::Value *storage = builder.CreateAlloca(
             janus::backend::llvm::lower_type(type, context_), nullptr,
             declaration->name);
-        ::llvm::Value *initializer = emit_expression(
-            declaration->initializer, type, substitutions, locals, builder);
-        builder.CreateStore(initializer, storage);
+        if (declaration->initializer.has_value()) {
+          ::llvm::Value *initializer = emit_expression(
+              *declaration->initializer, type, substitutions, locals, builder);
+          builder.CreateStore(initializer, storage);
+        }
         locals.emplace(declaration->name, Local{storage, &type});
+        continue;
+      }
+
+      if (const auto *assignment =
+              std::get_if<janus::ast::AssignmentStatement>(&statement)) {
+        if (!assignment->object.empty()) {
+          const Local &object = locals.at(assignment->object);
+          ::llvm::Value *object_pointer = builder.CreateLoad(
+              ::llvm::PointerType::getUnqual(context_), object.storage,
+              assignment->object + ".object");
+          const auto [field_index, field_type] =
+              find_field(object.type->name(), assignment->name);
+          ::llvm::Value *field_pointer = builder.CreateStructGEP(
+              llvm_class_types_.at(std::string{object.type->name()}),
+              object_pointer, field_index);
+          builder.CreateStore(emit_expression(assignment->expression,
+                                              *field_type, substitutions,
+                                              locals, builder),
+                              field_pointer);
+          continue;
+        }
+        const Local &local = locals.at(assignment->name);
+        ::llvm::Value *value =
+            emit_expression(assignment->expression, *local.type, substitutions,
+                            locals, builder);
+        builder.CreateStore(value, local.storage);
+        continue;
+      }
+
+      if (const auto *deletion =
+              std::get_if<janus::ast::DeleteStatement>(&statement)) {
+        const auto *identifier = std::get_if<janus::ast::IdentifierExpression>(
+            &deletion->expression.value);
+        const Local &local = locals.at(identifier->name);
+        ::llvm::Value *pointer =
+            builder.CreateLoad(::llvm::PointerType::getUnqual(context_),
+                               local.storage, identifier->name + ".object");
+        builder.CreateCall(emit_destructor(std::string{local.type->name()}),
+                           {pointer});
+        ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
+            "free", ::llvm::FunctionType::get(builder.getVoidTy(),
+                                              {builder.getPtrTy()}, false));
+        builder.CreateCall(free_function, {pointer});
         continue;
       }
 
@@ -153,6 +222,39 @@ private:
                                         builder));
     }
     return llvm_function;
+  }
+
+  std::pair<unsigned, const janus::Type *>
+  find_field(std::string_view class_name, std::string_view field_name) {
+    const auto &class_declaration = *classes_.at(std::string{class_name});
+    unsigned index = 0;
+    for (const auto &field : class_declaration.constructor_fields) {
+      if (field.name == field_name)
+        return {index, &resolve(field.declared_type, {})};
+      ++index;
+    }
+    for (const auto &field : class_declaration.fields) {
+      if (field.name == field_name)
+        return {index, &resolve(field.declared_type, {})};
+      ++index;
+    }
+    return {0, nullptr};
+  }
+
+  ::llvm::Function *emit_destructor(const std::string &class_name) {
+    const std::string name = class_name + "__destructor";
+    if (const auto iterator = emitted_.find(name); iterator != emitted_.end())
+      return iterator->second;
+    auto *type = ::llvm::FunctionType::get(
+        ::llvm::Type::getVoidTy(context_),
+        {::llvm::PointerType::getUnqual(context_)}, false);
+    auto *function = ::llvm::Function::Create(
+        type, ::llvm::Function::InternalLinkage, name, *module_);
+    emitted_.emplace(name, function);
+    auto *entry = ::llvm::BasicBlock::Create(context_, "entry", function);
+    ::llvm::IRBuilder<> builder{entry};
+    builder.CreateRetVoid();
+    return function;
   }
 
   ::llvm::Value *
@@ -208,7 +310,8 @@ private:
             return builder.CreateLoad(
                 janus::backend::llvm::lower_type(*local.type, context_),
                 local.storage, node.name + ".value");
-          } else {
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::CallExpression>) {
             const janus::ast::FunctionDeclaration &callee =
                 *functions_.at(node.callee);
             std::vector<const janus::Type *> type_arguments;
@@ -234,6 +337,64 @@ private:
             }
             return builder.CreateCall(target, arguments,
                                       node.callee + ".result");
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::NewExpression>) {
+            const auto &class_declaration = *classes_.at(node.class_name);
+            ::llvm::StructType *class_type =
+                llvm_class_types_.at(node.class_name);
+            ::llvm::FunctionCallee malloc_function =
+                module_->getOrInsertFunction(
+                    "malloc",
+                    ::llvm::FunctionType::get(builder.getPtrTy(),
+                                              {builder.getInt64Ty()}, false));
+            ::llvm::Value *object = builder.CreateCall(
+                malloc_function, {::llvm::ConstantExpr::getSizeOf(class_type)},
+                node.class_name + ".new");
+            unsigned field_index = 0;
+            for (std::size_t index = 0; index < node.arguments.size();
+                 ++index) {
+              const janus::Type &field_type = resolve(
+                  class_declaration.constructor_fields[index].declared_type,
+                  {});
+              ::llvm::Value *field =
+                  builder.CreateStructGEP(class_type, object, field_index++);
+              builder.CreateStore(emit_expression(*node.arguments[index],
+                                                  field_type, substitutions,
+                                                  locals, builder),
+                                  field);
+            }
+            for (const auto &field_declaration : class_declaration.fields) {
+              ::llvm::Value *field =
+                  builder.CreateStructGEP(class_type, object, field_index++);
+              if (field_declaration.initializer.has_value()) {
+                const janus::Type &field_type =
+                    resolve(field_declaration.declared_type, {});
+                builder.CreateStore(
+                    emit_expression(*field_declaration.initializer, field_type,
+                                    substitutions, locals, builder),
+                    field);
+              }
+            }
+            return object;
+          } else if constexpr (std::is_same_v<
+                                   Node, janus::ast::MemberAccessExpression>) {
+            const auto *identifier =
+                std::get_if<janus::ast::IdentifierExpression>(
+                    &node.object->value);
+            const Local &object = locals.at(identifier->name);
+            ::llvm::Value *object_pointer =
+                builder.CreateLoad(builder.getPtrTy(), object.storage,
+                                   identifier->name + ".object");
+            const auto [field_index, field_type] =
+                find_field(object.type->name(), node.member);
+            ::llvm::Value *field_pointer = builder.CreateStructGEP(
+                llvm_class_types_.at(std::string{object.type->name()}),
+                object_pointer, field_index);
+            return builder.CreateLoad(
+                janus::backend::llvm::lower_type(*field_type, context_),
+                field_pointer, node.member + ".value");
+          } else {
+            return nullptr;
           }
         },
         expression.value);
@@ -243,6 +404,10 @@ private:
   std::unique_ptr<::llvm::Module> module_;
   std::unordered_map<std::string, const janus::ast::FunctionDeclaration *>
       functions_;
+  std::unordered_map<std::string, const janus::ast::ClassDeclaration *>
+      classes_;
+  std::unordered_map<std::string, janus::Type> class_types_;
+  std::unordered_map<std::string, ::llvm::StructType *> llvm_class_types_;
   std::unordered_map<std::string, ::llvm::Function *> emitted_;
   std::size_t string_literal_index_{};
 };

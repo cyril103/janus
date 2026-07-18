@@ -4,8 +4,9 @@ Janus est un langage de programmation fortement typé dont le compilateur est
 écrit en C++ et utilise LLVM comme backend.
 
 Le projet est encore à un stade précoce. La chaîne de compilation sait
-actuellement analyser un point d'entrée `main`, des déclarations `val` et une
-instruction `return`, vérifier leurs types et produire l'IR LLVM correspondant.
+actuellement analyser un point d'entrée `main`, des déclarations `val` et
+`var`, des affectations et une instruction `return`, vérifier leurs types et
+produire l'IR LLVM correspondant.
 
 ## Exemple
 
@@ -105,6 +106,18 @@ Le fichier `examples/generics.janus` présente une fonction générique :
 ./build/janusc examples/generics.janus
 ```
 
+Le fichier `examples/variables.janus` présente les variables mutables :
+
+```bash
+./build/janusc examples/variables.janus
+```
+
+Le fichier `examples/point.janus` présente une classe allouée sur le tas :
+
+```bash
+./build/janusc examples/point.janus
+```
+
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
 conserver dans un fichier :
 
@@ -148,10 +161,28 @@ exécutée.
 
 ## Syntaxe actuellement supportée
 
-La forme d'une déclaration est :
+Une valeur immuable doit être initialisée pendant sa déclaration :
 
 ```text
 val <identifiant> : <type> = <expression>
+```
+
+Une variable mutable peut être initialisée immédiatement ou ultérieurement :
+
+```janus
+var x : int = 5
+x = 6
+
+var y : int
+y = x
+```
+
+Une variable locale non initialisée ne reçoit aucune valeur par défaut. Toute
+lecture avant sa première affectation est rejetée à la compilation :
+
+```janus
+var value : int
+return value // erreur : utilisation avant initialisation
 ```
 
 Fonctionnalités disponibles :
@@ -160,6 +191,10 @@ Fonctionnalités disponibles :
 - point d'entrée obligatoire et unique `main() : int` ;
 - mot-clé `return` pour retourner un entier ;
 - mot-clé `val` pour déclarer une valeur immuable ;
+- mot-clé `var` pour déclarer une variable mutable ;
+- déclarations `var` sans initialiseur et analyse de l'initialisation ;
+- affectations fortement typées ;
+- commentaires de fin de ligne introduits par `//` ;
 - identifiants commençant par une lettre ou `_`, puis composés de lettres,
   chiffres et `_` ;
 - type `int`, signé sur 32 bits ;
@@ -209,9 +244,48 @@ identity[int]    -> identity__int(i32) -> i32
 identity[double] -> identity__double(double) -> double
 ```
 
-Les paramètres et valeurs locales restent immuables. Le compilateur vérifie le
-nombre d'arguments de types, le nombre d'arguments ordinaires et la
-compatibilité exacte de leurs types.
+Les paramètres restent immuables. Les valeurs locales peuvent être immuables
+avec `val` ou mutables avec `var`. Le compilateur vérifie le nombre d'arguments
+de types, le nombre d'arguments ordinaires et la compatibilité exacte de leurs
+types.
+
+## Classes et allocation manuelle
+
+Les paramètres `val` et `var` d'une classe sont à la fois des paramètres du
+constructeur et des champs publics :
+
+```janus
+class Point(var x : int, var y : int) {
+    destructor {
+    }
+}
+```
+
+Une instance est toujours allouée explicitement sur le tas :
+
+```janus
+val point : Point = new Point(1, 2)
+point.x = 6
+val result : int = point.x
+delete point
+```
+
+`new` utilise actuellement `malloc`. `delete` appelle le destructeur de la
+classe puis `free`. Il n'existe ni ramasse-miettes, ni comptage de références,
+ni destruction automatique en fin de portée. Le programmeur est responsable
+de chaque objet alloué.
+
+Une liaison `val` empêche de remplacer le pointeur, mais les champs déclarés
+avec `var` restent modifiables. Un champ `val` est immuable. Le compilateur
+détecte les doubles suppressions et utilisations après `delete` les plus
+directes sur une variable locale. Comme en C, les usages invalides passant par
+des alias ne pourront pas tous être détectés statiquement.
+
+Le bloc de classe accepte les champs `val` et `var`, les déclarations `def` et
+un bloc `destructor`. La première version exécutable couvre la construction,
+les champs et l'appel d'un destructeur vide. La génération du corps des
+méthodes et des instructions d'un destructeur non vide sera ajoutée dans
+l'étape suivante.
 
 Exemples d'erreurs détectées :
 
@@ -251,12 +325,21 @@ Les tests couvrent actuellement :
 - la reconnaissance et la validation de `def main() : int` ;
 - l'analyse de `val x : int = 5` ;
 - l'immutabilité d'une déclaration `val` ;
+- les déclarations mutables `var` et leurs réaffectations ;
+- l'absence de valeur par défaut pour une variable locale ;
+- la détection des lectures avant initialisation ;
+- les erreurs d'affectation et les commentaires `//` ;
 - l'obligation de retourner une valeur depuis `main` ;
 - les paramètres et références aux valeurs ;
 - les appels de fonctions ;
 - les paramètres de types génériques ;
 - la vérification des appels génériques invalides ;
 - la monomorphisation de fonctions pour plusieurs types ;
+- les classes et leurs champs constructeurs ;
+- l'allocation manuelle avec `new` ;
+- l'accès et la mutation des champs `var` ;
+- l'appel du destructeur et la libération avec `delete` ;
+- plusieurs erreurs de construction et de durée de vie locale ;
 - la table des symboles et les déclarations dupliquées ;
 - la génération de l'allocation et du stockage LLVM ;
 - plusieurs erreurs de syntaxe et de type.

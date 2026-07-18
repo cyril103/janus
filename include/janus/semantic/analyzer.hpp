@@ -10,10 +10,12 @@ namespace janus::semantic {
 struct SemanticType {
   const Type *concrete{};
   std::string parameter;
+  bool class_type{};
 
   [[nodiscard]] bool is_concrete() const noexcept {
     return concrete != nullptr;
   }
+  [[nodiscard]] bool is_class() const noexcept { return class_type; }
   [[nodiscard]] std::string name() const {
     return is_concrete() ? std::string{concrete->name()} : parameter;
   }
@@ -22,6 +24,7 @@ struct SemanticType {
 struct Symbol {
   SemanticType type;
   bool is_mutable;
+  bool is_initialized;
 };
 
 using SymbolTable = std::unordered_map<std::string, Symbol>;

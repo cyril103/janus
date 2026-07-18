@@ -32,6 +32,10 @@ const Type &Type::string_type() noexcept {
   return type;
 }
 
+Type Type::class_type(std::string_view name) noexcept {
+  return Type{TypeKind::Class, name, 0, false};
+}
+
 Type::Type(TypeKind kind, std::string_view name, std::uint32_t bit_width,
            bool is_signed) noexcept
     : kind_{kind}, name_{name}, bit_width_{bit_width}, is_signed_{is_signed} {}

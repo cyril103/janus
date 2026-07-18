@@ -172,4 +172,36 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.generic_function COMMAND generic_function_test)
+
+    add_executable(mutable_variable_test
+        tests/language/mutable_variable_test.cpp
+    )
+    target_link_libraries(mutable_variable_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(mutable_variable_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.mutable_variable COMMAND mutable_variable_test)
+
+    add_executable(class_test
+        tests/language/class_test.cpp
+    )
+    target_link_libraries(class_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(class_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.class COMMAND class_test)
 endif()

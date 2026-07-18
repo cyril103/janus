@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
@@ -56,11 +57,32 @@ struct CallExpression {
   SourceLocation location;
 };
 
+struct NewExpression {
+  std::string class_name;
+  std::vector<std::unique_ptr<Expression>> arguments;
+  SourceLocation location;
+};
+
+struct MemberAccessExpression {
+  std::unique_ptr<Expression> object;
+  std::string member;
+  SourceLocation location;
+};
+
+struct MethodCallExpression {
+  std::unique_ptr<Expression> object;
+  std::string method;
+  std::vector<std::unique_ptr<Expression>> arguments;
+  SourceLocation location;
+};
+
 struct Expression {
-  using Value = std::variant<IntegerLiteralExpression, DoubleLiteralExpression,
-                             CharacterLiteralExpression,
-                             BooleanLiteralExpression, StringLiteralExpression,
-                             IdentifierExpression, CallExpression>;
+  using Value =
+      std::variant<IntegerLiteralExpression, DoubleLiteralExpression,
+                   CharacterLiteralExpression, BooleanLiteralExpression,
+                   StringLiteralExpression, IdentifierExpression,
+                   CallExpression, NewExpression, MemberAccessExpression,
+                   MethodCallExpression>;
 
   template <typename T>
   Expression(T expression) : value{std::move(expression)} {}
@@ -77,7 +99,19 @@ struct ValueDeclaration {
   std::string name;
   TypeReference declared_type;
   bool is_mutable;
-  Expression initializer;
+  std::optional<Expression> initializer;
+  SourceLocation location;
+};
+
+struct AssignmentStatement {
+  std::string object;
+  std::string name;
+  Expression expression;
+  SourceLocation location;
+};
+
+struct DeleteStatement {
+  Expression expression;
   SourceLocation location;
 };
 
@@ -86,7 +120,8 @@ struct ReturnStatement {
   SourceLocation location;
 };
 
-using Statement = std::variant<ValueDeclaration, ReturnStatement>;
+using Statement = std::variant<ValueDeclaration, AssignmentStatement,
+                               DeleteStatement, ReturnStatement>;
 
 struct FunctionDeclaration {
   struct Parameter {
@@ -103,7 +138,22 @@ struct FunctionDeclaration {
   SourceLocation location;
 };
 
+struct DestructorDeclaration {
+  std::vector<Statement> body;
+  SourceLocation location;
+};
+
+struct ClassDeclaration {
+  std::string name;
+  std::vector<ValueDeclaration> constructor_fields;
+  std::vector<ValueDeclaration> fields;
+  std::vector<FunctionDeclaration> methods;
+  std::optional<DestructorDeclaration> destructor;
+  SourceLocation location;
+};
+
 struct Program {
+  std::vector<ClassDeclaration> classes;
   std::vector<FunctionDeclaration> functions;
 };
 

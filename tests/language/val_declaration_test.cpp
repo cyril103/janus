@@ -61,7 +61,7 @@ int main() {
     expect(declaration.declared_type.name == "int", "the declared type is int");
     expect(!declaration.is_mutable, "a val declaration is immutable");
     expect(std::get<janus::ast::IntegerLiteralExpression>(
-               declaration.initializer.value)
+               declaration.initializer->value)
                    .value == 5,
            "the initializer is the integer literal 5");
   }
@@ -139,7 +139,7 @@ def main() : int {
       "def main() : int { val x : int = 1; val x : int = 2 return 0 }",
       "value 'x' is already declared");
   expect_compile_error("def main() : int { val x : int = 5; x = 6 return 0 }",
-                       "expected 'val' or 'return'");
+                       "cannot assign to immutable value 'x'");
   expect_compile_error("def helper() : int { return 0 }",
                        "must declare an entry point 'main'");
   expect_compile_error(

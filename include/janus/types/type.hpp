@@ -12,6 +12,7 @@ enum class TypeKind {
   Char,
   Bool,
   String,
+  Class,
 };
 
 class Type final {
@@ -22,6 +23,7 @@ public:
   [[nodiscard]] static const Type &char_type() noexcept;
   [[nodiscard]] static const Type &bool_type() noexcept;
   [[nodiscard]] static const Type &string_type() noexcept;
+  [[nodiscard]] static Type class_type(std::string_view name) noexcept;
 
   [[nodiscard]] TypeKind kind() const noexcept;
   [[nodiscard]] std::string_view name() const noexcept;
