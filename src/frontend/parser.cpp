@@ -759,6 +759,17 @@ ast::Expression Parser::parse_primary() {
     if (current_.kind == TokenKind::Dot) {
       advance();
       const Token member = expect(TokenKind::Identifier);
+      std::vector<ast::TypeReference> method_type_arguments;
+      if (current_.kind == TokenKind::LeftBracket) {
+        advance();
+        do {
+          method_type_arguments.push_back(parse_type());
+          if (current_.kind != TokenKind::Comma)
+            break;
+          advance();
+        } while (true);
+        static_cast<void>(expect(TokenKind::RightBracket));
+      }
       if (current_.kind == TokenKind::LeftParen) {
         advance();
         std::vector<std::unique_ptr<ast::Expression>> arguments;
@@ -774,8 +785,12 @@ ast::Expression Parser::parse_primary() {
         static_cast<void>(expect(TokenKind::RightParen));
         return ast::MethodCallExpression{std::move(object),
                                          std::string{member.lexeme},
+                                         std::move(method_type_arguments),
                                          std::move(arguments), member.location};
       }
+      if (!method_type_arguments.empty())
+        throw CompileError{current_.location,
+                           "expected '(' after method type arguments"};
       return ast::MemberAccessExpression{
           std::move(object), std::string{member.lexeme}, member.location};
     }

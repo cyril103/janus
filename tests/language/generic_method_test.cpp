@@ -42,7 +42,10 @@ class Converter[T]() {
 }
 
 def main() : int {
-    return 0
+    val converter : Converter[int] = new Converter[int]()
+    val result : double = converter.identity[double](2.5)
+    delete converter
+    return int(result)
 }
 )";
 
@@ -54,7 +57,9 @@ def main() : int {
          "parser retains generic method type parameters");
 
   janus::semantic::Analyzer analyzer;
-  static_cast<void>(analyzer.analyze(program));
+  const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
+  expect(analysis.functions.at("main").at("result").type.name() == "double",
+         "generic method calls substitute their return type");
 
   expect_compile_error(
       "class Box[T]() { def invalid[T](value : T) : T { return value } } "
@@ -68,6 +73,11 @@ def main() : int {
       "class Box() { def invalid[T](value : Unknown) : T { return value } } "
       "def main() : int { return 0 }",
       "unknown type 'Unknown'");
+  expect_compile_error(
+      "class Box() { def identity[T](value : T) : T { return value } } "
+      "def main() : int { val box : Box = new Box() "
+      "val value : int = box.identity(1) delete box return value }",
+      "expects 1 type argument");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

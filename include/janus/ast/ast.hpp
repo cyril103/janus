@@ -87,6 +87,7 @@ struct MemberAccessExpression {
 struct MethodCallExpression {
   std::unique_ptr<Expression> object;
   std::string method;
+  std::vector<TypeReference> type_arguments;
   std::vector<std::unique_ptr<Expression>> arguments;
   SourceLocation location;
 };

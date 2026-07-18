@@ -939,6 +939,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                                 ast::MethodCallExpression>) {
               const SemanticType object_type = expression_type(*node.object);
               if (object_type.is_pointer()) {
+                if (!node.type_arguments.empty())
+                  throw CompileError{
+                      node.location,
+                      "Ptr methods do not accept type arguments"};
                 if (node.method == "load") {
                   if (node.arguments.size() != 1)
                     throw CompileError{node.location,
@@ -969,9 +973,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                    "method call requires an object"};
               const ast::ClassDeclaration &class_declaration =
                   *classes.at(object_type.parameter);
-              const auto substitutions =
+              auto substitutions =
                   class_substitutions(class_declaration, object_type);
-              const std::unordered_set<std::string> class_parameters{
+              std::unordered_set<std::string> method_parameters{
                   class_declaration.type_parameters.begin(),
                   class_declaration.type_parameters.end()};
               const ast::FunctionDeclaration *method = nullptr;
@@ -990,9 +994,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                    "method '" + node.method +
                                        "' is private in class '" +
                                        class_declaration.name + "'"};
-              if (!method->type_parameters.empty())
-                throw CompileError{node.location,
-                                   "generic methods are not yet supported"};
+              if (node.type_arguments.size() != method->type_parameters.size())
+                throw CompileError{
+                    node.location,
+                    "method '" + node.method + "' expects " +
+                        std::to_string(method->type_parameters.size()) +
+                        " type argument(s), got " +
+                        std::to_string(node.type_arguments.size())};
+              for (std::size_t index = 0;
+                   index < method->type_parameters.size(); ++index) {
+                method_parameters.insert(method->type_parameters[index]);
+                SemanticType argument =
+                    resolve_type(node.type_arguments[index],
+                                 *active_type_parameters, &class_arities);
+                if (active_type_substitutions != nullptr)
+                  argument = substitute(std::move(argument),
+                                        *active_type_substitutions);
+                substitutions.emplace(method->type_parameters[index],
+                                      std::move(argument));
+              }
               if (node.arguments.size() != method->parameters.size())
                 throw CompileError{
                     node.location,
@@ -1004,13 +1024,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                    ++index) {
                 const SemanticType expected =
                     resolve_type(method->parameters[index].type,
-                                 class_parameters, &class_arities);
+                                 method_parameters, &class_arities);
                 validate_expression(
                     *node.arguments[index], substitute(expected, substitutions),
                     expression_location(*node.arguments[index]));
               }
               return substitute(resolve_type(method->return_type,
-                                             class_parameters, &class_arities),
+                                             method_parameters, &class_arities),
                                 substitutions);
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
