@@ -74,6 +74,23 @@ janus::SourceLocation expression_location(const janus::ast::Expression &expr) {
   return std::visit([](const auto &node) { return node.location; }, expr.value);
 }
 
+std::optional<std::int64_t>
+integer_literal_value(const janus::ast::Expression &expression) {
+  if (const auto *literal = std::get_if<janus::ast::IntegerLiteralExpression>(
+          &expression.value)) {
+    return literal->value;
+  }
+  if (const auto *unary =
+          std::get_if<janus::ast::UnaryExpression>(&expression.value);
+      unary != nullptr &&
+      unary->operation == janus::ast::UnaryOperator::Negate) {
+    if (const auto value = integer_literal_value(*unary->operand)) {
+      return -*value;
+    }
+  }
+  return std::nullopt;
+}
+
 } // namespace
 
 namespace janus::semantic {
@@ -198,14 +215,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
 
       if (expected.is_concrete() &&
           expected.concrete->kind() == TypeKind::Byte) {
-        if (const auto *literal =
-                std::get_if<ast::IntegerLiteralExpression>(&expression.value)) {
-          if (literal->value >= std::numeric_limits<std::int8_t>::min() &&
-              literal->value <= std::numeric_limits<std::int8_t>::max()) {
+        if (const auto literal = integer_literal_value(expression)) {
+          if (*literal >= std::numeric_limits<std::int8_t>::min() &&
+              *literal <= std::numeric_limits<std::int8_t>::max()) {
             return;
           }
           throw CompileError{
-              literal->location,
+              expression_location(expression),
               "integer literal is outside the signed 8-bit range"};
         }
       }
@@ -354,7 +370,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               throw CompileError{node.location,
                                  "class '" + class_declaration.name +
                                      "' has no field '" + node.member + "'"};
-            } else {
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MethodCallExpression>) {
               const SemanticType object_type = expression_type(*node.object);
               if (!object_type.is_class())
                 throw CompileError{node.location,
@@ -396,6 +413,97 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                     expression_location(*node.arguments[index]));
               }
               return resolve_type(method->return_type, {}, &class_names);
+            } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
+              const SemanticType operand_type = expression_type(*node.operand);
+              if (node.operation == ast::UnaryOperator::LogicalNot) {
+                if (!operand_type.is_concrete() ||
+                    operand_type.concrete->kind() != TypeKind::Bool) {
+                  throw CompileError{
+                      node.location,
+                      "operator '!' requires an operand of type 'bool'"};
+                }
+                return SemanticType{&Type::bool_type(), {}};
+              }
+
+              if (!operand_type.is_concrete() ||
+                  (operand_type.concrete->kind() != TypeKind::Int &&
+                   operand_type.concrete->kind() != TypeKind::Byte &&
+                   operand_type.concrete->kind() != TypeKind::Double)) {
+                throw CompileError{
+                    node.location,
+                    "unary operator '-' requires an operand of type 'int', "
+                    "'byte', or 'double'"};
+              }
+              return operand_type;
+            } else {
+              static_assert(std::is_same_v<Node, ast::BinaryExpression>);
+              const SemanticType left_type = expression_type(*node.left);
+              const SemanticType right_type = expression_type(*node.right);
+              if (!same_type(left_type, right_type)) {
+                throw CompileError{
+                    node.location,
+                    "binary operator operands must have the same type, got '" +
+                        left_type.name() + "' and '" + right_type.name() + "'"};
+              }
+
+              const bool is_concrete = left_type.is_concrete();
+              const TypeKind kind =
+                  is_concrete ? left_type.concrete->kind() : TypeKind::Int;
+              const bool is_numeric = is_concrete && (kind == TypeKind::Int ||
+                                                      kind == TypeKind::Byte ||
+                                                      kind == TypeKind::Double);
+              const bool is_orderable =
+                  is_numeric || (is_concrete && kind == TypeKind::Char);
+
+              switch (node.operation) {
+              case ast::BinaryOperator::Add:
+              case ast::BinaryOperator::Subtract:
+              case ast::BinaryOperator::Multiply:
+              case ast::BinaryOperator::Divide:
+                if (!is_numeric) {
+                  throw CompileError{
+                      node.location,
+                      "arithmetic operators require operands of type 'int', "
+                      "'byte', or 'double'"};
+                }
+                return left_type;
+              case ast::BinaryOperator::Remainder:
+                if (!is_concrete ||
+                    (kind != TypeKind::Int && kind != TypeKind::Byte)) {
+                  throw CompileError{
+                      node.location,
+                      "operator '%' requires operands of type 'int' or "
+                      "'byte'"};
+                }
+                return left_type;
+              case ast::BinaryOperator::Less:
+              case ast::BinaryOperator::LessEqual:
+              case ast::BinaryOperator::Greater:
+              case ast::BinaryOperator::GreaterEqual:
+                if (!is_orderable) {
+                  throw CompileError{
+                      node.location,
+                      "comparison operators require operands of type 'int', "
+                      "'byte', 'double', or 'char'"};
+                }
+                return SemanticType{&Type::bool_type(), {}};
+              case ast::BinaryOperator::Equal:
+              case ast::BinaryOperator::NotEqual:
+                if (!is_concrete) {
+                  throw CompileError{
+                      node.location,
+                      "equality operators require primitive operands"};
+                }
+                return SemanticType{&Type::bool_type(), {}};
+              case ast::BinaryOperator::LogicalAnd:
+              case ast::BinaryOperator::LogicalOr:
+                if (!is_concrete || kind != TypeKind::Bool) {
+                  throw CompileError{
+                      node.location,
+                      "logical operators require operands of type 'bool'"};
+                }
+                return SemanticType{&Type::bool_type(), {}};
+              }
             }
           },
           expression.value);

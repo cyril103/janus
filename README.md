@@ -23,7 +23,7 @@ Tout programme Janus doit déclarer exactement un point d'entrée
 `val` crée une liaison immuable : après sa déclaration, `x` ne peut pas être
 réaffecté.
 
-Janus possède actuellement cinq types primitifs :
+Janus possède actuellement six types primitifs :
 
 | Type Janus | Signification | Représentation LLVM |
 | --- | --- | --- |
@@ -118,6 +118,12 @@ Le fichier `examples/point.janus` présente une classe allouée sur le tas :
 ./build/janusc examples/point.janus
 ```
 
+Le fichier `examples/operators.janus` présente les opérations primitives :
+
+```bash
+./build/janusc examples/operators.janus
+```
+
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
 conserver dans un fichier :
 
@@ -210,6 +216,32 @@ Fonctionnalités disponibles :
 - détection d'une fonction sans `return` et du code après `return` ;
 - diagnostics avec ligne et colonne ;
 - validation de l'IR généré par LLVM.
+
+## Opérations primitives
+
+Les opérateurs disponibles sont :
+
+| Types | Opérateurs | Type du résultat |
+| --- | --- | --- |
+| `int`, `byte` | `+`, `-`, `*`, `/`, `%` | type des opérandes |
+| `double` | `+`, `-`, `*`, `/` | `double` |
+| `int`, `byte`, `double`, `char` | `<`, `<=`, `>`, `>=` | `bool` |
+| tous les types primitifs | `==`, `!=` | `bool` |
+| `bool` | `!`, `&&`, `||` | `bool` |
+| `int`, `byte`, `double` | `-` unaire | type de l'opérande |
+
+Les parenthèses permettent de contrôler l'évaluation. Sans parenthèses, la
+priorité est, de la plus forte à la plus faible : opérateurs unaires, `* / %`,
+`+ -`, comparaisons, égalité, `&&`, puis `||`.
+
+Janus n'effectue aucune conversion implicite : `1 + 2.0` est rejeté, car les
+deux opérandes n'ont pas le même type. `&&` et `||` utilisent une évaluation
+court-circuitée. L'égalité des `string` compare leur longueur puis leurs octets
+UTF-8.
+
+Le débordement de `int` et `byte` suit une arithmétique modulo 2^32 et 2^8.
+Comme pour les entiers C, une division ou un reste par zéro n'est pas une
+opération valide.
 
 ## Fonctions et généricité
 
@@ -347,11 +379,10 @@ def main() : int {
 }
 ```
 
-Les expressions arithmétiques, les nombres négatifs, l'inférence des arguments
-génériques, les contraintes de types, les types génériques définis par
-l'utilisateur et les autres types ne sont pas encore implémentés. Les
-littéraux `double` utilisent actuellement la forme décimale simple, sans
-notation exponentielle.
+L'inférence des arguments génériques, les contraintes de types, les types
+génériques définis par l'utilisateur et les autres types ne sont pas encore
+implémentés. Les littéraux `double` utilisent actuellement la forme décimale
+simple, sans notation exponentielle.
 
 ## Tests
 
@@ -388,6 +419,9 @@ Les tests couvrent actuellement :
 - les méthodes, leur receveur `this` implicite et les appels sur une instance ;
 - l'accès direct ou explicite aux membres depuis une méthode ;
 - les champs et méthodes privés et leurs diagnostics d'accès externe ;
+- les opérations arithmétiques, comparaisons, égalités et opérations logiques ;
+- la priorité des opérateurs et l'évaluation court-circuitée ;
+- l'égalité des chaînes par longueur et octets UTF-8 ;
 - l'appel du destructeur et la libération avec `delete` ;
 - plusieurs erreurs de construction et de durée de vie locale ;
 - la table des symboles et les déclarations dupliquées ;

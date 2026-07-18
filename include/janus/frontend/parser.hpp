@@ -24,6 +24,14 @@ private:
   [[nodiscard]] ast::DeleteStatement parse_delete_statement();
   [[nodiscard]] ast::ReturnStatement parse_return_statement();
   [[nodiscard]] ast::Expression parse_expression();
+  [[nodiscard]] ast::Expression parse_logical_or();
+  [[nodiscard]] ast::Expression parse_logical_and();
+  [[nodiscard]] ast::Expression parse_equality();
+  [[nodiscard]] ast::Expression parse_comparison();
+  [[nodiscard]] ast::Expression parse_additive();
+  [[nodiscard]] ast::Expression parse_multiplicative();
+  [[nodiscard]] ast::Expression parse_unary();
+  [[nodiscard]] ast::Expression parse_primary();
   [[nodiscard]] ast::TypeReference parse_type();
   [[nodiscard]] Token expect(TokenKind kind);
   void advance();

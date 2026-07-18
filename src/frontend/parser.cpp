@@ -368,7 +368,134 @@ ast::ReturnStatement Parser::parse_return_statement() {
   return ast::ReturnStatement{std::move(expression), return_token.location};
 }
 
-ast::Expression Parser::parse_expression() {
+ast::Expression Parser::parse_expression() { return parse_logical_or(); }
+
+ast::Expression Parser::parse_logical_or() {
+  ast::Expression expression = parse_logical_and();
+  while (current_.kind == TokenKind::PipePipe) {
+    const Token operation = current_;
+    advance();
+    expression = ast::BinaryExpression{
+        ast::BinaryOperator::LogicalOr,
+        std::make_unique<ast::Expression>(std::move(expression)),
+        std::make_unique<ast::Expression>(parse_logical_and()),
+        operation.location};
+  }
+  return expression;
+}
+
+ast::Expression Parser::parse_logical_and() {
+  ast::Expression expression = parse_equality();
+  while (current_.kind == TokenKind::AmpAmp) {
+    const Token operation = current_;
+    advance();
+    expression = ast::BinaryExpression{
+        ast::BinaryOperator::LogicalAnd,
+        std::make_unique<ast::Expression>(std::move(expression)),
+        std::make_unique<ast::Expression>(parse_equality()),
+        operation.location};
+  }
+  return expression;
+}
+
+ast::Expression Parser::parse_equality() {
+  ast::Expression expression = parse_comparison();
+  while (current_.kind == TokenKind::EqualEqual ||
+         current_.kind == TokenKind::BangEqual) {
+    const Token operation = current_;
+    advance();
+    expression = ast::BinaryExpression{
+        operation.kind == TokenKind::EqualEqual ? ast::BinaryOperator::Equal
+                                                : ast::BinaryOperator::NotEqual,
+        std::make_unique<ast::Expression>(std::move(expression)),
+        std::make_unique<ast::Expression>(parse_comparison()),
+        operation.location};
+  }
+  return expression;
+}
+
+ast::Expression Parser::parse_comparison() {
+  ast::Expression expression = parse_additive();
+  while (current_.kind == TokenKind::Less ||
+         current_.kind == TokenKind::LessEqual ||
+         current_.kind == TokenKind::Greater ||
+         current_.kind == TokenKind::GreaterEqual) {
+    const Token operation = current_;
+    advance();
+    ast::BinaryOperator binary_operation = ast::BinaryOperator::Less;
+    if (operation.kind == TokenKind::LessEqual) {
+      binary_operation = ast::BinaryOperator::LessEqual;
+    } else if (operation.kind == TokenKind::Greater) {
+      binary_operation = ast::BinaryOperator::Greater;
+    } else if (operation.kind == TokenKind::GreaterEqual) {
+      binary_operation = ast::BinaryOperator::GreaterEqual;
+    }
+    expression = ast::BinaryExpression{
+        binary_operation,
+        std::make_unique<ast::Expression>(std::move(expression)),
+        std::make_unique<ast::Expression>(parse_additive()),
+        operation.location};
+  }
+  return expression;
+}
+
+ast::Expression Parser::parse_additive() {
+  ast::Expression expression = parse_multiplicative();
+  while (current_.kind == TokenKind::Plus ||
+         current_.kind == TokenKind::Minus) {
+    const Token operation = current_;
+    advance();
+    expression = ast::BinaryExpression{
+        operation.kind == TokenKind::Plus ? ast::BinaryOperator::Add
+                                          : ast::BinaryOperator::Subtract,
+        std::make_unique<ast::Expression>(std::move(expression)),
+        std::make_unique<ast::Expression>(parse_multiplicative()),
+        operation.location};
+  }
+  return expression;
+}
+
+ast::Expression Parser::parse_multiplicative() {
+  ast::Expression expression = parse_unary();
+  while (current_.kind == TokenKind::Star ||
+         current_.kind == TokenKind::Slash ||
+         current_.kind == TokenKind::Percent) {
+    const Token operation = current_;
+    advance();
+    ast::BinaryOperator binary_operation = ast::BinaryOperator::Multiply;
+    if (operation.kind == TokenKind::Slash) {
+      binary_operation = ast::BinaryOperator::Divide;
+    } else if (operation.kind == TokenKind::Percent) {
+      binary_operation = ast::BinaryOperator::Remainder;
+    }
+    expression = ast::BinaryExpression{
+        binary_operation,
+        std::make_unique<ast::Expression>(std::move(expression)),
+        std::make_unique<ast::Expression>(parse_unary()), operation.location};
+  }
+  return expression;
+}
+
+ast::Expression Parser::parse_unary() {
+  if (current_.kind == TokenKind::Minus || current_.kind == TokenKind::Bang) {
+    const Token operation = current_;
+    advance();
+    return ast::UnaryExpression{
+        operation.kind == TokenKind::Minus ? ast::UnaryOperator::Negate
+                                           : ast::UnaryOperator::LogicalNot,
+        std::make_unique<ast::Expression>(parse_unary()), operation.location};
+  }
+  return parse_primary();
+}
+
+ast::Expression Parser::parse_primary() {
+  if (current_.kind == TokenKind::LeftParen) {
+    advance();
+    ast::Expression expression = parse_expression();
+    static_cast<void>(expect(TokenKind::RightParen));
+    return expression;
+  }
+
   if (current_.kind == TokenKind::New) {
     const Token new_token = expect(TokenKind::New);
     const Token class_name = expect(TokenKind::Identifier);

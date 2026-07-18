@@ -76,13 +76,47 @@ struct MethodCallExpression {
   SourceLocation location;
 };
 
+enum class UnaryOperator {
+  Negate,
+  LogicalNot,
+};
+
+struct UnaryExpression {
+  UnaryOperator operation;
+  std::unique_ptr<Expression> operand;
+  SourceLocation location;
+};
+
+enum class BinaryOperator {
+  Add,
+  Subtract,
+  Multiply,
+  Divide,
+  Remainder,
+  Less,
+  LessEqual,
+  Greater,
+  GreaterEqual,
+  Equal,
+  NotEqual,
+  LogicalAnd,
+  LogicalOr,
+};
+
+struct BinaryExpression {
+  BinaryOperator operation;
+  std::unique_ptr<Expression> left;
+  std::unique_ptr<Expression> right;
+  SourceLocation location;
+};
+
 struct Expression {
   using Value =
       std::variant<IntegerLiteralExpression, DoubleLiteralExpression,
                    CharacterLiteralExpression, BooleanLiteralExpression,
                    StringLiteralExpression, IdentifierExpression,
                    CallExpression, NewExpression, MemberAccessExpression,
-                   MethodCallExpression>;
+                   MethodCallExpression, UnaryExpression, BinaryExpression>;
 
   template <typename T>
   Expression(T expression) : value{std::move(expression)} {}

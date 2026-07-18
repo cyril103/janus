@@ -204,4 +204,20 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.class COMMAND class_test)
+
+    add_executable(primitive_operations_test
+        tests/language/primitive_operations_test.cpp
+    )
+    target_link_libraries(primitive_operations_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(primitive_operations_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.primitive_operations COMMAND primitive_operations_test)
 endif()

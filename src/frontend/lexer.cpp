@@ -125,6 +125,33 @@ Token Lexer::next() {
     throw CompileError{start, "unterminated character literal"};
   }
 
+  if (position_ + 1 < source_.size()) {
+    const char next_character = source_[position_ + 1];
+    TokenKind kind;
+    bool is_two_character_token = true;
+    if (character == '=' && next_character == '=') {
+      kind = TokenKind::EqualEqual;
+    } else if (character == '!' && next_character == '=') {
+      kind = TokenKind::BangEqual;
+    } else if (character == '<' && next_character == '=') {
+      kind = TokenKind::LessEqual;
+    } else if (character == '>' && next_character == '=') {
+      kind = TokenKind::GreaterEqual;
+    } else if (character == '&' && next_character == '&') {
+      kind = TokenKind::AmpAmp;
+    } else if (character == '|' && next_character == '|') {
+      kind = TokenKind::PipePipe;
+    } else {
+      is_two_character_token = false;
+    }
+
+    if (is_two_character_token) {
+      advance();
+      advance();
+      return Token{kind, source_.substr(start_position, 2), start};
+    }
+  }
+
   advance();
   switch (character) {
   case '(':
@@ -151,6 +178,22 @@ Token Lexer::next() {
     return Token{TokenKind::Comma, source_.substr(start_position, 1), start};
   case '=':
     return Token{TokenKind::Equal, source_.substr(start_position, 1), start};
+  case '!':
+    return Token{TokenKind::Bang, source_.substr(start_position, 1), start};
+  case '+':
+    return Token{TokenKind::Plus, source_.substr(start_position, 1), start};
+  case '-':
+    return Token{TokenKind::Minus, source_.substr(start_position, 1), start};
+  case '*':
+    return Token{TokenKind::Star, source_.substr(start_position, 1), start};
+  case '/':
+    return Token{TokenKind::Slash, source_.substr(start_position, 1), start};
+  case '%':
+    return Token{TokenKind::Percent, source_.substr(start_position, 1), start};
+  case '<':
+    return Token{TokenKind::Less, source_.substr(start_position, 1), start};
+  case '>':
+    return Token{TokenKind::Greater, source_.substr(start_position, 1), start};
   case ';':
     return Token{TokenKind::Semicolon, source_.substr(start_position, 1),
                  start};

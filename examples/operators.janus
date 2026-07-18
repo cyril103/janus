@@ -1,0 +1,10 @@
+def main() : int {
+    val result : int = 10 + 3 * 2
+    val remainder : int = result % 5
+    val floating : double = 1.5 * 2.0 + 1.0
+    val ordered : bool = result >= 16 && remainder == 1
+    val sameText : bool = "Janus" == "Janus"
+    val characterOrder : bool = 'a' < 'b'
+    val logical : bool = !false || false
+    return result
+}

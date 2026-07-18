@@ -306,6 +306,88 @@ private:
     return function;
   }
 
+  const janus::Type &
+  expression_type(const janus::ast::Expression &expression,
+                  const Substitutions &substitutions,
+                  const std::unordered_map<std::string, Local> &locals) {
+    return std::visit(
+        [&](const auto &node) -> const janus::Type & {
+          using Node = std::decay_t<decltype(node)>;
+          if constexpr (std::is_same_v<Node,
+                                       janus::ast::IntegerLiteralExpression>) {
+            return janus::Type::int_type();
+          } else if constexpr (std::is_same_v<
+                                   Node, janus::ast::DoubleLiteralExpression>) {
+            return janus::Type::double_type();
+          } else if constexpr (std::is_same_v<
+                                   Node,
+                                   janus::ast::CharacterLiteralExpression>) {
+            return janus::Type::char_type();
+          } else if constexpr (std::is_same_v<
+                                   Node,
+                                   janus::ast::BooleanLiteralExpression>) {
+            return janus::Type::bool_type();
+          } else if constexpr (std::is_same_v<
+                                   Node, janus::ast::StringLiteralExpression>) {
+            return janus::Type::string_type();
+          } else if constexpr (std::is_same_v<
+                                   Node, janus::ast::IdentifierExpression>) {
+            return *locals.at(node.name).type;
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::CallExpression>) {
+            const auto &callee = *functions_.at(node.callee);
+            Substitutions callee_substitutions;
+            for (std::size_t index = 0; index < node.type_arguments.size();
+                 ++index) {
+              callee_substitutions.emplace(
+                  callee.type_parameters[index],
+                  &resolve(node.type_arguments[index], substitutions));
+            }
+            return resolve(callee.return_type, callee_substitutions);
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::NewExpression>) {
+            return class_types_.at(node.class_name);
+          } else if constexpr (std::is_same_v<
+                                   Node, janus::ast::MemberAccessExpression>) {
+            const janus::Type &object_type =
+                expression_type(*node.object, substitutions, locals);
+            return *find_field(object_type.name(), node.member).second;
+          } else if constexpr (std::is_same_v<
+                                   Node, janus::ast::MethodCallExpression>) {
+            const janus::Type &object_type =
+                expression_type(*node.object, substitutions, locals);
+            const auto &class_declaration =
+                *classes_.at(std::string{object_type.name()});
+            for (const auto &method : class_declaration.methods) {
+              if (method.name == node.method)
+                return resolve(method.return_type, {});
+            }
+            return janus::Type::int_type();
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::UnaryExpression>) {
+            if (node.operation == janus::ast::UnaryOperator::LogicalNot)
+              return janus::Type::bool_type();
+            return expression_type(*node.operand, substitutions, locals);
+          } else {
+            static_assert(std::is_same_v<Node, janus::ast::BinaryExpression>);
+            switch (node.operation) {
+            case janus::ast::BinaryOperator::Less:
+            case janus::ast::BinaryOperator::LessEqual:
+            case janus::ast::BinaryOperator::Greater:
+            case janus::ast::BinaryOperator::GreaterEqual:
+            case janus::ast::BinaryOperator::Equal:
+            case janus::ast::BinaryOperator::NotEqual:
+            case janus::ast::BinaryOperator::LogicalAnd:
+            case janus::ast::BinaryOperator::LogicalOr:
+              return janus::Type::bool_type();
+            default:
+              return expression_type(*node.left, substitutions, locals);
+            }
+          }
+        },
+        expression.value);
+  }
+
   ::llvm::Value *
   emit_expression(const janus::ast::Expression &expression,
                   const janus::Type &expected_type,
@@ -442,7 +524,8 @@ private:
             return builder.CreateLoad(
                 janus::backend::llvm::lower_type(*field_type, context_),
                 field_pointer, node.member + ".value");
-          } else {
+          } else if constexpr (std::is_same_v<
+                                   Node, janus::ast::MethodCallExpression>) {
             const auto *identifier =
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);
@@ -471,6 +554,165 @@ private:
             }
             return builder.CreateCall(target, arguments,
                                       node.method + ".result");
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::UnaryExpression>) {
+            const janus::Type *operand_type =
+                &expression_type(*node.operand, substitutions, locals);
+            if (expected_type.kind() == janus::TypeKind::Byte &&
+                std::holds_alternative<janus::ast::IntegerLiteralExpression>(
+                    node.operand->value)) {
+              operand_type = &expected_type;
+            }
+            ::llvm::Value *operand = emit_expression(
+                *node.operand, *operand_type, substitutions, locals, builder);
+            if (node.operation == janus::ast::UnaryOperator::LogicalNot)
+              return builder.CreateNot(operand, "not");
+            if (operand_type->kind() == janus::TypeKind::Double)
+              return builder.CreateFNeg(operand, "neg");
+            return builder.CreateNeg(operand, "neg");
+          } else {
+            static_assert(std::is_same_v<Node, janus::ast::BinaryExpression>);
+            if (node.operation == janus::ast::BinaryOperator::LogicalAnd ||
+                node.operation == janus::ast::BinaryOperator::LogicalOr) {
+              ::llvm::Value *left =
+                  emit_expression(*node.left, janus::Type::bool_type(),
+                                  substitutions, locals, builder);
+              ::llvm::BasicBlock *left_block = builder.GetInsertBlock();
+              ::llvm::Function *function = left_block->getParent();
+              auto *right_block =
+                  ::llvm::BasicBlock::Create(context_, "logic.rhs", function);
+              auto *merge_block =
+                  ::llvm::BasicBlock::Create(context_, "logic.end", function);
+              const bool is_and =
+                  node.operation == janus::ast::BinaryOperator::LogicalAnd;
+              if (is_and)
+                builder.CreateCondBr(left, right_block, merge_block);
+              else
+                builder.CreateCondBr(left, merge_block, right_block);
+
+              builder.SetInsertPoint(right_block);
+              ::llvm::Value *right =
+                  emit_expression(*node.right, janus::Type::bool_type(),
+                                  substitutions, locals, builder);
+              ::llvm::BasicBlock *right_end = builder.GetInsertBlock();
+              builder.CreateBr(merge_block);
+
+              builder.SetInsertPoint(merge_block);
+              auto *result = builder.CreatePHI(builder.getInt1Ty(), 2, "logic");
+              result->addIncoming(builder.getInt1(is_and ? false : true),
+                                  left_block);
+              result->addIncoming(right, right_end);
+              return result;
+            }
+
+            const janus::Type &operand_type =
+                expression_type(*node.left, substitutions, locals);
+            ::llvm::Value *left = emit_expression(
+                *node.left, operand_type, substitutions, locals, builder);
+            ::llvm::Value *right = emit_expression(
+                *node.right, operand_type, substitutions, locals, builder);
+            const bool is_double =
+                operand_type.kind() == janus::TypeKind::Double;
+
+            switch (node.operation) {
+            case janus::ast::BinaryOperator::Add:
+              return is_double ? builder.CreateFAdd(left, right, "add")
+                               : builder.CreateAdd(left, right, "add");
+            case janus::ast::BinaryOperator::Subtract:
+              return is_double ? builder.CreateFSub(left, right, "sub")
+                               : builder.CreateSub(left, right, "sub");
+            case janus::ast::BinaryOperator::Multiply:
+              return is_double ? builder.CreateFMul(left, right, "mul")
+                               : builder.CreateMul(left, right, "mul");
+            case janus::ast::BinaryOperator::Divide:
+              return is_double ? builder.CreateFDiv(left, right, "div")
+                               : builder.CreateSDiv(left, right, "div");
+            case janus::ast::BinaryOperator::Remainder:
+              return builder.CreateSRem(left, right, "rem");
+            case janus::ast::BinaryOperator::Less:
+              if (is_double)
+                return builder.CreateFCmpOLT(left, right, "cmp");
+              return operand_type.kind() == janus::TypeKind::Char
+                         ? builder.CreateICmpULT(left, right, "cmp")
+                         : builder.CreateICmpSLT(left, right, "cmp");
+            case janus::ast::BinaryOperator::LessEqual:
+              if (is_double)
+                return builder.CreateFCmpOLE(left, right, "cmp");
+              return operand_type.kind() == janus::TypeKind::Char
+                         ? builder.CreateICmpULE(left, right, "cmp")
+                         : builder.CreateICmpSLE(left, right, "cmp");
+            case janus::ast::BinaryOperator::Greater:
+              if (is_double)
+                return builder.CreateFCmpOGT(left, right, "cmp");
+              return operand_type.kind() == janus::TypeKind::Char
+                         ? builder.CreateICmpUGT(left, right, "cmp")
+                         : builder.CreateICmpSGT(left, right, "cmp");
+            case janus::ast::BinaryOperator::GreaterEqual:
+              if (is_double)
+                return builder.CreateFCmpOGE(left, right, "cmp");
+              return operand_type.kind() == janus::TypeKind::Char
+                         ? builder.CreateICmpUGE(left, right, "cmp")
+                         : builder.CreateICmpSGE(left, right, "cmp");
+            case janus::ast::BinaryOperator::Equal:
+            case janus::ast::BinaryOperator::NotEqual: {
+              const bool is_not_equal =
+                  node.operation == janus::ast::BinaryOperator::NotEqual;
+              if (is_double) {
+                return is_not_equal
+                           ? builder.CreateFCmpUNE(left, right, "equal")
+                           : builder.CreateFCmpOEQ(left, right, "equal");
+              }
+              if (operand_type.kind() != janus::TypeKind::String) {
+                return is_not_equal
+                           ? builder.CreateICmpNE(left, right, "equal")
+                           : builder.CreateICmpEQ(left, right, "equal");
+              }
+
+              ::llvm::Value *left_data =
+                  builder.CreateExtractValue(left, 0, "string.left.data");
+              ::llvm::Value *left_length =
+                  builder.CreateExtractValue(left, 1, "string.left.length");
+              ::llvm::Value *right_data =
+                  builder.CreateExtractValue(right, 0, "string.right.data");
+              ::llvm::Value *right_length =
+                  builder.CreateExtractValue(right, 1, "string.right.length");
+              ::llvm::Value *same_length = builder.CreateICmpEQ(
+                  left_length, right_length, "same.length");
+              ::llvm::BasicBlock *length_block = builder.GetInsertBlock();
+              ::llvm::Function *function = length_block->getParent();
+              auto *compare_block = ::llvm::BasicBlock::Create(
+                  context_, "string.compare", function);
+              auto *merge_block = ::llvm::BasicBlock::Create(
+                  context_, "string.equal", function);
+              builder.CreateCondBr(same_length, compare_block, merge_block);
+
+              builder.SetInsertPoint(compare_block);
+              ::llvm::FunctionCallee memcmp_function =
+                  module_->getOrInsertFunction(
+                      "memcmp", ::llvm::FunctionType::get(
+                                    builder.getInt32Ty(),
+                                    {builder.getPtrTy(), builder.getPtrTy(),
+                                     builder.getInt64Ty()},
+                                    false));
+              ::llvm::Value *comparison = builder.CreateCall(
+                  memcmp_function, {left_data, right_data, left_length},
+                  "memcmp");
+              ::llvm::Value *same_bytes = builder.CreateICmpEQ(
+                  comparison, builder.getInt32(0), "same.bytes");
+              builder.CreateBr(merge_block);
+
+              builder.SetInsertPoint(merge_block);
+              auto *equal =
+                  builder.CreatePHI(builder.getInt1Ty(), 2, "string.equals");
+              equal->addIncoming(builder.getFalse(), length_block);
+              equal->addIncoming(same_bytes, compare_block);
+              return is_not_equal ? builder.CreateNot(equal, "not.equal")
+                                  : equal;
+            }
+            case janus::ast::BinaryOperator::LogicalAnd:
+            case janus::ast::BinaryOperator::LogicalOr:
+              return nullptr;
+            }
           }
         },
         expression.value);
