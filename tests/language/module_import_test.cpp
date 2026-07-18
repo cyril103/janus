@@ -6,6 +6,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -38,7 +39,14 @@ int main() {
       {std::filesystem::path{JANUS_STDLIB_DIR}}};
   const janus::ast::Program program =
       loader.load(std::filesystem::path{JANUS_ARRAY_EXAMPLE});
-  expect(program.classes.size() == 3,
+  const auto has_class = [&](std::string_view name) {
+    return std::any_of(program.classes.begin(), program.classes.end(),
+                       [&](const janus::ast::ClassDeclaration &declaration) {
+                         return declaration.name == name;
+                       });
+  };
+  expect(has_class("Array") && has_class("Iterator") &&
+             has_class("ArrayIteratorState"),
          "import std.array loads Array and its iterator support");
   expect(program.enums.size() == 1 && program.enums.front().name == "Option",
          "Array imports Option for its safe operations");
@@ -85,6 +93,12 @@ int main() {
   expect(ir.find("define internal void @Iterator__int__destructor") !=
              std::string::npos,
          "Iterator owns its state closures");
+  expect(ir.find("define ptr @Iterator__int__map__int") != std::string::npos,
+         "Iterator.map is specialized for its output type");
+  expect(
+      ir.find("define internal void @MapIteratorState__int__int__destructor") !=
+          std::string::npos,
+      "a mapped iterator owns its transform and source iterator");
   expect(ir.find("call void %action.code") != std::string::npos,
          "Array.foreach invokes Unit closures indirectly");
   expect(ir.find("define i32 @main()") != std::string::npos,

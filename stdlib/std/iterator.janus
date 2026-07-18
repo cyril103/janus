@@ -1,12 +1,43 @@
 module std.iterator
 import std.option
 
+class MapIteratorState[A, B](
+    private val source : Iterator[A],
+    private val transform : (A) => B
+) {
+    def next() : Option[B] {
+        val value : Option[A] = source.next()
+        return match value {
+            Some(item) => Option.Some[B](transform(item)),
+            None => Option.None[B]()
+        }
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        delete transform
+        delete source
+    }
+}
+
 class Iterator[T](
     private val advance : () => Option[T],
     private val release : () => Unit
 ) {
     def next() : Option[T] {
         return advance()
+    }
+
+    def map[U](transform : (T) => U) : Iterator[U] {
+        val state : MapIteratorState[T, U] =
+            new MapIteratorState[T, U](this, transform)
+        return new Iterator[U](
+            () => state.next(),
+            () => state.dispose()
+        )
     }
 
     destructor {

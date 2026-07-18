@@ -6,7 +6,8 @@ def main() : int {
     values.push(20)
     values.push(12)
 
-    val iterator : Iterator[int] = values.iterator()
+    val iterator : Iterator[int] =
+        values.iterator().map[int]((value : int) => value * 2)
     val first : Option[int] = iterator.next()
     val firstValue : int = match first {
         Some(value) => value,
