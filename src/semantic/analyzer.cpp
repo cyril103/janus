@@ -424,6 +424,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               }
               return iterator->second.type;
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              if (node.callee == "panic") {
+                if (!node.type_arguments.empty() || node.arguments.size() != 1)
+                  throw CompileError{
+                      node.location,
+                      "panic expects one string argument and no type argument"};
+                validate_expression(
+                    *node.arguments.front(), SemanticType{&Type::string_type()},
+                    expression_location(*node.arguments.front()));
+                return SemanticType{&Type::unit_type()};
+              }
               if (node.callee == "alloc" || node.callee == "realloc" ||
                   node.callee == "null" || node.callee == "sizeof" ||
                   node.callee == "alignof") {

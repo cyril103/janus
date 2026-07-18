@@ -176,6 +176,12 @@ Le fichier `examples/pointers.janus` présente la mémoire manuelle typée :
 ./build/janusc examples/pointers.janus
 ```
 
+Le fichier `examples/panic.janus` présente un contrôle d'exécution :
+
+```bash
+./build/janusc examples/panic.janus
+```
+
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
 conserver dans un fichier :
 
@@ -340,6 +346,18 @@ respectivement la taille et l'alignement de `T` sous forme de `usize`.
 `alloc` et `realloc` prennent un nombre d'éléments et calculent eux-mêmes le
 nombre d'octets. Comme en C, les accès après `free`, doubles libérations et
 indices hors de la zone allouée relèvent de la responsabilité du programmeur.
+
+### Arrêt sur erreur
+
+`panic(message)` écrit un message UTF-8 sur la sortie d'erreur puis termine
+immédiatement le processus avec `abort`. Cette primitive sert à construire les
+contrôles d'exécution des structures de la bibliothèque :
+
+```janus
+if index >= size {
+    panic("index out of bounds\n")
+}
+```
 
 ## Fonctions et généricité
 

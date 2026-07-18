@@ -528,6 +528,8 @@ private:
             return *locals.at(node.name).type;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
+            if (node.callee == "panic")
+              return janus::Type::unit_type();
             if (node.callee == "alloc" || node.callee == "realloc" ||
                 node.callee == "null") {
               const janus::Type &element =
@@ -661,6 +663,29 @@ private:
                 local.storage, node.name + ".value");
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
+            if (node.callee == "panic") {
+              ::llvm::Value *message = emit_expression(
+                  *node.arguments.front(), janus::Type::string_type(),
+                  substitutions, locals, builder);
+              ::llvm::Value *data =
+                  builder.CreateExtractValue(message, 0, "panic.data");
+              ::llvm::Value *length =
+                  builder.CreateExtractValue(message, 1, "panic.length");
+              ::llvm::FunctionCallee write_function =
+                  module_->getOrInsertFunction(
+                      "write", ::llvm::FunctionType::get(builder.getInt64Ty(),
+                                                         {builder.getInt32Ty(),
+                                                          builder.getPtrTy(),
+                                                          builder.getInt64Ty()},
+                                                         false));
+              static_cast<void>(builder.CreateCall(
+                  write_function, {builder.getInt32(2), data, length}));
+              ::llvm::FunctionCallee abort_function =
+                  module_->getOrInsertFunction(
+                      "abort",
+                      ::llvm::FunctionType::get(builder.getVoidTy(), false));
+              return builder.CreateCall(abort_function);
+            }
             if (node.callee == "alloc" || node.callee == "realloc" ||
                 node.callee == "null" || node.callee == "sizeof" ||
                 node.callee == "alignof") {

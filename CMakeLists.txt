@@ -333,4 +333,20 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.pointer_memory COMMAND pointer_memory_test)
+
+    add_executable(panic_test
+        tests/language/panic_test.cpp
+    )
+    target_link_libraries(panic_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(panic_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.panic COMMAND panic_test)
 endif()

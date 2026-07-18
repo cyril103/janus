@@ -1,0 +1,10 @@
+def requirePositive(value : int) : Unit {
+    if value < 0 {
+        panic("value must be positive\n")
+    }
+}
+
+def main() : int {
+    requirePositive(42)
+    return 42
+}
