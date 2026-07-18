@@ -790,6 +790,14 @@ private:
               visit(*node.then_expression, active_bound);
               visit(*node.else_expression, active_bound);
             } else if constexpr (std::is_same_v<Node,
+                                                janus::ast::MatchExpression>) {
+              visit(*node.scrutinee, active_bound);
+              for (const janus::ast::MatchExpression::Arm &arm : node.arms) {
+                auto arm_bound = active_bound;
+                arm_bound.insert(arm.bindings.begin(), arm.bindings.end());
+                visit(*arm.expression, arm_bound);
+              }
+            } else if constexpr (std::is_same_v<Node,
                                                 janus::ast::UnaryExpression>) {
               visit(*node.operand, active_bound);
             } else if constexpr (std::is_same_v<Node,
@@ -1018,6 +1026,28 @@ private:
           } else if constexpr (std::is_same_v<Node, janus::ast::IfExpression>) {
             return expression_type(*node.then_expression, substitutions,
                                    locals);
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::MatchExpression>) {
+            const janus::Type &enum_type =
+                expression_type(*node.scrutinee, substitutions, locals);
+            const EnumSpecialization &specialization =
+                enum_specializations_.at(std::string{enum_type.name()});
+            const janus::ast::MatchExpression::Arm &arm = node.arms.front();
+            const auto enum_case = std::find_if(
+                specialization.declaration->cases.begin(),
+                specialization.declaration->cases.end(),
+                [&](const janus::ast::EnumDeclaration::Case &candidate) {
+                  return candidate.name == arm.case_name;
+                });
+            std::unordered_map<std::string, Local> arm_locals = locals;
+            for (std::size_t index = 0; index < arm.bindings.size(); ++index) {
+              const janus::Type &payload_type =
+                  resolve(enum_case->payload_types[index],
+                          specialization.substitutions);
+              arm_locals.insert_or_assign(arm.bindings[index],
+                                          Local{nullptr, &payload_type});
+            }
+            return expression_type(*arm.expression, substitutions, arm_locals);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::UnaryExpression>) {
             if (node.operation == janus::ast::UnaryOperator::LogicalNot)
@@ -1628,6 +1658,77 @@ private:
             auto *result = builder.CreatePHI(llvm_type, 2, "if.value");
             result->addIncoming(then_value, then_end);
             result->addIncoming(else_value, else_end);
+            return result;
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::MatchExpression>) {
+            const janus::Type &enum_type =
+                expression_type(*node.scrutinee, substitutions, locals);
+            const EnumSpecialization &specialization =
+                enum_specializations_.at(std::string{enum_type.name()});
+            ::llvm::Value *scrutinee = emit_expression(
+                *node.scrutinee, enum_type, substitutions, locals, builder);
+            ::llvm::Value *tag =
+                builder.CreateExtractValue(scrutinee, 0, "match.tag");
+            ::llvm::Function *function = builder.GetInsertBlock()->getParent();
+            auto *default_block =
+                ::llvm::BasicBlock::Create(context_, "match.unhandled");
+            auto *merge_block =
+                ::llvm::BasicBlock::Create(context_, "match.end");
+            auto *switch_value = builder.CreateSwitch(
+                tag, default_block, static_cast<unsigned>(node.arms.size()));
+
+            std::vector<std::pair<::llvm::Value *, ::llvm::BasicBlock *>>
+                incoming;
+            incoming.reserve(node.arms.size());
+            for (const janus::ast::MatchExpression::Arm &arm : node.arms) {
+              auto *arm_block = ::llvm::BasicBlock::Create(
+                  context_, "match." + arm.case_name, function);
+              switch_value->addCase(builder.getInt32(enum_case_value(
+                                        enum_type.name(), arm.case_name)),
+                                    arm_block);
+              builder.SetInsertPoint(arm_block);
+
+              const auto enum_case = std::find_if(
+                  specialization.declaration->cases.begin(),
+                  specialization.declaration->cases.end(),
+                  [&](const janus::ast::EnumDeclaration::Case &candidate) {
+                    return candidate.name == arm.case_name;
+                  });
+              std::unordered_map<std::string, Local> arm_locals = locals;
+              unsigned field =
+                  enum_case_payload_start(enum_type.name(), arm.case_name);
+              for (std::size_t index = 0; index < arm.bindings.size();
+                   ++index) {
+                const janus::Type &payload_type =
+                    resolve(enum_case->payload_types[index],
+                            specialization.substitutions);
+                ::llvm::Value *payload = builder.CreateExtractValue(
+                    scrutinee, field++, arm.bindings[index] + ".payload");
+                ::llvm::Value *storage =
+                    builder.CreateAlloca(lower_type(payload_type, context_),
+                                         nullptr, arm.bindings[index]);
+                builder.CreateStore(payload, storage);
+                arm_locals.insert_or_assign(arm.bindings[index],
+                                            Local{storage, &payload_type});
+              }
+              ::llvm::Value *arm_value =
+                  emit_expression(*arm.expression, expected_type, substitutions,
+                                  arm_locals, builder);
+              ::llvm::BasicBlock *arm_end = builder.GetInsertBlock();
+              builder.CreateBr(merge_block);
+              incoming.emplace_back(arm_value, arm_end);
+            }
+
+            function->insert(function->end(), default_block);
+            builder.SetInsertPoint(default_block);
+            builder.CreateUnreachable();
+            function->insert(function->end(), merge_block);
+            builder.SetInsertPoint(merge_block);
+            auto *result = builder.CreatePHI(
+                llvm_type, static_cast<unsigned>(incoming.size()),
+                "match.value");
+            for (const auto &[value, block] : incoming)
+              result->addIncoming(value, block);
             return result;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::UnaryExpression>) {

@@ -1167,6 +1167,92 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                     node.location,
                     "if expressions cannot produce a Unit value"};
               return then_type;
+            } else if constexpr (std::is_same_v<Node, ast::MatchExpression>) {
+              const SemanticType scrutinee_type =
+                  expression_type(*node.scrutinee);
+              if (!scrutinee_type.is_enum())
+                throw CompileError{node.location,
+                                   "match requires an enum value, got '" +
+                                       scrutinee_type.name() + "'"};
+              if (node.arms.empty())
+                throw CompileError{node.location,
+                                   "match requires at least one case"};
+
+              const ast::EnumDeclaration &enum_declaration =
+                  *enums.at(scrutinee_type.parameter);
+              std::unordered_map<std::string, SemanticType> substitutions;
+              for (std::size_t index = 0;
+                   index < enum_declaration.type_parameters.size(); ++index) {
+                substitutions.emplace(enum_declaration.type_parameters[index],
+                                      scrutinee_type.type_arguments[index]);
+              }
+              const std::unordered_set<std::string> enum_parameters{
+                  enum_declaration.type_parameters.begin(),
+                  enum_declaration.type_parameters.end()};
+              std::unordered_set<std::string> matched_cases;
+              std::optional<SemanticType> result_type;
+              for (const ast::MatchExpression::Arm &arm : node.arms) {
+                const auto enum_case = std::find_if(
+                    enum_declaration.cases.begin(),
+                    enum_declaration.cases.end(),
+                    [&](const ast::EnumDeclaration::Case &candidate) {
+                      return candidate.name == arm.case_name;
+                    });
+                if (enum_case == enum_declaration.cases.end())
+                  throw CompileError{arm.location, "enum '" +
+                                                       enum_declaration.name +
+                                                       "' has no case '" +
+                                                       arm.case_name + "'"};
+                if (!matched_cases.insert(arm.case_name).second)
+                  throw CompileError{arm.location, "match case '" +
+                                                       arm.case_name +
+                                                       "' is already handled"};
+                if (arm.bindings.size() != enum_case->payload_types.size())
+                  throw CompileError{
+                      arm.location,
+                      "enum case '" + arm.case_name + "' contains " +
+                          std::to_string(enum_case->payload_types.size()) +
+                          " value(s), but the pattern binds " +
+                          std::to_string(arm.bindings.size())};
+
+                SymbolTable arm_symbols = *active_symbols;
+                std::unordered_set<std::string> binding_names;
+                for (std::size_t index = 0; index < arm.bindings.size();
+                     ++index) {
+                  if (!binding_names.insert(arm.bindings[index]).second)
+                    throw CompileError{arm.location,
+                                       "pattern binding '" +
+                                           arm.bindings[index] +
+                                           "' is already declared"};
+                  SemanticType payload_type =
+                      resolve_type(enum_case->payload_types[index],
+                                   enum_parameters, &class_arities);
+                  payload_type =
+                      substitute(std::move(payload_type), substitutions);
+                  arm_symbols.insert_or_assign(
+                      arm.bindings[index],
+                      Symbol{std::move(payload_type), false, true});
+                }
+                SymbolTable *previous_symbols = active_symbols;
+                active_symbols = &arm_symbols;
+                const SemanticType arm_type = expression_type(*arm.expression);
+                active_symbols = previous_symbols;
+                if (arm_type.is_concrete() &&
+                    arm_type.concrete->kind() == TypeKind::Unit)
+                  throw CompileError{
+                      arm.location,
+                      "match expressions cannot produce a Unit value"};
+                if (!result_type.has_value()) {
+                  result_type = arm_type;
+                } else if (!same_type(*result_type, arm_type)) {
+                  throw CompileError{
+                      arm.location,
+                      "match cases must have the same type, got '" +
+                          result_type->name() + "' and '" + arm_type.name() +
+                          "'"};
+                }
+              }
+              return *result_type;
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
               if (node.operation == ast::UnaryOperator::LogicalNot) {

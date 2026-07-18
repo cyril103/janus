@@ -1,0 +1,12 @@
+enum Option[T] {
+    Some(T),
+    None
+}
+
+def main() : int {
+    val option : Option[int] = Option.Some[int](42)
+    return match option {
+        Some(value) => value,
+        None => 0
+    }
+}

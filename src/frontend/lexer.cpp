@@ -53,6 +53,8 @@ Token Lexer::next() {
       kind = TokenKind::If;
     } else if (lexeme == "else") {
       kind = TokenKind::Else;
+    } else if (lexeme == "match") {
+      kind = TokenKind::Match;
     } else if (lexeme == "while") {
       kind = TokenKind::While;
     } else if (lexeme == "return") {

@@ -18,6 +18,7 @@ enum class TokenKind {
   Private,
   If,
   Else,
+  Match,
   While,
   Return,
   Val,
@@ -88,6 +89,8 @@ struct Token {
     return "'if'";
   case TokenKind::Else:
     return "'else'";
+  case TokenKind::Match:
+    return "'match'";
   case TokenKind::While:
     return "'while'";
   case TokenKind::Return:

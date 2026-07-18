@@ -99,6 +99,19 @@ struct IfExpression {
   SourceLocation location;
 };
 
+struct MatchExpression {
+  struct Arm {
+    std::string case_name;
+    std::vector<std::string> bindings;
+    std::unique_ptr<Expression> expression;
+    SourceLocation location;
+  };
+
+  std::unique_ptr<Expression> scrutinee;
+  std::vector<Arm> arms;
+  SourceLocation location;
+};
+
 enum class UnaryOperator {
   Negate,
   LogicalNot,
@@ -140,7 +153,7 @@ struct Expression {
                    StringLiteralExpression, IdentifierExpression,
                    LambdaExpression, CallExpression, NewExpression,
                    MemberAccessExpression, MethodCallExpression, IfExpression,
-                   UnaryExpression, BinaryExpression>;
+                   MatchExpression, UnaryExpression, BinaryExpression>;
 
   template <typename T>
     requires std::constructible_from<Value, T>

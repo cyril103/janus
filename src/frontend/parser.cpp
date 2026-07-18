@@ -681,6 +681,41 @@ ast::Expression Parser::parse_unary() {
 }
 
 ast::Expression Parser::parse_primary() {
+  if (current_.kind == TokenKind::Match) {
+    const Token match_token = expect(TokenKind::Match);
+    ast::Expression scrutinee = parse_expression();
+    static_cast<void>(expect(TokenKind::LeftBrace));
+    std::vector<ast::MatchExpression::Arm> arms;
+    while (current_.kind != TokenKind::RightBrace) {
+      const Token case_name = expect(TokenKind::Identifier);
+      std::vector<std::string> bindings;
+      if (current_.kind == TokenKind::LeftParen) {
+        advance();
+        if (current_.kind != TokenKind::RightParen) {
+          do {
+            bindings.emplace_back(expect(TokenKind::Identifier).lexeme);
+            if (current_.kind != TokenKind::Comma)
+              break;
+            advance();
+          } while (true);
+        }
+        static_cast<void>(expect(TokenKind::RightParen));
+      }
+      static_cast<void>(expect(TokenKind::Arrow));
+      arms.push_back(ast::MatchExpression::Arm{
+          std::string{case_name.lexeme}, std::move(bindings),
+          std::make_unique<ast::Expression>(parse_expression()),
+          case_name.location});
+      if (current_.kind == TokenKind::Comma ||
+          current_.kind == TokenKind::Semicolon)
+        advance();
+    }
+    static_cast<void>(expect(TokenKind::RightBrace));
+    return ast::MatchExpression{
+        std::make_unique<ast::Expression>(std::move(scrutinee)),
+        std::move(arms), match_token.location};
+  }
+
   if (current_.kind == TokenKind::If) {
     const Token if_token = expect(TokenKind::If);
     ast::Expression condition = parse_expression();
