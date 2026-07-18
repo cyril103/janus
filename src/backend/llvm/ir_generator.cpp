@@ -726,6 +726,11 @@ private:
               for (const auto &argument : node.arguments)
                 visit(*argument, active_bound);
             } else if constexpr (std::is_same_v<Node,
+                                                janus::ast::IfExpression>) {
+              visit(*node.condition, active_bound);
+              visit(*node.then_expression, active_bound);
+              visit(*node.else_expression, active_bound);
+            } else if constexpr (std::is_same_v<Node,
                                                 janus::ast::UnaryExpression>) {
               visit(*node.operand, active_bound);
             } else if constexpr (std::is_same_v<Node,
@@ -944,6 +949,9 @@ private:
               }
             }
             return janus::Type::int_type();
+          } else if constexpr (std::is_same_v<Node, janus::ast::IfExpression>) {
+            return expression_type(*node.then_expression, substitutions,
+                                   locals);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::UnaryExpression>) {
             if (node.operation == janus::ast::UnaryOperator::LogicalNot)
@@ -1465,6 +1473,38 @@ private:
                        ? builder.CreateCall(target, arguments)
                        : builder.CreateCall(target, arguments,
                                             node.method + ".result");
+          } else if constexpr (std::is_same_v<Node, janus::ast::IfExpression>) {
+            ::llvm::Value *condition =
+                emit_expression(*node.condition, janus::Type::bool_type(),
+                                substitutions, locals, builder);
+            ::llvm::Function *function = builder.GetInsertBlock()->getParent();
+            auto *then_block =
+                ::llvm::BasicBlock::Create(context_, "if.value.then", function);
+            auto *else_block =
+                ::llvm::BasicBlock::Create(context_, "if.value.else", function);
+            auto *merge_block =
+                ::llvm::BasicBlock::Create(context_, "if.value.end", function);
+            builder.CreateCondBr(condition, then_block, else_block);
+
+            builder.SetInsertPoint(then_block);
+            ::llvm::Value *then_value =
+                emit_expression(*node.then_expression, expected_type,
+                                substitutions, locals, builder);
+            ::llvm::BasicBlock *then_end = builder.GetInsertBlock();
+            builder.CreateBr(merge_block);
+
+            builder.SetInsertPoint(else_block);
+            ::llvm::Value *else_value =
+                emit_expression(*node.else_expression, expected_type,
+                                substitutions, locals, builder);
+            ::llvm::BasicBlock *else_end = builder.GetInsertBlock();
+            builder.CreateBr(merge_block);
+
+            builder.SetInsertPoint(merge_block);
+            auto *result = builder.CreatePHI(llvm_type, 2, "if.value");
+            result->addIncoming(then_value, then_end);
+            result->addIncoming(else_value, else_end);
+            return result;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::UnaryExpression>) {
             const janus::Type *operand_type =

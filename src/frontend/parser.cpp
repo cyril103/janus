@@ -656,6 +656,23 @@ ast::Expression Parser::parse_unary() {
 }
 
 ast::Expression Parser::parse_primary() {
+  if (current_.kind == TokenKind::If) {
+    const Token if_token = expect(TokenKind::If);
+    ast::Expression condition = parse_expression();
+    static_cast<void>(expect(TokenKind::LeftBrace));
+    ast::Expression then_expression = parse_expression();
+    static_cast<void>(expect(TokenKind::RightBrace));
+    static_cast<void>(expect(TokenKind::Else));
+    static_cast<void>(expect(TokenKind::LeftBrace));
+    ast::Expression else_expression = parse_expression();
+    static_cast<void>(expect(TokenKind::RightBrace));
+    return ast::IfExpression{
+        std::make_unique<ast::Expression>(std::move(condition)),
+        std::make_unique<ast::Expression>(std::move(then_expression)),
+        std::make_unique<ast::Expression>(std::move(else_expression)),
+        if_token.location};
+  }
+
   if (current_.kind == TokenKind::LeftParen) {
     if (starts_lambda()) {
       const Token left_parenthesis = expect(TokenKind::LeftParen);

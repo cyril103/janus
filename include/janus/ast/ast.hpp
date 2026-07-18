@@ -92,6 +92,13 @@ struct MethodCallExpression {
   SourceLocation location;
 };
 
+struct IfExpression {
+  std::unique_ptr<Expression> condition;
+  std::unique_ptr<Expression> then_expression;
+  std::unique_ptr<Expression> else_expression;
+  SourceLocation location;
+};
+
 enum class UnaryOperator {
   Negate,
   LogicalNot,
@@ -132,7 +139,7 @@ struct Expression {
                    CharacterLiteralExpression, BooleanLiteralExpression,
                    StringLiteralExpression, IdentifierExpression,
                    LambdaExpression, CallExpression, NewExpression,
-                   MemberAccessExpression, MethodCallExpression,
+                   MemberAccessExpression, MethodCallExpression, IfExpression,
                    UnaryExpression, BinaryExpression>;
 
   template <typename T>

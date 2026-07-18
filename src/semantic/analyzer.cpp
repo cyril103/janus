@@ -1032,6 +1032,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               return substitute(resolve_type(method->return_type,
                                              method_parameters, &class_arities),
                                 substitutions);
+            } else if constexpr (std::is_same_v<Node, ast::IfExpression>) {
+              validate_expression(*node.condition,
+                                  SemanticType{&Type::bool_type()},
+                                  expression_location(*node.condition));
+              const SemanticType then_type =
+                  expression_type(*node.then_expression);
+              const SemanticType else_type =
+                  expression_type(*node.else_expression);
+              if (!same_type(then_type, else_type))
+                throw CompileError{
+                    node.location,
+                    "if expression branches must have the same type, got '" +
+                        then_type.name() + "' and '" + else_type.name() + "'"};
+              if (then_type.is_concrete() &&
+                  then_type.concrete->kind() == TypeKind::Unit)
+                throw CompileError{
+                    node.location,
+                    "if expressions cannot produce a Unit value"};
+              return then_type;
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
               if (node.operation == ast::UnaryOperator::LogicalNot) {

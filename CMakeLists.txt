@@ -290,6 +290,22 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.control_flow COMMAND control_flow_test)
 
+    add_executable(if_expression_test
+        tests/language/if_expression_test.cpp
+    )
+    target_link_libraries(if_expression_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(if_expression_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.if_expression COMMAND if_expression_test)
+
     add_executable(unit_type_test
         tests/language/unit_type_test.cpp
     )
