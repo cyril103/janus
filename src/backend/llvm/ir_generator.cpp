@@ -1503,7 +1503,7 @@ private:
             const auto *identifier =
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);
-            if (enums_.contains(identifier->name)) {
+            if (identifier != nullptr && enums_.contains(identifier->name)) {
               const janus::Type &enum_type = ensure_enum(identifier->name, {});
               auto *llvm_enum_type =
                   llvm_enum_types_.at(std::string{enum_type.name()});
@@ -1514,14 +1514,22 @@ private:
                       enum_case_value(enum_type.name(), node.member)),
                   0, "enum.value");
             }
-            const Local &object = locals.at(identifier->name);
-            ::llvm::Value *object_pointer =
-                builder.CreateLoad(builder.getPtrTy(), object.storage,
-                                   identifier->name + ".object");
+            const janus::Type &object_type =
+                expression_type(*node.object, substitutions, locals);
+            ::llvm::Value *object_pointer = nullptr;
+            if (identifier != nullptr) {
+              const Local &object = locals.at(identifier->name);
+              object_pointer =
+                  builder.CreateLoad(builder.getPtrTy(), object.storage,
+                                     identifier->name + ".object");
+            } else {
+              object_pointer = emit_expression(*node.object, object_type,
+                                               substitutions, locals, builder);
+            }
             const auto [field_index, field_type] =
-                find_field(object.type->name(), node.member);
+                find_field(object_type.name(), node.member);
             ::llvm::Value *field_pointer = builder.CreateStructGEP(
-                llvm_class_types_.at(std::string{object.type->name()}),
+                llvm_class_types_.at(std::string{object_type.name()}),
                 object_pointer, field_index);
             return builder.CreateLoad(lower_type(*field_type, context_),
                                       field_pointer, node.member + ".value");
@@ -1530,7 +1538,7 @@ private:
             const auto *identifier =
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);
-            if (enums_.contains(identifier->name)) {
+            if (identifier != nullptr && enums_.contains(identifier->name)) {
               std::vector<const janus::Type *> type_arguments;
               for (const janus::ast::TypeReference &argument :
                    node.type_arguments)
@@ -1568,18 +1576,29 @@ private:
               }
               return value;
             }
-            const Local &object = locals.at(identifier->name);
-            if (object.type->kind() == janus::TypeKind::Pointer) {
-              const janus::Type &element_type = pointer_element(*object.type);
-              ::llvm::Value *pointer =
-                  builder.CreateLoad(builder.getPtrTy(), object.storage,
-                                     identifier->name + ".pointer");
+            const janus::Type &object_type =
+                expression_type(*node.object, substitutions, locals);
+            ::llvm::Value *object_value = nullptr;
+            if (identifier != nullptr) {
+              const Local &object = locals.at(identifier->name);
+              object_value = builder.CreateLoad(
+                  builder.getPtrTy(), object.storage,
+                  identifier->name +
+                      (object_type.kind() == janus::TypeKind::Pointer
+                           ? ".pointer"
+                           : ".object"));
+            } else {
+              object_value = emit_expression(*node.object, object_type,
+                                             substitutions, locals, builder);
+            }
+            if (object_type.kind() == janus::TypeKind::Pointer) {
+              const janus::Type &element_type = pointer_element(object_type);
               ::llvm::Value *index =
                   emit_expression(*node.arguments[0], janus::Type::usize_type(),
                                   substitutions, locals, builder);
-              ::llvm::Value *element =
-                  builder.CreateInBoundsGEP(lower_type(element_type, context_),
-                                            pointer, index, "pointer.element");
+              ::llvm::Value *element = builder.CreateInBoundsGEP(
+                  lower_type(element_type, context_), object_value, index,
+                  "pointer.element");
               if (node.method == "load")
                 return builder.CreateLoad(lower_type(element_type, context_),
                                           element, "pointer.value");
@@ -1589,7 +1608,7 @@ private:
               return builder.CreateStore(value, element);
             }
             const ClassSpecialization &specialization =
-                class_specializations_.at(std::string{object.type->name()});
+                class_specializations_.at(std::string{object_type.name()});
             const auto &class_declaration = *specialization.declaration;
             const janus::ast::FunctionDeclaration *method = nullptr;
             for (const janus::ast::FunctionDeclaration &candidate :
@@ -1605,16 +1624,14 @@ private:
                   &resolve(argument, substitutions));
             ::llvm::Function *target = emit_function(
                 *method, method_type_arguments, &class_declaration,
-                &specialization.substitutions, object.type->name());
+                &specialization.substitutions, object_type.name());
             Substitutions method_substitutions = specialization.substitutions;
             for (std::size_t index = 0; index < method_type_arguments.size();
                  ++index)
               method_substitutions.emplace(method->type_parameters[index],
                                            method_type_arguments[index]);
             std::vector<::llvm::Value *> arguments;
-            arguments.push_back(
-                builder.CreateLoad(builder.getPtrTy(), object.storage,
-                                   identifier->name + ".object"));
+            arguments.push_back(object_value);
             for (std::size_t index = 0; index < node.arguments.size();
                  ++index) {
               const janus::Type &parameter_type =

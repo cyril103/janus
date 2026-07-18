@@ -677,7 +677,7 @@ ast::Expression Parser::parse_unary() {
                                            : ast::UnaryOperator::LogicalNot,
         std::make_unique<ast::Expression>(parse_unary()), operation.location};
   }
-  return parse_primary();
+  return parse_postfix(parse_primary());
 }
 
 ast::Expression Parser::parse_primary() {
@@ -831,47 +831,8 @@ ast::Expression Parser::parse_primary() {
       throw CompileError{current_.location,
                          "expected '(' after generic type arguments"};
     }
-    auto object = std::make_unique<ast::Expression>(ast::IdentifierExpression{
-        std::string{identifier.lexeme}, identifier.location});
-    if (current_.kind == TokenKind::Dot) {
-      advance();
-      const Token member = expect(TokenKind::Identifier);
-      std::vector<ast::TypeReference> method_type_arguments;
-      if (current_.kind == TokenKind::LeftBracket) {
-        advance();
-        do {
-          method_type_arguments.push_back(parse_type());
-          if (current_.kind != TokenKind::Comma)
-            break;
-          advance();
-        } while (true);
-        static_cast<void>(expect(TokenKind::RightBracket));
-      }
-      if (current_.kind == TokenKind::LeftParen) {
-        advance();
-        std::vector<std::unique_ptr<ast::Expression>> arguments;
-        if (current_.kind != TokenKind::RightParen) {
-          do {
-            arguments.push_back(
-                std::make_unique<ast::Expression>(parse_expression()));
-            if (current_.kind != TokenKind::Comma)
-              break;
-            advance();
-          } while (true);
-        }
-        static_cast<void>(expect(TokenKind::RightParen));
-        return ast::MethodCallExpression{std::move(object),
-                                         std::string{member.lexeme},
-                                         std::move(method_type_arguments),
-                                         std::move(arguments), member.location};
-      }
-      if (!method_type_arguments.empty())
-        throw CompileError{current_.location,
-                           "expected '(' after method type arguments"};
-      return ast::MemberAccessExpression{
-          std::move(object), std::string{member.lexeme}, member.location};
-    }
-    return std::move(*object);
+    return ast::IdentifierExpression{std::string{identifier.lexeme},
+                                     identifier.location};
   }
 
   if (current_.kind == TokenKind::IntegerLiteral) {
@@ -960,6 +921,50 @@ ast::TypeReference Parser::parse_type() {
   }
   return ast::TypeReference{std::string{type_name.lexeme}, type_name.location,
                             std::move(type_arguments)};
+}
+
+ast::Expression Parser::parse_postfix(ast::Expression expression) {
+  while (current_.kind == TokenKind::Dot) {
+    advance();
+    const Token member = expect(TokenKind::Identifier);
+    std::vector<ast::TypeReference> type_arguments;
+    if (current_.kind == TokenKind::LeftBracket) {
+      advance();
+      do {
+        type_arguments.push_back(parse_type());
+        if (current_.kind != TokenKind::Comma)
+          break;
+        advance();
+      } while (true);
+      static_cast<void>(expect(TokenKind::RightBracket));
+    }
+
+    auto object = std::make_unique<ast::Expression>(std::move(expression));
+    if (current_.kind == TokenKind::LeftParen) {
+      advance();
+      std::vector<std::unique_ptr<ast::Expression>> arguments;
+      if (current_.kind != TokenKind::RightParen) {
+        do {
+          arguments.push_back(
+              std::make_unique<ast::Expression>(parse_expression()));
+          if (current_.kind != TokenKind::Comma)
+            break;
+          advance();
+        } while (true);
+      }
+      static_cast<void>(expect(TokenKind::RightParen));
+      expression = ast::MethodCallExpression{
+          std::move(object), std::string{member.lexeme},
+          std::move(type_arguments), std::move(arguments), member.location};
+      continue;
+    }
+    if (!type_arguments.empty())
+      throw CompileError{current_.location,
+                         "expected '(' after method type arguments"};
+    expression = ast::MemberAccessExpression{
+        std::move(object), std::string{member.lexeme}, member.location};
+  }
+  return expression;
 }
 
 bool Parser::starts_lambda() const {

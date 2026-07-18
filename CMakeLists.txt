@@ -274,6 +274,22 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.generic_method COMMAND generic_method_test)
 
+    add_executable(method_chaining_test
+        tests/language/method_chaining_test.cpp
+    )
+    target_link_libraries(method_chaining_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(method_chaining_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.method_chaining COMMAND method_chaining_test)
+
     add_executable(control_flow_test
         tests/language/control_flow_test.cpp
     )
