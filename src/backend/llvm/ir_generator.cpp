@@ -848,7 +848,8 @@ private:
               if (field_declaration.initializer.has_value()) {
                 builder.CreateStore(
                     emit_expression(*field_declaration.initializer, field_type,
-                                    substitutions, initializer_locals, builder),
+                                    specialization.substitutions,
+                                    initializer_locals, builder),
                     field);
               }
               initializer_locals.insert_or_assign(field_declaration.name,

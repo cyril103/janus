@@ -182,6 +182,13 @@ Le fichier `examples/panic.janus` présente un contrôle d'exécution :
 ./build/janusc examples/panic.janus
 ```
 
+Le fichier `examples/array.janus` contient une première implémentation complète
+de tableau dynamique générique :
+
+```bash
+./build/janusc examples/array.janus
+```
+
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
 conserver dans un fichier :
 
@@ -358,6 +365,24 @@ if index >= size {
     panic("index out of bounds\n")
 }
 ```
+
+### Tableau dynamique générique
+
+`Array[T]` est désormais exprimable entièrement en Janus. Sa représentation
+contient un `Ptr[T]`, une longueur et une capacité. Le buffer est contigu, sa
+capacité double lors d'un `push` quand il est plein, et son destructeur appelle
+`free`.
+
+L'API initiale comprend :
+
+- `size()` et `capacity()` ;
+- `get(index)` et `set(index, value)` avec contrôle de limites ;
+- `push(value)` et `pop()` ;
+- `reserve(capacity)` et `clear()`.
+
+Le tableau possède son buffer, mais pas les objets éventuellement stockés. Un
+`Array[Point]` copie les pointeurs vers les `Point` : le programmeur doit
+continuer à supprimer chaque objet séparément.
 
 ## Fonctions et généricité
 

@@ -349,4 +349,20 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.panic COMMAND panic_test)
+
+    add_executable(dynamic_array_test
+        tests/language/dynamic_array_test.cpp
+    )
+    target_link_libraries(dynamic_array_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(dynamic_array_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.dynamic_array COMMAND dynamic_array_test)
 endif()

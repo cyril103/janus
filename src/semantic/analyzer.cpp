@@ -350,6 +350,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       }
     }
     SymbolTable *active_symbols = &symbols;
+    const std::unordered_set<std::string> *active_type_parameters =
+        &type_parameters;
+    const std::unordered_map<std::string, SemanticType>
+        *active_type_substitutions = nullptr;
 
     std::function<SemanticType(const ast::Expression &)> expression_type;
     std::function<void(const ast::Expression &, const SemanticType &,
@@ -442,8 +446,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                      "memory intrinsic '" + node.callee +
                                          "' expects exactly one type argument"};
                 SemanticType element_type =
-                    resolve_type(node.type_arguments.front(), type_parameters,
-                                 &class_arities);
+                    resolve_type(node.type_arguments.front(),
+                                 *active_type_parameters, &class_arities);
+                if (active_type_substitutions != nullptr)
+                  element_type = substitute(std::move(element_type),
+                                            *active_type_substitutions);
                 if (element_type.is_concrete() &&
                     element_type.concrete->kind() == TypeKind::Unit)
                   throw CompileError{node.location,
@@ -621,7 +628,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               }
 
               SymbolTable *previous_symbols = active_symbols;
+              const auto *previous_type_parameters = active_type_parameters;
+              const auto *previous_type_substitutions =
+                  active_type_substitutions;
               active_symbols = &initializer_symbols;
+              active_type_parameters = &class_parameters;
+              active_type_substitutions = &substitutions;
               for (const ast::ValueDeclaration &field :
                    class_declaration.fields) {
                 SemanticType field_type = resolve_type(
@@ -635,6 +647,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                        field.initializer.has_value()});
               }
               active_symbols = previous_symbols;
+              active_type_parameters = previous_type_parameters;
+              active_type_substitutions = previous_type_substitutions;
               return instance_type;
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {
