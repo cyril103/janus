@@ -42,6 +42,10 @@ const Type &Type::usize_type() {
   return type;
 }
 
+Type Type::enum_type(std::string_view name) {
+  return Type{TypeKind::Enum, name, 32, true};
+}
+
 Type Type::pointer_type(std::string_view name) {
   return Type{TypeKind::Pointer, name, 0, false};
 }

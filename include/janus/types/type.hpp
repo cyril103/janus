@@ -15,6 +15,7 @@ enum class TypeKind {
   String,
   Unit,
   USize,
+  Enum,
   Pointer,
   Class,
 };
@@ -29,6 +30,7 @@ public:
   [[nodiscard]] static const Type &string_type();
   [[nodiscard]] static const Type &unit_type();
   [[nodiscard]] static const Type &usize_type();
+  [[nodiscard]] static Type enum_type(std::string_view name);
   [[nodiscard]] static Type pointer_type(std::string_view name);
   [[nodiscard]] static Type class_type(std::string_view name);
 

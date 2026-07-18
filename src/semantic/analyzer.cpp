@@ -71,6 +71,14 @@ resolve_type(const janus::ast::TypeReference &reference,
   if (class_arities != nullptr) {
     if (const auto iterator = class_arities->find(reference.name);
         iterator != class_arities->end()) {
+      if (iterator->second == std::numeric_limits<std::size_t>::max()) {
+        if (!reference.type_arguments.empty())
+          throw janus::CompileError{reference.location,
+                                    "enum '" + reference.name +
+                                        "' does not accept type arguments"};
+        return janus::semantic::SemanticType{nullptr, reference.name, false,
+                                             {},      false,          true};
+      }
       if (reference.type_arguments.size() != iterator->second)
         throw janus::CompileError{
             reference.location,
@@ -102,6 +110,9 @@ bool same_type(const janus::semantic::SemanticType &left,
            left.type_arguments.size() == right.type_arguments.size() &&
            std::equal(left.type_arguments.begin(), left.type_arguments.end(),
                       right.type_arguments.begin(), same_type);
+  if (left.is_enum() || right.is_enum())
+    return left.is_enum() && right.is_enum() &&
+           left.parameter == right.parameter;
   if (left.is_pointer() || right.is_pointer())
     return left.is_pointer() && right.is_pointer() &&
            left.type_arguments.size() == 1 &&
@@ -112,6 +123,8 @@ bool same_type(const janus::semantic::SemanticType &left,
 }
 
 bool is_scalar_cast_type(const janus::semantic::SemanticType &type) {
+  if (type.is_enum())
+    return true;
   if (!type.is_concrete())
     return false;
   switch (type.concrete->kind()) {
@@ -128,6 +141,8 @@ bool is_scalar_cast_type(const janus::semantic::SemanticType &type) {
 }
 
 bool is_integer_cast_type(const janus::semantic::SemanticType &type) {
+  if (type.is_enum())
+    return true;
   if (!type.is_concrete())
     return false;
   switch (type.concrete->kind()) {
@@ -219,9 +234,34 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
   AnalysisResult result;
   std::unordered_map<std::string, const ast::FunctionDeclaration *> functions;
   std::unordered_map<std::string, const ast::ClassDeclaration *> classes;
+  std::unordered_map<std::string, const ast::EnumDeclaration *> enums;
   std::unordered_map<std::string, std::size_t> class_arities;
 
+  for (const ast::EnumDeclaration &enum_declaration : program.enums) {
+    if (builtin_type(enum_declaration.name) != nullptr)
+      throw CompileError{enum_declaration.location,
+                         "enum '" + enum_declaration.name +
+                             "' conflicts with a built-in type"};
+    if (!enums.emplace(enum_declaration.name, &enum_declaration).second)
+      throw CompileError{enum_declaration.location,
+                         "enum '" + enum_declaration.name +
+                             "' is already declared"};
+    class_arities.emplace(enum_declaration.name,
+                          std::numeric_limits<std::size_t>::max());
+    std::unordered_set<std::string> case_names;
+    for (const ast::EnumDeclaration::Case &enum_case : enum_declaration.cases) {
+      if (!case_names.insert(enum_case.name).second)
+        throw CompileError{enum_case.location,
+                           "enum case '" + enum_case.name +
+                               "' is already declared in enum '" +
+                               enum_declaration.name + "'"};
+    }
+  }
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
+    if (enums.contains(class_declaration.name))
+      throw CompileError{class_declaration.location,
+                         "class '" + class_declaration.name +
+                             "' conflicts with an enum"};
     if (!classes.emplace(class_declaration.name, &class_declaration).second) {
       throw CompileError{class_declaration.location,
                          "class '" + class_declaration.name +
@@ -575,7 +615,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               const bool is_builtin_cast = builtin_type(node.callee) != nullptr;
               const bool is_reference_cast =
                   node.callee == "Ptr" || classes.contains(node.callee);
-              if (is_builtin_cast || is_reference_cast) {
+              const bool is_enum_cast = enums.contains(node.callee);
+              if (is_builtin_cast || is_reference_cast || is_enum_cast) {
                 const SemanticType destination_type =
                     resolve_type(ast::TypeReference{node.callee, node.location,
                                                     node.type_arguments},
@@ -729,6 +770,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               return instance_type;
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {
+              if (const auto *identifier =
+                      std::get_if<ast::IdentifierExpression>(
+                          &node.object->value);
+                  identifier != nullptr && enums.contains(identifier->name)) {
+                const ast::EnumDeclaration &enum_declaration =
+                    *enums.at(identifier->name);
+                const auto enum_case =
+                    std::find_if(enum_declaration.cases.begin(),
+                                 enum_declaration.cases.end(),
+                                 [&](const ast::EnumDeclaration::Case &item) {
+                                   return item.name == node.member;
+                                 });
+                if (enum_case == enum_declaration.cases.end())
+                  throw CompileError{node.location,
+                                     "enum '" + enum_declaration.name +
+                                         "' has no case '" + node.member + "'"};
+                return SemanticType{
+                    nullptr, enum_declaration.name, false, {}, false, true};
+              }
               const SemanticType object_type = expression_type(*node.object);
               if (!object_type.is_class())
                 throw CompileError{node.location,
@@ -928,7 +988,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 return SemanticType{&Type::bool_type(), {}};
               case ast::BinaryOperator::Equal:
               case ast::BinaryOperator::NotEqual:
-                if (!is_concrete && !left_type.is_pointer()) {
+                if (!is_concrete && !left_type.is_pointer() &&
+                    !left_type.is_enum()) {
                   throw CompileError{
                       node.location,
                       "equality operators require primitive operands"};

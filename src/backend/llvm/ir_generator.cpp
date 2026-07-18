@@ -2,6 +2,7 @@
 
 #include "janus/backend/llvm/type_lowering.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <functional>
@@ -55,6 +56,8 @@ public:
         ::llvm::Triple{::llvm::sys::getDefaultTargetTriple()});
     module_->setPICLevel(::llvm::PICLevel::BigPIC);
     module_->setPIELevel(::llvm::PIELevel::Large);
+    for (const janus::ast::EnumDeclaration &enum_declaration : program.enums)
+      enums_.emplace(enum_declaration.name, &enum_declaration);
     for (const janus::ast::ClassDeclaration &class_declaration :
          program.classes) {
       classes_.emplace(class_declaration.name, &class_declaration);
@@ -117,6 +120,8 @@ private:
     if (const auto iterator = substitutions.find(reference.name);
         iterator != substitutions.end())
       return *iterator->second;
+    if (enums_.contains(reference.name))
+      return ensure_enum(reference.name);
     if (reference.name == "Ptr")
       return ensure_pointer(
           resolve(reference.type_arguments.front(), substitutions));
@@ -143,12 +148,33 @@ private:
     return *pointer_elements_.at(std::string{pointer_type.name()});
   }
 
+  const janus::Type &ensure_enum(std::string_view name) {
+    if (const auto iterator = enum_types_.find(std::string{name});
+        iterator != enum_types_.end())
+      return iterator->second;
+    return enum_types_.emplace(std::string{name}, janus::Type::enum_type(name))
+        .first->second;
+  }
+
+  std::int32_t enum_case_value(std::string_view enum_name,
+                               std::string_view case_name) const {
+    const janus::ast::EnumDeclaration &declaration =
+        *enums_.at(std::string{enum_name});
+    const auto iterator =
+        std::find_if(declaration.cases.begin(), declaration.cases.end(),
+                     [&](const janus::ast::EnumDeclaration::Case &item) {
+                       return item.name == case_name;
+                     });
+    return iterator->value;
+  }
+
   bool is_explicit_cast(const janus::ast::CallExpression &call) const {
     const janus::Type *type = builtin_type(call.callee);
     if (type != nullptr)
       return type->kind() != janus::TypeKind::String &&
              type->kind() != janus::TypeKind::Unit;
-    return call.callee == "Ptr" || classes_.contains(call.callee);
+    return call.callee == "Ptr" || classes_.contains(call.callee) ||
+           enums_.contains(call.callee);
   }
 
   const janus::Type &cast_destination(const janus::ast::CallExpression &call,
@@ -665,6 +691,11 @@ private:
             return ensure_class(node.class_name, type_arguments);
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::MemberAccessExpression>) {
+            if (const auto *identifier =
+                    std::get_if<janus::ast::IdentifierExpression>(
+                        &node.object->value);
+                identifier != nullptr && enums_.contains(identifier->name))
+              return ensure_enum(identifier->name);
             const janus::Type &object_type =
                 expression_type(*node.object, substitutions, locals);
             return *find_field(object_type.name(), node.member).second;
@@ -1089,6 +1120,9 @@ private:
             const auto *identifier =
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);
+            if (enums_.contains(identifier->name))
+              return builder.getInt32(
+                  enum_case_value(identifier->name, node.member));
             const Local &object = locals.at(identifier->name);
             ::llvm::Value *object_pointer =
                 builder.CreateLoad(builder.getPtrTy(), object.storage,
@@ -1332,6 +1366,8 @@ private:
       functions_;
   std::unordered_map<std::string, const janus::ast::ClassDeclaration *>
       classes_;
+  std::unordered_map<std::string, const janus::ast::EnumDeclaration *> enums_;
+  std::unordered_map<std::string, janus::Type> enum_types_;
   std::unordered_map<std::string, janus::Type> class_types_;
   std::unordered_map<std::string, ::llvm::StructType *> llvm_class_types_;
   std::unordered_map<std::string, ClassSpecialization> class_specializations_;

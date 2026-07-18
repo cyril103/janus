@@ -177,6 +177,12 @@ scalaires, adresses et pointeurs :
 ./build/janusc examples/casts.janus
 ```
 
+Le fichier `examples/enums.janus` présente les types énumérés :
+
+```bash
+./build/janusc examples/enums.janus
+```
+
 Le fichier `examples/pointers.janus` présente la mémoire manuelle typée :
 
 ```bash
@@ -368,6 +374,31 @@ vers/depuis les types entiers. Une conversion vers `bool` teste si la référenc
 est non nulle. Ces conversions ne vérifient pas que l'adresse, le type cible ou
 l'alignement sont valides : leur utilisation est aussi dangereuse qu'un cast de
 pointeur en C. `string` et `Unit` ne sont pas des cibles de cast.
+
+### Types énumérés
+
+Un `enum` définit un type nominal distinct, représenté par un entier signé de
+32 bits :
+
+```janus
+enum ExitCode {
+    Success,
+    InvalidArgument = 2,
+    InternalError = 10
+}
+
+val result : ExitCode = ExitCode.InvalidArgument
+if result != ExitCode.Success {
+    println(int(result))
+}
+```
+
+Le premier discriminant implicite vaut zéro. Les suivants sont incrémentés à
+partir du précédent, y compris après une valeur explicite. Deux valeurs du même
+enum peuvent être comparées avec `==` et `!=`, mais deux enums différents
+restent incompatibles. Les casts explicites permettent de convertir un enum
+vers ou depuis les types scalaires ; comme en C, un cast entier vers un enum ne
+vérifie pas que la valeur correspond à un cas déclaré.
 
 ### Pointeurs et mémoire brute
 

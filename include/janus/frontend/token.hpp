@@ -10,6 +10,7 @@ enum class TokenKind {
   Module,
   Import,
   Def,
+  Enum,
   Class,
   New,
   Delete,
@@ -70,6 +71,8 @@ struct Token {
     return "'import'";
   case TokenKind::Def:
     return "'def'";
+  case TokenKind::Enum:
+    return "'enum'";
   case TokenKind::Class:
     return "'class'";
   case TokenKind::New:

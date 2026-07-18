@@ -179,13 +179,85 @@ ast::Program Parser::parse_program() {
   }
 
   while (current_.kind != TokenKind::End) {
-    if (current_.kind == TokenKind::Class)
+    if (current_.kind == TokenKind::Enum)
+      program.enums.push_back(parse_enum_declaration());
+    else if (current_.kind == TokenKind::Class)
       program.classes.push_back(parse_class_declaration());
     else
       program.functions.push_back(parse_function_declaration());
   }
 
   return program;
+}
+
+ast::EnumDeclaration Parser::parse_enum_declaration() {
+  const Token enum_token = expect(TokenKind::Enum);
+  const Token name = expect(TokenKind::Identifier);
+  static_cast<void>(expect(TokenKind::LeftBrace));
+
+  std::vector<ast::EnumDeclaration::Case> cases;
+  std::int64_t next_value = 0;
+  while (current_.kind != TokenKind::RightBrace) {
+    const Token case_name = expect(TokenKind::Identifier);
+    if (next_value > static_cast<std::int64_t>(
+                         std::numeric_limits<std::int32_t>::max()) &&
+        current_.kind != TokenKind::Equal)
+      throw CompileError{case_name.location,
+                         "enum discriminant is outside the signed 32-bit "
+                         "range; specify an explicit value"};
+    std::int64_t value = next_value;
+    if (current_.kind == TokenKind::Equal) {
+      advance();
+      bool negative = false;
+      if (current_.kind == TokenKind::Minus) {
+        negative = true;
+        advance();
+      }
+      const Token literal = expect(TokenKind::IntegerLiteral);
+      std::uint64_t magnitude{};
+      const auto result = std::from_chars(
+          literal.lexeme.data(), literal.lexeme.data() + literal.lexeme.size(),
+          magnitude);
+      const std::uint64_t limit =
+          negative ? static_cast<std::uint64_t>(
+                         std::numeric_limits<std::int32_t>::max()) +
+                         1
+                   : static_cast<std::uint64_t>(
+                         std::numeric_limits<std::int32_t>::max());
+      if (result.ec != std::errc{} || magnitude > limit)
+        throw CompileError{
+            literal.location,
+            "enum discriminant is outside the signed 32-bit range"};
+      value = negative ? -static_cast<std::int64_t>(magnitude)
+                       : static_cast<std::int64_t>(magnitude);
+    }
+    cases.push_back(ast::EnumDeclaration::Case{std::string{case_name.lexeme},
+                                               static_cast<std::int32_t>(value),
+                                               case_name.location});
+
+    if (value == std::numeric_limits<std::int32_t>::max()) {
+      next_value =
+          static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max()) +
+          1;
+    } else {
+      next_value = value + 1;
+    }
+    if (current_.kind == TokenKind::Comma ||
+        current_.kind == TokenKind::Semicolon) {
+      advance();
+      continue;
+    }
+    if (current_.kind != TokenKind::RightBrace)
+      throw CompileError{current_.location,
+                         "expected ',' or '}' after enum case"};
+  }
+  static_cast<void>(expect(TokenKind::RightBrace));
+  if (cases.empty())
+    throw CompileError{enum_token.location,
+                       "enum '" + std::string{name.lexeme} +
+                           "' must declare at least one case"};
+  return ast::EnumDeclaration{std::string{name.lexeme}, std::move(cases),
+                              enum_token.location};
 }
 
 std::string Parser::parse_qualified_name() {

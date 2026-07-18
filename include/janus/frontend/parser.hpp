@@ -14,6 +14,7 @@ public:
   [[nodiscard]] ast::Program parse_program();
 
 private:
+  [[nodiscard]] ast::EnumDeclaration parse_enum_declaration();
   [[nodiscard]] ast::ClassDeclaration parse_class_declaration();
   [[nodiscard]] ast::DestructorDeclaration parse_destructor_declaration();
   [[nodiscard]] std::vector<ast::Statement> parse_block();

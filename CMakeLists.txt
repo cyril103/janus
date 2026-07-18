@@ -339,6 +339,22 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.explicit_cast COMMAND explicit_cast_test)
 
+    add_executable(enum_test
+        tests/language/enum_test.cpp
+    )
+    target_link_libraries(enum_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(enum_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.enum COMMAND enum_test)
+
     add_executable(pointer_memory_test
         tests/language/pointer_memory_test.cpp
     )

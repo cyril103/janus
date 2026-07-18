@@ -14,22 +14,24 @@ struct SemanticType {
   SemanticType(const Type *concrete_type, std::string parameter_name = {},
                bool is_class_type = false,
                std::vector<SemanticType> arguments = {},
-               bool is_pointer_type = false)
+               bool is_pointer_type = false, bool is_enum_type = false)
       : concrete{concrete_type}, parameter{std::move(parameter_name)},
         class_type{is_class_type}, type_arguments{std::move(arguments)},
-        pointer_type{is_pointer_type} {}
+        pointer_type{is_pointer_type}, enum_type{is_enum_type} {}
 
   const Type *concrete{};
   std::string parameter;
   bool class_type{};
   std::vector<SemanticType> type_arguments;
   bool pointer_type{};
+  bool enum_type{};
 
   [[nodiscard]] bool is_concrete() const noexcept {
     return concrete != nullptr;
   }
   [[nodiscard]] bool is_class() const noexcept { return class_type; }
   [[nodiscard]] bool is_pointer() const noexcept { return pointer_type; }
+  [[nodiscard]] bool is_enum() const noexcept { return enum_type; }
   [[nodiscard]] std::string name() const;
 };
 

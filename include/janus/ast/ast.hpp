@@ -206,6 +206,18 @@ struct DestructorDeclaration {
   SourceLocation location;
 };
 
+struct EnumDeclaration {
+  struct Case {
+    std::string name;
+    std::int32_t value;
+    SourceLocation location;
+  };
+
+  std::string name;
+  std::vector<Case> cases;
+  SourceLocation location;
+};
+
 struct ClassDeclaration {
   std::string name;
   std::vector<std::string> type_parameters;
@@ -220,6 +232,7 @@ struct ClassDeclaration {
 struct Program {
   std::optional<std::string> module_name;
   std::vector<std::string> imports;
+  std::vector<EnumDeclaration> enums;
   std::vector<ClassDeclaration> classes;
   std::vector<FunctionDeclaration> functions;
 };

@@ -1,0 +1,16 @@
+enum ExitCode {
+    Success,
+    InvalidArgument = 2,
+    InternalError = 10
+}
+
+def main() : int {
+    val result : ExitCode = ExitCode.InvalidArgument
+    if result == ExitCode.Success {
+        println("success")
+    } else {
+        print("error code: ")
+        println(int(result))
+    }
+    return int(result)
+}
