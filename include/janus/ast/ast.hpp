@@ -157,8 +157,26 @@ struct ReturnStatement {
   SourceLocation location;
 };
 
-using Statement = std::variant<ValueDeclaration, AssignmentStatement,
-                               DeleteStatement, ReturnStatement>;
+struct IfStatement;
+struct WhileStatement;
+
+using Statement =
+    std::variant<ValueDeclaration, AssignmentStatement, DeleteStatement,
+                 ReturnStatement, std::shared_ptr<IfStatement>,
+                 std::shared_ptr<WhileStatement>>;
+
+struct IfStatement {
+  Expression condition;
+  std::vector<Statement> then_body;
+  std::vector<Statement> else_body;
+  SourceLocation location;
+};
+
+struct WhileStatement {
+  Expression condition;
+  std::vector<Statement> body;
+  SourceLocation location;
+};
 
 struct FunctionDeclaration {
   struct Parameter {

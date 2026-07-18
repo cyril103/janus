@@ -130,6 +130,12 @@ Le fichier `examples/operators.janus` présente les opérations primitives :
 ./build/janusc examples/operators.janus
 ```
 
+Le fichier `examples/control_flow.janus` présente `if`/`else` et `while` :
+
+```bash
+./build/janusc examples/control_flow.janus
+```
+
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
 conserver dans un fichier :
 
@@ -222,6 +228,27 @@ Fonctionnalités disponibles :
 - détection d'une fonction sans `return` et du code après `return` ;
 - diagnostics avec ligne et colonne ;
 - validation de l'IR généré par LLVM.
+
+### Contrôle de flux
+
+Les conditions exigent une expression de type `bool` :
+
+```janus
+if value < 10 {
+    value = value + 1
+} else {
+    value = 0
+}
+
+while value < 10 {
+    value = value + 1
+}
+```
+
+Les déclarations d'un bloc restent locales à ce bloc. Une variable non
+initialisée avant un `if` n'est considérée comme initialisée après celui-ci que
+si les deux branches l'affectent. Le corps d'un `while` pouvant ne jamais être
+exécuté, une affectation effectuée uniquement dans la boucle ne suffit pas.
 
 ## Opérations primitives
 

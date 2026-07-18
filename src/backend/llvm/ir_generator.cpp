@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -266,72 +267,151 @@ private:
       locals.emplace(parameter.name, Local{storage, &type});
     }
 
-    for (const janus::ast::Statement &statement : function.body) {
-      if (const auto *declaration =
-              std::get_if<janus::ast::ValueDeclaration>(&statement)) {
-        const janus::Type &type =
-            resolve(declaration->declared_type, substitutions);
-        ::llvm::Value *storage = builder.CreateAlloca(
-            janus::backend::llvm::lower_type(type, context_), nullptr,
-            declaration->name);
-        if (declaration->initializer.has_value()) {
-          ::llvm::Value *initializer = emit_expression(
-              *declaration->initializer, type, substitutions, locals, builder);
-          builder.CreateStore(initializer, storage);
-        }
-        locals.emplace(declaration->name, Local{storage, &type});
-        continue;
-      }
+    std::function<bool(const std::vector<janus::ast::Statement> &,
+                       std::unordered_map<std::string, Local> &)>
+        emit_block;
+    emit_block = [&](const std::vector<janus::ast::Statement> &statements,
+                     std::unordered_map<std::string, Local> &block_locals) {
+      for (const janus::ast::Statement &statement : statements) {
+        if (const auto *conditional =
+                std::get_if<std::shared_ptr<janus::ast::IfStatement>>(
+                    &statement)) {
+          ::llvm::Value *condition = emit_expression(
+              (*conditional)->condition, janus::Type::bool_type(),
+              substitutions, block_locals, builder);
+          ::llvm::Function *current_function =
+              builder.GetInsertBlock()->getParent();
+          auto *then_block =
+              ::llvm::BasicBlock::Create(context_, "if.then", current_function);
+          auto *merge_block =
+              ::llvm::BasicBlock::Create(context_, "if.end", current_function);
+          ::llvm::BasicBlock *else_block = merge_block;
+          if (!(*conditional)->else_body.empty())
+            else_block = ::llvm::BasicBlock::Create(
+                context_, "if.else", current_function, merge_block);
+          builder.CreateCondBr(condition, then_block, else_block);
 
-      if (const auto *assignment =
-              std::get_if<janus::ast::AssignmentStatement>(&statement)) {
-        if (!assignment->object.empty()) {
-          const Local &object = locals.at(assignment->object);
-          ::llvm::Value *object_pointer = builder.CreateLoad(
-              ::llvm::PointerType::getUnqual(context_), object.storage,
-              assignment->object + ".object");
-          const auto [field_index, field_type] =
-              find_field(object.type->name(), assignment->name);
-          ::llvm::Value *field_pointer = builder.CreateStructGEP(
-              llvm_class_types_.at(std::string{object.type->name()}),
-              object_pointer, field_index);
-          builder.CreateStore(emit_expression(assignment->expression,
-                                              *field_type, substitutions,
-                                              locals, builder),
-                              field_pointer);
+          builder.SetInsertPoint(then_block);
+          auto then_locals = block_locals;
+          const bool then_returns =
+              emit_block((*conditional)->then_body, then_locals);
+          if (!then_returns)
+            builder.CreateBr(merge_block);
+
+          bool else_returns = false;
+          if (!(*conditional)->else_body.empty()) {
+            builder.SetInsertPoint(else_block);
+            auto else_locals = block_locals;
+            else_returns = emit_block((*conditional)->else_body, else_locals);
+            if (!else_returns)
+              builder.CreateBr(merge_block);
+          }
+
+          builder.SetInsertPoint(merge_block);
+          if (then_returns && else_returns) {
+            builder.CreateUnreachable();
+            return true;
+          }
           continue;
         }
-        const Local &local = locals.at(assignment->name);
-        ::llvm::Value *value =
-            emit_expression(assignment->expression, *local.type, substitutions,
-                            locals, builder);
-        builder.CreateStore(value, local.storage);
-        continue;
-      }
 
-      if (const auto *deletion =
-              std::get_if<janus::ast::DeleteStatement>(&statement)) {
-        const auto *identifier = std::get_if<janus::ast::IdentifierExpression>(
-            &deletion->expression.value);
-        const Local &local = locals.at(identifier->name);
-        ::llvm::Value *pointer =
-            builder.CreateLoad(::llvm::PointerType::getUnqual(context_),
-                               local.storage, identifier->name + ".object");
-        builder.CreateCall(emit_destructor(std::string{local.type->name()}),
-                           {pointer});
-        ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
-            "free", ::llvm::FunctionType::get(builder.getVoidTy(),
-                                              {builder.getPtrTy()}, false));
-        builder.CreateCall(free_function, {pointer});
-        continue;
-      }
+        if (const auto *loop =
+                std::get_if<std::shared_ptr<janus::ast::WhileStatement>>(
+                    &statement)) {
+          ::llvm::Function *current_function =
+              builder.GetInsertBlock()->getParent();
+          auto *condition_block = ::llvm::BasicBlock::Create(
+              context_, "while.condition", current_function);
+          auto *body_block = ::llvm::BasicBlock::Create(context_, "while.body",
+                                                        current_function);
+          auto *exit_block = ::llvm::BasicBlock::Create(context_, "while.end",
+                                                        current_function);
+          builder.CreateBr(condition_block);
+          builder.SetInsertPoint(condition_block);
+          ::llvm::Value *condition =
+              emit_expression((*loop)->condition, janus::Type::bool_type(),
+                              substitutions, block_locals, builder);
+          builder.CreateCondBr(condition, body_block, exit_block);
+          builder.SetInsertPoint(body_block);
+          auto body_locals = block_locals;
+          const bool body_returns = emit_block((*loop)->body, body_locals);
+          if (!body_returns)
+            builder.CreateBr(condition_block);
+          builder.SetInsertPoint(exit_block);
+          continue;
+        }
 
-      const auto &return_statement =
-          std::get<janus::ast::ReturnStatement>(statement);
-      builder.CreateRet(emit_expression(return_statement.expression,
-                                        return_type, substitutions, locals,
-                                        builder));
-    }
+        if (const auto *declaration =
+                std::get_if<janus::ast::ValueDeclaration>(&statement)) {
+          const janus::Type &type =
+              resolve(declaration->declared_type, substitutions);
+          ::llvm::Value *storage = builder.CreateAlloca(
+              janus::backend::llvm::lower_type(type, context_), nullptr,
+              declaration->name);
+          if (declaration->initializer.has_value()) {
+            ::llvm::Value *initializer =
+                emit_expression(*declaration->initializer, type, substitutions,
+                                block_locals, builder);
+            builder.CreateStore(initializer, storage);
+          }
+          block_locals.emplace(declaration->name, Local{storage, &type});
+          continue;
+        }
+
+        if (const auto *assignment =
+                std::get_if<janus::ast::AssignmentStatement>(&statement)) {
+          if (!assignment->object.empty()) {
+            const Local &object = block_locals.at(assignment->object);
+            ::llvm::Value *object_pointer = builder.CreateLoad(
+                ::llvm::PointerType::getUnqual(context_), object.storage,
+                assignment->object + ".object");
+            const auto [field_index, field_type] =
+                find_field(object.type->name(), assignment->name);
+            ::llvm::Value *field_pointer = builder.CreateStructGEP(
+                llvm_class_types_.at(std::string{object.type->name()}),
+                object_pointer, field_index);
+            builder.CreateStore(emit_expression(assignment->expression,
+                                                *field_type, substitutions,
+                                                block_locals, builder),
+                                field_pointer);
+            continue;
+          }
+          const Local &local = block_locals.at(assignment->name);
+          ::llvm::Value *value =
+              emit_expression(assignment->expression, *local.type,
+                              substitutions, block_locals, builder);
+          builder.CreateStore(value, local.storage);
+          continue;
+        }
+
+        if (const auto *deletion =
+                std::get_if<janus::ast::DeleteStatement>(&statement)) {
+          const auto *identifier =
+              std::get_if<janus::ast::IdentifierExpression>(
+                  &deletion->expression.value);
+          const Local &local = block_locals.at(identifier->name);
+          ::llvm::Value *pointer =
+              builder.CreateLoad(::llvm::PointerType::getUnqual(context_),
+                                 local.storage, identifier->name + ".object");
+          builder.CreateCall(emit_destructor(std::string{local.type->name()}),
+                             {pointer});
+          ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
+              "free", ::llvm::FunctionType::get(builder.getVoidTy(),
+                                                {builder.getPtrTy()}, false));
+          builder.CreateCall(free_function, {pointer});
+          continue;
+        }
+
+        const auto &return_statement =
+            std::get<janus::ast::ReturnStatement>(statement);
+        builder.CreateRet(emit_expression(return_statement.expression,
+                                          return_type, substitutions,
+                                          block_locals, builder));
+        return true;
+      }
+      return false;
+    };
+    static_cast<void>(emit_block(function.body, locals));
     return llvm_function;
   }
 

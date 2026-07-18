@@ -43,6 +43,12 @@ Token Lexer::next() {
       kind = TokenKind::Destructor;
     } else if (lexeme == "private") {
       kind = TokenKind::Private;
+    } else if (lexeme == "if") {
+      kind = TokenKind::If;
+    } else if (lexeme == "else") {
+      kind = TokenKind::Else;
+    } else if (lexeme == "while") {
+      kind = TokenKind::While;
     } else if (lexeme == "return") {
       kind = TokenKind::Return;
     } else if (lexeme == "val") {

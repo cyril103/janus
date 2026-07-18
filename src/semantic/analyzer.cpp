@@ -279,6 +279,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                                    "' is already declared"};
       }
     }
+    SymbolTable *active_symbols = &symbols;
 
     std::function<SemanticType(const ast::Expression &)> expression_type;
     std::function<void(const ast::Expression &, const SemanticType &,
@@ -341,8 +342,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               return SemanticType{&Type::string_type(), {}};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::IdentifierExpression>) {
-              const auto iterator = symbols.find(node.name);
-              if (iterator == symbols.end()) {
+              const auto iterator = active_symbols->find(node.name);
+              if (iterator == active_symbols->end()) {
                 throw CompileError{node.location,
                                    "unknown value '" + node.name + "'"};
               }
@@ -628,113 +629,168 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           expression.value);
     };
 
-    bool has_return = false;
-    for (const ast::Statement &statement : function.body) {
-      if (has_return) {
-        const SourceLocation location = std::visit(
-            [](const auto &node) { return node.location; }, statement);
-        throw CompileError{location, "statement after return is unreachable"};
-      }
+    const auto statement_location = [](const ast::Statement &statement) {
+      return std::visit(
+          [](const auto &node) {
+            using Node = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<Node,
+                                         std::shared_ptr<ast::IfStatement>> ||
+                          std::is_same_v<Node,
+                                         std::shared_ptr<ast::WhileStatement>>)
+              return node->location;
+            else
+              return node.location;
+          },
+          statement);
+    };
 
-      if (const auto *declaration =
-              std::get_if<ast::ValueDeclaration>(&statement)) {
-        const SemanticType declared_type = resolve_type(
-            declaration->declared_type, type_parameters, &class_arities);
-        if (symbols.contains(declaration->name)) {
-          throw CompileError{declaration->location,
-                             "value '" + declaration->name +
-                                 "' is already declared"};
-        }
-        if (declaration->initializer.has_value()) {
-          validate_expression(*declaration->initializer, declared_type,
-                              declaration->location);
-        }
-        symbols.emplace(declaration->name,
-                        Symbol{declared_type, declaration->is_mutable,
-                               declaration->initializer.has_value()});
-        continue;
-      }
+    std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
+        validate_block;
+    validate_block = [&](const std::vector<ast::Statement> &statements,
+                         SymbolTable &block_symbols) {
+      SymbolTable *previous_symbols = active_symbols;
+      active_symbols = &block_symbols;
+      bool has_return = false;
+      for (const ast::Statement &statement : statements) {
+        if (has_return)
+          throw CompileError{statement_location(statement),
+                             "statement after return is unreachable"};
 
-      if (const auto *assignment =
-              std::get_if<ast::AssignmentStatement>(&statement)) {
-        if (!assignment->object.empty()) {
-          const auto object = symbols.find(assignment->object);
-          if (object == symbols.end() || !object->second.type.is_class())
-            throw CompileError{assignment->location,
-                               "field assignment requires an object"};
-          if (!object->second.is_initialized)
-            throw CompileError{assignment->location, "object '" +
-                                                         assignment->object +
-                                                         "' is not alive"};
-          const ast::ClassDeclaration &class_declaration =
-              *classes.at(object->second.type.parameter);
-          const auto substitutions =
-              class_substitutions(class_declaration, object->second.type);
-          const std::unordered_set<std::string> class_parameters{
-              class_declaration.type_parameters.begin(),
-              class_declaration.type_parameters.end()};
-          const ast::ValueDeclaration *matched = nullptr;
-          for (const auto &field : class_declaration.constructor_fields)
-            if (field.name == assignment->name)
-              matched = &field;
-          for (const auto &field : class_declaration.fields)
-            if (field.name == assignment->name)
-              matched = &field;
-          if (matched == nullptr)
-            throw CompileError{assignment->location,
-                               "class '" + class_declaration.name +
-                                   "' has no field '" + assignment->name + "'"};
-          if (matched->is_private &&
-              (owner == nullptr || owner->name != class_declaration.name))
-            throw CompileError{assignment->location,
-                               "field '" + assignment->name +
-                                   "' is private in class '" +
-                                   class_declaration.name + "'"};
-          if (!matched->is_mutable)
-            throw CompileError{assignment->location,
-                               "cannot assign to immutable field '" +
-                                   assignment->name + "'"};
-          validate_expression(
-              assignment->expression,
-              substitute(resolve_type(matched->declared_type, class_parameters,
-                                      &class_arities),
-                         substitutions),
-              assignment->location);
+        if (const auto *conditional =
+                std::get_if<std::shared_ptr<ast::IfStatement>>(&statement)) {
+          validate_expression((*conditional)->condition,
+                              SemanticType{&Type::bool_type()},
+                              (*conditional)->location);
+          SymbolTable then_symbols = block_symbols;
+          SymbolTable else_symbols = block_symbols;
+          const bool then_returns =
+              validate_block((*conditional)->then_body, then_symbols);
+          const bool else_returns =
+              !(*conditional)->else_body.empty() &&
+              validate_block((*conditional)->else_body, else_symbols);
+          active_symbols = &block_symbols;
+          for (auto &[name, symbol] : block_symbols) {
+            symbol.is_initialized = then_symbols.at(name).is_initialized &&
+                                    else_symbols.at(name).is_initialized;
+          }
+          has_return = then_returns && else_returns;
           continue;
         }
-        const auto iterator = symbols.find(assignment->name);
-        if (iterator == symbols.end()) {
-          throw CompileError{assignment->location,
-                             "unknown value '" + assignment->name + "'"};
-        }
-        if (!iterator->second.is_mutable) {
-          throw CompileError{assignment->location,
-                             "cannot assign to immutable value '" +
-                                 assignment->name + "'"};
-        }
-        validate_expression(assignment->expression, iterator->second.type,
-                            assignment->location);
-        iterator->second.is_initialized = true;
-        continue;
-      }
 
-      if (const auto *deletion =
-              std::get_if<ast::DeleteStatement>(&statement)) {
-        const SemanticType deleted_type = expression_type(deletion->expression);
-        if (!deleted_type.is_class())
-          throw CompileError{deletion->location, "delete requires an object"};
-        if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
-                &deletion->expression.value)) {
-          symbols.at(identifier->name).is_initialized = false;
+        if (const auto *loop =
+                std::get_if<std::shared_ptr<ast::WhileStatement>>(&statement)) {
+          validate_expression((*loop)->condition,
+                              SemanticType{&Type::bool_type()},
+                              (*loop)->location);
+          SymbolTable loop_symbols = block_symbols;
+          static_cast<void>(validate_block((*loop)->body, loop_symbols));
+          active_symbols = &block_symbols;
+          continue;
         }
-        continue;
-      }
 
-      const auto &return_statement = std::get<ast::ReturnStatement>(statement);
-      validate_expression(return_statement.expression, return_type,
-                          return_statement.location);
-      has_return = true;
-    }
+        if (const auto *declaration =
+                std::get_if<ast::ValueDeclaration>(&statement)) {
+          const SemanticType declared_type = resolve_type(
+              declaration->declared_type, type_parameters, &class_arities);
+          if (block_symbols.contains(declaration->name))
+            throw CompileError{declaration->location,
+                               "value '" + declaration->name +
+                                   "' is already declared"};
+          if (declaration->initializer.has_value())
+            validate_expression(*declaration->initializer, declared_type,
+                                declaration->location);
+          block_symbols.emplace(declaration->name,
+                                Symbol{declared_type, declaration->is_mutable,
+                                       declaration->initializer.has_value()});
+          continue;
+        }
+
+        if (const auto *assignment =
+                std::get_if<ast::AssignmentStatement>(&statement)) {
+          if (!assignment->object.empty()) {
+            const auto object = block_symbols.find(assignment->object);
+            if (object == block_symbols.end() ||
+                !object->second.type.is_class())
+              throw CompileError{assignment->location,
+                                 "field assignment requires an object"};
+            if (!object->second.is_initialized)
+              throw CompileError{assignment->location, "object '" +
+                                                           assignment->object +
+                                                           "' is not alive"};
+            const ast::ClassDeclaration &class_declaration =
+                *classes.at(object->second.type.parameter);
+            const auto substitutions =
+                class_substitutions(class_declaration, object->second.type);
+            const std::unordered_set<std::string> class_parameters{
+                class_declaration.type_parameters.begin(),
+                class_declaration.type_parameters.end()};
+            const ast::ValueDeclaration *matched = nullptr;
+            for (const auto &field : class_declaration.constructor_fields)
+              if (field.name == assignment->name)
+                matched = &field;
+            for (const auto &field : class_declaration.fields)
+              if (field.name == assignment->name)
+                matched = &field;
+            if (matched == nullptr)
+              throw CompileError{assignment->location,
+                                 "class '" + class_declaration.name +
+                                     "' has no field '" + assignment->name +
+                                     "'"};
+            if (matched->is_private &&
+                (owner == nullptr || owner->name != class_declaration.name))
+              throw CompileError{assignment->location,
+                                 "field '" + assignment->name +
+                                     "' is private in class '" +
+                                     class_declaration.name + "'"};
+            if (!matched->is_mutable)
+              throw CompileError{assignment->location,
+                                 "cannot assign to immutable field '" +
+                                     assignment->name + "'"};
+            validate_expression(
+                assignment->expression,
+                substitute(resolve_type(matched->declared_type,
+                                        class_parameters, &class_arities),
+                           substitutions),
+                assignment->location);
+            continue;
+          }
+          const auto iterator = block_symbols.find(assignment->name);
+          if (iterator == block_symbols.end())
+            throw CompileError{assignment->location,
+                               "unknown value '" + assignment->name + "'"};
+          if (!iterator->second.is_mutable)
+            throw CompileError{assignment->location,
+                               "cannot assign to immutable value '" +
+                                   assignment->name + "'"};
+          validate_expression(assignment->expression, iterator->second.type,
+                              assignment->location);
+          iterator->second.is_initialized = true;
+          continue;
+        }
+
+        if (const auto *deletion =
+                std::get_if<ast::DeleteStatement>(&statement)) {
+          const SemanticType deleted_type =
+              expression_type(deletion->expression);
+          if (!deleted_type.is_class())
+            throw CompileError{deletion->location, "delete requires an object"};
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &deletion->expression.value))
+            block_symbols.at(identifier->name).is_initialized = false;
+          continue;
+        }
+
+        const auto &return_statement =
+            std::get<ast::ReturnStatement>(statement);
+        validate_expression(return_statement.expression, return_type,
+                            return_statement.location);
+        has_return = true;
+      }
+      active_symbols = previous_symbols;
+      return has_return;
+    };
+
+    const bool has_return = validate_block(function.body, symbols);
 
     if (!has_return) {
       throw CompileError{function.location, "function '" + function.name +

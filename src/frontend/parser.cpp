@@ -334,6 +334,12 @@ ast::Statement Parser::parse_statement() {
   if (current_.kind == TokenKind::Delete) {
     return parse_delete_statement();
   }
+  if (current_.kind == TokenKind::If) {
+    return parse_if_statement();
+  }
+  if (current_.kind == TokenKind::While) {
+    return parse_while_statement();
+  }
 
   throw CompileError{current_.location,
                      "expected declaration, assignment or 'return', found " +
@@ -383,6 +389,27 @@ ast::ReturnStatement Parser::parse_return_statement() {
   const Token return_token = expect(TokenKind::Return);
   ast::Expression expression = parse_expression();
   return ast::ReturnStatement{std::move(expression), return_token.location};
+}
+
+std::shared_ptr<ast::IfStatement> Parser::parse_if_statement() {
+  const Token if_token = expect(TokenKind::If);
+  ast::Expression condition = parse_expression();
+  std::vector<ast::Statement> then_body = parse_block();
+  std::vector<ast::Statement> else_body;
+  if (current_.kind == TokenKind::Else) {
+    advance();
+    else_body = parse_block();
+  }
+  return std::make_shared<ast::IfStatement>(
+      ast::IfStatement{std::move(condition), std::move(then_body),
+                       std::move(else_body), if_token.location});
+}
+
+std::shared_ptr<ast::WhileStatement> Parser::parse_while_statement() {
+  const Token while_token = expect(TokenKind::While);
+  ast::Expression condition = parse_expression();
+  return std::make_shared<ast::WhileStatement>(ast::WhileStatement{
+      std::move(condition), parse_block(), while_token.location});
 }
 
 ast::Expression Parser::parse_expression() { return parse_logical_or(); }

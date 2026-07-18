@@ -13,6 +13,9 @@ enum class TokenKind {
   Delete,
   Destructor,
   Private,
+  If,
+  Else,
+  While,
   Return,
   Val,
   Var,
@@ -71,6 +74,12 @@ struct Token {
     return "'destructor'";
   case TokenKind::Private:
     return "'private'";
+  case TokenKind::If:
+    return "'if'";
+  case TokenKind::Else:
+    return "'else'";
+  case TokenKind::While:
+    return "'while'";
   case TokenKind::Return:
     return "'return'";
   case TokenKind::Val:
