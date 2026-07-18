@@ -1,8 +1,13 @@
+#include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
 
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/Support/raw_ostream.h>
+
 #include <iostream>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -60,6 +65,18 @@ def main() : int {
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
   expect(analysis.functions.at("main").at("result").type.name() == "double",
          "generic method calls substitute their return type");
+
+  llvm::LLVMContext context;
+  janus::backend::llvm::IrGenerator generator{context};
+  const std::unique_ptr<llvm::Module> module =
+      generator.generate(program, "generic_method");
+  std::string ir;
+  llvm::raw_string_ostream output{ir};
+  module->print(output, nullptr);
+  output.flush();
+  expect(ir.find("define double @Converter__int__identity__double(ptr %this, "
+                 "double %value)") != std::string::npos,
+         "generic methods are monomorphized for class and method types");
 
   expect_compile_error(
       "class Box[T]() { def invalid[T](value : T) : T { return value } } "

@@ -932,9 +932,16 @@ private:
                 class_specializations_.at(std::string{object_type.name()});
             const auto &class_declaration = *specialization.declaration;
             for (const auto &method : class_declaration.methods) {
-              if (method.name == node.method)
-                return resolve(method.return_type,
-                               specialization.substitutions);
+              if (method.name == node.method) {
+                Substitutions method_substitutions =
+                    specialization.substitutions;
+                for (std::size_t index = 0; index < node.type_arguments.size();
+                     ++index)
+                  method_substitutions.emplace(
+                      method.type_parameters[index],
+                      &resolve(node.type_arguments[index], substitutions));
+                return resolve(method.return_type, method_substitutions);
+              }
             }
             return janus::Type::int_type();
           } else if constexpr (std::is_same_v<Node,
@@ -1426,17 +1433,28 @@ private:
               if (candidate.name == node.method)
                 method = &candidate;
             }
+            std::vector<const janus::Type *> method_type_arguments;
+            method_type_arguments.reserve(node.type_arguments.size());
+            for (const janus::ast::TypeReference &argument :
+                 node.type_arguments)
+              method_type_arguments.push_back(
+                  &resolve(argument, substitutions));
             ::llvm::Function *target = emit_function(
-                *method, {}, &class_declaration, &specialization.substitutions,
-                object.type->name());
+                *method, method_type_arguments, &class_declaration,
+                &specialization.substitutions, object.type->name());
+            Substitutions method_substitutions = specialization.substitutions;
+            for (std::size_t index = 0; index < method_type_arguments.size();
+                 ++index)
+              method_substitutions.emplace(method->type_parameters[index],
+                                           method_type_arguments[index]);
             std::vector<::llvm::Value *> arguments;
             arguments.push_back(
                 builder.CreateLoad(builder.getPtrTy(), object.storage,
                                    identifier->name + ".object"));
             for (std::size_t index = 0; index < node.arguments.size();
                  ++index) {
-              const janus::Type &parameter_type = resolve(
-                  method->parameters[index].type, specialization.substitutions);
+              const janus::Type &parameter_type =
+                  resolve(method->parameters[index].type, method_substitutions);
               arguments.push_back(emit_expression(*node.arguments[index],
                                                   parameter_type, substitutions,
                                                   locals, builder));
