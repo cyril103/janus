@@ -27,6 +27,7 @@ private:
   [[nodiscard]] ast::ExpressionStatement parse_expression_statement();
   [[nodiscard]] std::shared_ptr<ast::IfStatement> parse_if_statement();
   [[nodiscard]] std::shared_ptr<ast::WhileStatement> parse_while_statement();
+  [[nodiscard]] std::shared_ptr<ast::ForStatement> parse_for_statement();
   [[nodiscard]] ast::Expression parse_expression();
   [[nodiscard]] ast::Expression parse_logical_or();
   [[nodiscard]] ast::Expression parse_logical_and();

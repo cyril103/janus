@@ -1384,8 +1384,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
             using Node = std::decay_t<decltype(node)>;
             if constexpr (std::is_same_v<Node,
                                          std::shared_ptr<ast::IfStatement>> ||
+                          std::is_same_v<
+                              Node, std::shared_ptr<ast::WhileStatement>> ||
                           std::is_same_v<Node,
-                                         std::shared_ptr<ast::WhileStatement>>)
+                                         std::shared_ptr<ast::ForStatement>>)
               return node->location;
             else
               return node.location;
@@ -1434,6 +1436,27 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           SymbolTable loop_symbols = block_symbols;
           static_cast<void>(validate_block((*loop)->body, loop_symbols));
           active_symbols = &block_symbols;
+          continue;
+        }
+
+        if (const auto *loop =
+                std::get_if<std::shared_ptr<ast::ForStatement>>(&statement)) {
+          const SemanticType iterator_type = expression_type((*loop)->iterator);
+          if (!iterator_type.is_class() ||
+              iterator_type.parameter != "Iterator" ||
+              iterator_type.type_arguments.size() != 1)
+            throw CompileError{(*loop)->location,
+                               "for requires an Iterator[T], got '" +
+                                   iterator_type.name() + "'"};
+          SymbolTable loop_symbols = block_symbols;
+          loop_symbols.insert_or_assign(
+              (*loop)->binding,
+              Symbol{iterator_type.type_arguments.front(), false, true});
+          static_cast<void>(validate_block((*loop)->body, loop_symbols));
+          active_symbols = &block_symbols;
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &(*loop)->iterator.value))
+            block_symbols.at(identifier->name).is_initialized = false;
           continue;
         }
 

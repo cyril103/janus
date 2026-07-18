@@ -598,6 +598,83 @@ private:
           continue;
         }
 
+        if (const auto *loop =
+                std::get_if<std::shared_ptr<janus::ast::ForStatement>>(
+                    &statement)) {
+          const janus::Type &iterator_type =
+              expression_type((*loop)->iterator, substitutions, block_locals);
+          ::llvm::Value *iterator =
+              emit_expression((*loop)->iterator, iterator_type, substitutions,
+                              block_locals, builder);
+          const ClassSpecialization &iterator_specialization =
+              class_specializations_.at(std::string{iterator_type.name()});
+          const auto &iterator_declaration =
+              *iterator_specialization.declaration;
+          const janus::ast::FunctionDeclaration *next_method = nullptr;
+          for (const janus::ast::FunctionDeclaration &method :
+               iterator_declaration.methods)
+            if (method.name == "next")
+              next_method = &method;
+          ::llvm::Function *next_function = emit_function(
+              *next_method, {}, &iterator_declaration,
+              &iterator_specialization.substitutions, iterator_type.name());
+          const janus::Type &option_type = resolve(
+              next_method->return_type, iterator_specialization.substitutions);
+          const EnumSpecialization &option_specialization =
+              enum_specializations_.at(std::string{option_type.name()});
+          const auto some_case = std::find_if(
+              option_specialization.declaration->cases.begin(),
+              option_specialization.declaration->cases.end(),
+              [](const janus::ast::EnumDeclaration::Case &candidate) {
+                return candidate.name == "Some";
+              });
+          const janus::Type &element_type =
+              resolve(some_case->payload_types.front(),
+                      option_specialization.substitutions);
+
+          ::llvm::Function *current_function =
+              builder.GetInsertBlock()->getParent();
+          auto *condition_block = ::llvm::BasicBlock::Create(
+              context_, "for.next", current_function);
+          auto *body_block = ::llvm::BasicBlock::Create(context_, "for.body",
+                                                        current_function);
+          auto *exit_block =
+              ::llvm::BasicBlock::Create(context_, "for.end", current_function);
+          builder.CreateBr(condition_block);
+          builder.SetInsertPoint(condition_block);
+          ::llvm::Value *next =
+              builder.CreateCall(next_function, {iterator}, "for.option");
+          ::llvm::Value *tag =
+              builder.CreateExtractValue(next, 0, "for.option.tag");
+          builder.CreateCondBr(
+              builder.CreateICmpEQ(tag, builder.getInt32(enum_case_value(
+                                            option_type.name(), "Some"))),
+              body_block, exit_block);
+
+          builder.SetInsertPoint(body_block);
+          ::llvm::Value *item = builder.CreateExtractValue(
+              next, enum_case_payload_start(option_type.name(), "Some"),
+              (*loop)->binding + ".item");
+          ::llvm::Value *storage = builder.CreateAlloca(
+              lower_type(element_type, context_), nullptr, (*loop)->binding);
+          builder.CreateStore(item, storage);
+          auto body_locals = block_locals;
+          body_locals.insert_or_assign((*loop)->binding,
+                                       Local{storage, &element_type});
+          const bool body_returns = emit_block((*loop)->body, body_locals);
+          if (!body_returns)
+            builder.CreateBr(condition_block);
+
+          builder.SetInsertPoint(exit_block);
+          builder.CreateCall(emit_destructor(std::string{iterator_type.name()}),
+                             {iterator});
+          ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
+              "free", ::llvm::FunctionType::get(builder.getVoidTy(),
+                                                {builder.getPtrTy()}, false));
+          builder.CreateCall(free_function, {iterator});
+          continue;
+        }
+
         if (const auto *declaration =
                 std::get_if<janus::ast::ValueDeclaration>(&statement)) {
           const janus::Type &type =

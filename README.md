@@ -533,6 +533,15 @@ Comme Janus ne possède pas encore de vérification statique d’ownership, le
 programmeur ne doit pas réutiliser un itérateur après l’avoir transmis à un
 adaptateur ou après avoir appelé `collect()`.
 
+Une boucle `for` consomme également son itérateur et le détruit à la sortie
+normale :
+
+```janus
+for value in values.iterator().filter((value : int) => value > 0) {
+    println(value)
+}
+```
+
 Le tableau possède son buffer, mais pas les objets éventuellement stockés. Un
 `Array[Point]` copie les pointeurs vers les `Point` : le programmeur doit
 continuer à supprimer chaque objet séparément.

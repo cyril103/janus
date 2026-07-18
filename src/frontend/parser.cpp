@@ -480,6 +480,9 @@ ast::Statement Parser::parse_statement() {
   if (current_.kind == TokenKind::While) {
     return parse_while_statement();
   }
+  if (current_.kind == TokenKind::For) {
+    return parse_for_statement();
+  }
 
   throw CompileError{current_.location,
                      "expected declaration, assignment or 'return', found " +
@@ -558,6 +561,16 @@ std::shared_ptr<ast::WhileStatement> Parser::parse_while_statement() {
   ast::Expression condition = parse_expression();
   return std::make_shared<ast::WhileStatement>(ast::WhileStatement{
       std::move(condition), parse_block(), while_token.location});
+}
+
+std::shared_ptr<ast::ForStatement> Parser::parse_for_statement() {
+  const Token for_token = expect(TokenKind::For);
+  const Token binding = expect(TokenKind::Identifier);
+  static_cast<void>(expect(TokenKind::In));
+  ast::Expression iterator = parse_expression();
+  return std::make_shared<ast::ForStatement>(
+      ast::ForStatement{std::string{binding.lexeme}, std::move(iterator),
+                        parse_block(), for_token.location});
 }
 
 ast::Expression Parser::parse_expression() { return parse_logical_or(); }

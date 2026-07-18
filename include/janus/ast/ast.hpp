@@ -200,11 +200,13 @@ struct ExpressionStatement {
 
 struct IfStatement;
 struct WhileStatement;
+struct ForStatement;
 
 using Statement =
     std::variant<ValueDeclaration, AssignmentStatement, DeleteStatement,
                  ReturnStatement, ExpressionStatement,
-                 std::shared_ptr<IfStatement>, std::shared_ptr<WhileStatement>>;
+                 std::shared_ptr<IfStatement>, std::shared_ptr<WhileStatement>,
+                 std::shared_ptr<ForStatement>>;
 
 struct IfStatement {
   Expression condition;
@@ -215,6 +217,13 @@ struct IfStatement {
 
 struct WhileStatement {
   Expression condition;
+  std::vector<Statement> body;
+  SourceLocation location;
+};
+
+struct ForStatement {
+  std::string binding;
+  Expression iterator;
   std::vector<Statement> body;
   SourceLocation location;
 };

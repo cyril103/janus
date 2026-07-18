@@ -19,6 +19,11 @@ def main() : int {
     }
     delete collected
 
+    var loopSum : int = 0
+    for value in values.iterator().take(usize(2)) {
+        loopSum = loopSum + value
+    }
+
     values.foreach((value : int) => print(""))
     val halved : Array[double] =
         values.map[double]((value : int) => double(value) / 2.0)
@@ -58,7 +63,7 @@ def main() : int {
     val result : int = sum + int(halved.get(usize(0))) +
         int(hasTwenty) + int(allPositive) + int(largeCount) +
         int(filtered.size()) + foundValue + missingValue + poppedValue +
-        int(values.isEmpty()) + firstValue
+        int(values.isEmpty()) + firstValue + loopSum
 
     delete filtered
     delete halved
