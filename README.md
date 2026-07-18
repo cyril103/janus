@@ -482,12 +482,15 @@ quand il est plein, et son destructeur appelle `free`.
 L'API initiale comprend :
 
 - `size()` et `capacity()` ;
+- `isEmpty()` ;
 - `get(index)` et `set(index, value)` avec contrôle de limites ;
 - `push(value)` et `pop()` ;
-- `reserve(capacity)` et `clear()`.
+- `getOption(index)` et `popOption()` comme alternatives sans `panic` ;
+- `reserve(capacity)` et `clear()` ;
 - `foreach((T) => Unit)` ;
 - `map[U]((T) => U) : Array[U]` ;
 - `filter((T) => bool) : Array[T]` ;
+- `find((T) => bool) : Option[T]` ;
 - `fold[U](U, (U, T) => U) : U` ;
 - `any`, `all` et `count` avec un prédicat `(T) => bool`.
 
@@ -495,6 +498,11 @@ Les méthodes fonctionnelles empruntent la closure reçue et ne la détruisent
 pas. L'appelant conserve sa responsabilité : une closure capturante doit être
 supprimée après l'appel. `map` et `filter` allouent un nouveau tableau dont
 l'appelant devient propriétaire.
+
+`get` et `pop` conservent leur comportement strict et appellent `panic` en cas
+d’erreur. Leurs variantes `getOption` et `popOption`, ainsi que `find`,
+retournent `None` lorsque aucune valeur n’est disponible. `std.array` importe
+automatiquement `std.option`.
 
 Le tableau possède son buffer, mais pas les objets éventuellement stockés. Un
 `Array[Point]` copie les pointeurs vers les `Point` : le programmeur doit

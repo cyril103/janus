@@ -40,6 +40,8 @@ int main() {
       loader.load(std::filesystem::path{JANUS_ARRAY_EXAMPLE});
   expect(program.classes.size() == 1 && program.classes.front().name == "Array",
          "import std.array loads the standard Array class");
+  expect(program.enums.size() == 1 && program.enums.front().name == "Option",
+         "Array imports Option for its safe operations");
   expect(program.functions.size() == 1 &&
              program.functions.front().name == "main",
          "the entry module is merged with its dependency");
@@ -64,6 +66,17 @@ int main() {
          "Array.map is monomorphized with its method type argument");
   expect(ir.find("define i32 @Array__int__fold__int") != std::string::npos,
          "Array.fold is monomorphized with its accumulator type");
+  expect(ir.find("define %enum.Option__int @Array__int__getOption") !=
+             std::string::npos,
+         "Array.getOption returns an optional element");
+  expect(ir.find("define %enum.Option__int @Array__int__popOption") !=
+             std::string::npos,
+         "Array.popOption safely handles an empty array");
+  expect(ir.find("define %enum.Option__int @Array__int__find") !=
+             std::string::npos,
+         "Array.find combines closures with Option");
+  expect(ir.find("define i1 @Array__int__isEmpty") != std::string::npos,
+         "Array.isEmpty exposes its empty state");
   expect(ir.find("call void %action.code") != std::string::npos,
          "Array.foreach invokes Unit closures indirectly");
   expect(ir.find("define i32 @main()") != std::string::npos,

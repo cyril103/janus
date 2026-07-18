@@ -1,4 +1,5 @@
 module std.array
+import std.option
 
 class Array[T](initialCapacity : usize) {
     private var data : Ptr[T] = alloc[T](initialCapacity)
@@ -28,11 +29,23 @@ class Array[T](initialCapacity : usize) {
         return allocated
     }
 
+    def isEmpty() : bool {
+        return length == usize(0)
+    }
+
     def get(index : usize) : T {
         if index >= length {
             panic("Array index out of bounds\n")
         }
         return data.load(index)
+    }
+
+    def getOption(index : usize) : Option[T] {
+        return if index < length {
+            Option.Some[T](data.load(index))
+        } else {
+            Option.None[T]()
+        }
     }
 
     def set(index : usize, value : T) : Unit {
@@ -64,6 +77,14 @@ class Array[T](initialCapacity : usize) {
         }
         length = length - usize(1)
         return data.load(length)
+    }
+
+    def popOption() : Option[T] {
+        if length == usize(0) {
+            return Option.None[T]()
+        }
+        length = length - usize(1)
+        return Option.Some[T](data.load(length))
     }
 
     def reserve(requested : usize) : Unit {
@@ -108,6 +129,18 @@ class Array[T](initialCapacity : usize) {
             index = index + usize(1)
         }
         return result
+    }
+
+    def find(predicate : (T) => bool) : Option[T] {
+        var index : usize = usize(0)
+        while index < length {
+            val value : T = data.load(index)
+            if predicate(value) {
+                return Option.Some[T](value)
+            }
+            index = index + usize(1)
+        }
+        return Option.None[T]()
     }
 
     def fold[U](initial : U, combine : (U, T) => U) : U {

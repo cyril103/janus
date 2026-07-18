@@ -24,10 +24,28 @@ def main() : int {
         values.all((value : int) => value > 0)
     val largeCount : usize =
         values.count((value : int) => value > 11)
+    val found : Option[int] =
+        values.find((value : int) => value == 20)
+    val missing : Option[int] = values.getOption(usize(100))
+    val popped : Option[int] = values.popOption()
+
+    val foundValue : int = match found {
+        Some(value) => value,
+        None => 0
+    }
+    val missingValue : int = match missing {
+        Some(value) => value,
+        None => 0
+    }
+    val poppedValue : int = match popped {
+        Some(value) => value,
+        None => 0
+    }
 
     val result : int = sum + int(halved.get(usize(0))) +
         int(hasTwenty) + int(allPositive) + int(largeCount) +
-        int(filtered.size())
+        int(filtered.size()) + foundValue + missingValue + poppedValue +
+        int(values.isEmpty())
 
     delete filtered
     delete halved
