@@ -17,13 +17,49 @@ ast::Program Parser::parse_program() {
   ast::Program program;
 
   while (current_.kind != TokenKind::End) {
-    program.declarations.push_back(parse_value_declaration());
+    program.functions.push_back(parse_function_declaration());
+  }
+
+  return program;
+}
+
+ast::FunctionDeclaration Parser::parse_function_declaration() {
+  const Token def = expect(TokenKind::Def);
+  const Token name = expect(TokenKind::Identifier);
+  static_cast<void>(expect(TokenKind::LeftParen));
+  static_cast<void>(expect(TokenKind::RightParen));
+  static_cast<void>(expect(TokenKind::Colon));
+  const Type *return_type = parse_type();
+  static_cast<void>(expect(TokenKind::LeftBrace));
+
+  std::vector<ast::Statement> body;
+  while (current_.kind != TokenKind::RightBrace) {
+    if (current_.kind == TokenKind::End) {
+      throw CompileError{current_.location, "expected '}', found end of file"};
+    }
+
+    body.push_back(parse_statement());
     if (current_.kind == TokenKind::Semicolon) {
       advance();
     }
   }
+  static_cast<void>(expect(TokenKind::RightBrace));
 
-  return program;
+  return ast::FunctionDeclaration{std::string{name.lexeme}, return_type,
+                                  std::move(body), def.location};
+}
+
+ast::Statement Parser::parse_statement() {
+  if (current_.kind == TokenKind::Val) {
+    return parse_value_declaration();
+  }
+  if (current_.kind == TokenKind::Return) {
+    return parse_return_statement();
+  }
+
+  throw CompileError{current_.location,
+                     "expected 'val' or 'return', found " +
+                         std::string{token_name(current_.kind)}};
 }
 
 ast::ValueDeclaration Parser::parse_value_declaration() {
@@ -36,6 +72,12 @@ ast::ValueDeclaration Parser::parse_value_declaration() {
 
   return ast::ValueDeclaration{std::string{identifier.lexeme}, declared_type,
                                false, std::move(initializer), val.location};
+}
+
+ast::ReturnStatement Parser::parse_return_statement() {
+  const Token return_token = expect(TokenKind::Return);
+  ast::Expression expression = parse_expression();
+  return ast::ReturnStatement{std::move(expression), return_token.location};
 }
 
 ast::Expression Parser::parse_expression() {

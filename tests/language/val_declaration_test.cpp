@@ -42,13 +42,21 @@ void expect_compile_error(std::string_view source,
 } // namespace
 
 int main() {
-  janus::frontend::Parser parser{"val x : int = 5"};
+  janus::frontend::Parser parser{
+      "def main() : int { val x : int = 5 return 0 }"};
   const janus::ast::Program program = parser.parse_program();
 
-  expect(program.declarations.size() == 1, "one declaration is parsed");
-  if (program.declarations.size() == 1) {
+  expect(program.functions.size() == 1, "one function is parsed");
+  expect(program.functions.front().name == "main",
+         "the entry point is named main");
+  expect(program.functions.front().return_type == &janus::Type::int_type(),
+         "main returns int");
+  expect(program.functions.front().body.size() == 2,
+         "main contains a declaration and a return");
+  if (program.functions.front().body.size() == 2) {
     const janus::ast::ValueDeclaration &declaration =
-        program.declarations.front();
+        std::get<janus::ast::ValueDeclaration>(
+            program.functions.front().body.front());
     expect(declaration.name == "x", "the identifier is x");
     expect(declaration.declared_type == &janus::Type::int_type(),
            "the declared type is int");
@@ -60,7 +68,8 @@ int main() {
   }
 
   janus::semantic::Analyzer analyzer;
-  const janus::semantic::SymbolTable symbols = analyzer.analyze(program);
+  const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
+  const janus::semantic::SymbolTable &symbols = analysis.functions.at("main");
   expect(symbols.contains("x"), "x is entered in the symbol table");
   expect(!symbols.at("x").is_mutable, "x is immutable");
   expect(symbols.at("x").type->is_signed(), "x has a signed type");
@@ -78,14 +87,29 @@ int main() {
          "LLVM allocates i32 storage for x");
   expect(ir.find("store i32 5, ptr %x") != std::string::npos,
          "LLVM stores the evaluated value 5 in x");
+  expect(ir.find("ret i32 0") != std::string::npos,
+         "LLVM returns the value from main");
 
-  expect_compile_error("val x int = 5", "expected ':'");
-  expect_compile_error("val x : unknown = 5", "unknown type 'unknown'");
-  expect_compile_error("val x : int = 2147483648",
+  expect_compile_error("def main() : int { val x int = 5 return 0 }",
+                       "expected ':'");
+  expect_compile_error("def main() : int { val x : unknown = 5 return 0 }",
+                       "unknown type 'unknown'");
+  expect_compile_error("def main() : int { val x : int = 2147483648 return 0 }",
                        "outside the signed 32-bit range");
-  expect_compile_error("val x : int = 1; val x : int = 2",
-                       "value 'x' is already declared");
-  expect_compile_error("val x : int = 5; x = 6", "expected 'val'");
+  expect_compile_error(
+      "def main() : int { val x : int = 1; val x : int = 2 return 0 }",
+      "value 'x' is already declared");
+  expect_compile_error("def main() : int { val x : int = 5; x = 6 return 0 }",
+                       "expected 'val' or 'return'");
+  expect_compile_error("def helper() : int { return 0 }",
+                       "must declare an entry point 'main'");
+  expect_compile_error(
+      "def main() : int { return 0 } def main() : int { return 0 }",
+      "function 'main' is already declared");
+  expect_compile_error("def main() : int { val x : int = 5 }",
+                       "must return a value");
+  expect_compile_error("def main() : int { return 0 val x : int = 5 }",
+                       "statement after return is unreachable");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

@@ -14,9 +14,13 @@ struct Symbol {
 
 using SymbolTable = std::unordered_map<std::string, Symbol>;
 
+struct AnalysisResult {
+  std::unordered_map<std::string, SymbolTable> functions;
+};
+
 class Analyzer final {
 public:
-  [[nodiscard]] SymbolTable analyze(const ast::Program &program) const;
+  [[nodiscard]] AnalysisResult analyze(const ast::Program &program) const;
 
 private:
   [[nodiscard]] const Type &

@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
     const janus::ast::Program program = parser.parse_program();
 
     janus::semantic::Analyzer analyzer;
-    [[maybe_unused]] const janus::semantic::SymbolTable symbols =
+    [[maybe_unused]] const janus::semantic::AnalysisResult analysis =
         analyzer.analyze(program);
 
     llvm::LLVMContext context;

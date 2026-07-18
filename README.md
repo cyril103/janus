@@ -4,14 +4,20 @@ Janus est un langage de programmation fortement typé dont le compilateur est
 écrit en C++ et utilise LLVM comme backend.
 
 Le projet est encore à un stade précoce. La chaîne de compilation sait
-actuellement analyser une déclaration `val`, vérifier son type et produire
-l'IR LLVM correspondant.
+actuellement analyser un point d'entrée `main`, des déclarations `val` et une
+instruction `return`, vérifier leurs types et produire l'IR LLVM correspondant.
 
 ## Exemple
 
 ```janus
-val x : int = 5
+def main() : int {
+    val x : int = 5
+    return 0
+}
 ```
+
+Tout programme Janus doit déclarer exactement un point d'entrée
+`def main() : int`.
 
 `val` crée une liaison immuable : après sa déclaration, `x` ne peut pas être
 réaffecté.
@@ -97,6 +103,21 @@ entry:
 }
 ```
 
+## Point d'entrée
+
+Le point d'entrée d'un programme utilise le mot-clé `def` :
+
+```text
+def main() : int {
+    <instructions>
+    return <expression>
+}
+```
+
+`main` ne reçoit actuellement aucun paramètre et doit retourner un `int`. Une
+instruction `return` est obligatoire et doit être la dernière instruction
+exécutée.
+
 ## Syntaxe actuellement supportée
 
 La forme d'une déclaration est :
@@ -107,29 +128,37 @@ val <identifiant> : <type> = <expression>
 
 Fonctionnalités disponibles :
 
+- mot-clé `def` pour déclarer une fonction ;
+- point d'entrée obligatoire et unique `main() : int` ;
+- mot-clé `return` pour retourner un entier ;
 - mot-clé `val` pour déclarer une valeur immuable ;
 - identifiants commençant par une lettre ou `_`, puis composés de lettres,
   chiffres et `_` ;
 - type `int`, signé sur 32 bits ;
 - littéraux entiers décimaux positifs ;
 - point-virgule optionnel après une déclaration ;
-- plusieurs déclarations dans un même fichier ;
+- plusieurs déclarations dans le corps d'une fonction ;
 - détection des identifiants déclarés plusieurs fois ;
+- détection d'une fonction sans `return` et du code après `return` ;
 - diagnostics avec ligne et colonne ;
 - validation de l'IR généré par LLVM.
 
 Exemples d'erreurs détectées :
 
 ```janus
-val x int = 5
-val y : inconnu = 1
-val trop_grand : int = 2147483648
-val x : int = 1
-val x : int = 2
+def main() : int {
+    val x int = 5
+    val y : inconnu = 1
+    val trop_grand : int = 2147483648
+    val x : int = 1
+    val x : int = 2
+    return 0
+}
 ```
 
 Les expressions arithmétiques, les nombres négatifs, les références à des
-valeurs, les fonctions et les autres types ne sont pas encore implémentés.
+valeurs, les paramètres de fonctions, les appels de fonctions et les autres
+types ne sont pas encore implémentés.
 
 ## Tests
 
@@ -143,8 +172,10 @@ Les tests couvrent actuellement :
 
 - les propriétés sémantiques du type `int` ;
 - son abaissement vers LLVM `i32` ;
+- la reconnaissance et la validation de `def main() : int` ;
 - l'analyse de `val x : int = 5` ;
 - l'immutabilité d'une déclaration `val` ;
+- l'obligation de retourner une valeur depuis `main` ;
 - la table des symboles et les déclarations dupliquées ;
 - la génération de l'allocation et du stockage LLVM ;
 - plusieurs erreurs de syntaxe et de type.

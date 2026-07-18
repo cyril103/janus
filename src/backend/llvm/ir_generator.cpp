@@ -22,30 +22,45 @@ IrGenerator::generate(const ast::Program &program,
                       std::string_view module_name) {
   auto module =
       std::make_unique<::llvm::Module>(std::string{module_name}, context_);
-  ::llvm::IRBuilder<> builder{context_};
 
-  auto *function_type = ::llvm::FunctionType::get(builder.getInt32Ty(), false);
-  auto *main_function = ::llvm::Function::Create(
-      function_type, ::llvm::Function::ExternalLinkage, "main", *module);
-  auto *entry = ::llvm::BasicBlock::Create(context_, "entry", main_function);
-  builder.SetInsertPoint(entry);
+  for (const ast::FunctionDeclaration &function : program.functions) {
+    ::llvm::IRBuilder<> builder{context_};
+    ::llvm::Type *return_type = lower_type(*function.return_type, context_);
+    auto *function_type = ::llvm::FunctionType::get(return_type, false);
+    auto *llvm_function = ::llvm::Function::Create(
+        function_type, ::llvm::Function::ExternalLinkage, function.name,
+        *module);
+    auto *entry = ::llvm::BasicBlock::Create(context_, "entry", llvm_function);
+    builder.SetInsertPoint(entry);
 
-  for (const ast::ValueDeclaration &declaration : program.declarations) {
-    ::llvm::Type *storage_type =
-        lower_type(*declaration.declared_type, context_);
-    ::llvm::Value *storage =
-        builder.CreateAlloca(storage_type, nullptr, declaration.name);
+    for (const ast::Statement &statement : function.body) {
+      if (const auto *declaration =
+              std::get_if<ast::ValueDeclaration>(&statement)) {
+        ::llvm::Type *storage_type =
+            lower_type(*declaration->declared_type, context_);
+        ::llvm::Value *storage =
+            builder.CreateAlloca(storage_type, nullptr, declaration->name);
 
-    ::llvm::Value *initializer = std::visit(
-        [&builder](const auto &expression) -> ::llvm::Value * {
-          return builder.getInt32(expression.value);
-        },
-        declaration.initializer);
+        ::llvm::Value *initializer = std::visit(
+            [&builder](const auto &expression) -> ::llvm::Value * {
+              return builder.getInt32(expression.value);
+            },
+            declaration->initializer);
 
-    builder.CreateStore(initializer, storage);
+        builder.CreateStore(initializer, storage);
+        continue;
+      }
+
+      const auto &return_statement = std::get<ast::ReturnStatement>(statement);
+      ::llvm::Value *return_value = std::visit(
+          [&builder](const auto &expression) -> ::llvm::Value * {
+            return builder.getInt32(expression.value);
+          },
+          return_statement.expression);
+      builder.CreateRet(return_value);
+    }
   }
 
-  builder.CreateRet(builder.getInt32(0));
   return module;
 }
 

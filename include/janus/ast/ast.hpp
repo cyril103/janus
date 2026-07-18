@@ -25,8 +25,22 @@ struct ValueDeclaration {
   SourceLocation location;
 };
 
+struct ReturnStatement {
+  Expression expression;
+  SourceLocation location;
+};
+
+using Statement = std::variant<ValueDeclaration, ReturnStatement>;
+
+struct FunctionDeclaration {
+  std::string name;
+  const Type *return_type;
+  std::vector<Statement> body;
+  SourceLocation location;
+};
+
 struct Program {
-  std::vector<ValueDeclaration> declarations;
+  std::vector<FunctionDeclaration> functions;
 };
 
 } // namespace janus::ast

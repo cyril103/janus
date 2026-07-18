@@ -30,8 +30,14 @@ Token Lexer::next() {
 
     const std::string_view lexeme =
         source_.substr(start_position, position_ - start_position);
-    const TokenKind kind =
-        lexeme == "val" ? TokenKind::Val : TokenKind::Identifier;
+    TokenKind kind = TokenKind::Identifier;
+    if (lexeme == "def") {
+      kind = TokenKind::Def;
+    } else if (lexeme == "return") {
+      kind = TokenKind::Return;
+    } else if (lexeme == "val") {
+      kind = TokenKind::Val;
+    }
     return Token{kind, lexeme, start};
   }
 
@@ -48,6 +54,18 @@ Token Lexer::next() {
 
   advance();
   switch (character) {
+  case '(':
+    return Token{TokenKind::LeftParen, source_.substr(start_position, 1),
+                 start};
+  case ')':
+    return Token{TokenKind::RightParen, source_.substr(start_position, 1),
+                 start};
+  case '{':
+    return Token{TokenKind::LeftBrace, source_.substr(start_position, 1),
+                 start};
+  case '}':
+    return Token{TokenKind::RightBrace, source_.substr(start_position, 1),
+                 start};
   case ':':
     return Token{TokenKind::Colon, source_.substr(start_position, 1), start};
   case '=':
