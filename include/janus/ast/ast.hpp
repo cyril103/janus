@@ -101,6 +101,7 @@ struct ValueDeclaration {
   bool is_mutable;
   std::optional<Expression> initializer;
   SourceLocation location;
+  bool is_private{};
 };
 
 struct AssignmentStatement {
@@ -136,6 +137,7 @@ struct FunctionDeclaration {
   TypeReference return_type;
   std::vector<Statement> body;
   SourceLocation location;
+  bool is_private{};
 };
 
 struct DestructorDeclaration {

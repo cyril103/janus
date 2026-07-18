@@ -256,6 +256,16 @@ constructeur et des champs publics :
 
 ```janus
 class Point(var x : int, var y : int) {
+    private val secret : int = 42
+
+    private def secretValue() : int {
+        return secret
+    }
+
+    def reveal() : int {
+        return this.secretValue()
+    }
+
     def setX(value : int) : int {
         x = value
         return x
@@ -297,6 +307,32 @@ modifier les champs déclarés avec `var`.
 
 Les méthodes génériques et les instructions d'un destructeur non vide ne sont
 pas encore prises en charge.
+
+### Membres privés
+
+Le mot-clé `private` peut précéder un champ `val`, un champ `var` ou une
+méthode `def` :
+
+```janus
+class Vault() {
+    private val secret : int = 42
+    private var accesses : int = 0
+
+    private def secretValue() : int {
+        return secret
+    }
+
+    def reveal() : int {
+        accesses = 1
+        return this.secretValue()
+    }
+}
+```
+
+Les membres privés restent accessibles depuis les méthodes de leur classe,
+directement ou via `this`. Leur lecture, leur mutation ou leur appel depuis
+l'extérieur produit une erreur de compilation. Les méthodes privées utilisent
+également une liaison interne dans l'IR LLVM.
 
 Exemples d'erreurs détectées :
 
@@ -351,6 +387,7 @@ Les tests couvrent actuellement :
 - l'accès et la mutation des champs `var` ;
 - les méthodes, leur receveur `this` implicite et les appels sur une instance ;
 - l'accès direct ou explicite aux membres depuis une méthode ;
+- les champs et méthodes privés et leurs diagnostics d'accès externe ;
 - l'appel du destructeur et la libération avec `delete` ;
 - plusieurs erreurs de construction et de durée de vie locale ;
 - la table des symboles et les déclarations dupliquées ;

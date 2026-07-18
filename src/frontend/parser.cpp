@@ -182,14 +182,19 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
   std::vector<ast::ValueDeclaration> constructor_fields;
   if (current_.kind != TokenKind::RightParen) {
     do {
+      const bool is_private = current_.kind == TokenKind::Private;
+      if (is_private)
+        advance();
       const bool is_mutable = current_.kind == TokenKind::Var;
       const Token keyword =
           expect(is_mutable ? TokenKind::Var : TokenKind::Val);
       const Token field = expect(TokenKind::Identifier);
       static_cast<void>(expect(TokenKind::Colon));
-      constructor_fields.push_back(
-          ast::ValueDeclaration{std::string{field.lexeme}, parse_type(),
-                                is_mutable, std::nullopt, keyword.location});
+      ast::ValueDeclaration declaration{std::string{field.lexeme}, parse_type(),
+                                        is_mutable, std::nullopt,
+                                        keyword.location};
+      declaration.is_private = is_private;
+      constructor_fields.push_back(std::move(declaration));
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -202,11 +207,21 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
   std::vector<ast::FunctionDeclaration> methods;
   std::optional<ast::DestructorDeclaration> destructor;
   while (current_.kind != TokenKind::RightBrace) {
-    if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var)
-      fields.push_back(parse_variable_declaration());
-    else if (current_.kind == TokenKind::Def)
-      methods.push_back(parse_function_declaration());
-    else if (current_.kind == TokenKind::Destructor) {
+    const bool is_private = current_.kind == TokenKind::Private;
+    if (is_private)
+      advance();
+    if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
+      ast::ValueDeclaration field = parse_variable_declaration();
+      field.is_private = is_private;
+      fields.push_back(std::move(field));
+    } else if (current_.kind == TokenKind::Def) {
+      ast::FunctionDeclaration method = parse_function_declaration();
+      method.is_private = is_private;
+      methods.push_back(std::move(method));
+    } else if (current_.kind == TokenKind::Destructor) {
+      if (is_private)
+        throw CompileError{current_.location,
+                           "destructor cannot be declared private"};
       if (destructor.has_value())
         throw CompileError{current_.location,
                            "class cannot declare multiple destructors"};

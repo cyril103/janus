@@ -149,8 +149,12 @@ private:
     auto *function_type = ::llvm::FunctionType::get(
         janus::backend::llvm::lower_type(return_type, context_),
         parameter_types, false);
-    auto *llvm_function = ::llvm::Function::Create(
-        function_type, ::llvm::Function::ExternalLinkage, llvm_name, *module_);
+    const ::llvm::GlobalValue::LinkageTypes linkage =
+        owner != nullptr && function.is_private
+            ? ::llvm::Function::InternalLinkage
+            : ::llvm::Function::ExternalLinkage;
+    auto *llvm_function =
+        ::llvm::Function::Create(function_type, linkage, llvm_name, *module_);
     emitted_.emplace(llvm_name, llvm_function);
 
     auto *entry = ::llvm::BasicBlock::Create(context_, "entry", llvm_function);

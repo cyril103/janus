@@ -12,6 +12,7 @@ enum class TokenKind {
   New,
   Delete,
   Destructor,
+  Private,
   Return,
   Val,
   Var,
@@ -54,6 +55,8 @@ struct Token {
     return "'delete'";
   case TokenKind::Destructor:
     return "'destructor'";
+  case TokenKind::Private:
+    return "'private'";
   case TokenKind::Return:
     return "'return'";
   case TokenKind::Val:

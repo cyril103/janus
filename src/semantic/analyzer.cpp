@@ -328,12 +328,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               const ast::ClassDeclaration &class_declaration =
                   *classes.at(object_type.parameter);
               for (const auto &field : class_declaration.constructor_fields) {
-                if (field.name == node.member)
+                if (field.name == node.member) {
+                  if (field.is_private &&
+                      (owner == nullptr ||
+                       owner->name != class_declaration.name))
+                    throw CompileError{node.location,
+                                       "field '" + node.member +
+                                           "' is private in class '" +
+                                           class_declaration.name + "'"};
                   return resolve_type(field.declared_type, {}, &class_names);
+                }
               }
               for (const auto &field : class_declaration.fields) {
-                if (field.name == node.member)
+                if (field.name == node.member) {
+                  if (field.is_private &&
+                      (owner == nullptr ||
+                       owner->name != class_declaration.name))
+                    throw CompileError{node.location,
+                                       "field '" + node.member +
+                                           "' is private in class '" +
+                                           class_declaration.name + "'"};
                   return resolve_type(field.declared_type, {}, &class_names);
+                }
               }
               throw CompileError{node.location,
                                  "class '" + class_declaration.name +
@@ -355,6 +371,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 throw CompileError{node.location,
                                    "class '" + class_declaration.name +
                                        "' has no method '" + node.method + "'"};
+              if (method->is_private &&
+                  (owner == nullptr || owner->name != class_declaration.name))
+                throw CompileError{node.location,
+                                   "method '" + node.method +
+                                       "' is private in class '" +
+                                       class_declaration.name + "'"};
               if (!method->type_parameters.empty())
                 throw CompileError{node.location,
                                    "generic methods are not yet supported"};
@@ -430,6 +452,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
             throw CompileError{assignment->location,
                                "class '" + class_declaration.name +
                                    "' has no field '" + assignment->name + "'"};
+          if (matched->is_private &&
+              (owner == nullptr || owner->name != class_declaration.name))
+            throw CompileError{assignment->location,
+                               "field '" + assignment->name +
+                                   "' is private in class '" +
+                                   class_declaration.name + "'"};
           if (!matched->is_mutable)
             throw CompileError{assignment->location,
                                "cannot assign to immutable field '" +

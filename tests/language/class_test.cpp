@@ -42,6 +42,13 @@ int main() {
   constexpr std::string_view source = R"(
 class Point(var x : int, var y : int) {
     val label : string = "point"
+    private val secret : int = 42
+    private def secretValue() : int {
+        return secret
+    }
+    def reveal() : int {
+        return this.secretValue()
+    }
     def setX(value : int) : int {
         x = value
         return x
@@ -56,6 +63,7 @@ class Point(var x : int, var y : int) {
 def main() : int {
     val point : Point = new Point(1, 2)
     val changed : int = point.setX(6)
+    val hidden : int = point.reveal()
     val result : int = point.currentX()
     delete point
     return result
@@ -70,10 +78,14 @@ def main() : int {
          "constructor parameters become fields");
   expect(program.classes.front().constructor_fields.front().is_mutable,
          "var constructor fields are mutable");
-  expect(program.classes.front().fields.size() == 1,
+  expect(program.classes.front().fields.size() == 2,
          "the class body can declare fields");
-  expect(program.classes.front().methods.size() == 2,
+  expect(program.classes.front().fields.back().is_private,
+         "private marks a field as private");
+  expect(program.classes.front().methods.size() == 4,
          "the class body can declare methods");
+  expect(program.classes.front().methods.front().is_private,
+         "private marks a method as private");
   expect(program.classes.front().destructor.has_value(),
          "the destructor is parsed");
 
@@ -89,7 +101,7 @@ def main() : int {
   module->print(output, nullptr);
   output.flush();
 
-  expect(ir.find("%class.Point = type { i32, i32, { ptr, i64 } }") !=
+  expect(ir.find("%class.Point = type { i32, i32, { ptr, i64 }, i32 }") !=
              std::string::npos,
          "Point has an LLVM heap layout");
   expect(ir.find("call ptr @malloc") != std::string::npos,
@@ -106,6 +118,8 @@ def main() : int {
          "an instance method can be called");
   expect(ir.find("call i32 @Point__currentX") != std::string::npos,
          "a method can read a member through this");
+  expect(ir.find("call i32 @Point__secretValue") != std::string::npos,
+         "a class method can call a private method internally");
   expect(ir.find("call void @Point__destructor") != std::string::npos,
          "delete invokes the destructor");
   expect(ir.find("call void @free") != std::string::npos,
@@ -142,6 +156,24 @@ def main() : int {
       "class Point(val x : int) { def change(value : int) : int { x = value "
       "return x } } def main() : int { return 0 }",
       "cannot assign to immutable value 'x'");
+  expect_compile_error("class Vault() { private val secret : int = 42 } "
+                       "def main() : int { val vault : Vault = new Vault() "
+                       "return vault.secret }",
+                       "field 'secret' is private");
+  expect_compile_error("class Vault() { private var secret : int = 42 } "
+                       "def main() : int { val vault : Vault = new Vault() "
+                       "vault.secret = 1 return 0 }",
+                       "field 'secret' is private");
+  expect_compile_error(
+      "class Vault() { private def secret() : int { return 42 } } "
+      "def main() : int { val vault : Vault = new Vault() "
+      "return vault.secret() }",
+      "method 'secret' is private");
+  expect_compile_error(
+      "class Secret(private val value : int) {} "
+      "def main() : int { val secret : Secret = new Secret(42) "
+      "return secret.value }",
+      "field 'value' is private");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

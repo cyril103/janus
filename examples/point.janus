@@ -1,4 +1,14 @@
 class Point(var x : int, var y : int) {
+    private val secret : int = 42
+
+    private def secretValue() : int {
+        return secret
+    }
+
+    def reveal() : int {
+        return this.secretValue()
+    }
+
     def setX(value : int) : int {
         x = value
         return x
@@ -15,6 +25,7 @@ class Point(var x : int, var y : int) {
 def main() : int {
     val point : Point = new Point(1, 2)
     val changed : int = point.setX(6)
+    val hidden : int = point.reveal()
     val result : int = point.currentX()
     delete point
     return result
