@@ -13,19 +13,23 @@ struct SemanticType {
   SemanticType() = default;
   SemanticType(const Type *concrete_type, std::string parameter_name = {},
                bool is_class_type = false,
-               std::vector<SemanticType> arguments = {})
+               std::vector<SemanticType> arguments = {},
+               bool is_pointer_type = false)
       : concrete{concrete_type}, parameter{std::move(parameter_name)},
-        class_type{is_class_type}, type_arguments{std::move(arguments)} {}
+        class_type{is_class_type}, type_arguments{std::move(arguments)},
+        pointer_type{is_pointer_type} {}
 
   const Type *concrete{};
   std::string parameter;
   bool class_type{};
   std::vector<SemanticType> type_arguments;
+  bool pointer_type{};
 
   [[nodiscard]] bool is_concrete() const noexcept {
     return concrete != nullptr;
   }
   [[nodiscard]] bool is_class() const noexcept { return class_type; }
+  [[nodiscard]] bool is_pointer() const noexcept { return pointer_type; }
   [[nodiscard]] std::string name() const;
 };
 

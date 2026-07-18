@@ -317,4 +317,20 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.usize COMMAND usize_test)
+
+    add_executable(pointer_memory_test
+        tests/language/pointer_memory_test.cpp
+    )
+    target_link_libraries(pointer_memory_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(pointer_memory_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.pointer_memory COMMAND pointer_memory_test)
 endif()

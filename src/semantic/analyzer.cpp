@@ -53,6 +53,21 @@ resolve_type(const janus::ast::TypeReference &reference,
                                     "' does not accept type arguments"};
     return janus::semantic::SemanticType{nullptr, reference.name};
   }
+  if (reference.name == "Ptr") {
+    if (reference.type_arguments.size() != 1)
+      throw janus::CompileError{
+          reference.location,
+          "Ptr expects exactly one type argument, got " +
+              std::to_string(reference.type_arguments.size())};
+    janus::semantic::SemanticType element = resolve_type(
+        reference.type_arguments.front(), type_parameters, class_arities);
+    if (element.is_concrete() &&
+        element.concrete->kind() == janus::TypeKind::Unit)
+      throw janus::CompileError{reference.location,
+                                "Ptr[Unit] is not a valid pointer type"};
+    return janus::semantic::SemanticType{
+        nullptr, "Ptr", false, {std::move(element)}, true};
+  }
   if (class_arities != nullptr) {
     if (const auto iterator = class_arities->find(reference.name);
         iterator != class_arities->end()) {
@@ -87,6 +102,11 @@ bool same_type(const janus::semantic::SemanticType &left,
            left.type_arguments.size() == right.type_arguments.size() &&
            std::equal(left.type_arguments.begin(), left.type_arguments.end(),
                       right.type_arguments.begin(), same_type);
+  if (left.is_pointer() || right.is_pointer())
+    return left.is_pointer() && right.is_pointer() &&
+           left.type_arguments.size() == 1 &&
+           right.type_arguments.size() == 1 &&
+           same_type(left.type_arguments.front(), right.type_arguments.front());
   return left.is_concrete() ? left.concrete->kind() == right.concrete->kind()
                             : left.parameter == right.parameter;
 }
@@ -404,6 +424,66 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               }
               return iterator->second.type;
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              if (node.callee == "alloc" || node.callee == "realloc" ||
+                  node.callee == "null" || node.callee == "sizeof" ||
+                  node.callee == "alignof") {
+                if (node.type_arguments.size() != 1)
+                  throw CompileError{node.location,
+                                     "memory intrinsic '" + node.callee +
+                                         "' expects exactly one type argument"};
+                SemanticType element_type =
+                    resolve_type(node.type_arguments.front(), type_parameters,
+                                 &class_arities);
+                if (element_type.is_concrete() &&
+                    element_type.concrete->kind() == TypeKind::Unit)
+                  throw CompileError{node.location,
+                                     "memory intrinsics cannot use Unit"};
+                SemanticType pointer_type{
+                    nullptr, "Ptr", false, {element_type}, true};
+                if (node.callee == "null") {
+                  if (!node.arguments.empty())
+                    throw CompileError{node.location,
+                                       "null expects no value argument"};
+                  return pointer_type;
+                }
+                if (node.callee == "sizeof" || node.callee == "alignof") {
+                  if (!node.arguments.empty())
+                    throw CompileError{node.location,
+                                       node.callee +
+                                           " expects no value argument"};
+                  return SemanticType{&Type::usize_type()};
+                }
+                const std::size_t expected_arguments =
+                    node.callee == "alloc" ? 1 : 2;
+                if (node.arguments.size() != expected_arguments)
+                  throw CompileError{
+                      node.location,
+                      "memory intrinsic '" + node.callee + "' expects " +
+                          std::to_string(expected_arguments) + " argument(s)"};
+                std::size_t count_index = 0;
+                if (node.callee == "realloc") {
+                  validate_expression(*node.arguments[0], pointer_type,
+                                      expression_location(*node.arguments[0]));
+                  count_index = 1;
+                }
+                validate_expression(
+                    *node.arguments[count_index],
+                    SemanticType{&Type::usize_type()},
+                    expression_location(*node.arguments[count_index]));
+                return pointer_type;
+              }
+              if (node.callee == "free") {
+                if (!node.type_arguments.empty() || node.arguments.size() != 1)
+                  throw CompileError{
+                      node.location,
+                      "free expects one pointer argument and no type argument"};
+                const SemanticType pointer =
+                    expression_type(*node.arguments.front());
+                if (!pointer.is_pointer())
+                  throw CompileError{node.location,
+                                     "free requires a Ptr[T] argument"};
+                return SemanticType{&Type::unit_type()};
+              }
               const Type *conversion_type = builtin_type(node.callee);
               const bool is_integer_conversion =
                   conversion_type != nullptr &&
@@ -595,6 +675,32 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MethodCallExpression>) {
               const SemanticType object_type = expression_type(*node.object);
+              if (object_type.is_pointer()) {
+                if (node.method == "load") {
+                  if (node.arguments.size() != 1)
+                    throw CompileError{node.location,
+                                       "Ptr.load expects one index"};
+                  validate_expression(*node.arguments[0],
+                                      SemanticType{&Type::usize_type()},
+                                      expression_location(*node.arguments[0]));
+                  return object_type.type_arguments.front();
+                }
+                if (node.method == "store") {
+                  if (node.arguments.size() != 2)
+                    throw CompileError{
+                        node.location,
+                        "Ptr.store expects an index and a value"};
+                  validate_expression(*node.arguments[0],
+                                      SemanticType{&Type::usize_type()},
+                                      expression_location(*node.arguments[0]));
+                  validate_expression(*node.arguments[1],
+                                      object_type.type_arguments.front(),
+                                      expression_location(*node.arguments[1]));
+                  return SemanticType{&Type::unit_type()};
+                }
+                throw CompileError{node.location, "Ptr[T] has no method '" +
+                                                      node.method + "'"};
+              }
               if (!object_type.is_class())
                 throw CompileError{node.location,
                                    "method call requires an object"};
@@ -721,7 +827,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 return SemanticType{&Type::bool_type(), {}};
               case ast::BinaryOperator::Equal:
               case ast::BinaryOperator::NotEqual:
-                if (!is_concrete) {
+                if (!is_concrete && !left_type.is_pointer()) {
                   throw CompileError{
                       node.location,
                       "equality operators require primitive operands"};

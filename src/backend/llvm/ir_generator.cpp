@@ -117,11 +117,30 @@ private:
     if (const auto iterator = substitutions.find(reference.name);
         iterator != substitutions.end())
       return *iterator->second;
+    if (reference.name == "Ptr")
+      return ensure_pointer(
+          resolve(reference.type_arguments.front(), substitutions));
     std::vector<const janus::Type *> type_arguments;
     type_arguments.reserve(reference.type_arguments.size());
     for (const janus::ast::TypeReference &argument : reference.type_arguments)
       type_arguments.push_back(&resolve(argument, substitutions));
     return ensure_class(reference.name, type_arguments);
+  }
+
+  const janus::Type &ensure_pointer(const janus::Type &element_type) {
+    const std::string key = "Ptr__" + std::string{element_type.name()};
+    if (const auto iterator = pointer_types_.find(key);
+        iterator != pointer_types_.end())
+      return iterator->second;
+    auto [iterator, inserted] =
+        pointer_types_.emplace(key, janus::Type::pointer_type(key));
+    static_cast<void>(inserted);
+    pointer_elements_.emplace(key, &element_type);
+    return iterator->second;
+  }
+
+  const janus::Type &pointer_element(const janus::Type &pointer_type) const {
+    return *pointer_elements_.at(std::string{pointer_type.name()});
   }
 
   std::string
@@ -509,6 +528,16 @@ private:
             return *locals.at(node.name).type;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
+            if (node.callee == "alloc" || node.callee == "realloc" ||
+                node.callee == "null") {
+              const janus::Type &element =
+                  resolve(node.type_arguments.front(), substitutions);
+              return ensure_pointer(element);
+            }
+            if (node.callee == "sizeof" || node.callee == "alignof")
+              return janus::Type::usize_type();
+            if (node.callee == "free")
+              return janus::Type::unit_type();
             if (const janus::Type *conversion_type = builtin_type(node.callee);
                 conversion_type != nullptr &&
                 (conversion_type->kind() == janus::TypeKind::Int ||
@@ -540,6 +569,9 @@ private:
                                    Node, janus::ast::MethodCallExpression>) {
             const janus::Type &object_type =
                 expression_type(*node.object, substitutions, locals);
+            if (object_type.kind() == janus::TypeKind::Pointer)
+              return node.method == "load" ? pointer_element(object_type)
+                                           : janus::Type::unit_type();
             const ClassSpecialization &specialization =
                 class_specializations_.at(std::string{object_type.name()});
             const auto &class_declaration = *specialization.declaration;
@@ -629,6 +661,61 @@ private:
                 local.storage, node.name + ".value");
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
+            if (node.callee == "alloc" || node.callee == "realloc" ||
+                node.callee == "null" || node.callee == "sizeof" ||
+                node.callee == "alignof") {
+              const janus::Type &element_type =
+                  resolve(node.type_arguments.front(), substitutions);
+              ::llvm::Type *llvm_element_type =
+                  janus::backend::llvm::lower_type(element_type, context_);
+              if (node.callee == "null")
+                return ::llvm::ConstantPointerNull::get(builder.getPtrTy());
+              if (node.callee == "sizeof")
+                return ::llvm::ConstantExpr::getSizeOf(llvm_element_type);
+              if (node.callee == "alignof")
+                return ::llvm::ConstantExpr::getAlignOf(llvm_element_type);
+
+              const janus::Type &pointer_type = ensure_pointer(element_type);
+              const std::size_t count_index = node.callee == "alloc" ? 0 : 1;
+              ::llvm::Value *count = emit_expression(
+                  *node.arguments[count_index], janus::Type::usize_type(),
+                  substitutions, locals, builder);
+              ::llvm::Value *bytes = builder.CreateMul(
+                  count, ::llvm::ConstantExpr::getSizeOf(llvm_element_type),
+                  "allocation.bytes");
+              if (node.callee == "alloc") {
+                ::llvm::FunctionCallee malloc_function =
+                    module_->getOrInsertFunction(
+                        "malloc",
+                        ::llvm::FunctionType::get(
+                            builder.getPtrTy(), {builder.getInt64Ty()}, false));
+                return builder.CreateCall(malloc_function, {bytes}, "alloc");
+              }
+              ::llvm::Value *pointer =
+                  emit_expression(*node.arguments[0], pointer_type,
+                                  substitutions, locals, builder);
+              ::llvm::FunctionCallee realloc_function =
+                  module_->getOrInsertFunction(
+                      "realloc",
+                      ::llvm::FunctionType::get(
+                          builder.getPtrTy(),
+                          {builder.getPtrTy(), builder.getInt64Ty()}, false));
+              return builder.CreateCall(realloc_function, {pointer, bytes},
+                                        "realloc");
+            }
+            if (node.callee == "free") {
+              const janus::Type &pointer_type = expression_type(
+                  *node.arguments.front(), substitutions, locals);
+              ::llvm::Value *pointer =
+                  emit_expression(*node.arguments.front(), pointer_type,
+                                  substitutions, locals, builder);
+              ::llvm::FunctionCallee free_function =
+                  module_->getOrInsertFunction(
+                      "free",
+                      ::llvm::FunctionType::get(builder.getVoidTy(),
+                                                {builder.getPtrTy()}, false));
+              return builder.CreateCall(free_function, {pointer});
+            }
             if (const janus::Type *conversion_type = builtin_type(node.callee);
                 conversion_type != nullptr &&
                 (conversion_type->kind() == janus::TypeKind::Int ||
@@ -766,6 +853,26 @@ private:
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);
             const Local &object = locals.at(identifier->name);
+            if (object.type->kind() == janus::TypeKind::Pointer) {
+              const janus::Type &element_type = pointer_element(*object.type);
+              ::llvm::Value *pointer =
+                  builder.CreateLoad(builder.getPtrTy(), object.storage,
+                                     identifier->name + ".pointer");
+              ::llvm::Value *index =
+                  emit_expression(*node.arguments[0], janus::Type::usize_type(),
+                                  substitutions, locals, builder);
+              ::llvm::Value *element = builder.CreateInBoundsGEP(
+                  janus::backend::llvm::lower_type(element_type, context_),
+                  pointer, index, "pointer.element");
+              if (node.method == "load")
+                return builder.CreateLoad(
+                    janus::backend::llvm::lower_type(element_type, context_),
+                    element, "pointer.value");
+              ::llvm::Value *value =
+                  emit_expression(*node.arguments[1], element_type,
+                                  substitutions, locals, builder);
+              return builder.CreateStore(value, element);
+            }
             const ClassSpecialization &specialization =
                 class_specializations_.at(std::string{object.type->name()});
             const auto &class_declaration = *specialization.declaration;
@@ -974,6 +1081,8 @@ private:
   std::unordered_map<std::string, janus::Type> class_types_;
   std::unordered_map<std::string, ::llvm::StructType *> llvm_class_types_;
   std::unordered_map<std::string, ClassSpecialization> class_specializations_;
+  std::unordered_map<std::string, janus::Type> pointer_types_;
+  std::unordered_map<std::string, const janus::Type *> pointer_elements_;
   std::unordered_map<std::string, ::llvm::Function *> emitted_;
   std::size_t string_literal_index_{};
 };

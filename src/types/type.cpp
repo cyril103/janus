@@ -42,6 +42,10 @@ const Type &Type::usize_type() {
   return type;
 }
 
+Type Type::pointer_type(std::string_view name) {
+  return Type{TypeKind::Pointer, name, 0, false};
+}
+
 Type Type::class_type(std::string_view name) {
   return Type{TypeKind::Class, name, 0, false};
 }

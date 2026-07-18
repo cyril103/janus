@@ -1,0 +1,20 @@
+def main() : int {
+    var data : Ptr[int] = alloc[int](usize(2))
+    data.store(usize(0), 40)
+    data.store(usize(1), 2)
+
+    val first : int = data.load(usize(0))
+    val second : int = data.load(usize(1))
+
+    data = realloc[int](data, usize(4))
+    data.store(usize(2), first + second)
+
+    val missing : Ptr[int] = null[int]()
+    val allocated : bool = data != missing
+    val elementSize : usize = sizeof[int]()
+    val elementAlignment : usize = alignof[int]()
+
+    val result : int = data.load(usize(2))
+    free(data)
+    return result
+}

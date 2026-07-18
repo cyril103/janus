@@ -170,6 +170,12 @@ explicites :
 ./build/janusc examples/usize.janus
 ```
 
+Le fichier `examples/pointers.janus` présente la mémoire manuelle typée :
+
+```bash
+./build/janusc examples/pointers.janus
+```
+
 `janusc` écrit actuellement l'IR LLVM sur la sortie standard. Pour le
 conserver dans un fichier :
 
@@ -316,6 +322,24 @@ opération valide.
 implicitement les entiers : `usize(value)`, `int(value)` et `byte(value)`
 effectuent les conversions explicites, avec extension ou troncature selon les
 largeurs concernées.
+
+### Pointeurs et mémoire brute
+
+`Ptr[T]` représente un pointeur brut vers des éléments de type `T` :
+
+```janus
+var data : Ptr[int] = alloc[int](usize(4))
+data.store(usize(0), 42)
+val value : int = data.load(usize(0))
+data = realloc[int](data, usize(8))
+free(data)
+```
+
+`null[T]()` crée un pointeur nul. `sizeof[T]()` et `alignof[T]()` retournent
+respectivement la taille et l'alignement de `T` sous forme de `usize`.
+`alloc` et `realloc` prennent un nombre d'éléments et calculent eux-mêmes le
+nombre d'octets. Comme en C, les accès après `free`, doubles libérations et
+indices hors de la zone allouée relèvent de la responsabilité du programmeur.
 
 ## Fonctions et généricité
 
