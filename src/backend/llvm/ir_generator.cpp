@@ -143,6 +143,21 @@ private:
     return *pointer_elements_.at(std::string{pointer_type.name()});
   }
 
+  bool is_explicit_cast(const janus::ast::CallExpression &call) const {
+    const janus::Type *type = builtin_type(call.callee);
+    if (type != nullptr)
+      return type->kind() != janus::TypeKind::String &&
+             type->kind() != janus::TypeKind::Unit;
+    return call.callee == "Ptr" || classes_.contains(call.callee);
+  }
+
+  const janus::Type &cast_destination(const janus::ast::CallExpression &call,
+                                      const Substitutions &substitutions) {
+    return resolve(janus::ast::TypeReference{call.callee, call.location,
+                                             call.type_arguments},
+                   substitutions);
+  }
+
   ::llvm::Function *ensure_print_char_function() {
     if (::llvm::Function *function = module_->getFunction("__janus_print_char"))
       return function;
@@ -630,12 +645,8 @@ private:
               return janus::Type::usize_type();
             if (node.callee == "free")
               return janus::Type::unit_type();
-            if (const janus::Type *conversion_type = builtin_type(node.callee);
-                conversion_type != nullptr &&
-                (conversion_type->kind() == janus::TypeKind::Int ||
-                 conversion_type->kind() == janus::TypeKind::Byte ||
-                 conversion_type->kind() == janus::TypeKind::USize))
-              return *conversion_type;
+            if (is_explicit_cast(node))
+              return cast_destination(node, substitutions);
             const auto &callee = *functions_.at(node.callee);
             Substitutions callee_substitutions;
             for (std::size_t index = 0; index < node.type_arguments.size();
@@ -914,20 +925,64 @@ private:
                                                 {builder.getPtrTy()}, false));
               return builder.CreateCall(free_function, {pointer});
             }
-            if (const janus::Type *conversion_type = builtin_type(node.callee);
-                conversion_type != nullptr &&
-                (conversion_type->kind() == janus::TypeKind::Int ||
-                 conversion_type->kind() == janus::TypeKind::Byte ||
-                 conversion_type->kind() == janus::TypeKind::USize)) {
+            if (is_explicit_cast(node)) {
+              const janus::Type &conversion_type =
+                  cast_destination(node, substitutions);
               const janus::Type &source_type = expression_type(
                   *node.arguments.front(), substitutions, locals);
               ::llvm::Value *source =
                   emit_expression(*node.arguments.front(), source_type,
                                   substitutions, locals, builder);
-              return builder.CreateIntCast(
-                  source,
-                  janus::backend::llvm::lower_type(*conversion_type, context_),
-                  source_type.is_signed(), node.callee + ".conversion");
+              const bool source_is_reference =
+                  source_type.kind() == janus::TypeKind::Pointer ||
+                  source_type.kind() == janus::TypeKind::Class;
+              const bool destination_is_reference =
+                  conversion_type.kind() == janus::TypeKind::Pointer ||
+                  conversion_type.kind() == janus::TypeKind::Class;
+              ::llvm::Type *destination_type =
+                  janus::backend::llvm::lower_type(conversion_type, context_);
+
+              if (source_type.kind() == conversion_type.kind() ||
+                  (source_is_reference && destination_is_reference))
+                return source;
+              if (source_is_reference &&
+                  conversion_type.kind() == janus::TypeKind::Bool)
+                return builder.CreateICmpNE(
+                    source,
+                    ::llvm::ConstantPointerNull::get(builder.getPtrTy()),
+                    "pointer.to.bool");
+              if (source_is_reference)
+                return builder.CreatePtrToInt(source, destination_type,
+                                              "pointer.to.integer");
+              if (destination_is_reference)
+                return builder.CreateIntToPtr(source, destination_type,
+                                              "usize.to.pointer");
+              if (conversion_type.kind() == janus::TypeKind::Bool) {
+                if (source_type.kind() == janus::TypeKind::Double)
+                  return builder.CreateFCmpUNE(
+                      source, ::llvm::ConstantFP::get(source->getType(), 0.0),
+                      "double.to.bool");
+                return builder.CreateICmpNE(
+                    source, ::llvm::ConstantInt::get(source->getType(), 0),
+                    "integer.to.bool");
+              }
+              if (conversion_type.kind() == janus::TypeKind::Double) {
+                if (source_type.is_signed())
+                  return builder.CreateSIToFP(source, destination_type,
+                                              "signed.to.double");
+                return builder.CreateUIToFP(source, destination_type,
+                                            "unsigned.to.double");
+              }
+              if (source_type.kind() == janus::TypeKind::Double) {
+                if (conversion_type.is_signed())
+                  return builder.CreateFPToSI(source, destination_type,
+                                              "double.to.signed");
+                return builder.CreateFPToUI(source, destination_type,
+                                            "double.to.unsigned");
+              }
+              return builder.CreateIntCast(source, destination_type,
+                                           source_type.is_signed(),
+                                           node.callee + ".conversion");
             }
             const janus::ast::FunctionDeclaration &callee =
                 *functions_.at(node.callee);

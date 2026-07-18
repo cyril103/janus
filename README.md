@@ -170,6 +170,13 @@ explicites :
 ./build/janusc examples/usize.janus
 ```
 
+Le fichier `examples/casts.janus` présente les conversions explicites entre
+scalaires, adresses et pointeurs :
+
+```bash
+./build/janusc examples/casts.janus
+```
+
 Le fichier `examples/pointers.janus` présente la mémoire manuelle typée :
 
 ```bash
@@ -338,9 +345,29 @@ Comme pour les entiers C, une division ou un reste par zéro n'est pas une
 opération valide.
 
 `usize` suit une arithmétique non signée modulo 2^64. Janus ne convertit pas
-implicitement les entiers : `usize(value)`, `int(value)` et `byte(value)`
-effectuent les conversions explicites, avec extension ou troncature selon les
-largeurs concernées.
+implicitement les valeurs.
+
+### Conversions explicites
+
+La syntaxe `Type(expression)` effectue une conversion explicite :
+
+```janus
+val integer : int = int(12.75)
+val floating : double = double(integer)
+val truth : bool = bool(integer)
+val address : usize = usize(pointer)
+val bytes : Ptr[byte] = Ptr[byte](address)
+```
+
+Les conversions entre `int`, `double`, `byte`, `char`, `bool` et `usize`
+suivent les règles scalaires de C : extension, troncature, conversion
+entier/flottant et comparaison avec zéro pour `bool`.
+
+Les références de classes et les `Ptr[T]` peuvent être convertis entre eux ou
+vers/depuis les types entiers. Une conversion vers `bool` teste si la référence
+est non nulle. Ces conversions ne vérifient pas que l'adresse, le type cible ou
+l'alignement sont valides : leur utilisation est aussi dangereuse qu'un cast de
+pointeur en C. `string` et `Unit` ne sont pas des cibles de cast.
 
 ### Pointeurs et mémoire brute
 

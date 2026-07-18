@@ -1,0 +1,18 @@
+def main() : int {
+    val floating : double = 42.75
+    val integer : int = int(floating)
+    val truth : bool = bool(integer)
+    val codepoint : char = char(955)
+
+    println(integer)
+    println(truth)
+    println(codepoint)
+
+    val data : Ptr[int] = alloc[int](usize(1))
+    val address : usize = usize(data)
+    val recovered : Ptr[int] = Ptr[int](address)
+    recovered.store(usize(0), integer)
+    val result : int = recovered.load(usize(0))
+    free(data)
+    return result
+}

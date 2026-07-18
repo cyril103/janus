@@ -111,6 +111,54 @@ bool same_type(const janus::semantic::SemanticType &left,
                             : left.parameter == right.parameter;
 }
 
+bool is_scalar_cast_type(const janus::semantic::SemanticType &type) {
+  if (!type.is_concrete())
+    return false;
+  switch (type.concrete->kind()) {
+  case janus::TypeKind::Int:
+  case janus::TypeKind::Double:
+  case janus::TypeKind::Byte:
+  case janus::TypeKind::Char:
+  case janus::TypeKind::Bool:
+  case janus::TypeKind::USize:
+    return true;
+  default:
+    return false;
+  }
+}
+
+bool is_integer_cast_type(const janus::semantic::SemanticType &type) {
+  if (!type.is_concrete())
+    return false;
+  switch (type.concrete->kind()) {
+  case janus::TypeKind::Int:
+  case janus::TypeKind::Byte:
+  case janus::TypeKind::Char:
+  case janus::TypeKind::Bool:
+  case janus::TypeKind::USize:
+    return true;
+  default:
+    return false;
+  }
+}
+
+bool can_explicitly_cast(const janus::semantic::SemanticType &source,
+                         const janus::semantic::SemanticType &destination) {
+  if (same_type(source, destination))
+    return true;
+  if (is_scalar_cast_type(source) && is_scalar_cast_type(destination))
+    return true;
+
+  const bool source_is_reference = source.is_pointer() || source.is_class();
+  const bool destination_is_reference =
+      destination.is_pointer() || destination.is_class();
+  if (source_is_reference && destination_is_reference)
+    return true;
+
+  return (source_is_reference && is_integer_cast_type(destination)) ||
+         (is_integer_cast_type(source) && destination_is_reference);
+}
+
 janus::semantic::SemanticType
 substitute(janus::semantic::SemanticType type,
            const std::unordered_map<std::string, janus::semantic::SemanticType>
@@ -524,28 +572,34 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                      "free requires a Ptr[T] argument"};
                 return SemanticType{&Type::unit_type()};
               }
-              const Type *conversion_type = builtin_type(node.callee);
-              const bool is_integer_conversion =
-                  conversion_type != nullptr &&
-                  (conversion_type->kind() == TypeKind::Int ||
-                   conversion_type->kind() == TypeKind::Byte ||
-                   conversion_type->kind() == TypeKind::USize);
-              if (is_integer_conversion) {
-                if (!node.type_arguments.empty() || node.arguments.size() != 1)
+              const bool is_builtin_cast = builtin_type(node.callee) != nullptr;
+              const bool is_reference_cast =
+                  node.callee == "Ptr" || classes.contains(node.callee);
+              if (is_builtin_cast || is_reference_cast) {
+                const SemanticType destination_type =
+                    resolve_type(ast::TypeReference{node.callee, node.location,
+                                                    node.type_arguments},
+                                 *active_type_parameters, &class_arities);
+                if (destination_type.is_concrete() &&
+                    (destination_type.concrete->kind() == TypeKind::String ||
+                     destination_type.concrete->kind() == TypeKind::Unit))
+                  throw CompileError{
+                      node.location,
+                      "type '" + destination_type.name() +
+                          "' cannot be used as an explicit cast target"};
+                if (node.arguments.size() != 1)
                   throw CompileError{node.location,
-                                     "integer conversion '" + node.callee +
+                                     "explicit cast to '" +
+                                         destination_type.name() +
                                          "' expects exactly one argument"};
                 const SemanticType source_type =
                     expression_type(*node.arguments.front());
-                if (!source_type.is_concrete() ||
-                    (source_type.concrete->kind() != TypeKind::Int &&
-                     source_type.concrete->kind() != TypeKind::Byte &&
-                     source_type.concrete->kind() != TypeKind::USize))
-                  throw CompileError{
-                      node.location,
-                      "integer conversion '" + node.callee +
-                          "' requires an int, byte, or usize argument"};
-                return SemanticType{conversion_type};
+                if (!can_explicitly_cast(source_type, destination_type))
+                  throw CompileError{node.location,
+                                     "cannot explicitly cast type '" +
+                                         source_type.name() + "' to '" +
+                                         destination_type.name() + "'"};
+                return destination_type;
               }
               const auto callee_iterator = functions.find(node.callee);
               if (callee_iterator == functions.end()) {

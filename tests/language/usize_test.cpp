@@ -82,8 +82,8 @@ def main() : int {
   expect_compile_error("def main() : int { val size : usize = 1 return 0 }",
                        "expression of type 'int'");
   expect_compile_error(
-      "def main() : int { val size : usize = usize(true) return 0 }",
-      "requires an int, byte, or usize");
+      "def main() : int { val size : usize = usize(\"12\") return 0 }",
+      "cannot explicitly cast type 'string' to 'usize'");
   expect_compile_error(
       "def main() : int { val size : usize = usize(1, 2) return 0 }",
       "expects exactly one argument");
