@@ -7,6 +7,8 @@
 namespace janus::frontend {
 
 enum class TokenKind {
+  Module,
+  Import,
   Def,
   Class,
   New,
@@ -62,6 +64,10 @@ struct Token {
 
 [[nodiscard]] constexpr std::string_view token_name(TokenKind kind) noexcept {
   switch (kind) {
+  case TokenKind::Module:
+    return "'module'";
+  case TokenKind::Import:
+    return "'import'";
   case TokenKind::Def:
     return "'def'";
   case TokenKind::Class:

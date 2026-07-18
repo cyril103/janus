@@ -1,11 +1,10 @@
 #include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/diagnostics/compile_error.hpp"
-#include "janus/frontend/parser.hpp"
+#include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
 
-#include <fstream>
+#include <filesystem>
 #include <iostream>
-#include <iterator>
 #include <string>
 
 #include <llvm/IR/LLVMContext.h>
@@ -18,19 +17,12 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  const std::string path = argv[1];
-  std::ifstream input{path, std::ios::binary};
-  if (!input) {
-    std::cerr << "janusc: cannot open '" << path << "'\n";
-    return 2;
-  }
-
-  const std::string source{std::istreambuf_iterator<char>{input},
-                           std::istreambuf_iterator<char>{}};
+  const std::filesystem::path path = argv[1];
 
   try {
-    janus::frontend::Parser parser{source};
-    const janus::ast::Program program = parser.parse_program();
+    janus::frontend::ModuleLoader loader{
+        {std::filesystem::path{JANUS_STDLIB_DIR}}};
+    const janus::ast::Program program = loader.load(path);
 
     janus::semantic::Analyzer analyzer;
     [[maybe_unused]] const janus::semantic::AnalysisResult analysis =
@@ -38,7 +30,8 @@ int main(int argc, char **argv) {
 
     llvm::LLVMContext context;
     janus::backend::llvm::IrGenerator generator{context};
-    std::unique_ptr<llvm::Module> module = generator.generate(program, path);
+    std::unique_ptr<llvm::Module> module =
+        generator.generate(program, path.string());
 
     if (llvm::verifyModule(*module, &llvm::errs())) {
       std::cerr << "janusc: generated invalid LLVM IR\n";
@@ -48,7 +41,7 @@ int main(int argc, char **argv) {
     module->print(llvm::outs(), nullptr);
   } catch (const janus::CompileError &error) {
     const janus::SourceLocation location = error.location();
-    std::cerr << path << ':' << location.line << ':' << location.column
+    std::cerr << path.string() << ':' << location.line << ':' << location.column
               << ": error: " << error.what() << '\n';
     return 1;
   } catch (const std::exception &error) {

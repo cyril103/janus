@@ -165,6 +165,19 @@ Parser::Parser(std::string_view source)
 ast::Program Parser::parse_program() {
   ast::Program program;
 
+  if (current_.kind == TokenKind::Module) {
+    advance();
+    program.module_name = parse_qualified_name();
+    if (current_.kind == TokenKind::Semicolon)
+      advance();
+  }
+  while (current_.kind == TokenKind::Import) {
+    advance();
+    program.imports.push_back(parse_qualified_name());
+    if (current_.kind == TokenKind::Semicolon)
+      advance();
+  }
+
   while (current_.kind != TokenKind::End) {
     if (current_.kind == TokenKind::Class)
       program.classes.push_back(parse_class_declaration());
@@ -173,6 +186,16 @@ ast::Program Parser::parse_program() {
   }
 
   return program;
+}
+
+std::string Parser::parse_qualified_name() {
+  std::string name{expect(TokenKind::Identifier).lexeme};
+  while (current_.kind == TokenKind::Dot) {
+    advance();
+    name += '.';
+    name += expect(TokenKind::Identifier).lexeme;
+  }
+  return name;
 }
 
 ast::ClassDeclaration Parser::parse_class_declaration() {

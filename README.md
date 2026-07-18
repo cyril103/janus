@@ -182,8 +182,8 @@ Le fichier `examples/panic.janus` présente un contrôle d'exécution :
 ./build/janusc examples/panic.janus
 ```
 
-Le fichier `examples/array.janus` contient une première implémentation complète
-de tableau dynamique générique :
+Le fichier `examples/array.janus` importe et utilise le tableau dynamique de la
+bibliothèque standard :
 
 ```bash
 ./build/janusc examples/array.janus
@@ -368,10 +368,10 @@ if index >= size {
 
 ### Tableau dynamique générique
 
-`Array[T]` est désormais exprimable entièrement en Janus. Sa représentation
-contient un `Ptr[T]`, une longueur et une capacité. Le buffer est contigu, sa
-capacité double lors d'un `push` quand il est plein, et son destructeur appelle
-`free`.
+`Array[T]` est écrit entièrement en Janus dans
+`stdlib/std/array.janus`. Sa représentation contient un `Ptr[T]`, une longueur
+et une capacité. Le buffer est contigu, sa capacité double lors d'un `push`
+quand il est plein, et son destructeur appelle `free`.
 
 L'API initiale comprend :
 
@@ -383,6 +383,32 @@ L'API initiale comprend :
 Le tableau possède son buffer, mais pas les objets éventuellement stockés. Un
 `Array[Point]` copie les pointeurs vers les `Point` : le programmeur doit
 continuer à supprimer chaque objet séparément.
+
+## Modules et bibliothèque standard
+
+Un fichier peut déclarer son nom de module puis importer des dépendances avec
+des noms qualifiés :
+
+```janus
+module application.main
+import std.array
+```
+
+Un import `project.collections` recherche
+`project/collections.janus`, d'abord relativement au module d'entrée puis dans
+les chemins de modules configurés. `janusc` ajoute automatiquement le
+répertoire `stdlib` du projet à ces chemins.
+
+Les déclarations importées sont actuellement accessibles sans qualification :
+
+```janus
+import std.array
+
+val values : Array[int] = new Array[int](usize(4))
+```
+
+Le chargeur traite les dépendances récursivement, ne charge un fichier qu'une
+fois et vérifie que le nom déclaré par celui-ci correspond au nom importé.
 
 ## Fonctions et généricité
 
@@ -635,4 +661,5 @@ src/            Implémentation des bibliothèques
 tools/janusc/   Exécutable du compilateur
 tests/          Tests du langage et du système de types
 examples/       Programmes Janus d'exemple
+stdlib/         Modules de la bibliothèque standard écrits en Janus
 ```

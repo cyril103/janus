@@ -1,0 +1,85 @@
+module std.array
+
+class Array[T](initialCapacity : usize) {
+    private var data : Ptr[T] = alloc[T](initialCapacity)
+    private var length : usize = usize(0)
+    private var allocated : usize = initialCapacity
+
+    private def resize(requested : usize) : Unit {
+        var next : usize = requested
+        if next == usize(0) {
+            next = usize(1)
+        }
+
+        val resized : Ptr[T] = realloc[T](data, next)
+        if resized == null[T]() {
+            panic("Array allocation failed\n")
+        }
+
+        data = resized
+        allocated = next
+    }
+
+    def size() : usize {
+        return length
+    }
+
+    def capacity() : usize {
+        return allocated
+    }
+
+    def get(index : usize) : T {
+        if index >= length {
+            panic("Array index out of bounds\n")
+        }
+        return data.load(index)
+    }
+
+    def set(index : usize, value : T) : Unit {
+        if index >= length {
+            panic("Array index out of bounds\n")
+        }
+        data.store(index, value)
+    }
+
+    def push(value : T) : usize {
+        if data == null[T]() {
+            this.resize(allocated)
+        }
+        if length == allocated {
+            val next : usize = allocated * usize(2)
+            if next < allocated {
+                panic("Array capacity overflow\n")
+            }
+            this.resize(next)
+        }
+        data.store(length, value)
+        length = length + usize(1)
+        return length
+    }
+
+    def pop() : T {
+        if length == usize(0) {
+            panic("cannot pop an empty Array\n")
+        }
+        length = length - usize(1)
+        return data.load(length)
+    }
+
+    def reserve(requested : usize) : Unit {
+        if data == null[T]() {
+            this.resize(allocated)
+        }
+        if requested > allocated {
+            this.resize(requested)
+        }
+    }
+
+    def clear() : Unit {
+        length = usize(0)
+    }
+
+    destructor {
+        free(data)
+    }
+}

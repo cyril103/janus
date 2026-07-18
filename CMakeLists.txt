@@ -30,6 +30,7 @@ target_compile_options(janus_types
 
 add_library(janus_frontend
     src/frontend/lexer.cpp
+    src/frontend/module_loader.cpp
     src/frontend/parser.cpp
 )
 target_include_directories(janus_frontend
@@ -103,6 +104,10 @@ target_compile_options(janusc
         -Wall
         -Wextra
         -Wpedantic
+)
+target_compile_definitions(janusc
+    PRIVATE
+        JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
 )
 
 include(CTest)
@@ -365,4 +370,25 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.dynamic_array COMMAND dynamic_array_test)
+
+    add_executable(module_import_test
+        tests/language/module_import_test.cpp
+    )
+    target_link_libraries(module_import_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_definitions(module_import_test
+        PRIVATE
+            JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+            JANUS_ARRAY_EXAMPLE="${PROJECT_SOURCE_DIR}/examples/array.janus"
+    )
+    target_compile_options(module_import_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.module_import COMMAND module_import_test)
 endif()

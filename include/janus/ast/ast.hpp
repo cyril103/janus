@@ -218,6 +218,8 @@ struct ClassDeclaration {
 };
 
 struct Program {
+  std::optional<std::string> module_name;
+  std::vector<std::string> imports;
   std::vector<ClassDeclaration> classes;
   std::vector<FunctionDeclaration> functions;
 };

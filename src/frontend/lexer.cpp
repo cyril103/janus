@@ -31,7 +31,11 @@ Token Lexer::next() {
     const std::string_view lexeme =
         source_.substr(start_position, position_ - start_position);
     TokenKind kind = TokenKind::Identifier;
-    if (lexeme == "def") {
+    if (lexeme == "module") {
+      kind = TokenKind::Module;
+    } else if (lexeme == "import") {
+      kind = TokenKind::Import;
+    } else if (lexeme == "def") {
       kind = TokenKind::Def;
     } else if (lexeme == "class") {
       kind = TokenKind::Class;
