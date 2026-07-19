@@ -87,8 +87,9 @@ def main() : int {
 
   janus::frontend::Parser defer_parser{
       "class Resource() {} def cleanup() : Unit {} "
-      "def main() : int { val resource : Resource = new Resource() "
-      "defer delete resource defer cleanup() return 0 }"};
+      "def run() : Unit { val resource : Resource = new Resource() "
+      "defer delete resource defer cleanup() } "
+      "def main() : int { run() return 0 }"};
   const janus::ast::Program defer_program = defer_parser.parse_program();
   expect(std::holds_alternative<janus::ast::DeferStatement>(
              defer_program.functions[1].body[1]),
@@ -97,6 +98,23 @@ def main() : int {
              defer_program.functions[1].body[2]),
          "deferred calls are represented explicitly in the AST");
   static_cast<void>(analyzer.analyze(defer_program));
+  llvm::LLVMContext defer_context;
+  janus::backend::llvm::IrGenerator defer_generator{defer_context};
+  const std::unique_ptr<llvm::Module> defer_module =
+      defer_generator.generate(defer_program, "defer_scope");
+  std::string defer_ir;
+  llvm::raw_string_ostream defer_output{defer_ir};
+  defer_module->print(defer_output, nullptr);
+  defer_output.flush();
+  const std::size_t run_function = defer_ir.find("define void @run()");
+  const std::size_t cleanup_call =
+      defer_ir.find("call void @cleanup()", run_function);
+  const std::size_t resource_cleanup =
+      defer_ir.find("call void @Resource__destructor", run_function);
+  expect(cleanup_call != std::string::npos &&
+             resource_cleanup != std::string::npos &&
+             cleanup_call < resource_cleanup,
+         "normal scope exit executes deferred actions in LIFO order");
 
   expect_compile_error("class Invalid() { destructor { return 1 } } "
                        "def main() : int { return 0 }",

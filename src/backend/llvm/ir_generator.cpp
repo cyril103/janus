@@ -503,11 +503,44 @@ private:
       locals.emplace(parameter.name, Local{storage, &type});
     }
 
+    const auto emit_cleanup_action =
+        [&](const janus::ast::DeferStatement &deferred,
+            std::unordered_map<std::string, Local> &cleanup_locals) {
+          if (const auto *deletion =
+                  std::get_if<janus::ast::DeleteStatement>(&deferred.action)) {
+            const janus::Type &deleted_type = expression_type(
+                deletion->expression, substitutions, cleanup_locals);
+            ::llvm::Value *deleted_value =
+                emit_expression(deletion->expression, deleted_type,
+                                substitutions, cleanup_locals, builder);
+            ::llvm::Value *pointer = deleted_value;
+            if (deleted_type.kind() == janus::TypeKind::Function) {
+              pointer = builder.CreateExtractValue(deleted_value, 1,
+                                                   "lambda.environment");
+            } else {
+              builder.CreateCall(
+                  emit_destructor(std::string{deleted_type.name()}), {pointer});
+            }
+            ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
+                "free", ::llvm::FunctionType::get(builder.getVoidTy(),
+                                                  {builder.getPtrTy()}, false));
+            builder.CreateCall(free_function, {pointer});
+            return;
+          }
+          const auto &action =
+              std::get<janus::ast::ExpressionStatement>(deferred.action);
+          const janus::Type &type =
+              expression_type(action.expression, substitutions, cleanup_locals);
+          static_cast<void>(emit_expression(
+              action.expression, type, substitutions, cleanup_locals, builder));
+        };
+
     std::function<bool(const std::vector<janus::ast::Statement> &,
                        std::unordered_map<std::string, Local> &)>
         emit_block;
     emit_block = [&](const std::vector<janus::ast::Statement> &statements,
                      std::unordered_map<std::string, Local> &block_locals) {
+      std::vector<const janus::ast::DeferStatement *> deferred_actions;
       for (const janus::ast::Statement &statement : statements) {
         if (const auto *conditional =
                 std::get_if<std::shared_ptr<janus::ast::IfStatement>>(
@@ -746,8 +779,11 @@ private:
           continue;
         }
 
-        if (std::holds_alternative<janus::ast::DeferStatement>(statement))
+        if (const auto *deferred =
+                std::get_if<janus::ast::DeferStatement>(&statement)) {
+          deferred_actions.push_back(deferred);
           continue;
+        }
 
         const auto &return_statement =
             std::get<janus::ast::ReturnStatement>(statement);
@@ -759,6 +795,9 @@ private:
           builder.CreateRetVoid();
         return true;
       }
+      for (auto iterator = deferred_actions.rbegin();
+           iterator != deferred_actions.rend(); ++iterator)
+        emit_cleanup_action(**iterator, block_locals);
       return false;
     };
     const janus::Type *previous_return_type = active_return_type_;
