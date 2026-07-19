@@ -25,6 +25,12 @@ get_filename_component(
     JANUS_LLD_REAL_EXECUTABLE "${JANUS_LLD_EXECUTABLE}" REALPATH
 )
 get_filename_component(
+    JANUS_CLANG_RUNTIME_DIRECTORY "${JANUS_CLANG_REAL_EXECUTABLE}" DIRECTORY
+)
+get_filename_component(
+    JANUS_LLD_RUNTIME_DIRECTORY "${JANUS_LLD_REAL_EXECUTABLE}" DIRECTORY
+)
+get_filename_component(
     JANUS_CLANG_REAL_NAME "${JANUS_CLANG_REAL_EXECUTABLE}" NAME
 )
 if(WIN32)
@@ -860,6 +866,9 @@ install(
 )
 install(
     RUNTIME_DEPENDENCY_SET janus_toolchain_dependencies
+    DIRECTORIES
+        "${JANUS_CLANG_RUNTIME_DIRECTORY}"
+        "${JANUS_LLD_RUNTIME_DIRECTORY}"
     PRE_EXCLUDE_REGEXES
         "^api-ms-"
         "^ext-ms-"
