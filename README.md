@@ -1001,9 +1001,46 @@ delete point
 ```
 
 `new` utilise actuellement `malloc`. `delete` appelle le destructeur de la
-classe puis `free`. Il n'existe ni ramasse-miettes, ni comptage de références,
-ni destruction automatique en fin de portée. Le programmeur est responsable
-de chaque objet alloué.
+classe puis `free`. Il n'existe ni ramasse-miettes, ni comptage de références.
+Le programmeur reste responsable de chaque objet alloué, mais peut planifier
+explicitement sa libération à la fin d'une portée avec `defer`.
+
+### Nettoyage différé
+
+`defer` enregistre une suppression ou un appel qui sera exécuté à la sortie de
+la portée courante :
+
+```janus
+def compute() : int {
+    val values : Array[int] = new Array[int](usize(4))
+    defer delete values
+
+    values.push(42)
+    return values.get(usize(0))
+}
+```
+
+Les actions sont exécutées dans l'ordre inverse de leur déclaration (LIFO),
+y compris avant un `return` et lorsqu'un `?` propage `None` ou `Error`. Cela
+permet de déclarer d'abord une ressource partagée, puis les objets qui
+l'empruntent : ces derniers seront détruits avant elle.
+
+Une action différée peut aussi être un appel de fonction ou de méthode :
+
+```janus
+defer flush()
+defer resource.close()
+```
+
+Une valeur possédée planifiée pour une suppression ou une consommation
+différée reste utilisable par emprunt, mais elle ne peut plus être déplacée,
+consommée, supprimée à nouveau ou réassignée. `defer delete` exige donc une
+variable locale possédante. L'opérateur `?` n'est pas accepté à l'intérieur
+d'une action différée.
+
+`defer` est un mécanisme lexical, pas une gestion automatique de la mémoire :
+il faut toujours l'écrire explicitement. Un arrêt par `panic` termine le
+processus immédiatement et n'exécute pas les actions différées.
 
 Une liaison `val` empêche de remplacer le pointeur, mais les champs déclarés
 avec `var` restent modifiables. Un champ `val` est immuable. Le compilateur

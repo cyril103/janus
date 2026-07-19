@@ -6,28 +6,32 @@ import std.hashset
 
 def main() : int {
     val values : Array[int] = new Array[int](usize(1))
+    defer delete values
     values.push(10)
     values.push(20)
     values.push(12)
 
     val builder : ArrayBuilder[int] =
         new ArrayBuilder[int](usize(3))
+    defer delete builder
     builder.addAll[Array[int]](values)
     val pendingSize : int = int(builder.size())
     builder.clear()
     builder.addAll[Array[int]](values)
     builder.add(30)
     val built : Array[int] = builder.result()
+    defer delete built
     val builtSize : int = int(built.size())
-    delete builder
 
     val hashing : IntHashing = new IntHashing()
+    defer delete hashing
     val hashSample : int =
         int(hashing.hash(42) % usize(10))
     val hashMatches : bool = hashing.equals(42, 42)
 
     val unique : HashSet[int, IntHashing] =
         new HashSet[int, IntHashing](usize(4), hashing)
+    defer delete unique
     unique.add(10)
     unique.add(20)
     unique.add(10)
@@ -41,11 +45,12 @@ def main() : int {
 
     val setBuilder : SetBuilder[int, IntHashing] =
         new SetBuilder[int, IntHashing](usize(4), hashing)
+    defer delete setBuilder
     setBuilder.addAll[Array[int]](values)
     setBuilder.add(20)
     val builtSet : HashSet[int, IntHashing] =
         setBuilder.result()
-    delete setBuilder
+    defer delete builtSet
     var setSum : int = 0
     for value in builtSet {
         setSum = setSum + value
@@ -53,6 +58,7 @@ def main() : int {
 
     val numbers : HashMap[int, int, IntHashing] =
         new HashMap[int, int, IntHashing](usize(4), hashing)
+    defer delete numbers
     numbers.put(1, 10)
     numbers.put(2, 20)
     numbers.put(3, 30)
@@ -82,11 +88,12 @@ def main() : int {
 
     val mapBuilder : MapBuilder[int, int, IntHashing] =
         new MapBuilder[int, int, IntHashing](usize(4), hashing)
+    defer delete mapBuilder
     mapBuilder.add(MapEntry.Entry[int, int](3, 30))
     mapBuilder.add(MapEntry.Entry[int, int](4, 40))
     val builtMap : HashMap[int, int, IntHashing] =
         mapBuilder.result()
-    delete mapBuilder
+    defer delete builtMap
 
     val replacedValue : int = match replaced {
         Some(value) => value,
@@ -107,13 +114,12 @@ def main() : int {
             .filter((value : int) => value > 25)
             .take(usize(1))
             .collect()
+    defer delete collected
     val first : Option[int] = collected.getOption(usize(0))
     val firstValue : int = match first {
         Some(value) => value,
         None => 0
     }
-    delete collected
-
     var loopSum : int = 0
     for value in values {
         loopSum = loopSum + value
@@ -122,12 +128,14 @@ def main() : int {
     values.foreach((value : int) => print(""))
     val halved : Array[double] =
         values.map[double]((value : int) => double(value) / 2.0)
+    defer delete halved
 
     val threshold : int = 11
     val aboveThreshold : (int) => bool =
         (value : int) => value > threshold
+    defer delete aboveThreshold
     val filtered : Array[int] = values.filter(aboveThreshold)
-    delete aboveThreshold
+    defer delete filtered
 
     val sum : int =
         values.fold[int](0, (total : int, value : int) => total + value)
@@ -166,14 +174,5 @@ def main() : int {
         int(mapContainsOne) + keySum + valueSum + entrySum +
         int(builtMap.size())
 
-    delete builtMap
-    delete numbers
-    delete builtSet
-    delete unique
-    delete hashing
-    delete built
-    delete filtered
-    delete halved
-    delete values
     return result
 }
