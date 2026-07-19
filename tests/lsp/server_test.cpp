@@ -19,6 +19,13 @@ int main() {
   assert(invalid.front().find("publishDiagnostics") != std::string::npos);
   assert(invalid.front().find("unknown value") != std::string::npos);
 
+  const std::vector<std::string> missing_import = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///a/deliberately/long/path/used/to/expose/dangling/diagnostic/messages.janus","text":"import module_that_does_not_exist_anywhere\n\ndef main() : int { return 0 }"}}})");
+  assert(missing_import.size() == 1);
+  assert(missing_import.front().find(
+             "cannot resolve imported module "
+             "'module_that_does_not_exist_anywhere'") != std::string::npos);
+
   const std::vector<std::string> valid = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { return 0 }"}]}})");
   assert(valid.size() == 1);

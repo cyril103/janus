@@ -229,7 +229,7 @@ std::string Server::diagnostics(std::string_view uri,
          }},
         {"severity", 1},
         {"source", "janus"},
-        {"message", error.what()},
+        {"message", std::string{error.what()}},
     });
   } catch (const std::exception &error) {
     items.emplace_back(llvm::json::Object{
@@ -240,7 +240,7 @@ std::string Server::diagnostics(std::string_view uri,
          }},
         {"severity", 1},
         {"source", "janus"},
-        {"message", error.what()},
+        {"message", std::string{error.what()}},
     });
   }
 
