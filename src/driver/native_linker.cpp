@@ -2,27 +2,22 @@
 
 #include <array>
 #include <cstdio>
+#include <cstdint>
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <process.h>
+#else
 #include <sys/wait.h>
 #endif
 
 namespace {
 
+#ifndef _WIN32
 std::string shell_quote(const std::filesystem::path &path) {
   const std::string value = path.string();
-#ifdef _WIN32
-  std::string quoted{"\""};
-  for (const char character : value) {
-    if (character == '"')
-      quoted += '\\';
-    quoted += character;
-  }
-  return quoted + '"';
-#else
   std::string quoted{"'"};
   for (const char character : value) {
     if (character == '\'')
@@ -31,20 +26,16 @@ std::string shell_quote(const std::filesystem::path &path) {
       quoted += character;
   }
   return quoted + '\'';
-#endif
 }
 
 int command_status(int status) {
   if (status == -1)
     return 1;
-#ifdef _WIN32
-  return status;
-#else
   if (WIFEXITED(status))
     return WEXITSTATUS(status);
   return 1;
-#endif
 }
+#endif
 
 #ifdef __APPLE__
 std::filesystem::path macos_sdk_path() {
@@ -86,11 +77,29 @@ void link_executable(const std::vector<std::filesystem::path> &objects,
           ? std::filesystem::path{configured_driver}
           : (options.driver.empty() ? std::filesystem::path{JANUS_CLANG_PATH}
                                     : options.driver);
+#ifdef _WIN32
+  std::vector<std::wstring> arguments{driver.wstring(), L"-fuse-ld=lld"};
+  if (options.debug)
+    arguments.emplace_back(L"-g");
+  for (const std::filesystem::path &object : objects)
+    arguments.push_back(object.wstring());
+  for (const std::filesystem::path &library : options.libraries)
+    arguments.push_back(library.wstring());
+  arguments.emplace_back(L"-o");
+  arguments.push_back(output.wstring());
+
+  std::vector<const wchar_t *> argument_pointers;
+  argument_pointers.reserve(arguments.size() + 1);
+  for (const std::wstring &argument : arguments)
+    argument_pointers.push_back(argument.c_str());
+  argument_pointers.push_back(nullptr);
+  const std::intptr_t status =
+      _wspawnv(_P_WAIT, driver.c_str(), argument_pointers.data());
+#else
   std::string command = shell_quote(driver) + " -fuse-ld=lld";
 #ifdef __APPLE__
   command += " -isysroot " + shell_quote(macos_sdk_path());
 #endif
-#ifndef _WIN32
   const std::filesystem::path bundled_library_directory =
       driver.parent_path().parent_path() / "lib";
   if (std::filesystem::is_directory(bundled_library_directory)) {
@@ -106,7 +115,6 @@ void link_executable(const std::vector<std::filesystem::path> &objects,
     command = std::string{library_path_variable} + "=" +
               shell_quote(std::filesystem::path{library_path}) + " " + command;
   }
-#endif
   if (options.debug)
     command += " -g";
   for (const std::filesystem::path &object : objects)
@@ -115,6 +123,7 @@ void link_executable(const std::vector<std::filesystem::path> &objects,
     command += " " + shell_quote(library);
   command += " -o " + shell_quote(output);
   const int status = command_status(std::system(command.c_str()));
+#endif
   if (status != 0)
     throw std::runtime_error{"LLD native link failed with status " +
                              std::to_string(status)};
