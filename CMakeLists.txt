@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.21)
 
 project(
     janus
@@ -12,9 +12,24 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+include(GNUInstallDirs)
+
 find_package(LLVM REQUIRED CONFIG)
 find_program(JANUS_CLANG_EXECUTABLE clang REQUIRED)
 find_program(JANUS_LLD_EXECUTABLE NAMES ld.lld lld-link ld64.lld REQUIRED)
+get_filename_component(
+    JANUS_CLANG_REAL_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}" REALPATH
+)
+get_filename_component(
+    JANUS_LLD_REAL_EXECUTABLE "${JANUS_LLD_EXECUTABLE}" REALPATH
+)
+get_filename_component(JANUS_LLD_INSTALL_NAME "${JANUS_LLD_EXECUTABLE}" NAME)
+execute_process(
+    COMMAND "${JANUS_CLANG_REAL_EXECUTABLE}" -print-resource-dir
+    OUTPUT_VARIABLE JANUS_CLANG_RESOURCE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND_ERROR_IS_FATAL ANY
+)
 
 add_library(janus_runtime STATIC
     runtime/janus_runtime.c
@@ -151,6 +166,14 @@ target_compile_definitions(janus
         JANUS_VERSION="${PROJECT_VERSION}"
         JANUS_CLANG_PATH="${JANUS_CLANG_EXECUTABLE}"
         JANUS_RUNTIME_LIBRARY="$<TARGET_FILE:janus_runtime>"
+)
+if(APPLE)
+    set(JANUS_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
+else()
+    set(JANUS_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+endif()
+set_target_properties(janus janusc
+    PROPERTIES INSTALL_RPATH "${JANUS_INSTALL_RPATH}"
 )
 
 add_executable(janusup
@@ -714,14 +737,53 @@ if(BUILD_TESTING)
     add_test(NAME language.module_import COMMAND module_import_test)
 endif()
 
-include(GNUInstallDirs)
+add_executable(janus_bundled_clang IMPORTED GLOBAL)
+set_target_properties(janus_bundled_clang
+    PROPERTIES IMPORTED_LOCATION "${JANUS_CLANG_REAL_EXECUTABLE}"
+)
+add_executable(janus_bundled_lld IMPORTED GLOBAL)
+set_target_properties(janus_bundled_lld
+    PROPERTIES IMPORTED_LOCATION "${JANUS_LLD_REAL_EXECUTABLE}"
+)
+
 install(
     TARGETS janus janusc janusup
+    RUNTIME_DEPENDENCY_SET janus_toolchain_dependencies
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(
+    IMPORTED_RUNTIME_ARTIFACTS janus_bundled_clang janus_bundled_lld
+    RUNTIME_DEPENDENCY_SET janus_toolchain_dependencies
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(
+    PROGRAMS "${JANUS_LLD_REAL_EXECUTABLE}"
+    TYPE BIN
+    RENAME "${JANUS_LLD_INSTALL_NAME}"
+)
+install(
+    RUNTIME_DEPENDENCY_SET janus_toolchain_dependencies
+    PRE_EXCLUDE_REGEXES
+        "^api-ms-"
+        "^ext-ms-"
+        "^ld-linux"
+        "^lib(c|m|pthread|dl|rt|gcc_s|stdc\\+\\+)\\.so"
+    POST_EXCLUDE_REGEXES
+        "^/System/Library/"
+        "^/usr/lib/lib(System|c\\+\\+)"
+        ".*[Ww]indows[/\\\\][Ss]ystem32.*"
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 install(
     TARGETS janus_runtime
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(
+    DIRECTORY "${JANUS_CLANG_RESOURCE_DIR}/"
+    DESTINATION
+        "${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}"
 )
 install(
     DIRECTORY stdlib/

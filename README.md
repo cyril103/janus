@@ -144,9 +144,10 @@ cmake --build build --target dist
 ```
 
 Le paquet contient `janus`, le compilateur historique `janusc`, `janusup`, le
-runtime natif et la bibliothèque standard. La cible produit aussi le fichier
-`.sha256` contrôlé par les installateurs. Clang et LLD restent des prérequis de
-la plateforme pour cette première distribution.
+runtime natif, la bibliothèque standard, Clang, LLD et leurs dépendances LLVM.
+La cible produit aussi le fichier `.sha256` contrôlé par les installateurs.
+L'utilisateur d'une archive officielle n'a donc pas à installer LLVM
+séparément ; seul le SDK natif du système reste nécessaire.
 
 ## Générer de l'IR LLVM
 

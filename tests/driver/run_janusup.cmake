@@ -31,6 +31,14 @@ endif()
 if(NOT EXISTS "${TEST_ROOT}/home/bin/janus")
     message(FATAL_ERROR "janusup did not create the compiler shim")
 endif()
+if(NOT EXISTS "${TEST_ROOT}/home/toolchains/test/bin/clang")
+    message(FATAL_ERROR "the toolchain does not contain Clang")
+endif()
+if(NOT EXISTS "${TEST_ROOT}/home/toolchains/test/bin/ld.lld"
+   AND NOT EXISTS "${TEST_ROOT}/home/toolchains/test/bin/lld-link.exe"
+   AND NOT EXISTS "${TEST_ROOT}/home/toolchains/test/bin/ld64.lld")
+    message(FATAL_ERROR "the toolchain does not contain LLD")
+endif()
 
 execute_process(
     COMMAND "${CMAKE_COMMAND}" -E env
