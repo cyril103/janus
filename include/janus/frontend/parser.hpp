@@ -26,6 +26,8 @@ private:
   [[nodiscard]] ast::AssignmentStatement parse_assignment_statement();
   [[nodiscard]] ast::DeleteStatement parse_delete_statement();
   [[nodiscard]] ast::DeferStatement parse_defer_statement();
+  [[nodiscard]] ast::BreakStatement parse_break_statement();
+  [[nodiscard]] ast::ContinueStatement parse_continue_statement();
   [[nodiscard]] ast::ReturnStatement parse_return_statement();
   [[nodiscard]] ast::ExpressionStatement parse_expression_statement();
   [[nodiscard]] std::shared_ptr<ast::IfStatement> parse_if_statement();

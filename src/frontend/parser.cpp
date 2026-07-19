@@ -653,6 +653,12 @@ ast::Statement Parser::parse_statement() {
   if (current_.kind == TokenKind::Defer) {
     return parse_defer_statement();
   }
+  if (current_.kind == TokenKind::Break) {
+    return parse_break_statement();
+  }
+  if (current_.kind == TokenKind::Continue) {
+    return parse_continue_statement();
+  }
   if (current_.kind == TokenKind::If) {
     return parse_if_statement();
   }
@@ -719,6 +725,14 @@ ast::DeferStatement Parser::parse_defer_statement() {
                        "defer requires delete, a function call, or a method "
                        "call"};
   return ast::DeferStatement{std::move(action), defer_token.location};
+}
+
+ast::BreakStatement Parser::parse_break_statement() {
+  return ast::BreakStatement{expect(TokenKind::Break).location};
+}
+
+ast::ContinueStatement Parser::parse_continue_statement() {
+  return ast::ContinueStatement{expect(TokenKind::Continue).location};
 }
 
 ast::ReturnStatement Parser::parse_return_statement() {

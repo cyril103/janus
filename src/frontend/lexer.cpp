@@ -73,6 +73,10 @@ Token Lexer::next() {
       kind = TokenKind::In;
     } else if (lexeme == "while") {
       kind = TokenKind::While;
+    } else if (lexeme == "break") {
+      kind = TokenKind::Break;
+    } else if (lexeme == "continue") {
+      kind = TokenKind::Continue;
     } else if (lexeme == "return") {
       kind = TokenKind::Return;
     } else if (lexeme == "val") {

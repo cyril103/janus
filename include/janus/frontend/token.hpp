@@ -28,6 +28,8 @@ enum class TokenKind {
   For,
   In,
   While,
+  Break,
+  Continue,
   Return,
   Val,
   Var,
@@ -120,6 +122,10 @@ struct Token {
     return "'in'";
   case TokenKind::While:
     return "'while'";
+  case TokenKind::Break:
+    return "'break'";
+  case TokenKind::Continue:
+    return "'continue'";
   case TokenKind::Return:
     return "'return'";
   case TokenKind::Val:

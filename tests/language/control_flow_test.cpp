@@ -64,6 +64,18 @@ def main() : int {
              program.functions[0].body[3]),
          "if/else is represented in the AST");
 
+  janus::frontend::Parser jump_parser{
+      "def main() : int { while true { continue break } return 0 }"};
+  const janus::ast::Program jump_program = jump_parser.parse_program();
+  const auto &jump_loop =
+      *std::get<std::shared_ptr<janus::ast::WhileStatement>>(
+          jump_program.functions[0].body[0]);
+  expect(std::holds_alternative<janus::ast::ContinueStatement>(
+             jump_loop.body[0]),
+         "continue is represented explicitly in the AST");
+  expect(std::holds_alternative<janus::ast::BreakStatement>(jump_loop.body[1]),
+         "break is represented explicitly in the AST");
+
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
 
