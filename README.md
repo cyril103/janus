@@ -181,6 +181,21 @@ reste reproductible. Les clones sont conservés sous `target/dependencies` et
 `janus.lock` enregistre exactement les sources résolues. Le fichier lock doit
 être versionné, tandis que `target/` reste ignoré.
 
+## Tests
+
+Chaque fichier `.janus` placé sous `tests/` est un programme de test autonome :
+son `main` retourne `0` en cas de succès et une autre valeur en cas d'échec.
+
+```bash
+janus test
+janus test tableau
+janus test --release
+```
+
+La commande découvre récursivement les tests, continue après un échec et place
+les exécutables sous `target/debug/tests` ou `target/release/tests`. Un filtre
+facultatif limite l'exécution aux chemins qui contiennent le texte donné.
+
 ## Générer de l'IR LLVM
 
 Un programme d'exemple est fourni dans `examples/value.janus` :

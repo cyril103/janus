@@ -57,6 +57,7 @@ void initialize_project(const std::filesystem::path &directory,
 
   const std::string resolved_name = project_name(root, name);
   std::filesystem::create_directories(root / "src");
+  std::filesystem::create_directories(root / "tests");
   write_if_missing(root / "src/main.janus",
                    "def main() : int {\n"
                    "    println(\"Hello from Janus!\")\n"

@@ -8,6 +8,7 @@
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -50,6 +51,7 @@ struct Options {
   bool release{};
   std::optional<janus::driver::Manifest> manifest;
   std::vector<std::filesystem::path> dependency_paths;
+  std::string test_filter;
 };
 
 std::filesystem::path executable_path(const char *argv0) {
@@ -111,6 +113,7 @@ void print_usage() {
             << "  janus build [source.janus] [-o output] [--release] "
                "[--emit llvm-ir|object]\n"
             << "  janus run [source.janus] [--release]\n"
+            << "  janus test [filter] [--release]\n"
             << "  janus --version\n";
 }
 
@@ -152,12 +155,16 @@ Options parse_options(int argc, char **argv) {
   Options options;
   options.command = argv[1];
   if (options.command != "check" && options.command != "build" &&
-      options.command != "run")
+      options.command != "run" && options.command != "test")
     throw std::runtime_error{"unknown command '" + options.command + "'"};
   int first_option = 2;
   if (first_option < argc &&
-      !std::string_view{argv[first_option]}.starts_with('-'))
-    options.source = argv[first_option++];
+      !std::string_view{argv[first_option]}.starts_with('-')) {
+    if (options.command == "test")
+      options.test_filter = argv[first_option++];
+    else
+      options.source = argv[first_option++];
+  }
   for (int index = first_option; index < argc; ++index) {
     const std::string_view argument = argv[index];
     if (argument == "-o") {
@@ -188,6 +195,9 @@ Options parse_options(int argc, char **argv) {
   if (options.command == "run" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object))
     throw std::runtime_error{"run does not accept -o or --emit"};
+  if (options.command == "test" &&
+      (!options.output.empty() || options.emit_llvm || options.emit_object))
+    throw std::runtime_error{"test does not accept -o or --emit"};
   if (options.source.empty()) {
     options.manifest = janus::driver::load_manifest(
         janus::driver::find_manifest(std::filesystem::current_path()));
@@ -321,6 +331,56 @@ int build(const Options &options, const std::filesystem::path &output,
   return 0;
 }
 
+int run_tests(const Options &options, const Toolchain &toolchain) {
+  const std::filesystem::path tests_root = options.manifest->root() / "tests";
+  std::vector<std::filesystem::path> tests;
+  if (std::filesystem::is_directory(tests_root)) {
+    for (const auto &entry :
+         std::filesystem::recursive_directory_iterator(tests_root)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".janus" &&
+          (options.test_filter.empty() ||
+           entry.path().generic_string().find(options.test_filter) !=
+               std::string::npos))
+        tests.push_back(entry.path());
+    }
+  }
+  std::sort(tests.begin(), tests.end());
+
+  std::size_t passed = 0;
+  for (const std::filesystem::path &test : tests) {
+    std::filesystem::path relative =
+        std::filesystem::relative(test, tests_root);
+    relative.replace_extension();
+    std::filesystem::path executable = options.manifest->root() / "target" /
+                                       (options.release ? "release" : "debug") /
+                                       "tests" / relative;
+#ifdef _WIN32
+    executable += ".exe";
+#endif
+    std::cout << "test " << relative.generic_string() << " ... " << std::flush;
+    try {
+      Options test_options = options;
+      test_options.source = test;
+      build(test_options, executable, toolchain);
+      const int status =
+          command_status(std::system(shell_quote(executable).c_str()));
+      if (status == 0) {
+        ++passed;
+        std::cout << "ok\n";
+      } else {
+        std::cout << "FAILED (exit " << status << ")\n";
+      }
+    } catch (const std::exception &error) {
+      std::cout << "FAILED\n";
+      std::cerr << test.string() << ": " << error.what() << '\n';
+    }
+  }
+  std::cout << "\ntest result: " << (passed == tests.size() ? "ok" : "FAILED")
+            << ". " << passed << " passed; " << tests.size() - passed
+            << " failed\n";
+  return passed == tests.size() ? 0 : 1;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -339,6 +399,10 @@ int main(int argc, char **argv) {
     if (options.manifest.has_value())
       options.dependency_paths =
           janus::driver::resolve_dependencies(*options.manifest);
+    if (options.command == "test") {
+      options.dependency_paths.push_back(options.manifest->root() / "src");
+      return run_tests(options, toolchain);
+    }
     diagnostic_path = options.source;
     if (options.command == "check") {
       llvm::LLVMContext context;

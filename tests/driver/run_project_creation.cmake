@@ -12,7 +12,7 @@ execute_process(
 if(NOT NEW_STATUS EQUAL 0)
     message(FATAL_ERROR "janus new failed: ${NEW_ERROR}")
 endif()
-foreach(FILE janus.toml src/main.janus .gitignore)
+foreach(FILE janus.toml src/main.janus .gitignore tests)
     if(NOT EXISTS "${TEST_ROOT}/hello/${FILE}")
         message(FATAL_ERROR "janus new did not create ${FILE}")
     endif()
@@ -57,6 +57,41 @@ if(NOT RELEASE_STATUS EQUAL 0
    OR NOT EXISTS "${TEST_ROOT}/hello/target/release/hello")
     message(FATAL_ERROR "release project build failed: ${RELEASE_ERROR}")
 endif()
+
+file(WRITE "${TEST_ROOT}/hello/src/helper.janus"
+     "module helper\ndef helper_value() : int { return 42 }\n")
+file(WRITE "${TEST_ROOT}/hello/tests/basic.janus"
+     "import helper\n"
+     "def main() : int {\n    return helper_value() - 42\n}\n")
+execute_process(
+    COMMAND "${JANUS}" test
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
+    RESULT_VARIABLE TEST_STATUS
+    OUTPUT_VARIABLE TEST_OUTPUT
+    ERROR_VARIABLE TEST_ERROR
+)
+if(NOT TEST_STATUS EQUAL 0 OR NOT TEST_OUTPUT MATCHES "1 passed; 0 failed")
+    message(FATAL_ERROR "janus test failed: ${TEST_ERROR}\n${TEST_OUTPUT}")
+endif()
+if(NOT EXISTS "${TEST_ROOT}/hello/target/debug/tests/basic")
+    message(FATAL_ERROR "janus test did not create an isolated executable")
+endif()
+file(WRITE "${TEST_ROOT}/hello/tests/failing.janus"
+     "def main() : int {\n    return 1\n}\n")
+execute_process(
+    COMMAND "${JANUS}" test failing
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
+    RESULT_VARIABLE FAILING_TEST_STATUS
+    OUTPUT_VARIABLE FAILING_TEST_OUTPUT
+    ERROR_VARIABLE FAILING_TEST_ERROR
+)
+if(FAILING_TEST_STATUS EQUAL 0
+   OR NOT FAILING_TEST_OUTPUT MATCHES "0 passed; 1 failed")
+    message(FATAL_ERROR
+        "janus test did not report failure: ${FAILING_TEST_ERROR}\n"
+        "${FAILING_TEST_OUTPUT}")
+endif()
+file(REMOVE "${TEST_ROOT}/hello/tests/failing.janus")
 
 file(MAKE_DIRECTORY "${TEST_ROOT}/localmath/src")
 file(WRITE "${TEST_ROOT}/localmath/janus.toml"
