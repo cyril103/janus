@@ -205,8 +205,13 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
       if (current_.kind == TokenKind::Less) {
         advance();
         static_cast<void>(expect(TokenKind::Colon));
-        type_constraints.push_back(ast::TypeConstraint{
-            std::string{parameter.lexeme}, parse_type(), parameter.location});
+        do {
+          type_constraints.push_back(ast::TypeConstraint{
+              std::string{parameter.lexeme}, parse_type(), parameter.location});
+          if (current_.kind != TokenKind::Ampersand)
+            break;
+          advance();
+        } while (true);
       }
       if (current_.kind != TokenKind::Comma)
         break;
@@ -244,8 +249,13 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
       if (current_.kind == TokenKind::Less) {
         advance();
         static_cast<void>(expect(TokenKind::Colon));
-        type_constraints.push_back(ast::TypeConstraint{
-            std::string{parameter.lexeme}, parse_type(), parameter.location});
+        do {
+          type_constraints.push_back(ast::TypeConstraint{
+              std::string{parameter.lexeme}, parse_type(), parameter.location});
+          if (current_.kind != TokenKind::Ampersand)
+            break;
+          advance();
+        } while (true);
       }
       if (current_.kind != TokenKind::Comma)
         break;
@@ -399,8 +409,13 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       if (current_.kind == TokenKind::Less) {
         advance();
         static_cast<void>(expect(TokenKind::Colon));
-        type_constraints.push_back(ast::TypeConstraint{
-            std::string{parameter.lexeme}, parse_type(), parameter.location});
+        do {
+          type_constraints.push_back(ast::TypeConstraint{
+              std::string{parameter.lexeme}, parse_type(), parameter.location});
+          if (current_.kind != TokenKind::Ampersand)
+            break;
+          advance();
+        } while (true);
       }
       if (current_.kind != TokenKind::Comma)
         break;
@@ -545,8 +560,13 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
       if (current_.kind == TokenKind::Less) {
         advance();
         static_cast<void>(expect(TokenKind::Colon));
-        type_constraints.push_back(ast::TypeConstraint{
-            std::string{parameter.lexeme}, parse_type(), parameter.location});
+        do {
+          type_constraints.push_back(ast::TypeConstraint{
+              std::string{parameter.lexeme}, parse_type(), parameter.location});
+          if (current_.kind != TokenKind::Ampersand)
+            break;
+          advance();
+        } while (true);
       }
       if (current_.kind != TokenKind::Comma) {
         break;

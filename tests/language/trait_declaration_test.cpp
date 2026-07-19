@@ -47,7 +47,11 @@ trait Iterable[T] {
     consume def finish() : T
 }
 
-class Sequence[T](val value : T) extends Iterable[T] {
+trait Sized {
+    def size() : usize
+}
+
+class Sequence[T](val value : T) extends Iterable[T], Sized {
     def iterator() : Iterator[T] {
         return new Iterator[T]()
     }
@@ -57,12 +61,15 @@ class Sequence[T](val value : T) extends Iterable[T] {
     consume def finish() : T {
         return value
     }
+    def size() : usize {
+        return usize(1)
+    }
 }
 
-def visit[C <: Iterable[int]](sequence : C) : int {
+def visit[C <: Iterable[int] & Sized](sequence : C) : int {
     val iterator : Iterator[int] = sequence.iterator()
     delete iterator
-    return 1
+    return int(sequence.size())
 }
 
 def main() : int {
@@ -71,7 +78,7 @@ def main() : int {
 )";
   janus::frontend::Parser parser{source};
   const janus::ast::Program program = parser.parse_program();
-  expect(program.traits.size() == 1, "one trait is parsed");
+  expect(program.traits.size() == 2, "multiple traits are parsed");
   expect(program.traits.front().name == "Iterable",
          "the trait retains its name");
   expect(program.traits.front().type_parameters.size() == 1,
@@ -82,10 +89,10 @@ def main() : int {
          "trait methods can be generic");
   expect(program.traits.front().methods[2].is_consuming,
          "trait methods can declare a consuming ownership contract");
-  expect(program.classes[1].implemented_traits.size() == 1,
-         "class trait implementations are parsed");
-  expect(program.functions.front().type_constraints.size() == 1,
-         "generic trait constraints are parsed");
+  expect(program.classes[1].implemented_traits.size() == 2,
+         "multiple class trait implementations are parsed");
+  expect(program.functions.front().type_constraints.size() == 2,
+         "multiple generic trait constraints are parsed");
 
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));

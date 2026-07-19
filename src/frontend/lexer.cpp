@@ -218,6 +218,9 @@ Token Lexer::next() {
     return Token{TokenKind::Slash, source_.substr(start_position, 1), start};
   case '%':
     return Token{TokenKind::Percent, source_.substr(start_position, 1), start};
+  case '&':
+    return Token{TokenKind::Ampersand, source_.substr(start_position, 1),
+                 start};
   case '<':
     return Token{TokenKind::Less, source_.substr(start_position, 1), start};
   case '>':

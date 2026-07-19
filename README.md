@@ -766,6 +766,17 @@ def visit[C <: Iterable[int]](values : C) : int {
 }
 ```
 
+Plusieurs contrats se combinent avec `&` :
+
+```janus
+def inspect[T <: Iterable[int] & Sized](value : T) : usize {
+    return value.size()
+}
+```
+
+Le type concret fourni doit satisfaire toutes les bornes. Si plusieurs traits
+bornés déclarent une méthode de même nom, l'appel est refusé comme ambigu.
+
 Les traits Janus sont résolus statiquement. La monomorphisation remplace `C`
 par sa classe concrète et appelle directement sa méthode `iterator`, sans
 objet de trait, vtable, boxing ni coût de dispatch à l'exécution.

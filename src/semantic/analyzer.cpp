@@ -422,16 +422,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
   const auto validate_constraints =
       [&](const std::vector<ast::TypeConstraint> &constraints,
           const std::unordered_set<std::string> &type_parameters) {
-        std::unordered_set<std::string> constrained;
+        std::unordered_set<std::string> declared_constraints;
         for (const ast::TypeConstraint &constraint : constraints) {
           if (!type_parameters.contains(constraint.parameter))
             throw CompileError{constraint.location,
                                "constraint targets unknown type parameter '" +
                                    constraint.parameter + "'"};
-          if (!constrained.insert(constraint.parameter).second)
-            throw CompileError{constraint.location,
-                               "type parameter '" + constraint.parameter +
-                                   "' already has a trait constraint"};
+          const std::string key =
+              constraint.parameter + ":" + constraint.trait.name;
+          if (!declared_constraints.insert(key).second)
+            throw CompileError{
+                constraint.location,
+                "trait constraint '" + constraint.trait.name +
+                    "' is already declared for type parameter '" +
+                    constraint.parameter + "'"};
           static_cast<void>(resolve_trait(constraint.trait, type_parameters));
         }
       };
@@ -784,12 +788,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                                    "' is already declared"};
       }
     }
-    std::unordered_map<std::string, TraitInstance> active_trait_constraints;
+    std::unordered_map<std::string, std::vector<TraitInstance>>
+        active_trait_constraints;
     const auto add_active_constraints =
         [&](const std::vector<ast::TypeConstraint> &constraints) {
           for (const ast::TypeConstraint &constraint : constraints)
-            active_trait_constraints.emplace(
-                constraint.parameter,
+            active_trait_constraints[constraint.parameter].push_back(
                 resolve_trait(constraint.trait, type_parameters));
         };
     if (owner != nullptr)
@@ -802,14 +806,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
         return true;
       const auto iterator = active_trait_constraints.find(candidate.parameter);
       if (candidate.is_concrete() || candidate.is_class() ||
-          iterator == active_trait_constraints.end() ||
-          iterator->second.declaration != requirement.declaration ||
-          iterator->second.type_arguments.size() !=
-              requirement.type_arguments.size())
+          iterator == active_trait_constraints.end())
         return false;
-      return std::equal(iterator->second.type_arguments.begin(),
-                        iterator->second.type_arguments.end(),
-                        requirement.type_arguments.begin(), same_type);
+      return std::any_of(
+          iterator->second.begin(), iterator->second.end(),
+          [&](const TraitInstance &active) {
+            return active.declaration == requirement.declaration &&
+                   active.type_arguments.size() ==
+                       requirement.type_arguments.size() &&
+                   std::equal(active.type_arguments.begin(),
+                              active.type_arguments.end(),
+                              requirement.type_arguments.begin(), same_type);
+          });
     };
     SymbolTable *active_symbols = &symbols;
     const std::unordered_set<std::string> *active_type_parameters =
@@ -1448,7 +1456,32 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   throw CompileError{node.location,
                                      "method call requires an object or a "
                                      "trait-constrained value"};
-                trait_declaration = constraint->second.declaration;
+                const TraitInstance *selected_constraint = nullptr;
+                for (const TraitInstance &active : constraint->second) {
+                  const auto candidate = std::find_if(
+                      active.declaration->methods.begin(),
+                      active.declaration->methods.end(),
+                      [&](const ast::FunctionDeclaration &declaration) {
+                        return declaration.name == node.method;
+                      });
+                  if (candidate == active.declaration->methods.end())
+                    continue;
+                  if (method != nullptr)
+                    throw CompileError{
+                        node.location,
+                        "method '" + node.method +
+                            "' is ambiguous between multiple trait "
+                            "constraints"};
+                  method = &*candidate;
+                  selected_constraint = &active;
+                }
+                if (selected_constraint == nullptr)
+                  throw CompileError{
+                      node.location,
+                      "no trait constraint for type parameter '" +
+                          object_type.parameter + "' provides method '" +
+                          node.method + "'"};
+                trait_declaration = selected_constraint->declaration;
                 method_parameters.insert(
                     trait_declaration->type_parameters.begin(),
                     trait_declaration->type_parameters.end());
@@ -1456,12 +1489,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                      index < trait_declaration->type_parameters.size(); ++index)
                   substitutions.emplace(
                       trait_declaration->type_parameters[index],
-                      constraint->second.type_arguments[index]);
-                for (const ast::FunctionDeclaration &candidate :
-                     trait_declaration->methods) {
-                  if (candidate.name == node.method)
-                    method = &candidate;
-                }
+                      selected_constraint->type_arguments[index]);
               }
               if (method == nullptr)
                 throw CompileError{node.location,
@@ -1953,10 +1981,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
             }
           } else if (const auto constraint =
                          active_trait_constraints.find(source_type.parameter);
-                     constraint != active_trait_constraints.end() &&
-                     constraint->second.declaration->name == "Iterable" &&
-                     constraint->second.type_arguments.size() == 1) {
-            element_type = constraint->second.type_arguments.front();
+                     constraint != active_trait_constraints.end()) {
+            for (const TraitInstance &active : constraint->second)
+              if (active.declaration->name == "Iterable" &&
+                  active.type_arguments.size() == 1)
+                element_type = active.type_arguments.front();
           }
           if (!element_type.has_value())
             throw CompileError{(*loop)->location,

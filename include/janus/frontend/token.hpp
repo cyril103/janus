@@ -58,6 +58,7 @@ enum class TokenKind {
   LessEqual,
   Greater,
   GreaterEqual,
+  Ampersand,
   AmpAmp,
   PipePipe,
   Semicolon,
@@ -176,6 +177,8 @@ struct Token {
     return "'>'";
   case TokenKind::GreaterEqual:
     return "'>='";
+  case TokenKind::Ampersand:
+    return "'&'";
   case TokenKind::AmpAmp:
     return "'&&'";
   case TokenKind::PipePipe:
