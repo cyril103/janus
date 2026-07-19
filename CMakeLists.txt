@@ -899,6 +899,18 @@ install(
     DESTINATION
         "${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}"
 )
+if(WIN32)
+    find_file(
+        JANUS_UNWIND_LIBRARY
+        NAMES libunwind.a
+        HINTS "${JANUS_CLANG_RUNTIME_DIRECTORY}/../lib"
+        REQUIRED
+    )
+    install(
+        FILES "${JANUS_UNWIND_LIBRARY}"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+endif()
 install(
     DIRECTORY stdlib/
     DESTINATION ${CMAKE_INSTALL_DATADIR}/janus/stdlib
