@@ -450,13 +450,20 @@ private:
                                       cleanup_locals, builder));
   }
 
-  void emit_active_cleanups(::llvm::IRBuilder<> &builder) {
-    for (auto scope = active_cleanup_scopes_.rbegin();
-         scope != active_cleanup_scopes_.rend(); ++scope)
-      for (auto action = scope->actions->rbegin();
-           action != scope->actions->rend(); ++action)
-        emit_cleanup_action(**action, *scope->substitutions, *scope->locals,
+  void emit_cleanups_from_depth(::llvm::IRBuilder<> &builder,
+                                std::size_t retained_depth) {
+    for (std::size_t index = active_cleanup_scopes_.size();
+         index > retained_depth; --index) {
+      const CleanupScope &scope = active_cleanup_scopes_[index - 1];
+      for (auto action = scope.actions->rbegin();
+           action != scope.actions->rend(); ++action)
+        emit_cleanup_action(**action, *scope.substitutions, *scope.locals,
                             builder);
+    }
+  }
+
+  void emit_active_cleanups(::llvm::IRBuilder<> &builder) {
+    emit_cleanups_from_depth(builder, 0);
   }
 
   ::llvm::Function *emit_function(
@@ -567,6 +574,7 @@ private:
     struct LoopTarget {
       ::llvm::BasicBlock *break_block;
       ::llvm::BasicBlock *continue_block;
+      std::size_t cleanup_depth;
     };
     std::vector<LoopTarget> loop_targets;
     emit_block = [&](const std::vector<janus::ast::Statement> &statements,
@@ -637,7 +645,8 @@ private:
           builder.CreateCondBr(condition, body_block, exit_block);
           builder.SetInsertPoint(body_block);
           auto body_locals = block_locals;
-          loop_targets.push_back(LoopTarget{exit_block, condition_block});
+          loop_targets.push_back(LoopTarget{
+              exit_block, condition_block, active_cleanup_scopes_.size()});
           const bool body_returns = emit_block((*loop)->body, body_locals);
           loop_targets.pop_back();
           if (!body_returns)
@@ -727,7 +736,8 @@ private:
           auto body_locals = block_locals;
           body_locals.insert_or_assign((*loop)->binding,
                                        Local{storage, &element_type});
-          loop_targets.push_back(LoopTarget{exit_block, condition_block});
+          loop_targets.push_back(LoopTarget{
+              exit_block, condition_block, active_cleanup_scopes_.size()});
           const bool body_returns = emit_block((*loop)->body, body_locals);
           loop_targets.pop_back();
           if (!body_returns)
@@ -824,12 +834,16 @@ private:
         }
 
         if (std::holds_alternative<janus::ast::BreakStatement>(statement)) {
+          emit_cleanups_from_depth(builder,
+                                   loop_targets.back().cleanup_depth);
           builder.CreateBr(loop_targets.back().break_block);
           active_cleanup_scopes_.pop_back();
           return true;
         }
 
         if (std::holds_alternative<janus::ast::ContinueStatement>(statement)) {
+          emit_cleanups_from_depth(builder,
+                                   loop_targets.back().cleanup_depth);
           builder.CreateBr(loop_targets.back().continue_block);
           active_cleanup_scopes_.pop_back();
           return true;

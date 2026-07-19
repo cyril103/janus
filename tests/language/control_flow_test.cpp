@@ -136,6 +136,84 @@ def main() : int {
                  std::string::npos,
          "break branches to the nearest while exit");
 
+  janus::frontend::Parser cleanup_parser{R"(
+def breakOuter() : Unit {}
+def breakIteration() : Unit {}
+def breakNested() : Unit {}
+def continueOuter() : Unit {}
+def continueIteration() : Unit {}
+def continueNested() : Unit {}
+def breakLoop() : Unit {
+    defer breakOuter()
+    while true {
+        defer breakIteration()
+        if true {
+            defer breakNested()
+            break
+        }
+    }
+}
+def continueLoop() : Unit {
+    defer continueOuter()
+    var index : int = 0
+    while index < 1 {
+        index = index + 1
+        defer continueIteration()
+        if true {
+            defer continueNested()
+            continue
+        }
+    }
+}
+def main() : int {
+    breakLoop()
+    continueLoop()
+    return 0
+}
+)"};
+  const janus::ast::Program cleanup_program = cleanup_parser.parse_program();
+  static_cast<void>(analyzer.analyze(cleanup_program));
+  llvm::LLVMContext cleanup_context;
+  janus::backend::llvm::IrGenerator cleanup_generator{cleanup_context};
+  const std::unique_ptr<llvm::Module> cleanup_module =
+      cleanup_generator.generate(cleanup_program, "loop_jump_cleanup");
+  std::string cleanup_ir;
+  llvm::raw_string_ostream cleanup_output{cleanup_ir};
+  cleanup_module->print(cleanup_output, nullptr);
+  cleanup_output.flush();
+  const std::size_t break_function =
+      cleanup_ir.find("define void @breakLoop()");
+  const std::size_t break_nested =
+      cleanup_ir.find("call void @breakNested()", break_function);
+  const std::size_t break_iteration =
+      cleanup_ir.find("call void @breakIteration()", break_nested);
+  const std::size_t break_branch =
+      cleanup_ir.find("br label %while.end", break_iteration);
+  const std::size_t break_outer =
+      cleanup_ir.find("call void @breakOuter()", break_function);
+  expect(break_nested < break_iteration && break_iteration < break_branch,
+         "break unwinds abandoned scopes in LIFO order");
+  expect(break_outer != std::string::npos &&
+             !(break_nested < break_outer && break_outer < break_branch),
+         "break retains function-scope deferred actions");
+  const std::size_t continue_function =
+      cleanup_ir.find("define void @continueLoop()");
+  const std::size_t continue_nested =
+      cleanup_ir.find("call void @continueNested()", continue_function);
+  const std::size_t continue_iteration =
+      cleanup_ir.find("call void @continueIteration()", continue_nested);
+  const std::size_t continue_branch =
+      cleanup_ir.find("br label %while.condition", continue_iteration);
+  const std::size_t continue_outer =
+      cleanup_ir.find("call void @continueOuter()", continue_function);
+  expect(continue_nested < continue_iteration &&
+             continue_iteration < continue_branch,
+         "continue unwinds abandoned scopes in LIFO order");
+  expect(continue_outer != std::string::npos &&
+             !(continue_nested < continue_outer &&
+               continue_outer < continue_branch),
+         "continue retains function-scope deferred actions");
+
   constexpr std::string_view definitely_initialized = R"(
 def main() : int {
     var result : int
