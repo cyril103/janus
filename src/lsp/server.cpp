@@ -60,6 +60,19 @@ llvm::json::Object position(std::uint32_t line, std::uint32_t column) {
   };
 }
 
+std::string publish_diagnostics(std::string_view uri,
+                                llvm::json::Array diagnostics) {
+  return serialize(llvm::json::Object{
+      {"jsonrpc", "2.0"},
+      {"method", "textDocument/publishDiagnostics"},
+      {"params",
+       llvm::json::Object{
+           {"uri", std::string{uri}},
+           {"diagnostics", std::move(diagnostics)},
+       }},
+  });
+}
+
 struct DocumentSymbol {
   std::string name;
   std::string detail;
@@ -244,15 +257,7 @@ std::string Server::diagnostics(std::string_view uri,
     });
   }
 
-  return serialize(llvm::json::Object{
-      {"jsonrpc", "2.0"},
-      {"method", "textDocument/publishDiagnostics"},
-      {"params",
-       llvm::json::Object{
-           {"uri", std::string{uri}},
-           {"diagnostics", std::move(items)},
-       }},
-  });
+  return publish_diagnostics(uri, std::move(items));
 }
 
 std::vector<std::string> Server::handle(std::string_view message) {
@@ -327,7 +332,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
   }
   if (*method == "textDocument/didClose" && uri) {
     documents_.erase(uri->str());
-    return {diagnostics(*uri, "")};
+    return {publish_diagnostics(*uri, {})};
   }
 
   const auto open_document =

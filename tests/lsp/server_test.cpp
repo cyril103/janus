@@ -36,6 +36,14 @@ int main() {
   assert(imported.size() == 1);
   assert(imported.front().find("\"diagnostics\":[]") != std::string::npos);
 
+  const std::vector<std::string> closed = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"file:///array.janus"}}})");
+  assert(closed.size() == 1);
+  assert(closed.front().find("\"uri\":\"file:///array.janus\"") !=
+         std::string::npos);
+  assert(closed.front().find("\"diagnostics\":[]") != std::string::npos);
+  assert(closed.front().find("entry point") == std::string::npos);
+
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 return answer }"}]}})"));
   const std::vector<std::string> hover = server.handle(
