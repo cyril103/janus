@@ -916,6 +916,22 @@ if(WIN32)
             "${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/lib/windows"
     )
 endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    file(GLOB JANUS_LINUX_SUPPORT_LIBRARIES
+        "/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libbsd.so*"
+        "/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libicudata.so*"
+        "/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libicuuc.so*"
+        "/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libmd.so*"
+        "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libbsd.so*"
+        "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libicudata.so*"
+        "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libicuuc.so*"
+        "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libmd.so*"
+    )
+    install(
+        FILES ${JANUS_LINUX_SUPPORT_LIBRARIES}
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+endif()
 install(
     DIRECTORY stdlib/
     DESTINATION ${CMAKE_INSTALL_DATADIR}/janus/stdlib
