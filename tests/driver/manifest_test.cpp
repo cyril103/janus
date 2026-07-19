@@ -29,7 +29,7 @@ int main() {
              << "version = \"1.2.3-beta.1\"\n"
              << "entry = \"src/main.janus\"\n"
              << "\n[dependencies]\n"
-             << "local = { path = \"../local\" }\n"
+             << "local = { path = \"../local\", version = \"^1.0.0\" }\n"
              << "remote = { git = \"https://example.invalid/repo\", "
                 "rev = \"0123456789abcdef0123456789abcdef01234567\" }\n";
     }
@@ -45,6 +45,8 @@ int main() {
     require(manifest.dependencies.size() == 2, "dependencies were not parsed");
     require(manifest.dependencies[0].path == "../local",
             "path dependency was not retained");
+    require(manifest.dependencies[0].version_requirement == "^1.0.0",
+            "version requirement was not retained");
     require(manifest.dependencies[1].is_git() &&
                 manifest.dependencies[1].revision.size() == 40,
             "Git dependency was not retained");

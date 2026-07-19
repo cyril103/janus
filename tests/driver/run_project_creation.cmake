@@ -104,7 +104,8 @@ file(MAKE_DIRECTORY "${TEST_ROOT}/localmath/src")
 file(WRITE "${TEST_ROOT}/localmath/janus.toml"
      "[package]\nname = \"localmath\"\nversion = \"1.0.0\"\n"
      "entry = \"src/localmath.janus\"\n"
-     "\n[dependencies]\nnestedmath = { path = \"../nestedmath\" }\n")
+     "\n[dependencies]\n"
+     "nestedmath = { path = \"../nestedmath\", version = \"~1.0.0\" }\n")
 file(WRITE "${TEST_ROOT}/localmath/src/localmath.janus"
      "module localmath\nimport nestedmath\n"
      "def local_value() : int { return 18 + nested_value() }\n")
@@ -145,9 +146,9 @@ endif()
 file(TO_CMAKE_PATH "${TEST_ROOT}/gitmath" GIT_DEPENDENCY_URL)
 file(APPEND "${TEST_ROOT}/hello/janus.toml"
      "\n[dependencies]\n"
-     "localmath = { path = \"../localmath\" }\n"
+     "localmath = { path = \"../localmath\", version = \"^1.0.0\" }\n"
      "gitmath = { git = \"${GIT_DEPENDENCY_URL}\", "
-     "rev = \"${GIT_REVISION}\" }\n")
+     "rev = \"${GIT_REVISION}\", version = \"2.*\" }\n")
 file(WRITE "${TEST_ROOT}/hello/src/main.janus"
      "import localmath\nimport gitmath\n"
      "def main() : int { return local_value() + git_value() - 42 }\n")

@@ -1,4 +1,5 @@
 #include "janus/driver/manifest.hpp"
+#include "janus/driver/semver.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -131,6 +132,15 @@ void validate(const janus::driver::Manifest &manifest) {
                                dependency.name +
                                "' requires one relative path"};
     }
+    try {
+      static_cast<void>(janus::driver::matches_version(
+          dependency.version_requirement,
+          janus::driver::parse_semantic_version("0.0.0")));
+    } catch (const std::runtime_error &error) {
+      throw std::runtime_error{
+          "janus.toml: dependency '" + dependency.name +
+          "' has invalid version requirement: " + error.what()};
+    }
   }
 }
 
@@ -189,9 +199,12 @@ Manifest load_manifest(const std::filesystem::path &path) {
         dependency.git = found->second;
       if (const auto found = fields.find("rev"); found != fields.end())
         dependency.revision = found->second;
+      if (const auto found = fields.find("version"); found != fields.end())
+        dependency.version_requirement = found->second;
       for (const auto &[field, unused] : fields) {
         static_cast<void>(unused);
-        if (field != "path" && field != "git" && field != "rev")
+        if (field != "path" && field != "git" && field != "rev" &&
+            field != "version")
           throw std::runtime_error{"janus.toml:" + std::to_string(line_number) +
                                    ": unknown dependency field '" + field +
                                    "'"};

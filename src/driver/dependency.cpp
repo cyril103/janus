@@ -1,4 +1,5 @@
 #include "janus/driver/dependency.hpp"
+#include "janus/driver/semver.hpp"
 
 #include <cstdlib>
 #include <filesystem>
@@ -145,11 +146,19 @@ resolve_dependencies(const Manifest &manifest) {
 
     visiting.insert(dependency.name);
     const Manifest dependency_manifest = validate_dependency(dependency, root);
+    const SemanticVersion resolved_version =
+        parse_semantic_version(dependency_manifest.version);
+    if (!matches_version(dependency.version_requirement, resolved_version))
+      throw std::runtime_error{"dependency '" + dependency.name +
+                               "' resolved to " + dependency_manifest.version +
+                               ", which does not satisfy '" +
+                               dependency.version_requirement + "'"};
     resolved_sources.emplace(dependency.name, source_identity);
     lock += "\n[[dependency]]\nname = \"" + dependency.name + "\"\n";
     if (dependency.is_git()) {
       lock += "source = \"git+" + dependency.git + "\"\n";
       lock += "revision = \"" + dependency.revision + "\"\n";
+      lock += "version = \"" + dependency_manifest.version + "\"\n";
     } else {
       const std::filesystem::path project_relative =
           std::filesystem::relative(root, manifest.root());

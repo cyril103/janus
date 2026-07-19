@@ -149,6 +149,7 @@ add_library(janus_driver
     src/driver/manifest.cpp
     src/driver/project.cpp
     src/driver/dependency.cpp
+    src/driver/semver.cpp
 )
 target_include_directories(janus_driver
     PUBLIC
@@ -272,6 +273,12 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME driver.manifest COMMAND manifest_test)
+    add_executable(semver_test
+        tests/driver/semver_test.cpp
+    )
+    target_link_libraries(semver_test PRIVATE janus_driver)
+    target_compile_options(semver_test PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME driver.semver COMMAND semver_test)
     add_test(
         NAME cli.project_creation
         COMMAND "${CMAKE_COMMAND}"

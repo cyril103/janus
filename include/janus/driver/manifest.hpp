@@ -11,6 +11,7 @@ struct Dependency {
   std::filesystem::path path;
   std::string git;
   std::string revision;
+  std::string version_requirement;
 
   [[nodiscard]] bool is_git() const { return !git.empty(); }
 };
