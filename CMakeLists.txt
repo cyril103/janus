@@ -282,6 +282,7 @@ if(BUILD_TESTING)
                 -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
                 -DPACKAGE_PLATFORM=${CMAKE_SYSTEM_NAME}
                 -DPACKAGE_ARCH=${CMAKE_SYSTEM_PROCESSOR}
+                -DJANUS=$<TARGET_FILE:janus>
                 -DJANUSUP=$<TARGET_FILE:janusup>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_janusup.cmake"
     )

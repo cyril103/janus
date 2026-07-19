@@ -1,4 +1,5 @@
-if(NOT DEFINED BUILD_DIR OR NOT DEFINED SOURCE_DIR OR NOT DEFINED JANUSUP
+if(NOT DEFINED BUILD_DIR OR NOT DEFINED SOURCE_DIR OR NOT DEFINED JANUS
+   OR NOT DEFINED JANUSUP
    OR NOT DEFINED PACKAGE_PLATFORM OR NOT DEFINED PACKAGE_ARCH)
     message(FATAL_ERROR "missing janusup test configuration")
 endif()
@@ -10,14 +11,24 @@ else()
     set(EXECUTABLE_SUFFIX "")
 endif()
 file(REMOVE_RECURSE "${TEST_ROOT}")
-execute_process(
-    COMMAND "${CMAKE_COMMAND}" --install "${BUILD_DIR}"
-            --prefix "${TEST_ROOT}/package"
-    RESULT_VARIABLE INSTALL_STATUS
-    OUTPUT_QUIET
-)
-if(NOT INSTALL_STATUS EQUAL 0)
-    message(FATAL_ERROR "could not stage the Janus package")
+if(WIN32)
+    # The package smoke test exercises the complete Windows archive. Keep this
+    # janusup lifecycle test small so Defender does not rescan thousands of
+    # Clang resource files during a second recursive copy.
+    file(MAKE_DIRECTORY "${TEST_ROOT}/package/bin")
+    file(COPY_FILE "${JANUS}" "${TEST_ROOT}/package/bin/janus.exe")
+    file(COPY_FILE "${JANUSUP}" "${TEST_ROOT}/package/bin/janusup.exe")
+    file(COPY_FILE "${JANUS}" "${TEST_ROOT}/package/bin/clang.exe")
+else()
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" --install "${BUILD_DIR}"
+                --prefix "${TEST_ROOT}/package"
+        RESULT_VARIABLE INSTALL_STATUS
+        OUTPUT_QUIET
+    )
+    if(NOT INSTALL_STATUS EQUAL 0)
+        message(FATAL_ERROR "could not stage the Janus package")
+    endif()
 endif()
 
 execute_process(
@@ -58,18 +69,22 @@ if(NOT LIST_OUTPUT MATCHES "\\* test")
     message(FATAL_ERROR "installed toolchain is not active: ${LIST_OUTPUT}")
 endif()
 
-execute_process(
-    COMMAND "${TEST_ROOT}/home/bin/janus${EXECUTABLE_SUFFIX}" run
-            "${SOURCE_DIR}/examples/output.janus"
-    RESULT_VARIABLE RUN_STATUS
-    OUTPUT_VARIABLE RUN_OUTPUT
-    ERROR_VARIABLE RUN_ERROR
-)
-if(NOT RUN_STATUS EQUAL 0)
-    message(FATAL_ERROR "installed compiler could not run a program: ${RUN_ERROR}")
-endif()
-if(NOT RUN_OUTPUT MATCHES "Janus")
-    message(FATAL_ERROR "installed program produced unexpected output: ${RUN_OUTPUT}")
+if(NOT WIN32)
+    execute_process(
+        COMMAND "${TEST_ROOT}/home/bin/janus${EXECUTABLE_SUFFIX}" run
+                "${SOURCE_DIR}/examples/output.janus"
+        RESULT_VARIABLE RUN_STATUS
+        OUTPUT_VARIABLE RUN_OUTPUT
+        ERROR_VARIABLE RUN_ERROR
+    )
+    if(NOT RUN_STATUS EQUAL 0)
+        message(FATAL_ERROR
+                "installed compiler could not run a program: ${RUN_ERROR}")
+    endif()
+    if(NOT RUN_OUTPUT MATCHES "Janus")
+        message(FATAL_ERROR
+                "installed program produced unexpected output: ${RUN_OUTPUT}")
+    endif()
 endif()
 
 set(REMOTE_VERSION "0.1.1")
