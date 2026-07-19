@@ -31,9 +31,6 @@ jobs:
             cxx: /opt/homebrew/opt/llvm/bin/clang++
           - name: Windows x86_64
             os: windows-2025
-            llvm_dir: C:/msys64/ucrt64/lib/cmake/llvm
-            cc: C:/msys64/ucrt64/bin/clang.exe
-            cxx: C:/msys64/ucrt64/bin/clang++.exe
 
     runs-on: ${{ matrix.os }}
 
@@ -51,8 +48,9 @@ jobs:
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install llvm ninja
+          brew install llvm lld ninja
           echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/opt/lld/bin" >> "$GITHUB_PATH"
 
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
@@ -62,10 +60,13 @@ jobs:
           update: true
           install: >-
             mingw-w64-ucrt-x86_64-clang
+            mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-lld
+            mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-llvm
 
       - name: Configure
+        if: runner.os != 'Windows'
         shell: bash
         run: >
           cmake -S . -B build -G Ninja
@@ -73,6 +74,16 @@ jobs:
           -DCMAKE_C_COMPILER="${{ matrix.cc }}"
           -DCMAKE_CXX_COMPILER="${{ matrix.cxx }}"
           -DLLVM_DIR="${{ matrix.llvm_dir }}"
+
+      - name: Configure on Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=/ucrt64/bin/clang.exe
+          -DCMAKE_CXX_COMPILER=/ucrt64/bin/clang++.exe
+          -DLLVM_DIR=/ucrt64/lib/cmake/llvm
 
       - name: Build
         run: cmake --build build --parallel
