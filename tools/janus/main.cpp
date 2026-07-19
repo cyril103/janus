@@ -2,6 +2,7 @@
 #include "janus/backend/llvm/object_emitter.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/driver/dependency.hpp"
+#include "janus/driver/formatter.hpp"
 #include "janus/driver/manifest.hpp"
 #include "janus/driver/native_linker.hpp"
 #include "janus/driver/project.hpp"
@@ -13,7 +14,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -52,6 +55,7 @@ struct Options {
   bool release{};
   bool locked{};
   bool offline{};
+  bool format_check{};
   std::optional<janus::driver::Manifest> manifest;
   std::vector<std::filesystem::path> dependency_paths;
   std::string test_filter;
@@ -121,6 +125,7 @@ void print_usage() {
                "[--emit llvm-ir|object]\n"
             << "  janus run [source.janus] [--release]\n"
             << "  janus test [filter] [--release]\n"
+            << "  janus fmt [source.janus] [--check]\n"
             << "  dependency options: --locked --offline\n"
             << "  janus --version\n";
 }
@@ -223,7 +228,8 @@ Options parse_options(int argc, char **argv) {
   Options options;
   options.command = argv[1];
   if (options.command != "check" && options.command != "build" &&
-      options.command != "run" && options.command != "test")
+      options.command != "run" && options.command != "test" &&
+      options.command != "fmt")
     throw std::runtime_error{"unknown command '" + options.command + "'"};
   int first_option = 2;
   if (first_option < argc &&
@@ -245,6 +251,8 @@ Options parse_options(int argc, char **argv) {
       options.locked = true;
     } else if (argument == "--offline") {
       options.offline = true;
+    } else if (argument == "--check" && options.command == "fmt") {
+      options.format_check = true;
     } else if (argument == "--emit") {
       if (++index == argc)
         throw std::runtime_error{"--emit requires 'llvm-ir' or 'object'"};
@@ -270,6 +278,10 @@ Options parse_options(int argc, char **argv) {
   if (options.command == "test" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object))
     throw std::runtime_error{"test does not accept -o or --emit"};
+  if (options.command == "fmt" &&
+      (!options.output.empty() || options.emit_llvm || options.emit_object ||
+       options.release || options.locked || options.offline))
+    throw std::runtime_error{"fmt only accepts a source path and --check"};
   if (options.source.empty()) {
     options.manifest = janus::driver::load_manifest(
         janus::driver::find_manifest(std::filesystem::current_path()));
@@ -453,6 +465,47 @@ int run_tests(const Options &options, const Toolchain &toolchain) {
   return passed == tests.size() ? 0 : 1;
 }
 
+int format_sources(const Options &options) {
+  std::vector<std::filesystem::path> sources;
+  if (options.manifest.has_value()) {
+    for (const char *directory : {"src", "tests"}) {
+      const std::filesystem::path root = options.manifest->root() / directory;
+      if (!std::filesystem::is_directory(root))
+        continue;
+      for (const auto &entry :
+           std::filesystem::recursive_directory_iterator(root)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".janus")
+          sources.push_back(entry.path());
+      }
+    }
+  } else {
+    sources.push_back(options.source);
+  }
+  std::sort(sources.begin(), sources.end());
+  bool changed = false;
+  for (const std::filesystem::path &source : sources) {
+    std::ifstream input{source};
+    if (!input)
+      throw std::runtime_error{"cannot read '" + source.string() + "'"};
+    const std::string contents{std::istreambuf_iterator<char>{input},
+                               std::istreambuf_iterator<char>{}};
+    const std::string formatted = janus::driver::format_source(contents);
+    if (formatted == contents)
+      continue;
+    changed = true;
+    if (options.format_check) {
+      std::cout << "would format " << source.string() << '\n';
+      continue;
+    }
+    std::ofstream output{source, std::ios::trunc};
+    if (!output)
+      throw std::runtime_error{"cannot write '" + source.string() + "'"};
+    output << formatted;
+    std::cout << "formatted " << source.string() << '\n';
+  }
+  return options.format_check && changed ? 1 : 0;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -472,6 +525,8 @@ int main(int argc, char **argv) {
       return manage_package(argc, argv);
     const Toolchain toolchain = locate_toolchain(argv[0]);
     Options options = parse_options(argc, argv);
+    if (options.command == "fmt")
+      return format_sources(options);
     if (options.manifest.has_value())
       options.dependency_paths = janus::driver::resolve_dependencies(
           *options.manifest, {options.locked, options.offline});

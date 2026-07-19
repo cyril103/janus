@@ -47,6 +47,7 @@ if command -v ldd >/dev/null 2>&1 &&
 fi
 
 JANUS="$PACKAGE_ROOT/bin/janus"
+"$PACKAGE_ROOT/bin/janus-lsp" --version
 export HOME="$WORK/home"
 export JANUS_CACHE="$WORK/cache"
 export JANUS_REGISTRY="$WORK/registry"
@@ -57,6 +58,7 @@ export JANUS_REGISTRY="$WORK/registry"
 (
   cd "$WORK/hello"
   "$JANUS" check
+  "$JANUS" fmt --check
   "$JANUS" build
   "$JANUS" build --release
   OUTPUT="$("$JANUS" run)"

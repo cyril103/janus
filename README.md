@@ -107,6 +107,17 @@ l'exécution :
 `--release` active les optimisations et `--emit llvm-ir|object` permet de
 s'arrêter avant l'édition de liens.
 
+`janus fmt` indente tous les fichiers `.janus` des dossiers `src` et `tests`
+et normalise les espaces de fin de ligne. `janus fmt --check` ne modifie rien
+et retourne un code non nul si un fichier doit être reformaté, ce qui permet
+de l'utiliser en CI.
+
+Le paquet fournit aussi `janus-lsp`, un premier serveur LSP utilisable sur
+l'entrée/sortie standard. Il implémente le cycle de vie JSON-RPC
+`initialize`/`shutdown`/`exit` et annonce la synchronisation des documents
+ainsi que le formatage. Les diagnostics incrémentaux seront ajoutés dans une
+prochaine étape.
+
 ## Installer la chaîne d'outils
 
 La première distribution officielle, Janus 0.1.0, cible Linux x86_64. Les

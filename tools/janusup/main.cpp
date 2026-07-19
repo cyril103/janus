@@ -277,7 +277,7 @@ void activate(const std::string &name) {
   if (!std::filesystem::is_directory(source))
     throw std::runtime_error{"toolchain '" + name + "' is not installed"};
   std::filesystem::create_directories(home() / "bin");
-  for (const char *program : {"janus", "janusc", "janusup"}) {
+  for (const char *program : {"janus", "janusc", "janusup", "janus-lsp"}) {
 #ifdef _WIN32
     const std::filesystem::path filename = std::string{program} + ".exe";
     if (std::filesystem::exists(source / filename))

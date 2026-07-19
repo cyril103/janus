@@ -29,11 +29,14 @@ try {
     }
 
     $Janus = Join-Path $PackageRoot.FullName "bin\janus.exe"
+    $JanusLsp = Join-Path $PackageRoot.FullName "bin\janus-lsp.exe"
     $env:HOME = Join-Path $Work "home"
     $env:JANUS_CACHE = Join-Path $Work "cache"
     $env:JANUS_REGISTRY = Join-Path $Work "registry"
     & $Janus --version
     if ($LASTEXITCODE -ne 0) { throw "smoke test: janus --version failed" }
+    & $JanusLsp --version
+    if ($LASTEXITCODE -ne 0) { throw "smoke test: janus-lsp --version failed" }
 
     $Project = Join-Path $Work "hello"
     & $Janus new $Project
@@ -41,6 +44,8 @@ try {
     try {
         & $Janus check
         if ($LASTEXITCODE -ne 0) { throw "smoke test: janus check failed" }
+        & $Janus fmt --check
+        if ($LASTEXITCODE -ne 0) { throw "smoke test: janus fmt failed" }
         & $Janus build --release
         if ($LASTEXITCODE -ne 0) { throw "smoke test: release build failed" }
         $Output = & $Janus run

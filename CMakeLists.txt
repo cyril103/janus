@@ -145,6 +145,7 @@ target_compile_definitions(janusc
 )
 
 add_library(janus_driver
+    src/driver/formatter.cpp
     src/driver/native_linker.cpp
     src/driver/manifest.cpp
     src/driver/project.cpp
@@ -221,6 +222,20 @@ target_compile_definitions(janusup
         JANUS_VERSION="${PROJECT_VERSION}"
 )
 
+add_executable(janus-lsp
+    tools/janus-lsp/main.cpp
+)
+target_compile_options(janus-lsp
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+target_compile_definitions(janus-lsp
+    PRIVATE
+        JANUS_VERSION="${PROJECT_VERSION}"
+)
+
 include(CTest)
 if(BUILD_TESTING)
     set(CLANG_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}")
@@ -229,6 +244,7 @@ if(BUILD_TESTING)
         NAME cli.check
         COMMAND janus check "${PROJECT_SOURCE_DIR}/examples/value.janus"
     )
+    add_test(NAME lsp.version COMMAND janus-lsp --version)
     add_test(
         NAME cli.emit_llvm
         COMMAND janus build "${PROJECT_SOURCE_DIR}/examples/value.janus"
@@ -280,6 +296,17 @@ if(BUILD_TESTING)
     target_link_libraries(semver_test PRIVATE janus_driver)
     target_compile_options(semver_test PRIVATE -Wall -Wextra -Wpedantic)
     add_test(NAME driver.semver COMMAND semver_test)
+    add_executable(formatter_test
+        tests/driver/formatter_test.cpp
+    )
+    target_link_libraries(formatter_test PRIVATE janus_driver)
+    target_compile_options(formatter_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME driver.formatter COMMAND formatter_test)
     add_test(
         NAME cli.project_creation
         COMMAND "${CMAKE_COMMAND}"
@@ -807,7 +834,7 @@ set_target_properties(janus_bundled_lld
 )
 
 install(
-    TARGETS janus janusc janusup
+    TARGETS janus janusc janusup janus-lsp
     RUNTIME_DEPENDENCY_SET janus_toolchain_dependencies
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
@@ -886,6 +913,6 @@ add_custom_target(dist
     COMMAND "${CMAKE_COMMAND}"
             -DARCHIVE=${JANUS_PACKAGE_ARCHIVE}
             -P "${PROJECT_SOURCE_DIR}/cmake/write_checksum.cmake"
-    DEPENDS janus janusc janusup janus_runtime
+    DEPENDS janus janusc janusup janus-lsp janus_runtime
     COMMENT "Building the Janus distribution and SHA-256 checksum"
 )
