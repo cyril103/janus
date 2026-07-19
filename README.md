@@ -177,9 +177,11 @@ reseau = { git = "https://example.com/reseau.git", rev = "0123456789abcdef012345
 ```
 
 Une dépendance Git exige un hash de commit complet afin qu'une construction
-reste reproductible. Les clones sont conservés sous `target/dependencies` et
-`janus.lock` enregistre exactement les sources résolues. Le fichier lock doit
-être versionné, tandis que `target/` reste ignoré.
+reste reproductible. Les clones sont conservés une seule fois dans le cache
+global `~/.janus/cache/git/<commit>` et sont partagés entre les projets.
+`JANUS_CACHE` permet de déplacer ce cache. `janus.lock` enregistre exactement
+les sources résolues. Le fichier lock doit être versionné, tandis que
+`target/` reste ignoré.
 
 ## Tests
 

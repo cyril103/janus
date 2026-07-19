@@ -56,12 +56,25 @@ void run(const std::string &command, const std::string &description) {
     throw std::runtime_error{description};
 }
 
-std::filesystem::path resolve_git(const janus::driver::Manifest &project,
-                                  const janus::driver::Dependency &dependency,
+std::filesystem::path cache_root() {
+  if (const char *configured = std::getenv("JANUS_CACHE"))
+    return configured;
+  if (const char *janus_home = std::getenv("JANUSUP_HOME"))
+    return std::filesystem::path{janus_home} / "cache";
+#ifdef _WIN32
+  if (const char *local = std::getenv("LOCALAPPDATA"))
+    return std::filesystem::path{local} / "Janus/cache";
+#else
+  if (const char *home = std::getenv("HOME"))
+    return std::filesystem::path{home} / ".janus/cache";
+#endif
+  throw std::runtime_error{"cannot determine the Janus cache directory"};
+}
+
+std::filesystem::path resolve_git(const janus::driver::Dependency &dependency,
                                   bool offline) {
   const std::filesystem::path cache =
-      project.root() / "target/dependencies" /
-      (dependency.name + "-" + dependency.revision.substr(0, 12));
+      cache_root() / "git" / dependency.revision;
   const std::filesystem::path revision_file = cache / ".janus-revision";
   if (std::filesystem::exists(cache)) {
     std::ifstream input{revision_file};
@@ -129,7 +142,7 @@ resolve_dependencies(const Manifest &manifest,
                            const Dependency &dependency) -> void {
     const std::filesystem::path root =
         dependency.is_git()
-            ? resolve_git(manifest, dependency, options.offline)
+            ? resolve_git(dependency, options.offline)
             : (owner.root() / dependency.path).lexically_normal();
     if (!std::filesystem::is_directory(root))
       throw std::runtime_error{"dependency '" + dependency.name +

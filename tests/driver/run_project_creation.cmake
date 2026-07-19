@@ -4,6 +4,7 @@ endif()
 
 set(TEST_ROOT "${BUILD_DIR}/project-creation-test")
 file(REMOVE_RECURSE "${TEST_ROOT}")
+set(ENV{JANUS_CACHE} "${TEST_ROOT}/cache")
 execute_process(
     COMMAND "${JANUS}" new "${TEST_ROOT}/hello"
     RESULT_VARIABLE NEW_STATUS
@@ -169,13 +170,8 @@ if(NOT LOCK_CONTENTS MATCHES "path\\+\\.\\./localmath"
    OR NOT LOCK_CONTENTS MATCHES "${GIT_REVISION}")
     message(FATAL_ERROR "janus.lock does not contain resolved dependencies")
 endif()
-if(NOT IS_DIRECTORY
-   "${TEST_ROOT}/hello/target/dependencies/gitmath-${GIT_REVISION}")
-    string(SUBSTRING "${GIT_REVISION}" 0 12 GIT_SHORT_REVISION)
-    if(NOT IS_DIRECTORY
-       "${TEST_ROOT}/hello/target/dependencies/gitmath-${GIT_SHORT_REVISION}")
-        message(FATAL_ERROR "Git dependency was not cached")
-    endif()
+if(NOT IS_DIRECTORY "${TEST_ROOT}/cache/git/${GIT_REVISION}")
+    message(FATAL_ERROR "Git dependency was not cached globally")
 endif()
 
 execute_process(
@@ -206,9 +202,25 @@ if(NOT LOCK_REFRESH_STATUS EQUAL 0)
     message(FATAL_ERROR "janus.lock could not be refreshed")
 endif()
 
-string(SUBSTRING "${GIT_REVISION}" 0 12 GIT_SHORT_REVISION)
-file(REMOVE_RECURSE
-     "${TEST_ROOT}/hello/target/dependencies/gitmath-${GIT_SHORT_REVISION}")
+file(MAKE_DIRECTORY "${TEST_ROOT}/cacheapp/src")
+file(WRITE "${TEST_ROOT}/cacheapp/src/main.janus"
+     "import gitmath\ndef main() : int { return git_value() - 22 }\n")
+file(WRITE "${TEST_ROOT}/cacheapp/janus.toml"
+     "[package]\nname = \"cacheapp\"\nversion = \"1.0.0\"\n"
+     "entry = \"src/main.janus\"\n[dependencies]\n"
+     "gitmath = { git = \"${GIT_DEPENDENCY_URL}\", "
+     "rev = \"${GIT_REVISION}\", version = \"2.*\" }\n")
+execute_process(
+    COMMAND "${JANUS}" check --offline
+    WORKING_DIRECTORY "${TEST_ROOT}/cacheapp"
+    RESULT_VARIABLE SHARED_CACHE_STATUS
+    ERROR_VARIABLE SHARED_CACHE_ERROR
+)
+if(NOT SHARED_CACHE_STATUS EQUAL 0)
+    message(FATAL_ERROR "global cache was not reused: ${SHARED_CACHE_ERROR}")
+endif()
+
+file(REMOVE_RECURSE "${TEST_ROOT}/cache/git/${GIT_REVISION}")
 execute_process(
     COMMAND "${JANUS}" check --offline
     WORKING_DIRECTORY "${TEST_ROOT}/hello"
