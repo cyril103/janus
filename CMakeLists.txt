@@ -952,10 +952,19 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         NO_DEFAULT_PATH
     )
     if(JANUS_ICUUC_SONAME AND JANUS_ICUDATA_SONAME)
+        get_filename_component(
+            JANUS_ICUUC_LIBRARY "${JANUS_ICUUC_SONAME}" REALPATH
+        )
+        get_filename_component(
+            JANUS_ICUDATA_LIBRARY "${JANUS_ICUDATA_SONAME}" REALPATH
+        )
         install(
-            FILES "${JANUS_ICUUC_SONAME}" "${JANUS_ICUDATA_SONAME}"
+            FILES
+                "${JANUS_ICUUC_SONAME}"
+                "${JANUS_ICUUC_LIBRARY}"
+                "${JANUS_ICUDATA_SONAME}"
+                "${JANUS_ICUDATA_LIBRARY}"
             DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            FOLLOW_SYMLINK_CHAIN
         )
     endif()
 endif()
