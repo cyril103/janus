@@ -182,7 +182,10 @@ int build(const Options &options, const std::filesystem::path &output) {
   if (options.emit_object)
     return 0;
   janus::driver::link_executable(
-      {object}, output, janus::driver::LinkOptions{!options.release, {}});
+      {object}, output,
+      janus::driver::LinkOptions{
+          !options.release,
+          {std::filesystem::path{JANUS_RUNTIME_LIBRARY}}});
   std::error_code ignored;
   std::filesystem::remove(object, ignored);
   return 0;

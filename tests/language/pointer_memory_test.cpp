@@ -74,13 +74,13 @@ def main() : int {
   module->print(output, nullptr);
   output.flush();
   expect(ir.find("allocation.bytes = mul i64 2") != std::string::npos &&
-             ir.find("call ptr @malloc") != std::string::npos,
+             ir.find("call ptr @janus_alloc") != std::string::npos,
          "alloc multiplies count by sizeof(T)");
-  expect(ir.find("call ptr @realloc") != std::string::npos,
+  expect(ir.find("call ptr @janus_realloc") != std::string::npos,
          "realloc resizes the raw buffer");
   expect(ir.find("getelementptr inbounds i32") != std::string::npos,
          "load/store use typed pointer arithmetic");
-  expect(ir.find("call void @free") != std::string::npos,
+  expect(ir.find("call void @janus_free") != std::string::npos,
          "free releases the raw buffer");
   expect(ir.find("icmp ne ptr") != std::string::npos,
          "pointers support equality comparisons");

@@ -101,7 +101,7 @@ def main() : int {
          "lambda bodies lower to internal LLVM functions");
   expect(ir.find("call i32 %") != std::string::npos,
          "function values are invoked through indirect calls");
-  expect(ir.find("call void @free(ptr") != std::string::npos,
+  expect(ir.find("call void @janus_free(ptr") != std::string::npos,
          "delete releases closure environments");
   expect(ir.find("define { ptr, ptr } @makeIdentity__int()") !=
              std::string::npos,

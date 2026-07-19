@@ -16,6 +16,16 @@ find_package(LLVM REQUIRED CONFIG)
 find_program(JANUS_CLANG_EXECUTABLE clang REQUIRED)
 find_program(JANUS_LLD_EXECUTABLE NAMES ld.lld lld-link ld64.lld REQUIRED)
 
+add_library(janus_runtime STATIC
+    runtime/janus_runtime.c
+)
+target_compile_options(janus_runtime
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+
 add_library(janus_types
     src/types/type.cpp
 )
@@ -123,6 +133,7 @@ add_executable(janus
     tools/janus/main.cpp
     src/driver/native_linker.cpp
 )
+add_dependencies(janus janus_runtime)
 target_link_libraries(janus
     PRIVATE
         janus_semantic
@@ -139,6 +150,7 @@ target_compile_definitions(janus
         JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
         JANUS_VERSION="${PROJECT_VERSION}"
         JANUS_CLANG_PATH="${JANUS_CLANG_EXECUTABLE}"
+        JANUS_RUNTIME_LIBRARY="$<TARGET_FILE:janus_runtime>"
 )
 
 include(CTest)
@@ -254,6 +266,7 @@ if(BUILD_TESTING)
             "-DCLANG=${CLANG_EXECUTABLE}"
             "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/interop/c_abi.janus"
             "-DFIXTURE=$<TARGET_FILE:janus_c_interop_fixture>"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/c_interop"
             -P "${PROJECT_SOURCE_DIR}/tests/interop/run_c_interop.cmake"
     )
@@ -264,6 +277,7 @@ if(BUILD_TESTING)
             "-DJANUSC=$<TARGET_FILE:janusc>"
             "-DCLANG=${CLANG_EXECUTABLE}"
             "-DSOURCE=${PROJECT_SOURCE_DIR}/examples/loop_jumps.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/loop_jumps_runtime"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )

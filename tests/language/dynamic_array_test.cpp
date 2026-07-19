@@ -117,16 +117,16 @@ def main() : int {
   expect(ir.find("define internal void @Array__int__resize") !=
              std::string::npos,
          "Array growth is emitted as a private specialized method");
-  expect(ir.find("call ptr @realloc") != std::string::npos,
+  expect(ir.find("call ptr @janus_realloc") != std::string::npos,
          "Array growth reallocates its contiguous buffer");
   expect(ir.find("define i32 @Array__int__get") != std::string::npos,
          "Array[int].get returns an int");
-  expect(ir.find("call void @abort()") != std::string::npos,
+  expect(ir.find("call void @janus_panic") != std::string::npos,
          "Array bounds checks panic on failure");
   expect(ir.find("define internal void @Array__int__destructor") !=
              std::string::npos,
          "Array has a specialized destructor");
-  expect(ir.find("call void @free") != std::string::npos,
+  expect(ir.find("call void @janus_free") != std::string::npos,
          "Array destruction releases its buffer");
 
   if (failures != 0) {

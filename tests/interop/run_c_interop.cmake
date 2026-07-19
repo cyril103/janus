@@ -19,6 +19,7 @@ execute_process(
         -fno-omit-frame-pointer
         "${LLVM_IR}"
         "${FIXTURE}"
+        "${RUNTIME}"
         -o "${EXECUTABLE}"
     ERROR_VARIABLE CLANG_ERROR
     RESULT_VARIABLE CLANG_RESULT

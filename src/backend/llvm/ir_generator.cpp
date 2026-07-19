@@ -273,95 +273,6 @@ private:
                    substitutions);
   }
 
-  ::llvm::Function *ensure_print_char_function() {
-    if (::llvm::Function *function = module_->getFunction("__janus_print_char"))
-      return function;
-
-    auto *function = ::llvm::Function::Create(
-        ::llvm::FunctionType::get(::llvm::Type::getVoidTy(context_),
-                                  {::llvm::Type::getInt32Ty(context_)}, false),
-        ::llvm::GlobalValue::InternalLinkage, "__janus_print_char", *module_);
-    function->getArg(0)->setName("codepoint");
-
-    ::llvm::BasicBlock *entry =
-        ::llvm::BasicBlock::Create(context_, "entry", function);
-    ::llvm::BasicBlock *ascii =
-        ::llvm::BasicBlock::Create(context_, "ascii", function);
-    ::llvm::BasicBlock *two_check =
-        ::llvm::BasicBlock::Create(context_, "two.check", function);
-    ::llvm::BasicBlock *two =
-        ::llvm::BasicBlock::Create(context_, "two", function);
-    ::llvm::BasicBlock *three_check =
-        ::llvm::BasicBlock::Create(context_, "three.check", function);
-    ::llvm::BasicBlock *three =
-        ::llvm::BasicBlock::Create(context_, "three", function);
-    ::llvm::BasicBlock *four =
-        ::llvm::BasicBlock::Create(context_, "four", function);
-    ::llvm::BasicBlock *done =
-        ::llvm::BasicBlock::Create(context_, "done", function);
-
-    ::llvm::IRBuilder<> builder{entry};
-    ::llvm::Value *codepoint = function->getArg(0);
-    builder.CreateCondBr(
-        builder.CreateICmpULE(codepoint, builder.getInt32(0x7f)), ascii,
-        two_check);
-
-    ::llvm::FunctionCallee dprintf_function = module_->getOrInsertFunction(
-        "dprintf", ::llvm::FunctionType::get(
-                       builder.getInt32Ty(),
-                       {builder.getInt32Ty(), builder.getPtrTy()}, true));
-    ::llvm::Value *format = builder.CreateGlobalString("%c");
-    const auto emit_byte = [&](::llvm::IRBuilder<> &active_builder,
-                               ::llvm::Value *byte) {
-      static_cast<void>(active_builder.CreateCall(
-          dprintf_function, {active_builder.getInt32(1), format, byte}));
-    };
-    const auto utf8_byte = [&](::llvm::IRBuilder<> &active_builder,
-                               unsigned shift, unsigned mask, unsigned prefix) {
-      ::llvm::Value *shifted =
-          active_builder.CreateLShr(codepoint, active_builder.getInt32(shift));
-      return active_builder.CreateOr(
-          active_builder.CreateAnd(shifted, active_builder.getInt32(mask)),
-          active_builder.getInt32(prefix));
-    };
-
-    builder.SetInsertPoint(ascii);
-    emit_byte(builder, codepoint);
-    builder.CreateBr(done);
-
-    builder.SetInsertPoint(two_check);
-    builder.CreateCondBr(
-        builder.CreateICmpULE(codepoint, builder.getInt32(0x7ff)), two,
-        three_check);
-
-    builder.SetInsertPoint(two);
-    emit_byte(builder, utf8_byte(builder, 6, 0x1f, 0xc0));
-    emit_byte(builder, utf8_byte(builder, 0, 0x3f, 0x80));
-    builder.CreateBr(done);
-
-    builder.SetInsertPoint(three_check);
-    builder.CreateCondBr(
-        builder.CreateICmpULE(codepoint, builder.getInt32(0xffff)), three,
-        four);
-
-    builder.SetInsertPoint(three);
-    emit_byte(builder, utf8_byte(builder, 12, 0x0f, 0xe0));
-    emit_byte(builder, utf8_byte(builder, 6, 0x3f, 0x80));
-    emit_byte(builder, utf8_byte(builder, 0, 0x3f, 0x80));
-    builder.CreateBr(done);
-
-    builder.SetInsertPoint(four);
-    emit_byte(builder, utf8_byte(builder, 18, 0x07, 0xf0));
-    emit_byte(builder, utf8_byte(builder, 12, 0x3f, 0x80));
-    emit_byte(builder, utf8_byte(builder, 6, 0x3f, 0x80));
-    emit_byte(builder, utf8_byte(builder, 0, 0x3f, 0x80));
-    builder.CreateBr(done);
-
-    builder.SetInsertPoint(done);
-    builder.CreateRetVoid();
-    return function;
-  }
-
   std::string
   class_key(std::string_view name,
             const std::vector<const janus::Type *> &type_arguments) const {
@@ -437,7 +348,7 @@ private:
                            {pointer});
       }
       ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
-          "free", ::llvm::FunctionType::get(builder.getVoidTy(),
+          "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
                                             {builder.getPtrTy()}, false));
       builder.CreateCall(free_function, {pointer});
       return;
@@ -747,7 +658,7 @@ private:
           builder.CreateCall(
               emit_destructor(std::string{iterator_type->name()}), {iterator});
           ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
-              "free", ::llvm::FunctionType::get(builder.getVoidTy(),
+              "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
                                                 {builder.getPtrTy()}, false));
           builder.CreateCall(free_function, {iterator});
           continue;
@@ -811,7 +722,7 @@ private:
                 emit_destructor(std::string{deleted_type.name()}), {pointer});
           }
           ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
-              "free", ::llvm::FunctionType::get(builder.getVoidTy(),
+              "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
                                                 {builder.getPtrTy()}, false));
           builder.CreateCall(free_function, {pointer});
           continue;
@@ -1038,7 +949,7 @@ private:
         ::llvm::ConstantPointerNull::get(builder.getPtrTy());
     if (!capture_names.empty()) {
       ::llvm::FunctionCallee malloc_function = module_->getOrInsertFunction(
-          "malloc", ::llvm::FunctionType::get(builder.getPtrTy(),
+          "janus_alloc", ::llvm::FunctionType::get(builder.getPtrTy(),
                                               {builder.getInt64Ty()}, false));
       environment = builder.CreateCall(
           malloc_function, {::llvm::ConstantExpr::getSizeOf(environment_type)},
@@ -1394,19 +1305,6 @@ private:
               ::llvm::Value *argument =
                   emit_expression(*node.arguments.front(), argument_type,
                                   substitutions, locals, builder);
-              ::llvm::FunctionCallee write_function =
-                  module_->getOrInsertFunction(
-                      "write", ::llvm::FunctionType::get(builder.getInt64Ty(),
-                                                         {builder.getInt32Ty(),
-                                                          builder.getPtrTy(),
-                                                          builder.getInt64Ty()},
-                                                         false));
-              ::llvm::FunctionCallee dprintf_function =
-                  module_->getOrInsertFunction(
-                      "dprintf",
-                      ::llvm::FunctionType::get(
-                          builder.getInt32Ty(),
-                          {builder.getInt32Ty(), builder.getPtrTy()}, true));
               ::llvm::Value *result = nullptr;
               switch (argument_type.kind()) {
               case janus::TypeKind::String: {
@@ -1414,50 +1312,60 @@ private:
                     builder.CreateExtractValue(argument, 0, "print.data");
                 ::llvm::Value *length =
                     builder.CreateExtractValue(argument, 1, "print.length");
-                result = builder.CreateCall(
-                    write_function, {builder.getInt32(1), data, length});
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_write_stdout",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(),
+                        {builder.getPtrTy(), builder.getInt64Ty()}, false));
+                result = builder.CreateCall(function, {data, length});
                 break;
               }
-              case janus::TypeKind::Int:
-                result = builder.CreateCall(dprintf_function,
-                                            {builder.getInt32(1),
-                                             builder.CreateGlobalString("%d"),
-                                             argument});
+              case janus::TypeKind::Int: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_int",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt32Ty()}, false));
+                result = builder.CreateCall(function, {argument});
                 break;
-              case janus::TypeKind::Byte:
-                result = builder.CreateCall(
-                    dprintf_function,
-                    {builder.getInt32(1), builder.CreateGlobalString("%d"),
-                     builder.CreateSExt(argument, builder.getInt32Ty(),
-                                        "print.byte")});
+              }
+              case janus::TypeKind::Byte: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_byte",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt8Ty()}, false));
+                result = builder.CreateCall(function, {argument});
                 break;
-              case janus::TypeKind::USize:
-                result = builder.CreateCall(dprintf_function,
-                                            {builder.getInt32(1),
-                                             builder.CreateGlobalString("%llu"),
-                                             argument});
+              }
+              case janus::TypeKind::USize: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_usize",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt64Ty()}, false));
+                result = builder.CreateCall(function, {argument});
                 break;
-              case janus::TypeKind::Double:
-                result = builder.CreateCall(
-                    dprintf_function,
-                    {builder.getInt32(1), builder.CreateGlobalString("%.17g"),
-                     argument});
+              }
+              case janus::TypeKind::Double: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_double",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getDoubleTy()}, false));
+                result = builder.CreateCall(function, {argument});
                 break;
+              }
               case janus::TypeKind::Bool: {
-                ::llvm::Value *true_text = builder.CreateGlobalString("true");
-                ::llvm::Value *false_text = builder.CreateGlobalString("false");
-                ::llvm::Value *data = builder.CreateSelect(
-                    argument, true_text, false_text, "print.bool.data");
-                ::llvm::Value *length = builder.CreateSelect(
-                    argument, builder.getInt64(4), builder.getInt64(5),
-                    "print.bool.length");
-                result = builder.CreateCall(
-                    write_function, {builder.getInt32(1), data, length});
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_bool",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt1Ty()}, false));
+                result = builder.CreateCall(function, {argument});
                 break;
               }
               case janus::TypeKind::Char: {
-                result = builder.CreateCall(ensure_print_char_function(),
-                                            {argument});
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_char",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt32Ty()}, false));
+                result = builder.CreateCall(function, {argument});
                 break;
               }
               default:
@@ -1465,9 +1373,13 @@ private:
               }
               if (node.callee == "println") {
                 ::llvm::Value *newline = builder.CreateGlobalString("\n");
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_write_stdout",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(),
+                        {builder.getPtrTy(), builder.getInt64Ty()}, false));
                 result = builder.CreateCall(
-                    write_function,
-                    {builder.getInt32(1), newline, builder.getInt64(1)});
+                    function, {newline, builder.getInt64(1)});
               }
               return result;
             }
@@ -1485,20 +1397,13 @@ private:
                   builder.CreateExtractValue(message, 0, "panic.data");
               ::llvm::Value *length =
                   builder.CreateExtractValue(message, 1, "panic.length");
-              ::llvm::FunctionCallee write_function =
+              ::llvm::FunctionCallee panic_function =
                   module_->getOrInsertFunction(
-                      "write", ::llvm::FunctionType::get(builder.getInt64Ty(),
-                                                         {builder.getInt32Ty(),
-                                                          builder.getPtrTy(),
-                                                          builder.getInt64Ty()},
-                                                         false));
-              static_cast<void>(builder.CreateCall(
-                  write_function, {builder.getInt32(2), data, length}));
-              ::llvm::FunctionCallee abort_function =
-                  module_->getOrInsertFunction(
-                      "abort",
-                      ::llvm::FunctionType::get(builder.getVoidTy(), false));
-              return builder.CreateCall(abort_function);
+                      "janus_panic",
+                      ::llvm::FunctionType::get(
+                          builder.getVoidTy(),
+                          {builder.getPtrTy(), builder.getInt64Ty()}, false));
+              return builder.CreateCall(panic_function, {data, length});
             }
             if (node.callee == "alloc" || node.callee == "realloc" ||
                 node.callee == "null" || node.callee == "sizeof" ||
@@ -1525,7 +1430,7 @@ private:
               if (node.callee == "alloc") {
                 ::llvm::FunctionCallee malloc_function =
                     module_->getOrInsertFunction(
-                        "malloc",
+                        "janus_alloc",
                         ::llvm::FunctionType::get(
                             builder.getPtrTy(), {builder.getInt64Ty()}, false));
                 return builder.CreateCall(malloc_function, {bytes}, "alloc");
@@ -1535,7 +1440,7 @@ private:
                                   substitutions, locals, builder);
               ::llvm::FunctionCallee realloc_function =
                   module_->getOrInsertFunction(
-                      "realloc",
+                      "janus_realloc",
                       ::llvm::FunctionType::get(
                           builder.getPtrTy(),
                           {builder.getPtrTy(), builder.getInt64Ty()}, false));
@@ -1550,7 +1455,7 @@ private:
                                   substitutions, locals, builder);
               ::llvm::FunctionCallee free_function =
                   module_->getOrInsertFunction(
-                      "free",
+                      "janus_free",
                       ::llvm::FunctionType::get(builder.getVoidTy(),
                                                 {builder.getPtrTy()}, false));
               return builder.CreateCall(free_function, {pointer});
@@ -1690,7 +1595,7 @@ private:
                 llvm_class_types_.at(std::string{object_type.name()});
             ::llvm::FunctionCallee malloc_function =
                 module_->getOrInsertFunction(
-                    "malloc",
+                    "janus_alloc",
                     ::llvm::FunctionType::get(builder.getPtrTy(),
                                               {builder.getInt64Ty()}, false));
             ::llvm::Value *object = builder.CreateCall(
@@ -2200,7 +2105,7 @@ private:
               builder.SetInsertPoint(compare_block);
               ::llvm::FunctionCallee memcmp_function =
                   module_->getOrInsertFunction(
-                      "memcmp", ::llvm::FunctionType::get(
+                      "janus_memcmp", ::llvm::FunctionType::get(
                                     builder.getInt32Ty(),
                                     {builder.getPtrTy(), builder.getPtrTy(),
                                      builder.getInt64Ty()},

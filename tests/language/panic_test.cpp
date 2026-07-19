@@ -65,10 +65,10 @@ def main() : int {
   module->print(output, nullptr);
   output.flush();
 
-  expect(ir.find("call i64 @write(i32 2") != std::string::npos,
-         "panic writes its UTF-8 message to stderr");
-  expect(ir.find("call void @abort()") != std::string::npos,
-         "panic terminates through abort");
+  expect(ir.find("call void @janus_panic") != std::string::npos,
+         "panic delegates UTF-8 output and termination to the runtime");
+  expect(ir.find("declare void @janus_panic(ptr, i64)") != std::string::npos,
+         "panic uses the portable runtime ABI");
   expect(ir.find("call void @requirePositive(i32 42)") != std::string::npos,
          "runtime checks can be called as Unit functions");
 

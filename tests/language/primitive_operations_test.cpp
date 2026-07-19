@@ -107,7 +107,7 @@ def main() : int {
          "char comparison is unsigned");
   expect(ir.find("phi i1") != std::string::npos,
          "logical and string operations use control-flow results");
-  expect(ir.find("call i32 @memcmp") != std::string::npos,
+  expect(ir.find("call i32 @janus_memcmp") != std::string::npos,
          "string equality compares UTF-8 bytes");
   expect(ir.find("add nsw") == std::string::npos &&
              ir.find("add nuw") == std::string::npos,

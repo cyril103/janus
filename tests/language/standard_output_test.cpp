@@ -66,14 +66,13 @@ def main() : int {
   module->print(output, nullptr);
   output.flush();
 
-  expect(ir.find("call i64 @write(i32 1") != std::string::npos,
+  expect(ir.find("call void @janus_write_stdout") != std::string::npos,
          "strings are written to stdout");
-  expect(ir.find("call i32 (i32, ptr, ...) @dprintf(i32 1") !=
-             std::string::npos,
+  expect(ir.find("call void @janus_print_int") != std::string::npos &&
+             ir.find("call void @janus_print_double") != std::string::npos,
          "numbers are formatted on stdout");
-  expect(ir.find("define internal void @__janus_print_char(i32") !=
-             std::string::npos,
-         "Unicode characters use the UTF-8 output helper");
+  expect(ir.find("call void @janus_print_char(i32") != std::string::npos,
+         "Unicode characters use the portable runtime helper");
 
   expect_compile_error("def main() : int { print() return 0 }",
                        "expects one printable argument");

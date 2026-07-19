@@ -104,7 +104,7 @@ def main() : int {
   expect(ir.find("%class.Point = type { i32, i32, { ptr, i64 }, i32 }") !=
              std::string::npos,
          "Point has an LLVM heap layout");
-  expect(ir.find("call ptr @malloc") != std::string::npos,
+  expect(ir.find("call ptr @janus_alloc") != std::string::npos,
          "new allocates Point with malloc");
   expect(ir.find("store i32 1") != std::string::npos,
          "the constructor initializes x");
@@ -122,7 +122,7 @@ def main() : int {
          "a class method can call a private method internally");
   expect(ir.find("call void @Point__destructor") != std::string::npos,
          "delete invokes the destructor");
-  expect(ir.find("call void @free") != std::string::npos,
+  expect(ir.find("call void @janus_free") != std::string::npos,
          "delete releases the allocation");
 
   expect_compile_error(

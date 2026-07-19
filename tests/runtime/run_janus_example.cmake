@@ -18,6 +18,7 @@ execute_process(
         -fsanitize=address
         -fno-omit-frame-pointer
         "${LLVM_IR}"
+        "${RUNTIME}"
         -o "${EXECUTABLE}"
     ERROR_VARIABLE CLANG_ERROR
     RESULT_VARIABLE CLANG_RESULT

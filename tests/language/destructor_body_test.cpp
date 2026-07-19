@@ -82,7 +82,7 @@ def main() : int {
                  std::string::npos,
          "a destructor body can delete an owned field");
   expect(destructor != std::string::npos &&
-             ir.find("call void @free", destructor) != std::string::npos,
+             ir.find("call void @janus_free", destructor) != std::string::npos,
          "delete in a destructor releases the nested object");
 
   janus::frontend::Parser defer_parser{
