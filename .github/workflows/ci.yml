@@ -104,10 +104,55 @@ jobs:
             build/janus-*.zip.sha256
           if-no-files-found: error
 
+  linux-compatibility:
+    name: Linux package on ${{ matrix.name }}
+    needs: toolchain
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            install: >-
+              apt-get update &&
+              apt-get install --yes build-essential ca-certificates
+              coreutils findutils gzip tar
+          - name: Fedora 42
+            image: fedora:42
+            install: >-
+              dnf install --assumeyes gcc glibc-devel libstdc++-devel
+              coreutils findutils gzip tar
+          - name: openSUSE Tumbleweed
+            image: opensuse/tumbleweed
+            install: >-
+              zypper --non-interactive install gcc glibc-devel
+              libstdc++-devel coreutils findutils gzip tar
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ matrix.image }}
+
+    steps:
+      - name: Install native SDK
+        shell: bash
+        run: ${{ matrix.install }}
+
+      - name: Check out Janus
+        uses: actions/checkout@v6
+
+      - name: Download Linux distribution
+        uses: actions/download-artifact@v8
+        with:
+          name: janus-Linux-X64
+          path: dist
+
+      - name: Exercise installed toolchain
+        shell: bash
+        run: scripts/smoke-test-package.sh dist/janus-*.tar.gz
+
   release:
     name: Publish release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: toolchain
+    needs: [toolchain, linux-compatibility]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -172,7 +217,7 @@ jobs:
   nightly:
     name: Publish nightly channel
     if: github.event_name == 'schedule'
-    needs: toolchain
+    needs: [toolchain, linux-compatibility]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
