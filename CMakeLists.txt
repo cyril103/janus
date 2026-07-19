@@ -33,7 +33,9 @@ get_filename_component(
 get_filename_component(
     JANUS_CLANG_REAL_NAME "${JANUS_CLANG_REAL_EXECUTABLE}" NAME
 )
-if(WIN32)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(JANUS_CLANG_INSTALL_NAME "clang.real")
+elseif(WIN32)
     set(JANUS_CLANG_INSTALL_NAME "clang.exe")
 else()
     set(JANUS_CLANG_INSTALL_NAME "clang")
@@ -889,6 +891,13 @@ if(NOT JANUS_CLANG_REAL_NAME STREQUAL JANUS_CLANG_INSTALL_NAME)
             \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${JANUS_CLANG_INSTALL_NAME}\"
         )
     ")
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    install(
+        PROGRAMS cmake/clang-wrapper.sh
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        RENAME clang
+    )
 endif()
 install(
     TARGETS janus_runtime
