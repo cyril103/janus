@@ -315,7 +315,7 @@ resolve_dependencies(const Manifest &manifest,
     return search_paths;
   const std::filesystem::path temporary = manifest.root() / "janus.lock.new";
   {
-    std::ofstream output{temporary, std::ios::trunc};
+    std::ofstream output{temporary, std::ios::binary | std::ios::trunc};
     if (!output)
       throw std::runtime_error{"cannot write janus.lock"};
     output << lock;
