@@ -910,6 +910,11 @@ if(WIN32)
         FILES "${JANUS_UNWIND_LIBRARY}"
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
+    install(
+        FILES "${JANUS_UNWIND_LIBRARY}"
+        DESTINATION
+            "${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/lib/windows"
+    )
 endif()
 install(
     DIRECTORY stdlib/
