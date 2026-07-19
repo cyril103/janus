@@ -1422,3 +1422,7 @@ tests/          Tests du langage et du système de types
 examples/       Programmes Janus d'exemple
 stdlib/         Modules de la bibliothèque standard écrits en Janus
 ```
+
+## Licence
+
+Janus est distribué sous licence Apache-2.0. Consultez [LICENSE](LICENSE).
