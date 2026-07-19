@@ -78,6 +78,10 @@ def main() : int {
 
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
+  janus::frontend::Parser valid_jump_parser{
+      "def main() : int { while true { while true { break } continue } "
+      "return 0 }"};
+  static_cast<void>(analyzer.analyze(valid_jump_parser.parse_program()));
 
   llvm::LLVMContext context;
   janus::backend::llvm::IrGenerator generator{context};
@@ -122,9 +126,20 @@ def main() : int {
       "where type 'bool' is required");
   expect_compile_error(
       "def main() : int { if true { return 1 } else { return 0 } return 2 }",
-      "statement after return is unreachable");
+      "unreachable statement");
   expect_compile_error("def main() : int { while true { return 1 } }",
                        "must return a value");
+  expect_compile_error("def main() : int { break return 0 }",
+                       "break can only be used inside a loop");
+  expect_compile_error("def main() : int { continue return 0 }",
+                       "continue can only be used inside a loop");
+  expect_compile_error(
+      "def main() : int { while true { break println(1) } return 0 }",
+      "unreachable statement");
+  expect_compile_error(
+      "def main() : int { while true { if true { continue } "
+      "else { break } println(1) } return 0 }",
+      "unreachable statement");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

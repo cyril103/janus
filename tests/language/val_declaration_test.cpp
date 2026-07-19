@@ -148,7 +148,7 @@ def main() : int {
   expect_compile_error("def main() : int { val x : int = 5 }",
                        "must return a value");
   expect_compile_error("def main() : int { return 0 val x : int = 5 }",
-                       "statement after return is unreachable");
+                       "unreachable statement");
   expect_compile_error("def main() : int { val value : byte = 128 return 0 }",
                        "outside the signed 8-bit range");
   expect_compile_error("def main() : int { val value : bool = 1 return 0 }",

@@ -944,6 +944,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
         *active_type_substitutions = nullptr;
     bool inside_lambda = false;
     bool inside_defer = false;
+    std::size_t loop_depth = 0;
     std::unordered_set<std::string> transfer_protected_values;
     std::unordered_set<std::string> deferred_values;
 
@@ -2072,11 +2073,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       SymbolTable *previous_symbols = active_symbols;
       const auto previous_deferred_values = deferred_values;
       active_symbols = &block_symbols;
-      bool has_return = false;
+      bool has_terminator = false;
       for (const ast::Statement &statement : statements) {
-        if (has_return)
+        if (has_terminator)
           throw CompileError{statement_location(statement),
-                             "statement after return is unreachable"};
+                             "unreachable statement after control-flow "
+                             "transfer"};
 
         if (const auto *conditional =
                 std::get_if<std::shared_ptr<ast::IfStatement>>(&statement)) {
@@ -2095,7 +2097,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
             symbol.is_initialized = then_symbols.at(name).is_initialized &&
                                     else_symbols.at(name).is_initialized;
           }
-          has_return = then_returns && else_returns;
+          has_terminator = then_returns && else_returns;
           continue;
         }
 
@@ -2110,7 +2112,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
             static_cast<void>(symbol);
             transfer_protected_values.insert(name);
           }
+          ++loop_depth;
           static_cast<void>(validate_block((*loop)->body, loop_symbols));
+          --loop_depth;
           transfer_protected_values = previous_transfer_protected;
           active_symbols = &block_symbols;
           continue;
@@ -2164,7 +2168,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
             static_cast<void>(symbol);
             transfer_protected_values.insert(name);
           }
+          ++loop_depth;
           static_cast<void>(validate_block((*loop)->body, loop_symbols));
+          --loop_depth;
           transfer_protected_values = previous_transfer_protected;
           active_symbols = &block_symbols;
           if (consumes_source)
@@ -2340,6 +2346,23 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           continue;
         }
 
+        if (const auto *jump = std::get_if<ast::BreakStatement>(&statement)) {
+          if (loop_depth == 0)
+            throw CompileError{jump->location,
+                               "break can only be used inside a loop"};
+          has_terminator = true;
+          continue;
+        }
+
+        if (const auto *jump =
+                std::get_if<ast::ContinueStatement>(&statement)) {
+          if (loop_depth == 0)
+            throw CompileError{jump->location,
+                               "continue can only be used inside a loop"};
+          has_terminator = true;
+          continue;
+        }
+
         if (const auto *expression_statement =
                 std::get_if<ast::ExpressionStatement>(&statement)) {
           if (!std::holds_alternative<ast::CallExpression>(
@@ -2377,11 +2400,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           validate_expression(*return_statement.expression, return_type,
                               return_statement.location);
         }
-        has_return = true;
+        has_terminator = true;
       }
       active_symbols = previous_symbols;
       deferred_values = previous_deferred_values;
-      return has_return;
+      return has_terminator;
     };
 
     const bool has_return = validate_block(body, symbols);
