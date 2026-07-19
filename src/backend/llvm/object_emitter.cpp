@@ -8,6 +8,7 @@
 
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Config/llvm-config.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/CodeGen.h>
 #include <llvm/Support/FileSystem.h>
@@ -29,9 +30,15 @@ void emit_object(::llvm::Module &module, const std::filesystem::path &output,
   });
 
   const ::llvm::Triple triple{module.getTargetTriple()};
+  const std::string triple_name = triple.str();
   std::string lookup_error;
+#if LLVM_VERSION_MAJOR >= 21
   const ::llvm::Target *target =
       ::llvm::TargetRegistry::lookupTarget(triple, lookup_error);
+#else
+  const ::llvm::Target *target =
+      ::llvm::TargetRegistry::lookupTarget(triple_name, lookup_error);
+#endif
   if (target == nullptr)
     throw std::runtime_error{"cannot select LLVM target '" +
                              triple.str() + "': " + lookup_error};
@@ -39,7 +46,11 @@ void emit_object(::llvm::Module &module, const std::filesystem::path &output,
   ::llvm::TargetOptions options;
   std::unique_ptr<::llvm::TargetMachine> machine{
       target->createTargetMachine(
+#if LLVM_VERSION_MAJOR >= 21
           triple, "generic", "", options, ::llvm::Reloc::PIC_,
+#else
+          triple_name, "generic", "", options, ::llvm::Reloc::PIC_,
+#endif
           std::nullopt,
           optimize ? ::llvm::CodeGenOptLevel::Aggressive
                    : ::llvm::CodeGenOptLevel::None)};

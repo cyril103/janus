@@ -20,6 +20,7 @@
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/Config/llvm-config.h>
 #include <llvm/Support/CodeGen.h>
 #include <llvm/TargetParser/Host.h>
 #include <llvm/TargetParser/Triple.h>
@@ -52,8 +53,12 @@ public:
             std::string_view module_name)
       : context_{context}, module_{std::make_unique<::llvm::Module>(
                                std::string{module_name}, context)} {
+#if LLVM_VERSION_MAJOR >= 21
     module_->setTargetTriple(
         ::llvm::Triple{::llvm::sys::getDefaultTargetTriple()});
+#else
+    module_->setTargetTriple(::llvm::sys::getDefaultTargetTriple());
+#endif
     module_->setPICLevel(::llvm::PICLevel::BigPIC);
     module_->setPIELevel(::llvm::PIELevel::Large);
     for (const janus::ast::EnumDeclaration &enum_declaration : program.enums)
