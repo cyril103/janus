@@ -157,8 +157,10 @@ if(NOT GIT_INIT_STATUS EQUAL 0 OR NOT GIT_ADD_STATUS EQUAL 0
    OR NOT GIT_COMMIT_STATUS EQUAL 0 OR NOT GIT_REVISION_STATUS EQUAL 0)
     message(FATAL_ERROR
         "could not prepare the Git dependency fixture:\n"
-        "init: ${GIT_INIT_ERROR}\nadd: ${GIT_ADD_ERROR}\n"
-        "commit: ${GIT_COMMIT_ERROR}\nrevision: ${GIT_REVISION_ERROR}")
+        "init (${GIT_INIT_STATUS}): ${GIT_INIT_ERROR}\n"
+        "add (${GIT_ADD_STATUS}): ${GIT_ADD_ERROR}\n"
+        "commit (${GIT_COMMIT_STATUS}): ${GIT_COMMIT_ERROR}\n"
+        "revision (${GIT_REVISION_STATUS}): ${GIT_REVISION_ERROR}")
 endif()
 file(TO_CMAKE_PATH "${TEST_ROOT}/gitmath" GIT_DEPENDENCY_URL)
 file(APPEND "${TEST_ROOT}/hello/janus.toml"
