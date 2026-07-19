@@ -1,6 +1,7 @@
 #include "janus/lsp/server.hpp"
 
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/frontend/lexer.hpp"
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
 
@@ -10,8 +11,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <exception>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -50,6 +54,87 @@ llvm::json::Object position(std::uint32_t line, std::uint32_t column) {
   return llvm::json::Object{
       {"line", static_cast<std::int64_t>(line)},
       {"character", static_cast<std::int64_t>(column)},
+  };
+}
+
+struct DocumentSymbol {
+  std::string name;
+  std::string detail;
+  janus::SourceLocation location;
+};
+
+std::vector<janus::frontend::Token> tokens(std::string_view source) {
+  std::vector<janus::frontend::Token> result;
+  janus::frontend::Lexer lexer{source};
+  while (true) {
+    const janus::frontend::Token token = lexer.next();
+    result.push_back(token);
+    if (token.kind == janus::frontend::TokenKind::End)
+      return result;
+  }
+}
+
+std::vector<DocumentSymbol> symbols(std::string_view source) {
+  using janus::frontend::Token;
+  using janus::frontend::TokenKind;
+  const std::vector<Token> document_tokens = tokens(source);
+  std::vector<DocumentSymbol> result;
+  for (std::size_t index = 0; index + 1 < document_tokens.size(); ++index) {
+    const Token &token = document_tokens[index];
+    const Token &name = document_tokens[index + 1];
+    if (name.kind != TokenKind::Identifier)
+      continue;
+
+    std::string detail;
+    if (token.kind == TokenKind::Val || token.kind == TokenKind::Var) {
+      detail = token.kind == TokenKind::Val ? "val " : "var ";
+      detail += std::string{name.lexeme};
+      if (index + 3 < document_tokens.size() &&
+          document_tokens[index + 2].kind == TokenKind::Colon &&
+          document_tokens[index + 3].kind == TokenKind::Identifier)
+        detail += " : " + std::string{document_tokens[index + 3].lexeme};
+    } else if (token.kind == TokenKind::Def) {
+      detail = "def " + std::string{name.lexeme};
+    } else if (token.kind == TokenKind::Class) {
+      detail = "class " + std::string{name.lexeme};
+    } else if (token.kind == TokenKind::Trait) {
+      detail = "trait " + std::string{name.lexeme};
+    } else if (token.kind == TokenKind::Enum) {
+      detail = "enum " + std::string{name.lexeme};
+    } else {
+      continue;
+    }
+    result.push_back(
+        DocumentSymbol{std::string{name.lexeme}, std::move(detail),
+                       name.location});
+  }
+  return result;
+}
+
+std::optional<std::string> identifier_at(std::string_view source,
+                                         std::uint32_t line,
+                                         std::uint32_t column) {
+  using janus::frontend::TokenKind;
+  for (const janus::frontend::Token &token : tokens(source)) {
+    if (token.kind == TokenKind::Identifier &&
+        token.location.line - 1 == line) {
+      const std::uint32_t start = token.location.column - 1;
+      const std::uint32_t end =
+          start + static_cast<std::uint32_t>(token.lexeme.size());
+      if (column >= start && column <= end)
+        return std::string{token.lexeme};
+    }
+  }
+  return std::nullopt;
+}
+
+llvm::json::Object range(const janus::SourceLocation &location,
+                         std::size_t length) {
+  const std::uint32_t line = location.line > 0 ? location.line - 1 : 0;
+  const std::uint32_t column = location.column > 0 ? location.column - 1 : 0;
+  return llvm::json::Object{
+      {"start", position(line, column)},
+      {"end", position(line, column + static_cast<std::uint32_t>(length))},
   };
 }
 
@@ -122,6 +207,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
              llvm::json::Object{
                  {"textDocumentSync",
                   llvm::json::Object{{"openClose", true}, {"change", 1}}},
+                 {"hoverProvider", true},
+                 {"definitionProvider", true},
+                 {"referencesProvider", true},
              }},
             {"serverInfo",
              llvm::json::Object{{"name", "janus-lsp"},
@@ -167,6 +255,66 @@ std::vector<std::string> Server::handle(std::string_view message) {
   if (*method == "textDocument/didClose" && uri) {
     documents_.erase(uri->str());
     return {diagnostics(*uri, "")};
+  }
+
+  const llvm::json::Object *request_position =
+      params == nullptr ? nullptr : params->getObject("position");
+  const std::optional<std::int64_t> line =
+      request_position == nullptr ? std::nullopt
+                                  : request_position->getInteger("line");
+  const std::optional<std::int64_t> character =
+      request_position == nullptr ? std::nullopt
+                                  : request_position->getInteger("character");
+  const auto document =
+      uri ? documents_.find(uri->str()) : documents_.end();
+  if (uri && line && character && document != documents_.end()) {
+    const std::optional<std::string> identifier = identifier_at(
+        document->second, static_cast<std::uint32_t>(*line),
+        static_cast<std::uint32_t>(*character));
+    if (identifier && *method == "textDocument/hover") {
+      for (const DocumentSymbol &symbol : symbols(document->second)) {
+        if (symbol.name == *identifier) {
+          return {response(
+              request_id(*request),
+              llvm::json::Object{
+                  {"contents",
+                   llvm::json::Object{{"kind", "markdown"},
+                                      {"value", "```janus\n" + symbol.detail +
+                                                    "\n```"}}},
+                  {"range", range(symbol.location, symbol.name.size())},
+              })};
+        }
+      }
+      return {response(request_id(*request), nullptr)};
+    }
+    if (identifier && *method == "textDocument/definition") {
+      for (const DocumentSymbol &symbol : symbols(document->second)) {
+        if (symbol.name == *identifier) {
+          return {response(
+              request_id(*request),
+              llvm::json::Object{
+                  {"uri", uri->str()},
+                  {"range", range(symbol.location, symbol.name.size())},
+              })};
+        }
+      }
+      return {response(request_id(*request), nullptr)};
+    }
+    if (identifier && *method == "textDocument/references") {
+      llvm::json::Array references;
+      for (const auto &[document_uri, document_source] : documents_) {
+        for (const frontend::Token &token : tokens(document_source)) {
+          if (token.kind == frontend::TokenKind::Identifier &&
+              token.lexeme == *identifier) {
+            references.emplace_back(llvm::json::Object{
+                {"uri", document_uri},
+                {"range", range(token.location, token.lexeme.size())},
+            });
+          }
+        }
+      }
+      return {response(request_id(*request), std::move(references))};
+    }
   }
 
   if (request->get("id") != nullptr)
