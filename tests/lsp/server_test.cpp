@@ -39,4 +39,11 @@ int main() {
       R"({"jsonrpc":"2.0","id":4,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50},"context":{"includeDeclaration":true}}})");
   assert(references.front().find("\"uri\":\"file:///broken.janus\"") !=
          std::string::npos);
+
+  const std::vector<std::string> completion = server.handle(
+      R"({"jsonrpc":"2.0","id":5,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":20}}})");
+  assert(completion.front().find("\"label\":\"answer\"") != std::string::npos);
+  assert(completion.front().find("\"label\":\"int\"") != std::string::npos);
+  assert(completion.front().find("\"label\":\"return\"") !=
+         std::string::npos);
 }

@@ -138,6 +138,26 @@ llvm::json::Object range(const janus::SourceLocation &location,
   };
 }
 
+std::optional<char> character_before(std::string_view source,
+                                     std::uint32_t requested_line,
+                                     std::uint32_t requested_column) {
+  std::uint32_t line = 0;
+  std::uint32_t column = 0;
+  for (std::size_t index = 0; index < source.size(); ++index) {
+    if (line == requested_line && column == requested_column)
+      return index == 0 ? std::nullopt : std::optional<char>{source[index - 1]};
+    if (source[index] == '\n') {
+      ++line;
+      column = 0;
+    } else {
+      ++column;
+    }
+  }
+  if (line == requested_line && column == requested_column && !source.empty())
+    return source.back();
+  return std::nullopt;
+}
+
 } // namespace
 
 namespace janus::lsp {
@@ -210,6 +230,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
                  {"hoverProvider", true},
                  {"definitionProvider", true},
                  {"referencesProvider", true},
+                 {"completionProvider",
+                  llvm::json::Object{
+                      {"triggerCharacters", llvm::json::Array{".", ":"}},
+                  }},
              }},
             {"serverInfo",
              llvm::json::Object{{"name", "janus-lsp"},
@@ -314,6 +338,56 @@ std::vector<std::string> Server::handle(std::string_view message) {
         }
       }
       return {response(request_id(*request), std::move(references))};
+    }
+    if (*method == "textDocument/completion") {
+      const bool member_context =
+          character_before(document->second, static_cast<std::uint32_t>(*line),
+                           static_cast<std::uint32_t>(*character)) == '.';
+      llvm::json::Array items;
+      std::vector<std::string> labels;
+      const auto add_item = [&](std::string label, std::string detail,
+                                std::int64_t kind) {
+        if (std::find(labels.begin(), labels.end(), label) != labels.end())
+          return;
+        labels.push_back(label);
+        items.emplace_back(llvm::json::Object{
+            {"label", std::move(label)},
+            {"kind", kind},
+            {"detail", std::move(detail)},
+        });
+      };
+
+      for (const DocumentSymbol &symbol : symbols(document->second)) {
+        const bool member =
+            symbol.detail.starts_with("def ") ||
+            symbol.detail.starts_with("val ") ||
+            symbol.detail.starts_with("var ");
+        if (!member_context || member) {
+          const std::int64_t kind =
+              symbol.detail.starts_with("def ") ? 3
+              : symbol.detail.starts_with("class ") ||
+                      symbol.detail.starts_with("trait ") ||
+                      symbol.detail.starts_with("enum ")
+                  ? 7
+                  : 6;
+          add_item(symbol.name, symbol.detail, kind);
+        }
+      }
+      if (!member_context) {
+        for (const std::string_view type :
+             {"int", "double", "byte", "char", "bool", "string", "unit",
+              "usize"})
+          add_item(std::string{type}, "built-in type", 7);
+        for (const std::string_view keyword :
+             {"val", "var", "def", "class", "trait", "enum", "new",
+              "delete", "defer", "if", "else", "match", "for", "while",
+              "return", "true", "false"})
+          add_item(std::string{keyword}, "Janus keyword", 14);
+      }
+      return {response(
+          request_id(*request),
+          llvm::json::Object{{"isIncomplete", false},
+                             {"items", std::move(items)}})};
     }
   }
 
