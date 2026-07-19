@@ -110,17 +110,16 @@ s'arrêter avant l'édition de liens.
 ## Installer la chaîne d'outils
 
 La première distribution officielle, Janus 0.1.0, cible Linux x86_64. Les
-constructions suivantes produisent également une archive macOS ARM64. Elles
-sont fournies sous forme d'archives autonomes. L'installation Unix se fait
-avec :
+constructions suivantes produisent également des archives macOS ARM64 et
+Windows x86_64. Elles sont fournies sous forme d'archives autonomes.
+L'installation Unix se fait avec :
 
 ```bash
 curl --proto '=https' --tlsv1.2 -fsSL \
   https://raw.githubusercontent.com/cyril103/janus/main/scripts/install.sh | sh
 ```
 
-L'installateur PowerShell est déjà disponible pour préparer le support
-Windows, mais aucune archive Windows n'est publiée avec la version 0.1.0 :
+Sous Windows PowerShell :
 
 ```powershell
 irm https://raw.githubusercontent.com/cyril103/janus/main/scripts/install.ps1 | iex

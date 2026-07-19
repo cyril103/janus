@@ -29,6 +29,11 @@ jobs:
             llvm_dir: /opt/homebrew/opt/llvm/lib/cmake/llvm
             cc: /opt/homebrew/opt/llvm/bin/clang
             cxx: /opt/homebrew/opt/llvm/bin/clang++
+          - name: Windows x86_64
+            os: windows-2025
+            llvm_dir: C:/msys64/ucrt64/lib/cmake/llvm
+            cc: C:/msys64/ucrt64/bin/clang.exe
+            cxx: C:/msys64/ucrt64/bin/clang++.exe
 
     runs-on: ${{ matrix.os }}
 
@@ -49,6 +54,17 @@ jobs:
           brew install llvm ninja
           echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
 
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-clang
+            mingw-w64-ucrt-x86_64-lld
+            mingw-w64-ucrt-x86_64-llvm
+
       - name: Configure
         shell: bash
         run: >
@@ -68,8 +84,14 @@ jobs:
         run: cmake --build build --target dist
 
       - name: Smoke test packaged toolchain
+        if: runner.os != 'Windows'
         shell: bash
         run: scripts/smoke-test-package.sh build/janus-*.tar.gz
+
+      - name: Smoke test packaged toolchain on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: scripts/smoke-test-package.ps1 build/janus-*.zip
 
       - name: Upload distribution
         uses: actions/upload-artifact@v7
