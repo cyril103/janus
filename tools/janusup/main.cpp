@@ -184,19 +184,46 @@ std::string distribution_location(const std::string &version,
           ? "https://github.com/cyril103/janus/releases/download"
           : configured;
   if (std::filesystem::is_directory(server))
-    return (std::filesystem::path{server} / ("v" + version) / filename)
-        .string();
-  return server + "/v" + version + "/" + filename;
+    return (std::filesystem::path{server} / version / filename).string();
+  return server + "/" + version + "/" + filename;
 }
 
-std::filesystem::path download_package(const std::string &version,
+struct ToolchainSpec {
+  std::string name;
+  std::string version;
+  std::string release;
+};
+
+bool is_channel(const std::string &name) {
+  return name == "stable" || name == "beta" || name == "nightly";
+}
+
+ToolchainSpec resolve_spec(const std::string &name,
+                           const std::filesystem::path &temporary) {
+  validate_name(name);
+  if (!is_channel(name))
+    return {name, name, "v" + name};
+
+  const std::filesystem::path manifest = temporary / (name + ".channel");
+  fetch(distribution_location("channel-" + name, "version"), manifest);
+  std::ifstream input{manifest};
+  ToolchainSpec result{name, {}, {}};
+  input >> result.version >> result.release;
+  validate_name(result.version);
+  validate_name(result.release);
+  if (!input)
+    throw std::runtime_error{"invalid '" + name + "' channel manifest"};
+  return result;
+}
+
+std::filesystem::path download_package(const ToolchainSpec &spec,
                                        const std::filesystem::path &temporary) {
-  validate_name(version);
-  const std::string archive = archive_name(version);
+  const std::string archive = archive_name(spec.version);
   const std::filesystem::path archive_path = temporary / archive;
   const std::filesystem::path checksum_path = temporary / (archive + ".sha256");
-  fetch(distribution_location(version, archive), archive_path);
-  fetch(distribution_location(version, archive + ".sha256"), checksum_path);
+  fetch(distribution_location(spec.release, archive), archive_path);
+  fetch(distribution_location(spec.release, archive + ".sha256"),
+        checksum_path);
   if (sha256(archive_path) != expected_sha256(checksum_path))
     throw std::runtime_error{"SHA-256 verification failed for " + archive};
 
@@ -206,7 +233,8 @@ std::filesystem::path download_package(const std::string &version,
       "tar -xf " + shell_quote(archive_path) + " -C " + shell_quote(extracted);
   if (command_status(std::system(command.c_str())) != 0)
     throw std::runtime_error{"could not extract " + archive};
-  const std::filesystem::path package = extracted / package_basename(version);
+  const std::filesystem::path package =
+      extracted / package_basename(spec.version);
   if (!std::filesystem::is_directory(package))
     throw std::runtime_error{"archive has an invalid directory layout"};
   return package;
@@ -274,11 +302,14 @@ void install_directory(const std::filesystem::path &source,
   std::cout << "installed and selected Janus toolchain '" << name << "'\n";
 }
 
-void install_version(const std::string &version, bool replace) {
+void install_spec(const std::string &name, bool replace) {
   const std::filesystem::path temporary = temporary_directory();
   try {
-    const std::filesystem::path package = download_package(version, temporary);
-    install_directory(package, version, replace);
+    const ToolchainSpec spec = resolve_spec(name, temporary);
+    const std::filesystem::path package = download_package(spec, temporary);
+    install_directory(package, spec.name, replace);
+    std::ofstream metadata{toolchains() / spec.name / ".janus-version"};
+    metadata << spec.version << ' ' << spec.release << '\n';
     std::filesystem::remove_all(temporary);
   } catch (...) {
     std::error_code ignored;
@@ -304,17 +335,23 @@ void list() {
   if (!std::filesystem::exists(toolchains()))
     return;
   for (const auto &entry : std::filesystem::directory_iterator(toolchains())) {
-    if (entry.is_directory())
-      std::cout << (entry.path().filename() == active ? "* " : "  ")
-                << entry.path().filename().string() << '\n';
+    if (!entry.is_directory())
+      continue;
+    std::cout << (entry.path().filename() == active ? "* " : "  ")
+              << entry.path().filename().string();
+    std::ifstream metadata{entry.path() / ".janus-version"};
+    std::string version;
+    if (metadata >> version)
+      std::cout << " (" << version << ')';
+    std::cout << '\n';
   }
 }
 
 void usage() {
   std::cerr << "usage:\n"
-            << "  janusup install <version>\n"
+            << "  janusup install [stable|beta|nightly|<version>]\n"
             << "  janusup install <package-directory> <name>\n"
-            << "  janusup update <version>\n"
+            << "  janusup update [stable|beta|nightly|<version>]\n"
             << "  janusup uninstall <name>\n"
             << "  janusup default <name>\n"
             << "  janusup list\n"
@@ -343,16 +380,27 @@ int main(int argc, char **argv) {
       std::cout << "selected Janus toolchain '" << argv[2] << "'\n";
       return 0;
     }
+    if (argc == 2 && std::string_view{argv[1]} == "install") {
+      install_spec("stable", false);
+      return 0;
+    }
     if (argc == 3 && std::string_view{argv[1]} == "install") {
-      install_version(argv[2], false);
+      install_spec(argv[2], false);
       return 0;
     }
     if (argc == 4 && std::string_view{argv[1]} == "install") {
       install_directory(argv[2], argv[3]);
       return 0;
     }
+    if (argc == 2 && std::string_view{argv[1]} == "update") {
+      const std::string active = active_toolchain();
+      if (active.empty())
+        throw std::runtime_error{"no active toolchain to update"};
+      install_spec(active, true);
+      return 0;
+    }
     if (argc == 3 && std::string_view{argv[1]} == "update") {
-      install_version(argv[2], true);
+      install_spec(argv[2], true);
       return 0;
     }
     if (argc == 3 && std::string_view{argv[1]} == "uninstall") {

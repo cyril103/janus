@@ -3,6 +3,7 @@ if(NOT DEFINED TAG OR NOT DEFINED SOURCE_DIR)
 endif()
 
 string(REGEX REPLACE "^v" "" TAG_VERSION "${TAG}")
+string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TAG_BASE_VERSION "${TAG_VERSION}")
 file(READ "${SOURCE_DIR}/CMakeLists.txt" PROJECT_FILE)
 string(
     REGEX MATCH
@@ -14,7 +15,7 @@ if(NOT VERSION_DECLARATION)
     message(FATAL_ERROR "could not read the Janus project version")
 endif()
 set(PROJECT_VERSION "${CMAKE_MATCH_1}")
-if(NOT TAG_VERSION STREQUAL PROJECT_VERSION)
+if(NOT TAG_BASE_VERSION STREQUAL PROJECT_VERSION)
     message(
         FATAL_ERROR
         "release tag ${TAG} does not match project version ${PROJECT_VERSION}"

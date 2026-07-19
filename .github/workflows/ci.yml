@@ -6,6 +6,8 @@ on:
     tags: ['v*.*.*']
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
 
 permissions:
   contents: read
@@ -116,8 +118,79 @@ jobs:
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create "$GITHUB_REF_NAME"
-          dist/release/*
-          --verify-tag
-          --generate-notes
+        run: |
+          options=(--verify-tag --generate-notes)
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            options+=(--prerelease --latest=false)
+          else
+            options+=(--latest)
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/release/* "${options[@]}"
+
+      - name: Update release channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          channel=stable
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then channel=beta; fi
+          cmake -DSOURCE_DIR="$GITHUB_WORKSPACE" \
+            -DRELEASE="$GITHUB_REF_NAME" \
+            -DOUTPUT="$RUNNER_TEMP/version" \
+            -P cmake/write_channel_manifest.cmake
+          if gh release view "channel-$channel" >/dev/null 2>&1; then
+            gh release upload "channel-$channel" "$RUNNER_TEMP/version" --clobber
+          else
+            gh release create "channel-$channel" "$RUNNER_TEMP/version" \
+              --title "Janus $channel channel" --prerelease
+          fi
+
+  nightly:
+    name: Publish nightly channel
+    if: github.event_name == 'schedule'
+    needs: toolchain
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    steps:
+      - name: Check out Janus
+        uses: actions/checkout@v6
+
+      - name: Download distributions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist/artifacts dist/release
+          gh run download "$GITHUB_RUN_ID" --dir dist/artifacts
+          find dist/artifacts -type f -exec cp '{}' dist/release/ ';'
+
+      - name: Attest nightly provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            dist/release/*.tar.gz
+            dist/release/*.zip
+
+      - name: Publish nightly toolchain
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view nightly >/dev/null 2>&1; then
+            gh release upload nightly dist/release/* --clobber
+          else
+            gh release create nightly dist/release/* \
+              --title "Janus nightly" --prerelease
+          fi
+          cmake -DSOURCE_DIR="$GITHUB_WORKSPACE" \
+            -DRELEASE=nightly \
+            -DOUTPUT="$RUNNER_TEMP/version" \
+            -P cmake/write_channel_manifest.cmake
+          if gh release view channel-nightly >/dev/null 2>&1; then
+            gh release upload channel-nightly "$RUNNER_TEMP/version" --clobber
+          else
+            gh release create channel-nightly "$RUNNER_TEMP/version" \
+              --title "Janus nightly channel" --prerelease
+          fi

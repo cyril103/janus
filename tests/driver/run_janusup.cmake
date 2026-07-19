@@ -116,6 +116,36 @@ if(NOT EXISTS "${TEST_ROOT}/home/toolchains/${REMOTE_VERSION}/bin")
     message(FATAL_ERROR "remote toolchain was not installed")
 endif()
 
+foreach(CHANNEL stable beta nightly)
+    file(MAKE_DIRECTORY "${TEST_ROOT}/dist/channel-${CHANNEL}")
+    file(WRITE "${TEST_ROOT}/dist/channel-${CHANNEL}/version"
+         "${REMOTE_VERSION} v${REMOTE_VERSION}\n")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E env
+                "JANUSUP_HOME=${TEST_ROOT}/home"
+                "JANUS_DIST_SERVER=${TEST_ROOT}/dist"
+                "${JANUSUP}" install "${CHANNEL}"
+        RESULT_VARIABLE CHANNEL_STATUS
+        ERROR_VARIABLE CHANNEL_ERROR
+    )
+    if(NOT CHANNEL_STATUS EQUAL 0
+       OR NOT EXISTS "${TEST_ROOT}/home/toolchains/${CHANNEL}/bin")
+        message(FATAL_ERROR "${CHANNEL} install failed: ${CHANNEL_ERROR}")
+    endif()
+endforeach()
+
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env
+            "JANUSUP_HOME=${TEST_ROOT}/home"
+            "JANUS_DIST_SERVER=${TEST_ROOT}/dist"
+            "${JANUSUP}" update
+    RESULT_VARIABLE CHANNEL_UPDATE_STATUS
+    ERROR_VARIABLE CHANNEL_UPDATE_ERROR
+)
+if(NOT CHANNEL_UPDATE_STATUS EQUAL 0)
+    message(FATAL_ERROR "active channel update failed: ${CHANNEL_UPDATE_ERROR}")
+endif()
+
 execute_process(
     COMMAND "${CMAKE_COMMAND}" -E env
             "JANUSUP_HOME=${TEST_ROOT}/home"
@@ -130,7 +160,7 @@ endif()
 execute_process(
     COMMAND "${CMAKE_COMMAND}" -E env
             "JANUSUP_HOME=${TEST_ROOT}/home"
-            "${JANUSUP}" uninstall "${REMOTE_VERSION}"
+            "${JANUSUP}" uninstall nightly
     RESULT_VARIABLE ACTIVE_UNINSTALL_STATUS
     ERROR_QUIET
 )
