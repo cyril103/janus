@@ -154,6 +154,42 @@ def main() : int {
       "cannot return a value");
   expect_compile_error("def main() : int { defer 1 return 0 }",
                        "defer requires delete");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val resource : Resource = new Resource() defer delete resource "
+      "delete resource return 0 }",
+      "scheduled for deferred cleanup");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val resource : Resource = new Resource() defer delete resource "
+      "val moved : Resource = move resource delete moved return 0 }",
+      "scheduled for deferred cleanup");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val resource : Resource = new Resource() defer delete resource "
+      "defer delete resource return 0 }",
+      "already scheduled for deferred cleanup");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "var resource : Resource = new Resource() defer delete resource "
+      "resource = new Resource() return 0 }",
+      "scheduled for deferred cleanup");
+  expect_compile_error(
+      "class Resource() { consume def close() : Unit { delete this } } "
+      "def main() : int { val resource : Resource = new Resource() "
+      "defer delete resource resource.close() return 0 }",
+      "scheduled for deferred cleanup");
+  expect_compile_error(
+      "class Resource() { consume def close() : Unit { delete this } } "
+      "def main() : int { val resource : Resource = new Resource() "
+      "defer resource.close() delete resource return 0 }",
+      "scheduled for deferred cleanup");
+  expect_compile_error(
+      "enum Option[T] { Some(T), None } def cleanup(value : int) : Unit {} "
+      "def run(value : Option[int]) : Option[int] { "
+      "defer cleanup(value?) return Option.Some[int](0) } "
+      "def main() : int { return 0 }",
+      "operator '?' is not supported in deferred actions");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

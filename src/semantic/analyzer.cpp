@@ -825,7 +825,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     const std::unordered_map<std::string, SemanticType>
         *active_type_substitutions = nullptr;
     bool inside_lambda = false;
+    bool inside_defer = false;
     std::unordered_set<std::string> transfer_protected_values;
+    std::unordered_set<std::string> deferred_values;
 
     std::function<SemanticType(const ast::Expression &)> expression_type;
     std::function<void(const ast::Expression &, const SemanticType &,
@@ -1561,6 +1563,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 if (const auto *identifier =
                         std::get_if<ast::IdentifierExpression>(
                             &node.object->value)) {
+                  if (deferred_values.contains(identifier->name))
+                    throw CompileError{
+                        node.location,
+                        "owning value '" + identifier->name +
+                            "' is scheduled for deferred cleanup"};
                   if (owner_field_names.contains(identifier->name))
                     throw CompileError{node.location,
                                        "consuming field '" + identifier->name +
@@ -1738,6 +1745,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                     "owning value '" + identifier->name +
                         "' cannot be moved from a loop, branch expression, "
                         "or closure"};
+              if (deferred_values.contains(identifier->name))
+                throw CompileError{
+                    node.location,
+                    "owning value '" + identifier->name +
+                        "' is scheduled for deferred cleanup"};
               const SemanticType moved_type = expression_type(*node.operand);
               if (moved_type.is_concrete() || moved_type.is_enum())
                 throw CompileError{
@@ -1751,6 +1763,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 throw CompileError{
                     node.location,
                     "operator '?' is not supported inside lambda literals"};
+              if (inside_defer)
+                throw CompileError{
+                    node.location,
+                    "operator '?' is not supported in deferred actions"};
               const SemanticType operand_type = expression_type(*node.operand);
               if (!operand_type.is_enum() ||
                   (operand_type.parameter != "Option" &&
@@ -1907,6 +1923,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     validate_block = [&](const std::vector<ast::Statement> &statements,
                          SymbolTable &block_symbols) {
       SymbolTable *previous_symbols = active_symbols;
+      const auto previous_deferred_values = deferred_values;
       active_symbols = &block_symbols;
       bool has_return = false;
       for (const ast::Statement &statement : statements) {
@@ -2005,8 +2022,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           active_symbols = &block_symbols;
           if (consumes_source)
             if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
-                    &(*loop)->iterator.value))
+                    &(*loop)->iterator.value)) {
+              if (deferred_values.contains(identifier->name))
+                throw CompileError{
+                    (*loop)->location,
+                    "owning value '" + identifier->name +
+                        "' is scheduled for deferred cleanup"};
               block_symbols.at(identifier->name).is_initialized = false;
+            }
           continue;
         }
 
@@ -2084,6 +2107,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           if (iterator == block_symbols.end())
             throw CompileError{assignment->location,
                                "unknown value '" + assignment->name + "'"};
+          if (deferred_values.contains(assignment->name))
+            throw CompileError{
+                assignment->location,
+                "owning value '" + assignment->name +
+                    "' is scheduled for deferred cleanup"};
           if (!iterator->second.is_mutable)
             throw CompileError{assignment->location,
                                "cannot assign to immutable value '" +
@@ -2096,6 +2124,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
 
         if (const auto *deletion =
                 std::get_if<ast::DeleteStatement>(&statement)) {
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &deletion->expression.value);
+              identifier != nullptr &&
+              deferred_values.contains(identifier->name))
+            throw CompileError{
+                deletion->location,
+                "owning value '" + identifier->name +
+                    "' is scheduled for deferred cleanup"};
           const SemanticType deleted_type =
               expression_type(deletion->expression);
           if (!deleted_type.is_class() && !deleted_type.is_function())
@@ -2114,16 +2150,44 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           active_symbols = &deferred_symbols;
           if (const auto *deletion =
                   std::get_if<ast::DeleteStatement>(&deferred->action)) {
+            const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                &deletion->expression.value);
+            if (identifier == nullptr)
+              throw CompileError{
+                  deletion->location,
+                  "deferred delete requires an owning local identifier"};
+            if (deferred_values.contains(identifier->name))
+              throw CompileError{
+                  deletion->location,
+                  "owning value '" + identifier->name +
+                      "' is already scheduled for deferred cleanup"};
             const SemanticType deleted_type =
                 expression_type(deletion->expression);
             if (!deleted_type.is_class() && !deleted_type.is_function())
               throw CompileError{
                   deletion->location,
                   "deferred delete requires an object or a function value"};
+            deferred_values.insert(identifier->name);
           } else {
             const auto &action =
                 std::get<ast::ExpressionStatement>(deferred->action);
+            const bool previous_inside_defer = inside_defer;
+            inside_defer = true;
             static_cast<void>(expression_type(action.expression));
+            inside_defer = previous_inside_defer;
+            for (const auto &[name, symbol] : block_symbols) {
+              const auto deferred_symbol = deferred_symbols.find(name);
+              if (symbol.is_initialized &&
+                  deferred_symbol != deferred_symbols.end() &&
+                  !deferred_symbol->second.is_initialized) {
+                if (deferred_values.contains(name))
+                  throw CompileError{
+                      deferred->location,
+                      "owning value '" + name +
+                          "' is already scheduled for deferred cleanup"};
+                deferred_values.insert(name);
+              }
+            }
           }
           active_symbols = previous_deferred_symbols;
           continue;
@@ -2154,12 +2218,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
             throw CompileError{return_statement.location,
                                "return requires a value of type '" +
                                    return_type.name() + "'"};
+          if (const auto *identifier =
+                  std::get_if<ast::IdentifierExpression>(
+                      &return_statement.expression->value);
+              identifier != nullptr &&
+              deferred_values.contains(identifier->name))
+            throw CompileError{
+                return_statement.location,
+                "owning value '" + identifier->name +
+                    "' is scheduled for deferred cleanup"};
           validate_expression(*return_statement.expression, return_type,
                               return_statement.location);
         }
         has_return = true;
       }
       active_symbols = previous_symbols;
+      deferred_values = previous_deferred_values;
       return has_return;
     };
 
