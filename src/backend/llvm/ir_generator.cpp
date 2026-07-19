@@ -564,6 +564,11 @@ private:
     std::function<bool(const std::vector<janus::ast::Statement> &,
                        std::unordered_map<std::string, Local> &)>
         emit_block;
+    struct LoopTarget {
+      ::llvm::BasicBlock *break_block;
+      ::llvm::BasicBlock *continue_block;
+    };
+    std::vector<LoopTarget> loop_targets;
     emit_block = [&](const std::vector<janus::ast::Statement> &statements,
                      std::unordered_map<std::string, Local> &block_locals) {
       std::vector<const janus::ast::DeferStatement *> deferred_actions;
@@ -632,7 +637,9 @@ private:
           builder.CreateCondBr(condition, body_block, exit_block);
           builder.SetInsertPoint(body_block);
           auto body_locals = block_locals;
+          loop_targets.push_back(LoopTarget{exit_block, condition_block});
           const bool body_returns = emit_block((*loop)->body, body_locals);
+          loop_targets.pop_back();
           if (!body_returns)
             builder.CreateBr(condition_block);
           builder.SetInsertPoint(exit_block);
@@ -720,7 +727,9 @@ private:
           auto body_locals = block_locals;
           body_locals.insert_or_assign((*loop)->binding,
                                        Local{storage, &element_type});
+          loop_targets.push_back(LoopTarget{exit_block, condition_block});
           const bool body_returns = emit_block((*loop)->body, body_locals);
+          loop_targets.pop_back();
           if (!body_returns)
             builder.CreateBr(condition_block);
 
@@ -812,6 +821,18 @@ private:
                 std::get_if<janus::ast::DeferStatement>(&statement)) {
           deferred_actions.push_back(deferred);
           continue;
+        }
+
+        if (std::holds_alternative<janus::ast::BreakStatement>(statement)) {
+          builder.CreateBr(loop_targets.back().break_block);
+          active_cleanup_scopes_.pop_back();
+          return true;
+        }
+
+        if (std::holds_alternative<janus::ast::ContinueStatement>(statement)) {
+          builder.CreateBr(loop_targets.back().continue_block);
+          active_cleanup_scopes_.pop_back();
+          return true;
         }
 
         const auto &return_statement =

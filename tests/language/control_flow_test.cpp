@@ -99,6 +99,43 @@ def main() : int {
   expect(ir.find("br i1") != std::string::npos,
          "conditions generate conditional branches");
 
+  janus::frontend::Parser emitted_jump_parser{R"(
+def main() : int {
+    var index : int = 0
+    while index < 10 {
+        index = index + 1
+        if index < 3 {
+            continue
+        }
+        if index == 5 {
+            break
+        }
+    }
+    return index
+}
+)"};
+  const janus::ast::Program emitted_jump_program =
+      emitted_jump_parser.parse_program();
+  static_cast<void>(analyzer.analyze(emitted_jump_program));
+  llvm::LLVMContext jump_context;
+  janus::backend::llvm::IrGenerator jump_generator{jump_context};
+  const std::unique_ptr<llvm::Module> jump_module =
+      jump_generator.generate(emitted_jump_program, "loop_jumps");
+  std::string jump_ir;
+  llvm::raw_string_ostream jump_output{jump_ir};
+  jump_module->print(jump_output, nullptr);
+  jump_output.flush();
+  const std::size_t first_then = jump_ir.find("if.then:");
+  const std::size_t second_then = jump_ir.find("if.then", first_then + 1);
+  expect(first_then != std::string::npos &&
+             jump_ir.find("br label %while.condition", first_then) !=
+                 std::string::npos,
+         "continue branches to the nearest while condition");
+  expect(second_then != std::string::npos &&
+             jump_ir.find("br label %while.end", second_then) !=
+                 std::string::npos,
+         "break branches to the nearest while exit");
+
   constexpr std::string_view definitely_initialized = R"(
 def main() : int {
     var result : int
