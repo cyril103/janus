@@ -1,6 +1,7 @@
 #include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/backend/llvm/object_emitter.hpp"
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/driver/manifest.hpp"
 #include "janus/driver/native_linker.hpp"
 #include "janus/driver/project.hpp"
 #include "janus/frontend/module_loader.hpp"
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -45,6 +47,7 @@ struct Options {
   bool emit_llvm{};
   bool emit_object{};
   bool release{};
+  std::optional<janus::driver::Manifest> manifest;
 };
 
 std::filesystem::path executable_path(const char *argv0) {
@@ -102,10 +105,10 @@ void print_usage() {
   std::cerr << "usage:\n"
             << "  janus new <directory> [--name <name>]\n"
             << "  janus init [directory] [--name <name>]\n"
-            << "  janus check <source.janus>\n"
-            << "  janus build <source.janus> [-o output] [--release] "
+            << "  janus check [source.janus]\n"
+            << "  janus build [source.janus] [-o output] [--release] "
                "[--emit llvm-ir|object]\n"
-            << "  janus run <source.janus> [--release]\n"
+            << "  janus run [source.janus] [--release]\n"
             << "  janus --version\n";
 }
 
@@ -142,15 +145,18 @@ int create_or_initialize(int argc, char **argv) {
 }
 
 Options parse_options(int argc, char **argv) {
-  if (argc < 3)
-    throw std::runtime_error{"missing command or source file"};
+  if (argc < 2)
+    throw std::runtime_error{"missing command"};
   Options options;
   options.command = argv[1];
-  options.source = argv[2];
   if (options.command != "check" && options.command != "build" &&
       options.command != "run")
     throw std::runtime_error{"unknown command '" + options.command + "'"};
-  for (int index = 3; index < argc; ++index) {
+  int first_option = 2;
+  if (first_option < argc &&
+      !std::string_view{argv[first_option]}.starts_with('-'))
+    options.source = argv[first_option++];
+  for (int index = first_option; index < argc; ++index) {
     const std::string_view argument = argv[index];
     if (argument == "-o") {
       if (++index == argc)
@@ -180,6 +186,11 @@ Options parse_options(int argc, char **argv) {
   if (options.command == "run" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object))
     throw std::runtime_error{"run does not accept -o or --emit"};
+  if (options.source.empty()) {
+    options.manifest = janus::driver::load_manifest(
+        janus::driver::find_manifest(std::filesystem::current_path()));
+    options.source = options.manifest->entry_path();
+  }
   return options;
 }
 
@@ -244,6 +255,20 @@ void write_ir(const llvm::Module &module, const std::filesystem::path &path) {
 std::filesystem::path default_output(const Options &options) {
   if (!options.output.empty())
     return options.output;
+  if (options.manifest.has_value()) {
+    std::filesystem::path output = options.manifest->root() / "target" /
+                                   (options.release ? "release" : "debug") /
+                                   options.manifest->name;
+    if (options.emit_llvm)
+      output += ".ll";
+    else if (options.emit_object)
+      output += ".o";
+#ifdef _WIN32
+    else
+      output += ".exe";
+#endif
+    return output;
+  }
   if (options.emit_llvm) {
     std::filesystem::path output = options.source.filename();
     output.replace_extension(".ll");
@@ -264,6 +289,8 @@ std::filesystem::path default_output(const Options &options) {
 
 int build(const Options &options, const std::filesystem::path &output,
           const Toolchain &toolchain) {
+  if (!output.parent_path().empty())
+    std::filesystem::create_directories(output.parent_path());
   llvm::LLVMContext context;
   std::unique_ptr<llvm::Module> module =
       compile(options.source, context, toolchain);
@@ -313,20 +340,23 @@ int main(int argc, char **argv) {
     if (options.command == "build")
       return build(options, default_output(options), toolchain);
 
+    const bool temporary = !options.manifest.has_value();
     const std::filesystem::path executable =
-        std::filesystem::temp_directory_path() /
-        ("janus-run-" + std::to_string(std::rand())
+        temporary ? std::filesystem::temp_directory_path() /
+                        ("janus-run-" + std::to_string(std::rand())
 #ifdef _WIN32
-         + ".exe"
+                         + ".exe"
 #endif
-        );
+                         )
+                  : default_output(options);
     const int build_status = build(options, executable, toolchain);
     if (build_status != 0)
       return build_status;
     const int run_status =
         command_status(std::system(shell_quote(executable).c_str()));
     std::error_code ignored;
-    std::filesystem::remove(executable, ignored);
+    if (temporary)
+      std::filesystem::remove(executable, ignored);
     return run_status;
   } catch (const janus::CompileError &error) {
     const janus::SourceLocation location = error.location();

@@ -21,5 +21,7 @@ struct Manifest {
 };
 
 [[nodiscard]] Manifest load_manifest(const std::filesystem::path &path);
+[[nodiscard]] std::filesystem::path
+find_manifest(const std::filesystem::path &start);
 
 } // namespace janus::driver

@@ -146,4 +146,22 @@ Manifest load_manifest(const std::filesystem::path &path) {
   return manifest;
 }
 
+std::filesystem::path find_manifest(const std::filesystem::path &start) {
+  std::filesystem::path directory =
+      std::filesystem::absolute(start).lexically_normal();
+  if (!std::filesystem::is_directory(directory))
+    directory = directory.parent_path();
+  while (true) {
+    const std::filesystem::path candidate = directory / "janus.toml";
+    if (std::filesystem::is_regular_file(candidate))
+      return candidate;
+    const std::filesystem::path parent = directory.parent_path();
+    if (parent == directory)
+      break;
+    directory = parent;
+  }
+  throw std::runtime_error{
+      "could not find janus.toml in this directory or its parents"};
+}
+
 } // namespace janus::driver

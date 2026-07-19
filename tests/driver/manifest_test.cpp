@@ -36,6 +36,8 @@ int main() {
     require(manifest.entry == "src/main.janus", "entry was not parsed");
     require(manifest.entry_path() == directory / "src/main.janus",
             "entry path was not resolved from the project root");
+    require(janus::driver::find_manifest(directory / "src") == path,
+            "manifest was not found from a child directory");
 
     {
       std::ofstream output{path};

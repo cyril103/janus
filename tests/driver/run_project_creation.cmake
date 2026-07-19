@@ -18,12 +18,44 @@ foreach(FILE janus.toml src/main.janus .gitignore)
     endif()
 endforeach()
 execute_process(
-    COMMAND "${JANUS}" check "${TEST_ROOT}/hello/src/main.janus"
+    COMMAND "${JANUS}" check
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
     RESULT_VARIABLE CHECK_STATUS
     ERROR_VARIABLE CHECK_ERROR
 )
 if(NOT CHECK_STATUS EQUAL 0)
     message(FATAL_ERROR "generated project is invalid: ${CHECK_ERROR}")
+endif()
+
+execute_process(
+    COMMAND "${JANUS}" build
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
+    RESULT_VARIABLE BUILD_STATUS
+    ERROR_VARIABLE BUILD_ERROR
+)
+if(NOT BUILD_STATUS EQUAL 0
+   OR NOT EXISTS "${TEST_ROOT}/hello/target/debug/hello")
+    message(FATAL_ERROR "project build failed: ${BUILD_ERROR}")
+endif()
+execute_process(
+    COMMAND "${JANUS}" run
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
+    RESULT_VARIABLE RUN_STATUS
+    OUTPUT_VARIABLE RUN_OUTPUT
+    ERROR_VARIABLE RUN_ERROR
+)
+if(NOT RUN_STATUS EQUAL 0 OR NOT RUN_OUTPUT MATCHES "Hello from Janus")
+    message(FATAL_ERROR "project run failed: ${RUN_ERROR}")
+endif()
+execute_process(
+    COMMAND "${JANUS}" build --release
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
+    RESULT_VARIABLE RELEASE_STATUS
+    ERROR_VARIABLE RELEASE_ERROR
+)
+if(NOT RELEASE_STATUS EQUAL 0
+   OR NOT EXISTS "${TEST_ROOT}/hello/target/release/hello")
+    message(FATAL_ERROR "release project build failed: ${RELEASE_ERROR}")
 endif()
 
 file(MAKE_DIRECTORY "${TEST_ROOT}/existing/src")
