@@ -1,6 +1,10 @@
+#include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
+
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include <iostream>
 #include <string_view>
@@ -52,6 +56,8 @@ class Sequence[T](val value : T) extends Iterable[T] {
 }
 
 def consume[C <: Iterable[int]](sequence : C) : int {
+    val iterator : Iterator[int] = sequence.iterator()
+    delete iterator
     return 1
 }
 
@@ -77,6 +83,17 @@ def main() : int {
 
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
+
+  llvm::LLVMContext context;
+  janus::backend::llvm::IrGenerator generator{context};
+  const std::unique_ptr<llvm::Module> module =
+      generator.generate(program, "traits");
+  std::string ir;
+  llvm::raw_string_ostream output{ir};
+  module->print(output, nullptr);
+  output.flush();
+  expect(ir.find("call ptr @Sequence__int__iterator") != std::string::npos,
+         "a constrained call is statically dispatched to the concrete method");
 
   expect_compile_error("trait Duplicate[T, T] {} def main() : int { return 0 }",
                        "type parameter 'T' is already declared");

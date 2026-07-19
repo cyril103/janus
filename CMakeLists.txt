@@ -264,6 +264,7 @@ if(BUILD_TESTING)
     target_link_libraries(trait_declaration_test
         PRIVATE
             janus_semantic
+            janus_llvm_backend
     )
     target_compile_options(trait_declaration_test
         PRIVATE

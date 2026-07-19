@@ -775,6 +775,33 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                                    "' is already declared"};
       }
     }
+    std::unordered_map<std::string, TraitInstance> active_trait_constraints;
+    const auto add_active_constraints =
+        [&](const std::vector<ast::TypeConstraint> &constraints) {
+          for (const ast::TypeConstraint &constraint : constraints)
+            active_trait_constraints.emplace(
+                constraint.parameter,
+                resolve_trait(constraint.trait, type_parameters));
+        };
+    if (owner != nullptr)
+      add_active_constraints(owner->type_constraints);
+    if (!is_destructor)
+      add_active_constraints(context.function->type_constraints);
+    const auto satisfies_active_trait = [&](const SemanticType &candidate,
+                                            const TraitInstance &requirement) {
+      if (satisfies_trait(candidate, requirement))
+        return true;
+      const auto iterator = active_trait_constraints.find(candidate.parameter);
+      if (candidate.is_concrete() || candidate.is_class() ||
+          iterator == active_trait_constraints.end() ||
+          iterator->second.declaration != requirement.declaration ||
+          iterator->second.type_arguments.size() !=
+              requirement.type_arguments.size())
+        return false;
+      return std::equal(iterator->second.type_arguments.begin(),
+                        iterator->second.type_arguments.end(),
+                        requirement.type_arguments.begin(), same_type);
+    };
     SymbolTable *active_symbols = &symbols;
     const std::unordered_set<std::string> *active_type_parameters =
         &type_parameters;
@@ -1102,7 +1129,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   argument = substitute(std::move(argument), substitutions);
                 const SemanticType &candidate =
                     substitutions.at(constraint.parameter);
-                if (!satisfies_trait(candidate, requirement))
+                if (!satisfies_active_trait(candidate, requirement))
                   throw CompileError{node.location,
                                      "type '" + candidate.name() +
                                          "' does not satisfy constraint '" +
@@ -1147,7 +1174,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   argument = substitute(std::move(argument), substitutions);
                 const SemanticType &candidate =
                     substitutions.at(constraint.parameter);
-                if (!satisfies_trait(candidate, requirement))
+                if (!satisfies_active_trait(candidate, requirement))
                   throw CompileError{node.location,
                                      "type '" + candidate.name() +
                                          "' does not satisfy constraint '" +
@@ -1376,32 +1403,60 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 throw CompileError{node.location, "Ptr[T] has no method '" +
                                                       node.method + "'"};
               }
-              if (!object_type.is_class())
-                throw CompileError{node.location,
-                                   "method call requires an object"};
-              const ast::ClassDeclaration &class_declaration =
-                  *classes.at(object_type.parameter);
-              auto substitutions =
-                  class_substitutions(class_declaration, object_type);
-              std::unordered_set<std::string> method_parameters{
-                  class_declaration.type_parameters.begin(),
-                  class_declaration.type_parameters.end()};
+              std::unordered_map<std::string, SemanticType> substitutions;
+              std::unordered_set<std::string> method_parameters;
               const ast::FunctionDeclaration *method = nullptr;
-              for (const ast::FunctionDeclaration &candidate :
-                   class_declaration.methods) {
-                if (candidate.name == node.method)
-                  method = &candidate;
+              const ast::ClassDeclaration *class_declaration = nullptr;
+              const ast::TraitDeclaration *trait_declaration = nullptr;
+              if (object_type.is_class()) {
+                class_declaration = classes.at(object_type.parameter);
+                substitutions =
+                    class_substitutions(*class_declaration, object_type);
+                method_parameters.insert(
+                    class_declaration->type_parameters.begin(),
+                    class_declaration->type_parameters.end());
+                for (const ast::FunctionDeclaration &candidate :
+                     class_declaration->methods) {
+                  if (candidate.name == node.method)
+                    method = &candidate;
+                }
+              } else {
+                const auto constraint =
+                    active_trait_constraints.find(object_type.parameter);
+                if (constraint == active_trait_constraints.end())
+                  throw CompileError{node.location,
+                                     "method call requires an object or a "
+                                     "trait-constrained value"};
+                trait_declaration = constraint->second.declaration;
+                method_parameters.insert(
+                    trait_declaration->type_parameters.begin(),
+                    trait_declaration->type_parameters.end());
+                for (std::size_t index = 0;
+                     index < trait_declaration->type_parameters.size(); ++index)
+                  substitutions.emplace(
+                      trait_declaration->type_parameters[index],
+                      constraint->second.type_arguments[index]);
+                for (const ast::FunctionDeclaration &candidate :
+                     trait_declaration->methods) {
+                  if (candidate.name == node.method)
+                    method = &candidate;
+                }
               }
               if (method == nullptr)
                 throw CompileError{node.location,
-                                   "class '" + class_declaration.name +
+                                   std::string{class_declaration != nullptr
+                                                   ? "class '"
+                                                   : "trait '"} +
+                                       (class_declaration != nullptr
+                                            ? class_declaration->name
+                                            : trait_declaration->name) +
                                        "' has no method '" + node.method + "'"};
-              if (method->is_private &&
-                  (owner == nullptr || owner->name != class_declaration.name))
+              if (class_declaration != nullptr && method->is_private &&
+                  (owner == nullptr || owner->name != class_declaration->name))
                 throw CompileError{node.location,
                                    "method '" + node.method +
                                        "' is private in class '" +
-                                       class_declaration.name + "'"};
+                                       class_declaration->name + "'"};
               if (node.type_arguments.size() != method->type_parameters.size())
                 throw CompileError{
                     node.location,
@@ -1429,7 +1484,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   argument = substitute(std::move(argument), substitutions);
                 const SemanticType &candidate =
                     substitutions.at(constraint.parameter);
-                if (!satisfies_trait(candidate, requirement))
+                if (!satisfies_active_trait(candidate, requirement))
                   throw CompileError{node.location,
                                      "type '" + candidate.name() +
                                          "' does not satisfy constraint '" +
