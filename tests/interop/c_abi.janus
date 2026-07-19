@@ -1,3 +1,5 @@
+import std.c
+
 extern def janus_c_add(left : int, right : int) : int
 extern def janus_c_scale(
     values : Ptr[int],
@@ -29,10 +31,14 @@ def main() : int {
     val nextCodepoint : char = janus_c_next_codepoint(char(64))
     val positive : bool = janus_c_is_positive(-1)
     val count : usize = janus_c_count_nonzero(values, usize(3))
+    val textLength : usize = strlen(cstr("Janus"))
+    val comparison : int =
+        memcmp(cstr("Janus"), cstr("Janus"), textLength)
 
     if total == 18 && average == 6.0 &&
         nextByte == byte(42) && nextCodepoint == char(65) &&
-        !positive && count == usize(3) {
+        !positive && count == usize(3) &&
+        textLength == usize(5) && comparison == 0 {
         return 0
     } else {
         return 1
