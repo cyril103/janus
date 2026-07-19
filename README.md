@@ -143,6 +143,10 @@ janusup home
 Les téléchargements de `janusup` sont contrôlés avec le SHA-256 publié avec
 chaque archive. Une mise à jour n'écrase la chaîne active qu'après le
 téléchargement, la vérification et l'extraction du nouveau paquet.
+Lorsque GitHub CLI est disponible, l'attestation Sigstore de l'archive est
+également vérifiée automatiquement. `janusup verify <archive>` impose cette
+vérification, et `JANUS_REQUIRE_ATTESTATION=1` la rend obligatoire dans les
+installateurs.
 Le canal `stable` suit les versions finales, `beta` les préversions et
 `nightly` la construction hebdomadaire issue de `main`.
 

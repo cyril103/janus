@@ -154,6 +154,35 @@ std::string expected_sha256(const std::filesystem::path &path) {
   return digest;
 }
 
+bool github_cli_available() {
+#ifdef _WIN32
+  constexpr const char *redirect = " >NUL 2>&1";
+#else
+  constexpr const char *redirect = " >/dev/null 2>&1";
+#endif
+  return command_status(std::system(
+             (std::string{"gh --version"} + redirect).c_str())) == 0;
+}
+
+void verify_attestation(const std::filesystem::path &archive, bool required) {
+  if (!github_cli_available()) {
+    if (required)
+      throw std::runtime_error{
+          "GitHub CLI is required to verify artifact provenance"};
+    std::cerr << "janusup: warning: install GitHub CLI to verify the "
+                 "artifact attestation\n";
+    return;
+  }
+  const char *configured = std::getenv("JANUS_ATTESTATION_REPOSITORY");
+  const std::filesystem::path repository =
+      configured == nullptr ? "cyril103/janus" : configured;
+  const std::string command = "gh attestation verify " + shell_quote(archive) +
+                              " --repo " + shell_quote(repository);
+  if (command_status(std::system(command.c_str())) != 0)
+    throw std::runtime_error{"provenance verification failed for '" +
+                             archive.filename().string() + "'"};
+}
+
 std::filesystem::path temporary_directory() {
   const auto stamp =
       std::chrono::steady_clock::now().time_since_epoch().count();
@@ -226,6 +255,8 @@ std::filesystem::path download_package(const ToolchainSpec &spec,
         checksum_path);
   if (sha256(archive_path) != expected_sha256(checksum_path))
     throw std::runtime_error{"SHA-256 verification failed for " + archive};
+  if (std::getenv("JANUS_DIST_SERVER") == nullptr)
+    verify_attestation(archive_path, false);
 
   const std::filesystem::path extracted = temporary / "package";
   std::filesystem::create_directory(extracted);
@@ -354,6 +385,7 @@ void usage() {
             << "  janusup update [stable|beta|nightly|<version>]\n"
             << "  janusup uninstall <name>\n"
             << "  janusup default <name>\n"
+            << "  janusup verify <archive>\n"
             << "  janusup list\n"
             << "  janusup home\n"
             << "  janusup --version\n";
@@ -378,6 +410,11 @@ int main(int argc, char **argv) {
     if (argc == 3 && std::string_view{argv[1]} == "default") {
       activate(argv[2]);
       std::cout << "selected Janus toolchain '" << argv[2] << "'\n";
+      return 0;
+    }
+    if (argc == 3 && std::string_view{argv[1]} == "verify") {
+      verify_attestation(argv[2], true);
+      std::cout << "verified provenance for '" << argv[2] << "'\n";
       return 0;
     }
     if (argc == 2 && std::string_view{argv[1]} == "install") {
