@@ -1,0 +1,223 @@
+#include "janus/backend/llvm/ir_generator.hpp"
+#include "janus/diagnostics/compile_error.hpp"
+#include "janus/frontend/module_loader.hpp"
+#include "janus/semantic/analyzer.hpp"
+
+#include <cstdlib>
+#include <filesystem>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <system_error>
+
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
+
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Verifier.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/raw_ostream.h>
+
+namespace {
+
+struct Options {
+  std::string command;
+  std::filesystem::path source;
+  std::filesystem::path output;
+  bool emit_llvm{};
+  bool release{};
+};
+
+void print_usage() {
+  std::cerr
+      << "usage:\n"
+      << "  janus check <source.janus>\n"
+      << "  janus build <source.janus> [-o output] [--release] "
+         "[--emit llvm-ir]\n"
+      << "  janus run <source.janus> [--release]\n"
+      << "  janus --version\n";
+}
+
+Options parse_options(int argc, char **argv) {
+  if (argc < 3)
+    throw std::runtime_error{"missing command or source file"};
+  Options options;
+  options.command = argv[1];
+  options.source = argv[2];
+  if (options.command != "check" && options.command != "build" &&
+      options.command != "run")
+    throw std::runtime_error{"unknown command '" + options.command + "'"};
+  for (int index = 3; index < argc; ++index) {
+    const std::string_view argument = argv[index];
+    if (argument == "-o") {
+      if (++index == argc)
+        throw std::runtime_error{"-o requires an output path"};
+      options.output = argv[index];
+    } else if (argument == "--release") {
+      options.release = true;
+    } else if (argument == "--emit") {
+      if (++index == argc || std::string_view{argv[index]} != "llvm-ir")
+        throw std::runtime_error{"--emit currently accepts only 'llvm-ir'"};
+      options.emit_llvm = true;
+    } else {
+      throw std::runtime_error{"unknown option '" + std::string{argument} +
+                               "'"};
+    }
+  }
+  if (options.command == "check" &&
+      (!options.output.empty() || options.emit_llvm || options.release))
+    throw std::runtime_error{"check does not accept build options"};
+  if (options.command == "run" &&
+      (!options.output.empty() || options.emit_llvm))
+    throw std::runtime_error{"run does not accept -o or --emit"};
+  return options;
+}
+
+std::string shell_quote(const std::filesystem::path &path) {
+  const std::string value = path.string();
+#ifdef _WIN32
+  std::string quoted{"\""};
+  for (const char character : value) {
+    if (character == '"')
+      quoted += '\\';
+    quoted += character;
+  }
+  return quoted + '"';
+#else
+  std::string quoted{"'"};
+  for (const char character : value) {
+    if (character == '\'')
+      quoted += "'\\''";
+    else
+      quoted += character;
+  }
+  return quoted + '\'';
+#endif
+}
+
+int command_status(int status) {
+  if (status == -1)
+    return 1;
+#ifdef _WIN32
+  return status;
+#else
+  if (WIFEXITED(status))
+    return WEXITSTATUS(status);
+  return 1;
+#endif
+}
+
+std::unique_ptr<llvm::Module>
+compile(const std::filesystem::path &source, llvm::LLVMContext &context) {
+  janus::frontend::ModuleLoader loader{
+      {std::filesystem::path{JANUS_STDLIB_DIR}}};
+  const janus::ast::Program program = loader.load(source);
+  janus::semantic::Analyzer analyzer;
+  static_cast<void>(analyzer.analyze(program));
+  janus::backend::llvm::IrGenerator generator{context};
+  std::unique_ptr<llvm::Module> module =
+      generator.generate(program, source.string());
+  if (llvm::verifyModule(*module, &llvm::errs()))
+    throw std::runtime_error{"generated invalid LLVM IR"};
+  return module;
+}
+
+void write_ir(const llvm::Module &module, const std::filesystem::path &path) {
+  std::error_code error;
+  llvm::raw_fd_ostream output{path.string(), error, llvm::sys::fs::OF_None};
+  if (error)
+    throw std::runtime_error{"cannot create '" + path.string() + "': " +
+                             error.message()};
+  module.print(output, nullptr);
+}
+
+std::filesystem::path default_output(const Options &options) {
+  if (!options.output.empty())
+    return options.output;
+  if (options.emit_llvm) {
+    std::filesystem::path output = options.source.filename();
+    output.replace_extension(".ll");
+    return output;
+  }
+  std::filesystem::path output = options.source.filename();
+  output.replace_extension();
+#ifdef _WIN32
+  output += ".exe";
+#endif
+  return output;
+}
+
+int build(const Options &options, const std::filesystem::path &output) {
+  llvm::LLVMContext context;
+  std::unique_ptr<llvm::Module> module = compile(options.source, context);
+  if (options.emit_llvm) {
+    write_ir(*module, output);
+    return 0;
+  }
+
+  const std::filesystem::path temporary_ir =
+      std::filesystem::temp_directory_path() /
+      ("janus-" + std::to_string(std::rand()) + ".ll");
+  write_ir(*module, temporary_ir);
+  const char *configured_clang = std::getenv("JANUS_CLANG");
+  const std::string clang =
+      configured_clang == nullptr ? "clang" : configured_clang;
+  const std::string command =
+      clang + (options.release ? " -O2 " : " -O0 -g ") +
+      shell_quote(temporary_ir) + " -o " + shell_quote(output);
+  const int status = command_status(std::system(command.c_str()));
+  std::error_code ignored;
+  std::filesystem::remove(temporary_ir, ignored);
+  if (status != 0)
+    std::cerr << "janus: native compilation failed\n";
+  return status;
+}
+
+} // namespace
+
+int main(int argc, char **argv) {
+  if (argc == 2 && std::string_view{argv[1]} == "--version") {
+    std::cout << "janus " << JANUS_VERSION << '\n';
+    return 0;
+  }
+
+  std::filesystem::path diagnostic_path;
+  try {
+    const Options options = parse_options(argc, argv);
+    diagnostic_path = options.source;
+    if (options.command == "check") {
+      llvm::LLVMContext context;
+      static_cast<void>(compile(options.source, context));
+      std::cout << "checked " << options.source.string() << '\n';
+      return 0;
+    }
+    if (options.command == "build")
+      return build(options, default_output(options));
+
+    const std::filesystem::path executable =
+        std::filesystem::temp_directory_path() /
+        ("janus-run-" + std::to_string(std::rand())
+#ifdef _WIN32
+         + ".exe"
+#endif
+        );
+    const int build_status = build(options, executable);
+    if (build_status != 0)
+      return build_status;
+    const int run_status =
+        command_status(std::system(shell_quote(executable).c_str()));
+    std::error_code ignored;
+    std::filesystem::remove(executable, ignored);
+    return run_status;
+  } catch (const janus::CompileError &error) {
+    const janus::SourceLocation location = error.location();
+    std::cerr << diagnostic_path.string() << ':' << location.line << ':'
+              << location.column << ": error: " << error.what() << '\n';
+  } catch (const std::exception &error) {
+    std::cerr << "janus: error: " << error.what() << '\n';
+    print_usage();
+  }
+  return 1;
+}

@@ -110,9 +110,44 @@ target_compile_definitions(janusc
         JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
 )
 
+add_executable(janus
+    tools/janus/main.cpp
+)
+target_link_libraries(janus
+    PRIVATE
+        janus_semantic
+        janus_llvm_backend
+)
+target_compile_options(janus
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+target_compile_definitions(janus
+    PRIVATE
+        JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+        JANUS_VERSION="${PROJECT_VERSION}"
+)
+
 include(CTest)
 if(BUILD_TESTING)
     find_program(CLANG_EXECUTABLE clang REQUIRED)
+
+    add_test(
+        NAME cli.check
+        COMMAND janus check "${PROJECT_SOURCE_DIR}/examples/value.janus"
+    )
+    add_test(
+        NAME cli.emit_llvm
+        COMMAND janus build "${PROJECT_SOURCE_DIR}/examples/value.janus"
+                --emit llvm-ir
+                -o "${PROJECT_BINARY_DIR}/cli_value.ll"
+    )
+    add_test(
+        NAME cli.run
+        COMMAND janus run "${PROJECT_SOURCE_DIR}/examples/loop_jumps.janus"
+    )
 
     add_executable(int_type_test
         tests/types/int_type_test.cpp
