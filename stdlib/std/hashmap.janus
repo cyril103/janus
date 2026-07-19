@@ -1,0 +1,407 @@
+module std.hashmap
+import std.array
+import std.builder
+import std.hashing
+import std.iterator
+import std.option
+
+enum MapEntry[K, V] {
+    Entry(K, V)
+}
+
+enum MapSlot[K, V] {
+    Empty,
+    Occupied(K, V),
+    Deleted
+}
+
+class MapEntryIteratorState[K, V, H <: Hashing[K]](
+    private val source : HashMap[K, V, H],
+    private var index : usize
+) {
+    def next() : Option[MapEntry[K, V]] {
+        var result : Option[MapEntry[K, V]] =
+            Option.None[MapEntry[K, V]]()
+        while index < source.storageSize() && match result {
+            Some(entry) => false,
+            None => true
+        } {
+            result = source.entryAt(index)
+            index = index + usize(1)
+        }
+        return result
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+}
+
+class MapKeyIteratorState[K, V, H <: Hashing[K]](
+    private val source : HashMap[K, V, H],
+    private var index : usize
+) {
+    def next() : Option[K] {
+        var result : Option[K] = Option.None[K]()
+        while index < source.storageSize() && match result {
+            Some(key) => false,
+            None => true
+        } {
+            result = source.keyAt(index)
+            index = index + usize(1)
+        }
+        return result
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+}
+
+class MapValueIteratorState[K, V, H <: Hashing[K]](
+    private val source : HashMap[K, V, H],
+    private var index : usize
+) {
+    def next() : Option[V] {
+        var result : Option[V] = Option.None[V]()
+        while index < source.storageSize() && match result {
+            Some(value) => false,
+            None => true
+        } {
+            result = source.valueAt(index)
+            index = index + usize(1)
+        }
+        return result
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+}
+
+class HashMap[K, V, H <: Hashing[K]](
+    initialCapacity : usize,
+    private val hashing : H
+) {
+    private var slotCapacity : usize = if initialCapacity < usize(8) {
+        usize(8)
+    } else {
+        initialCapacity
+    }
+    private var slots : Array[MapSlot[K, V]] =
+        new Array[MapSlot[K, V]](slotCapacity)
+    private var length : usize = usize(0)
+    private var deletedCount : usize = usize(0)
+
+    private def initializeSlots() : Unit {
+        while slots.size() < slotCapacity {
+            slots.push(MapSlot.Empty[K, V]())
+        }
+    }
+
+    private def matches(slot : MapSlot[K, V], key : K) : bool {
+        return match slot {
+            Occupied(existing, value) => hashing.equals(existing, key),
+            Empty => false,
+            Deleted => false
+        }
+    }
+
+    private def isEmptySlot(slot : MapSlot[K, V]) : bool {
+        return match slot {
+            Empty => true,
+            Occupied(key, value) => false,
+            Deleted => false
+        }
+    }
+
+    private def isDeletedSlot(slot : MapSlot[K, V]) : bool {
+        return match slot {
+            Deleted => true,
+            Empty => false,
+            Occupied(key, value) => false
+        }
+    }
+
+    private def oldValue(slot : MapSlot[K, V]) : Option[V] {
+        return match slot {
+            Occupied(key, value) => Option.Some[V](value),
+            Empty => Option.None[V](),
+            Deleted => Option.None[V]()
+        }
+    }
+
+    private def restoreValue(key : K, value : V) : bool {
+        this.put(key, value)
+        return true
+    }
+
+    private def restore(slot : MapSlot[K, V]) : bool {
+        return match slot {
+            Occupied(key, value) => this.restoreValue(key, value),
+            Empty => false,
+            Deleted => false
+        }
+    }
+
+    private def resize(requested : usize) : Unit {
+        val previous : Array[MapSlot[K, V]] = move slots
+        val previousSize : usize = previous.size()
+        slotCapacity = requested
+        slots = new Array[MapSlot[K, V]](slotCapacity)
+        length = usize(0)
+        deletedCount = usize(0)
+        this.initializeSlots()
+
+        var index : usize = usize(0)
+        while index < previousSize {
+            this.restore(previous.get(index))
+            index = index + usize(1)
+        }
+        delete previous
+    }
+
+    def size() : usize {
+        return length
+    }
+
+    def isEmpty() : bool {
+        return length == usize(0)
+    }
+
+    def storageSize() : usize {
+        this.initializeSlots()
+        return slotCapacity
+    }
+
+    def entryAt(index : usize) : Option[MapEntry[K, V]] {
+        this.initializeSlots()
+        if index >= slotCapacity {
+            return Option.None[MapEntry[K, V]]()
+        }
+        return match slots.get(index) {
+            Occupied(key, value) =>
+                Option.Some[MapEntry[K, V]](
+                    MapEntry.Entry[K, V](key, value)
+                ),
+            Empty => Option.None[MapEntry[K, V]](),
+            Deleted => Option.None[MapEntry[K, V]]()
+        }
+    }
+
+    def keyAt(index : usize) : Option[K] {
+        this.initializeSlots()
+        if index >= slotCapacity {
+            return Option.None[K]()
+        }
+        return match slots.get(index) {
+            Occupied(key, value) => Option.Some[K](key),
+            Empty => Option.None[K](),
+            Deleted => Option.None[K]()
+        }
+    }
+
+    def valueAt(index : usize) : Option[V] {
+        this.initializeSlots()
+        if index >= slotCapacity {
+            return Option.None[V]()
+        }
+        return match slots.get(index) {
+            Occupied(key, value) => Option.Some[V](value),
+            Empty => Option.None[V](),
+            Deleted => Option.None[V]()
+        }
+    }
+
+    def containsKey(key : K) : bool {
+        this.initializeSlots()
+        var index : usize = hashing.hash(key) % slotCapacity
+        var checked : usize = usize(0)
+        while checked < slotCapacity {
+            val slot : MapSlot[K, V] = slots.get(index)
+            if this.matches(slot, key) {
+                return true
+            }
+            if this.isEmptySlot(slot) {
+                return false
+            }
+            index = (index + usize(1)) % slotCapacity
+            checked = checked + usize(1)
+        }
+        return false
+    }
+
+    def getOption(key : K) : Option[V] {
+        this.initializeSlots()
+        var index : usize = hashing.hash(key) % slotCapacity
+        var checked : usize = usize(0)
+        while checked < slotCapacity {
+            val slot : MapSlot[K, V] = slots.get(index)
+            if this.matches(slot, key) {
+                return this.oldValue(slot)
+            }
+            if this.isEmptySlot(slot) {
+                return Option.None[V]()
+            }
+            index = (index + usize(1)) % slotCapacity
+            checked = checked + usize(1)
+        }
+        return Option.None[V]()
+    }
+
+    def put(key : K, value : V) : Option[V] {
+        this.initializeSlots()
+        if (length + deletedCount + usize(1)) * usize(4) >=
+            slotCapacity * usize(3) {
+            this.resize(slotCapacity * usize(2))
+        }
+
+        var index : usize = hashing.hash(key) % slotCapacity
+        var checked : usize = usize(0)
+        var firstDeleted : usize = usize(0)
+        var hasDeleted : bool = false
+        while checked < slotCapacity {
+            val slot : MapSlot[K, V] = slots.get(index)
+            if this.matches(slot, key) {
+                val previous : Option[V] = this.oldValue(slot)
+                slots.set(index, MapSlot.Occupied[K, V](key, value))
+                return previous
+            }
+            if this.isDeletedSlot(slot) && !hasDeleted {
+                firstDeleted = index
+                hasDeleted = true
+            }
+            if this.isEmptySlot(slot) {
+                val destination : usize = if hasDeleted {
+                    firstDeleted
+                } else {
+                    index
+                }
+                slots.set(
+                    destination,
+                    MapSlot.Occupied[K, V](key, value)
+                )
+                length = length + usize(1)
+                if hasDeleted {
+                    deletedCount = deletedCount - usize(1)
+                }
+                return Option.None[V]()
+            }
+            index = (index + usize(1)) % slotCapacity
+            checked = checked + usize(1)
+        }
+
+        if hasDeleted {
+            slots.set(
+                firstDeleted,
+                MapSlot.Occupied[K, V](key, value)
+            )
+            length = length + usize(1)
+            deletedCount = deletedCount - usize(1)
+            return Option.None[V]()
+        }
+        this.resize(slotCapacity * usize(2))
+        return this.put(key, value)
+    }
+
+    def remove(key : K) : Option[V] {
+        this.initializeSlots()
+        var index : usize = hashing.hash(key) % slotCapacity
+        var checked : usize = usize(0)
+        while checked < slotCapacity {
+            val slot : MapSlot[K, V] = slots.get(index)
+            if this.matches(slot, key) {
+                val removed : Option[V] = this.oldValue(slot)
+                slots.set(index, MapSlot.Deleted[K, V]())
+                length = length - usize(1)
+                deletedCount = deletedCount + usize(1)
+                return removed
+            }
+            if this.isEmptySlot(slot) {
+                return Option.None[V]()
+            }
+            index = (index + usize(1)) % slotCapacity
+            checked = checked + usize(1)
+        }
+        return Option.None[V]()
+    }
+
+    def clear() : Unit {
+        this.initializeSlots()
+        var index : usize = usize(0)
+        while index < slotCapacity {
+            slots.set(index, MapSlot.Empty[K, V]())
+            index = index + usize(1)
+        }
+        length = usize(0)
+        deletedCount = usize(0)
+    }
+
+    def entries() : Iterator[MapEntry[K, V]] {
+        val state : MapEntryIteratorState[K, V, H] =
+            new MapEntryIteratorState[K, V, H](this, usize(0))
+        return new Iterator[MapEntry[K, V]](
+            () => state.next(),
+            () => state.dispose()
+        )
+    }
+
+    def keys() : Iterator[K] {
+        val state : MapKeyIteratorState[K, V, H] =
+            new MapKeyIteratorState[K, V, H](this, usize(0))
+        return new Iterator[K](
+            () => state.next(),
+            () => state.dispose()
+        )
+    }
+
+    def values() : Iterator[V] {
+        val state : MapValueIteratorState[K, V, H] =
+            new MapValueIteratorState[K, V, H](this, usize(0))
+        return new Iterator[V](
+            () => state.next(),
+            () => state.dispose()
+        )
+    }
+
+    destructor {
+        delete slots
+    }
+}
+
+class MapBuilder[K, V, H <: Hashing[K]](
+    initialCapacity : usize,
+    private val hashing : H
+) extends Builder[MapEntry[K, V], HashMap[K, V, H]] {
+    private var values : HashMap[K, V, H] =
+        new HashMap[K, V, H](initialCapacity, hashing)
+
+    private def insert(key : K, value : V) : bool {
+        values.put(key, value)
+        return true
+    }
+
+    def add(entry : MapEntry[K, V]) : Unit {
+        val inserted : bool = match entry {
+            Entry(key, value) => this.insert(key, value)
+        }
+    }
+
+    def size() : usize {
+        return values.size()
+    }
+
+    def clear() : Unit {
+        values.clear()
+    }
+
+    def result() : HashMap[K, V, H] {
+        val completed : HashMap[K, V, H] = move values
+        values = new HashMap[K, V, H](usize(8), hashing)
+        return completed
+    }
+
+    destructor {
+        delete values
+    }
+}

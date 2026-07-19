@@ -51,6 +51,11 @@ int main() {
   expect(has_class("HashSet") && has_class("SetBuilder") &&
              has_class("HashSetIteratorState"),
          "the standard library loads hash sets, builders, and iterators");
+  expect(has_class("HashMap") && has_class("MapBuilder") &&
+             has_class("MapEntryIteratorState") &&
+             has_class("MapKeyIteratorState") &&
+             has_class("MapValueIteratorState"),
+         "the standard library loads hash maps and their lazy views");
   expect(std::any_of(program.traits.begin(), program.traits.end(),
                      [](const janus::ast::TraitDeclaration &declaration) {
                        return declaration.name == "Builder";
@@ -164,6 +169,26 @@ int main() {
   expect(ir.find("define ptr @SetBuilder__int__IntHashing__result") !=
              std::string::npos,
          "SetBuilder transfers ownership of its completed HashSet");
+  expect(ir.find("%enum.MapSlot__int__int = type") != std::string::npos,
+         "HashMap stores its slot state, keys, and values inline");
+  expect(
+      ir.find("define %enum.Option__int @HashMap__int__int__IntHashing__put") !=
+          std::string::npos,
+      "HashMap.put returns the previous optional value");
+  expect(ir.find("HashMap__int__int__IntHashing__getOption") !=
+             std::string::npos,
+         "HashMap provides optional lookup");
+  expect(ir.find("HashMap__int__int__IntHashing__remove") != std::string::npos,
+         "HashMap removes entries with tombstones");
+  expect(ir.find("HashMap__int__int__IntHashing__keys") != std::string::npos &&
+             ir.find("HashMap__int__int__IntHashing__values") !=
+                 std::string::npos &&
+             ir.find("HashMap__int__int__IntHashing__entries") !=
+                 std::string::npos,
+         "HashMap exposes lazy key, value, and entry iterators");
+  expect(ir.find("define ptr @MapBuilder__int__int__IntHashing__result") !=
+             std::string::npos,
+         "MapBuilder transfers ownership of its completed HashMap");
   expect(ir.find("for.next") != std::string::npos,
          "for loops consume Iterator values");
   expect(ir.find("%for.iterator = call ptr @Array__int__iterator") !=

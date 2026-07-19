@@ -563,6 +563,39 @@ jusqu'à sa destruction. `SetBuilder[T, H]` implémente
 `Builder[T, HashSet[T, H]]` et élimine naturellement les doublons pendant une
 collecte.
 
+### Table associative
+
+`std.hashmap` fournit `HashMap[K, V, H <: Hashing[K]]` avec le même adressage
+ouvert :
+
+```janus
+val hashing : IntHashing = new IntHashing()
+val scores : HashMap[int, int, IntHashing] =
+    new HashMap[int, int, IntHashing](usize(8), hashing)
+
+scores.put(1, 10)
+scores.put(2, 20)
+val previous : Option[int] = scores.put(1, 11)
+val score : Option[int] = scores.getOption(1)
+val removed : Option[int] = scores.remove(2)
+
+for key in scores.keys() {
+    println(key)
+}
+
+delete scores
+delete hashing
+```
+
+`put` retourne l'ancienne valeur lorsqu'une clé existante est remplacée.
+`containsKey`, `size`, `isEmpty` et `clear` complètent l'API. `keys()`,
+`values()` et `entries()` produisent des itérateurs paresseux ; une entrée est
+représentée par `MapEntry.Entry(key, value)`.
+
+`MapBuilder[K, V, H]` accepte des `MapEntry[K, V]` et transfère la table
+terminée avec `result()`. Comme pour `HashSet`, la stratégie de hachage est
+empruntée et doit être détruite après toutes les tables qui l'utilisent.
+
 `get` et `pop` conservent leur comportement strict et appellent `panic` en cas
 d’erreur. Leurs variantes `getOption` et `popOption`, ainsi que `find`,
 retournent `None` lorsque aucune valeur n’est disponible. `std.array` importe

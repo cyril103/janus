@@ -1,6 +1,7 @@
 import std.array
 import std.builder
 import std.hashing
+import std.hashmap
 import std.hashset
 
 def main() : int {
@@ -30,6 +31,11 @@ def main() : int {
     unique.add(10)
     unique.add(20)
     unique.add(10)
+    unique.add(30)
+    unique.add(40)
+    unique.add(50)
+    unique.add(60)
+    unique.add(70)
     val removedFromSet : bool = unique.remove(20)
     val setContainsTen : bool = unique.contains(10)
 
@@ -43,6 +49,56 @@ def main() : int {
     var setSum : int = 0
     for value in builtSet {
         setSum = setSum + value
+    }
+
+    val numbers : HashMap[int, int, IntHashing] =
+        new HashMap[int, int, IntHashing](usize(4), hashing)
+    numbers.put(1, 10)
+    numbers.put(2, 20)
+    numbers.put(3, 30)
+    numbers.put(4, 40)
+    numbers.put(5, 50)
+    numbers.put(6, 60)
+    numbers.put(7, 70)
+    val replaced : Option[int] = numbers.put(1, 11)
+    val fetched : Option[int] = numbers.getOption(1)
+    val removedFromMap : Option[int] = numbers.remove(2)
+    val mapContainsOne : bool = numbers.containsKey(1)
+
+    var keySum : int = 0
+    for key in numbers.keys() {
+        keySum = keySum + key
+    }
+    var valueSum : int = 0
+    for value in numbers.values() {
+        valueSum = valueSum + value
+    }
+    var entrySum : int = 0
+    for entry in numbers.entries() {
+        entrySum = entrySum + match entry {
+            Entry(key, value) => key + value
+        }
+    }
+
+    val mapBuilder : MapBuilder[int, int, IntHashing] =
+        new MapBuilder[int, int, IntHashing](usize(4), hashing)
+    mapBuilder.add(MapEntry.Entry[int, int](3, 30))
+    mapBuilder.add(MapEntry.Entry[int, int](4, 40))
+    val builtMap : HashMap[int, int, IntHashing] =
+        mapBuilder.result()
+    delete mapBuilder
+
+    val replacedValue : int = match replaced {
+        Some(value) => value,
+        None => 0
+    }
+    val fetchedValue : int = match fetched {
+        Some(value) => value,
+        None => 0
+    }
+    val removedMapValue : int = match removedFromMap {
+        Some(value) => value,
+        None => 0
     }
 
     val collected : Array[int] =
@@ -105,8 +161,13 @@ def main() : int {
         int(values.isEmpty()) + firstValue + loopSum + builtSize +
         pendingSize + hashSample + int(hashMatches) +
         int(removedFromSet) + int(setContainsTen) +
-        int(unique.size()) + int(builtSet.size()) + setSum
+        int(unique.size()) + int(builtSet.size()) + setSum +
+        replacedValue + fetchedValue + removedMapValue +
+        int(mapContainsOne) + keySum + valueSum + entrySum +
+        int(builtMap.size())
 
+    delete builtMap
+    delete numbers
     delete builtSet
     delete unique
     delete hashing
