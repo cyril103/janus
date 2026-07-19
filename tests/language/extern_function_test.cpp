@@ -1,8 +1,13 @@
+#include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/frontend/parser.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/semantic/analyzer.hpp"
 
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/Support/raw_ostream.h>
+
 #include <iostream>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -57,6 +62,21 @@ int main() {
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
   expect(analysis.functions.contains("c_add"),
          "an ABI-compatible external signature is analyzed");
+
+  llvm::LLVMContext context;
+  janus::backend::llvm::IrGenerator generator{context};
+  const std::unique_ptr<llvm::Module> module =
+      generator.generate(program, "extern_function");
+  std::string ir;
+  llvm::raw_string_ostream output{ir};
+  module->print(output, nullptr);
+  output.flush();
+  expect(ir.find("declare i32 @c_add(i32, i32)") != std::string::npos,
+         "extern def emits an LLVM declaration with the C symbol name");
+  expect(ir.find("define i32 @c_add") == std::string::npos,
+         "an external function has no LLVM body");
+  expect(ir.find("call i32 @c_add(i32 20, i32 22)") != std::string::npos,
+         "Janus calls the emitted external declaration");
 
   janus::frontend::Parser abi_parser{
       "extern def exchange(data : Ptr[int], size : usize, ratio : double, "

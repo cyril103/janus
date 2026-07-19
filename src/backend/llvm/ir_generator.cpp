@@ -472,8 +472,6 @@ private:
     if (const auto iterator = emitted_.find(llvm_name);
         iterator != emitted_.end())
       return iterator->second;
-    auto previous_cleanup_scopes = std::move(active_cleanup_scopes_);
-    active_cleanup_scopes_.clear();
 
     Substitutions substitutions;
     if (owner_substitutions != nullptr)
@@ -503,6 +501,11 @@ private:
     auto *llvm_function =
         ::llvm::Function::Create(function_type, linkage, llvm_name, *module_);
     emitted_.emplace(llvm_name, llvm_function);
+    if (function.is_external)
+      return llvm_function;
+
+    auto previous_cleanup_scopes = std::move(active_cleanup_scopes_);
+    active_cleanup_scopes_.clear();
 
     auto *entry = ::llvm::BasicBlock::Create(context_, "entry", llvm_function);
     ::llvm::IRBuilder<> builder{entry};

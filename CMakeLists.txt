@@ -168,6 +168,7 @@ if(BUILD_TESTING)
     target_link_libraries(extern_function_test
         PRIVATE
             janus_semantic
+            janus_llvm_backend
     )
     target_compile_options(extern_function_test
         PRIVATE
