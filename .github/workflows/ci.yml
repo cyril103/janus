@@ -53,6 +53,9 @@ jobs:
       - name: Package
         run: cmake --build build --target dist
 
+      - name: Smoke test packaged toolchain
+        run: scripts/smoke-test-package.sh build/janus-*.tar.gz
+
       - name: Upload distribution
         uses: actions/upload-artifact@v7
         with:
