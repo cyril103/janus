@@ -89,6 +89,14 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Test
+        if: runner.os != 'Windows'
+        run: >
+          ctest --test-dir build --output-on-failure
+          --stop-on-failure --timeout 60
+
+      - name: Test on Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: >
           ctest --test-dir build --output-on-failure
           --stop-on-failure --timeout 60
