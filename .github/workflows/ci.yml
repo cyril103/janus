@@ -27,8 +27,8 @@ jobs:
           - name: macOS ARM64
             os: macos-14
             llvm_dir: /opt/homebrew/opt/llvm/lib/cmake/llvm
-            cc: /opt/homebrew/opt/llvm/bin/clang
-            cxx: /opt/homebrew/opt/llvm/bin/clang++
+            cc: /usr/bin/clang
+            cxx: /usr/bin/clang++
           - name: Windows x86_64
             os: windows-2025
 
