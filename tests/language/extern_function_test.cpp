@@ -99,6 +99,26 @@ int main() {
   expect(alias_ir.find("@absolute") == std::string::npos,
          "the Janus alias is not exported as a second native symbol");
 
+  janus::frontend::Parser cstr_parser{
+      "extern def puts(text : Ptr[byte]) : int "
+      "def main() : int { val text : string = \"Janus\" "
+      "return puts(cstr(text)) }"};
+  const janus::ast::Program cstr_program = cstr_parser.parse_program();
+  static_cast<void>(analyzer.analyze(cstr_program));
+  llvm::LLVMContext cstr_context;
+  janus::backend::llvm::IrGenerator cstr_generator{cstr_context};
+  const std::unique_ptr<llvm::Module> cstr_module =
+      cstr_generator.generate(cstr_program, "c_string");
+  std::string cstr_ir;
+  llvm::raw_string_ostream cstr_output{cstr_ir};
+  cstr_module->print(cstr_output, nullptr);
+  cstr_output.flush();
+  expect(cstr_ir.find("cstr.data = extractvalue { ptr, i64 }") !=
+             std::string::npos &&
+             cstr_ir.find("call i32 @puts(ptr %cstr.data)") !=
+                 std::string::npos,
+         "cstr exposes the null-terminated UTF-8 data pointer to C");
+
   janus::frontend::Parser abi_parser{
       "extern def exchange(data : Ptr[int], size : usize, ratio : double, "
       "tag : byte, codepoint : char, enabled : bool) : Unit "
@@ -131,6 +151,10 @@ int main() {
       "def native() : Unit {} extern(\"native\") def alias() : Unit "
       "def main() : int { return 0 }",
       "conflicts with Janus function");
+  expect_compile_error("def main() : int { cstr() return 0 }",
+                       "cstr expects one string argument");
+  expect_compile_error("def main() : int { cstr(42) return 0 }",
+                       "where type 'string' is required");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

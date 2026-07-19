@@ -1123,6 +1123,8 @@ private:
             if (node.callee == "panic" || node.callee == "print" ||
                 node.callee == "println")
               return janus::Type::unit_type();
+            if (node.callee == "cstr")
+              return ensure_pointer(janus::Type::byte_type());
             if (node.callee == "alloc" || node.callee == "realloc" ||
                 node.callee == "null") {
               const janus::Type &element =
@@ -1431,6 +1433,12 @@ private:
                     {builder.getInt32(1), newline, builder.getInt64(1)});
               }
               return result;
+            }
+            if (node.callee == "cstr") {
+              ::llvm::Value *text = emit_expression(
+                  *node.arguments.front(), janus::Type::string_type(),
+                  substitutions, locals, builder);
+              return builder.CreateExtractValue(text, 0, "cstr.data");
             }
             if (node.callee == "panic") {
               ::llvm::Value *message = emit_expression(
