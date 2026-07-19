@@ -1,4 +1,5 @@
 #include "janus/backend/llvm/ir_generator.hpp"
+#include "janus/backend/llvm/object_emitter.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
@@ -27,6 +28,7 @@ struct Options {
   std::filesystem::path source;
   std::filesystem::path output;
   bool emit_llvm{};
+  bool emit_object{};
   bool release{};
 };
 
@@ -35,7 +37,7 @@ void print_usage() {
       << "usage:\n"
       << "  janus check <source.janus>\n"
       << "  janus build <source.janus> [-o output] [--release] "
-         "[--emit llvm-ir]\n"
+         "[--emit llvm-ir|object]\n"
       << "  janus run <source.janus> [--release]\n"
       << "  janus --version\n";
 }
@@ -58,19 +60,26 @@ Options parse_options(int argc, char **argv) {
     } else if (argument == "--release") {
       options.release = true;
     } else if (argument == "--emit") {
-      if (++index == argc || std::string_view{argv[index]} != "llvm-ir")
-        throw std::runtime_error{"--emit currently accepts only 'llvm-ir'"};
-      options.emit_llvm = true;
+      if (++index == argc)
+        throw std::runtime_error{"--emit requires 'llvm-ir' or 'object'"};
+      const std::string_view kind = argv[index];
+      if (kind == "llvm-ir")
+        options.emit_llvm = true;
+      else if (kind == "object")
+        options.emit_object = true;
+      else
+        throw std::runtime_error{"--emit accepts 'llvm-ir' or 'object'"};
     } else {
       throw std::runtime_error{"unknown option '" + std::string{argument} +
                                "'"};
     }
   }
   if (options.command == "check" &&
-      (!options.output.empty() || options.emit_llvm || options.release))
+      (!options.output.empty() || options.emit_llvm || options.emit_object ||
+       options.release))
     throw std::runtime_error{"check does not accept build options"};
   if (options.command == "run" &&
-      (!options.output.empty() || options.emit_llvm))
+      (!options.output.empty() || options.emit_llvm || options.emit_object))
     throw std::runtime_error{"run does not accept -o or --emit"};
   return options;
 }
@@ -141,6 +150,11 @@ std::filesystem::path default_output(const Options &options) {
     output.replace_extension(".ll");
     return output;
   }
+  if (options.emit_object) {
+    std::filesystem::path output = options.source.filename();
+    output.replace_extension(".o");
+    return output;
+  }
   std::filesystem::path output = options.source.filename();
   output.replace_extension();
 #ifdef _WIN32
@@ -157,19 +171,24 @@ int build(const Options &options, const std::filesystem::path &output) {
     return 0;
   }
 
-  const std::filesystem::path temporary_ir =
+  const std::filesystem::path object =
+      options.emit_object
+          ? output
+          :
       std::filesystem::temp_directory_path() /
-      ("janus-" + std::to_string(std::rand()) + ".ll");
-  write_ir(*module, temporary_ir);
+            ("janus-" + std::to_string(std::rand()) + ".o");
+  janus::backend::llvm::emit_object(*module, object, options.release);
+  if (options.emit_object)
+    return 0;
   const char *configured_clang = std::getenv("JANUS_CLANG");
   const std::string clang =
       configured_clang == nullptr ? "clang" : configured_clang;
   const std::string command =
       clang + (options.release ? " -O2 " : " -O0 -g ") +
-      shell_quote(temporary_ir) + " -o " + shell_quote(output);
+      shell_quote(object) + " -o " + shell_quote(output);
   const int status = command_status(std::system(command.c_str()));
   std::error_code ignored;
-  std::filesystem::remove(temporary_ir, ignored);
+  std::filesystem::remove(object, ignored);
   if (status != 0)
     std::cerr << "janus: native compilation failed\n";
   return status;

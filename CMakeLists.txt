@@ -69,6 +69,7 @@ target_compile_options(janus_semantic
 add_library(janus_llvm_backend
     src/backend/llvm/type_lowering.cpp
     src/backend/llvm/ir_generator.cpp
+    src/backend/llvm/object_emitter.cpp
 )
 target_include_directories(janus_llvm_backend
     SYSTEM PUBLIC
@@ -79,7 +80,13 @@ target_link_libraries(janus_llvm_backend
         janus_types
         janus_frontend
 )
-llvm_map_components_to_libnames(JANUS_LLVM_LIBS Core Support)
+llvm_map_components_to_libnames(
+    JANUS_LLVM_LIBS
+    Core
+    Support
+    native
+    nativecodegen
+)
 target_link_libraries(janus_llvm_backend
     PRIVATE
         ${JANUS_LLVM_LIBS}
@@ -143,6 +150,12 @@ if(BUILD_TESTING)
         COMMAND janus build "${PROJECT_SOURCE_DIR}/examples/value.janus"
                 --emit llvm-ir
                 -o "${PROJECT_BINARY_DIR}/cli_value.ll"
+    )
+    add_test(
+        NAME cli.emit_object
+        COMMAND janus build "${PROJECT_SOURCE_DIR}/examples/value.janus"
+                --emit object
+                -o "${PROJECT_BINARY_DIR}/cli_value.o"
     )
     add_test(
         NAME cli.run
