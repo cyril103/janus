@@ -162,6 +162,21 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.val_declaration COMMAND val_declaration_test)
 
+    add_executable(extern_function_test
+        tests/language/extern_function_test.cpp
+    )
+    target_link_libraries(extern_function_test
+        PRIVATE
+            janus_frontend
+    )
+    target_compile_options(extern_function_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.extern_function COMMAND extern_function_test)
+
     add_executable(generic_function_test
         tests/language/generic_function_test.cpp
     )

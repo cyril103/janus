@@ -266,6 +266,7 @@ struct FunctionDeclaration {
   bool is_private{};
   bool is_consuming{};
   std::vector<TypeConstraint> type_constraints;
+  bool is_external{};
 };
 
 struct DestructorDeclaration {

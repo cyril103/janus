@@ -9,6 +9,7 @@ namespace janus::frontend {
 enum class TokenKind {
   Module,
   Import,
+  Extern,
   Def,
   Trait,
   Extends,
@@ -80,6 +81,8 @@ struct Token {
     return "'module'";
   case TokenKind::Import:
     return "'import'";
+  case TokenKind::Extern:
+    return "'extern'";
   case TokenKind::Def:
     return "'def'";
   case TokenKind::Trait:

@@ -547,6 +547,10 @@ std::vector<ast::Statement> Parser::parse_block() {
 }
 
 ast::FunctionDeclaration Parser::parse_function_declaration() {
+  const bool is_external = current_.kind == TokenKind::Extern;
+  const SourceLocation declaration_location = current_.location;
+  if (is_external)
+    advance();
   const Token def = expect(TokenKind::Def);
   const Token name = expect(TokenKind::Identifier);
 
@@ -596,17 +600,21 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
   static_cast<void>(expect(TokenKind::RightParen));
   static_cast<void>(expect(TokenKind::Colon));
   ast::TypeReference return_type = parse_type();
-  std::vector<ast::Statement> body = parse_block();
+  std::vector<ast::Statement> body;
+  if (!is_external)
+    body = parse_block();
 
   ast::FunctionDeclaration declaration{std::string{name.lexeme},
                                        std::move(type_parameters),
                                        std::move(parameters),
                                        std::move(return_type),
                                        std::move(body),
-                                       def.location,
+                                       is_external ? declaration_location
+                                                   : def.location,
                                        false,
                                        false,
-                                       std::move(type_constraints)};
+                                       std::move(type_constraints),
+                                       is_external};
   return declaration;
 }
 

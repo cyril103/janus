@@ -35,6 +35,8 @@ Token Lexer::next() {
       kind = TokenKind::Module;
     } else if (lexeme == "import") {
       kind = TokenKind::Import;
+    } else if (lexeme == "extern") {
+      kind = TokenKind::Extern;
     } else if (lexeme == "def") {
       kind = TokenKind::Def;
     } else if (lexeme == "trait") {
