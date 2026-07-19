@@ -130,8 +130,15 @@ L'installation est placée dans `~/.janus` sous Unix et dans
 ```bash
 janusup list
 janusup default 0.1.0
+janusup install 0.1.0
+janusup update 0.1.0
+janusup uninstall 0.0.9
 janusup home
 ```
+
+Les téléchargements de `janusup` sont contrôlés avec le SHA-256 publié avec
+chaque archive. Une mise à jour n'écrase la chaîne active qu'après le
+téléchargement, la vérification et l'extraction du nouveau paquet.
 
 Le compilateur recherche automatiquement son runtime et la bibliothèque
 standard relativement à son dossier d'installation. `JANUS_CC` permet de

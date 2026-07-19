@@ -179,6 +179,14 @@ set_target_properties(janus janusc
 add_executable(janusup
     tools/janusup/main.cpp
 )
+target_include_directories(janusup
+    SYSTEM PRIVATE
+        ${LLVM_INCLUDE_DIRS}
+)
+target_link_libraries(janusup
+    PRIVATE
+        ${JANUS_LLVM_LIBS}
+)
 target_compile_options(janusup
     PRIVATE
         -Wall
@@ -224,6 +232,8 @@ if(BUILD_TESTING)
         COMMAND "${CMAKE_COMMAND}"
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}
                 -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+                -DPACKAGE_PLATFORM=${CMAKE_SYSTEM_NAME}
+                -DPACKAGE_ARCH=${CMAKE_SYSTEM_PROCESSOR}
                 -DJANUSUP=$<TARGET_FILE:janusup>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_janusup.cmake"
     )

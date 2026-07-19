@@ -1,5 +1,6 @@
-if(NOT DEFINED BUILD_DIR OR NOT DEFINED SOURCE_DIR OR NOT DEFINED JANUSUP)
-    message(FATAL_ERROR "BUILD_DIR, SOURCE_DIR and JANUSUP are required")
+if(NOT DEFINED BUILD_DIR OR NOT DEFINED SOURCE_DIR OR NOT DEFINED JANUSUP
+   OR NOT DEFINED PACKAGE_PLATFORM OR NOT DEFINED PACKAGE_ARCH)
+    message(FATAL_ERROR "missing janusup test configuration")
 endif()
 
 set(TEST_ROOT "${BUILD_DIR}/janusup-test")
@@ -62,4 +63,77 @@ if(NOT RUN_STATUS EQUAL 0)
 endif()
 if(NOT RUN_OUTPUT MATCHES "Janus")
     message(FATAL_ERROR "installed program produced unexpected output: ${RUN_OUTPUT}")
+endif()
+
+set(REMOTE_VERSION "0.1.1")
+if(PACKAGE_ARCH MATCHES "^(aarch64|ARM64)$")
+    set(PACKAGE_ARCH "arm64")
+endif()
+set(REMOTE_BASENAME
+    "janus-${REMOTE_VERSION}-${PACKAGE_PLATFORM}-${PACKAGE_ARCH}")
+set(REMOTE_SOURCE "${TEST_ROOT}/remote-source/${REMOTE_BASENAME}")
+set(REMOTE_DIST "${TEST_ROOT}/dist/v${REMOTE_VERSION}")
+file(MAKE_DIRECTORY "${REMOTE_SOURCE}/bin" "${REMOTE_DIST}")
+if(WIN32)
+    file(WRITE "${REMOTE_SOURCE}/bin/janus.exe" "")
+    set(REMOTE_ARCHIVE "${REMOTE_DIST}/${REMOTE_BASENAME}.zip")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E tar cf "${REMOTE_ARCHIVE}" --format=zip
+                "${REMOTE_BASENAME}"
+        WORKING_DIRECTORY "${TEST_ROOT}/remote-source"
+        RESULT_VARIABLE ARCHIVE_STATUS
+    )
+else()
+    file(WRITE "${REMOTE_SOURCE}/bin/janus" "")
+    set(REMOTE_ARCHIVE "${REMOTE_DIST}/${REMOTE_BASENAME}.tar.gz")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E tar czf "${REMOTE_ARCHIVE}"
+                "${REMOTE_BASENAME}"
+        WORKING_DIRECTORY "${TEST_ROOT}/remote-source"
+        RESULT_VARIABLE ARCHIVE_STATUS
+    )
+endif()
+if(NOT ARCHIVE_STATUS EQUAL 0)
+    message(FATAL_ERROR "could not create the fake remote package")
+endif()
+file(SHA256 "${REMOTE_ARCHIVE}" REMOTE_DIGEST)
+get_filename_component(REMOTE_ARCHIVE_NAME "${REMOTE_ARCHIVE}" NAME)
+file(WRITE "${REMOTE_ARCHIVE}.sha256"
+     "${REMOTE_DIGEST}  ${REMOTE_ARCHIVE_NAME}\n")
+
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env
+            "JANUSUP_HOME=${TEST_ROOT}/home"
+            "JANUS_DIST_SERVER=${TEST_ROOT}/dist"
+            "${JANUSUP}" install "${REMOTE_VERSION}"
+    RESULT_VARIABLE REMOTE_INSTALL_STATUS
+    ERROR_VARIABLE REMOTE_INSTALL_ERROR
+)
+if(NOT REMOTE_INSTALL_STATUS EQUAL 0)
+    message(FATAL_ERROR "remote install failed: ${REMOTE_INSTALL_ERROR}")
+endif()
+if(NOT EXISTS "${TEST_ROOT}/home/toolchains/${REMOTE_VERSION}/bin")
+    message(FATAL_ERROR "remote toolchain was not installed")
+endif()
+
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env
+            "JANUSUP_HOME=${TEST_ROOT}/home"
+            "${JANUSUP}" uninstall test
+    RESULT_VARIABLE UNINSTALL_STATUS
+)
+if(NOT UNINSTALL_STATUS EQUAL 0
+   OR EXISTS "${TEST_ROOT}/home/toolchains/test")
+    message(FATAL_ERROR "inactive toolchain was not uninstalled")
+endif()
+
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env
+            "JANUSUP_HOME=${TEST_ROOT}/home"
+            "${JANUSUP}" uninstall "${REMOTE_VERSION}"
+    RESULT_VARIABLE ACTIVE_UNINSTALL_STATUS
+    ERROR_QUIET
+)
+if(ACTIVE_UNINSTALL_STATUS EQUAL 0)
+    message(FATAL_ERROR "janusup uninstalled the active toolchain")
 endif()
