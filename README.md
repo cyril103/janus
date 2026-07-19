@@ -13,7 +13,7 @@ Janus combine plusieurs styles de programmation :
 - un accès bas niveau avec pointeurs, casts, interopérabilité C et gestion
   manuelle de la mémoire.
 
-> Janus 0.1 est expérimental. La syntaxe et la bibliothèque standard peuvent
+> Janus 0.2 est expérimental. La syntaxe et la bibliothèque standard peuvent
 > encore évoluer avant la version 1.0.
 
 ## Installation
