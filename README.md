@@ -3,10 +3,10 @@
 Janus est un langage de programmation fortement typé dont le compilateur est
 écrit en C++ et utilise LLVM comme backend.
 
-Le projet est encore à un stade précoce. La chaîne de compilation sait
-actuellement analyser un point d'entrée `main`, des déclarations `val` et
-`var`, des affectations et une instruction `return`, vérifier leurs types et
-produire l'IR LLVM correspondant.
+La version 0.1.0 est expérimentale : le langage, sa bibliothèque standard et
+le format des paquets peuvent encore évoluer sans compatibilité ascendante
+avant 1.0. Le compilateur produit des exécutables natifs à partir d'un backend
+LLVM.
 
 ## Exemple
 
@@ -53,7 +53,7 @@ compté dans la longueur Janus.
 ## Prérequis
 
 - un compilateur compatible C++20, comme Clang ou GCC ;
-- CMake 3.20 ou plus récent ;
+- CMake 3.21 ou plus récent ;
 - Ninja ;
 - LLVM et ses fichiers de développement ;
 - LLD, recommandé pour l'édition de liens.
@@ -109,16 +109,16 @@ s'arrêter avant l'édition de liens.
 
 ## Installer la chaîne d'outils
 
-Les publications Janus sont prévues sous forme d'archives autonomes pour
-Linux, macOS et Windows. Une fois une version publiée, l'installation Unix se
-fait avec :
+La première distribution officielle, Janus 0.1.0, cible Linux x86_64. Elle est
+fournie sous forme d'une archive autonome. L'installation se fait avec :
 
 ```bash
 curl --proto '=https' --tlsv1.2 -fsSL \
   https://raw.githubusercontent.com/cyril103/janus/main/scripts/install.sh | sh
 ```
 
-Sous Windows PowerShell :
+L'installateur PowerShell est déjà disponible pour préparer le support
+Windows, mais aucune archive Windows n'est publiée avec la version 0.1.0 :
 
 ```powershell
 irm https://raw.githubusercontent.com/cyril103/janus/main/scripts/install.ps1 | iex
@@ -160,6 +160,9 @@ runtime natif, la bibliothèque standard, Clang, LLD et leurs dépendances LLVM.
 La cible produit aussi le fichier `.sha256` contrôlé par les installateurs.
 L'utilisateur d'une archive officielle n'a donc pas à installer LLVM
 séparément ; seul le SDK natif du système reste nécessaire.
+
+Les changements de chaque version sont détaillés dans
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Projets et dépendances
 
