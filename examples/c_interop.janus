@@ -1,0 +1,8 @@
+extern def abs(value : int) : int
+extern def putchar(character : int) : int
+
+def main() : int {
+    putchar(74)
+    putchar(10)
+    return abs(-42) - 42
+}

@@ -196,6 +196,14 @@ Le fichier `examples/pointers.janus` présente la mémoire manuelle typée :
 ./build/janusc examples/pointers.janus
 ```
 
+Le fichier `examples/c_interop.janus` appelle directement la bibliothèque C :
+
+```bash
+./build/janusc examples/c_interop.janus > c_interop.ll
+clang c_interop.ll -o c_interop
+./c_interop
+```
+
 Le fichier `examples/panic.janus` présente un contrôle d'exécution :
 
 ```bash
@@ -446,6 +454,49 @@ respectivement la taille et l'alignement de `T` sous forme de `usize`.
 `alloc` et `realloc` prennent un nombre d'éléments et calculent eux-mêmes le
 nombre d'octets. Comme en C, les accès après `free`, doubles libérations et
 indices hors de la zone allouée relèvent de la responsabilité du programmeur.
+
+### Interopérabilité C
+
+Une déclaration `extern def` décrit une fonction fournie par un objet ou une
+bibliothèque native liée au programme :
+
+```janus
+extern def abs(value : int) : int
+extern def putchar(character : int) : int
+
+def main() : int {
+    putchar(74)
+    putchar(10)
+    return abs(-42) - 42
+}
+```
+
+Elle ne possède pas de corps Janus. Le backend émet une déclaration LLVM à
+liaison externe et conserve exactement le nom indiqué : l'éditeur de liens
+doit donc trouver les symboles `abs` et `putchar`. Sur la cible 64 bits
+actuellement prise en charge, les correspondances sont :
+
+| Janus | Prototype C compatible |
+| --- | --- |
+| `int` | `int32_t` |
+| `double` | `double` |
+| `byte` | `int8_t` |
+| `char` | `uint32_t` |
+| `bool` | `_Bool` / `bool` |
+| `usize` | `size_t` |
+| `Ptr[T]` | pointeur C compatible vers `T` |
+| `Unit` en retour | `void` |
+
+`Unit` n'est jamais accepté comme paramètre. Les types `string`, classes,
+enums et fonctions Janus ne peuvent pas traverser l'ABI par valeur ; un
+pointeur brut peut servir à définir explicitement une représentation
+partagée. Les fonctions externes ne peuvent pas encore être génériques,
+variadiques, membres d'une classe, ni porter un nom de symbole différent.
+
+Janus ne lit pas les en-têtes C et ne vérifie pas la définition trouvée à
+l'édition de liens. La déclaration `extern def` doit reproduire exactement le
+prototype natif : une signature incorrecte relève de la même responsabilité
+qu'un mauvais prototype en C.
 
 ### Arrêt sur erreur
 
@@ -1140,6 +1191,9 @@ Les tests couvrent actuellement :
 - l'obligation de retourner une valeur depuis `main` ;
 - les paramètres et références aux valeurs ;
 - les appels de fonctions ;
+- les déclarations `extern def`, leurs restrictions ABI et les appels C natifs ;
+- le passage de scalaires et pointeurs entre Janus et une bibliothèque C ;
+- la mutation d'un buffer Janus depuis C sous AddressSanitizer ;
 - les types fonction, lambdas, captures et appels indirects ;
 - le passage, le retour et la libération manuelle des closures ;
 - les fonctions d'ordre supérieur génériques monomorphisées ;
