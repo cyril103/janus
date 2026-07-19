@@ -461,20 +461,21 @@ Une déclaration `extern def` décrit une fonction fournie par un objet ou une
 bibliothèque native liée au programme :
 
 ```janus
-extern def abs(value : int) : int
-extern def putchar(character : int) : int
+import std.c
+
+extern("abs") def absolute(value : int) : int
 
 def main() : int {
-    putchar(74)
-    putchar(10)
-    return abs(-42) - 42
+    printf(cstr("valeur : %d\n"), absolute(-42))
+    return 0
 }
 ```
 
 Elle ne possède pas de corps Janus. Le backend émet une déclaration LLVM à
-liaison externe et conserve exactement le nom indiqué : l'éditeur de liens
-doit donc trouver les symboles `abs` et `putchar`. Sur la cible 64 bits
-actuellement prise en charge, les correspondances sont :
+liaison externe. Sans alias, il conserve exactement le nom Janus.
+`extern("abs")` permet de choisir un autre symbole natif tout en utilisant le
+nom `absolute` dans le programme. Sur la cible 64 bits actuellement prise en
+charge, les correspondances sont :
 
 | Janus | Prototype C compatible |
 | --- | --- |
@@ -490,8 +491,29 @@ actuellement prise en charge, les correspondances sont :
 `Unit` n'est jamais accepté comme paramètre. Les types `string`, classes,
 enums et fonctions Janus ne peuvent pas traverser l'ABI par valeur ; un
 pointeur brut peut servir à définir explicitement une représentation
-partagée. Les fonctions externes ne peuvent pas encore être génériques,
-variadiques, membres d'une classe, ni porter un nom de symbole différent.
+partagée.
+
+`cstr(text)` expose sans copie le buffer UTF-8 terminé par zéro d'un `string`
+sous forme de `Ptr[byte]`. Le pointeur est emprunté : il ne doit pas être
+libéré, ni conservé au-delà de la durée de vie de la chaîne. Un octet nul
+présent dans la chaîne sera interprété par C comme sa fin.
+
+Une fonction externe peut être variadique :
+
+```janus
+extern def printf(format : Ptr[byte], ...) : int
+
+printf(cstr("%d %d %.2f\n"), byte(-7), true, 2.5)
+```
+
+Au-delà des paramètres fixes, `byte` est étendu avec son signe vers `int` et
+`bool` est étendu vers `int`, conformément aux promotions C. `int`, `char`,
+`usize`, `double` et `Ptr[T]` conservent leur représentation. Les chaînes,
+objets, enums et closures sont rejetés comme arguments variadiques.
+
+Le module `std.c` déclare actuellement `puts`, `strlen`, `memcmp`, `exit` et
+`printf`. Les fonctions externes ne peuvent pas encore être génériques ni
+membres d'une classe.
 
 Janus ne lit pas les en-têtes C et ne vérifie pas la définition trouvée à
 l'édition de liens. La déclaration `extern def` doit reproduire exactement le

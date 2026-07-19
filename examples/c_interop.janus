@@ -1,8 +1,8 @@
-extern def abs(value : int) : int
-extern def putchar(character : int) : int
+import std.c
+
+extern("abs") def absolute(value : int) : int
 
 def main() : int {
-    putchar(74)
-    putchar(10)
-    return abs(-42) - 42
+    printf(cstr("Janus appelle C : %d\n"), absolute(-42))
+    return 0
 }
