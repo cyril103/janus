@@ -3,6 +3,30 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.2.1] - 2026-07-20
+
+Cette version corrective fiabilise les diagnostics du serveur de langage,
+l'empaquetage de l'extension VS Code et les mises à jour avec GitHub CLI.
+
+### Serveur de langage
+
+- résolution des imports lors de la production des diagnostics ;
+- conservation sûre des messages de diagnostic pendant leur publication ;
+- suppression des diagnostics lorsqu'un document est fermé ;
+- réponse JSON `null` correcte lorsqu'un symbole demandé est introuvable.
+
+### Extension VS Code
+
+- suppression de l'événement d'activation devenu redondant ;
+- ajout des métadonnées, de la licence et des mentions légales au VSIX ;
+- bundle minifié limitant l'extension à quelques fichiers ;
+- construction et archivage du VSIX dans l'intégration continue.
+
+### Gestionnaire d'installation
+
+- compatibilité avec les installations de GitHub CLI ne prenant pas en charge
+  la vérification des attestations.
+
 ## [0.2.0] - 2026-07-19
 
 Cette version rend la chaîne d'outils Janus réellement multiplateforme et
@@ -74,5 +98,6 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.2.1]: https://github.com/cyril103/janus/releases/tag/v0.2.1
 [0.2.0]: https://github.com/cyril103/janus/releases/tag/v0.2.0
 [0.1.0]: https://github.com/cyril103/janus/releases/tag/v0.1.0
