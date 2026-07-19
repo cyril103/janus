@@ -102,6 +102,12 @@ private:
     const janus::Type *return_type;
   };
 
+  struct CleanupScope {
+    const std::vector<const janus::ast::DeferStatement *> *actions;
+    std::unordered_map<std::string, Local> *locals;
+    const Substitutions *substitutions;
+  };
+
   const janus::Type &resolve(const janus::ast::TypeReference &reference,
                              const Substitutions &substitutions) {
     if (const janus::Type *type = builtin_type(reference.name))
@@ -410,6 +416,49 @@ private:
     return name;
   }
 
+  void
+  emit_cleanup_action(const janus::ast::DeferStatement &deferred,
+                      const Substitutions &substitutions,
+                      std::unordered_map<std::string, Local> &cleanup_locals,
+                      ::llvm::IRBuilder<> &builder) {
+    if (const auto *deletion =
+            std::get_if<janus::ast::DeleteStatement>(&deferred.action)) {
+      const janus::Type &deleted_type =
+          expression_type(deletion->expression, substitutions, cleanup_locals);
+      ::llvm::Value *deleted_value =
+          emit_expression(deletion->expression, deleted_type, substitutions,
+                          cleanup_locals, builder);
+      ::llvm::Value *pointer = deleted_value;
+      if (deleted_type.kind() == janus::TypeKind::Function) {
+        pointer =
+            builder.CreateExtractValue(deleted_value, 1, "lambda.environment");
+      } else {
+        builder.CreateCall(emit_destructor(std::string{deleted_type.name()}),
+                           {pointer});
+      }
+      ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
+          "free", ::llvm::FunctionType::get(builder.getVoidTy(),
+                                            {builder.getPtrTy()}, false));
+      builder.CreateCall(free_function, {pointer});
+      return;
+    }
+    const auto &action =
+        std::get<janus::ast::ExpressionStatement>(deferred.action);
+    const janus::Type &type =
+        expression_type(action.expression, substitutions, cleanup_locals);
+    static_cast<void>(emit_expression(action.expression, type, substitutions,
+                                      cleanup_locals, builder));
+  }
+
+  void emit_active_cleanups(::llvm::IRBuilder<> &builder) {
+    for (auto scope = active_cleanup_scopes_.rbegin();
+         scope != active_cleanup_scopes_.rend(); ++scope)
+      for (auto action = scope->actions->rbegin();
+           action != scope->actions->rend(); ++action)
+        emit_cleanup_action(**action, *scope->substitutions, *scope->locals,
+                            builder);
+  }
+
   ::llvm::Function *emit_function(
       const janus::ast::FunctionDeclaration &function,
       const std::vector<const janus::Type *> &type_arguments,
@@ -423,6 +472,8 @@ private:
     if (const auto iterator = emitted_.find(llvm_name);
         iterator != emitted_.end())
       return iterator->second;
+    auto previous_cleanup_scopes = std::move(active_cleanup_scopes_);
+    active_cleanup_scopes_.clear();
 
     Substitutions substitutions;
     if (owner_substitutions != nullptr)
@@ -503,44 +554,14 @@ private:
       locals.emplace(parameter.name, Local{storage, &type});
     }
 
-    const auto emit_cleanup_action =
-        [&](const janus::ast::DeferStatement &deferred,
-            std::unordered_map<std::string, Local> &cleanup_locals) {
-          if (const auto *deletion =
-                  std::get_if<janus::ast::DeleteStatement>(&deferred.action)) {
-            const janus::Type &deleted_type = expression_type(
-                deletion->expression, substitutions, cleanup_locals);
-            ::llvm::Value *deleted_value =
-                emit_expression(deletion->expression, deleted_type,
-                                substitutions, cleanup_locals, builder);
-            ::llvm::Value *pointer = deleted_value;
-            if (deleted_type.kind() == janus::TypeKind::Function) {
-              pointer = builder.CreateExtractValue(deleted_value, 1,
-                                                   "lambda.environment");
-            } else {
-              builder.CreateCall(
-                  emit_destructor(std::string{deleted_type.name()}), {pointer});
-            }
-            ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
-                "free", ::llvm::FunctionType::get(builder.getVoidTy(),
-                                                  {builder.getPtrTy()}, false));
-            builder.CreateCall(free_function, {pointer});
-            return;
-          }
-          const auto &action =
-              std::get<janus::ast::ExpressionStatement>(deferred.action);
-          const janus::Type &type =
-              expression_type(action.expression, substitutions, cleanup_locals);
-          static_cast<void>(emit_expression(
-              action.expression, type, substitutions, cleanup_locals, builder));
-        };
-
     std::function<bool(const std::vector<janus::ast::Statement> &,
                        std::unordered_map<std::string, Local> &)>
         emit_block;
     emit_block = [&](const std::vector<janus::ast::Statement> &statements,
                      std::unordered_map<std::string, Local> &block_locals) {
       std::vector<const janus::ast::DeferStatement *> deferred_actions;
+      active_cleanup_scopes_.push_back(
+          CleanupScope{&deferred_actions, &block_locals, &substitutions});
       for (const janus::ast::Statement &statement : statements) {
         if (const auto *conditional =
                 std::get_if<std::shared_ptr<janus::ast::IfStatement>>(
@@ -579,6 +600,7 @@ private:
           builder.SetInsertPoint(merge_block);
           if (then_returns && else_returns) {
             builder.CreateUnreachable();
+            active_cleanup_scopes_.pop_back();
             return true;
           }
           continue;
@@ -787,17 +809,23 @@ private:
 
         const auto &return_statement =
             std::get<janus::ast::ReturnStatement>(statement);
+        ::llvm::Value *return_value = nullptr;
         if (return_statement.expression.has_value())
-          builder.CreateRet(emit_expression(*return_statement.expression,
-                                            return_type, substitutions,
-                                            block_locals, builder));
+          return_value =
+              emit_expression(*return_statement.expression, return_type,
+                              substitutions, block_locals, builder);
+        emit_active_cleanups(builder);
+        if (return_value != nullptr)
+          builder.CreateRet(return_value);
         else
           builder.CreateRetVoid();
+        active_cleanup_scopes_.pop_back();
         return true;
       }
       for (auto iterator = deferred_actions.rbegin();
            iterator != deferred_actions.rend(); ++iterator)
-        emit_cleanup_action(**iterator, block_locals);
+        emit_cleanup_action(**iterator, substitutions, block_locals, builder);
+      active_cleanup_scopes_.pop_back();
       return false;
     };
     const janus::Type *previous_return_type = active_return_type_;
@@ -807,6 +835,7 @@ private:
     active_return_type_ = previous_return_type;
     if (!emitted_return && return_type.kind() == janus::TypeKind::Unit)
       builder.CreateRetVoid();
+    active_cleanup_scopes_ = std::move(previous_cleanup_scopes);
     return llvm_function;
   }
 
@@ -1949,6 +1978,7 @@ private:
                   enum_case_payload_start(return_type.name(), failure_case),
                   "try.failure.value");
             }
+            emit_active_cleanups(builder);
             builder.CreateRet(failure);
 
             builder.SetInsertPoint(success_block);
@@ -2149,6 +2179,7 @@ private:
   std::unordered_map<std::string, janus::Type> function_types_;
   std::unordered_map<std::string, FunctionSignature> function_signatures_;
   std::unordered_map<std::string, ::llvm::Function *> emitted_;
+  std::vector<CleanupScope> active_cleanup_scopes_;
   const janus::Type *active_return_type_{};
   std::size_t string_literal_index_{};
   std::size_t lambda_index_{};

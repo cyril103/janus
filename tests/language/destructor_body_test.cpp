@@ -86,9 +86,15 @@ def main() : int {
          "delete in a destructor releases the nested object");
 
   janus::frontend::Parser defer_parser{
+      "enum Option[T] { Some(T), None } "
       "class Resource() {} def cleanup() : Unit {} "
       "def run() : Unit { val resource : Resource = new Resource() "
       "defer delete resource defer cleanup() } "
+      "def early() : int { val resource : Resource = new Resource() "
+      "defer delete resource return 7 } "
+      "def attempt(value : Option[int]) : Option[int] { "
+      "val resource : Resource = new Resource() defer delete resource "
+      "val result : int = value? return Option.Some[int](result) } "
       "def main() : int { run() return 0 }"};
   const janus::ast::Program defer_program = defer_parser.parse_program();
   expect(std::holds_alternative<janus::ast::DeferStatement>(
@@ -115,6 +121,26 @@ def main() : int {
              resource_cleanup != std::string::npos &&
              cleanup_call < resource_cleanup,
          "normal scope exit executes deferred actions in LIFO order");
+  const std::size_t early_function = defer_ir.find("define i32 @early()");
+  const std::size_t early_cleanup =
+      defer_ir.find("call void @Resource__destructor", early_function);
+  const std::size_t early_return = defer_ir.find("ret i32 7", early_function);
+  expect(early_cleanup != std::string::npos &&
+             early_return != std::string::npos && early_cleanup < early_return,
+         "return executes active deferred actions before leaving");
+  const std::size_t attempt_function =
+      defer_ir.find("define %enum.Option__int @attempt");
+  const std::size_t try_failure =
+      defer_ir.find("try.failure:", attempt_function);
+  const std::size_t failure_cleanup =
+      defer_ir.find("call void @Resource__destructor", try_failure);
+  const std::size_t failure_return =
+      defer_ir.find("ret %enum.Option__int", try_failure);
+  expect(try_failure != std::string::npos &&
+             failure_cleanup != std::string::npos &&
+             failure_return != std::string::npos &&
+             failure_cleanup < failure_return,
+         "operator ? executes active deferred actions on propagation");
 
   expect_compile_error("class Invalid() { destructor { return 1 } } "
                        "def main() : int { return 0 }",
