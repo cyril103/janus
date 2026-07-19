@@ -3,6 +3,11 @@ if(NOT DEFINED BUILD_DIR OR NOT DEFINED JANUS)
 endif()
 
 set(TEST_ROOT "${BUILD_DIR}/project-creation-test")
+if(WIN32)
+    set(EXECUTABLE_SUFFIX ".exe")
+else()
+    set(EXECUTABLE_SUFFIX "")
+endif()
 file(REMOVE_RECURSE "${TEST_ROOT}")
 set(ENV{JANUS_CACHE} "${TEST_ROOT}/cache")
 set(ENV{JANUS_REGISTRY} "${TEST_ROOT}/registry")
@@ -36,7 +41,8 @@ execute_process(
     ERROR_VARIABLE BUILD_ERROR
 )
 if(NOT BUILD_STATUS EQUAL 0
-   OR NOT EXISTS "${TEST_ROOT}/hello/target/debug/hello")
+   OR NOT EXISTS
+      "${TEST_ROOT}/hello/target/debug/hello${EXECUTABLE_SUFFIX}")
     message(FATAL_ERROR "project build failed: ${BUILD_ERROR}")
 endif()
 execute_process(
@@ -56,7 +62,8 @@ execute_process(
     ERROR_VARIABLE RELEASE_ERROR
 )
 if(NOT RELEASE_STATUS EQUAL 0
-   OR NOT EXISTS "${TEST_ROOT}/hello/target/release/hello")
+   OR NOT EXISTS
+      "${TEST_ROOT}/hello/target/release/hello${EXECUTABLE_SUFFIX}")
     message(FATAL_ERROR "release project build failed: ${RELEASE_ERROR}")
 endif()
 
@@ -75,7 +82,8 @@ execute_process(
 if(NOT TEST_STATUS EQUAL 0 OR NOT TEST_OUTPUT MATCHES "1 passed; 0 failed")
     message(FATAL_ERROR "janus test failed: ${TEST_ERROR}\n${TEST_OUTPUT}")
 endif()
-if(NOT EXISTS "${TEST_ROOT}/hello/target/debug/tests/basic")
+if(NOT EXISTS
+   "${TEST_ROOT}/hello/target/debug/tests/basic${EXECUTABLE_SUFFIX}")
     message(FATAL_ERROR "janus test did not create an isolated executable")
 endif()
 file(WRITE "${TEST_ROOT}/hello/tests/failing.janus"
