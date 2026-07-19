@@ -5,7 +5,7 @@
 #include <vector>
 
 int main() {
-  janus::lsp::Server server;
+  janus::lsp::Server server{{std::filesystem::path{JANUS_STDLIB_DIR}}};
 
   const std::vector<std::string> initialized = server.handle(
       R"({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}})");
@@ -23,6 +23,11 @@ int main() {
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { return 0 }"}]}})");
   assert(valid.size() == 1);
   assert(valid.front().find("\"diagnostics\":[]") != std::string::npos);
+
+  const std::vector<std::string> imported = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///array.janus","text":"import std.array\n\ndef main() : int {\n    val values : Array[int] = new Array[int](usize(1))\n    return int(values.size())\n}\n"}}})");
+  assert(imported.size() == 1);
+  assert(imported.front().find("\"diagnostics\":[]") != std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 return answer }"}]}})"));

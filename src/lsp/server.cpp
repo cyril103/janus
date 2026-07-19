@@ -3,6 +3,7 @@
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/driver/formatter.hpp"
 #include "janus/frontend/lexer.hpp"
+#include "janus/frontend/module_loader.hpp"
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
 
@@ -12,6 +13,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <exception>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -159,16 +161,61 @@ std::optional<char> character_before(std::string_view source,
   return std::nullopt;
 }
 
+std::optional<std::filesystem::path> file_uri_path(std::string_view uri) {
+  constexpr std::string_view prefix = "file://";
+  if (!uri.starts_with(prefix))
+    return std::nullopt;
+
+  std::string decoded;
+  const std::string_view encoded = uri.substr(prefix.size());
+  decoded.reserve(encoded.size());
+  const auto hex_value = [](char character) -> std::optional<unsigned char> {
+    if (character >= '0' && character <= '9')
+      return static_cast<unsigned char>(character - '0');
+    if (character >= 'a' && character <= 'f')
+      return static_cast<unsigned char>(character - 'a' + 10);
+    if (character >= 'A' && character <= 'F')
+      return static_cast<unsigned char>(character - 'A' + 10);
+    return std::nullopt;
+  };
+  for (std::size_t index = 0; index < encoded.size(); ++index) {
+    if (encoded[index] == '%' && index + 2 < encoded.size()) {
+      const std::optional<unsigned char> high = hex_value(encoded[index + 1]);
+      const std::optional<unsigned char> low = hex_value(encoded[index + 2]);
+      if (high && low) {
+        decoded.push_back(static_cast<char>((*high << 4U) | *low));
+        index += 2;
+        continue;
+      }
+    }
+    decoded.push_back(encoded[index]);
+  }
+#ifdef _WIN32
+  if (decoded.size() >= 3 && decoded[0] == '/' && decoded[2] == ':')
+    decoded.erase(decoded.begin());
+#endif
+  return std::filesystem::path{decoded};
+}
+
 } // namespace
 
 namespace janus::lsp {
+
+Server::Server(std::vector<std::filesystem::path> module_search_paths)
+    : module_search_paths_{std::move(module_search_paths)} {}
 
 std::string Server::diagnostics(std::string_view uri,
                                 std::string_view source) const {
   llvm::json::Array items;
   try {
-    frontend::Parser parser{source};
-    const ast::Program program = parser.parse_program();
+    ast::Program program;
+    if (const std::optional<std::filesystem::path> path = file_uri_path(uri)) {
+      frontend::ModuleLoader loader{module_search_paths_};
+      program = loader.load(*path, source);
+    } else {
+      frontend::Parser parser{source};
+      program = parser.parse_program();
+    }
     static_cast<void>(semantic::Analyzer{}.analyze(program));
   } catch (const CompileError &error) {
     const SourceLocation location = error.location();

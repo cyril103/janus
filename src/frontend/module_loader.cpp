@@ -21,9 +21,18 @@ ast::Program ModuleLoader::load(const std::filesystem::path &entry_path) {
   return load_file(absolute, absolute.parent_path(), nullptr);
 }
 
+ast::Program ModuleLoader::load(const std::filesystem::path &entry_path,
+                                std::string_view entry_source) {
+  loaded_paths_.clear();
+  const std::filesystem::path absolute =
+      std::filesystem::absolute(entry_path).lexically_normal();
+  return load_file(absolute, absolute.parent_path(), nullptr, &entry_source);
+}
+
 ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
                                      const std::filesystem::path &project_root,
-                                     const std::string *expected_module) {
+                                     const std::string *expected_module,
+                                     const std::string_view *source_override) {
   const std::filesystem::path normalized =
       std::filesystem::absolute(path).lexically_normal();
   if (std::find(loaded_paths_.begin(), loaded_paths_.end(), normalized) !=
@@ -31,12 +40,17 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
     return {};
   loaded_paths_.push_back(normalized);
 
-  std::ifstream input{normalized, std::ios::binary};
-  if (!input)
-    throw std::runtime_error{"cannot open module source '" +
-                             normalized.string() + "'"};
-  const std::string source{std::istreambuf_iterator<char>{input},
-                           std::istreambuf_iterator<char>{}};
+  std::string source;
+  if (source_override != nullptr) {
+    source = *source_override;
+  } else {
+    std::ifstream input{normalized, std::ios::binary};
+    if (!input)
+      throw std::runtime_error{"cannot open module source '" +
+                               normalized.string() + "'"};
+    source.assign(std::istreambuf_iterator<char>{input},
+                  std::istreambuf_iterator<char>{});
+  }
   Parser parser{source};
   ast::Program parsed = parser.parse_program();
 

@@ -14,12 +14,15 @@ public:
   explicit ModuleLoader(std::vector<std::filesystem::path> search_paths = {});
 
   [[nodiscard]] ast::Program load(const std::filesystem::path &entry_path);
+  [[nodiscard]] ast::Program load(const std::filesystem::path &entry_path,
+                                  std::string_view entry_source);
 
 private:
   [[nodiscard]] ast::Program
   load_file(const std::filesystem::path &path,
             const std::filesystem::path &project_root,
-            const std::string *expected_module);
+            const std::string *expected_module,
+            const std::string_view *source_override = nullptr);
   [[nodiscard]] std::filesystem::path
   resolve_import(std::string_view module,
                  const std::filesystem::path &project_root) const;

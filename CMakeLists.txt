@@ -279,6 +279,7 @@ target_compile_options(janus-lsp
 target_compile_definitions(janus-lsp
     PRIVATE
         JANUS_VERSION="${PROJECT_VERSION}"
+        JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
 )
 
 include(CTest)
@@ -294,6 +295,10 @@ if(BUILD_TESTING)
         tests/lsp/server_test.cpp
     )
     target_link_libraries(lsp_server_test PRIVATE janus_lsp)
+    target_compile_definitions(lsp_server_test
+        PRIVATE
+            JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+    )
     add_test(NAME lsp.server COMMAND lsp_server_test)
     add_test(
         NAME cli.emit_llvm
