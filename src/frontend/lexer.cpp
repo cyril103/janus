@@ -37,6 +37,8 @@ Token Lexer::next() {
       kind = TokenKind::Import;
     } else if (lexeme == "def") {
       kind = TokenKind::Def;
+    } else if (lexeme == "trait") {
+      kind = TokenKind::Trait;
     } else if (lexeme == "enum") {
       kind = TokenKind::Enum;
     } else if (lexeme == "class") {

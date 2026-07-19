@@ -258,6 +258,21 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.generic_class COMMAND generic_class_test)
 
+    add_executable(trait_declaration_test
+        tests/language/trait_declaration_test.cpp
+    )
+    target_link_libraries(trait_declaration_test
+        PRIVATE
+            janus_semantic
+    )
+    target_compile_options(trait_declaration_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.trait_declaration COMMAND trait_declaration_test)
+
     add_executable(generic_method_test
         tests/language/generic_method_test.cpp
     )

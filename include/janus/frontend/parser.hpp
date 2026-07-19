@@ -14,6 +14,8 @@ public:
   [[nodiscard]] ast::Program parse_program();
 
 private:
+  [[nodiscard]] ast::TraitDeclaration parse_trait_declaration();
+  [[nodiscard]] ast::FunctionDeclaration parse_trait_method();
   [[nodiscard]] ast::EnumDeclaration parse_enum_declaration();
   [[nodiscard]] ast::ClassDeclaration parse_class_declaration();
   [[nodiscard]] ast::DestructorDeclaration parse_destructor_declaration();

@@ -179,7 +179,9 @@ ast::Program Parser::parse_program() {
   }
 
   while (current_.kind != TokenKind::End) {
-    if (current_.kind == TokenKind::Enum)
+    if (current_.kind == TokenKind::Trait)
+      program.traits.push_back(parse_trait_declaration());
+    else if (current_.kind == TokenKind::Enum)
       program.enums.push_back(parse_enum_declaration());
     else if (current_.kind == TokenKind::Class)
       program.classes.push_back(parse_class_declaration());
@@ -188,6 +190,70 @@ ast::Program Parser::parse_program() {
   }
 
   return program;
+}
+
+ast::TraitDeclaration Parser::parse_trait_declaration() {
+  const Token trait_token = expect(TokenKind::Trait);
+  const Token name = expect(TokenKind::Identifier);
+  std::vector<std::string> type_parameters;
+  if (current_.kind == TokenKind::LeftBracket) {
+    advance();
+    do {
+      type_parameters.emplace_back(expect(TokenKind::Identifier).lexeme);
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+    static_cast<void>(expect(TokenKind::RightBracket));
+  }
+  static_cast<void>(expect(TokenKind::LeftBrace));
+  std::vector<ast::FunctionDeclaration> methods;
+  while (current_.kind != TokenKind::RightBrace) {
+    methods.push_back(parse_trait_method());
+    if (current_.kind == TokenKind::Semicolon)
+      advance();
+  }
+  static_cast<void>(expect(TokenKind::RightBrace));
+  return ast::TraitDeclaration{std::string{name.lexeme},
+                               std::move(type_parameters), std::move(methods),
+                               trait_token.location};
+}
+
+ast::FunctionDeclaration Parser::parse_trait_method() {
+  const Token def = expect(TokenKind::Def);
+  const Token name = expect(TokenKind::Identifier);
+  std::vector<std::string> type_parameters;
+  if (current_.kind == TokenKind::LeftBracket) {
+    advance();
+    do {
+      type_parameters.emplace_back(expect(TokenKind::Identifier).lexeme);
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+    static_cast<void>(expect(TokenKind::RightBracket));
+  }
+  static_cast<void>(expect(TokenKind::LeftParen));
+  std::vector<ast::FunctionDeclaration::Parameter> parameters;
+  if (current_.kind != TokenKind::RightParen) {
+    do {
+      const Token parameter = expect(TokenKind::Identifier);
+      static_cast<void>(expect(TokenKind::Colon));
+      parameters.push_back(ast::FunctionDeclaration::Parameter{
+          std::string{parameter.lexeme}, parse_type(), parameter.location});
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+  }
+  static_cast<void>(expect(TokenKind::RightParen));
+  static_cast<void>(expect(TokenKind::Colon));
+  return ast::FunctionDeclaration{std::string{name.lexeme},
+                                  std::move(type_parameters),
+                                  std::move(parameters),
+                                  parse_type(),
+                                  {},
+                                  def.location};
 }
 
 ast::EnumDeclaration Parser::parse_enum_declaration() {

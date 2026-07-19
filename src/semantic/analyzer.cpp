@@ -284,6 +284,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
   std::unordered_map<std::string, const ast::FunctionDeclaration *> functions;
   std::unordered_map<std::string, const ast::ClassDeclaration *> classes;
   std::unordered_map<std::string, const ast::EnumDeclaration *> enums;
+  std::unordered_map<std::string, const ast::TraitDeclaration *> traits;
   std::unordered_map<std::string, std::size_t> class_arities;
 
   for (const ast::EnumDeclaration &enum_declaration : program.enums) {
@@ -319,6 +320,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                enum_declaration.name + "'"};
     }
   }
+  for (const ast::TraitDeclaration &trait_declaration : program.traits) {
+    if (builtin_type(trait_declaration.name) != nullptr ||
+        trait_declaration.name == "Function")
+      throw CompileError{trait_declaration.location,
+                         "trait '" + trait_declaration.name +
+                             "' conflicts with a built-in type"};
+    if (enums.contains(trait_declaration.name))
+      throw CompileError{trait_declaration.location,
+                         "trait '" + trait_declaration.name +
+                             "' conflicts with an enum"};
+    if (!traits.emplace(trait_declaration.name, &trait_declaration).second)
+      throw CompileError{trait_declaration.location,
+                         "trait '" + trait_declaration.name +
+                             "' is already declared"};
+  }
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
     if (builtin_type(class_declaration.name) != nullptr ||
         class_declaration.name == "Function")
@@ -329,6 +345,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       throw CompileError{class_declaration.location,
                          "class '" + class_declaration.name +
                              "' conflicts with an enum"};
+    if (traits.contains(class_declaration.name))
+      throw CompileError{class_declaration.location,
+                         "class '" + class_declaration.name +
+                             "' conflicts with a trait"};
     if (!classes.emplace(class_declaration.name, &class_declaration).second) {
       throw CompileError{class_declaration.location,
                          "class '" + class_declaration.name +
@@ -336,6 +356,52 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     }
     class_arities.emplace(class_declaration.name,
                           class_declaration.type_parameters.size());
+  }
+  for (const ast::TraitDeclaration &trait_declaration : program.traits) {
+    std::unordered_set<std::string> trait_parameters;
+    for (const std::string &parameter : trait_declaration.type_parameters) {
+      if (!trait_parameters.insert(parameter).second)
+        throw CompileError{trait_declaration.location,
+                           "type parameter '" + parameter +
+                               "' is already declared"};
+      if (builtin_type(parameter) != nullptr || parameter == "Function")
+        throw CompileError{trait_declaration.location,
+                           "type parameter '" + parameter +
+                               "' conflicts with a built-in type"};
+    }
+    std::unordered_set<std::string> method_names;
+    for (const ast::FunctionDeclaration &method : trait_declaration.methods) {
+      if (!method_names.insert(method.name).second)
+        throw CompileError{method.location,
+                           "trait method '" + method.name +
+                               "' is already declared in trait '" +
+                               trait_declaration.name + "'"};
+      std::unordered_set<std::string> method_parameters = trait_parameters;
+      for (const std::string &parameter : method.type_parameters) {
+        if (!method_parameters.insert(parameter).second)
+          throw CompileError{method.location, "type parameter '" + parameter +
+                                                  "' is already declared"};
+        if (builtin_type(parameter) != nullptr || parameter == "Function")
+          throw CompileError{method.location,
+                             "type parameter '" + parameter +
+                                 "' conflicts with a built-in type"};
+      }
+      std::unordered_set<std::string> value_parameters;
+      for (const ast::FunctionDeclaration::Parameter &parameter :
+           method.parameters) {
+        if (!value_parameters.insert(parameter.name).second)
+          throw CompileError{parameter.location, "parameter '" +
+                                                     parameter.name +
+                                                     "' is already declared"};
+        const SemanticType type =
+            resolve_type(parameter.type, method_parameters, &class_arities);
+        if (type.is_concrete() && type.concrete->kind() == TypeKind::Unit)
+          throw CompileError{parameter.location,
+                             "Unit cannot be used as a parameter type"};
+      }
+      static_cast<void>(
+          resolve_type(method.return_type, method_parameters, &class_arities));
+    }
   }
   for (const ast::EnumDeclaration &enum_declaration : program.enums) {
     const std::unordered_set<std::string> parameters{

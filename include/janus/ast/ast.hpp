@@ -274,6 +274,13 @@ struct EnumDeclaration {
   SourceLocation location;
 };
 
+struct TraitDeclaration {
+  std::string name;
+  std::vector<std::string> type_parameters;
+  std::vector<FunctionDeclaration> methods;
+  SourceLocation location;
+};
+
 struct ClassDeclaration {
   std::string name;
   std::vector<std::string> type_parameters;
@@ -288,6 +295,7 @@ struct ClassDeclaration {
 struct Program {
   std::optional<std::string> module_name;
   std::vector<std::string> imports;
+  std::vector<TraitDeclaration> traits;
   std::vector<EnumDeclaration> enums;
   std::vector<ClassDeclaration> classes;
   std::vector<FunctionDeclaration> functions;
