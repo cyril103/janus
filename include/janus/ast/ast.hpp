@@ -259,6 +259,7 @@ struct FunctionDeclaration {
   std::vector<Statement> body;
   SourceLocation location;
   bool is_private{};
+  bool is_consuming{};
   std::vector<TypeConstraint> type_constraints;
 };
 

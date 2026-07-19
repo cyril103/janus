@@ -1,10 +1,22 @@
 import std.array
+import std.builder
 
 def main() : int {
     val values : Array[int] = new Array[int](usize(1))
     values.push(10)
     values.push(20)
     values.push(12)
+
+    val builder : ArrayBuilder[int] =
+        new ArrayBuilder[int](usize(3))
+    builder.addAll[Array[int]](values)
+    val pendingSize : int = int(builder.size())
+    builder.clear()
+    builder.addAll[Array[int]](values)
+    builder.add(30)
+    val built : Array[int] = builder.result()
+    val builtSize : int = int(built.size())
+    delete builder
 
     val collected : Array[int] =
         values.iterator()
@@ -63,8 +75,10 @@ def main() : int {
     val result : int = sum + int(halved.get(usize(0))) +
         int(hasTwenty) + int(allPositive) + int(largeCount) +
         int(filtered.size()) + foundValue + missingValue + poppedValue +
-        int(values.isEmpty()) + firstValue + loopSum
+        int(values.isEmpty()) + firstValue + loopSum + builtSize +
+        pendingSize
 
+    delete built
     delete filtered
     delete halved
     delete values

@@ -606,6 +606,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                  implementation->name +
                                  "' has a signature incompatible with trait '" +
                                  trait_declaration.name + "'"};
+        if (implementation->is_consuming != required.is_consuming)
+          throw CompileError{
+              implementation->location,
+              "method '" + class_declaration.name + "." + implementation->name +
+                  "' has an ownership contract incompatible with trait '" +
+                  trait_declaration.name + "'"};
 
         std::unordered_set<std::string> trait_method_parameters{
             trait_declaration.type_parameters.begin(),
@@ -741,6 +747,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     }
 
     SymbolTable symbols;
+    std::unordered_set<std::string> owner_field_names;
     if (owner != nullptr) {
       std::vector<SemanticType> owner_arguments;
       for (const std::string &parameter : owner->type_parameters)
@@ -749,12 +756,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                                   std::move(owner_arguments)},
                                      false, true});
       for (const ast::ValueDeclaration &field : owner->constructor_fields) {
+        owner_field_names.insert(field.name);
         symbols.emplace(field.name,
                         Symbol{resolve_type(field.declared_type,
                                             type_parameters, &class_arities),
                                field.is_mutable, true});
       }
       for (const ast::ValueDeclaration &field : owner->fields) {
+        owner_field_names.insert(field.name);
         symbols.emplace(field.name,
                         Symbol{resolve_type(field.declared_type,
                                             type_parameters, &class_arities),
@@ -1157,10 +1166,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                    "unknown class '" + node.class_name + "'"};
               const ast::ClassDeclaration &class_declaration =
                   *iterator->second;
-              const SemanticType instance_type = resolve_type(
+              SemanticType instance_type = resolve_type(
                   ast::TypeReference{node.class_name, node.location,
                                      node.type_arguments},
-                  type_parameters, &class_arities);
+                  *active_type_parameters, &class_arities);
+              if (active_type_substitutions != nullptr)
+                instance_type = substitute(std::move(instance_type),
+                                           *active_type_substitutions);
               const auto substitutions =
                   class_substitutions(class_declaration, instance_type);
               const std::unordered_set<std::string> class_parameters{
@@ -1507,6 +1519,29 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 validate_expression(
                     *node.arguments[index], substitute(expected, substitutions),
                     expression_location(*node.arguments[index]));
+              }
+              if (method->is_consuming) {
+                if (const auto *identifier =
+                        std::get_if<ast::IdentifierExpression>(
+                            &node.object->value)) {
+                  if (owner_field_names.contains(identifier->name))
+                    throw CompileError{node.location,
+                                       "consuming field '" + identifier->name +
+                                           "' requires an explicit move"};
+                  active_symbols->at(identifier->name).is_initialized = false;
+                } else if (!std::holds_alternative<ast::MoveExpression>(
+                               node.object->value) &&
+                           !std::holds_alternative<ast::NewExpression>(
+                               node.object->value) &&
+                           !std::holds_alternative<ast::CallExpression>(
+                               node.object->value) &&
+                           !std::holds_alternative<ast::MethodCallExpression>(
+                               node.object->value)) {
+                  throw CompileError{
+                      node.location,
+                      "consuming method requires an owning local, explicit "
+                      "move, or temporary object"};
+                }
               }
               return substitute(resolve_type(method->return_type,
                                              method_parameters, &class_arities),

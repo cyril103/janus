@@ -44,6 +44,7 @@ class Iterator[T]() {}
 trait Iterable[T] {
     def iterator() : Iterator[T]
     def transform[U](value : T, function : (T) => U) : U
+    consume def finish() : T
 }
 
 class Sequence[T](val value : T) extends Iterable[T] {
@@ -53,16 +54,19 @@ class Sequence[T](val value : T) extends Iterable[T] {
     def transform[U](item : T, function : (T) => U) : U {
         return function(item)
     }
+    consume def finish() : T {
+        return value
+    }
 }
 
-def consume[C <: Iterable[int]](sequence : C) : int {
+def visit[C <: Iterable[int]](sequence : C) : int {
     val iterator : Iterator[int] = sequence.iterator()
     delete iterator
     return 1
 }
 
 def main() : int {
-    return consume[Sequence[int]](new Sequence[int](5))
+    return visit[Sequence[int]](new Sequence[int](5))
 }
 )";
   janus::frontend::Parser parser{source};
@@ -72,10 +76,12 @@ def main() : int {
          "the trait retains its name");
   expect(program.traits.front().type_parameters.size() == 1,
          "generic trait parameters are parsed");
-  expect(program.traits.front().methods.size() == 2,
+  expect(program.traits.front().methods.size() == 3,
          "trait method signatures are parsed without bodies");
   expect(program.traits.front().methods[1].type_parameters.size() == 1,
          "trait methods can be generic");
+  expect(program.traits.front().methods[2].is_consuming,
+         "trait methods can declare a consuming ownership contract");
   expect(program.classes[1].implemented_traits.size() == 1,
          "class trait implementations are parsed");
   expect(program.functions.front().type_constraints.size() == 1,
@@ -119,13 +125,17 @@ def main() : int {
                        "def main() : int { return 0 }",
                        "private method 'name' cannot implement");
   expect_compile_error("trait Named { def name() : string } "
-                       "def consume[T <: Named](value : T) : int { return 1 } "
-                       "def main() : int { return consume[int](1) }",
+                       "def visit[T <: Named](value : T) : int { return 1 } "
+                       "def main() : int { return visit[int](1) }",
                        "type 'int' does not satisfy constraint 'Named'");
+  expect_compile_error("def visit[T <: Missing](value : T) : int { return 1 } "
+                       "def main() : int { return 0 }",
+                       "unknown trait 'Missing'");
   expect_compile_error(
-      "def consume[T <: Missing](value : T) : int { return 1 } "
+      "trait Resource { consume def close() : Unit } "
+      "class File() extends Resource { def close() : Unit {} } "
       "def main() : int { return 0 }",
-      "unknown trait 'Missing'");
+      "ownership contract incompatible");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

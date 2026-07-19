@@ -38,14 +38,17 @@ void expect_compile_error(std::string_view source,
 
 int main() {
   constexpr std::string_view source = R"(
-class Box(val value : int) {}
+class Box(val value : int) {
+    consume def take() : int {
+        val result : int = value
+        delete this
+        return result
+    }
+}
 
 def main() : int {
-    val first : Box = new Box(42)
-    val second : Box = move first
-    val result : int = second.value
-    delete second
-    return result
+    val box : Box = new Box(42)
+    return box.take()
 }
 )";
   janus::frontend::Parser parser{source};
@@ -67,6 +70,16 @@ def main() : int {
       "class Box() {} def main() : int { val first : Box = new Box() "
       "val second : Box = move new Box() delete first delete second return 0 }",
       "move requires a local value identifier");
+  expect_compile_error(
+      "class Box() { consume def take() : int { delete this return 1 } } "
+      "def main() : int { val box : Box = new Box() val value : int = "
+      "box.take() return box.take() }",
+      "used before initialization");
+  expect_compile_error(
+      "class Box() { consume def take() : int { delete this return 1 } } "
+      "class Holder(val child : Box) { def takeChild() : int { "
+      "return child.take() } } def main() : int { return 0 }",
+      "consuming field 'child' requires an explicit move");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

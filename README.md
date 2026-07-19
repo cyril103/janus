@@ -499,6 +499,41 @@ pas. L'appelant conserve sa responsabilité : une closure capturante doit être
 supprimée après l'appel. `map` et `filter` allouent un nouveau tableau dont
 l'appelant devient propriétaire.
 
+### Builders de collections
+
+Le trait `Builder[T, C]` sépare la production de valeurs de la collection
+finale qui les stocke :
+
+```janus
+trait Builder[T, C] {
+    def add(value : T) : Unit
+    def result() : C
+}
+```
+
+La bibliothèque fournit `ArrayBuilder[T]`. Il peut accumuler des éléments
+individuellement ou emprunter n'importe quel `Iterable[T]` :
+
+```janus
+import std.builder
+
+val builder : ArrayBuilder[int] =
+    new ArrayBuilder[int](usize(16))
+builder.add(10)
+builder.addAll[Array[int]](values)
+
+val result : Array[int] = builder.result()
+delete builder
+
+// result appartient maintenant à l'appelant
+delete result
+```
+
+`size()` expose le nombre d'éléments accumulés et `clear()` réinitialise le
+contenu. `result()` transfère la propriété du tableau terminé puis laisse un
+tableau vide dans le builder. Le builder peut donc être supprimé sans
+invalider le résultat, ou être réutilisé pour une nouvelle construction.
+
 `get` et `pop` conservent leur comportement strict et appellent `panic` en cas
 d’erreur. Leurs variantes `getOption` et `popOption`, ainsi que `find`,
 retournent `None` lorsque aucune valeur n’est disponible. `std.array` importe
@@ -523,15 +558,43 @@ lorsque `next()` ou `collect()` la demande. Chaque étage possède l’itérateu
 précédent ; supprimer l’itérateur final détruit récursivement toute la chaîne.
 `map` et `filter` prennent également possession de la closure reçue.
 
-`collect()` est une opération terminale : elle construit un nouvel `Array[T]`,
-consomme puis détruit automatiquement l’itérateur. L’appelant devient
-propriétaire du tableau retourné et doit le supprimer. L’`Array` source reste
-emprunté et doit vivre jusqu’à la destruction ou la consommation de
-l’itérateur.
+`collect()` est une opération terminale fondée sur `ArrayBuilder[T]` : elle
+construit un nouvel `Array[T]`, consomme puis détruit automatiquement
+l’itérateur. L’appelant devient propriétaire du tableau retourné et doit le
+supprimer. L’`Array` source reste emprunté et doit vivre jusqu’à la destruction
+ou la consommation de l’itérateur.
 
-Janus ne déduit pas automatiquement tous les transferts d’ownership : le
-programmeur ne doit pas réutiliser un itérateur après l’avoir transmis à un
-adaptateur ou après avoir appelé `collect()`.
+La variante générique
+`collectWith[C, B <: Builder[T, C]](builder : B) : C` permet à un itérateur de
+produire une autre collection sans connaître sa représentation. Le builder
+est emprunté pendant l'opération ; l'appelant reste responsable de sa
+destruction.
+
+Les adaptateurs qui prennent possession de leur itérateur sont déclarés avec
+`consume def`. Le compilateur invalide automatiquement une variable utilisée
+comme receveur :
+
+```janus
+val iterator : Iterator[int] = values.iterator()
+val selected : Iterator[int] =
+    iterator.filter((value : int) => value > 0)
+
+iterator.next() // erreur : iterator a été consommé
+```
+
+Une méthode ordinaire emprunte `this`. Une méthode `consume` prend possession
+de `this` et peut le transférer ou le détruire. Ce contrat fait partie de la
+signature d'un trait et doit être respecté par ses implémentations :
+
+```janus
+trait Disposable {
+    consume def dispose() : Unit
+}
+```
+
+Consommer un champ exige un `move` explicite, afin d'éviter un transfert
+invisible depuis l'intérieur d'un objet. Les alias manuels restent sous la
+responsabilité du programmeur.
 
 Le mot-clé `move` rend ces transferts explicites pour les valeurs possédantes :
 

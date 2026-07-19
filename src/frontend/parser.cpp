@@ -229,6 +229,9 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
 }
 
 ast::FunctionDeclaration Parser::parse_trait_method() {
+  const bool is_consuming = current_.kind == TokenKind::Consume;
+  if (is_consuming)
+    advance();
   const Token def = expect(TokenKind::Def);
   const Token name = expect(TokenKind::Identifier);
   std::vector<std::string> type_parameters;
@@ -272,6 +275,7 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
                                        {},
                                        def.location,
                                        false,
+                                       is_consuming,
                                        std::move(type_constraints)};
   return declaration;
 }
@@ -465,18 +469,25 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
     const bool is_private = current_.kind == TokenKind::Private;
     if (is_private)
       advance();
+    const bool is_consuming = current_.kind == TokenKind::Consume;
+    if (is_consuming)
+      advance();
     if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
+      if (is_consuming)
+        throw CompileError{current_.location,
+                           "consume can only modify a method"};
       ast::ValueDeclaration field = parse_variable_declaration();
       field.is_private = is_private;
       fields.push_back(std::move(field));
     } else if (current_.kind == TokenKind::Def) {
       ast::FunctionDeclaration method = parse_function_declaration();
       method.is_private = is_private;
+      method.is_consuming = is_consuming;
       methods.push_back(std::move(method));
     } else if (current_.kind == TokenKind::Destructor) {
-      if (is_private)
+      if (is_private || is_consuming)
         throw CompileError{current_.location,
-                           "destructor cannot be declared private"};
+                           "destructor cannot have method modifiers"};
       if (destructor.has_value())
         throw CompileError{current_.location,
                            "class cannot declare multiple destructors"};
@@ -573,6 +584,7 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
                                        std::move(return_type),
                                        std::move(body),
                                        def.location,
+                                       false,
                                        false,
                                        std::move(type_constraints)};
   return declaration;

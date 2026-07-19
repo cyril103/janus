@@ -46,8 +46,13 @@ int main() {
                        });
   };
   expect(has_class("Array") && has_class("Iterator") &&
-             has_class("ArrayIteratorState"),
-         "import std.array loads Array and its iterator support");
+             has_class("ArrayIteratorState") && has_class("ArrayBuilder"),
+         "import std.array loads Array, iterators, and builder support");
+  expect(std::any_of(program.traits.begin(), program.traits.end(),
+                     [](const janus::ast::TraitDeclaration &declaration) {
+                       return declaration.name == "Builder";
+                     }),
+         "the standard library exposes the generic Builder contract");
   expect(std::any_of(program.enums.begin(), program.enums.end(),
                      [](const janus::ast::EnumDeclaration &declaration) {
                        return declaration.name == "Option";
@@ -115,6 +120,19 @@ int main() {
          "a take iterator owns its source");
   expect(ir.find("define ptr @Iterator__int__collect") != std::string::npos,
          "Iterator.collect materializes the lazy pipeline");
+  expect(ir.find("define void @ArrayBuilder__int__add") != std::string::npos,
+         "ArrayBuilder accumulates values incrementally");
+  expect(ir.find("define ptr @ArrayBuilder__int__result") != std::string::npos,
+         "ArrayBuilder transfers its completed Array");
+  expect(ir.find("define i64 @ArrayBuilder__int__size") != std::string::npos,
+         "ArrayBuilder reports its accumulated size");
+  expect(ir.find("define void @ArrayBuilder__int__clear") != std::string::npos,
+         "ArrayBuilder can be reset and reused");
+  expect(ir.find("ArrayBuilder__int__addAll__Array__int") != std::string::npos,
+         "ArrayBuilder.addAll accepts statically constrained Iterable values");
+  expect(ir.find("Iterator__int__collectWith__Array__int__ArrayBuilder__int") !=
+             std::string::npos,
+         "Iterator.collect delegates materialization to a generic Builder");
   expect(ir.find("for.next") != std::string::npos,
          "for loops consume Iterator values");
   expect(ir.find("%for.iterator = call ptr @Array__int__iterator") !=

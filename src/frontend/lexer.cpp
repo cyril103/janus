@@ -49,6 +49,8 @@ Token Lexer::next() {
       kind = TokenKind::New;
     } else if (lexeme == "move") {
       kind = TokenKind::Move;
+    } else if (lexeme == "consume") {
+      kind = TokenKind::Consume;
     } else if (lexeme == "delete") {
       kind = TokenKind::Delete;
     } else if (lexeme == "destructor") {
