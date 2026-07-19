@@ -17,6 +17,7 @@ enum class TokenKind {
   New,
   Move,
   Consume,
+  Defer,
   Delete,
   Destructor,
   Private,
@@ -95,6 +96,8 @@ struct Token {
     return "'move'";
   case TokenKind::Consume:
     return "'consume'";
+  case TokenKind::Defer:
+    return "'defer'";
   case TokenKind::Delete:
     return "'delete'";
   case TokenKind::Destructor:

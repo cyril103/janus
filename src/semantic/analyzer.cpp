@@ -2107,6 +2107,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           continue;
         }
 
+        if (const auto *deferred =
+                std::get_if<ast::DeferStatement>(&statement)) {
+          SymbolTable deferred_symbols = block_symbols;
+          SymbolTable *previous_deferred_symbols = active_symbols;
+          active_symbols = &deferred_symbols;
+          if (const auto *deletion =
+                  std::get_if<ast::DeleteStatement>(&deferred->action)) {
+            const SemanticType deleted_type =
+                expression_type(deletion->expression);
+            if (!deleted_type.is_class() && !deleted_type.is_function())
+              throw CompileError{
+                  deletion->location,
+                  "deferred delete requires an object or a function value"};
+          } else {
+            const auto &action =
+                std::get<ast::ExpressionStatement>(deferred->action);
+            static_cast<void>(expression_type(action.expression));
+          }
+          active_symbols = previous_deferred_symbols;
+          continue;
+        }
+
         if (const auto *expression_statement =
                 std::get_if<ast::ExpressionStatement>(&statement)) {
           if (!std::holds_alternative<ast::CallExpression>(

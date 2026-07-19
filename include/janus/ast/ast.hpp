@@ -209,13 +209,18 @@ struct ExpressionStatement {
   SourceLocation location;
 };
 
+struct DeferStatement {
+  std::variant<DeleteStatement, ExpressionStatement> action;
+  SourceLocation location;
+};
+
 struct IfStatement;
 struct WhileStatement;
 struct ForStatement;
 
 using Statement =
     std::variant<ValueDeclaration, AssignmentStatement, DeleteStatement,
-                 ReturnStatement, ExpressionStatement,
+                 ReturnStatement, ExpressionStatement, DeferStatement,
                  std::shared_ptr<IfStatement>, std::shared_ptr<WhileStatement>,
                  std::shared_ptr<ForStatement>>;
 

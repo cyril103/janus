@@ -746,6 +746,9 @@ private:
           continue;
         }
 
+        if (std::holds_alternative<janus::ast::DeferStatement>(statement))
+          continue;
+
         const auto &return_statement =
             std::get<janus::ast::ReturnStatement>(statement);
         if (return_statement.expression.has_value())

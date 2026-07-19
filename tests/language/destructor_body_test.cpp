@@ -85,6 +85,19 @@ def main() : int {
              ir.find("call void @free", destructor) != std::string::npos,
          "delete in a destructor releases the nested object");
 
+  janus::frontend::Parser defer_parser{
+      "class Resource() {} def cleanup() : Unit {} "
+      "def main() : int { val resource : Resource = new Resource() "
+      "defer delete resource defer cleanup() return 0 }"};
+  const janus::ast::Program defer_program = defer_parser.parse_program();
+  expect(std::holds_alternative<janus::ast::DeferStatement>(
+             defer_program.functions[1].body[1]),
+         "defer delete is represented explicitly in the AST");
+  expect(std::holds_alternative<janus::ast::DeferStatement>(
+             defer_program.functions[1].body[2]),
+         "deferred calls are represented explicitly in the AST");
+  static_cast<void>(analyzer.analyze(defer_program));
+
   expect_compile_error("class Invalid() { destructor { return 1 } } "
                        "def main() : int { return 0 }",
                        "cannot return a value");
@@ -95,6 +108,8 @@ def main() : int {
       "class Invalid() { var value : int destructor { return value } } "
       "def main() : int { return 0 }",
       "cannot return a value");
+  expect_compile_error("def main() : int { defer 1 return 0 }",
+                       "defer requires delete");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

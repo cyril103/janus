@@ -624,6 +624,9 @@ ast::Statement Parser::parse_statement() {
   if (current_.kind == TokenKind::Delete) {
     return parse_delete_statement();
   }
+  if (current_.kind == TokenKind::Defer) {
+    return parse_defer_statement();
+  }
   if (current_.kind == TokenKind::If) {
     return parse_if_statement();
   }
@@ -676,6 +679,20 @@ ast::AssignmentStatement Parser::parse_assignment_statement() {
 ast::DeleteStatement Parser::parse_delete_statement() {
   const Token delete_token = expect(TokenKind::Delete);
   return ast::DeleteStatement{parse_expression(), delete_token.location};
+}
+
+ast::DeferStatement Parser::parse_defer_statement() {
+  const Token defer_token = expect(TokenKind::Defer);
+  if (current_.kind == TokenKind::Delete)
+    return ast::DeferStatement{parse_delete_statement(), defer_token.location};
+  ast::ExpressionStatement action = parse_expression_statement();
+  if (!std::holds_alternative<ast::CallExpression>(action.expression.value) &&
+      !std::holds_alternative<ast::MethodCallExpression>(
+          action.expression.value))
+    throw CompileError{action.location,
+                       "defer requires delete, a function call, or a method "
+                       "call"};
+  return ast::DeferStatement{std::move(action), defer_token.location};
 }
 
 ast::ReturnStatement Parser::parse_return_statement() {
