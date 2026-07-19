@@ -4,7 +4,7 @@ project(
     janus
     VERSION 0.1.0
     DESCRIPTION "A compiler with an LLVM backend"
-    LANGUAGES CXX
+    LANGUAGES C CXX
 )
 
 set(CMAKE_CXX_STANDARD 20)
@@ -112,6 +112,8 @@ target_compile_definitions(janusc
 
 include(CTest)
 if(BUILD_TESTING)
+    find_program(CLANG_EXECUTABLE clang REQUIRED)
+
     add_executable(int_type_test
         tests/types/int_type_test.cpp
     )
@@ -177,6 +179,27 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.extern_function COMMAND extern_function_test)
+
+    add_library(janus_c_interop_fixture STATIC
+        tests/interop/c_abi_fixture.c
+    )
+    target_compile_options(janus_c_interop_fixture
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(
+        NAME language.c_interop
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/interop/c_abi.janus"
+            "-DFIXTURE=$<TARGET_FILE:janus_c_interop_fixture>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/c_interop"
+            -P "${PROJECT_SOURCE_DIR}/tests/interop/run_c_interop.cmake"
+    )
 
     add_executable(generic_function_test
         tests/language/generic_function_test.cpp

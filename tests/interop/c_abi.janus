@@ -1,0 +1,40 @@
+extern def janus_c_add(left : int, right : int) : int
+extern def janus_c_scale(
+    values : Ptr[int],
+    length : usize,
+    factor : int
+) : Unit
+extern def janus_c_average(values : Ptr[int], length : usize) : double
+extern def janus_c_increment_byte(value : byte) : byte
+extern def janus_c_next_codepoint(value : char) : char
+extern def janus_c_is_positive(value : int) : bool
+extern def janus_c_count_nonzero(
+    values : Ptr[int],
+    length : usize
+) : usize
+
+def main() : int {
+    val values : Ptr[int] = alloc[int](usize(3))
+    defer free(values)
+    values.store(usize(0), 1)
+    values.store(usize(1), 2)
+    values.store(usize(2), 3)
+
+    janus_c_scale(values, usize(3), 3)
+    val total : int =
+        janus_c_add(values.load(usize(0)), values.load(usize(1))) +
+        values.load(usize(2))
+    val average : double = janus_c_average(values, usize(3))
+    val nextByte : byte = janus_c_increment_byte(byte(41))
+    val nextCodepoint : char = janus_c_next_codepoint(char(64))
+    val positive : bool = janus_c_is_positive(-1)
+    val count : usize = janus_c_count_nonzero(values, usize(3))
+
+    if total == 18 && average == 6.0 &&
+        nextByte == byte(42) && nextCodepoint == char(65) &&
+        !positive && count == usize(3) {
+        return 0
+    } else {
+        return 1
+    }
+}
