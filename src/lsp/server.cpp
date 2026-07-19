@@ -328,49 +328,56 @@ std::vector<std::string> Server::handle(std::string_view message) {
     const std::optional<std::string> identifier = identifier_at(
         document->second, static_cast<std::uint32_t>(*line),
         static_cast<std::uint32_t>(*character));
-    if (identifier && *method == "textDocument/hover") {
-      for (const DocumentSymbol &symbol : symbols(document->second)) {
-        if (symbol.name == *identifier) {
-          return {response(
-              request_id(*request),
-              llvm::json::Object{
-                  {"contents",
-                   llvm::json::Object{{"kind", "markdown"},
-                                      {"value", "```janus\n" + symbol.detail +
-                                                    "\n```"}}},
-                  {"range", range(symbol.location, symbol.name.size())},
-              })};
-        }
-      }
-      return {response(request_id(*request), nullptr)};
-    }
-    if (identifier && *method == "textDocument/definition") {
-      for (const DocumentSymbol &symbol : symbols(document->second)) {
-        if (symbol.name == *identifier) {
-          return {response(
-              request_id(*request),
-              llvm::json::Object{
-                  {"uri", uri->str()},
-                  {"range", range(symbol.location, symbol.name.size())},
-              })};
-        }
-      }
-      return {response(request_id(*request), nullptr)};
-    }
-    if (identifier && *method == "textDocument/references") {
-      llvm::json::Array references;
-      for (const auto &[document_uri, document_source] : documents_) {
-        for (const frontend::Token &token : tokens(document_source)) {
-          if (token.kind == frontend::TokenKind::Identifier &&
-              token.lexeme == *identifier) {
-            references.emplace_back(llvm::json::Object{
-                {"uri", document_uri},
-                {"range", range(token.location, token.lexeme.size())},
-            });
+    if (*method == "textDocument/hover") {
+      if (identifier) {
+        for (const DocumentSymbol &symbol : symbols(document->second)) {
+          if (symbol.name == *identifier) {
+            return {response(
+                request_id(*request),
+                llvm::json::Object{
+                    {"contents",
+                     llvm::json::Object{
+                         {"kind", "markdown"},
+                         {"value", "```janus\n" + symbol.detail + "\n```"}}},
+                    {"range", range(symbol.location, symbol.name.size())},
+                })};
           }
         }
       }
-      return {response(request_id(*request), std::move(references))};
+      return {response(request_id(*request), nullptr)};
+    }
+    if (*method == "textDocument/definition") {
+      if (identifier) {
+        for (const DocumentSymbol &symbol : symbols(document->second)) {
+          if (symbol.name == *identifier) {
+            return {response(
+                request_id(*request),
+                llvm::json::Object{
+                    {"uri", uri->str()},
+                    {"range", range(symbol.location, symbol.name.size())},
+                })};
+          }
+        }
+      }
+      return {response(request_id(*request), nullptr)};
+    }
+    if (*method == "textDocument/references") {
+      if (identifier) {
+        llvm::json::Array references;
+        for (const auto &[document_uri, document_source] : documents_) {
+          for (const frontend::Token &token : tokens(document_source)) {
+            if (token.kind == frontend::TokenKind::Identifier &&
+                token.lexeme == *identifier) {
+              references.emplace_back(llvm::json::Object{
+                  {"uri", document_uri},
+                  {"range", range(token.location, token.lexeme.size())},
+              });
+            }
+          }
+        }
+        return {response(request_id(*request), std::move(references))};
+      }
+      return {response(request_id(*request), nullptr)};
     }
     if (*method == "textDocument/completion") {
       const bool member_context =
@@ -423,6 +430,11 @@ std::vector<std::string> Server::handle(std::string_view message) {
                              {"items", std::move(items)}})};
     }
   }
+
+  if (*method == "textDocument/hover" ||
+      *method == "textDocument/definition" ||
+      *method == "textDocument/references")
+    return {response(request_id(*request), nullptr)};
 
   if (request->get("id") != nullptr)
     return {error_response(request_id(*request), -32601, "Method not found")};

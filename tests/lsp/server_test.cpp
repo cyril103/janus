@@ -40,6 +40,18 @@ int main() {
   assert(references.front().find("\"uri\":\"file:///broken.janus\"") !=
          std::string::npos);
 
+  const auto assert_null_result = [](const std::vector<std::string> &result) {
+    assert(result.size() == 1);
+    assert(result.front().find("\"result\":null") != std::string::npos);
+    assert(result.front().find("\"error\"") == std::string::npos);
+  };
+  assert_null_result(server.handle(
+      R"({"jsonrpc":"2.0","id":7,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":0}}})"));
+  assert_null_result(server.handle(
+      R"({"jsonrpc":"2.0","id":8,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":0}}})"));
+  assert_null_result(server.handle(
+      R"({"jsonrpc":"2.0","id":9,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":0},"context":{"includeDeclaration":true}}})"));
+
   const std::vector<std::string> completion = server.handle(
       R"({"jsonrpc":"2.0","id":5,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":20}}})");
   assert(completion.front().find("\"label\":\"answer\"") != std::string::npos);
