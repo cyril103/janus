@@ -20,7 +20,7 @@ def main() : int {
     delete collected
 
     var loopSum : int = 0
-    for value in values.iterator().take(usize(2)) {
+    for value in values {
         loopSum = loopSum + value
     }
 

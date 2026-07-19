@@ -545,8 +545,18 @@ Après le déplacement, `first` est considéré comme non initialisé et ne peut
 plus être lu ou supprimé. `move` s’applique aux objets, closures, pointeurs et
 valeurs génériques, mais pas aux valeurs primitives copiables.
 
-Une boucle `for` consomme également son itérateur et le détruit à la sortie
-normale :
+Une boucle `for` accepte un `Iterator[T]` ou un objet qui implémente
+`Iterable[T]`. Dans le second cas, elle emprunte l'objet, crée son itérateur,
+puis détruit uniquement cet itérateur à la sortie normale :
+
+```janus
+for value in values {
+    println(value)
+}
+```
+
+Lorsqu'elle reçoit directement un itérateur, la boucle le consomme et le
+détruit :
 
 ```janus
 for value in values.iterator().filter((value : int) => value > 0) {
@@ -662,6 +672,40 @@ générée pour chaque combinaison de types utilisée :
 identity[int]    -> identity__int(i32) -> i32
 identity[double] -> identity__double(double) -> double
 ```
+
+### Traits et contraintes génériques
+
+Un trait générique décrit un contrat de méthodes sans imposer de
+représentation :
+
+```janus
+trait Iterable[T] {
+    def iterator() : Iterator[T]
+}
+
+class Values[T]() extends Iterable[T] {
+    def iterator() : Iterator[T] {
+        // construction de l'itérateur
+    }
+}
+```
+
+La classe doit fournir chaque méthode publique avec exactement la signature
+annoncée. Une borne `<:` permet ensuite d'utiliser ce contrat dans du code
+générique :
+
+```janus
+def visit[C <: Iterable[int]](values : C) : int {
+    for value in values {
+        println(value)
+    }
+    return 0
+}
+```
+
+Les traits Janus sont résolus statiquement. La monomorphisation remplace `C`
+par sa classe concrète et appelle directement sa méthode `iterator`, sans
+objet de trait, vtable, boxing ni coût de dispatch à l'exécution.
 
 ### Fonctions de première classe
 
@@ -879,9 +923,9 @@ def main() : int {
 }
 ```
 
-L'inférence des arguments génériques, les contraintes de types et les autres
-types ne sont pas encore implémentés. Les littéraux `double` utilisent
-actuellement la forme décimale simple, sans notation exponentielle.
+L'inférence des arguments génériques et les autres types ne sont pas encore
+implémentés. Les littéraux `double` utilisent actuellement la forme décimale
+simple, sans notation exponentielle.
 
 ## Tests
 

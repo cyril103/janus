@@ -1846,22 +1846,52 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
 
         if (const auto *loop =
                 std::get_if<std::shared_ptr<ast::ForStatement>>(&statement)) {
-          const SemanticType iterator_type = expression_type((*loop)->iterator);
-          if (!iterator_type.is_class() ||
-              iterator_type.parameter != "Iterator" ||
-              iterator_type.type_arguments.size() != 1)
+          const SemanticType source_type = expression_type((*loop)->iterator);
+          std::optional<SemanticType> element_type;
+          bool consumes_source = false;
+          if (source_type.is_class() && source_type.parameter == "Iterator" &&
+              source_type.type_arguments.size() == 1) {
+            element_type = source_type.type_arguments.front();
+            consumes_source = true;
+          } else if (source_type.is_class()) {
+            const ast::ClassDeclaration &class_declaration =
+                *classes.at(source_type.parameter);
+            const auto substitutions =
+                class_substitutions(class_declaration, source_type);
+            const std::unordered_set<std::string> class_parameters{
+                class_declaration.type_parameters.begin(),
+                class_declaration.type_parameters.end()};
+            for (const ast::TypeReference &implemented :
+                 class_declaration.implemented_traits) {
+              if (implemented.name != "Iterable")
+                continue;
+              TraitInstance iterable =
+                  resolve_trait(implemented, class_parameters);
+              if (iterable.type_arguments.size() == 1)
+                element_type =
+                    substitute(iterable.type_arguments.front(), substitutions);
+            }
+          } else if (const auto constraint =
+                         active_trait_constraints.find(source_type.parameter);
+                     constraint != active_trait_constraints.end() &&
+                     constraint->second.declaration->name == "Iterable" &&
+                     constraint->second.type_arguments.size() == 1) {
+            element_type = constraint->second.type_arguments.front();
+          }
+          if (!element_type.has_value())
             throw CompileError{(*loop)->location,
-                               "for requires an Iterator[T], got '" +
-                                   iterator_type.name() + "'"};
+                               "for requires an Iterator[T] or Iterable[T], "
+                               "got '" +
+                                   source_type.name() + "'"};
           SymbolTable loop_symbols = block_symbols;
-          loop_symbols.insert_or_assign(
-              (*loop)->binding,
-              Symbol{iterator_type.type_arguments.front(), false, true});
+          loop_symbols.insert_or_assign((*loop)->binding,
+                                        Symbol{*element_type, false, true});
           static_cast<void>(validate_block((*loop)->body, loop_symbols));
           active_symbols = &block_symbols;
-          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
-                  &(*loop)->iterator.value))
-            block_symbols.at(identifier->name).is_initialized = false;
+          if (consumes_source)
+            if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                    &(*loop)->iterator.value))
+              block_symbols.at(identifier->name).is_initialized = false;
           continue;
         }
 

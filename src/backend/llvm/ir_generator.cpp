@@ -580,13 +580,31 @@ private:
         if (const auto *loop =
                 std::get_if<std::shared_ptr<janus::ast::ForStatement>>(
                     &statement)) {
-          const janus::Type &iterator_type =
+          const janus::Type &source_type =
               expression_type((*loop)->iterator, substitutions, block_locals);
-          ::llvm::Value *iterator =
-              emit_expression((*loop)->iterator, iterator_type, substitutions,
+          ::llvm::Value *source =
+              emit_expression((*loop)->iterator, source_type, substitutions,
                               block_locals, builder);
+          const janus::Type *iterator_type = &source_type;
+          ::llvm::Value *iterator = source;
+          const ClassSpecialization &source_specialization =
+              class_specializations_.at(std::string{source_type.name()});
+          if (source_specialization.declaration->name != "Iterator") {
+            const janus::ast::FunctionDeclaration *iterator_method = nullptr;
+            for (const janus::ast::FunctionDeclaration &method :
+                 source_specialization.declaration->methods)
+              if (method.name == "iterator")
+                iterator_method = &method;
+            ::llvm::Function *iterator_function = emit_function(
+                *iterator_method, {}, source_specialization.declaration,
+                &source_specialization.substitutions, source_type.name());
+            iterator_type = &resolve(iterator_method->return_type,
+                                     source_specialization.substitutions);
+            iterator =
+                builder.CreateCall(iterator_function, {source}, "for.iterator");
+          }
           const ClassSpecialization &iterator_specialization =
-              class_specializations_.at(std::string{iterator_type.name()});
+              class_specializations_.at(std::string{iterator_type->name()});
           const auto &iterator_declaration =
               *iterator_specialization.declaration;
           const janus::ast::FunctionDeclaration *next_method = nullptr;
@@ -596,7 +614,7 @@ private:
               next_method = &method;
           ::llvm::Function *next_function = emit_function(
               *next_method, {}, &iterator_declaration,
-              &iterator_specialization.substitutions, iterator_type.name());
+              &iterator_specialization.substitutions, iterator_type->name());
           const janus::Type &option_type = resolve(
               next_method->return_type, iterator_specialization.substitutions);
           const EnumSpecialization &option_specialization =
@@ -645,8 +663,8 @@ private:
             builder.CreateBr(condition_block);
 
           builder.SetInsertPoint(exit_block);
-          builder.CreateCall(emit_destructor(std::string{iterator_type.name()}),
-                             {iterator});
+          builder.CreateCall(
+              emit_destructor(std::string{iterator_type->name()}), {iterator});
           ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
               "free", ::llvm::FunctionType::get(builder.getVoidTy(),
                                                 {builder.getPtrTy()}, false));

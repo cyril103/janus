@@ -20,7 +20,7 @@ class ArrayIteratorState[T](
     }
 }
 
-class Array[T](initialCapacity : usize) {
+class Array[T](initialCapacity : usize) extends Iterable[T] {
     private var data : Ptr[T] = alloc[T](initialCapacity)
     private var length : usize = usize(0)
     private var allocated : usize = initialCapacity

@@ -2,6 +2,10 @@ module std.iterator
 import std.option
 import std.array
 
+trait Iterable[T] {
+    def iterator() : Iterator[T]
+}
+
 enum ZipItem[A, B] {
     Zipped(A, B)
 }
