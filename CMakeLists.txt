@@ -242,6 +242,33 @@ target_compile_definitions(janusup
 add_executable(janus-lsp
     tools/janus-lsp/main.cpp
 )
+add_library(janus_lsp
+    src/lsp/server.cpp
+)
+target_include_directories(janus_lsp
+    SYSTEM PRIVATE
+        ${JANUS_LLVM_INCLUDE_DIR}
+)
+target_link_libraries(janus_lsp
+    PUBLIC
+        janus_semantic
+    PRIVATE
+        ${JANUS_LLVM_LIBS}
+)
+target_compile_options(janus_lsp
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+target_compile_definitions(janus_lsp
+    PRIVATE
+        JANUS_VERSION="${PROJECT_VERSION}"
+)
+target_link_libraries(janus-lsp
+    PRIVATE
+        janus_lsp
+)
 target_compile_options(janus-lsp
     PRIVATE
         -Wall
@@ -262,6 +289,11 @@ if(BUILD_TESTING)
         COMMAND janus check "${PROJECT_SOURCE_DIR}/examples/value.janus"
     )
     add_test(NAME lsp.version COMMAND janus-lsp --version)
+    add_executable(lsp_server_test
+        tests/lsp/server_test.cpp
+    )
+    target_link_libraries(lsp_server_test PRIVATE janus_lsp)
+    add_test(NAME lsp.server COMMAND lsp_server_test)
     add_test(
         NAME cli.emit_llvm
         COMMAND janus build "${PROJECT_SOURCE_DIR}/examples/value.janus"
