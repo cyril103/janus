@@ -150,6 +150,7 @@ add_library(janus_driver
     src/driver/project.cpp
     src/driver/dependency.cpp
     src/driver/semver.cpp
+    src/driver/registry.cpp
 )
 target_include_directories(janus_driver
     PUBLIC

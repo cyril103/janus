@@ -5,6 +5,7 @@
 #include "janus/driver/manifest.hpp"
 #include "janus/driver/native_linker.hpp"
 #include "janus/driver/project.hpp"
+#include "janus/driver/registry.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
 
@@ -111,6 +112,10 @@ void print_usage() {
   std::cerr << "usage:\n"
             << "  janus new <directory> [--name <name>]\n"
             << "  janus init [directory] [--name <name>]\n"
+            << "  janus add <name>[@<version>] [--path <path> | "
+               "--git <url> --rev <commit>]\n"
+            << "  janus remove <name>\n"
+            << "  janus publish\n"
             << "  janus check [source.janus]\n"
             << "  janus build [source.janus] [-o output] [--release] "
                "[--emit llvm-ir|object]\n"
@@ -118,6 +123,66 @@ void print_usage() {
             << "  janus test [filter] [--release]\n"
             << "  dependency options: --locked --offline\n"
             << "  janus --version\n";
+}
+
+int manage_package(int argc, char **argv) {
+  const std::string command = argv[1];
+  const std::filesystem::path manifest_path =
+      janus::driver::find_manifest(std::filesystem::current_path());
+  if (command == "publish") {
+    if (argc != 2)
+      throw std::runtime_error{"publish does not accept arguments"};
+    const janus::driver::Manifest manifest =
+        janus::driver::load_manifest(manifest_path);
+    janus::driver::publish_package(manifest);
+    std::cout << "published " << manifest.name << ' ' << manifest.version
+              << " to " << janus::driver::registry_root().string() << '\n';
+    return 0;
+  }
+  if (command == "remove") {
+    if (argc != 3)
+      throw std::runtime_error{"remove requires one dependency name"};
+    janus::driver::remove_dependency(manifest_path, argv[2]);
+    std::cout << "removed dependency '" << argv[2] << "'\n";
+    return 0;
+  }
+  if (argc < 3)
+    throw std::runtime_error{"add requires a dependency name"};
+  janus::driver::Dependency dependency;
+  dependency.name = argv[2];
+  if (const std::size_t at = dependency.name.find('@');
+      at != std::string::npos) {
+    dependency.version_requirement = dependency.name.substr(at + 1);
+    dependency.name.erase(at);
+  }
+  for (int index = 3; index < argc; ++index) {
+    const std::string_view argument = argv[index];
+    if (argument == "--path") {
+      if (++index == argc)
+        throw std::runtime_error{"--path requires a directory"};
+      dependency.path = argv[index];
+    } else if (argument == "--git") {
+      if (++index == argc)
+        throw std::runtime_error{"--git requires a repository URL"};
+      dependency.git = argv[index];
+    } else if (argument == "--rev") {
+      if (++index == argc)
+        throw std::runtime_error{"--rev requires a commit hash"};
+      dependency.revision = argv[index];
+    } else if (argument == "--version") {
+      if (++index == argc)
+        throw std::runtime_error{"--version requires a requirement"};
+      dependency.version_requirement = argv[index];
+    } else {
+      throw std::runtime_error{"unknown add option '" + std::string{argument} +
+                               "'"};
+    }
+  }
+  if (dependency.is_registry() && dependency.version_requirement.empty())
+    dependency.version_requirement = "*";
+  janus::driver::add_dependency(manifest_path, dependency);
+  std::cout << "added dependency '" << dependency.name << "'\n";
+  return 0;
 }
 
 int create_or_initialize(int argc, char **argv) {
@@ -401,6 +466,10 @@ int main(int argc, char **argv) {
     if (argc >= 2 && (std::string_view{argv[1]} == "new" ||
                       std::string_view{argv[1]} == "init"))
       return create_or_initialize(argc, argv);
+    if (argc >= 2 && (std::string_view{argv[1]} == "add" ||
+                      std::string_view{argv[1]} == "remove" ||
+                      std::string_view{argv[1]} == "publish"))
+      return manage_package(argc, argv);
     const Toolchain toolchain = locate_toolchain(argv[0]);
     Options options = parse_options(argc, argv);
     if (options.manifest.has_value())

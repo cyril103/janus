@@ -5,6 +5,7 @@ endif()
 set(TEST_ROOT "${BUILD_DIR}/project-creation-test")
 file(REMOVE_RECURSE "${TEST_ROOT}")
 set(ENV{JANUS_CACHE} "${TEST_ROOT}/cache")
+set(ENV{JANUS_REGISTRY} "${TEST_ROOT}/registry")
 execute_process(
     COMMAND "${JANUS}" new "${TEST_ROOT}/hello"
     RESULT_VARIABLE NEW_STATUS
@@ -237,6 +238,85 @@ execute_process(
 )
 if(NOT CACHE_RESTORE_STATUS EQUAL 0)
     message(FATAL_ERROR "Git dependency cache could not be restored")
+endif()
+
+execute_process(
+    COMMAND "${JANUS}" publish
+    WORKING_DIRECTORY "${TEST_ROOT}/nestedmath"
+    RESULT_VARIABLE PUBLISH_STATUS
+    ERROR_VARIABLE PUBLISH_ERROR
+)
+if(NOT PUBLISH_STATUS EQUAL 0
+   OR NOT IS_DIRECTORY
+      "${TEST_ROOT}/registry/nestedmath/1.0.0/package/src")
+    message(FATAL_ERROR "package publish failed: ${PUBLISH_ERROR}")
+endif()
+execute_process(
+    COMMAND "${JANUS}" publish
+    WORKING_DIRECTORY "${TEST_ROOT}/nestedmath"
+    RESULT_VARIABLE REPUBLISH_STATUS
+    ERROR_VARIABLE REPUBLISH_ERROR
+)
+if(REPUBLISH_STATUS EQUAL 0 OR NOT REPUBLISH_ERROR MATCHES "already published")
+    message(FATAL_ERROR "immutable package was overwritten")
+endif()
+
+execute_process(
+    COMMAND "${JANUS}" new "${TEST_ROOT}/registryapp"
+    RESULT_VARIABLE REGISTRY_NEW_STATUS
+)
+execute_process(
+    COMMAND "${JANUS}" add "nestedmath@^1.0.0"
+    WORKING_DIRECTORY "${TEST_ROOT}/registryapp"
+    RESULT_VARIABLE REGISTRY_ADD_STATUS
+    ERROR_VARIABLE REGISTRY_ADD_ERROR
+)
+file(WRITE "${TEST_ROOT}/registryapp/src/main.janus"
+     "import nestedmath\n"
+     "def main() : int { return nested_value() - 2 }\n")
+execute_process(
+    COMMAND "${JANUS}" check
+    WORKING_DIRECTORY "${TEST_ROOT}/registryapp"
+    RESULT_VARIABLE REGISTRY_CHECK_STATUS
+    ERROR_VARIABLE REGISTRY_CHECK_ERROR
+)
+if(NOT REGISTRY_NEW_STATUS EQUAL 0 OR NOT REGISTRY_ADD_STATUS EQUAL 0
+   OR NOT REGISTRY_CHECK_STATUS EQUAL 0)
+    message(FATAL_ERROR
+        "registry dependency failed: ${REGISTRY_ADD_ERROR}"
+        "${REGISTRY_CHECK_ERROR}")
+endif()
+if(NOT IS_DIRECTORY "${TEST_ROOT}/cache/registry/nestedmath/1.0.0")
+    message(FATAL_ERROR "registry package was not cached")
+endif()
+execute_process(
+    COMMAND "${JANUS}" check --locked --offline
+    WORKING_DIRECTORY "${TEST_ROOT}/registryapp"
+    RESULT_VARIABLE REGISTRY_OFFLINE_STATUS
+    ERROR_VARIABLE REGISTRY_OFFLINE_ERROR
+)
+if(NOT REGISTRY_OFFLINE_STATUS EQUAL 0)
+    message(FATAL_ERROR
+        "cached registry package failed offline: ${REGISTRY_OFFLINE_ERROR}")
+endif()
+execute_process(
+    COMMAND "${JANUS}" remove nestedmath
+    WORKING_DIRECTORY "${TEST_ROOT}/registryapp"
+    RESULT_VARIABLE REGISTRY_REMOVE_STATUS
+)
+execute_process(
+    COMMAND "${JANUS}" add localmath --path ../localmath --version "^1.0.0"
+    WORKING_DIRECTORY "${TEST_ROOT}/registryapp"
+    RESULT_VARIABLE PATH_ADD_STATUS
+)
+execute_process(
+    COMMAND "${JANUS}" remove localmath
+    WORKING_DIRECTORY "${TEST_ROOT}/registryapp"
+    RESULT_VARIABLE PATH_REMOVE_STATUS
+)
+if(NOT REGISTRY_REMOVE_STATUS EQUAL 0 OR NOT PATH_ADD_STATUS EQUAL 0
+   OR NOT PATH_REMOVE_STATUS EQUAL 0)
+    message(FATAL_ERROR "add/remove dependency commands failed")
 endif()
 
 foreach(PACKAGE cyclea cycleb)

@@ -31,7 +31,8 @@ int main() {
              << "\n[dependencies]\n"
              << "local = { path = \"../local\", version = \"^1.0.0\" }\n"
              << "remote = { git = \"https://example.invalid/repo\", "
-                "rev = \"0123456789abcdef0123456789abcdef01234567\" }\n";
+                "rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
+             << "registered = \"^2.1.0\"\n";
     }
     const janus::driver::Manifest manifest = janus::driver::load_manifest(path);
     require(manifest.name == "hello-world", "package name was not parsed");
@@ -42,7 +43,7 @@ int main() {
             "entry path was not resolved from the project root");
     require(janus::driver::find_manifest(directory / "src") == path,
             "manifest was not found from a child directory");
-    require(manifest.dependencies.size() == 2, "dependencies were not parsed");
+    require(manifest.dependencies.size() == 3, "dependencies were not parsed");
     require(manifest.dependencies[0].path == "../local",
             "path dependency was not retained");
     require(manifest.dependencies[0].version_requirement == "^1.0.0",
@@ -50,6 +51,9 @@ int main() {
     require(manifest.dependencies[1].is_git() &&
                 manifest.dependencies[1].revision.size() == 40,
             "Git dependency was not retained");
+    require(manifest.dependencies[2].is_registry() &&
+                manifest.dependencies[2].version_requirement == "^2.1.0",
+            "registry dependency was not retained");
 
     {
       std::ofstream output{path};

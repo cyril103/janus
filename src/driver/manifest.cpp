@@ -120,7 +120,12 @@ void validate(const janus::driver::Manifest &manifest) {
                           std::regex{"[A-Za-z][A-Za-z0-9_-]*"}))
       throw std::runtime_error{"janus.toml: invalid dependency name '" +
                                dependency.name + "'"};
-    if (dependency.is_git()) {
+    if (dependency.is_registry()) {
+      if (dependency.version_requirement.empty() ||
+          !dependency.revision.empty())
+        throw std::runtime_error{"janus.toml: registry dependency '" +
+                                 dependency.name + "' requires a version"};
+    } else if (dependency.is_git()) {
       if (!dependency.path.empty() ||
           !std::regex_match(dependency.revision, std::regex{"[0-9a-fA-F]{40}"}))
         throw std::runtime_error{
@@ -189,25 +194,31 @@ Manifest load_manifest(const std::filesystem::path &path) {
                       }))
         throw std::runtime_error{"janus.toml:" + std::to_string(line_number) +
                                  ": duplicate dependency '" + key + "'"};
-      const std::map<std::string, std::string> fields =
-          parse_inline_table(line.substr(equals + 1), line_number);
       Dependency dependency;
       dependency.name = key;
-      if (const auto found = fields.find("path"); found != fields.end())
-        dependency.path = found->second;
-      if (const auto found = fields.find("git"); found != fields.end())
-        dependency.git = found->second;
-      if (const auto found = fields.find("rev"); found != fields.end())
-        dependency.revision = found->second;
-      if (const auto found = fields.find("version"); found != fields.end())
-        dependency.version_requirement = found->second;
-      for (const auto &[field, unused] : fields) {
-        static_cast<void>(unused);
-        if (field != "path" && field != "git" && field != "rev" &&
-            field != "version")
-          throw std::runtime_error{"janus.toml:" + std::to_string(line_number) +
-                                   ": unknown dependency field '" + field +
-                                   "'"};
+      const std::string dependency_value = trim(line.substr(equals + 1));
+      if (!dependency_value.empty() && dependency_value.front() == '"') {
+        dependency.version_requirement =
+            parse_string(dependency_value, line_number);
+      } else {
+        const std::map<std::string, std::string> fields =
+            parse_inline_table(dependency_value, line_number);
+        if (const auto found = fields.find("path"); found != fields.end())
+          dependency.path = found->second;
+        if (const auto found = fields.find("git"); found != fields.end())
+          dependency.git = found->second;
+        if (const auto found = fields.find("rev"); found != fields.end())
+          dependency.revision = found->second;
+        if (const auto found = fields.find("version"); found != fields.end())
+          dependency.version_requirement = found->second;
+        for (const auto &[field, unused] : fields) {
+          static_cast<void>(unused);
+          if (field != "path" && field != "git" && field != "rev" &&
+              field != "version")
+            throw std::runtime_error{
+                "janus.toml:" + std::to_string(line_number) +
+                ": unknown dependency field '" + field + "'"};
+        }
       }
       manifest.dependencies.push_back(std::move(dependency));
       continue;

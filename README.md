@@ -183,6 +183,26 @@ global `~/.janus/cache/git/<commit>` et sont partagés entre les projets.
 les sources résolues. Le fichier lock doit être versionné, tandis que
 `target/` reste ignoré.
 
+## Registre de paquets
+
+Le premier format de registre Janus est un répertoire local immuable. Son
+emplacement par défaut est `~/.janus/registry` et peut être remplacé avec
+`JANUS_REGISTRY`.
+
+```bash
+janus publish
+janus add collections@^1.2.0
+janus add utilitaires --path ../utilitaires --version '^2.0.0'
+janus add protocole --git https://example.com/protocole.git \
+  --rev 0123456789abcdef0123456789abcdef01234567
+janus remove collections
+```
+
+`publish` copie le manifeste et `src/` dans le registre et refuse d'écraser
+une version existante. La résolution choisit la version la plus récente qui
+satisfait la contrainte SemVer, l'inscrit dans `janus.lock`, puis la conserve
+dans le cache global pour les constructions `--offline`.
+
 ## Tests
 
 Chaque fichier `.janus` placé sous `tests/` est un programme de test autonome :

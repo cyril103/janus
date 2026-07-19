@@ -14,6 +14,7 @@ struct Dependency {
   std::string version_requirement;
 
   [[nodiscard]] bool is_git() const { return !git.empty(); }
+  [[nodiscard]] bool is_registry() const { return git.empty() && path.empty(); }
 };
 
 struct Manifest {
