@@ -1,5 +1,7 @@
 #include "janus/driver/native_linker.hpp"
 
+#include <array>
+#include <cstdio>
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
@@ -44,6 +46,31 @@ int command_status(int status) {
 #endif
 }
 
+#ifdef __APPLE__
+std::filesystem::path macos_sdk_path() {
+  if (const char *configured = std::getenv("SDKROOT");
+      configured != nullptr && *configured != '\0' &&
+      std::filesystem::is_directory(configured))
+    return configured;
+
+  std::array<char, 4096> buffer{};
+  FILE *process =
+      popen("/usr/bin/xcrun --sdk macosx --show-sdk-path 2>/dev/null", "r");
+  if (process == nullptr)
+    throw std::runtime_error{"could not run xcrun to locate the macOS SDK"};
+  const std::size_t length =
+      std::fread(buffer.data(), sizeof(char), buffer.size() - 1, process);
+  const int status = pclose(process);
+  std::string path{buffer.data(), length};
+  while (!path.empty() && (path.back() == '\n' || path.back() == '\r'))
+    path.pop_back();
+  if (status != 0 || !std::filesystem::is_directory(path))
+    throw std::runtime_error{
+        "could not locate the macOS SDK; install Xcode Command Line Tools"};
+  return path;
+}
+#endif
+
 } // namespace
 
 namespace janus::driver {
@@ -60,6 +87,9 @@ void link_executable(const std::vector<std::filesystem::path> &objects,
           : (options.driver.empty() ? std::filesystem::path{JANUS_CLANG_PATH}
                                     : options.driver);
   std::string command = shell_quote(driver) + " -fuse-ld=lld";
+#ifdef __APPLE__
+  command += " -isysroot " + shell_quote(macos_sdk_path());
+#endif
 #ifndef _WIN32
   const std::filesystem::path bundled_library_directory =
       driver.parent_path().parent_path() / "lib";
