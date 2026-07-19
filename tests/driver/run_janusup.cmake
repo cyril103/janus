@@ -4,6 +4,11 @@ if(NOT DEFINED BUILD_DIR OR NOT DEFINED SOURCE_DIR OR NOT DEFINED JANUSUP
 endif()
 
 set(TEST_ROOT "${BUILD_DIR}/janusup-test")
+if(WIN32)
+    set(EXECUTABLE_SUFFIX ".exe")
+else()
+    set(EXECUTABLE_SUFFIX "")
+endif()
 file(REMOVE_RECURSE "${TEST_ROOT}")
 execute_process(
     COMMAND "${CMAKE_COMMAND}" --install "${BUILD_DIR}"
@@ -26,13 +31,15 @@ execute_process(
 if(NOT JANUSUP_STATUS EQUAL 0)
     message(FATAL_ERROR "janusup install failed: ${JANUSUP_ERROR}")
 endif()
-if(NOT EXISTS "${TEST_ROOT}/home/toolchains/test/bin/janus")
+if(NOT EXISTS
+   "${TEST_ROOT}/home/toolchains/test/bin/janus${EXECUTABLE_SUFFIX}")
     message(FATAL_ERROR "janusup did not install the compiler")
 endif()
-if(NOT EXISTS "${TEST_ROOT}/home/bin/janus")
+if(NOT EXISTS "${TEST_ROOT}/home/bin/janus${EXECUTABLE_SUFFIX}")
     message(FATAL_ERROR "janusup did not create the compiler shim")
 endif()
-if(NOT EXISTS "${TEST_ROOT}/home/toolchains/test/bin/clang")
+if(NOT EXISTS
+   "${TEST_ROOT}/home/toolchains/test/bin/clang${EXECUTABLE_SUFFIX}")
     message(FATAL_ERROR "the toolchain does not contain Clang")
 endif()
 if(NOT EXISTS "${TEST_ROOT}/home/toolchains/test/bin/ld.lld"
@@ -52,7 +59,7 @@ if(NOT LIST_OUTPUT MATCHES "\\* test")
 endif()
 
 execute_process(
-    COMMAND "${TEST_ROOT}/home/bin/janus" run
+    COMMAND "${TEST_ROOT}/home/bin/janus${EXECUTABLE_SUFFIX}" run
             "${SOURCE_DIR}/examples/output.janus"
     RESULT_VARIABLE RUN_STATUS
     OUTPUT_VARIABLE RUN_OUTPUT

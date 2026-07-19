@@ -24,6 +24,14 @@ get_filename_component(
 get_filename_component(
     JANUS_LLD_REAL_EXECUTABLE "${JANUS_LLD_EXECUTABLE}" REALPATH
 )
+get_filename_component(
+    JANUS_CLANG_REAL_NAME "${JANUS_CLANG_REAL_EXECUTABLE}" NAME
+)
+if(WIN32)
+    set(JANUS_CLANG_INSTALL_NAME "clang.exe")
+else()
+    set(JANUS_CLANG_INSTALL_NAME "clang")
+endif()
 get_filename_component(JANUS_LLD_INSTALL_NAME "${JANUS_LLD_EXECUTABLE}" NAME)
 execute_process(
     COMMAND "${JANUS_CLANG_REAL_EXECUTABLE}" -print-resource-dir
@@ -864,6 +872,14 @@ install(
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
+if(NOT JANUS_CLANG_REAL_NAME STREQUAL JANUS_CLANG_INSTALL_NAME)
+    install(CODE "
+        file(RENAME
+            \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${JANUS_CLANG_REAL_NAME}\"
+            \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${JANUS_CLANG_INSTALL_NAME}\"
+        )
+    ")
+endif()
 install(
     TARGETS janus_runtime
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
