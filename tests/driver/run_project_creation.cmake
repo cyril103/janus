@@ -93,12 +93,21 @@ if(FAILING_TEST_STATUS EQUAL 0
 endif()
 file(REMOVE "${TEST_ROOT}/hello/tests/failing.janus")
 
+file(MAKE_DIRECTORY "${TEST_ROOT}/nestedmath/src")
+file(WRITE "${TEST_ROOT}/nestedmath/janus.toml"
+     "[package]\nname = \"nestedmath\"\nversion = \"1.0.0\"\n"
+     "entry = \"src/nestedmath.janus\"\n")
+file(WRITE "${TEST_ROOT}/nestedmath/src/nestedmath.janus"
+     "module nestedmath\ndef nested_value() : int { return 2 }\n")
+
 file(MAKE_DIRECTORY "${TEST_ROOT}/localmath/src")
 file(WRITE "${TEST_ROOT}/localmath/janus.toml"
      "[package]\nname = \"localmath\"\nversion = \"1.0.0\"\n"
-     "entry = \"src/localmath.janus\"\n")
+     "entry = \"src/localmath.janus\"\n"
+     "\n[dependencies]\nnestedmath = { path = \"../nestedmath\" }\n")
 file(WRITE "${TEST_ROOT}/localmath/src/localmath.janus"
-     "module localmath\ndef local_value() : int { return 20 }\n")
+     "module localmath\nimport nestedmath\n"
+     "def local_value() : int { return 18 + nested_value() }\n")
 
 file(MAKE_DIRECTORY "${TEST_ROOT}/gitmath/src")
 file(WRITE "${TEST_ROOT}/gitmath/janus.toml"
@@ -166,6 +175,36 @@ if(NOT IS_DIRECTORY
        "${TEST_ROOT}/hello/target/dependencies/gitmath-${GIT_SHORT_REVISION}")
         message(FATAL_ERROR "Git dependency was not cached")
     endif()
+endif()
+
+foreach(PACKAGE cyclea cycleb)
+    file(MAKE_DIRECTORY "${TEST_ROOT}/${PACKAGE}/src")
+    file(WRITE "${TEST_ROOT}/${PACKAGE}/src/${PACKAGE}.janus"
+         "module ${PACKAGE}\ndef ${PACKAGE}_value() : int { return 0 }\n")
+endforeach()
+file(WRITE "${TEST_ROOT}/cyclea/janus.toml"
+     "[package]\nname = \"cyclea\"\nversion = \"1.0.0\"\n"
+     "entry = \"src/cyclea.janus\"\n[dependencies]\n"
+     "cycleb = { path = \"../cycleb\" }\n")
+file(WRITE "${TEST_ROOT}/cycleb/janus.toml"
+     "[package]\nname = \"cycleb\"\nversion = \"1.0.0\"\n"
+     "entry = \"src/cycleb.janus\"\n[dependencies]\n"
+     "cyclea = { path = \"../cyclea\" }\n")
+file(MAKE_DIRECTORY "${TEST_ROOT}/cycleapp/src")
+file(WRITE "${TEST_ROOT}/cycleapp/src/main.janus"
+     "def main() : int { return 0 }\n")
+file(WRITE "${TEST_ROOT}/cycleapp/janus.toml"
+     "[package]\nname = \"cycleapp\"\nversion = \"1.0.0\"\n"
+     "entry = \"src/main.janus\"\n[dependencies]\n"
+     "cyclea = { path = \"../cyclea\" }\n")
+execute_process(
+    COMMAND "${JANUS}" check
+    WORKING_DIRECTORY "${TEST_ROOT}/cycleapp"
+    RESULT_VARIABLE CYCLE_STATUS
+    ERROR_VARIABLE CYCLE_ERROR
+)
+if(CYCLE_STATUS EQUAL 0 OR NOT CYCLE_ERROR MATCHES "cyclic dependency")
+    message(FATAL_ERROR "dependency cycle was not rejected: ${CYCLE_ERROR}")
 endif()
 
 file(MAKE_DIRECTORY "${TEST_ROOT}/existing/src")
