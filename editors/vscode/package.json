@@ -1,0 +1,69 @@
+{
+  "name": "janus-language",
+  "displayName": "Janus Language",
+  "description": "Language support powered by janus-lsp",
+  "version": "0.1.0",
+  "publisher": "janus-lang",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:janus"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "janus",
+        "aliases": [
+          "Janus",
+          "janus"
+        ],
+        "extensions": [
+          ".janus"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "janus",
+        "scopeName": "source.janus",
+        "path": "./syntaxes/janus.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Janus",
+      "properties": {
+        "janus.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to janus-lsp. Leave empty for automatic detection."
+        },
+        "janus.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace communication with janus-lsp."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.0"
+  }
+}

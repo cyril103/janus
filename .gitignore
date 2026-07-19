@@ -49,6 +49,8 @@ coverage/
 # Editors and IDEs
 /.idea/
 /.vscode/
+/editors/vscode/node_modules/
+/editors/vscode/*.vsix
 *.swp
 *.swo
 *~

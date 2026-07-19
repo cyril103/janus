@@ -121,8 +121,13 @@ max_blank_lines = 1
 Le paquet fournit aussi `janus-lsp`, un premier serveur LSP utilisable sur
 l'entrée/sortie standard. Il implémente le cycle de vie JSON-RPC
 `initialize`/`shutdown`/`exit` et annonce la synchronisation des documents
-ainsi que le formatage. Les diagnostics incrémentaux seront ajoutés dans une
-prochaine étape.
+ainsi que le formatage. Il publie les diagnostics à chaque modification et
+fournit le survol, la définition, les références et l'autocomplétion des
+symboles connus.
+
+Une extension VS Code est disponible dans `editors/vscode`. Elle active la
+coloration des fichiers `.janus` et détecte automatiquement `janus-lsp` via
+`janus.server.path`, `JANUS_HOME`, `~/.janus/bin` ou le `PATH`.
 
 ## Installer la chaîne d'outils
 
