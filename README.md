@@ -109,8 +109,10 @@ s'arrêter avant l'édition de liens.
 
 ## Installer la chaîne d'outils
 
-La première distribution officielle, Janus 0.1.0, cible Linux x86_64. Elle est
-fournie sous forme d'une archive autonome. L'installation se fait avec :
+La première distribution officielle, Janus 0.1.0, cible Linux x86_64. Les
+constructions suivantes produisent également une archive macOS ARM64. Elles
+sont fournies sous forme d'archives autonomes. L'installation Unix se fait
+avec :
 
 ```bash
 curl --proto '=https' --tlsv1.2 -fsSL \

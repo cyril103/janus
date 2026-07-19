@@ -18,7 +18,15 @@ if [ ! -f "$CHECKSUM" ]; then
   exit 1
 fi
 
-(cd "$(dirname "$ARCHIVE")" && sha256sum -c "$(basename "$CHECKSUM")")
+if command -v sha256sum >/dev/null 2>&1; then
+  (cd "$(dirname "$ARCHIVE")" && sha256sum -c "$(basename "$CHECKSUM")")
+elif command -v shasum >/dev/null 2>&1; then
+  (cd "$(dirname "$ARCHIVE")" &&
+    shasum -a 256 -c "$(basename "$CHECKSUM")")
+else
+  echo "smoke test: no SHA-256 tool is available" >&2
+  exit 1
+fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT HUP INT TERM
