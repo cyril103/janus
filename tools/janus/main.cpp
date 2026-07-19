@@ -1,6 +1,7 @@
 #include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/backend/llvm/object_emitter.hpp"
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/driver/native_linker.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
 
@@ -180,18 +181,11 @@ int build(const Options &options, const std::filesystem::path &output) {
   janus::backend::llvm::emit_object(*module, object, options.release);
   if (options.emit_object)
     return 0;
-  const char *configured_clang = std::getenv("JANUS_CLANG");
-  const std::string clang =
-      configured_clang == nullptr ? "clang" : configured_clang;
-  const std::string command =
-      clang + (options.release ? " -O2 " : " -O0 -g ") +
-      shell_quote(object) + " -o " + shell_quote(output);
-  const int status = command_status(std::system(command.c_str()));
+  janus::driver::link_executable(
+      {object}, output, janus::driver::LinkOptions{!options.release, {}});
   std::error_code ignored;
   std::filesystem::remove(object, ignored);
-  if (status != 0)
-    std::cerr << "janus: native compilation failed\n";
-  return status;
+  return 0;
 }
 
 } // namespace

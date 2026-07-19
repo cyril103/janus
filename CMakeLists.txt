@@ -13,6 +13,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(LLVM REQUIRED CONFIG)
+find_program(JANUS_CLANG_EXECUTABLE clang REQUIRED)
+find_program(JANUS_LLD_EXECUTABLE NAMES ld.lld lld-link ld64.lld REQUIRED)
 
 add_library(janus_types
     src/types/type.cpp
@@ -119,6 +121,7 @@ target_compile_definitions(janusc
 
 add_executable(janus
     tools/janus/main.cpp
+    src/driver/native_linker.cpp
 )
 target_link_libraries(janus
     PRIVATE
@@ -135,11 +138,12 @@ target_compile_definitions(janus
     PRIVATE
         JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
         JANUS_VERSION="${PROJECT_VERSION}"
+        JANUS_CLANG_PATH="${JANUS_CLANG_EXECUTABLE}"
 )
 
 include(CTest)
 if(BUILD_TESTING)
-    find_program(CLANG_EXECUTABLE clang REQUIRED)
+    set(CLANG_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}")
 
     add_test(
         NAME cli.check
@@ -156,6 +160,11 @@ if(BUILD_TESTING)
         COMMAND janus build "${PROJECT_SOURCE_DIR}/examples/value.janus"
                 --emit object
                 -o "${PROJECT_BINARY_DIR}/cli_value.o"
+    )
+    add_test(
+        NAME cli.build
+        COMMAND janus build "${PROJECT_SOURCE_DIR}/examples/value.janus"
+                -o "${PROJECT_BINARY_DIR}/cli_value"
     )
     add_test(
         NAME cli.run
