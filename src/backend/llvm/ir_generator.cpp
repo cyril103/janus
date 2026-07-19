@@ -495,7 +495,8 @@ private:
           lower_type(resolve(parameter.type, substitutions), context_));
 
     auto *function_type = ::llvm::FunctionType::get(
-        lower_type(return_type, context_), parameter_types, false);
+        lower_type(return_type, context_), parameter_types,
+        function.is_variadic);
     const ::llvm::GlobalValue::LinkageTypes linkage =
         owner != nullptr &&
                 (function.is_private || function.name == "destructor")
@@ -887,7 +888,8 @@ private:
         false,
         {},
         false,
-        std::nullopt};
+        std::nullopt,
+        false};
     const std::vector<janus::ast::Statement> empty_body;
     const auto &body = specialization.declaration->destructor.has_value()
                            ? specialization.declaration->destructor->body
@@ -1613,6 +1615,21 @@ private:
             arguments.reserve(node.arguments.size());
             for (std::size_t index = 0; index < node.arguments.size();
                  ++index) {
+              if (index >= callee.parameters.size()) {
+                const janus::Type &argument_type = expression_type(
+                    *node.arguments[index], substitutions, locals);
+                ::llvm::Value *argument = emit_expression(
+                    *node.arguments[index], argument_type, substitutions,
+                    locals, builder);
+                if (argument_type.kind() == janus::TypeKind::Byte)
+                  argument = builder.CreateSExt(argument, builder.getInt32Ty(),
+                                                "vararg.byte");
+                else if (argument_type.kind() == janus::TypeKind::Bool)
+                  argument = builder.CreateZExt(argument, builder.getInt32Ty(),
+                                                "vararg.bool");
+                arguments.push_back(argument);
+                continue;
+              }
               const janus::Type &parameter_type =
                   resolve(callee.parameters[index].type, callee_substitutions);
               arguments.push_back(emit_expression(*node.arguments[index],

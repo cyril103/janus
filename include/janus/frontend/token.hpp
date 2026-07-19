@@ -65,6 +65,7 @@ enum class TokenKind {
   PipePipe,
   Semicolon,
   Dot,
+  Ellipsis,
   Question,
   End,
 };
@@ -193,6 +194,8 @@ struct Token {
     return "';'";
   case TokenKind::Dot:
     return "'.'";
+  case TokenKind::Ellipsis:
+    return "'...'";
   case TokenKind::Question:
     return "'?'";
   case TokenKind::End:

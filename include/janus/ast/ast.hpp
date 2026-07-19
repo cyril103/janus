@@ -268,6 +268,7 @@ struct FunctionDeclaration {
   std::vector<TypeConstraint> type_constraints;
   bool is_external{};
   std::optional<std::string> external_symbol;
+  bool is_variadic{};
 };
 
 struct DestructorDeclaration {

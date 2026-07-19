@@ -221,6 +221,30 @@ bool is_c_abi_type(const janus::semantic::SemanticType &type,
   return false;
 }
 
+bool is_c_variadic_type(const janus::semantic::SemanticType &type) {
+  if (type.is_pointer())
+    return true;
+  if (!type.is_concrete())
+    return false;
+  switch (type.concrete->kind()) {
+  case janus::TypeKind::Int:
+  case janus::TypeKind::Double:
+  case janus::TypeKind::Byte:
+  case janus::TypeKind::Char:
+  case janus::TypeKind::Bool:
+  case janus::TypeKind::USize:
+    return true;
+  case janus::TypeKind::String:
+  case janus::TypeKind::Unit:
+  case janus::TypeKind::Enum:
+  case janus::TypeKind::Function:
+  case janus::TypeKind::Pointer:
+  case janus::TypeKind::Class:
+    return false;
+  }
+  return false;
+}
+
 bool can_explicitly_cast(const janus::semantic::SemanticType &source,
                          const janus::semantic::SemanticType &destination) {
   if (same_type(source, destination))
@@ -796,6 +820,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       throw CompileError{
           function_location,
           "external function '" + function_name + "' cannot be generic"};
+    if (!is_destructor && context.function->is_variadic) {
+      if (!context.function->is_external)
+        throw CompileError{function_location,
+                           "only external functions can be variadic"};
+      if (parameters.empty())
+        throw CompileError{
+            function_location,
+            "variadic external function requires a fixed parameter"};
+    }
     if (!is_destructor)
       validate_constraints(context.function->type_constraints, type_parameters);
 
@@ -1230,10 +1263,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                         " type argument(s), got " +
                         std::to_string(node.type_arguments.size())};
               }
-              if (node.arguments.size() != callee.parameters.size()) {
+              if ((!callee.is_variadic &&
+                   node.arguments.size() != callee.parameters.size()) ||
+                  (callee.is_variadic &&
+                   node.arguments.size() < callee.parameters.size())) {
                 throw CompileError{
                     node.location,
                     "function '" + node.callee + "' expects " +
+                        (callee.is_variadic ? "at least " : "") +
                         std::to_string(callee.parameters.size()) +
                         " argument(s), got " +
                         std::to_string(node.arguments.size())};
@@ -1267,6 +1304,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               }
               for (std::size_t index = 0; index < node.arguments.size();
                    ++index) {
+                if (index >= callee.parameters.size()) {
+                  const SemanticType argument_type =
+                      expression_type(*node.arguments[index]);
+                  if (!is_c_variadic_type(argument_type))
+                    throw CompileError{
+                        expression_location(*node.arguments[index]),
+                        "variadic C argument has incompatible type '" +
+                            argument_type.name() + "'"};
+                  continue;
+                }
                 SemanticType expected =
                     resolve_type(callee.parameters[index].type,
                                  callee_parameters, &class_arities);

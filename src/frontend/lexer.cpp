@@ -155,6 +155,14 @@ Token Lexer::next() {
     throw CompileError{start, "unterminated character literal"};
   }
 
+  if (character == '.' && position_ + 2 < source_.size() &&
+      source_[position_ + 1] == '.' && source_[position_ + 2] == '.') {
+    advance();
+    advance();
+    advance();
+    return Token{TokenKind::Ellipsis, source_.substr(start_position, 3), start};
+  }
+
   if (position_ + 1 < source_.size()) {
     const char next_character = source_[position_ + 1];
     TokenKind kind;

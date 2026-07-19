@@ -288,7 +288,8 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
                                        is_consuming,
                                        std::move(type_constraints),
                                        false,
-                                       std::nullopt};
+                                       std::nullopt,
+                                       false};
   return declaration;
 }
 
@@ -592,8 +593,14 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
   static_cast<void>(expect(TokenKind::LeftParen));
 
   std::vector<ast::FunctionDeclaration::Parameter> parameters;
+  bool is_variadic = false;
   if (current_.kind != TokenKind::RightParen) {
     do {
+      if (current_.kind == TokenKind::Ellipsis) {
+        is_variadic = true;
+        advance();
+        break;
+      }
       const Token parameter_name = expect(TokenKind::Identifier);
       static_cast<void>(expect(TokenKind::Colon));
       ast::TypeReference parameter_type = parse_type();
@@ -624,7 +631,8 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
                                        false,
                                        std::move(type_constraints),
                                        is_external,
-                                       std::move(external_symbol)};
+                                       std::move(external_symbol),
+                                       is_variadic};
   return declaration;
 }
 

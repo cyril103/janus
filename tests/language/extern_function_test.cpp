@@ -119,6 +119,32 @@ int main() {
                  std::string::npos,
          "cstr exposes the null-terminated UTF-8 data pointer to C");
 
+  janus::frontend::Parser variadic_parser{
+      "extern def printf(format : Ptr[byte], ...) : int "
+      "def main() : int { return printf(cstr(\"%d %d %u %llu %.1f\"), "
+      "byte(-7), true, char(65), usize(9), 2.5) }"};
+  const janus::ast::Program variadic_program =
+      variadic_parser.parse_program();
+  expect(variadic_program.functions[0].is_variadic,
+         "the ellipsis is represented explicitly in the AST");
+  static_cast<void>(analyzer.analyze(variadic_program));
+  llvm::LLVMContext variadic_context;
+  janus::backend::llvm::IrGenerator variadic_generator{variadic_context};
+  const std::unique_ptr<llvm::Module> variadic_module =
+      variadic_generator.generate(variadic_program, "variadic_function");
+  std::string variadic_ir;
+  llvm::raw_string_ostream variadic_output{variadic_ir};
+  variadic_module->print(variadic_output, nullptr);
+  variadic_output.flush();
+  expect(variadic_ir.find("declare i32 @printf(ptr, ...)") !=
+             std::string::npos,
+         "variadic extern def emits an LLVM variadic declaration");
+  expect(variadic_ir.find("i32 -7, i32 1, i32 65, i64 9, double") !=
+             std::string::npos,
+         "byte and bool receive the C default integer promotions");
+  expect(variadic_ir.find("call i32 (ptr, ...) @printf") != std::string::npos,
+         "calls retain the variadic LLVM function type");
+
   janus::frontend::Parser abi_parser{
       "extern def exchange(data : Ptr[int], size : usize, ratio : double, "
       "tag : byte, codepoint : char, enabled : bool) : Unit "
@@ -155,6 +181,21 @@ int main() {
                        "cstr expects one string argument");
   expect_compile_error("def main() : int { cstr(42) return 0 }",
                        "where type 'string' is required");
+  expect_compile_error(
+      "def invalid(value : int, ...) : int { return value } "
+      "def main() : int { return 0 }",
+      "only external functions can be variadic");
+  expect_compile_error(
+      "extern def invalid(...) : int def main() : int { return 0 }",
+      "requires a fixed parameter");
+  expect_compile_error(
+      "extern def printf(format : Ptr[byte], ...) : int "
+      "def main() : int { return printf(cstr(\"%s\"), \"text\") }",
+      "variadic C argument has incompatible type 'string'");
+  expect_compile_error(
+      "extern def printf(format : Ptr[byte], ...) : int "
+      "def main() : int { return printf() }",
+      "expects at least 1 argument");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
