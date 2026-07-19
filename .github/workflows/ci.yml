@@ -89,7 +89,9 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure --timeout 60
+        run: >
+          ctest --test-dir build --output-on-failure
+          --stop-on-failure --timeout 60
 
       - name: Package
         run: cmake --build build --target dist
