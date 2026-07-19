@@ -27,10 +27,15 @@ if(NOT CLANG_RESULT EQUAL 0)
     message(FATAL_ERROR "native link failed:\n${CLANG_ERROR}")
 endif()
 
+set(ASAN_OPTIONS "detect_leaks=1:halt_on_error=1")
+if(WIN32)
+    set(ASAN_OPTIONS "detect_leaks=0:halt_on_error=1")
+endif()
+
 execute_process(
     COMMAND
         "${CMAKE_COMMAND}" -E env
-        "ASAN_OPTIONS=detect_leaks=1:halt_on_error=1"
+        "ASAN_OPTIONS=${ASAN_OPTIONS}"
         "${EXECUTABLE}"
     ERROR_VARIABLE PROGRAM_ERROR
     RESULT_VARIABLE PROGRAM_RESULT
