@@ -2,9 +2,11 @@
 
 #include "janus/diagnostics/compile_error.hpp"
 
+#include <cerrno>
 #include <charconv>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <string>
 #include <system_error>
@@ -1080,11 +1082,12 @@ ast::Expression Parser::parse_primary() {
 
   if (current_.kind == TokenKind::DoubleLiteral) {
     const Token literal = expect(TokenKind::DoubleLiteral);
-    double value{};
-    const auto result =
-        std::from_chars(literal.lexeme.data(),
-                        literal.lexeme.data() + literal.lexeme.size(), value);
-    if (result.ec != std::errc{} || !std::isfinite(value)) {
+    const std::string text{literal.lexeme};
+    char *end = nullptr;
+    errno = 0;
+    const double value = std::strtod(text.c_str(), &end);
+    if (errno == ERANGE || end != text.c_str() + text.size() ||
+        !std::isfinite(value)) {
       throw CompileError{literal.location, "invalid double literal"};
     }
     return ast::DoubleLiteralExpression{value, literal.location};

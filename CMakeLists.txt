@@ -15,6 +15,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(GNUInstallDirs)
 
 find_package(LLVM REQUIRED CONFIG)
+list(GET LLVM_INCLUDE_DIRS 0 JANUS_LLVM_INCLUDE_DIR)
 find_program(JANUS_CLANG_EXECUTABLE clang REQUIRED)
 find_program(JANUS_LLD_EXECUTABLE NAMES ld.lld lld-link ld64.lld REQUIRED)
 get_filename_component(
@@ -100,7 +101,7 @@ add_library(janus_llvm_backend
 )
 target_include_directories(janus_llvm_backend
     SYSTEM PUBLIC
-        ${LLVM_INCLUDE_DIRS}
+        ${JANUS_LLVM_INCLUDE_DIR}
 )
 target_link_libraries(janus_llvm_backend
     PUBLIC
@@ -205,7 +206,7 @@ add_executable(janusup
 )
 target_include_directories(janusup
     SYSTEM PRIVATE
-        ${LLVM_INCLUDE_DIRS}
+        ${JANUS_LLVM_INCLUDE_DIR}
 )
 target_link_libraries(janusup
     PRIVATE
@@ -324,7 +325,7 @@ if(BUILD_TESTING)
     )
     target_include_directories(int_type_test
         SYSTEM PRIVATE
-            ${LLVM_INCLUDE_DIRS}
+            ${JANUS_LLVM_INCLUDE_DIR}
     )
     target_compile_options(int_type_test
         PRIVATE
