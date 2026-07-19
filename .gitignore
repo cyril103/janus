@@ -50,6 +50,7 @@ coverage/
 /.idea/
 /.vscode/
 /editors/vscode/node_modules/
+/editors/vscode/dist/
 /editors/vscode/*.vsix
 *.swp
 *.swo

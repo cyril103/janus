@@ -5,13 +5,22 @@
   "version": "0.2.0",
   "publisher": "janus-lang",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cyril103/janus.git",
+    "directory": "editors/vscode"
+  },
+  "homepage": "https://github.com/cyril103/janus",
+  "bugs": {
+    "url": "https://github.com/cyril103/janus/issues"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
     "Programming Languages"
   ],
-  "main": "./src/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {
@@ -55,12 +64,16 @@
     }
   },
   "scripts": {
-    "package": "vsce package"
+    "build": "esbuild src/extension.js --bundle --minify --platform=node --external:vscode --outfile=dist/extension.js",
+    "check-package": "vsce ls --tree",
+    "package": "vsce package",
+    "vscode:prepublish": "npm run build"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
-    "@vscode/vsce": "^3.6.0"
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.28.1"
   }
 }
