@@ -267,6 +267,7 @@ struct FunctionDeclaration {
   bool is_consuming{};
   std::vector<TypeConstraint> type_constraints;
   bool is_external{};
+  std::optional<std::string> external_symbol;
 };
 
 struct DestructorDeclaration {

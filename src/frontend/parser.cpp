@@ -286,7 +286,9 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
                                        def.location,
                                        false,
                                        is_consuming,
-                                       std::move(type_constraints)};
+                                       std::move(type_constraints),
+                                       false,
+                                       std::nullopt};
   return declaration;
 }
 
@@ -549,8 +551,15 @@ std::vector<ast::Statement> Parser::parse_block() {
 ast::FunctionDeclaration Parser::parse_function_declaration() {
   const bool is_external = current_.kind == TokenKind::Extern;
   const SourceLocation declaration_location = current_.location;
+  std::optional<std::string> external_symbol;
   if (is_external)
     advance();
+  if (is_external && current_.kind == TokenKind::LeftParen) {
+    advance();
+    const Token symbol = expect(TokenKind::StringLiteral);
+    external_symbol = decode_string_literal(symbol);
+    static_cast<void>(expect(TokenKind::RightParen));
+  }
   const Token def = expect(TokenKind::Def);
   const Token name = expect(TokenKind::Identifier);
 
@@ -614,7 +623,8 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
                                        false,
                                        false,
                                        std::move(type_constraints),
-                                       is_external};
+                                       is_external,
+                                       std::move(external_symbol)};
   return declaration;
 }
 

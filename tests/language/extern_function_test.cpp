@@ -78,6 +78,27 @@ int main() {
   expect(ir.find("call i32 @c_add(i32 20, i32 22)") != std::string::npos,
          "Janus calls the emitted external declaration");
 
+  janus::frontend::Parser alias_parser{
+      "extern(\"abs\") def absolute(value : int) : int "
+      "def main() : int { return absolute(-42) }"};
+  const janus::ast::Program alias_program = alias_parser.parse_program();
+  expect(alias_program.functions[0].external_symbol == "abs",
+         "an explicit external symbol is preserved in the AST");
+  static_cast<void>(analyzer.analyze(alias_program));
+  llvm::LLVMContext alias_context;
+  janus::backend::llvm::IrGenerator alias_generator{alias_context};
+  const std::unique_ptr<llvm::Module> alias_module =
+      alias_generator.generate(alias_program, "external_alias");
+  std::string alias_ir;
+  llvm::raw_string_ostream alias_output{alias_ir};
+  alias_module->print(alias_output, nullptr);
+  alias_output.flush();
+  expect(alias_ir.find("declare i32 @abs(i32)") != std::string::npos &&
+             alias_ir.find("call i32 @abs(i32 -42)") != std::string::npos,
+         "external aliases select the native declaration and call symbol");
+  expect(alias_ir.find("@absolute") == std::string::npos,
+         "the Janus alias is not exported as a second native symbol");
+
   janus::frontend::Parser abi_parser{
       "extern def exchange(data : Ptr[int], size : usize, ratio : double, "
       "tag : byte, codepoint : char, enabled : bool) : Unit "
@@ -98,6 +119,18 @@ int main() {
       "not compatible with the C ABI");
   expect_compile_error("extern def main() : int",
                        "entry point 'main' cannot be external");
+  expect_compile_error(
+      "extern(\"\") def empty() : Unit def main() : int { return 0 }",
+      "external symbol name cannot be empty");
+  expect_compile_error(
+      "extern(\"same\") def first() : Unit "
+      "extern(\"same\") def second() : Unit "
+      "def main() : int { return 0 }",
+      "already bound");
+  expect_compile_error(
+      "def native() : Unit {} extern(\"native\") def alias() : Unit "
+      "def main() : int { return 0 }",
+      "conflicts with Janus function");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

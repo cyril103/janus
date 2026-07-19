@@ -467,8 +467,11 @@ private:
       std::string_view owner_key = {},
       const std::vector<janus::ast::Statement> *body_override = nullptr) {
     const std::string llvm_name =
-        (owner == nullptr ? std::string{} : std::string{owner_key} + "__") +
-        mangle(function, type_arguments);
+        function.is_external && function.external_symbol.has_value()
+            ? *function.external_symbol
+            : (owner == nullptr ? std::string{}
+                                : std::string{owner_key} + "__") +
+                  mangle(function, type_arguments);
     if (const auto iterator = emitted_.find(llvm_name);
         iterator != emitted_.end())
       return iterator->second;
@@ -882,7 +885,9 @@ private:
         location,
         false,
         false,
-        {}};
+        {},
+        false,
+        std::nullopt};
     const std::vector<janus::ast::Statement> empty_body;
     const auto &body = specialization.declaration->destructor.has_value()
                            ? specialization.declaration->destructor->body

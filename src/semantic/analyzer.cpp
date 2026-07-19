@@ -704,6 +704,37 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                                 "' is already declared"};
     }
   }
+  std::unordered_map<std::string, const ast::FunctionDeclaration *>
+      external_symbols;
+  for (const ast::FunctionDeclaration &function : program.functions) {
+    if (!function.is_external)
+      continue;
+    const std::string &symbol =
+        function.external_symbol.has_value() ? *function.external_symbol
+                                             : function.name;
+    if (symbol.empty())
+      throw CompileError{function.location,
+                         "external symbol name cannot be empty"};
+    if (symbol.find('\0') != std::string::npos)
+      throw CompileError{function.location,
+                         "external symbol name cannot contain a null byte"};
+    if (const auto existing = external_symbols.find(symbol);
+        existing != external_symbols.end() &&
+        existing->second->name != function.name)
+      throw CompileError{function.location,
+                         "external symbol '" + symbol +
+                             "' is already bound to function '" +
+                             existing->second->name + "'"};
+    external_symbols.emplace(symbol, &function);
+    if (symbol != function.name) {
+      const auto collision = functions.find(symbol);
+      if (collision != functions.end() && !collision->second->is_external)
+        throw CompileError{function.location,
+                           "external symbol '" + symbol +
+                               "' conflicts with Janus function '" + symbol +
+                               "'"};
+    }
+  }
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
     std::unordered_set<std::string> method_names;
     for (const ast::FunctionDeclaration &method : class_declaration.methods) {
