@@ -1,0 +1,56 @@
+import std.range
+
+def main() : int {
+    var oddSum : int = 0
+    var index : int = 0
+    while index < 10 {
+        index = index + 1
+        val value : Ptr[int] = alloc[int](usize(1))
+        defer free(value)
+        value.store(usize(0), index)
+        if index % 2 == 0 {
+            continue
+        }
+        oddSum = oddSum + value.load(usize(0))
+        if oddSum > 10 {
+            break
+        }
+    }
+
+    var rangeSum : int = 0
+    for value in range(0, 10) {
+        val copy : Ptr[int] = alloc[int](usize(1))
+        defer free(copy)
+        copy.store(usize(0), value)
+        if value < 2 {
+            continue
+        }
+        if value == 5 {
+            break
+        }
+        rangeSum = rangeSum + copy.load(usize(0))
+    }
+
+    var nestedCount : int = 0
+    var outer : int = 0
+    while outer < 3 {
+        outer = outer + 1
+        var inner : int = 0
+        while inner < 3 {
+            inner = inner + 1
+            if inner == 2 {
+                continue
+            }
+            if outer == 2 {
+                break
+            }
+            nestedCount = nestedCount + 1
+        }
+    }
+
+    if oddSum == 16 && rangeSum == 9 && nestedCount == 4 {
+        return 0
+    } else {
+        return 1
+    }
+}

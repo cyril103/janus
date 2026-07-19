@@ -200,6 +200,16 @@ if(BUILD_TESTING)
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/c_interop"
             -P "${PROJECT_SOURCE_DIR}/tests/interop/run_c_interop.cmake"
     )
+    add_test(
+        NAME language.loop_jumps_runtime
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/examples/loop_jumps.janus"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/loop_jumps_runtime"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
 
     add_executable(generic_function_test
         tests/language/generic_function_test.cpp

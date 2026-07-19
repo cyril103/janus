@@ -149,6 +149,13 @@ Le fichier `examples/control_flow.janus` présente `if`/`else` et `while` :
 ./build/janusc examples/control_flow.janus
 ```
 
+Le fichier `examples/loop_jumps.janus` présente `break`, `continue` et leur
+interaction avec `defer` :
+
+```bash
+./build/janusc examples/loop_jumps.janus
+```
+
 Le fichier `examples/unit.janus` présente `Unit` et les appels utilisés comme
 instructions :
 
@@ -331,6 +338,38 @@ if value < 10 {
 
 while value < 10 {
     value = value + 1
+}
+```
+
+`break` quitte la boucle `while` ou `for` la plus proche. `continue` abandonne
+le reste de l'itération courante et reprend à sa prochaine condition ou valeur :
+
+```janus
+while index < limit {
+    index = index + 1
+    if index % 2 == 0 {
+        continue
+    }
+    if index > 10 {
+        break
+    }
+}
+```
+
+Les deux instructions sont interdites hors d'une boucle. Dans des boucles
+imbriquées, elles ciblent toujours la boucle la plus proche.
+
+Lorsqu'un saut abandonne une ou plusieurs portées, leurs actions `defer` sont
+exécutées en ordre LIFO avant le branchement. Les actions enregistrées dans
+une portée englobante qui reste active ne sont pas exécutées prématurément :
+
+```janus
+while condition {
+    val buffer : Ptr[int] = alloc[int](usize(1))
+    defer free(buffer)
+    if shouldSkip {
+        continue // buffer est libéré avant l'itération suivante
+    }
 }
 ```
 
