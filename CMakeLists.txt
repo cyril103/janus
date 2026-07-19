@@ -939,6 +939,25 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         FILES ${JANUS_LINUX_SUPPORT_LIBRARIES}
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
+    find_file(
+        JANUS_ICUUC_SONAME
+        NAMES libicuuc.so.74
+        PATHS /lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
+        NO_DEFAULT_PATH
+    )
+    find_file(
+        JANUS_ICUDATA_SONAME
+        NAMES libicudata.so.74
+        PATHS /lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
+        NO_DEFAULT_PATH
+    )
+    if(JANUS_ICUUC_SONAME AND JANUS_ICUDATA_SONAME)
+        install(
+            FILES "${JANUS_ICUUC_SONAME}" "${JANUS_ICUDATA_SONAME}"
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            FOLLOW_SYMLINK_CHAIN
+        )
+    endif()
 endif()
 install(
     DIRECTORY stdlib/
