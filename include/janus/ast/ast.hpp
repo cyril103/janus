@@ -239,6 +239,12 @@ struct ForStatement {
   SourceLocation location;
 };
 
+struct TypeConstraint {
+  std::string parameter;
+  TypeReference trait;
+  SourceLocation location;
+};
+
 struct FunctionDeclaration {
   struct Parameter {
     std::string name;
@@ -253,6 +259,7 @@ struct FunctionDeclaration {
   std::vector<Statement> body;
   SourceLocation location;
   bool is_private{};
+  std::vector<TypeConstraint> type_constraints;
 };
 
 struct DestructorDeclaration {
@@ -279,6 +286,7 @@ struct TraitDeclaration {
   std::vector<std::string> type_parameters;
   std::vector<FunctionDeclaration> methods;
   SourceLocation location;
+  std::vector<TypeConstraint> type_constraints;
 };
 
 struct ClassDeclaration {
@@ -291,6 +299,7 @@ struct ClassDeclaration {
   std::vector<FunctionDeclaration> methods;
   std::optional<DestructorDeclaration> destructor;
   SourceLocation location;
+  std::vector<TypeConstraint> type_constraints;
 };
 
 struct Program {

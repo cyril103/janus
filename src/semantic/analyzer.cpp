@@ -357,6 +357,85 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     class_arities.emplace(class_declaration.name,
                           class_declaration.type_parameters.size());
   }
+
+  struct TraitInstance {
+    const ast::TraitDeclaration *declaration;
+    std::vector<SemanticType> type_arguments;
+  };
+  const auto resolve_trait =
+      [&](const ast::TypeReference &reference,
+          const std::unordered_set<std::string> &type_parameters) {
+        const auto iterator = traits.find(reference.name);
+        if (iterator == traits.end())
+          throw CompileError{reference.location,
+                             "unknown trait '" + reference.name + "'"};
+        const ast::TraitDeclaration &declaration = *iterator->second;
+        if (reference.type_arguments.size() !=
+            declaration.type_parameters.size())
+          throw CompileError{
+              reference.location,
+              "trait '" + declaration.name + "' expects " +
+                  std::to_string(declaration.type_parameters.size()) +
+                  " type argument(s), got " +
+                  std::to_string(reference.type_arguments.size())};
+        std::vector<SemanticType> arguments;
+        arguments.reserve(reference.type_arguments.size());
+        for (const ast::TypeReference &argument : reference.type_arguments)
+          arguments.push_back(
+              resolve_type(argument, type_parameters, &class_arities));
+        return TraitInstance{&declaration, std::move(arguments)};
+      };
+  const auto satisfies_trait = [&](const SemanticType &candidate,
+                                   const TraitInstance &requirement) {
+    if (!candidate.is_class())
+      return false;
+    const ast::ClassDeclaration &class_declaration =
+        *classes.at(candidate.parameter);
+    std::unordered_map<std::string, SemanticType> class_substitutions;
+    for (std::size_t index = 0;
+         index < class_declaration.type_parameters.size(); ++index)
+      class_substitutions.emplace(class_declaration.type_parameters[index],
+                                  candidate.type_arguments[index]);
+    const std::unordered_set<std::string> class_parameters{
+        class_declaration.type_parameters.begin(),
+        class_declaration.type_parameters.end()};
+    for (const ast::TypeReference &implemented :
+         class_declaration.implemented_traits) {
+      if (implemented.name != requirement.declaration->name)
+        continue;
+      const TraitInstance instance =
+          resolve_trait(implemented, class_parameters);
+      if (instance.type_arguments.size() != requirement.type_arguments.size())
+        continue;
+      bool matches = true;
+      for (std::size_t index = 0; index < instance.type_arguments.size();
+           ++index)
+        matches =
+            matches && same_type(substitute(instance.type_arguments[index],
+                                            class_substitutions),
+                                 requirement.type_arguments[index]);
+      if (matches)
+        return true;
+    }
+    return false;
+  };
+  const auto validate_constraints =
+      [&](const std::vector<ast::TypeConstraint> &constraints,
+          const std::unordered_set<std::string> &type_parameters) {
+        std::unordered_set<std::string> constrained;
+        for (const ast::TypeConstraint &constraint : constraints) {
+          if (!type_parameters.contains(constraint.parameter))
+            throw CompileError{constraint.location,
+                               "constraint targets unknown type parameter '" +
+                                   constraint.parameter + "'"};
+          if (!constrained.insert(constraint.parameter).second)
+            throw CompileError{constraint.location,
+                               "type parameter '" + constraint.parameter +
+                                   "' already has a trait constraint"};
+          static_cast<void>(resolve_trait(constraint.trait, type_parameters));
+        }
+      };
+
   for (const ast::TraitDeclaration &trait_declaration : program.traits) {
     std::unordered_set<std::string> trait_parameters;
     for (const std::string &parameter : trait_declaration.type_parameters) {
@@ -369,6 +448,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                            "type parameter '" + parameter +
                                "' conflicts with a built-in type"};
     }
+    validate_constraints(trait_declaration.type_constraints, trait_parameters);
     std::unordered_set<std::string> method_names;
     for (const ast::FunctionDeclaration &method : trait_declaration.methods) {
       if (!method_names.insert(method.name).second)
@@ -386,6 +466,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                              "type parameter '" + parameter +
                                  "' conflicts with a built-in type"};
       }
+      validate_constraints(method.type_constraints, method_parameters);
       std::unordered_set<std::string> value_parameters;
       for (const ast::FunctionDeclaration::Parameter &parameter :
            method.parameters) {
@@ -430,6 +511,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                            "type parameter '" + parameter +
                                "' conflicts with a built-in type"};
     }
+    validate_constraints(class_declaration.type_constraints, parameters);
     std::unordered_set<std::string> constructor_names;
     for (const ast::FunctionDeclaration::Parameter &parameter :
          class_declaration.constructor_parameters) {
@@ -641,6 +723,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                "' conflicts with a built-in type"};
       }
     }
+    if (!is_destructor)
+      validate_constraints(context.function->type_constraints, type_parameters);
 
     const SemanticType return_type =
         is_destructor ? SemanticType{&Type::unit_type()}
@@ -1010,6 +1094,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               }
               const std::unordered_set<std::string> callee_parameters{
                   callee.type_parameters.begin(), callee.type_parameters.end()};
+              for (const ast::TypeConstraint &constraint :
+                   callee.type_constraints) {
+                TraitInstance requirement =
+                    resolve_trait(constraint.trait, callee_parameters);
+                for (SemanticType &argument : requirement.type_arguments)
+                  argument = substitute(std::move(argument), substitutions);
+                const SemanticType &candidate =
+                    substitutions.at(constraint.parameter);
+                if (!satisfies_trait(candidate, requirement))
+                  throw CompileError{node.location,
+                                     "type '" + candidate.name() +
+                                         "' does not satisfy constraint '" +
+                                         requirement.declaration->name +
+                                         "' for type parameter '" +
+                                         constraint.parameter + "'"};
+              }
               for (std::size_t index = 0; index < node.arguments.size();
                    ++index) {
                 SemanticType expected =
@@ -1039,6 +1139,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               const std::unordered_set<std::string> class_parameters{
                   class_declaration.type_parameters.begin(),
                   class_declaration.type_parameters.end()};
+              for (const ast::TypeConstraint &constraint :
+                   class_declaration.type_constraints) {
+                TraitInstance requirement =
+                    resolve_trait(constraint.trait, class_parameters);
+                for (SemanticType &argument : requirement.type_arguments)
+                  argument = substitute(std::move(argument), substitutions);
+                const SemanticType &candidate =
+                    substitutions.at(constraint.parameter);
+                if (!satisfies_trait(candidate, requirement))
+                  throw CompileError{node.location,
+                                     "type '" + candidate.name() +
+                                         "' does not satisfy constraint '" +
+                                         requirement.declaration->name +
+                                         "' for type parameter '" +
+                                         constraint.parameter + "'"};
+              }
               const std::size_t parameter_count =
                   class_declaration.constructor_parameters.size();
               const std::size_t field_count =
@@ -1304,6 +1420,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                         *active_type_substitutions);
                 substitutions.emplace(method->type_parameters[index],
                                       std::move(argument));
+              }
+              for (const ast::TypeConstraint &constraint :
+                   method->type_constraints) {
+                TraitInstance requirement =
+                    resolve_trait(constraint.trait, method_parameters);
+                for (SemanticType &argument : requirement.type_arguments)
+                  argument = substitute(std::move(argument), substitutions);
+                const SemanticType &candidate =
+                    substitutions.at(constraint.parameter);
+                if (!satisfies_trait(candidate, requirement))
+                  throw CompileError{node.location,
+                                     "type '" + candidate.name() +
+                                         "' does not satisfy constraint '" +
+                                         requirement.declaration->name +
+                                         "' for type parameter '" +
+                                         constraint.parameter + "'"};
               }
               if (node.arguments.size() != method->parameters.size())
                 throw CompileError{

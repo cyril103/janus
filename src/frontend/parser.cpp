@@ -196,10 +196,18 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
   const Token trait_token = expect(TokenKind::Trait);
   const Token name = expect(TokenKind::Identifier);
   std::vector<std::string> type_parameters;
+  std::vector<ast::TypeConstraint> type_constraints;
   if (current_.kind == TokenKind::LeftBracket) {
     advance();
     do {
-      type_parameters.emplace_back(expect(TokenKind::Identifier).lexeme);
+      const Token parameter = expect(TokenKind::Identifier);
+      type_parameters.emplace_back(parameter.lexeme);
+      if (current_.kind == TokenKind::Less) {
+        advance();
+        static_cast<void>(expect(TokenKind::Colon));
+        type_constraints.push_back(ast::TypeConstraint{
+            std::string{parameter.lexeme}, parse_type(), parameter.location});
+      }
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -214,19 +222,28 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
       advance();
   }
   static_cast<void>(expect(TokenKind::RightBrace));
-  return ast::TraitDeclaration{std::string{name.lexeme},
-                               std::move(type_parameters), std::move(methods),
-                               trait_token.location};
+  ast::TraitDeclaration declaration{
+      std::string{name.lexeme}, std::move(type_parameters), std::move(methods),
+      trait_token.location, std::move(type_constraints)};
+  return declaration;
 }
 
 ast::FunctionDeclaration Parser::parse_trait_method() {
   const Token def = expect(TokenKind::Def);
   const Token name = expect(TokenKind::Identifier);
   std::vector<std::string> type_parameters;
+  std::vector<ast::TypeConstraint> type_constraints;
   if (current_.kind == TokenKind::LeftBracket) {
     advance();
     do {
-      type_parameters.emplace_back(expect(TokenKind::Identifier).lexeme);
+      const Token parameter = expect(TokenKind::Identifier);
+      type_parameters.emplace_back(parameter.lexeme);
+      if (current_.kind == TokenKind::Less) {
+        advance();
+        static_cast<void>(expect(TokenKind::Colon));
+        type_constraints.push_back(ast::TypeConstraint{
+            std::string{parameter.lexeme}, parse_type(), parameter.location});
+      }
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -248,12 +265,15 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
   }
   static_cast<void>(expect(TokenKind::RightParen));
   static_cast<void>(expect(TokenKind::Colon));
-  return ast::FunctionDeclaration{std::string{name.lexeme},
-                                  std::move(type_parameters),
-                                  std::move(parameters),
-                                  parse_type(),
-                                  {},
-                                  def.location};
+  ast::FunctionDeclaration declaration{std::string{name.lexeme},
+                                       std::move(type_parameters),
+                                       std::move(parameters),
+                                       parse_type(),
+                                       {},
+                                       def.location,
+                                       false,
+                                       std::move(type_constraints)};
+  return declaration;
 }
 
 ast::EnumDeclaration Parser::parse_enum_declaration() {
@@ -366,11 +386,18 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
   const Token name = expect(TokenKind::Identifier);
 
   std::vector<std::string> type_parameters;
+  std::vector<ast::TypeConstraint> type_constraints;
   if (current_.kind == TokenKind::LeftBracket) {
     advance();
     do {
       const Token parameter = expect(TokenKind::Identifier);
       type_parameters.emplace_back(parameter.lexeme);
+      if (current_.kind == TokenKind::Less) {
+        advance();
+        static_cast<void>(expect(TokenKind::Colon));
+        type_constraints.push_back(ast::TypeConstraint{
+            std::string{parameter.lexeme}, parse_type(), parameter.location});
+      }
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -461,15 +488,17 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       advance();
   }
   static_cast<void>(expect(TokenKind::RightBrace));
-  return ast::ClassDeclaration{std::string{name.lexeme},
-                               std::move(type_parameters),
-                               std::move(implemented_traits),
-                               std::move(constructor_parameters),
-                               std::move(constructor_fields),
-                               std::move(fields),
-                               std::move(methods),
-                               std::move(destructor),
-                               class_token.location};
+  ast::ClassDeclaration declaration{std::string{name.lexeme},
+                                    std::move(type_parameters),
+                                    std::move(implemented_traits),
+                                    std::move(constructor_parameters),
+                                    std::move(constructor_fields),
+                                    std::move(fields),
+                                    std::move(methods),
+                                    std::move(destructor),
+                                    class_token.location,
+                                    std::move(type_constraints)};
+  return declaration;
 }
 
 ast::DestructorDeclaration Parser::parse_destructor_declaration() {
@@ -496,11 +525,18 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
   const Token name = expect(TokenKind::Identifier);
 
   std::vector<std::string> type_parameters;
+  std::vector<ast::TypeConstraint> type_constraints;
   if (current_.kind == TokenKind::LeftBracket) {
     advance();
     do {
       const Token parameter = expect(TokenKind::Identifier);
       type_parameters.emplace_back(parameter.lexeme);
+      if (current_.kind == TokenKind::Less) {
+        advance();
+        static_cast<void>(expect(TokenKind::Colon));
+        type_constraints.push_back(ast::TypeConstraint{
+            std::string{parameter.lexeme}, parse_type(), parameter.location});
+      }
       if (current_.kind != TokenKind::Comma) {
         break;
       }
@@ -531,10 +567,15 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
   ast::TypeReference return_type = parse_type();
   std::vector<ast::Statement> body = parse_block();
 
-  return ast::FunctionDeclaration{
-      std::string{name.lexeme}, std::move(type_parameters),
-      std::move(parameters),    std::move(return_type),
-      std::move(body),          def.location};
+  ast::FunctionDeclaration declaration{std::string{name.lexeme},
+                                       std::move(type_parameters),
+                                       std::move(parameters),
+                                       std::move(return_type),
+                                       std::move(body),
+                                       def.location,
+                                       false,
+                                       std::move(type_constraints)};
+  return declaration;
 }
 
 ast::Statement Parser::parse_statement() {

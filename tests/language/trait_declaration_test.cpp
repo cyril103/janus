@@ -51,8 +51,12 @@ class Sequence[T](val value : T) extends Iterable[T] {
     }
 }
 
+def consume[C <: Iterable[int]](sequence : C) : int {
+    return 1
+}
+
 def main() : int {
-    return 0
+    return consume[Sequence[int]](new Sequence[int](5))
 }
 )";
   janus::frontend::Parser parser{source};
@@ -68,6 +72,8 @@ def main() : int {
          "trait methods can be generic");
   expect(program.classes[1].implemented_traits.size() == 1,
          "class trait implementations are parsed");
+  expect(program.functions.front().type_constraints.size() == 1,
+         "generic trait constraints are parsed");
 
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
@@ -95,6 +101,14 @@ def main() : int {
                        "private def name() : string { return \"hidden\" } } "
                        "def main() : int { return 0 }",
                        "private method 'name' cannot implement");
+  expect_compile_error("trait Named { def name() : string } "
+                       "def consume[T <: Named](value : T) : int { return 1 } "
+                       "def main() : int { return consume[int](1) }",
+                       "type 'int' does not satisfy constraint 'Named'");
+  expect_compile_error(
+      "def consume[T <: Missing](value : T) : int { return 1 } "
+      "def main() : int { return 0 }",
+      "unknown trait 'Missing'");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

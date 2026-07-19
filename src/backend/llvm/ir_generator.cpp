@@ -784,7 +784,8 @@ private:
     janus::ast::FunctionDeclaration destructor_function{
         "destructor", {},
         {},           janus::ast::TypeReference{"Unit", location, {}},
-        {},           location};
+        {},           location,
+        false,        {}};
     const std::vector<janus::ast::Statement> empty_body;
     const auto &body = specialization.declaration->destructor.has_value()
                            ? specialization.declaration->destructor->body
