@@ -29,13 +29,18 @@ try {
     $ExpectedHash = ((Get-Content $ChecksumPath) -split "\s+")[0]
     $ActualHash = (Get-FileHash -Algorithm SHA256 $ArchivePath).Hash
     if ($ActualHash -ne $ExpectedHash) { throw "La somme SHA-256 du paquet est invalide" }
+    $GhSupportsAttestation = $false
     if (Get-Command gh -ErrorAction SilentlyContinue) {
+        & gh attestation --help *> $null
+        $GhSupportsAttestation = $LASTEXITCODE -eq 0
+    }
+    if ($GhSupportsAttestation) {
         & gh attestation verify $ArchivePath --repo cyril103/janus
         if ($LASTEXITCODE -ne 0) { throw "La provenance du paquet est invalide" }
     } elseif ($env:JANUS_REQUIRE_ATTESTATION -eq "1") {
-        throw "GitHub CLI est nécessaire pour vérifier la provenance"
+        throw "Une version récente de GitHub CLI avec la commande attestation est nécessaire pour vérifier la provenance"
     } else {
-        Write-Warning "Installez GitHub CLI pour vérifier la provenance du paquet"
+        Write-Warning "Installez une version récente de GitHub CLI pour vérifier la provenance du paquet"
     }
     $Package = Join-Path $Temporary "package"
     Expand-Archive -Path $ArchivePath -DestinationPath $Package

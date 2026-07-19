@@ -43,13 +43,14 @@ else
   exit 1
 fi
 
-if command -v gh >/dev/null 2>&1; then
+if command -v gh >/dev/null 2>&1 &&
+   gh attestation --help >/dev/null 2>&1; then
   gh attestation verify "$TMP/$ARCHIVE" --repo cyril103/janus
 elif [ "${JANUS_REQUIRE_ATTESTATION:-0}" = "1" ]; then
-  echo "janusup: GitHub CLI est nécessaire pour vérifier la provenance" >&2
+  echo "janusup: une version récente de GitHub CLI avec la commande attestation est nécessaire pour vérifier la provenance" >&2
   exit 1
 else
-  echo "janusup: avertissement: installez GitHub CLI pour vérifier la provenance" >&2
+  echo "janusup: avertissement: installez une version récente de GitHub CLI pour vérifier la provenance" >&2
 fi
 
 mkdir "$TMP/package"

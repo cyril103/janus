@@ -327,6 +327,14 @@ if(BUILD_TESTING)
                 -DJANUSUP=$<TARGET_FILE:janusup>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_janusup.cmake"
     )
+    if(UNIX)
+        add_test(
+            NAME toolchain.install_script
+            COMMAND sh
+                    "${PROJECT_SOURCE_DIR}/tests/driver/install_script_test.sh"
+                    "${PROJECT_SOURCE_DIR}"
+        )
+    endif()
     add_executable(manifest_test
         tests/driver/manifest_test.cpp
     )
