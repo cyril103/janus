@@ -19,6 +19,7 @@ if(WIN32)
     file(COPY_FILE "${JANUS}" "${TEST_ROOT}/package/bin/janus.exe")
     file(COPY_FILE "${JANUSUP}" "${TEST_ROOT}/package/bin/janusup.exe")
     file(COPY_FILE "${JANUS}" "${TEST_ROOT}/package/bin/clang.exe")
+    file(COPY_FILE "${JANUS}" "${TEST_ROOT}/package/bin/lld-link.exe")
 else()
     execute_process(
         COMMAND "${CMAKE_COMMAND}" --install "${BUILD_DIR}"
