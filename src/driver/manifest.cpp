@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <map>
 #include <regex>
 #include <stdexcept>
 #include <string>
@@ -61,6 +62,44 @@ std::string parse_string(std::string value, std::size_t line) {
   return result;
 }
 
+std::map<std::string, std::string> parse_inline_table(std::string value,
+                                                      std::size_t line) {
+  value = trim(std::move(value));
+  if (value.size() < 2 || value.front() != '{' || value.back() != '}')
+    throw std::runtime_error{"janus.toml:" + std::to_string(line) +
+                             ": expected an inline table"};
+  value = trim(value.substr(1, value.size() - 2));
+  std::map<std::string, std::string> fields;
+  while (!value.empty()) {
+    const std::size_t equals = value.find('=');
+    if (equals == std::string::npos)
+      throw std::runtime_error{"janus.toml:" + std::to_string(line) +
+                               ": invalid dependency field"};
+    const std::string key = trim(value.substr(0, equals));
+    value = trim(value.substr(equals + 1));
+    if (value.empty() || value.front() != '"')
+      throw std::runtime_error{"janus.toml:" + std::to_string(line) +
+                               ": dependency values must be strings"};
+    std::size_t end = 1;
+    while (end < value.size() && value[end] != '"')
+      ++end;
+    if (end == value.size())
+      throw std::runtime_error{"janus.toml:" + std::to_string(line) +
+                               ": unterminated dependency value"};
+    if (!fields.emplace(key, value.substr(1, end - 1)).second)
+      throw std::runtime_error{"janus.toml:" + std::to_string(line) +
+                               ": duplicate dependency field '" + key + "'"};
+    value = trim(value.substr(end + 1));
+    if (value.empty())
+      break;
+    if (value.front() != ',')
+      throw std::runtime_error{"janus.toml:" + std::to_string(line) +
+                               ": expected ',' in dependency"};
+    value = trim(value.substr(1));
+  }
+  return fields;
+}
+
 void validate(const janus::driver::Manifest &manifest) {
   if (!std::regex_match(manifest.name, std::regex{"[A-Za-z][A-Za-z0-9_-]*"}))
     throw std::runtime_error{
@@ -75,6 +114,24 @@ void validate(const janus::driver::Manifest &manifest) {
       (!manifest.entry.empty() && *manifest.entry.begin() == ".."))
     throw std::runtime_error{
         "janus.toml: package.entry must be a relative .janus path"};
+  for (const janus::driver::Dependency &dependency : manifest.dependencies) {
+    if (!std::regex_match(dependency.name,
+                          std::regex{"[A-Za-z][A-Za-z0-9_-]*"}))
+      throw std::runtime_error{"janus.toml: invalid dependency name '" +
+                               dependency.name + "'"};
+    if (dependency.is_git()) {
+      if (!dependency.path.empty() ||
+          !std::regex_match(dependency.revision, std::regex{"[0-9a-fA-F]{40}"}))
+        throw std::runtime_error{
+            "janus.toml: Git dependency '" + dependency.name +
+            "' requires git and a full 40-character commit rev"};
+    } else if (dependency.path.empty() || dependency.path.is_absolute() ||
+               !dependency.revision.empty()) {
+      throw std::runtime_error{"janus.toml: path dependency '" +
+                               dependency.name +
+                               "' requires one relative path"};
+    }
+  }
 }
 
 } // namespace
@@ -101,7 +158,7 @@ Manifest load_manifest(const std::filesystem::path &path) {
       continue;
     if (line.front() == '[' && line.back() == ']') {
       section = trim(line.substr(1, line.size() - 2));
-      if (section != "package")
+      if (section != "package" && section != "dependencies")
         throw std::runtime_error{"janus.toml:" + std::to_string(line_number) +
                                  ": unknown section '" + section + "'"};
       continue;
@@ -110,10 +167,38 @@ Manifest load_manifest(const std::filesystem::path &path) {
     if (equals == std::string::npos)
       throw std::runtime_error{"janus.toml:" + std::to_string(line_number) +
                                ": expected key = value"};
-    if (section != "package")
+    if (section.empty())
       throw std::runtime_error{"janus.toml:" + std::to_string(line_number) +
-                               ": key outside [package]"};
+                               ": key outside a section"};
     const std::string key = trim(line.substr(0, equals));
+    if (section == "dependencies") {
+      if (std::any_of(manifest.dependencies.begin(),
+                      manifest.dependencies.end(),
+                      [&key](const Dependency &dependency) {
+                        return dependency.name == key;
+                      }))
+        throw std::runtime_error{"janus.toml:" + std::to_string(line_number) +
+                                 ": duplicate dependency '" + key + "'"};
+      const std::map<std::string, std::string> fields =
+          parse_inline_table(line.substr(equals + 1), line_number);
+      Dependency dependency;
+      dependency.name = key;
+      if (const auto found = fields.find("path"); found != fields.end())
+        dependency.path = found->second;
+      if (const auto found = fields.find("git"); found != fields.end())
+        dependency.git = found->second;
+      if (const auto found = fields.find("rev"); found != fields.end())
+        dependency.revision = found->second;
+      for (const auto &[field, unused] : fields) {
+        static_cast<void>(unused);
+        if (field != "path" && field != "git" && field != "rev")
+          throw std::runtime_error{"janus.toml:" + std::to_string(line_number) +
+                                   ": unknown dependency field '" + field +
+                                   "'"};
+      }
+      manifest.dependencies.push_back(std::move(dependency));
+      continue;
+    }
     const std::string value =
         parse_string(line.substr(equals + 1), line_number);
     bool *present = nullptr;

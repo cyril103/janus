@@ -161,6 +161,26 @@ La cible produit aussi le fichier `.sha256` contrôlé par les installateurs.
 L'utilisateur d'une archive officielle n'a donc pas à installer LLVM
 séparément ; seul le SDK natif du système reste nécessaire.
 
+## Projets et dépendances
+
+Un projet Janus est décrit par `janus.toml` :
+
+```toml
+[package]
+name = "application"
+version = "0.1.0"
+entry = "src/main.janus"
+
+[dependencies]
+outil = { path = "../outil" }
+reseau = { git = "https://example.com/reseau.git", rev = "0123456789abcdef0123456789abcdef01234567" }
+```
+
+Une dépendance Git exige un hash de commit complet afin qu'une construction
+reste reproductible. Les clones sont conservés sous `target/dependencies` et
+`janus.lock` enregistre exactement les sources résolues. Le fichier lock doit
+être versionné, tandis que `target/` reste ignoré.
+
 ## Générer de l'IR LLVM
 
 Un programme d'exemple est fourni dans `examples/value.janus` :

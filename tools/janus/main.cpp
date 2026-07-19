@@ -1,6 +1,7 @@
 #include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/backend/llvm/object_emitter.hpp"
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/driver/dependency.hpp"
 #include "janus/driver/manifest.hpp"
 #include "janus/driver/native_linker.hpp"
 #include "janus/driver/project.hpp"
@@ -48,6 +49,7 @@ struct Options {
   bool emit_object{};
   bool release{};
   std::optional<janus::driver::Manifest> manifest;
+  std::vector<std::filesystem::path> dependency_paths;
 };
 
 std::filesystem::path executable_path(const char *argv0) {
@@ -228,10 +230,14 @@ int command_status(int status) {
 #endif
 }
 
-std::unique_ptr<llvm::Module> compile(const std::filesystem::path &source,
-                                      llvm::LLVMContext &context,
-                                      const Toolchain &toolchain) {
-  janus::frontend::ModuleLoader loader{{toolchain.stdlib}};
+std::unique_ptr<llvm::Module>
+compile(const std::filesystem::path &source, llvm::LLVMContext &context,
+        const Toolchain &toolchain,
+        const std::vector<std::filesystem::path> &dependency_paths) {
+  std::vector<std::filesystem::path> search_paths{toolchain.stdlib};
+  search_paths.insert(search_paths.end(), dependency_paths.begin(),
+                      dependency_paths.end());
+  janus::frontend::ModuleLoader loader{std::move(search_paths)};
   const janus::ast::Program program = loader.load(source);
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
@@ -293,7 +299,7 @@ int build(const Options &options, const std::filesystem::path &output,
     std::filesystem::create_directories(output.parent_path());
   llvm::LLVMContext context;
   std::unique_ptr<llvm::Module> module =
-      compile(options.source, context, toolchain);
+      compile(options.source, context, toolchain, options.dependency_paths);
   if (options.emit_llvm) {
     write_ir(*module, output);
     return 0;
@@ -329,11 +335,15 @@ int main(int argc, char **argv) {
                       std::string_view{argv[1]} == "init"))
       return create_or_initialize(argc, argv);
     const Toolchain toolchain = locate_toolchain(argv[0]);
-    const Options options = parse_options(argc, argv);
+    Options options = parse_options(argc, argv);
+    if (options.manifest.has_value())
+      options.dependency_paths =
+          janus::driver::resolve_dependencies(*options.manifest);
     diagnostic_path = options.source;
     if (options.command == "check") {
       llvm::LLVMContext context;
-      static_cast<void>(compile(options.source, context, toolchain));
+      static_cast<void>(compile(options.source, context, toolchain,
+                                options.dependency_paths));
       std::cout << "checked " << options.source.string() << '\n';
       return 0;
     }

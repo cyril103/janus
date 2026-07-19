@@ -148,6 +148,7 @@ add_library(janus_driver
     src/driver/native_linker.cpp
     src/driver/manifest.cpp
     src/driver/project.cpp
+    src/driver/dependency.cpp
 )
 target_include_directories(janus_driver
     PUBLIC

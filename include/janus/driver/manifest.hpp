@@ -2,14 +2,25 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 namespace janus::driver {
+
+struct Dependency {
+  std::string name;
+  std::filesystem::path path;
+  std::string git;
+  std::string revision;
+
+  [[nodiscard]] bool is_git() const { return !git.empty(); }
+};
 
 struct Manifest {
   std::filesystem::path path;
   std::string name;
   std::string version;
   std::filesystem::path entry;
+  std::vector<Dependency> dependencies;
 
   [[nodiscard]] std::filesystem::path root() const {
     return path.parent_path();
