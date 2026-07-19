@@ -144,13 +144,32 @@ target_compile_definitions(janusc
         JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
 )
 
+add_library(janus_driver
+    src/driver/native_linker.cpp
+    src/driver/manifest.cpp
+)
+target_include_directories(janus_driver
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+)
+target_compile_options(janus_driver
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+target_compile_definitions(janus_driver
+    PRIVATE
+        JANUS_CLANG_PATH="${JANUS_CLANG_EXECUTABLE}"
+)
+
 add_executable(janus
     tools/janus/main.cpp
-    src/driver/native_linker.cpp
 )
 add_dependencies(janus janus_runtime)
 target_link_libraries(janus
     PRIVATE
+        janus_driver
         janus_semantic
         janus_llvm_backend
 )
@@ -237,6 +256,20 @@ if(BUILD_TESTING)
                 -DJANUSUP=$<TARGET_FILE:janusup>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_janusup.cmake"
     )
+    add_executable(manifest_test
+        tests/driver/manifest_test.cpp
+    )
+    target_link_libraries(manifest_test
+        PRIVATE
+            janus_driver
+    )
+    target_compile_options(manifest_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME driver.manifest COMMAND manifest_test)
 
     add_executable(int_type_test
         tests/types/int_type_test.cpp
