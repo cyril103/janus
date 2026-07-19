@@ -261,9 +261,17 @@ std::filesystem::path download_package(const ToolchainSpec &spec,
   const std::filesystem::path extracted = temporary / "package";
   std::filesystem::create_directory(extracted);
 #ifdef _WIN32
+  std::filesystem::path tar{"tar"};
+  if (const char *system_root = std::getenv("SystemRoot");
+      system_root != nullptr) {
+    const std::filesystem::path system_tar =
+        std::filesystem::path{system_root} / "System32/tar.exe";
+    if (std::filesystem::is_regular_file(system_tar))
+      tar = system_tar;
+  }
   const std::string command =
-      "cd /d " + shell_quote(temporary) + " && tar -xf " +
-      shell_quote(archive_path.filename()) + " -C package";
+      "cd /d " + shell_quote(temporary) + " && " + shell_quote(tar) +
+      " -xf " + shell_quote(archive_path.filename()) + " -C package";
 #else
   const std::string command =
       "tar -xf " + shell_quote(archive_path) + " -C " + shell_quote(extracted);
