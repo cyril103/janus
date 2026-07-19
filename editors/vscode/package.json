@@ -11,9 +11,6 @@
   "categories": [
     "Programming Languages"
   ],
-  "activationEvents": [
-    "onLanguage:janus"
-  ],
   "main": "./src/extension.js",
   "contributes": {
     "languages": [
