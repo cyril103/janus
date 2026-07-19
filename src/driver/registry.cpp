@@ -112,6 +112,7 @@ void add_dependency(const std::filesystem::path &manifest_path,
   std::ifstream input{manifest_path};
   std::string contents{std::istreambuf_iterator<char>{input},
                        std::istreambuf_iterator<char>{}};
+  input.close();
   if (!contents.ends_with('\n'))
     contents += '\n';
   if (contents.find("[dependencies]") == std::string::npos)
@@ -152,6 +153,7 @@ void remove_dependency(const std::filesystem::path &manifest_path,
     if (!remove)
       lines.push_back(line);
   }
+  input.close();
   const std::filesystem::path temporary = manifest_path.string() + ".new";
   {
     std::ofstream output{temporary};
