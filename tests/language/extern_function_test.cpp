@@ -1,6 +1,9 @@
 #include "janus/frontend/parser.hpp"
+#include "janus/diagnostics/compile_error.hpp"
+#include "janus/semantic/analyzer.hpp"
 
 #include <iostream>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -11,6 +14,21 @@ void expect(bool condition, std::string_view message) {
   if (!condition) {
     std::cerr << "FAILED: " << message << '\n';
     ++failures;
+  }
+}
+
+void expect_compile_error(std::string_view source,
+                          std::string_view expected_message) {
+  try {
+    janus::frontend::Parser parser{source};
+    const janus::ast::Program program = parser.parse_program();
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(program));
+    expect(false, "invalid external declaration must fail");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(expected_message) !=
+               std::string_view::npos,
+           "external declaration error contains the expected explanation");
   }
 }
 
@@ -34,6 +52,32 @@ int main() {
          "external function parameters are parsed");
   expect(!program.functions[1].is_external,
          "ordinary function declarations remain non-external");
+
+  janus::semantic::Analyzer analyzer;
+  const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
+  expect(analysis.functions.contains("c_add"),
+         "an ABI-compatible external signature is analyzed");
+
+  janus::frontend::Parser abi_parser{
+      "extern def exchange(data : Ptr[int], size : usize, ratio : double, "
+      "tag : byte, codepoint : char, enabled : bool) : Unit "
+      "def main() : int { return 0 }"};
+  static_cast<void>(analyzer.analyze(abi_parser.parse_program()));
+
+  expect_compile_error(
+      "extern def identity[T](value : T) : T "
+      "def main() : int { return 0 }",
+      "cannot be generic");
+  expect_compile_error(
+      "extern def print_string(value : string) : Unit "
+      "def main() : int { return 0 }",
+      "not compatible with the C ABI");
+  expect_compile_error(
+      "class Resource() {} extern def accept_resource(value : Resource) : Unit "
+      "def main() : int { return 0 }",
+      "not compatible with the C ABI");
+  expect_compile_error("extern def main() : int",
+                       "entry point 'main' cannot be external");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

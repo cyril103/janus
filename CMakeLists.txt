@@ -167,7 +167,7 @@ if(BUILD_TESTING)
     )
     target_link_libraries(extern_function_test
         PRIVATE
-            janus_frontend
+            janus_semantic
     )
     target_compile_options(extern_function_test
         PRIVATE

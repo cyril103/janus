@@ -195,6 +195,32 @@ bool is_integer_cast_type(const janus::semantic::SemanticType &type) {
   }
 }
 
+bool is_c_abi_type(const janus::semantic::SemanticType &type,
+                   bool allow_unit) {
+  if (type.is_pointer())
+    return true;
+  if (!type.is_concrete())
+    return false;
+  switch (type.concrete->kind()) {
+  case janus::TypeKind::Int:
+  case janus::TypeKind::Double:
+  case janus::TypeKind::Byte:
+  case janus::TypeKind::Char:
+  case janus::TypeKind::Bool:
+  case janus::TypeKind::USize:
+    return true;
+  case janus::TypeKind::Unit:
+    return allow_unit;
+  case janus::TypeKind::String:
+  case janus::TypeKind::Enum:
+  case janus::TypeKind::Function:
+  case janus::TypeKind::Pointer:
+  case janus::TypeKind::Class:
+    return false;
+  }
+  return false;
+}
+
 bool can_explicitly_cast(const janus::semantic::SemanticType &source,
                          const janus::semantic::SemanticType &destination) {
   if (same_type(source, destination))
@@ -733,6 +759,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                "' conflicts with a built-in type"};
       }
     }
+    if (!is_destructor && context.function->is_external &&
+        (!function_type_parameters.empty() ||
+         !context.function->type_constraints.empty()))
+      throw CompileError{
+          function_location,
+          "external function '" + function_name + "' cannot be generic"};
     if (!is_destructor)
       validate_constraints(context.function->type_constraints, type_parameters);
 
@@ -741,6 +773,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                       : resolve_type(context.function->return_type,
                                      type_parameters, &class_arities);
     if (!is_destructor && owner == nullptr && function_name == "main") {
+      if (context.function->is_external)
+        throw CompileError{function_location,
+                           "entry point 'main' cannot be external"};
       if (!function_type_parameters.empty() || !parameters.empty() ||
           !return_type.is_concrete() ||
           return_type.concrete->kind() != TypeKind::Int) {
@@ -787,6 +822,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
         throw CompileError{parameter.location, "value '" + parameter.name +
                                                    "' is already declared"};
       }
+    }
+    if (!is_destructor && context.function->is_external) {
+      if (!is_c_abi_type(return_type, true))
+        throw CompileError{
+            context.function->return_type.location,
+            "external function return type '" + return_type.name() +
+                "' is not compatible with the C ABI"};
+      for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
+        const SemanticType parameter_type =
+            resolve_type(parameter.type, type_parameters, &class_arities);
+        if (!is_c_abi_type(parameter_type, false))
+          throw CompileError{
+              parameter.location,
+              "external parameter '" + parameter.name + "' has type '" +
+                  parameter_type.name() +
+                  "', which is not compatible with the C ABI"};
+      }
+      result.functions.emplace(function_name, std::move(symbols));
+      continue;
     }
     std::unordered_map<std::string, std::vector<TraitInstance>>
         active_trait_constraints;
