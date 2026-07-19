@@ -703,6 +703,20 @@ avec `Ok(T)`/`Error(E)`.
 Le chargeur traite les dépendances récursivement, ne charge un fichier qu'une
 fois et vérifie que le nom déclaré par celui-ci correspond au nom importé.
 
+`std.hashing` fournit le contrat explicite `Hashing[T]` :
+
+```janus
+trait Hashing[T] {
+    def hash(value : T) : usize
+    def equals(left : T, right : T) : bool
+}
+```
+
+Les stratégies `IntHashing`, `USizeHashing`, `ByteHashing`, `CharHashing` et
+`BoolHashing` couvrent les primitives correspondantes. Elles sont passées
+explicitement aux collections de hachage, restent empruntées par celles-ci et
+sont monomorphisées sans dispatch dynamique.
+
 ## Fonctions et généricité
 
 Une fonction peut recevoir des paramètres fortement typés :

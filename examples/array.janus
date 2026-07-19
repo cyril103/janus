@@ -1,5 +1,6 @@
 import std.array
 import std.builder
+import std.hashing
 
 def main() : int {
     val values : Array[int] = new Array[int](usize(1))
@@ -17,6 +18,12 @@ def main() : int {
     val built : Array[int] = builder.result()
     val builtSize : int = int(built.size())
     delete builder
+
+    val hashing : IntHashing = new IntHashing()
+    val hashSample : int =
+        int(hashing.hash(42) % usize(10))
+    val hashMatches : bool = hashing.equals(42, 42)
+    delete hashing
 
     val collected : Array[int] =
         values.iterator()
@@ -76,7 +83,7 @@ def main() : int {
         int(hasTwenty) + int(allPositive) + int(largeCount) +
         int(filtered.size()) + foundValue + missingValue + poppedValue +
         int(values.isEmpty()) + firstValue + loopSum + builtSize +
-        pendingSize
+        pendingSize + hashSample + int(hashMatches)
 
     delete built
     delete filtered

@@ -53,13 +53,20 @@ int main() {
                        return declaration.name == "Builder";
                      }),
          "the standard library exposes the generic Builder contract");
+  expect(std::any_of(program.traits.begin(), program.traits.end(),
+                     [](const janus::ast::TraitDeclaration &declaration) {
+                       return declaration.name == "Hashing";
+                     }),
+         "the standard library exposes the generic Hashing strategy");
   expect(std::any_of(program.enums.begin(), program.enums.end(),
                      [](const janus::ast::EnumDeclaration &declaration) {
                        return declaration.name == "Option";
                      }),
          "Array imports Option for its safe operations");
-  expect(program.functions.size() == 1 &&
-             program.functions.front().name == "main",
+  expect(std::any_of(program.functions.begin(), program.functions.end(),
+                     [](const janus::ast::FunctionDeclaration &declaration) {
+                       return declaration.name == "main";
+                     }),
          "the entry module is merged with its dependency");
 
   janus::semantic::Analyzer analyzer;
@@ -133,6 +140,10 @@ int main() {
   expect(ir.find("Iterator__int__collectWith__Array__int__ArrayBuilder__int") !=
              std::string::npos,
          "Iterator.collect delegates materialization to a generic Builder");
+  expect(ir.find("define i64 @IntHashing__hash") != std::string::npos,
+         "IntHashing provides a monomorphized primitive hash");
+  expect(ir.find("define i1 @IntHashing__equals") != std::string::npos,
+         "IntHashing provides primitive equality");
   expect(ir.find("for.next") != std::string::npos,
          "for loops consume Iterator values");
   expect(ir.find("%for.iterator = call ptr @Array__int__iterator") !=

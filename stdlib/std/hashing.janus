@@ -1,0 +1,60 @@
+module std.hashing
+
+trait Hashing[T] {
+    def hash(value : T) : usize
+    def equals(left : T, right : T) : bool
+}
+
+def mixHash(value : usize) : usize {
+    return value * usize(16777619) + usize(216613626)
+}
+
+class IntHashing() extends Hashing[int] {
+    def hash(value : int) : usize {
+        return mixHash(usize(value))
+    }
+
+    def equals(left : int, right : int) : bool {
+        return left == right
+    }
+}
+
+class USizeHashing() extends Hashing[usize] {
+    def hash(value : usize) : usize {
+        return mixHash(value)
+    }
+
+    def equals(left : usize, right : usize) : bool {
+        return left == right
+    }
+}
+
+class ByteHashing() extends Hashing[byte] {
+    def hash(value : byte) : usize {
+        return mixHash(usize(value))
+    }
+
+    def equals(left : byte, right : byte) : bool {
+        return left == right
+    }
+}
+
+class CharHashing() extends Hashing[char] {
+    def hash(value : char) : usize {
+        return mixHash(usize(value))
+    }
+
+    def equals(left : char, right : char) : bool {
+        return left == right
+    }
+}
+
+class BoolHashing() extends Hashing[bool] {
+    def hash(value : bool) : usize {
+        return mixHash(usize(value))
+    }
+
+    def equals(left : bool, right : bool) : bool {
+        return left == right
+    }
+}
