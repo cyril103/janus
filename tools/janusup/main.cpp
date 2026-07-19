@@ -260,8 +260,14 @@ std::filesystem::path download_package(const ToolchainSpec &spec,
 
   const std::filesystem::path extracted = temporary / "package";
   std::filesystem::create_directory(extracted);
+#ifdef _WIN32
+  const std::string command =
+      "cd /d " + shell_quote(temporary) + " && tar -xf " +
+      shell_quote(archive_path.filename()) + " -C package";
+#else
   const std::string command =
       "tar -xf " + shell_quote(archive_path) + " -C " + shell_quote(extracted);
+#endif
   if (command_status(std::system(command.c_str())) != 0)
     throw std::runtime_error{"could not extract " + archive};
   const std::filesystem::path package =
