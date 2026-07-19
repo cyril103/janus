@@ -482,6 +482,12 @@ int format_sources(const Options &options) {
     sources.push_back(options.source);
   }
   std::sort(sources.begin(), sources.end());
+  const std::filesystem::path configuration =
+      options.manifest.has_value()
+          ? options.manifest->root() / ".janusfmt"
+          : options.source.parent_path() / ".janusfmt";
+  const janus::driver::FormatOptions format_options =
+      janus::driver::load_format_options(configuration);
   bool changed = false;
   for (const std::filesystem::path &source : sources) {
     std::ifstream input{source};
@@ -489,7 +495,8 @@ int format_sources(const Options &options) {
       throw std::runtime_error{"cannot read '" + source.string() + "'"};
     const std::string contents{std::istreambuf_iterator<char>{input},
                                std::istreambuf_iterator<char>{}};
-    const std::string formatted = janus::driver::format_source(contents);
+    const std::string formatted =
+        janus::driver::format_source(contents, format_options);
     if (formatted == contents)
       continue;
     changed = true;

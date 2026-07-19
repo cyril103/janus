@@ -25,6 +25,15 @@ int main() {
     std::cerr << "formatting is not idempotent\n";
     return 1;
   }
+  const std::string comments =
+      "def main() : int {\n// keep { this comment }\n\n\nreturn 0 // and this\n}\n";
+  const janus::driver::FormatOptions compact{2, 0};
+  const std::string expected_comments =
+      "def main() : int {\n  // keep { this comment }\n  return 0 // and this\n}\n";
+  if (janus::driver::format_source(comments, compact) != expected_comments) {
+    std::cerr << "comments or formatter options were not preserved\n";
+    return 1;
+  }
   std::cout << "Janus formatting is deterministic\n";
   return 0;
 }

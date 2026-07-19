@@ -46,4 +46,8 @@ int main() {
   assert(completion.front().find("\"label\":\"int\"") != std::string::npos);
   assert(completion.front().find("\"label\":\"return\"") !=
          std::string::npos);
+
+  const std::vector<std::string> formatting = server.handle(
+      R"({"jsonrpc":"2.0","id":6,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///broken.janus"},"options":{"tabSize":2,"insertSpaces":true}}})");
+  assert(formatting.front().find("\"newText\"") != std::string::npos);
 }

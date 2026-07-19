@@ -1,6 +1,7 @@
 #include "janus/lsp/server.hpp"
 
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/driver/formatter.hpp"
 #include "janus/frontend/lexer.hpp"
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
@@ -234,6 +235,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
                   llvm::json::Object{
                       {"triggerCharacters", llvm::json::Array{".", ":"}},
                   }},
+                 {"documentFormattingProvider", true},
              }},
             {"serverInfo",
              llvm::json::Object{{"name", "janus-lsp"},
@@ -281,6 +283,38 @@ std::vector<std::string> Server::handle(std::string_view message) {
     return {diagnostics(*uri, "")};
   }
 
+  const auto open_document =
+      uri ? documents_.find(uri->str()) : documents_.end();
+  if (*method == "textDocument/formatting" && uri &&
+      open_document != documents_.end()) {
+    driver::FormatOptions options;
+    if (params != nullptr) {
+      if (const llvm::json::Object *formatting_options =
+              params->getObject("options")) {
+        if (const std::optional<std::int64_t> tab_size =
+                formatting_options->getInteger("tabSize");
+            tab_size && *tab_size > 0 && *tab_size <= 16)
+          options.indent_width = static_cast<std::size_t>(*tab_size);
+      }
+    }
+    const std::string formatted =
+        driver::format_source(open_document->second, options);
+    const std::int64_t line_count = static_cast<std::int64_t>(
+        std::count(open_document->second.begin(), open_document->second.end(),
+                   '\n') +
+        1);
+    return {response(
+        request_id(*request),
+        llvm::json::Array{llvm::json::Object{
+            {"range",
+             llvm::json::Object{
+                 {"start", position(0, 0)},
+                 {"end", position(static_cast<std::uint32_t>(line_count), 0)},
+             }},
+            {"newText", formatted},
+        }})};
+  }
+
   const llvm::json::Object *request_position =
       params == nullptr ? nullptr : params->getObject("position");
   const std::optional<std::int64_t> line =
@@ -289,8 +323,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
   const std::optional<std::int64_t> character =
       request_position == nullptr ? std::nullopt
                                   : request_position->getInteger("character");
-  const auto document =
-      uri ? documents_.find(uri->str()) : documents_.end();
+  const auto document = open_document;
   if (uri && line && character && document != documents_.end()) {
     const std::optional<std::string> identifier = identifier_at(
         document->second, static_cast<std::uint32_t>(*line),

@@ -253,6 +253,7 @@ target_link_libraries(janus_lsp
     PUBLIC
         janus_semantic
     PRIVATE
+        janus_driver
         ${JANUS_LLVM_LIBS}
 )
 target_compile_options(janus_lsp
