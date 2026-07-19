@@ -2044,6 +2044,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 }
                 return SemanticType{&Type::bool_type(), {}};
               }
+              throw CompileError{node.location,
+                                 "unsupported binary operator"};
             }
           },
           expression.value);

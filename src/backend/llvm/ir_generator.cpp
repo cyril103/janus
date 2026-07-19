@@ -2134,6 +2134,7 @@ private:
             case janus::ast::BinaryOperator::LogicalOr:
               return nullptr;
             }
+            return nullptr;
           }
         },
         expression.value);
