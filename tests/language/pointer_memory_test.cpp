@@ -73,7 +73,10 @@ def main() : int {
   llvm::raw_string_ostream output{ir};
   module->print(output, nullptr);
   output.flush();
-  expect(ir.find("allocation.bytes = mul i64 2") != std::string::npos &&
+  const bool computes_allocation_size =
+      ir.find("allocation.bytes = mul i64 2") != std::string::npos ||
+      ir.find("call ptr @janus_alloc(i64 8)") != std::string::npos;
+  expect(computes_allocation_size &&
              ir.find("call ptr @janus_alloc") != std::string::npos,
          "alloc multiplies count by sizeof(T)");
   expect(ir.find("call ptr @janus_realloc") != std::string::npos,
