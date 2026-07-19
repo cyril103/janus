@@ -817,6 +817,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
     const std::unordered_map<std::string, SemanticType>
         *active_type_substitutions = nullptr;
     bool inside_lambda = false;
+    std::unordered_set<std::string> transfer_protected_values;
 
     std::function<SemanticType(const ast::Expression &)> expression_type;
     std::function<void(const ast::Expression &, const SemanticType &,
@@ -918,9 +919,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               SymbolTable *previous_symbols = active_symbols;
               active_symbols = &lambda_symbols;
               const bool previous_inside_lambda = inside_lambda;
+              const auto previous_transfer_protected =
+                  transfer_protected_values;
+              for (const auto &[name, symbol] : *previous_symbols) {
+                static_cast<void>(symbol);
+                if (!parameter_names.contains(name))
+                  transfer_protected_values.insert(name);
+              }
               inside_lambda = true;
               signature.push_back(expression_type(*node.body));
               inside_lambda = previous_inside_lambda;
+              transfer_protected_values = previous_transfer_protected;
               active_symbols = previous_symbols;
               return SemanticType{
                   nullptr, "Function", false, std::move(signature),
@@ -1528,6 +1537,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                     throw CompileError{node.location,
                                        "consuming field '" + identifier->name +
                                            "' requires an explicit move"};
+                  if (transfer_protected_values.contains(identifier->name))
+                    throw CompileError{
+                        node.location,
+                        "owning value '" + identifier->name +
+                            "' cannot be consumed from a loop, branch "
+                            "expression, or closure"};
                   active_symbols->at(identifier->name).is_initialized = false;
                 } else if (!std::holds_alternative<ast::MoveExpression>(
                                node.object->value) &&
@@ -1550,10 +1565,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               validate_expression(*node.condition,
                                   SemanticType{&Type::bool_type()},
                                   expression_location(*node.condition));
+              const auto previous_transfer_protected =
+                  transfer_protected_values;
+              for (const auto &[name, symbol] : *active_symbols) {
+                static_cast<void>(symbol);
+                transfer_protected_values.insert(name);
+              }
               const SemanticType then_type =
                   expression_type(*node.then_expression);
               const SemanticType else_type =
                   expression_type(*node.else_expression);
+              transfer_protected_values = previous_transfer_protected;
               if (!same_type(then_type, else_type))
                 throw CompileError{
                     node.location,
@@ -1568,6 +1590,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
             } else if constexpr (std::is_same_v<Node, ast::MatchExpression>) {
               const SemanticType scrutinee_type =
                   expression_type(*node.scrutinee);
+              const auto previous_transfer_protected =
+                  transfer_protected_values;
+              for (const auto &[name, symbol] : *active_symbols) {
+                static_cast<void>(symbol);
+                transfer_protected_values.insert(name);
+              }
               if (!scrutinee_type.is_enum())
                 throw CompileError{node.location,
                                    "match requires an enum value, got '" +
@@ -1633,7 +1661,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 }
                 SymbolTable *previous_symbols = active_symbols;
                 active_symbols = &arm_symbols;
+                const auto arm_transfer_protected = transfer_protected_values;
+                for (const std::string &binding : arm.bindings)
+                  transfer_protected_values.erase(binding);
                 const SemanticType arm_type = expression_type(*arm.expression);
+                transfer_protected_values = arm_transfer_protected;
                 active_symbols = previous_symbols;
                 if (arm_type.is_concrete() &&
                     arm_type.concrete->kind() == TypeKind::Unit)
@@ -1664,6 +1696,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                    "non-exhaustive match for enum '" +
                                        enum_declaration.name +
                                        "': missing case(s): " + missing_cases};
+              transfer_protected_values = previous_transfer_protected;
               return *result_type;
             } else if constexpr (std::is_same_v<Node, ast::MoveExpression>) {
               const auto *identifier =
@@ -1671,6 +1704,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               if (identifier == nullptr)
                 throw CompileError{node.location,
                                    "move requires a local value identifier"};
+              if (transfer_protected_values.contains(identifier->name))
+                throw CompileError{
+                    node.location,
+                    "owning value '" + identifier->name +
+                        "' cannot be moved from a loop, branch expression, "
+                        "or closure"};
               const SemanticType moved_type = expression_type(*node.operand);
               if (moved_type.is_concrete() || moved_type.is_enum())
                 throw CompileError{
@@ -1874,7 +1913,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                               SemanticType{&Type::bool_type()},
                               (*loop)->location);
           SymbolTable loop_symbols = block_symbols;
+          const auto previous_transfer_protected = transfer_protected_values;
+          for (const auto &[name, symbol] : block_symbols) {
+            static_cast<void>(symbol);
+            transfer_protected_values.insert(name);
+          }
           static_cast<void>(validate_block((*loop)->body, loop_symbols));
+          transfer_protected_values = previous_transfer_protected;
           active_symbols = &block_symbols;
           continue;
         }
@@ -1921,7 +1966,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           SymbolTable loop_symbols = block_symbols;
           loop_symbols.insert_or_assign((*loop)->binding,
                                         Symbol{*element_type, false, true});
+          const auto previous_transfer_protected = transfer_protected_values;
+          for (const auto &[name, symbol] : block_symbols) {
+            static_cast<void>(symbol);
+            transfer_protected_values.insert(name);
+          }
           static_cast<void>(validate_block((*loop)->body, loop_symbols));
+          transfer_protected_values = previous_transfer_protected;
           active_symbols = &block_symbols;
           if (consumes_source)
             if (const auto *identifier = std::get_if<ast::IdentifierExpression>(

@@ -80,6 +80,22 @@ def main() : int {
       "class Holder(val child : Box) { def takeChild() : int { "
       "return child.take() } } def main() : int { return 0 }",
       "consuming field 'child' requires an explicit move");
+  expect_compile_error(
+      "class Box() { consume def take() : int { delete this return 1 } } "
+      "def main() : int { val box : Box = new Box() while true { "
+      "box.take() } return 0 }",
+      "cannot be consumed from a loop");
+  expect_compile_error(
+      "class Box() { consume def take() : int { delete this return 1 } } "
+      "def main() : int { val box : Box = new Box() "
+      "val action : () => int = () => box.take() delete action "
+      "delete box return 0 }",
+      "cannot be consumed from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Box() { consume def take() : int { delete this return 1 } } "
+      "def main() : int { val box : Box = new Box() if true { box.take() } "
+      "return box.take() }",
+      "used before initialization");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
