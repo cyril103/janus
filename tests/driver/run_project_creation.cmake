@@ -130,17 +130,20 @@ execute_process(
     COMMAND git init --quiet
     WORKING_DIRECTORY "${TEST_ROOT}/gitmath"
     RESULT_VARIABLE GIT_INIT_STATUS
+    ERROR_VARIABLE GIT_INIT_ERROR
 )
 execute_process(
     COMMAND git add .
     WORKING_DIRECTORY "${TEST_ROOT}/gitmath"
     RESULT_VARIABLE GIT_ADD_STATUS
+    ERROR_VARIABLE GIT_ADD_ERROR
 )
 execute_process(
     COMMAND git -c user.name=Janus -c user.email=janus@example.invalid
             commit --quiet -m fixture
     WORKING_DIRECTORY "${TEST_ROOT}/gitmath"
     RESULT_VARIABLE GIT_COMMIT_STATUS
+    ERROR_VARIABLE GIT_COMMIT_ERROR
 )
 execute_process(
     COMMAND git rev-parse HEAD
@@ -148,10 +151,14 @@ execute_process(
     OUTPUT_VARIABLE GIT_REVISION
     OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE GIT_REVISION_STATUS
+    ERROR_VARIABLE GIT_REVISION_ERROR
 )
 if(NOT GIT_INIT_STATUS EQUAL 0 OR NOT GIT_ADD_STATUS EQUAL 0
    OR NOT GIT_COMMIT_STATUS EQUAL 0 OR NOT GIT_REVISION_STATUS EQUAL 0)
-    message(FATAL_ERROR "could not prepare the Git dependency fixture")
+    message(FATAL_ERROR
+        "could not prepare the Git dependency fixture:\n"
+        "init: ${GIT_INIT_ERROR}\nadd: ${GIT_ADD_ERROR}\n"
+        "commit: ${GIT_COMMIT_ERROR}\nrevision: ${GIT_REVISION_ERROR}")
 endif()
 file(TO_CMAKE_PATH "${TEST_ROOT}/gitmath" GIT_DEPENDENCY_URL)
 file(APPEND "${TEST_ROOT}/hello/janus.toml"
