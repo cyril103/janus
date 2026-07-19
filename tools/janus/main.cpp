@@ -49,6 +49,8 @@ struct Options {
   bool emit_llvm{};
   bool emit_object{};
   bool release{};
+  bool locked{};
+  bool offline{};
   std::optional<janus::driver::Manifest> manifest;
   std::vector<std::filesystem::path> dependency_paths;
   std::string test_filter;
@@ -114,6 +116,7 @@ void print_usage() {
                "[--emit llvm-ir|object]\n"
             << "  janus run [source.janus] [--release]\n"
             << "  janus test [filter] [--release]\n"
+            << "  dependency options: --locked --offline\n"
             << "  janus --version\n";
 }
 
@@ -173,6 +176,10 @@ Options parse_options(int argc, char **argv) {
       options.output = argv[index];
     } else if (argument == "--release") {
       options.release = true;
+    } else if (argument == "--locked") {
+      options.locked = true;
+    } else if (argument == "--offline") {
+      options.offline = true;
     } else if (argument == "--emit") {
       if (++index == argc)
         throw std::runtime_error{"--emit requires 'llvm-ir' or 'object'"};
@@ -397,8 +404,8 @@ int main(int argc, char **argv) {
     const Toolchain toolchain = locate_toolchain(argv[0]);
     Options options = parse_options(argc, argv);
     if (options.manifest.has_value())
-      options.dependency_paths =
-          janus::driver::resolve_dependencies(*options.manifest);
+      options.dependency_paths = janus::driver::resolve_dependencies(
+          *options.manifest, {options.locked, options.offline});
     if (options.command == "test") {
       options.dependency_paths.push_back(options.manifest->root() / "src");
       return run_tests(options, toolchain);

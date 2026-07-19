@@ -178,6 +178,55 @@ if(NOT IS_DIRECTORY
     endif()
 endif()
 
+execute_process(
+    COMMAND "${JANUS}" check --locked --offline
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
+    RESULT_VARIABLE LOCKED_STATUS
+    ERROR_VARIABLE LOCKED_ERROR
+)
+if(NOT LOCKED_STATUS EQUAL 0)
+    message(FATAL_ERROR "locked offline build failed: ${LOCKED_ERROR}")
+endif()
+file(APPEND "${TEST_ROOT}/hello/janus.lock" "# stale\n")
+execute_process(
+    COMMAND "${JANUS}" check --locked
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
+    RESULT_VARIABLE STALE_LOCK_STATUS
+    ERROR_VARIABLE STALE_LOCK_ERROR
+)
+if(STALE_LOCK_STATUS EQUAL 0 OR NOT STALE_LOCK_ERROR MATCHES "out of date")
+    message(FATAL_ERROR "stale lockfile was accepted: ${STALE_LOCK_ERROR}")
+endif()
+execute_process(
+    COMMAND "${JANUS}" check
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
+    RESULT_VARIABLE LOCK_REFRESH_STATUS
+)
+if(NOT LOCK_REFRESH_STATUS EQUAL 0)
+    message(FATAL_ERROR "janus.lock could not be refreshed")
+endif()
+
+string(SUBSTRING "${GIT_REVISION}" 0 12 GIT_SHORT_REVISION)
+file(REMOVE_RECURSE
+     "${TEST_ROOT}/hello/target/dependencies/gitmath-${GIT_SHORT_REVISION}")
+execute_process(
+    COMMAND "${JANUS}" check --offline
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
+    RESULT_VARIABLE OFFLINE_MISS_STATUS
+    ERROR_VARIABLE OFFLINE_MISS_ERROR
+)
+if(OFFLINE_MISS_STATUS EQUAL 0 OR NOT OFFLINE_MISS_ERROR MATCHES "not cached")
+    message(FATAL_ERROR "offline cache miss was accepted: ${OFFLINE_MISS_ERROR}")
+endif()
+execute_process(
+    COMMAND "${JANUS}" check
+    WORKING_DIRECTORY "${TEST_ROOT}/hello"
+    RESULT_VARIABLE CACHE_RESTORE_STATUS
+)
+if(NOT CACHE_RESTORE_STATUS EQUAL 0)
+    message(FATAL_ERROR "Git dependency cache could not be restored")
+endif()
+
 foreach(PACKAGE cyclea cycleb)
     file(MAKE_DIRECTORY "${TEST_ROOT}/${PACKAGE}/src")
     file(WRITE "${TEST_ROOT}/${PACKAGE}/src/${PACKAGE}.janus"
