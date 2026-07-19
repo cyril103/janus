@@ -1,6 +1,7 @@
 import std.array
 import std.builder
 import std.hashing
+import std.hashset
 
 def main() : int {
     val values : Array[int] = new Array[int](usize(1))
@@ -23,7 +24,26 @@ def main() : int {
     val hashSample : int =
         int(hashing.hash(42) % usize(10))
     val hashMatches : bool = hashing.equals(42, 42)
-    delete hashing
+
+    val unique : HashSet[int, IntHashing] =
+        new HashSet[int, IntHashing](usize(4), hashing)
+    unique.add(10)
+    unique.add(20)
+    unique.add(10)
+    val removedFromSet : bool = unique.remove(20)
+    val setContainsTen : bool = unique.contains(10)
+
+    val setBuilder : SetBuilder[int, IntHashing] =
+        new SetBuilder[int, IntHashing](usize(4), hashing)
+    setBuilder.addAll[Array[int]](values)
+    setBuilder.add(20)
+    val builtSet : HashSet[int, IntHashing] =
+        setBuilder.result()
+    delete setBuilder
+    var setSum : int = 0
+    for value in builtSet {
+        setSum = setSum + value
+    }
 
     val collected : Array[int] =
         values.iterator()
@@ -83,8 +103,13 @@ def main() : int {
         int(hasTwenty) + int(allPositive) + int(largeCount) +
         int(filtered.size()) + foundValue + missingValue + poppedValue +
         int(values.isEmpty()) + firstValue + loopSum + builtSize +
-        pendingSize + hashSample + int(hashMatches)
+        pendingSize + hashSample + int(hashMatches) +
+        int(removedFromSet) + int(setContainsTen) +
+        int(unique.size()) + int(builtSet.size()) + setSum
 
+    delete builtSet
+    delete unique
+    delete hashing
     delete built
     delete filtered
     delete halved

@@ -534,6 +534,35 @@ contenu. `result()` transfère la propriété du tableau terminé puis laisse un
 tableau vide dans le builder. Le builder peut donc être supprimé sans
 invalider le résultat, ou être réutilisé pour une nouvelle construction.
 
+### Ensemble de hachage
+
+`std.hashset` fournit `HashSet[T, H <: Hashing[T]]`. Il utilise un adressage
+ouvert, conserve des tombstones après les suppressions et double sa capacité
+à partir de 75 % d'occupation :
+
+```janus
+val hashing : IntHashing = new IntHashing()
+val values : HashSet[int, IntHashing] =
+    new HashSet[int, IntHashing](usize(8), hashing)
+
+values.add(10)
+values.add(20)
+values.add(10) // false : déjà présent
+values.remove(20)
+
+for value in values {
+    println(value)
+}
+
+delete values
+delete hashing
+```
+
+L'ensemble emprunte sa stratégie `Hashing[T]` : elle doit rester vivante
+jusqu'à sa destruction. `SetBuilder[T, H]` implémente
+`Builder[T, HashSet[T, H]]` et élimine naturellement les doublons pendant une
+collecte.
+
 `get` et `pop` conservent leur comportement strict et appellent `panic` en cas
 d’erreur. Leurs variantes `getOption` et `popOption`, ainsi que `find`,
 retournent `None` lorsque aucune valeur n’est disponible. `std.array` importe

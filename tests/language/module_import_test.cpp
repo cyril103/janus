@@ -48,6 +48,9 @@ int main() {
   expect(has_class("Array") && has_class("Iterator") &&
              has_class("ArrayIteratorState") && has_class("ArrayBuilder"),
          "import std.array loads Array, iterators, and builder support");
+  expect(has_class("HashSet") && has_class("SetBuilder") &&
+             has_class("HashSetIteratorState"),
+         "the standard library loads hash sets, builders, and iterators");
   expect(std::any_of(program.traits.begin(), program.traits.end(),
                      [](const janus::ast::TraitDeclaration &declaration) {
                        return declaration.name == "Builder";
@@ -144,6 +147,23 @@ int main() {
          "IntHashing provides a monomorphized primitive hash");
   expect(ir.find("define i1 @IntHashing__equals") != std::string::npos,
          "IntHashing provides primitive equality");
+  expect(ir.find("%enum.SetSlot__int = type") != std::string::npos,
+         "HashSet represents empty, occupied, and deleted slots inline");
+  expect(ir.find("define i1 @HashSet__int__IntHashing__add") !=
+             std::string::npos,
+         "HashSet.add is specialized with its hashing strategy");
+  expect(ir.find("define i1 @HashSet__int__IntHashing__remove") !=
+             std::string::npos,
+         "HashSet supports tombstone-based removal");
+  expect(ir.find("define internal void @HashSet__int__IntHashing__resize") !=
+             std::string::npos,
+         "HashSet grows and rehashes its occupied slots");
+  expect(ir.find("define ptr @HashSet__int__IntHashing__iterator") !=
+             std::string::npos,
+         "HashSet implements Iterable");
+  expect(ir.find("define ptr @SetBuilder__int__IntHashing__result") !=
+             std::string::npos,
+         "SetBuilder transfers ownership of its completed HashSet");
   expect(ir.find("for.next") != std::string::npos,
          "for loops consume Iterator values");
   expect(ir.find("%for.iterator = call ptr @Array__int__iterator") !=

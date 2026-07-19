@@ -1,0 +1,282 @@
+module std.hashset
+import std.array
+import std.builder
+import std.hashing
+import std.iterator
+import std.option
+
+enum SetSlot[T] {
+    Empty,
+    Occupied(T),
+    Deleted
+}
+
+class HashSetIteratorState[T, H <: Hashing[T]](
+    private val source : HashSet[T, H],
+    private var index : usize
+) {
+    def next() : Option[T] {
+        var result : Option[T] = Option.None[T]()
+        while index < source.storageSize() && match result {
+            Some(value) => false,
+            None => true
+        } {
+            result = source.valueAt(index)
+            index = index + usize(1)
+        }
+        return result
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+}
+
+class HashSet[T, H <: Hashing[T]](
+    initialCapacity : usize,
+    private val hashing : H
+) extends Iterable[T] {
+    private var slotCapacity : usize = if initialCapacity < usize(8) {
+        usize(8)
+    } else {
+        initialCapacity
+    }
+    private var slots : Array[SetSlot[T]] =
+        new Array[SetSlot[T]](slotCapacity)
+    private var length : usize = usize(0)
+    private var deletedCount : usize = usize(0)
+
+    private def initializeSlots() : Unit {
+        while slots.size() < slotCapacity {
+            slots.push(SetSlot.Empty[T]())
+        }
+    }
+
+    private def isOccupied(slot : SetSlot[T]) : bool {
+        return match slot {
+            Occupied(value) => true,
+            Empty => false,
+            Deleted => false
+        }
+    }
+
+    private def matches(slot : SetSlot[T], value : T) : bool {
+        return match slot {
+            Occupied(existing) => hashing.equals(existing, value),
+            Empty => false,
+            Deleted => false
+        }
+    }
+
+    private def isEmptySlot(slot : SetSlot[T]) : bool {
+        return match slot {
+            Empty => true,
+            Occupied(value) => false,
+            Deleted => false
+        }
+    }
+
+    private def isDeletedSlot(slot : SetSlot[T]) : bool {
+        return match slot {
+            Deleted => true,
+            Empty => false,
+            Occupied(value) => false
+        }
+    }
+
+    private def restore(slot : SetSlot[T]) : bool {
+        return match slot {
+            Occupied(value) => this.add(value),
+            Empty => false,
+            Deleted => false
+        }
+    }
+
+    private def resize(requested : usize) : Unit {
+        val previous : Array[SetSlot[T]] = move slots
+        val previousSize : usize = previous.size()
+        slotCapacity = requested
+        slots = new Array[SetSlot[T]](slotCapacity)
+        length = usize(0)
+        deletedCount = usize(0)
+        this.initializeSlots()
+
+        var index : usize = usize(0)
+        while index < previousSize {
+            this.restore(previous.get(index))
+            index = index + usize(1)
+        }
+        delete previous
+    }
+
+    def size() : usize {
+        return length
+    }
+
+    def isEmpty() : bool {
+        return length == usize(0)
+    }
+
+    def storageSize() : usize {
+        this.initializeSlots()
+        return slotCapacity
+    }
+
+    def valueAt(index : usize) : Option[T] {
+        this.initializeSlots()
+        if index >= slotCapacity {
+            return Option.None[T]()
+        }
+        return match slots.get(index) {
+            Occupied(value) => Option.Some[T](value),
+            Empty => Option.None[T](),
+            Deleted => Option.None[T]()
+        }
+    }
+
+    def contains(value : T) : bool {
+        this.initializeSlots()
+        var index : usize = hashing.hash(value) % slotCapacity
+        var checked : usize = usize(0)
+        while checked < slotCapacity {
+            val slot : SetSlot[T] = slots.get(index)
+            if this.matches(slot, value) {
+                return true
+            }
+            if this.isEmptySlot(slot) {
+                return false
+            }
+            index = (index + usize(1)) % slotCapacity
+            checked = checked + usize(1)
+        }
+        return false
+    }
+
+    def add(value : T) : bool {
+        this.initializeSlots()
+        if (length + deletedCount + usize(1)) * usize(4) >=
+            slotCapacity * usize(3) {
+            this.resize(slotCapacity * usize(2))
+        }
+
+        var index : usize = hashing.hash(value) % slotCapacity
+        var checked : usize = usize(0)
+        var firstDeleted : usize = usize(0)
+        var hasDeleted : bool = false
+        while checked < slotCapacity {
+            val slot : SetSlot[T] = slots.get(index)
+            if this.matches(slot, value) {
+                return false
+            }
+            if this.isDeletedSlot(slot) && !hasDeleted {
+                firstDeleted = index
+                hasDeleted = true
+            }
+            if this.isEmptySlot(slot) {
+                val destination : usize = if hasDeleted {
+                    firstDeleted
+                } else {
+                    index
+                }
+                slots.set(destination, SetSlot.Occupied[T](value))
+                length = length + usize(1)
+                if hasDeleted {
+                    deletedCount = deletedCount - usize(1)
+                }
+                return true
+            }
+            index = (index + usize(1)) % slotCapacity
+            checked = checked + usize(1)
+        }
+
+        if hasDeleted {
+            slots.set(firstDeleted, SetSlot.Occupied[T](value))
+            length = length + usize(1)
+            deletedCount = deletedCount - usize(1)
+            return true
+        }
+        this.resize(slotCapacity * usize(2))
+        return this.add(value)
+    }
+
+    def remove(value : T) : bool {
+        this.initializeSlots()
+        var index : usize = hashing.hash(value) % slotCapacity
+        var checked : usize = usize(0)
+        while checked < slotCapacity {
+            val slot : SetSlot[T] = slots.get(index)
+            if this.matches(slot, value) {
+                slots.set(index, SetSlot.Deleted[T]())
+                length = length - usize(1)
+                deletedCount = deletedCount + usize(1)
+                return true
+            }
+            if this.isEmptySlot(slot) {
+                return false
+            }
+            index = (index + usize(1)) % slotCapacity
+            checked = checked + usize(1)
+        }
+        return false
+    }
+
+    def clear() : Unit {
+        this.initializeSlots()
+        var index : usize = usize(0)
+        while index < slotCapacity {
+            slots.set(index, SetSlot.Empty[T]())
+            index = index + usize(1)
+        }
+        length = usize(0)
+        deletedCount = usize(0)
+    }
+
+    def iterator() : Iterator[T] {
+        val state : HashSetIteratorState[T, H] =
+            new HashSetIteratorState[T, H](this, usize(0))
+        return new Iterator[T](
+            () => state.next(),
+            () => state.dispose()
+        )
+    }
+
+    destructor {
+        delete slots
+    }
+}
+
+class SetBuilder[T, H <: Hashing[T]](
+    initialCapacity : usize,
+    private val hashing : H
+) extends Builder[T, HashSet[T, H]] {
+    private var values : HashSet[T, H] =
+        new HashSet[T, H](initialCapacity, hashing)
+
+    def add(value : T) : Unit {
+        values.add(value)
+    }
+
+    def addAll[C <: Iterable[T]](source : C) : Unit {
+        for value in source {
+            this.add(value)
+        }
+    }
+
+    def size() : usize {
+        return values.size()
+    }
+
+    def clear() : Unit {
+        values.clear()
+    }
+
+    def result() : HashSet[T, H] {
+        val completed : HashSet[T, H] = move values
+        values = new HashSet[T, H](usize(8), hashing)
+        return completed
+    }
+
+    destructor {
+        delete values
+    }
+}
