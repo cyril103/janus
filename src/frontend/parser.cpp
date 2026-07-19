@@ -419,6 +419,16 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
     } while (true);
   }
   static_cast<void>(expect(TokenKind::RightParen));
+  std::vector<ast::TypeReference> implemented_traits;
+  if (current_.kind == TokenKind::Extends) {
+    advance();
+    do {
+      implemented_traits.push_back(parse_type());
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+  }
   static_cast<void>(expect(TokenKind::LeftBrace));
 
   std::vector<ast::ValueDeclaration> fields;
@@ -453,6 +463,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
   static_cast<void>(expect(TokenKind::RightBrace));
   return ast::ClassDeclaration{std::string{name.lexeme},
                                std::move(type_parameters),
+                               std::move(implemented_traits),
                                std::move(constructor_parameters),
                                std::move(constructor_fields),
                                std::move(fields),

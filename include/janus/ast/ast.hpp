@@ -284,6 +284,7 @@ struct TraitDeclaration {
 struct ClassDeclaration {
   std::string name;
   std::vector<std::string> type_parameters;
+  std::vector<TypeReference> implemented_traits;
   std::vector<FunctionDeclaration::Parameter> constructor_parameters;
   std::vector<ValueDeclaration> constructor_fields;
   std::vector<ValueDeclaration> fields;

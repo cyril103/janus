@@ -465,6 +465,112 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
         throw CompileError{field.location,
                            "Unit cannot be used as a field type"};
     }
+
+    std::unordered_set<std::string> implemented_trait_names;
+    for (const ast::TypeReference &trait_reference :
+         class_declaration.implemented_traits) {
+      const auto trait_iterator = traits.find(trait_reference.name);
+      if (trait_iterator == traits.end())
+        throw CompileError{trait_reference.location,
+                           "unknown trait '" + trait_reference.name + "'"};
+      const ast::TraitDeclaration &trait_declaration = *trait_iterator->second;
+      if (!implemented_trait_names.insert(trait_declaration.name).second)
+        throw CompileError{trait_reference.location,
+                           "trait '" + trait_declaration.name +
+                               "' is already implemented by class '" +
+                               class_declaration.name + "'"};
+      if (trait_reference.type_arguments.size() !=
+          trait_declaration.type_parameters.size())
+        throw CompileError{
+            trait_reference.location,
+            "trait '" + trait_declaration.name + "' expects " +
+                std::to_string(trait_declaration.type_parameters.size()) +
+                " type argument(s), got " +
+                std::to_string(trait_reference.type_arguments.size())};
+
+      std::unordered_map<std::string, SemanticType> trait_substitutions;
+      for (std::size_t index = 0;
+           index < trait_declaration.type_parameters.size(); ++index) {
+        trait_substitutions.emplace(
+            trait_declaration.type_parameters[index],
+            resolve_type(trait_reference.type_arguments[index], parameters,
+                         &class_arities));
+      }
+
+      for (const ast::FunctionDeclaration &required :
+           trait_declaration.methods) {
+        const auto implementation = std::find_if(
+            class_declaration.methods.begin(), class_declaration.methods.end(),
+            [&](const ast::FunctionDeclaration &candidate) {
+              return candidate.name == required.name;
+            });
+        if (implementation == class_declaration.methods.end())
+          throw CompileError{class_declaration.location,
+                             "class '" + class_declaration.name +
+                                 "' does not implement trait method '" +
+                                 trait_declaration.name + "." + required.name +
+                                 "'"};
+        if (implementation->is_private)
+          throw CompileError{implementation->location,
+                             "private method '" + implementation->name +
+                                 "' cannot implement public trait method '" +
+                                 trait_declaration.name + "." + required.name +
+                                 "'"};
+        if (implementation->type_parameters.size() !=
+                required.type_parameters.size() ||
+            implementation->parameters.size() != required.parameters.size())
+          throw CompileError{implementation->location,
+                             "method '" + class_declaration.name + "." +
+                                 implementation->name +
+                                 "' has a signature incompatible with trait '" +
+                                 trait_declaration.name + "'"};
+
+        std::unordered_set<std::string> trait_method_parameters{
+            trait_declaration.type_parameters.begin(),
+            trait_declaration.type_parameters.end()};
+        std::unordered_set<std::string> class_method_parameters = parameters;
+        std::unordered_map<std::string, SemanticType> trait_method_canonical;
+        std::unordered_map<std::string, SemanticType> class_method_canonical;
+        for (std::size_t index = 0; index < required.type_parameters.size();
+             ++index) {
+          trait_method_parameters.insert(required.type_parameters[index]);
+          class_method_parameters.insert(
+              implementation->type_parameters[index]);
+          const SemanticType canonical{nullptr,
+                                       "$method" + std::to_string(index)};
+          trait_method_canonical.emplace(required.type_parameters[index],
+                                         canonical);
+          class_method_canonical.emplace(implementation->type_parameters[index],
+                                         canonical);
+        }
+        const auto required_type = [&](const ast::TypeReference &reference) {
+          return substitute(
+              substitute(resolve_type(reference, trait_method_parameters,
+                                      &class_arities),
+                         trait_substitutions),
+              trait_method_canonical);
+        };
+        const auto implemented_type = [&](const ast::TypeReference &reference) {
+          return substitute(
+              resolve_type(reference, class_method_parameters, &class_arities),
+              class_method_canonical);
+        };
+        bool compatible =
+            same_type(required_type(required.return_type),
+                      implemented_type(implementation->return_type));
+        for (std::size_t index = 0;
+             compatible && index < required.parameters.size(); ++index)
+          compatible = same_type(
+              required_type(required.parameters[index].type),
+              implemented_type(implementation->parameters[index].type));
+        if (!compatible)
+          throw CompileError{implementation->location,
+                             "method '" + class_declaration.name + "." +
+                                 implementation->name +
+                                 "' has a signature incompatible with trait '" +
+                                 trait_declaration.name + "'"};
+      }
+    }
   }
 
   struct FunctionContext {
