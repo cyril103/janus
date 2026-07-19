@@ -153,6 +153,20 @@ target_compile_definitions(janus
         JANUS_RUNTIME_LIBRARY="$<TARGET_FILE:janus_runtime>"
 )
 
+add_executable(janusup
+    tools/janusup/main.cpp
+)
+target_compile_options(janusup
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+target_compile_definitions(janusup
+    PRIVATE
+        JANUS_VERSION="${PROJECT_VERSION}"
+)
+
 include(CTest)
 if(BUILD_TESTING)
     set(CLANG_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}")
@@ -181,6 +195,14 @@ if(BUILD_TESTING)
     add_test(
         NAME cli.run
         COMMAND janus run "${PROJECT_SOURCE_DIR}/examples/loop_jumps.janus"
+    )
+    add_test(
+        NAME toolchain.install
+        COMMAND "${CMAKE_COMMAND}"
+                -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+                -DJANUSUP=$<TARGET_FILE:janusup>
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_janusup.cmake"
     )
 
     add_executable(int_type_test
@@ -691,3 +713,56 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.module_import COMMAND module_import_test)
 endif()
+
+include(GNUInstallDirs)
+install(
+    TARGETS janus janusc janusup
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(
+    TARGETS janus_runtime
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(
+    DIRECTORY stdlib/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/janus/stdlib
+)
+install(
+    FILES README.md
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+)
+
+set(JANUS_PACKAGE_ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+if(JANUS_PACKAGE_ARCH MATCHES "^(aarch64|ARM64)$")
+    set(JANUS_PACKAGE_ARCH "arm64")
+endif()
+set(CPACK_PACKAGE_VENDOR "Janus")
+set(CPACK_PACKAGE_CONTACT "Janus contributors")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
+set(CPACK_PACKAGE_FILE_NAME
+    "janus-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${JANUS_PACKAGE_ARCH}")
+set(JANUS_PACKAGE_BASENAME "${CPACK_PACKAGE_FILE_NAME}")
+set(CPACK_STRIP_FILES ON)
+if(WIN32)
+    set(CPACK_GENERATOR ZIP)
+else()
+    set(CPACK_GENERATOR TGZ)
+endif()
+set(JANUS_CPACK_GENERATOR "${CPACK_GENERATOR}")
+include(CPack)
+
+if(JANUS_CPACK_GENERATOR STREQUAL "TGZ")
+    set(JANUS_PACKAGE_ARCHIVE
+        "${PROJECT_BINARY_DIR}/${JANUS_PACKAGE_BASENAME}.tar.gz")
+elseif(JANUS_CPACK_GENERATOR STREQUAL "ZIP")
+    set(JANUS_PACKAGE_ARCHIVE
+        "${PROJECT_BINARY_DIR}/${JANUS_PACKAGE_BASENAME}.zip")
+endif()
+add_custom_target(dist
+    COMMAND "${CMAKE_CPACK_COMMAND}" --config "${PROJECT_BINARY_DIR}/CPackConfig.cmake"
+    COMMAND "${CMAKE_COMMAND}"
+            -DARCHIVE=${JANUS_PACKAGE_ARCHIVE}
+            -P "${PROJECT_SOURCE_DIR}/cmake/write_checksum.cmake"
+    DEPENDS janus janusc janusup janus_runtime
+    COMMENT "Building the Janus distribution and SHA-256 checksum"
+)

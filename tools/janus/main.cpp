@@ -5,6 +5,7 @@
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
 
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -22,7 +23,19 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+
 namespace {
+
+struct Toolchain {
+  std::filesystem::path stdlib;
+  std::filesystem::path runtime;
+  std::filesystem::path clang;
+};
 
 struct Options {
   std::string command;
@@ -33,14 +46,64 @@ struct Options {
   bool release{};
 };
 
+std::filesystem::path executable_path(const char *argv0) {
+#ifdef _WIN32
+  std::wstring buffer(32768, L'\0');
+  const DWORD size = GetModuleFileNameW(nullptr, buffer.data(),
+                                        static_cast<DWORD>(buffer.size()));
+  if (size != 0 && size < buffer.size()) {
+    buffer.resize(size);
+    return std::filesystem::path{buffer};
+  }
+#elif defined(__APPLE__)
+  std::uint32_t size = 0;
+  _NSGetExecutablePath(nullptr, &size);
+  std::string buffer(size, '\0');
+  if (_NSGetExecutablePath(buffer.data(), &size) == 0)
+    return std::filesystem::weakly_canonical(buffer.c_str());
+#else
+  std::error_code error;
+  const std::filesystem::path path =
+      std::filesystem::read_symlink("/proc/self/exe", error);
+  if (!error)
+    return path;
+#endif
+  return std::filesystem::absolute(argv0);
+}
+
+Toolchain locate_toolchain(const char *argv0) {
+  const std::filesystem::path root =
+      executable_path(argv0).parent_path().parent_path();
+  const std::filesystem::path installed_stdlib = root / "share/janus/stdlib";
+#ifdef _WIN32
+  const std::filesystem::path installed_runtime =
+      root / "lib/janus_runtime.lib";
+  const std::filesystem::path bundled_clang = root / "bin/clang.exe";
+#else
+  const std::filesystem::path installed_runtime =
+      root / "lib/libjanus_runtime.a";
+  const std::filesystem::path bundled_clang = root / "bin/clang";
+#endif
+  return {
+      std::filesystem::exists(installed_stdlib)
+          ? installed_stdlib
+          : std::filesystem::path{JANUS_STDLIB_DIR},
+      std::filesystem::exists(installed_runtime)
+          ? installed_runtime
+          : std::filesystem::path{JANUS_RUNTIME_LIBRARY},
+      std::filesystem::exists(bundled_clang)
+          ? bundled_clang
+          : std::filesystem::path{JANUS_CLANG_PATH},
+  };
+}
+
 void print_usage() {
-  std::cerr
-      << "usage:\n"
-      << "  janus check <source.janus>\n"
-      << "  janus build <source.janus> [-o output] [--release] "
-         "[--emit llvm-ir|object]\n"
-      << "  janus run <source.janus> [--release]\n"
-      << "  janus --version\n";
+  std::cerr << "usage:\n"
+            << "  janus check <source.janus>\n"
+            << "  janus build <source.janus> [-o output] [--release] "
+               "[--emit llvm-ir|object]\n"
+            << "  janus run <source.janus> [--release]\n"
+            << "  janus --version\n";
 }
 
 Options parse_options(int argc, char **argv) {
@@ -119,10 +182,10 @@ int command_status(int status) {
 #endif
 }
 
-std::unique_ptr<llvm::Module>
-compile(const std::filesystem::path &source, llvm::LLVMContext &context) {
-  janus::frontend::ModuleLoader loader{
-      {std::filesystem::path{JANUS_STDLIB_DIR}}};
+std::unique_ptr<llvm::Module> compile(const std::filesystem::path &source,
+                                      llvm::LLVMContext &context,
+                                      const Toolchain &toolchain) {
+  janus::frontend::ModuleLoader loader{{toolchain.stdlib}};
   const janus::ast::Program program = loader.load(source);
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
@@ -138,8 +201,8 @@ void write_ir(const llvm::Module &module, const std::filesystem::path &path) {
   std::error_code error;
   llvm::raw_fd_ostream output{path.string(), error, llvm::sys::fs::OF_None};
   if (error)
-    throw std::runtime_error{"cannot create '" + path.string() + "': " +
-                             error.message()};
+    throw std::runtime_error{"cannot create '" + path.string() +
+                             "': " + error.message()};
   module.print(output, nullptr);
 }
 
@@ -164,28 +227,27 @@ std::filesystem::path default_output(const Options &options) {
   return output;
 }
 
-int build(const Options &options, const std::filesystem::path &output) {
+int build(const Options &options, const std::filesystem::path &output,
+          const Toolchain &toolchain) {
   llvm::LLVMContext context;
-  std::unique_ptr<llvm::Module> module = compile(options.source, context);
+  std::unique_ptr<llvm::Module> module =
+      compile(options.source, context, toolchain);
   if (options.emit_llvm) {
     write_ir(*module, output);
     return 0;
   }
 
   const std::filesystem::path object =
-      options.emit_object
-          ? output
-          :
-      std::filesystem::temp_directory_path() /
-            ("janus-" + std::to_string(std::rand()) + ".o");
+      options.emit_object ? output
+                          : std::filesystem::temp_directory_path() /
+                                ("janus-" + std::to_string(std::rand()) + ".o");
   janus::backend::llvm::emit_object(*module, object, options.release);
   if (options.emit_object)
     return 0;
-  janus::driver::link_executable(
-      {object}, output,
-      janus::driver::LinkOptions{
-          !options.release,
-          {std::filesystem::path{JANUS_RUNTIME_LIBRARY}}});
+  janus::driver::link_executable({object}, output,
+                                 janus::driver::LinkOptions{!options.release,
+                                                            {toolchain.runtime},
+                                                            toolchain.clang});
   std::error_code ignored;
   std::filesystem::remove(object, ignored);
   return 0;
@@ -201,16 +263,17 @@ int main(int argc, char **argv) {
 
   std::filesystem::path diagnostic_path;
   try {
+    const Toolchain toolchain = locate_toolchain(argv[0]);
     const Options options = parse_options(argc, argv);
     diagnostic_path = options.source;
     if (options.command == "check") {
       llvm::LLVMContext context;
-      static_cast<void>(compile(options.source, context));
+      static_cast<void>(compile(options.source, context, toolchain));
       std::cout << "checked " << options.source.string() << '\n';
       return 0;
     }
     if (options.command == "build")
-      return build(options, default_output(options));
+      return build(options, default_output(options), toolchain);
 
     const std::filesystem::path executable =
         std::filesystem::temp_directory_path() /
@@ -219,7 +282,7 @@ int main(int argc, char **argv) {
          + ".exe"
 #endif
         );
-    const int build_status = build(options, executable);
+    const int build_status = build(options, executable, toolchain);
     if (build_status != 0)
       return build_status;
     const int run_status =

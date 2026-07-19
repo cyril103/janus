@@ -8,6 +8,7 @@ namespace janus::driver {
 struct LinkOptions {
   bool debug{};
   std::vector<std::filesystem::path> libraries;
+  std::filesystem::path driver;
 };
 
 void link_executable(const std::vector<std::filesystem::path> &objects,

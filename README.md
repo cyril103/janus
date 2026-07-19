@@ -90,7 +90,63 @@ cmake -S . -B build -G Ninja \
 cmake --build build
 ```
 
-Le compilateur est alors disponible dans `build/janusc`.
+Les outils sont alors disponibles dans `build/janus`, `build/janusc` et
+`build/janusup`.
+
+Pour l'usage quotidien, le pilote `janus` prend directement en charge la
+vérification, la génération du fichier objet, l'édition de liens avec LLD et
+l'exécution :
+
+```bash
+./build/janus check examples/value.janus
+./build/janus build examples/value.janus -o value
+./value
+./build/janus run examples/output.janus
+```
+
+`--release` active les optimisations et `--emit llvm-ir|object` permet de
+s'arrêter avant l'édition de liens.
+
+## Installer la chaîne d'outils
+
+Les publications Janus sont prévues sous forme d'archives autonomes pour
+Linux, macOS et Windows. Une fois une version publiée, l'installation Unix se
+fait avec :
+
+```bash
+curl --proto '=https' --tlsv1.2 -fsSL \
+  https://raw.githubusercontent.com/cyril103/janus/main/scripts/install.sh | sh
+```
+
+Sous Windows PowerShell :
+
+```powershell
+irm https://raw.githubusercontent.com/cyril103/janus/main/scripts/install.ps1 | iex
+```
+
+L'installation est placée dans `~/.janus` sous Unix et dans
+`%LOCALAPPDATA%\Janus` sous Windows. `janusup` gère les chaînes installées :
+
+```bash
+janusup list
+janusup default 0.1.0
+janusup home
+```
+
+Le compilateur recherche automatiquement son runtime et la bibliothèque
+standard relativement à son dossier d'installation. `JANUS_CC` permet de
+choisir explicitement le pilote Clang employé pour l'édition de liens.
+
+Pour construire une archive redistribuable depuis les sources :
+
+```bash
+cmake --build build --target dist
+```
+
+Le paquet contient `janus`, le compilateur historique `janusc`, `janusup`, le
+runtime natif et la bibliothèque standard. La cible produit aussi le fichier
+`.sha256` contrôlé par les installateurs. Clang et LLD restent des prérequis de
+la plateforme pour cette première distribution.
 
 ## Générer de l'IR LLVM
 

@@ -54,8 +54,11 @@ void link_executable(const std::vector<std::filesystem::path> &objects,
   if (objects.empty())
     throw std::runtime_error{"native link requires at least one object file"};
   const char *configured_driver = std::getenv("JANUS_CC");
-  const std::string driver =
-      configured_driver == nullptr ? JANUS_CLANG_PATH : configured_driver;
+  const std::filesystem::path driver =
+      configured_driver != nullptr
+          ? std::filesystem::path{configured_driver}
+          : (options.driver.empty() ? std::filesystem::path{JANUS_CLANG_PATH}
+                                    : options.driver);
   std::string command = shell_quote(driver) + " -fuse-ld=lld";
   if (options.debug)
     command += " -g";
