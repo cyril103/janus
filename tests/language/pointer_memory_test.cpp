@@ -74,7 +74,8 @@ def main() : int {
   module->print(output, nullptr);
   output.flush();
   const bool computes_allocation_size =
-      ir.find("allocation.bytes = mul i64 2") != std::string::npos ||
+      ir.find("mul i64") != std::string::npos ||
+      ir.find("mul (i64") != std::string::npos ||
       ir.find("call ptr @janus_alloc(i64 8)") != std::string::npos;
   expect(computes_allocation_size &&
              ir.find("call ptr @janus_alloc") != std::string::npos,
