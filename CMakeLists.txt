@@ -147,6 +147,7 @@ target_compile_definitions(janusc
 add_library(janus_driver
     src/driver/native_linker.cpp
     src/driver/manifest.cpp
+    src/driver/project.cpp
 )
 target_include_directories(janus_driver
     PUBLIC
@@ -270,6 +271,13 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME driver.manifest COMMAND manifest_test)
+    add_test(
+        NAME cli.project_creation
+        COMMAND "${CMAKE_COMMAND}"
+                -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                -DJANUS=$<TARGET_FILE:janus>
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_project_creation.cmake"
+    )
 
     add_executable(int_type_test
         tests/types/int_type_test.cpp

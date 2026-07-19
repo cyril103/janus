@@ -2,6 +2,7 @@
 #include "janus/backend/llvm/object_emitter.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/driver/native_linker.hpp"
+#include "janus/driver/project.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
 
@@ -99,11 +100,45 @@ Toolchain locate_toolchain(const char *argv0) {
 
 void print_usage() {
   std::cerr << "usage:\n"
+            << "  janus new <directory> [--name <name>]\n"
+            << "  janus init [directory] [--name <name>]\n"
             << "  janus check <source.janus>\n"
             << "  janus build <source.janus> [-o output] [--release] "
                "[--emit llvm-ir|object]\n"
             << "  janus run <source.janus> [--release]\n"
             << "  janus --version\n";
+}
+
+int create_or_initialize(int argc, char **argv) {
+  const std::string_view command = argv[1];
+  int index = 2;
+  std::filesystem::path directory;
+  if (command == "new") {
+    if (index == argc)
+      throw std::runtime_error{"new requires a destination directory"};
+    directory = argv[index++];
+  } else if (index < argc && std::string_view{argv[index]} != "--name") {
+    directory = argv[index++];
+  } else {
+    directory = std::filesystem::current_path();
+  }
+  std::string name;
+  if (index < argc && std::string_view{argv[index]} == "--name") {
+    if (++index == argc)
+      throw std::runtime_error{"--name requires a project name"};
+    name = argv[index++];
+  }
+  if (index != argc)
+    throw std::runtime_error{"unexpected project creation argument"};
+  if (command == "new")
+    janus::driver::create_project(directory, name);
+  else
+    janus::driver::initialize_project(directory, name);
+  std::cout << (command == "new" ? "created" : "initialized")
+            << " Janus project in "
+            << std::filesystem::absolute(directory).lexically_normal().string()
+            << '\n';
+  return 0;
 }
 
 Options parse_options(int argc, char **argv) {
@@ -263,6 +298,9 @@ int main(int argc, char **argv) {
 
   std::filesystem::path diagnostic_path;
   try {
+    if (argc >= 2 && (std::string_view{argv[1]} == "new" ||
+                      std::string_view{argv[1]} == "init"))
+      return create_or_initialize(argc, argv);
     const Toolchain toolchain = locate_toolchain(argv[0]);
     const Options options = parse_options(argc, argv);
     diagnostic_path = options.source;

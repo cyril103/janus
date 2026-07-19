@@ -86,7 +86,8 @@ Manifest load_manifest(const std::filesystem::path &path) {
   if (!input)
     throw std::runtime_error{"cannot open manifest '" + path.string() + "'"};
 
-  Manifest manifest{std::filesystem::absolute(path).lexically_normal()};
+  Manifest manifest{};
+  manifest.path = std::filesystem::absolute(path).lexically_normal();
   std::string section;
   bool has_name = false;
   bool has_version = false;
