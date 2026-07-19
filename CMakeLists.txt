@@ -922,10 +922,18 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         "/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libicudata.so*"
         "/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libicuuc.so*"
         "/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libmd.so*"
+        "/lib/*/libbsd.so*"
+        "/lib/*/libicudata.so*"
+        "/lib/*/libicuuc.so*"
+        "/lib/*/libmd.so*"
         "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libbsd.so*"
         "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libicudata.so*"
         "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libicuuc.so*"
         "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/libmd.so*"
+        "/usr/lib/*/libbsd.so*"
+        "/usr/lib/*/libicudata.so*"
+        "/usr/lib/*/libicuuc.so*"
+        "/usr/lib/*/libmd.so*"
     )
     install(
         FILES ${JANUS_LINUX_SUPPORT_LIBRARIES}
