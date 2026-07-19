@@ -31,6 +31,12 @@ if [ -z "$PACKAGE_ROOT" ] || [ ! -x "$PACKAGE_ROOT/bin/janus" ]; then
   echo "smoke test: invalid Janus archive layout" >&2
   exit 1
 fi
+if command -v ldd >/dev/null 2>&1 &&
+   ldd "$PACKAGE_ROOT/bin/clang" | grep -q 'not found'; then
+  echo "smoke test: bundled Clang has unresolved shared libraries" >&2
+  ldd "$PACKAGE_ROOT/bin/clang" >&2
+  exit 1
+fi
 
 JANUS="$PACKAGE_ROOT/bin/janus"
 export HOME="$WORK/home"

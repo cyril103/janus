@@ -60,6 +60,23 @@ void link_executable(const std::vector<std::filesystem::path> &objects,
           : (options.driver.empty() ? std::filesystem::path{JANUS_CLANG_PATH}
                                     : options.driver);
   std::string command = shell_quote(driver) + " -fuse-ld=lld";
+#ifndef _WIN32
+  const std::filesystem::path bundled_library_directory =
+      driver.parent_path().parent_path() / "lib";
+  if (std::filesystem::is_directory(bundled_library_directory)) {
+#ifdef __APPLE__
+    constexpr const char *library_path_variable = "DYLD_LIBRARY_PATH";
+#else
+    constexpr const char *library_path_variable = "LD_LIBRARY_PATH";
+#endif
+    std::string library_path = bundled_library_directory.string();
+    if (const char *inherited = std::getenv(library_path_variable);
+        inherited != nullptr && *inherited != '\0')
+      library_path += std::string{":"} + inherited;
+    command = std::string{library_path_variable} + "=" +
+              shell_quote(std::filesystem::path{library_path}) + " " + command;
+  }
+#endif
   if (options.debug)
     command += " -g";
   for (const std::filesystem::path &object : objects)
