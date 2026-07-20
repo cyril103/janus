@@ -25,7 +25,14 @@ tar -czf "$DIST/$PACKAGE_NAME.tar.gz" \
   -C "$DIST" "$PACKAGE_NAME"
 (
   cd "$DIST"
-  sha256sum "$PACKAGE_NAME.tar.gz" > "$PACKAGE_NAME.tar.gz.sha256"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$PACKAGE_NAME.tar.gz" > "$PACKAGE_NAME.tar.gz.sha256"
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$PACKAGE_NAME.tar.gz" > "$PACKAGE_NAME.tar.gz.sha256"
+  else
+    echo "install test: no SHA-256 command found" >&2
+    exit 1
+  fi
 )
 
 cat > "$FAKE_BIN/uname" <<'EOF'
