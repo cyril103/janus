@@ -68,6 +68,16 @@ scripts/smoke-test-package.sh build/janus-*.tar.gz
 
 Sous Windows, utilisez `scripts/smoke-test-package.ps1`.
 
+## Validation avant une version
+
+Sous Linux, la validation complète peut être relancée sur un répertoire déjà
+configuré. Elle compile Janus, exécute les tests, construit et teste l'archive,
+puis empaquette l'extension VS Code :
+
+```bash
+scripts/validate-release.sh build-release
+```
+
 ## Organisation du dépôt
 
 ```text
