@@ -2,7 +2,7 @@
   "name": "janus-language",
   "displayName": "Janus Language",
   "description": "Language support powered by janus-lsp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "janus-lang",
   "license": "Apache-2.0",
   "repository": {
