@@ -17,6 +17,10 @@ options:
 config format:
   N|source.janus|expected-output-file
   Empty lines and lines starting with # are ignored.
+
+Each JSON result keeps problem/status/stage/exit_code/duration/message and adds
+compile_ok, run_ok, segfault, timeout, and output_mismatch booleans. Harness
+timeouts set timeout=true; a command that exits 124 by itself does not.
 EOF
 }
 
@@ -600,6 +604,27 @@ append_result() {
   message="$6"
   actual_file="$7"
   expected_file="$8"
+  compile_ok=false
+  run_ok=false
+  segfault=false
+  timeout=false
+  output_mismatch=false
+
+  case "$stage" in
+    run) compile_ok=true ;;
+  esac
+  case "$status" in
+    ok|mismatch)
+      if [ "$stage" = run ] && [ "$exit_code" -eq 0 ]; then
+        run_ok=true
+      fi
+      ;;
+  esac
+  case "$status" in
+    segfault) segfault=true ;;
+    timeout) timeout=true ;;
+    mismatch) output_mismatch=true ;;
+  esac
 
   if [ "$FIRST" -eq 1 ]; then
     FIRST=0
@@ -607,9 +632,10 @@ append_result() {
     printf ',\n' >> "$TMP_REPORT"
   fi
 
-  printf '{"problem":%s,"status":"%s","stage":"%s","exit_code":%s,"duration_seconds":%s,"message":"%s"' \
+  printf '{"problem":%s,"status":"%s","stage":"%s","exit_code":%s,"duration_seconds":%s,"message":"%s","compile_ok":%s,"run_ok":%s,"segfault":%s,"timeout":%s,"output_mismatch":%s' \
     "$problem" "$status" "$stage" "$exit_code" "$duration" \
-    "$(json_escape_text "$message")" >> "$TMP_REPORT"
+    "$(json_escape_text "$message")" "$compile_ok" "$run_ok" \
+    "$segfault" "$timeout" "$output_mismatch" >> "$TMP_REPORT"
   if [ -n "$actual_file" ] && [ -f "$actual_file" ]; then
     printf ',"actual":"%s"' "$(json_escape "$actual_file")" >> "$TMP_REPORT"
   fi
@@ -686,6 +712,14 @@ run_problem() {
     append_result "$number" timeout check 124 "$duration" "janus check timed out" "" ""
     return
   fi
+  if [ "$status" -eq 139 ]; then
+    FAILED=$((FAILED + 1))
+    EXIT_STATUS=1
+    duration=$(($(now_seconds) - start))
+    echo "problem $number ... segfault (check exit 139)" >&2
+    append_result "$number" segfault check 139 "$duration" "janus check segfaulted" "$check_err" ""
+    return
+  fi
   if [ "$status" -ne 0 ]; then
     FAILED=$((FAILED + 1))
     EXIT_STATUS=1
@@ -723,6 +757,14 @@ run_problem() {
     append_result "$number" timeout build 124 "$duration" "janus build timed out" "" ""
     return
   fi
+  if [ "$status" -eq 139 ]; then
+    FAILED=$((FAILED + 1))
+    EXIT_STATUS=1
+    duration=$(($(now_seconds) - start))
+    echo "problem $number ... segfault (build exit 139)" >&2
+    append_result "$number" segfault build 139 "$duration" "janus build segfaulted" "$build_err" ""
+    return
+  fi
   if [ "$status" -ne 0 ]; then
     FAILED=$((FAILED + 1))
     EXIT_STATUS=1
@@ -751,6 +793,13 @@ run_problem() {
     EXIT_STATUS=1
     echo "problem $number ... timeout (run)" >&2
     append_result "$number" timeout run 124 "$duration" "executable timed out" "" ""
+    return
+  fi
+  if [ "$status" -eq 139 ]; then
+    FAILED=$((FAILED + 1))
+    EXIT_STATUS=1
+    echo "problem $number ... segfault (run exit 139)" >&2
+    append_result "$number" segfault run 139 "$duration" "executable segfaulted" "$run_err" ""
     return
   fi
   if [ "$status" -ne 0 ]; then

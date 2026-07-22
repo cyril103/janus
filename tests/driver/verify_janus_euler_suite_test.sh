@@ -27,7 +27,8 @@ EOF
 touch "$PROJECT/src/problem1.janus" "$PROJECT/src/problem2.janus" \
   "$PROJECT/src/problem3.janus" "$PROJECT/src/problem4.janus" \
   "$PROJECT/src/problem5.janus" "$PROJECT/src/problem6.janus" \
-  "$PROJECT/src/problem7.janus"
+  "$PROJECT/src/problem7.janus" "$PROJECT/src/problem8.janus" \
+  "$PROJECT/src/problem9.janus" "$PROJECT/src/problem10.janus"
 printf '233168\n' > "$PROJECT/expected/problem1.txt"
 printf '4613732\n' > "$PROJECT/expected/problem2.txt"
 printf '6857\n' > "$PROJECT/expected/problem3.txt"
@@ -42,6 +43,9 @@ cat > "$CONFIG" <<'EOF'
 5|src/problem5.janus|expected/problem5.txt
 6|src/problem6.janus|expected/problem1.txt
 7|src/problem7.janus|expected/problem1.txt
+8|src/problem8.janus|expected/problem1.txt
+9|src/problem9.janus|expected/problem1.txt
+10|src/problem10.janus|expected/problem1.txt
 EOF
 
 cat > "$FAKE_BIN/janus" <<'EOF'
@@ -63,6 +67,7 @@ case "$command" in
         exit 0
         ;;
       *problem3.janus) exit 7 ;;
+      *problem8.janus) exit 139 ;;
       *) exit 0 ;;
     esac
     ;;
@@ -96,6 +101,7 @@ RUNNER
         exit 0
         ;;
       *problem4.janus) exit 8 ;;
+      *problem9.janus) exit 139 ;;
     esac
     case "$source" in
       *problem5.janus)
@@ -119,6 +125,14 @@ RUNNER
 #!/bin/sh
 printf '\033bad\001\n' >&2
 exit 13
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *problem10.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+exit 139
 RUNNER
       chmod +x "$output"
       exit 0
@@ -169,6 +183,51 @@ esac
 EOF
 chmod +x "$FAKE_BIN/janus"
 
+assert_result_flags() {
+  report="$1"
+  problem="$2"
+  status="$3"
+  compile_ok="$4"
+  run_ok="$5"
+  segfault="$6"
+  timeout="$7"
+  output_mismatch="$8"
+  if command -v python3 >/dev/null 2>&1; then
+    json_python=python3
+  elif command -v python >/dev/null 2>&1; then
+    json_python=python
+  else
+    echo "verify test: python is required for JSON result flag assertions" >&2
+    exit 1
+  fi
+  "$json_python" - "$report" "$problem" "$status" "$compile_ok" "$run_ok" \
+    "$segfault" "$timeout" "$output_mismatch" <<'PY'
+import json
+import sys
+
+report, problem, status = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+expected = {
+    "compile_ok": sys.argv[4] == "true",
+    "run_ok": sys.argv[5] == "true",
+    "segfault": sys.argv[6] == "true",
+    "timeout": sys.argv[7] == "true",
+    "output_mismatch": sys.argv[8] == "true",
+}
+with open(report, "r", encoding="utf-8") as handle:
+    payload = json.load(handle)
+for result in payload["results"]:
+    if result["problem"] == problem and result["status"] == status:
+        actual = {key: result.get(key) for key in expected}
+        if actual == expected:
+            raise SystemExit(0)
+        raise SystemExit(
+            "wrong flags for problem %s status %s: expected %r, got %r"
+            % (problem, status, expected, actual)
+        )
+raise SystemExit("missing result for problem %s status %s" % (problem, status))
+PY
+}
+
 assert_artifact_pointers_are_durable() {
   artifact_root="$1"
   if [ -f "$artifact_root/latest" ]; then
@@ -203,6 +262,7 @@ if ! grep -q '"problem":1' "$WORK/problem1.out" ||
   echo "verify test: JSON output did not report problem 1 as ok" >&2
   exit 1
 fi
+assert_result_flags "$WORK/problem1.out" 1 ok true true false false false
 if ! grep -q "check .*problem1.janus" "$PROJECT/log/janus.log" ||
    ! grep -q "build .*problem1.janus -o " "$PROJECT/log/janus.log"; then
   echo "verify test: janus check/build were not called for problem 1" >&2
@@ -482,6 +542,7 @@ if ! grep -q '"status":"mismatch"' "$WORK/problem2.out"; then
   echo "verify test: mismatch status missing from JSON" >&2
   exit 1
 fi
+assert_result_flags "$WORK/problem2.out" 2 mismatch true true false false true
 mismatch_run_rel="$(cat "$VERIFY_ARTIFACT_ROOT/latest")"
 mismatch_run_dir="$VERIFY_ARTIFACT_ROOT/$mismatch_run_rel"
 if [ ! -f "$mismatch_run_dir/report.json" ] ||
@@ -490,7 +551,8 @@ if [ ! -f "$mismatch_run_dir/report.json" ] ||
   echo "verify test: failed run artifacts were not persisted" >&2
   exit 1
 fi
-if ! grep -q '"status":"mismatch"' "$mismatch_run_dir/report.json"; then
+if ! grep -q '"status":"mismatch"' "$mismatch_run_dir/report.json" ||
+   ! grep -q '"output_mismatch":true' "$mismatch_run_dir/report.json"; then
   echo "verify test: failed artifact report missed mismatch status" >&2
   exit 1
 fi
@@ -506,7 +568,7 @@ if PATH="$FAKE_BIN:/usr/bin:/bin" \
   echo "verify test: --all should fail when any problem fails" >&2
   exit 1
 fi
-for status in ok mismatch error crash; do
+for status in ok mismatch error crash segfault; do
   if ! grep -q "\"status\":\"$status\"" "$WORK/all.out"; then
     echo "verify test: --all JSON missed status $status" >&2
     exit 1
@@ -521,6 +583,39 @@ if [ ! -f "$PROJECT/log/release-was-used" ]; then
   echo "verify test: --release was not passed to janus build" >&2
   exit 1
 fi
+assert_result_flags "$WORK/all.out" 3 error false false false false false
+assert_result_flags "$WORK/all.out" 4 error false false false false false
+assert_result_flags "$WORK/all.out" 8 segfault false false true false false
+assert_result_flags "$WORK/all.out" 9 segfault false false true false false
+assert_result_flags "$WORK/all.out" 10 segfault true false true false false
+if ! grep -q 'problem 8 .* segfault (check exit 139)' "$WORK/all.err" ||
+   ! grep -q 'problem 9 .* segfault (build exit 139)' "$WORK/all.err" ||
+   ! grep -q 'problem 10 .* segfault (run exit 139)' "$WORK/all.err"; then
+  echo "verify test: console output did not report explicit segfault stages" >&2
+  exit 1
+fi
+
+for segfault_problem in 8 9 10; do
+  set +e
+  PATH="$FAKE_BIN:/usr/bin:/bin" \
+  JANUS_FAKE_PROJECT="$PROJECT" \
+    "$SCRIPT" --project "$PROJECT" --config "$CONFIG" \
+      --problem "$segfault_problem" --no-artifacts \
+      > "$WORK/segfault-$segfault_problem.out" \
+      2> "$WORK/segfault-$segfault_problem.err"
+  segfault_status=$?
+  set -e
+  if [ "$segfault_status" -eq 0 ]; then
+    echo "verify test: problem $segfault_problem segfault should make the verifier fail" >&2
+    exit 1
+  fi
+  if ! grep -q '"status":"segfault"' "$WORK/segfault-$segfault_problem.out" ||
+     ! grep -q '"segfault":true' "$WORK/segfault-$segfault_problem.out" ||
+     ! grep -q 'segfault' "$WORK/segfault-$segfault_problem.err"; then
+    echo "verify test: problem $segfault_problem did not report segfault explicitly" >&2
+    exit 1
+  fi
+done
 
 if PATH="$FAKE_BIN:/usr/bin:/bin" \
    JANUS_FAKE_PROJECT="$PROJECT" \
@@ -530,10 +625,12 @@ if PATH="$FAKE_BIN:/usr/bin:/bin" \
   exit 1
 fi
 if ! grep -q '"status":"crash"' "$WORK/exit124.out" ||
-   ! grep -q '"exit_code":124' "$WORK/exit124.out"; then
+   ! grep -q '"exit_code":124' "$WORK/exit124.out" ||
+   grep -q '"timeout":true' "$WORK/exit124.out"; then
   echo "verify test: real exit 124 was confused with timeout" >&2
   exit 1
 fi
+assert_result_flags "$WORK/exit124.out" 6 crash true false false false false
 
 if PATH="$FAKE_BIN:/usr/bin:/bin" \
    JANUS_FAKE_PROJECT="$PROJECT" \
@@ -724,9 +821,11 @@ if ! grep -q '"status":"timeout"' "$WORK/timeout.out"; then
   echo "verify test: timeout status missing from JSON" >&2
   exit 1
 fi
+assert_result_flags "$WORK/timeout.out" 5 timeout true false false true false
 timeout_run_rel="$(cat "$VERIFY_ARTIFACT_ROOT/latest")"
 timeout_run_dir="$VERIFY_ARTIFACT_ROOT/$timeout_run_rel"
 if ! grep -q '"status":"timeout"' "$timeout_run_dir/report.json" ||
+   ! grep -q '"timeout":true' "$timeout_run_dir/report.json" ||
    [ ! -f "$timeout_run_dir/problems/5/run.stdout" ] ||
    [ ! -f "$timeout_run_dir/problems/5/run.stderr" ]; then
   echo "verify test: timeout artifacts did not retain status and logs" >&2
