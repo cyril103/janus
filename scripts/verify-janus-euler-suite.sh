@@ -10,6 +10,7 @@ options:
   --release                Pass --release to janus build
   --timeout SECONDS        Per-problem timeout in seconds (default: 60)
   --global-timeout SECONDS Global timeout in seconds
+  --safe-fallback FILE     Run failed primary cases from fallback config
   --json-out FILE          Also write the JSON report to FILE
   --artifacts-dir DIR      Persist run artifacts under DIR (default: PROJECT/target/verify)
   --no-artifacts           Do not persist run artifacts
@@ -23,6 +24,9 @@ compile_ok, run_ok, segfault, timeout, and output_mismatch booleans. Harness
 timeouts set timeout=true; a command that exits 124 by itself does not. Process
 failures also include termination, signal name/number (when observed), the
 conventional exit code, source/executable mapping, and stdout/stderr log paths.
+In safe fallback mode, the primary attempt and fallback attempt share one
+per-problem timeout budget; the fallback receives only the remaining time. The
+global timeout, when set, is still shared by the whole verifier run.
 EOF
 }
 
@@ -301,6 +305,7 @@ is_live_pid() {
 
 PROJECT=
 CONFIG=
+SAFE_FALLBACK=
 JANUS=${JANUS:-janus}
 MODE=
 REQUESTED_PROBLEM=
@@ -312,6 +317,17 @@ GLOBAL_TIMEOUT=
 JSON_OUT=
 ARTIFACTS_DIR=
 ARTIFACTS_ENABLED=1
+CAPTURE_ATTEMPT_FILE=
+CAPTURE_ATTEMPT_STATUS=
+CAPTURE_ATTEMPT_STAGE=
+CAPTURE_ATTEMPT_EXIT_CODE=
+CAPTURE_ATTEMPT_DURATION=
+CAPTURE_ATTEMPT_FAILED=0
+COUNT_RESULTS=1
+ATTEMPT_SUFFIX=
+CHECK_EXTRA_ARGS=
+FALLBACK_USED=0
+PRIMARY_FAILED=0
 case "$0" in
   */*) SCRIPT_DIR="$(cd_physical "${0%/*}")" ;;
   *) SCRIPT_DIR="$(pwd)" ;;
@@ -328,6 +344,11 @@ while [ "$#" -gt 0 ]; do
     --config)
       [ "$#" -ge 2 ] || die "--config requires a file"
       CONFIG="$2"
+      shift 2
+      ;;
+    --safe-fallback)
+      [ "$#" -ge 2 ] || die "--safe-fallback requires a file"
+      SAFE_FALLBACK="$2"
       shift 2
       ;;
     --janus)
@@ -402,6 +423,7 @@ if [ -n "$GLOBAL_TIMEOUT" ]; then
 fi
 [ -d "$PROJECT" ] || die "project directory not found: $PROJECT"
 [ -f "$CONFIG" ] || die "config file not found: $CONFIG"
+[ -z "$SAFE_FALLBACK" ] || [ -f "$SAFE_FALLBACK" ] || die "fallback config file not found: $SAFE_FALLBACK"
 [ -f "$PROCESS_OBSERVER" ] || die "process observer not found: $PROCESS_OBSERVER"
 
 JANUS_INPUT="$JANUS"
@@ -413,7 +435,11 @@ if [ -n "$ARTIFACTS_DIR" ]; then
 fi
 PROJECT="$(cd_physical "$PROJECT")"
 CONFIG="$(resolve_file_path "$CONFIG")"
+if [ -n "$SAFE_FALLBACK" ]; then
+  SAFE_FALLBACK="$(resolve_file_path "$SAFE_FALLBACK")"
+fi
 WORK="$(mktemp -d)"
+FALLBACK_INDEX="$WORK/fallback-index.txt"
 ARTIFACT_RUN_DIR=
 ARTIFACT_RUN_REL=
 ARTIFACT_REPORT_REL=
@@ -696,50 +722,105 @@ append_result() {
   esac
 
   if [ "$FIRST" -eq 1 ]; then
-    FIRST=0
+    [ -n "$CAPTURE_ATTEMPT_FILE" ] || FIRST=0
   else
-    printf ',\n' >> "$TMP_REPORT"
+    [ -n "$CAPTURE_ATTEMPT_FILE" ] || printf ',\n' >> "$TMP_REPORT"
+  fi
+
+  result_target="$TMP_REPORT"
+  if [ -n "$CAPTURE_ATTEMPT_FILE" ]; then
+    result_target="$CAPTURE_ATTEMPT_FILE"
+    CAPTURE_ATTEMPT_STATUS="$status"
+    CAPTURE_ATTEMPT_STAGE="$stage"
+    CAPTURE_ATTEMPT_EXIT_CODE="$exit_code"
+    CAPTURE_ATTEMPT_DURATION="$duration"
+    case "$status" in
+      ok) CAPTURE_ATTEMPT_FAILED=0 ;;
+      *) CAPTURE_ATTEMPT_FAILED=1 ;;
+    esac
+    : > "$result_target"
   fi
 
   printf '{"problem":%s,"status":"%s","stage":"%s","exit_code":%s,"duration_seconds":%s,"message":"%s","compile_ok":%s,"run_ok":%s,"segfault":%s,"timeout":%s,"output_mismatch":%s' \
     "$problem" "$status" "$stage" "$exit_code" "$duration" \
     "$(json_escape_text "$message")" "$compile_ok" "$run_ok" \
-    "$segfault" "$timeout" "$output_mismatch" >> "$TMP_REPORT"
+    "$segfault" "$timeout" "$output_mismatch" >> "$result_target"
   if [ -n "$actual_file" ] && [ -f "$actual_file" ]; then
-    printf ',"actual":"%s"' "$(json_escape "$actual_file")" >> "$TMP_REPORT"
+    printf ',"actual":"%s"' "$(json_escape "$actual_file")" >> "$result_target"
   fi
   if [ -n "$expected_file" ] && [ -f "$expected_file" ]; then
-    printf ',"expected":"%s"' "$(json_escape "$expected_file")" >> "$TMP_REPORT"
+    printf ',"expected":"%s"' "$(json_escape "$expected_file")" >> "$result_target"
+  fi
+  if [ -n "$CAPTURE_ATTEMPT_FILE" ]; then
+    CAPTURE_ATTEMPT_ACTUAL_FILE="$actual_file"
+    CAPTURE_ATTEMPT_EXPECTED_FILE="$expected_file"
+    CAPTURE_ATTEMPT_TELEMETRY_SOURCE=
+    CAPTURE_ATTEMPT_TELEMETRY_EXECUTABLE=
+    CAPTURE_ATTEMPT_TELEMETRY_STDOUT=
+    CAPTURE_ATTEMPT_TELEMETRY_STDERR=
+    CAPTURE_ATTEMPT_TERMINATION=
+    CAPTURE_ATTEMPT_SIGNAL_NUMBER=
+    CAPTURE_ATTEMPT_SIGNAL_NAME=
+    CAPTURE_ATTEMPT_STACK_FILE=
   fi
   if [ -n "$telemetry_source" ]; then
-    printf ',"termination":"%s","conventional_exit_code":%s' \
-      "$(json_escape_text "$PROCESS_TERMINATION")" "$PROCESS_EXIT_CODE" >> "$TMP_REPORT"
-    if [ "$PROCESS_TERMINATION" = signal ]; then
-      printf ',"signal_number":%s,"signal_name":"%s"' \
-        "$PROCESS_SIGNAL_NUMBER" "$(json_escape_text "$PROCESS_SIGNAL_NAME")" >> "$TMP_REPORT"
-    else
-      printf ',"signal_number":null,"signal_name":null' >> "$TMP_REPORT"
-    fi
-    printf ',"source":"%s","executable":"%s","stdout_log":"%s","stderr_log":"%s"' \
-      "$(json_escape_text "$telemetry_source")" \
-      "$(json_escape_text "$telemetry_executable")" \
-      "$(json_escape_text "$telemetry_stdout")" \
-      "$(json_escape_text "$telemetry_stderr")" >> "$TMP_REPORT"
-    if [ "$PROCESS_TERMINATION" = signal ] && [ -n "$actual_file" ] && [ -s "$actual_file" ]; then
-      printf ',"stack_excerpt":"%s"' "$(json_escape "$actual_file")" >> "$TMP_REPORT"
+    append_telemetry_fields "$result_target" "$PROCESS_TERMINATION" \
+      "$PROCESS_EXIT_CODE" "$PROCESS_SIGNAL_NUMBER" "$PROCESS_SIGNAL_NAME" \
+      "$telemetry_source" "$telemetry_executable" "$telemetry_stdout" \
+      "$telemetry_stderr" "$actual_file"
+    if [ -n "$CAPTURE_ATTEMPT_FILE" ]; then
+      CAPTURE_ATTEMPT_TELEMETRY_SOURCE="$telemetry_source"
+      CAPTURE_ATTEMPT_TELEMETRY_EXECUTABLE="$telemetry_executable"
+      CAPTURE_ATTEMPT_TELEMETRY_STDOUT="$telemetry_stdout"
+      CAPTURE_ATTEMPT_TELEMETRY_STDERR="$telemetry_stderr"
+      CAPTURE_ATTEMPT_TERMINATION="$PROCESS_TERMINATION"
+      CAPTURE_ATTEMPT_SIGNAL_NUMBER="$PROCESS_SIGNAL_NUMBER"
+      CAPTURE_ATTEMPT_SIGNAL_NAME="$PROCESS_SIGNAL_NAME"
+      CAPTURE_ATTEMPT_STACK_FILE="$actual_file"
     fi
   fi
-  printf '}' >> "$TMP_REPORT"
+  printf '}' >> "$result_target"
+}
+
+append_telemetry_fields() {
+  result_target="$1"
+  process_termination="$2"
+  process_exit_code="$3"
+  process_signal_number="$4"
+  process_signal_name="$5"
+  telemetry_source="$6"
+  telemetry_executable="$7"
+  telemetry_stdout="$8"
+  telemetry_stderr="$9"
+  stack_file="${10}"
+
+  printf ',"termination":"%s","conventional_exit_code":%s' \
+    "$(json_escape_text "$process_termination")" "$process_exit_code" >> "$result_target"
+  if [ "$process_termination" = signal ]; then
+    printf ',"signal_number":%s,"signal_name":"%s"' \
+      "$process_signal_number" "$(json_escape_text "$process_signal_name")" >> "$result_target"
+  else
+    printf ',"signal_number":null,"signal_name":null' >> "$result_target"
+  fi
+  printf ',"source":"%s","executable":"%s","stdout_log":"%s","stderr_log":"%s"' \
+    "$(json_escape_text "$telemetry_source")" \
+    "$(json_escape_text "$telemetry_executable")" \
+    "$(json_escape_text "$telemetry_stdout")" \
+    "$(json_escape_text "$telemetry_stderr")" >> "$result_target"
+  if [ "$process_termination" = signal ] && [ -n "$stack_file" ] && [ -s "$stack_file" ]; then
+    printf ',"stack_excerpt":"%s"' "$(json_escape "$stack_file")" >> "$result_target"
+  fi
 }
 
 crash_log_path() {
   problem="$1"
   stage="$2"
   stream="$3"
+  problem_id="$problem$ATTEMPT_SUFFIX"
   if [ "$ARTIFACTS_ENABLED" -eq 1 ] && [ -n "$ARTIFACT_RUN_DIR" ]; then
-    printf '%s/problems/%s/%s.%s\n' "$ARTIFACT_RUN_DIR" "$problem" "$stage" "$stream"
+    printf '%s/problems/%s/%s.%s\n' "$ARTIFACT_RUN_DIR" "$problem_id" "$stage" "$stream"
   else
-    printf '%s/%s-%s.%s\n' "$WORK" "$stage" "$problem" \
+    printf '%s/%s-%s.%s\n' "$WORK" "$stage" "$problem_id" \
       "$( [ "$stream" = stdout ] && printf out || printf err )"
   fi
 }
@@ -778,49 +859,67 @@ append_process_failure() {
     "$stdout_log" "$stderr_log"
 }
 
+record_total() {
+  [ "$COUNT_RESULTS" -eq 1 ] || return 0
+  TOTAL=$((TOTAL + 1))
+}
+
+record_pass() {
+  [ "$COUNT_RESULTS" -eq 1 ] || return 0
+  PASSED=$((PASSED + 1))
+}
+
+record_fail() {
+  [ "$COUNT_RESULTS" -eq 1 ] || return 0
+  FAILED=$((FAILED + 1))
+  EXIT_STATUS=1
+}
+
 run_problem() {
   number="$1"
   source_rel="$2"
   expected_rel="$3"
 
-  TOTAL=$((TOTAL + 1))
+  record_total
   start="$(now_seconds)"
-  case_deadline=$((start + CASE_TIMEOUT))
+  if [ -n "${CASE_DEADLINE_OVERRIDE:-}" ]; then
+    case_deadline="$CASE_DEADLINE_OVERRIDE"
+  else
+    case_deadline=$((start + CASE_TIMEOUT))
+  fi
   source="$PROJECT/$source_rel"
   expected="$PROJECT/$expected_rel"
-  executable="$WORK/problem-$number"
-  check_out="$WORK/check-$number.out"
-  check_err="$WORK/check-$number.err"
-  check_status="$WORK/check-$number.status"
-  check_timeout="$WORK/check-$number.timeout"
-  build_out="$WORK/build-$number.out"
-  build_err="$WORK/build-$number.err"
-  build_status="$WORK/build-$number.status"
-  build_timeout="$WORK/build-$number.timeout"
-  run_out="$WORK/run-$number.out"
-  run_err="$WORK/run-$number.err"
-  run_status="$WORK/run-$number.status"
-  run_timeout="$WORK/run-$number.timeout"
-  actual_norm="$WORK/actual-$number.txt"
-  expected_norm="$WORK/expected-$number.txt"
+  attempt_id="$number$ATTEMPT_SUFFIX"
+  executable="$WORK/problem-$attempt_id"
+  check_out="$WORK/check-$attempt_id.out"
+  check_err="$WORK/check-$attempt_id.err"
+  check_status="$WORK/check-$attempt_id.status"
+  check_timeout="$WORK/check-$attempt_id.timeout"
+  build_out="$WORK/build-$attempt_id.out"
+  build_err="$WORK/build-$attempt_id.err"
+  build_status="$WORK/build-$attempt_id.status"
+  build_timeout="$WORK/build-$attempt_id.timeout"
+  run_out="$WORK/run-$attempt_id.out"
+  run_err="$WORK/run-$attempt_id.err"
+  run_status="$WORK/run-$attempt_id.status"
+  run_timeout="$WORK/run-$attempt_id.timeout"
+  actual_norm="$WORK/actual-$attempt_id.txt"
+  expected_norm="$WORK/expected-$attempt_id.txt"
 
   if [ -n "$GLOBAL_DEADLINE" ] && [ "$(remaining_timeout "$GLOBAL_DEADLINE")" -le 0 ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
     echo "problem $number ... timeout (global)" >&2
     append_result "$number" timeout global 124 0 "global timeout exceeded" "" ""
     return
   fi
   if [ ! -f "$source" ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
     echo "problem $number ... error (missing source)" >&2
     append_result "$number" error source 1 0 "source not found: $source_rel" "" ""
     return
   fi
   if [ ! -f "$expected" ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
     echo "problem $number ... error (missing expected output)" >&2
     append_result "$number" error expected 1 0 "expected output not found: $expected_rel" "" ""
     return
@@ -828,29 +927,33 @@ run_problem() {
 
   timeout_left="$(problem_timeout_left "$case_deadline")"
   if [ "$timeout_left" -le 0 ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
+    duration=$(($(now_seconds) - start))
     echo "problem $number ... timeout" >&2
-    append_result "$number" timeout check 124 "$CASE_TIMEOUT" "problem timeout exceeded before check" "" ""
+    append_result "$number" timeout check 124 "$duration" "problem timeout exceeded before check" "" ""
     return
   fi
   set +e
-  RUN_TIMEOUT_MARKER="$check_timeout" \
-    run_with_timeout "$timeout_left" "$check_out" "$check_err" "$PROJECT" "$check_status" \
-      "$JANUS" check "$source"
+  if [ -n "$CHECK_EXTRA_ARGS" ]; then
+    RUN_TIMEOUT_MARKER="$check_timeout" \
+      run_with_timeout "$timeout_left" "$check_out" "$check_err" "$PROJECT" "$check_status" \
+        "$JANUS" check "$source" $CHECK_EXTRA_ARGS
+  else
+    RUN_TIMEOUT_MARKER="$check_timeout" \
+      run_with_timeout "$timeout_left" "$check_out" "$check_err" "$PROJECT" "$check_status" \
+        "$JANUS" check "$source"
+  fi
   status=$?
   set -e
   if [ -f "$check_timeout" ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
     duration=$(($(now_seconds) - start))
     echo "problem $number ... timeout (check)" >&2
     append_result "$number" timeout check 124 "$duration" "janus check timed out" "" ""
     return
   fi
   if [ "$status" -ne 0 ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
     duration=$(($(now_seconds) - start))
     append_process_failure "$number" check "$status" "$duration" "$source" \
       "$JANUS" "$check_err" "$check_status"
@@ -859,10 +962,10 @@ run_problem() {
 
   timeout_left="$(problem_timeout_left "$case_deadline")"
   if [ "$timeout_left" -le 0 ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
+    duration=$(($(now_seconds) - start))
     echo "problem $number ... timeout" >&2
-    append_result "$number" timeout build 124 "$CASE_TIMEOUT" "problem timeout exceeded before build" "" ""
+    append_result "$number" timeout build 124 "$duration" "problem timeout exceeded before build" "" ""
     return
   fi
   set +e
@@ -878,16 +981,14 @@ run_problem() {
   status=$?
   set -e
   if [ -f "$build_timeout" ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
     duration=$(($(now_seconds) - start))
     echo "problem $number ... timeout (build)" >&2
     append_result "$number" timeout build 124 "$duration" "janus build timed out" "" ""
     return
   fi
   if [ "$status" -ne 0 ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
     duration=$(($(now_seconds) - start))
     append_process_failure "$number" build "$status" "$duration" "$source" \
       "$JANUS" "$build_err" "$build_status"
@@ -896,10 +997,10 @@ run_problem() {
 
   timeout_left="$(problem_timeout_left "$case_deadline")"
   if [ "$timeout_left" -le 0 ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
+    duration=$(($(now_seconds) - start))
     echo "problem $number ... timeout" >&2
-    append_result "$number" timeout run 124 "$CASE_TIMEOUT" "problem timeout exceeded before run" "" ""
+    append_result "$number" timeout run 124 "$duration" "problem timeout exceeded before run" "" ""
     return
   fi
   set +e
@@ -909,15 +1010,13 @@ run_problem() {
   set -e
   duration=$(($(now_seconds) - start))
   if [ -f "$run_timeout" ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
     echo "problem $number ... timeout (run)" >&2
     append_result "$number" timeout run 124 "$duration" "executable timed out" "" ""
     return
   fi
   if [ "$status" -ne 0 ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
     append_process_failure "$number" run "$status" "$duration" "$source" \
       "$executable" "$run_err" "$run_status"
     return
@@ -926,12 +1025,11 @@ run_problem() {
   normalize_output "$run_out" "$actual_norm"
   normalize_output "$expected" "$expected_norm"
   if cmp -s "$actual_norm" "$expected_norm"; then
-    PASSED=$((PASSED + 1))
+    record_pass
     echo "problem $number ... ok" >&2
     append_result "$number" ok run 0 "$duration" "" "$actual_norm" "$expected_norm"
   else
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
+    record_fail
     echo "problem $number ... mismatch" >&2
     append_result "$number" mismatch run 0 "$duration" "output did not match expected result" "$actual_norm" "$expected_norm"
   fi
@@ -960,7 +1058,290 @@ validate_config_selection() {
   fi
 }
 
+lookup_config_entry() {
+  lookup_file="$1"
+  lookup_number="$2"
+  LOOKUP_SOURCE=
+  LOOKUP_EXPECTED=
+  while IFS= read -r lookup_line || [ -n "$lookup_line" ]; do
+    case "$lookup_line" in
+      ''|'#'*) continue ;;
+    esac
+    old_ifs=$IFS
+    IFS='|'
+    set -- $lookup_line
+    IFS=$old_ifs
+    [ "$#" -eq 3 ] || die "invalid config line: $lookup_line"
+    is_number "$1" || die "invalid problem number in config: $1"
+    if [ "$1" = "$lookup_number" ]; then
+      LOOKUP_SOURCE="$2"
+      LOOKUP_EXPECTED="$3"
+      return 0
+    fi
+  done < "$lookup_file"
+  return 1
+}
+
+validate_fallback_config() {
+  [ -n "$SAFE_FALLBACK" ] || return 0
+  : > "$FALLBACK_INDEX"
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ''|'#'*) continue ;;
+    esac
+    old_ifs=$IFS
+    IFS='|'
+    set -- $line
+    IFS=$old_ifs
+    [ "$#" -eq 3 ] || die "invalid config line: $line"
+    number="$1"
+    is_number "$number" || die "invalid problem number in config: $number"
+    if grep -q "^$number|" "$FALLBACK_INDEX"; then
+      die "duplicate problem in fallback config: $number"
+    fi
+    printf '%s|%s|%s\n' "$number" "$2" "$3" >> "$FALLBACK_INDEX"
+  done < "$SAFE_FALLBACK"
+}
+
+validate_fallback_config_selection() {
+  [ -n "$SAFE_FALLBACK" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ''|'#'*) continue ;;
+    esac
+    old_ifs=$IFS
+    IFS='|'
+    set -- $line
+    IFS=$old_ifs
+    [ "$#" -eq 3 ] || die "invalid config line: $line"
+    number="$1"
+    source_rel="$2"
+    expected_rel="$3"
+    is_number "$number" || die "invalid problem number in config: $number"
+    if [ "$MODE" = all ] || [ "$number" = "$REQUESTED_PROBLEM" ]; then
+      if ! lookup_config_entry "$FALLBACK_INDEX" "$number"; then
+        die "fallback config missing problem: $number"
+      fi
+      [ -f "$PROJECT/$LOOKUP_SOURCE" ] || die "fallback source not found for problem $number: $LOOKUP_SOURCE"
+      [ -f "$PROJECT/$LOOKUP_EXPECTED" ] || die "fallback expected output not found for problem $number: $LOOKUP_EXPECTED"
+      if [ -f "$PROJECT/$expected_rel" ]; then
+        primary_expected_norm="$WORK/validate-primary-$number.txt"
+        fallback_expected_norm="$WORK/validate-fallback-$number.txt"
+        normalize_output "$PROJECT/$expected_rel" "$primary_expected_norm"
+        normalize_output "$PROJECT/$LOOKUP_EXPECTED" "$fallback_expected_norm"
+        if ! cmp -s "$primary_expected_norm" "$fallback_expected_norm"; then
+          die "fallback expected output does not match primary for problem $number"
+        fi
+      fi
+    fi
+  done < "$CONFIG"
+}
+
+append_json_separator() {
+  if [ "$FIRST" -eq 1 ]; then
+    FIRST=0
+  else
+    printf ',\n' >> "$TMP_REPORT"
+  fi
+}
+
+append_safe_result() {
+  number="$1"
+  status="$2"
+  stage="$3"
+  exit_code="$4"
+  duration="$5"
+  message="$6"
+  compile_ok="$7"
+  run_ok="$8"
+  segfault="$9"
+  timeout="${10}"
+  output_mismatch="${11}"
+  fallback_used="${12}"
+  primary_file="${13}"
+  fallback_file="${14}"
+  telemetry_source="${15:-}"
+  telemetry_executable="${16:-}"
+  telemetry_stdout="${17:-}"
+  telemetry_stderr="${18:-}"
+  telemetry_termination="${19:-}"
+  telemetry_exit_code="${20:-0}"
+  telemetry_signal_number="${21:-0}"
+  telemetry_signal_name="${22:-}"
+  telemetry_stack_file="${23:-}"
+  actual_file="${24:-}"
+  expected_file="${25:-}"
+
+  append_json_separator
+  printf '{"problem":%s,"status":"%s","stage":"%s","exit_code":%s,"duration_seconds":%s,"message":"%s","compile_ok":%s,"run_ok":%s,"segfault":%s,"timeout":%s,"output_mismatch":%s,"fallback_used":%s,"primary":' \
+    "$number" "$status" "$stage" "$exit_code" "$duration" \
+    "$(json_escape_text "$message")" "$compile_ok" "$run_ok" "$segfault" \
+    "$timeout" "$output_mismatch" "$fallback_used" >> "$TMP_REPORT"
+  cat "$primary_file" >> "$TMP_REPORT"
+  if [ -n "$fallback_file" ] && [ -f "$fallback_file" ]; then
+    printf ',"fallback":' >> "$TMP_REPORT"
+    cat "$fallback_file" >> "$TMP_REPORT"
+  else
+    printf ',"fallback":null' >> "$TMP_REPORT"
+  fi
+  if [ -n "$actual_file" ] && [ -f "$actual_file" ]; then
+    printf ',"actual":"%s"' "$(json_escape "$actual_file")" >> "$TMP_REPORT"
+  fi
+  if [ -n "$expected_file" ] && [ -f "$expected_file" ]; then
+    printf ',"expected":"%s"' "$(json_escape "$expected_file")" >> "$TMP_REPORT"
+  fi
+  if [ -n "$telemetry_source" ]; then
+    append_telemetry_fields "$TMP_REPORT" "$telemetry_termination" \
+      "$telemetry_exit_code" "$telemetry_signal_number" "$telemetry_signal_name" \
+      "$telemetry_source" "$telemetry_executable" "$telemetry_stdout" \
+      "$telemetry_stderr" "$telemetry_stack_file"
+  fi
+  printf '}' >> "$TMP_REPORT"
+}
+
+attempt_problem() {
+  attempt_file="$1"
+  number="$2"
+  source_rel="$3"
+  expected_rel="$4"
+  suffix="$5"
+  check_args="$6"
+
+  CAPTURE_ATTEMPT_FILE="$attempt_file"
+  CAPTURE_ATTEMPT_STATUS=
+  CAPTURE_ATTEMPT_STAGE=
+  CAPTURE_ATTEMPT_EXIT_CODE=0
+  CAPTURE_ATTEMPT_DURATION=0
+  CAPTURE_ATTEMPT_FAILED=0
+  CAPTURE_ATTEMPT_TELEMETRY_SOURCE=
+  CAPTURE_ATTEMPT_TELEMETRY_EXECUTABLE=
+  CAPTURE_ATTEMPT_TELEMETRY_STDOUT=
+  CAPTURE_ATTEMPT_TELEMETRY_STDERR=
+  CAPTURE_ATTEMPT_TERMINATION=
+  CAPTURE_ATTEMPT_SIGNAL_NUMBER=
+  CAPTURE_ATTEMPT_SIGNAL_NAME=
+  CAPTURE_ATTEMPT_STACK_FILE=
+  CAPTURE_ATTEMPT_ACTUAL_FILE=
+  CAPTURE_ATTEMPT_EXPECTED_FILE=
+  COUNT_RESULTS=0
+  ATTEMPT_SUFFIX="$suffix"
+  CHECK_EXTRA_ARGS="$check_args"
+  run_problem "$number" "$source_rel" "$expected_rel"
+  CAPTURE_ATTEMPT_FILE=
+  COUNT_RESULTS=1
+  ATTEMPT_SUFFIX=
+  CHECK_EXTRA_ARGS=
+}
+
+run_problem_safe() {
+  number="$1"
+  source_rel="$2"
+  expected_rel="$3"
+
+  record_total
+  safe_start="$(now_seconds)"
+  CASE_DEADLINE_OVERRIDE=$((safe_start + CASE_TIMEOUT))
+  primary_file="$WORK/primary-$number.json"
+  fallback_file="$WORK/fallback-$number.json"
+  attempt_problem "$primary_file" "$number" "$source_rel" "$expected_rel" ".primary" "--warn-high-growth-loops"
+  primary_status="$CAPTURE_ATTEMPT_STATUS"
+  primary_stage="$CAPTURE_ATTEMPT_STAGE"
+  primary_exit="$CAPTURE_ATTEMPT_EXIT_CODE"
+  primary_duration="$CAPTURE_ATTEMPT_DURATION"
+  primary_failed="$CAPTURE_ATTEMPT_FAILED"
+  primary_telemetry_source="$CAPTURE_ATTEMPT_TELEMETRY_SOURCE"
+  primary_telemetry_executable="$CAPTURE_ATTEMPT_TELEMETRY_EXECUTABLE"
+  primary_telemetry_stdout="$CAPTURE_ATTEMPT_TELEMETRY_STDOUT"
+  primary_telemetry_stderr="$CAPTURE_ATTEMPT_TELEMETRY_STDERR"
+  primary_telemetry_termination="$CAPTURE_ATTEMPT_TERMINATION"
+  primary_telemetry_signal_number="$CAPTURE_ATTEMPT_SIGNAL_NUMBER"
+  primary_telemetry_signal_name="$CAPTURE_ATTEMPT_SIGNAL_NAME"
+  primary_telemetry_stack_file="$CAPTURE_ATTEMPT_STACK_FILE"
+  primary_actual_file="$CAPTURE_ATTEMPT_ACTUAL_FILE"
+  primary_expected_file="$CAPTURE_ATTEMPT_EXPECTED_FILE"
+  if [ "$primary_failed" -eq 0 ]; then
+    record_pass
+    safe_duration=$(($(now_seconds) - safe_start))
+    append_safe_result "$number" ok "$primary_stage" "$primary_exit" "$safe_duration" "" \
+      true true false false false false "$primary_file" "" \
+      "$primary_telemetry_source" "$primary_telemetry_executable" \
+      "$primary_telemetry_stdout" "$primary_telemetry_stderr" \
+      "$primary_telemetry_termination" "$primary_exit" \
+      "$primary_telemetry_signal_number" "$primary_telemetry_signal_name" \
+      "$primary_telemetry_stack_file" "$primary_actual_file" "$primary_expected_file"
+    CASE_DEADLINE_OVERRIDE=
+    return
+  fi
+
+  PRIMARY_FAILED=$((PRIMARY_FAILED + 1))
+  echo "problem $number ... primary failed: $primary_status" >&2
+  lookup_config_entry "$FALLBACK_INDEX" "$number" || die "fallback config missing problem: $number"
+  fallback_source_rel="$LOOKUP_SOURCE"
+  fallback_expected_rel="$LOOKUP_EXPECTED"
+  attempt_problem "$fallback_file" "$number" "$fallback_source_rel" "$fallback_expected_rel" ".fallback" ""
+  fallback_status="$CAPTURE_ATTEMPT_STATUS"
+  fallback_stage="$CAPTURE_ATTEMPT_STAGE"
+  fallback_exit="$CAPTURE_ATTEMPT_EXIT_CODE"
+  fallback_duration="$CAPTURE_ATTEMPT_DURATION"
+  fallback_failed="$CAPTURE_ATTEMPT_FAILED"
+  fallback_telemetry_source="$CAPTURE_ATTEMPT_TELEMETRY_SOURCE"
+  fallback_telemetry_executable="$CAPTURE_ATTEMPT_TELEMETRY_EXECUTABLE"
+  fallback_telemetry_stdout="$CAPTURE_ATTEMPT_TELEMETRY_STDOUT"
+  fallback_telemetry_stderr="$CAPTURE_ATTEMPT_TELEMETRY_STDERR"
+  fallback_telemetry_termination="$CAPTURE_ATTEMPT_TERMINATION"
+  fallback_telemetry_signal_number="$CAPTURE_ATTEMPT_SIGNAL_NUMBER"
+  fallback_telemetry_signal_name="$CAPTURE_ATTEMPT_SIGNAL_NAME"
+  fallback_telemetry_stack_file="$CAPTURE_ATTEMPT_STACK_FILE"
+  fallback_actual_file="$CAPTURE_ATTEMPT_ACTUAL_FILE"
+  fallback_expected_file="$CAPTURE_ATTEMPT_EXPECTED_FILE"
+  FALLBACK_USED=$((FALLBACK_USED + 1))
+  if [ "$fallback_failed" -eq 0 ]; then
+    record_pass
+    echo "problem $number ... fallback" >&2
+    safe_duration=$(($(now_seconds) - safe_start))
+    append_safe_result "$number" fallback "$fallback_stage" "$fallback_exit" \
+      "$safe_duration" "primary failed; fallback succeeded" \
+      true true false false false true "$primary_file" "$fallback_file" \
+      "$fallback_telemetry_source" "$fallback_telemetry_executable" \
+      "$fallback_telemetry_stdout" "$fallback_telemetry_stderr" \
+      "$fallback_telemetry_termination" "$fallback_exit" \
+      "$fallback_telemetry_signal_number" "$fallback_telemetry_signal_name" \
+      "$fallback_telemetry_stack_file" "$fallback_actual_file" "$fallback_expected_file"
+    CASE_DEADLINE_OVERRIDE=
+    return
+  fi
+
+  record_fail
+  fallback_compile_ok=false
+  fallback_run_ok=false
+  fallback_segfault=false
+  fallback_timeout=false
+  fallback_output_mismatch=false
+  [ "$fallback_stage" = run ] && fallback_compile_ok=true
+  if [ "$fallback_stage" = run ] && [ "$fallback_exit" -eq 0 ]; then
+    fallback_run_ok=true
+  fi
+  case "$fallback_status" in
+    segfault) fallback_segfault=true ;;
+    timeout) fallback_timeout=true ;;
+    mismatch) fallback_output_mismatch=true ;;
+  esac
+  safe_duration=$(($(now_seconds) - safe_start))
+  append_safe_result "$number" "$fallback_status" "$fallback_stage" "$fallback_exit" \
+    "$safe_duration" "primary and fallback failed" \
+    "$fallback_compile_ok" "$fallback_run_ok" "$fallback_segfault" \
+    "$fallback_timeout" "$fallback_output_mismatch" true "$primary_file" "$fallback_file" \
+    "$fallback_telemetry_source" "$fallback_telemetry_executable" \
+    "$fallback_telemetry_stdout" "$fallback_telemetry_stderr" \
+    "$fallback_telemetry_termination" "$fallback_exit" \
+    "$fallback_telemetry_signal_number" "$fallback_telemetry_signal_name" \
+    "$fallback_telemetry_stack_file" "$fallback_actual_file" "$fallback_expected_file"
+  CASE_DEADLINE_OVERRIDE=
+}
+
 validate_config_selection
+validate_fallback_config
+validate_fallback_config_selection
 init_artifacts
 
 while IFS= read -r line || [ -n "$line" ]; do
@@ -978,7 +1359,11 @@ while IFS= read -r line || [ -n "$line" ]; do
   is_number "$number" || die "invalid problem number in config: $number"
   if [ "$MODE" = all ] || [ "$number" = "$REQUESTED_PROBLEM" ]; then
     FOUND=1
-    run_problem "$number" "$source_rel" "$expected_rel"
+    if [ -n "$SAFE_FALLBACK" ]; then
+      run_problem_safe "$number" "$source_rel" "$expected_rel"
+    else
+      run_problem "$number" "$source_rel" "$expected_rel"
+    fi
   fi
 done < "$CONFIG"
 
@@ -987,11 +1372,16 @@ RUN_MESSAGE=
 if [ "$EXIT_STATUS" -ne 0 ]; then
   RUN_MESSAGE="one or more problems failed"
 fi
-printf '{"run":{"run_id":"%s","report":"%s","exit_code":%s,"duration_seconds":%s,"message":"%s"},"summary":{"total":%s,"ok":%s,"failed":%s},"results":[\n' \
+if [ -n "$SAFE_FALLBACK" ]; then
+  SUMMARY_EXTRA=',"fallback_used":'"$FALLBACK_USED"',"primary_failed":'"$PRIMARY_FAILED"
+else
+  SUMMARY_EXTRA=
+fi
+printf '{"run":{"run_id":"%s","report":"%s","exit_code":%s,"duration_seconds":%s,"message":"%s"},"summary":{"total":%s,"ok":%s,"failed":%s%s},"results":[\n' \
   "$(json_escape_text "$ARTIFACT_RUN_REL")" \
   "$(json_escape_text "$ARTIFACT_REPORT_REL")" \
   "$EXIT_STATUS" "$RUN_DURATION" "$(json_escape_text "$RUN_MESSAGE")" \
-  "$TOTAL" "$PASSED" "$FAILED" > "$REPORT"
+  "$TOTAL" "$PASSED" "$FAILED" "$SUMMARY_EXTRA" > "$REPORT"
 cat "$TMP_REPORT" >> "$REPORT"
 printf '\n]}\n' >> "$REPORT"
 
