@@ -291,6 +291,36 @@ if(BUILD_TESTING)
         COMMAND janus check "${PROJECT_SOURCE_DIR}/examples/value.janus"
     )
     add_test(NAME lsp.version COMMAND janus-lsp --version)
+    add_executable(parser_top_level_declaration_test
+        tests/frontend/parser_top_level_declaration_test.cpp
+    )
+    target_link_libraries(parser_top_level_declaration_test PRIVATE janus_frontend)
+    target_compile_options(parser_top_level_declaration_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(
+        NAME parser.top_level_declaration
+        COMMAND parser_top_level_declaration_test
+    )
+    add_test(
+        NAME cli.check_top_level_val
+        COMMAND "${CMAKE_COMMAND}"
+                "-DJANUS=$<TARGET_FILE:janus>"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/parser/top_level_val.janus"
+                "-DKEYWORD=val"
+                -P "${PROJECT_SOURCE_DIR}/tests/frontend/run_top_level_declaration_cli.cmake"
+    )
+    add_test(
+        NAME cli.check_top_level_var
+        COMMAND "${CMAKE_COMMAND}"
+                "-DJANUS=$<TARGET_FILE:janus>"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/parser/top_level_var.janus"
+                "-DKEYWORD=var"
+                -P "${PROJECT_SOURCE_DIR}/tests/frontend/run_top_level_declaration_cli.cmake"
+    )
     add_executable(lsp_server_test
         tests/lsp/server_test.cpp
     )

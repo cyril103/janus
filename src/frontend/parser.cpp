@@ -187,6 +187,13 @@ ast::Program Parser::parse_program() {
       program.enums.push_back(parse_enum_declaration());
     else if (current_.kind == TokenKind::Class)
       program.classes.push_back(parse_class_declaration());
+    else if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var)
+      throw CompileError{
+          current_.location,
+          "top-level val/var declarations are not supported; found " +
+              std::string{token_name(current_.kind)} +
+              "; move the declaration into a function, or expose it through a "
+              "function."};
     else
       program.functions.push_back(parse_function_declaration());
   }

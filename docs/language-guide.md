@@ -39,6 +39,28 @@ var result : int
 result = 42
 ```
 
+Au niveau module, Janus accepte les déclarations de types et de fonctions, mais
+pas encore les variables globales. Une déclaration `val` ou `var` top-level doit
+être déplacée dans une fonction, ou exposée par une fonction.
+
+Invalide :
+
+```janus
+val answer : int = 42
+```
+
+Valide :
+
+```janus
+def answer() : int {
+    return 42
+}
+
+def main() : int {
+    return answer()
+}
+```
+
 Types primitifs :
 
 | Type | Utilisation |

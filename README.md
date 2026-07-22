@@ -142,6 +142,25 @@ def main() : int {
 }
 ```
 
+`val` et `var` sont des déclarations locales ou des champs de classe : Janus ne
+prend pas encore en charge les variables globales au niveau module. Déplacez
+ces déclarations dans une fonction, ou exposez une valeur calculée via une
+fonction.
+
+Invalide :
+
+```janus
+val answer : int = 42
+```
+
+Valide :
+
+```janus
+def answer() : int {
+    return 42
+}
+```
+
 Les principales fonctionnalités sont :
 
 - types primitifs : `int`, `double`, `byte`, `char`, `bool`, `string`,
