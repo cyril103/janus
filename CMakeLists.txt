@@ -110,6 +110,24 @@ target_compile_options(janus_semantic
         -Wpedantic
 )
 
+add_library(janus_diagnostics
+    src/diagnostics/high_growth_loop_linter.cpp
+)
+target_include_directories(janus_diagnostics
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+)
+target_link_libraries(janus_diagnostics
+    PUBLIC
+        janus_frontend
+)
+target_compile_options(janus_diagnostics
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+
 add_library(janus_llvm_backend
     src/backend/llvm/type_lowering.cpp
     src/backend/llvm/ir_generator.cpp
@@ -192,6 +210,7 @@ add_dependencies(janus janus_runtime)
 target_link_libraries(janus
     PRIVATE
         janus_driver
+        janus_diagnostics
         janus_semantic
         janus_llvm_backend
 )
@@ -350,6 +369,13 @@ if(BUILD_TESTING)
     add_test(
         NAME cli.run
         COMMAND janus run "${PROJECT_SOURCE_DIR}/examples/loop_jumps.janus"
+    )
+    add_test(
+        NAME cli.high_growth_loop_warnings
+        COMMAND "${CMAKE_COMMAND}"
+                "-DJANUS=$<TARGET_FILE:janus>"
+                "-DWORK_DIR=${PROJECT_BINARY_DIR}/high-growth-loop-cli"
+                -P "${PROJECT_SOURCE_DIR}/tests/diagnostics/run_high_growth_loop_cli.cmake"
     )
     add_test(
         NAME toolchain.install

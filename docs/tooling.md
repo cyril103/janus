@@ -25,6 +25,25 @@ janus build fichier.janus -o programme
 Les options `--emit llvm-ir` et `--emit object` arrêtent la compilation après
 la production de l'IR LLVM ou du fichier objet.
 
+## Diagnostics optionnels
+
+`janus check`, `janus build` et `janus run` acceptent
+`--warn-high-growth-loops`. Sans cette option, les sorties et le comportement de
+compilation restent inchangés.
+
+Avec l'option, Janus analyse l'AST après l'analyse sémantique et émet des
+warnings non bloquants pour les affectations dans une boucle où une variable
+est multipliée par elle-même ou par un facteur avant d'être réaffectée :
+`x = x * k`, `x = k * x`, et les formes additives directes comme
+`x = 3 * x + 1`. Ces patterns peuvent provoquer un overflow entier ou un temps
+d'exécution excessif ; ajoutez une borne explicite, choisissez un type numérique
+sûr, ou imposez un time budget.
+
+Limites actuelles : le diagnostic vise les affectations locales simples dans
+les corps de `while` et `for`. Il ne prouve pas les bornes de boucle, ne suit pas
+les alias/champs, et ne signale pas les multiplications hors boucle ni les
+inductions additives comme `i = i + 1`.
+
 ## Manifeste du projet
 
 Un projet est décrit par `janus.toml` :
