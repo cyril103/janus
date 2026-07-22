@@ -1,0 +1,21 @@
+def main() : int {
+    val intWrap : int = 2147483647 + 1
+    println(intWrap)
+    println(-(-2147483648))
+
+    val byteWrap : byte = byte(127) + byte(1)
+    println(byteWrap)
+    println(byte(130))
+
+    println(int(usize(0) - usize(1)))
+    println(usize(-1))
+
+    println(-7 / 3)
+    println(-7 % 3)
+    println(7 % -3)
+
+    val max : usize = usize(0) - usize(1)
+    println(max / usize(2))
+    println(max % usize(2))
+    return 0
+}

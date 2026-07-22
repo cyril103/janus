@@ -1,0 +1,5 @@
+def main() : int {
+    val numerator : usize = usize(1)
+    val denominator : usize = usize(0)
+    return int(numerator % denominator)
+}

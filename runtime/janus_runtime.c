@@ -23,8 +23,8 @@ void janus_write_stdout(const char *data, uint64_t size) {
 
 void janus_print_int(int32_t value) { (void)fprintf(stdout, "%" PRId32, value); }
 
-void janus_print_byte(int8_t value) {
-  (void)fprintf(stdout, "%" PRId8, value);
+void janus_print_byte(int32_t value) {
+  (void)fprintf(stdout, "%" PRId32, value);
 }
 
 void janus_print_usize(uint64_t value) {
