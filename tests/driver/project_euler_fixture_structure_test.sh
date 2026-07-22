@@ -122,6 +122,68 @@ while [ "$number" -le 20 ]; do
   number=$((number + 1))
 done
 
+problem14_production="$FIXTURE_DIR/production/problem14.janus"
+problem14_chain="$(sed -n '/^def chain_length/,/^def solve/p' "$problem14_production" | sed 's|//.*||')"
+problem14_solve="$(sed -n '/^def solve/,/^def main/p' "$problem14_production" | sed 's|//.*||')"
+problem14_chain_compact="$(printf '%s' "$problem14_chain" | tr -d '[:space:]')"
+problem14_solve_compact="$(printf '%s' "$problem14_solve" | tr -d '[:space:]')"
+
+case "$problem14_chain_compact" in
+  'defchain_length(start:usize,max_steps:int):int{'*) ;;
+  *)
+    echo "problem 14 production chain_length must accept an explicit max_steps budget" >&2
+    exit 1
+    ;;
+esac
+
+case "$problem14_chain_compact" in
+  *'whilevalue!=usize(1)&&steps<max_steps{'*) ;;
+  *)
+    echo "problem 14 production Collatz loop must be bounded by value != 1 and steps < max_steps" >&2
+    exit 1
+    ;;
+esac
+
+case "$problem14_chain_compact" in
+  *'steps=steps+1'*) ;;
+  *)
+    echo "problem 14 production chain_length must advance its step budget" >&2
+    exit 1
+    ;;
+esac
+
+case "$problem14_chain_compact" in
+  *'ifvalue!=usize(1){return0}'*) ;;
+  *)
+    echo "problem 14 production chain_length must return 0 when the step budget is exhausted" >&2
+    exit 1
+    ;;
+esac
+
+case "$problem14_solve_compact" in
+  *'varmax_steps:int=1000'*'chain_length(candidate,max_steps)'*) ;;
+  *)
+    echo "problem 14 production solve must pass an explicit safe step budget" >&2
+    exit 1
+    ;;
+esac
+
+case "$problem14_solve_compact" in
+  *'varcandidate:usize=usize(500000)'*) ;;
+  *)
+    echo "problem 14 production search must start at the safe pruned lower bound 500000" >&2
+    exit 1
+    ;;
+esac
+
+case "$problem14_solve_compact" in
+  *'whilecandidate<usize(1000000)'*) ;;
+  *)
+    echo "problem 14 production search must keep the upper bound below 1000000" >&2
+    exit 1
+    ;;
+esac
+
 if grep -Eiq 'placeholder|deferred|canonical answer|winning window|winning diagonal|precomputed|hardcoded' "$FIXTURE_DIR"/production/problem*.janus; then
   echo "production sources must not contain placeholder or precomputed markers" >&2
   exit 1
