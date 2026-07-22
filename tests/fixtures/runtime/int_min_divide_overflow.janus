@@ -1,0 +1,5 @@
+def main() : int {
+    val numerator : int = -2147483648
+    val denominator : int = -1
+    return numerator / denominator
+}

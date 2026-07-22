@@ -74,11 +74,39 @@ Types primitifs :
 | `usize` | taille ou adresse non signée |
 | `Unit` | fonction qui ne retourne aucune valeur |
 
+Les entiers ont une taille fixe et portable :
+
+| Type | Plage |
+| --- | --- |
+| `byte` | `-128` à `127` |
+| `int` | `-2147483648` à `2147483647` |
+| `usize` | `0` à `18446744073709551615` |
+
+Les littéraux entiers sans cast ont le type `int`. La plage complète de `int`
+est acceptée, y compris `-2147483648`; `2147483648` et `-2147483649` sont
+rejetés. Un `usize` supérieur à `2147483647` doit venir d'un calcul ou d'un cast
+explicite.
+
+Pour `byte`, `int` et `usize`, les opérations `+`, `-`, `*` et le moins unaire
+s'enroulent modulo `2^largeur` (`2^8`, `2^32` ou `2^64`). Les casts
+entier-vers-entier conservent les bits de poids faible lors d'un rétrécissement;
+l'élargissement étend le signe depuis une source signée (`byte`, `int`) et
+étend avec des zéros depuis une source non signée (`usize`, `char`, `bool`).
+
+La division signée `/` tronque vers zéro et le reste signé `%` prend le signe du
+dividende. `usize /` et `usize %` utilisent les règles non signées. Diviser ou
+prendre le reste par zéro provoque un `panic` déterministe. Pour les types
+signés, `MIN / -1` et `MIN % -1` provoquent aussi un `panic` déterministe.
+
 Janus ne convertit pas automatiquement `int` en `double`. Utilisez un cast :
 
 ```janus
 val ratio : double = double(5) / 2.0
 ```
+
+Les casts depuis `double` vers un entier sont définis seulement pour les valeurs
+finies, représentables dans le type cible après troncature vers zéro. Les autres
+cas ne sont pas vérifiés par le langage.
 
 ## Sortie canonique
 
@@ -125,11 +153,10 @@ telles quelles, sans guillemets ajoutés. Les `double` sont imprimés avec un
 format flottant stable du runtime ; ne les utilisez pas comme représentation
 d'entiers lorsque la précision peut être perdue.
 
-Les littéraux entiers Janus sont actuellement limités à la plage signée 32 bits.
-Un `usize` supérieur à `2147483647` doit donc venir d'un calcul ou d'un cast
-explicite depuis une autre valeur. Si vous casteez depuis un `double`, choisissez
-uniquement une valeur entière exactement représentable, comme `2147483648.0`, et
-n'en déduisez pas une garantie pour tous les grands entiers.
+Les littéraux entiers Janus sans cast sont limités à la plage de `int`. Si vous
+casteez depuis un `double`, choisissez uniquement une valeur entière finie et
+représentable après troncature, comme `2147483648.0`, et n'en déduisez pas une
+garantie pour tous les grands entiers.
 
 ## Fonctions et généricité
 

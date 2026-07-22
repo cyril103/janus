@@ -906,6 +906,27 @@ ast::Expression Parser::parse_unary() {
   if (current_.kind == TokenKind::Minus || current_.kind == TokenKind::Bang) {
     const Token operation = current_;
     advance();
+    if (operation.kind == TokenKind::Minus &&
+        current_.kind == TokenKind::IntegerLiteral) {
+      const Token literal = current_;
+      std::uint64_t magnitude{};
+      const auto result = std::from_chars(
+          literal.lexeme.data(), literal.lexeme.data() + literal.lexeme.size(),
+          magnitude);
+      constexpr std::uint64_t minimum_magnitude =
+          static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max()) +
+          1;
+      if (result.ec == std::errc{} && magnitude == minimum_magnitude) {
+        advance();
+        return ast::IntegerLiteralExpression{
+            std::numeric_limits<std::int32_t>::min(), operation.location};
+      }
+      if (result.ec != std::errc{} || magnitude > minimum_magnitude) {
+        throw CompileError{
+            literal.location,
+            "integer literal is outside the signed 32-bit range"};
+      }
+    }
     return ast::UnaryExpression{
         operation.kind == TokenKind::Minus ? ast::UnaryOperator::Negate
                                            : ast::UnaryOperator::LogicalNot,

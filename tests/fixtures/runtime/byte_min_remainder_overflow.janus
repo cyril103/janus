@@ -1,0 +1,5 @@
+def main() : int {
+    val numerator : byte = -128
+    val denominator : byte = byte(-1)
+    return int(numerator % denominator)
+}

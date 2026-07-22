@@ -14,6 +14,7 @@
 #include <variant>
 #include <vector>
 
+#include <llvm/ADT/APInt.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
@@ -1218,6 +1219,73 @@ private:
         expression.value);
   }
 
+  void emit_integer_panic(std::string_view message,
+                          ::llvm::IRBuilder<> &builder) {
+    ::llvm::Value *data =
+        builder.CreateGlobalStringPtr(message, "integer.panic.message");
+    ::llvm::FunctionCallee panic_function = module_->getOrInsertFunction(
+        "janus_panic",
+        ::llvm::FunctionType::get(builder.getVoidTy(),
+                                  {builder.getPtrTy(), builder.getInt64Ty()},
+                                  false));
+    builder.CreateCall(panic_function,
+                       {data, builder.getInt64(message.size())});
+    builder.CreateUnreachable();
+  }
+
+  ::llvm::Value *
+  emit_integer_division(::llvm::Value *left, ::llvm::Value *right,
+                        const janus::Type &operand_type, bool is_remainder,
+                        bool is_unsigned, ::llvm::IRBuilder<> &builder) {
+    ::llvm::Value *zero = ::llvm::ConstantInt::get(right->getType(), 0, false);
+    ::llvm::Value *divides_by_zero =
+        builder.CreateICmpEQ(right, zero, "integer.division.zero");
+
+    ::llvm::Function *function = builder.GetInsertBlock()->getParent();
+    auto *zero_trap_block =
+        ::llvm::BasicBlock::Create(context_, "integer.division.zero_trap",
+                                   function);
+    auto *valid_block =
+        ::llvm::BasicBlock::Create(context_, "integer.division.valid");
+
+    if (is_unsigned) {
+      builder.CreateCondBr(divides_by_zero, zero_trap_block, valid_block);
+    } else {
+      auto *overflow_check_block = ::llvm::BasicBlock::Create(
+          context_, "integer.division.overflow_check", function);
+      builder.CreateCondBr(divides_by_zero, zero_trap_block,
+                           overflow_check_block);
+
+      builder.SetInsertPoint(overflow_check_block);
+      const unsigned width = operand_type.bit_width();
+      ::llvm::Value *minimum = ::llvm::ConstantInt::get(
+          right->getType(), ::llvm::APInt::getSignedMinValue(width));
+      ::llvm::Value *minus_one =
+          ::llvm::ConstantInt::get(right->getType(), -1, true);
+      ::llvm::Value *overflows = builder.CreateAnd(
+          builder.CreateICmpEQ(left, minimum, "integer.division.min"),
+          builder.CreateICmpEQ(right, minus_one, "integer.division.minus_one"),
+          "integer.division.overflow");
+      auto *overflow_trap_block = ::llvm::BasicBlock::Create(
+          context_, "integer.division.overflow_trap", function);
+      builder.CreateCondBr(overflows, overflow_trap_block, valid_block);
+
+      builder.SetInsertPoint(overflow_trap_block);
+      emit_integer_panic("integer division overflow\n", builder);
+    }
+
+    builder.SetInsertPoint(zero_trap_block);
+    emit_integer_panic("integer division by zero\n", builder);
+
+    function->insert(function->end(), valid_block);
+    builder.SetInsertPoint(valid_block);
+    if (is_remainder)
+      return is_unsigned ? builder.CreateURem(left, right, "rem")
+                         : builder.CreateSRem(left, right, "rem");
+    return is_unsigned ? builder.CreateUDiv(left, right, "div")
+                       : builder.CreateSDiv(left, right, "div");
+  }
+
   ::llvm::Value *
   emit_expression(const janus::ast::Expression &expression,
                   const janus::Type &expected_type,
@@ -1337,8 +1405,10 @@ private:
                 ::llvm::FunctionCallee function = module_->getOrInsertFunction(
                     "janus_print_byte",
                     ::llvm::FunctionType::get(
-                        builder.getVoidTy(), {builder.getInt8Ty()}, false));
-                result = builder.CreateCall(function, {argument});
+                        builder.getVoidTy(), {builder.getInt32Ty()}, false));
+                ::llvm::Value *signed_argument = builder.CreateSExt(
+                    argument, builder.getInt32Ty(), "print.byte.signed");
+                result = builder.CreateCall(function, {signed_argument});
                 break;
               }
               case janus::TypeKind::USize: {
@@ -2043,13 +2113,13 @@ private:
                                : builder.CreateMul(left, right, "mul");
             case janus::ast::BinaryOperator::Divide:
               return is_double ? builder.CreateFDiv(left, right, "div")
-                     : is_unsigned_integer
-                         ? builder.CreateUDiv(left, right, "div")
-                         : builder.CreateSDiv(left, right, "div");
+                               : emit_integer_division(left, right,
+                                                       operand_type, false,
+                                                       is_unsigned_integer,
+                                                       builder);
             case janus::ast::BinaryOperator::Remainder:
-              return is_unsigned_integer
-                         ? builder.CreateURem(left, right, "rem")
-                         : builder.CreateSRem(left, right, "rem");
+              return emit_integer_division(left, right, operand_type, true,
+                                           is_unsigned_integer, builder);
             case janus::ast::BinaryOperator::Less:
               if (is_double)
                 return builder.CreateFCmpOLT(left, right, "cmp");

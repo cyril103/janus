@@ -668,6 +668,72 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.primitive_operations COMMAND primitive_operations_test)
 
+    add_executable(integer_boundary_test
+        tests/language/integer_boundary_test.cpp
+    )
+    target_link_libraries(integer_boundary_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(integer_boundary_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.integer_boundary COMMAND integer_boundary_test)
+    add_test(
+        NAME runtime.integer_boundary
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/integer_boundary.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/integer_boundary_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/integer_boundary.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    foreach(trap_case
+            byte_divide_by_zero
+            byte_remainder_by_zero
+            int_divide_by_zero
+            int_remainder_by_zero
+            usize_divide_by_zero
+            usize_remainder_by_zero)
+        add_test(
+            NAME runtime.${trap_case}
+            COMMAND
+                ${CMAKE_COMMAND}
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DCLANG=${CLANG_EXECUTABLE}"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/${trap_case}.janus"
+                "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+                "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/${trap_case}"
+                "-DEXPECTED_ERROR=integer division by zero"
+                -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+        )
+    endforeach()
+    foreach(trap_case
+            byte_min_divide_overflow
+            byte_min_remainder_overflow
+            int_min_divide_overflow
+            int_min_remainder_overflow)
+        add_test(
+            NAME runtime.${trap_case}
+            COMMAND
+                ${CMAKE_COMMAND}
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DCLANG=${CLANG_EXECUTABLE}"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/${trap_case}.janus"
+                "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+                "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/${trap_case}"
+                "-DEXPECTED_ERROR=integer division overflow"
+                -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+        )
+    endforeach()
+
     add_executable(generic_class_test
         tests/language/generic_class_test.cpp
     )
