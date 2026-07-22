@@ -1,0 +1,4 @@
+[package]
+name = "project-euler-fixtures"
+version = "0.1.0"
+entry = "smoke/problem1.janus"

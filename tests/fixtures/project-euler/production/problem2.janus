@@ -1,0 +1,19 @@
+def solve() : int {
+    var previous : int = 1
+    var current : int = 2
+    var sum : int = 0
+    while current <= 4000000 {
+        if current % 2 == 0 {
+            sum = sum + current
+        }
+        val next : int = previous + current
+        previous = current
+        current = next
+    }
+    return sum
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}

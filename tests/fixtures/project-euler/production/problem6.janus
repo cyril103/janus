@@ -1,0 +1,16 @@
+def solve() : int {
+    var sum : int = 0
+    var squares : int = 0
+    var value : int = 1
+    while value <= 100 {
+        sum = sum + value
+        squares = squares + value * value
+        value = value + 1
+    }
+    return sum * sum - squares
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}

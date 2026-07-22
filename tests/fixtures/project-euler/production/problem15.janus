@@ -1,0 +1,14 @@
+def solve() : double {
+    var result : double = 1.0
+    var step : int = 1
+    while step <= 20 {
+        result = result * double(20 + step) / double(step)
+        step = step + 1
+    }
+    return result
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}

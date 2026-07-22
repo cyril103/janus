@@ -1,0 +1,55 @@
+def is_leap(year : int) : bool {
+    if year % 400 == 0 {
+        return true
+    }
+    if year % 100 == 0 {
+        return false
+    }
+    return year % 4 == 0
+}
+
+def month_days(year : int, month : int) : int {
+    if month == 2 {
+        if is_leap(year) {
+            return 29
+        }
+        return 28
+    }
+    if month == 4 || month == 6 || month == 9 || month == 11 {
+        return 30
+    }
+    return 31
+}
+
+def solve() : int {
+    var day : int = 1
+    var year : int = 1900
+    var month : int = 1
+    while year < 1901 {
+        day = (day + month_days(year, month)) % 7
+        month = month + 1
+        if month > 12 {
+            month = 1
+            year = year + 1
+        }
+    }
+
+    var count : int = 0
+    while year <= 2000 {
+        if day == 0 {
+            count = count + 1
+        }
+        day = (day + month_days(year, month)) % 7
+        month = month + 1
+        if month > 12 {
+            month = 1
+            year = year + 1
+        }
+    }
+    return count
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}

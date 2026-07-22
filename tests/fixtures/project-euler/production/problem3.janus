@@ -1,0 +1,29 @@
+def solve() : usize {
+    var remaining : usize = usize(600851475143.0)
+    var factor : usize = usize(2)
+    var largest : usize = usize(1)
+
+    while factor * factor <= remaining {
+        if remaining % factor == usize(0) {
+            largest = factor
+            while remaining % factor == usize(0) {
+                remaining = remaining / factor
+            }
+        }
+        if factor == usize(2) {
+            factor = usize(3)
+        } else {
+            factor = factor + usize(2)
+        }
+    }
+
+    if remaining > largest {
+        largest = remaining
+    }
+    return largest
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}

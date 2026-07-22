@@ -1,0 +1,16 @@
+import std.range
+
+def solve() : int {
+    var sum : int = 0
+    for value in range(1, 1000) {
+        if value % 3 == 0 || value % 5 == 0 {
+            sum = sum + value
+        }
+    }
+    return sum
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}

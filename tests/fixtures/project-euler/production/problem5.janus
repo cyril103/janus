@@ -1,0 +1,29 @@
+import std.range
+
+def gcd(left : int, right : int) : int {
+    var a : int = left
+    var b : int = right
+    while b != 0 {
+        val remainder : int = a % b
+        a = b
+        b = remainder
+    }
+    return a
+}
+
+def lcm(left : int, right : int) : int {
+    return (left / gcd(left, right)) * right
+}
+
+def solve() : int {
+    var result : int = 1
+    for value in range(2, 21) {
+        result = lcm(result, value)
+    }
+    return result
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}

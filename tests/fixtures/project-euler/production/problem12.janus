@@ -1,0 +1,29 @@
+def divisor_count(value : int) : int {
+    var count : int = 0
+    var divisor : int = 1
+    while divisor * divisor <= value {
+        if value % divisor == 0 {
+            count = count + 2
+            if divisor * divisor == value {
+                count = count - 1
+            }
+        }
+        divisor = divisor + 1
+    }
+    return count
+}
+
+def solve() : int {
+    var index : int = 1
+    var triangle : int = 1
+    while divisor_count(triangle) <= 500 {
+        index = index + 1
+        triangle = triangle + index
+    }
+    return triangle
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}

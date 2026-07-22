@@ -1,0 +1,35 @@
+import std.array
+
+def solve() : int {
+    val digits : Array[int] = new Array[int](usize(200))
+    defer delete digits
+    digits.push(1)
+
+    var factor : int = 2
+    while factor <= 100 {
+        var carry : int = 0
+        var index : usize = usize(0)
+        while index < digits.size() {
+            val value : int = digits.get(index) * factor + carry
+            digits.set(index, value % 10)
+            carry = value / 10
+            index = index + usize(1)
+        }
+        while carry > 0 {
+            digits.push(carry % 10)
+            carry = carry / 10
+        }
+        factor = factor + 1
+    }
+
+    var sum : int = 0
+    for digit in digits {
+        sum = sum + digit
+    }
+    return sum
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}
