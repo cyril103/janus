@@ -29,12 +29,21 @@ touch "$PROJECT/src/problem1.janus" "$PROJECT/src/problem2.janus" \
   "$PROJECT/src/problem5.janus" "$PROJECT/src/problem6.janus" \
   "$PROJECT/src/problem7.janus" "$PROJECT/src/problem8.janus" \
   "$PROJECT/src/problem9.janus" "$PROJECT/src/problem10.janus" \
-  "$PROJECT/src/problem11.janus"
+  "$PROJECT/src/problem11.janus" "$PROJECT/src/problem12.janus" \
+  "$PROJECT/src/problem13.janus" "$PROJECT/src/problem14.janus" \
+  "$PROJECT/src/problem15.janus" "$PROJECT/src/problem16.janus" \
+  "$PROJECT/src/problem17.janus"
+mkdir -p "$PROJECT/smoke"
+touch "$PROJECT/smoke/problem12.janus" "$PROJECT/smoke/problem13.janus" \
+  "$PROJECT/smoke/problem14.janus" "$PROJECT/smoke/problem15.janus" \
+  "$PROJECT/smoke/problem16.janus" "$PROJECT/smoke/problem17.janus"
 printf '233168\n' > "$PROJECT/expected/problem1.txt"
 printf '4613732\n' > "$PROJECT/expected/problem2.txt"
 printf '6857\n' > "$PROJECT/expected/problem3.txt"
 printf '906609\n' > "$PROJECT/expected/problem4.txt"
 printf '0\n' > "$PROJECT/expected/problem5.txt"
+printf 'stable-fallback\n' > "$PROJECT/expected/problem12.txt"
+printf 'stable-fallback\n' > "$PROJECT/expected/problem16.txt"
 
 cat > "$CONFIG" <<'EOF'
 1|src/problem1.janus|expected/problem1.txt
@@ -144,6 +153,81 @@ RUNNER
 #!/bin/sh
 echo 'stack: problem11.janus:11' >&2
 kill -SEGV "$$"
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *src/problem12.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+printf 'unstable-primary\n'
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *smoke/problem12.janus|*src/problem13.janus|*smoke/problem13.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+printf 'stable-fallback\n'
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *src/problem14.janus|*smoke/problem14.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+printf 'still-wrong\n'
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *src/problem15.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+printf 'unstable-primary\n'
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *smoke/problem15.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+echo 'stack: problem15.janus:15' >&2
+kill -SEGV "$$"
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *src/problem16.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+sleep 2
+printf 'unstable-primary\n'
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *smoke/problem16.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+sleep 2
+printf 'stable-fallback\n'
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *src/problem17.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+printf 'primary-with-missing-expected\n'
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *smoke/problem17.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+printf 'stable-fallback\n'
 RUNNER
       chmod +x "$output"
       exit 0
@@ -272,6 +356,121 @@ else:
     assert result["signal_number"] == 11, result
     assert result["segfault"] is True, result
     assert "problem%d.janus" % problem in result["stack_excerpt"], result
+PY
+}
+
+assert_safe_result() {
+  report="$1"
+  problem="$2"
+  status="$3"
+  primary_status="$4"
+  fallback_status="$5"
+  fallback_used="$6"
+  "$json_python" - "$report" "$problem" "$status" "$primary_status" \
+    "$fallback_status" "$fallback_used" <<'PY'
+import json
+import sys
+
+report, problem, status, primary_status, fallback_status, fallback_used = (
+    sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5],
+    sys.argv[6] == "true"
+)
+with open(report, "r", encoding="utf-8") as handle:
+    payload = json.load(handle)
+matches = [item for item in payload["results"] if item["problem"] == problem]
+assert len(matches) == 1, matches
+result = matches[0]
+assert result["status"] == status, result
+assert result["fallback_used"] is fallback_used, result
+assert result["primary"]["status"] == primary_status, result
+if fallback_status == "none":
+    assert result.get("fallback") is None, result
+else:
+    assert result["fallback"]["status"] == fallback_status, result
+summary = payload["summary"]
+assert "total" in summary and "ok" in summary and "failed" in summary, summary
+PY
+}
+
+assert_safe_top_level_telemetry() {
+  report="$1"
+  problem="$2"
+  expected_status="$3"
+  expected_stage="$4"
+  expected_source="$5"
+  expected_signal="$6"
+  expected_exit="$7"
+  "$json_python" - "$report" "$problem" "$expected_status" "$expected_stage" \
+    "$expected_source" "$expected_signal" "$expected_exit" <<'PY'
+import json
+import sys
+
+report, problem, status, stage, source_name, signal_name, exit_code = (
+    sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5],
+    sys.argv[6], int(sys.argv[7])
+)
+with open(report, "r", encoding="utf-8") as handle:
+    result = next(item for item in json.load(handle)["results"] if item["problem"] == problem)
+assert result["status"] == status, result
+assert result["stage"] == stage, result
+assert result["termination"] == ("signal" if signal_name != "none" else "exit"), result
+assert result["conventional_exit_code"] == exit_code, result
+assert result["source"].endswith(source_name), result
+assert result["executable"], result
+assert result["stdout_log"].endswith("%s.stdout" % stage), result
+assert result["stderr_log"].endswith("%s.stderr" % stage), result
+if signal_name == "none":
+    assert result["signal_name"] is None, result
+    assert result["signal_number"] is None, result
+else:
+    assert result["signal_name"] == signal_name, result
+    assert result["signal_number"] == 11, result
+    assert result["segfault"] is True, result
+    assert source_name.rsplit("/", 1)[-1] in result["stack_excerpt"], result
+PY
+}
+
+assert_safe_top_level_output() {
+  report="$1"
+  problem="$2"
+  expected_actual="$3"
+  expected_expected="$4"
+  "$json_python" - "$report" "$problem" "$expected_actual" "$expected_expected" <<'PY'
+import json
+import sys
+
+report, problem, expected_actual, expected_expected = (
+    sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+)
+with open(report, "r", encoding="utf-8") as handle:
+    result = next(item for item in json.load(handle)["results"] if item["problem"] == problem)
+assert result["actual"] == expected_actual + "\n", result
+assert result["expected"] == expected_expected + "\n", result
+PY
+}
+
+assert_safe_shared_deadline() {
+  report="$1"
+  problem="$2"
+  timeout_budget="$3"
+  tolerance="$4"
+  "$json_python" - "$report" "$problem" "$timeout_budget" "$tolerance" <<'PY'
+import json
+import sys
+
+report, problem, budget, tolerance = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
+with open(report, "r", encoding="utf-8") as handle:
+    result = next(item for item in json.load(handle)["results"] if item["problem"] == problem)
+assert result["fallback_used"] is True, result
+assert result["status"] == "timeout", result
+assert result["timeout"] is True, result
+assert result["primary"]["status"] != "ok", result
+assert result["fallback"]["status"] == "timeout", result
+assert result["duration_seconds"] <= budget + tolerance, result
+assert result["primary"]["duration_seconds"] <= budget + tolerance, result
+assert result["fallback"]["duration_seconds"] <= budget + tolerance, result
+assert result["duration_seconds"] >= result["primary"]["duration_seconds"], result
+assert result["duration_seconds"] >= result["fallback"]["duration_seconds"], result
 PY
 }
 
@@ -605,6 +804,213 @@ if ! grep -q '"status":"mismatch"' "$mismatch_run_dir/report.json" ||
 fi
 if ! grep -q 'wrong' "$mismatch_run_dir/problems/2/run.stdout"; then
   echo "verify test: failed artifact did not retain run stdout" >&2
+  exit 1
+fi
+
+cat > "$WORK/safe-primary.txt" <<'EOF'
+12|src/problem12.janus|expected/problem12.txt
+13|src/problem13.janus|expected/problem12.txt
+14|src/problem14.janus|expected/problem12.txt
+15|src/problem15.janus|expected/problem12.txt
+16|src/problem16.janus|expected/problem16.txt
+17|src/problem17.janus|expected/missing-primary.txt
+EOF
+cat > "$WORK/safe-fallback.txt" <<'EOF'
+12|smoke/problem12.janus|expected/problem12.txt
+13|smoke/problem13.janus|expected/problem12.txt
+14|smoke/problem14.janus|expected/problem12.txt
+15|smoke/problem15.janus|expected/problem12.txt
+16|smoke/problem16.janus|expected/problem16.txt
+17|smoke/problem17.janus|expected/problem12.txt
+EOF
+cat > "$WORK/safe-incomplete.txt" <<'EOF'
+12|smoke/problem12.janus|expected/problem12.txt
+EOF
+cat > "$WORK/safe-malformed.txt" <<'EOF'
+12|smoke/problem12.janus
+EOF
+cat > "$WORK/safe-bad-expected.txt" <<'EOF'
+12|smoke/problem12.janus|expected/problem1.txt
+13|smoke/problem13.janus|expected/problem12.txt
+14|smoke/problem14.janus|expected/problem12.txt
+EOF
+cat > "$WORK/safe-trailing-malformed.txt" <<'EOF'
+12|smoke/problem12.janus|expected/problem12.txt
+13|smoke/problem13.janus|expected/problem12.txt
+14|smoke/problem14.janus|expected/problem12.txt
+15|smoke/problem15.janus|expected/problem12.txt
+16|smoke/problem16.janus|expected/problem16.txt
+17|smoke/problem17.janus|expected/problem12.txt
+99|smoke/problem99.janus
+EOF
+cat > "$WORK/safe-duplicate.txt" <<'EOF'
+12|smoke/problem12.janus|expected/problem12.txt
+12|smoke/problem12.janus|expected/problem12.txt
+13|smoke/problem13.janus|expected/problem12.txt
+14|smoke/problem14.janus|expected/problem12.txt
+15|smoke/problem15.janus|expected/problem12.txt
+16|smoke/problem16.janus|expected/problem16.txt
+17|smoke/problem17.janus|expected/problem12.txt
+EOF
+
+PATH="$FAKE_BIN:/usr/bin:/bin" \
+JANUS_FAKE_PROJECT="$PROJECT" \
+  "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+    --safe-fallback "$WORK/safe-fallback.txt" --problem 12 \
+    > "$WORK/safe-fallback-ok.out" 2> "$WORK/safe-fallback-ok.err"
+assert_safe_result "$WORK/safe-fallback-ok.out" 12 fallback mismatch ok true
+if ! grep -q -- '--warn-high-growth-loops' "$PROJECT/log/janus.log"; then
+  echo "verify test: safe mode did not add loop growth warnings to primary check" >&2
+  exit 1
+fi
+if ! grep -q 'primary failed: mismatch' "$WORK/safe-fallback-ok.err" ||
+   ! grep -q 'problem 12 .* fallback' "$WORK/safe-fallback-ok.err"; then
+  echo "verify test: safe fallback did not preserve primary diagnostics" >&2
+  exit 1
+fi
+if ! grep -q '"fallback_used":1' "$WORK/safe-fallback-ok.out" ||
+   ! grep -q '"primary_failed":1' "$WORK/safe-fallback-ok.out"; then
+  echo "verify test: safe fallback summary counters missing" >&2
+  exit 1
+fi
+
+PATH="$FAKE_BIN:/usr/bin:/bin" \
+JANUS_FAKE_PROJECT="$PROJECT" \
+  "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+    --safe-fallback "$WORK/safe-fallback.txt" --problem 17 \
+    > "$WORK/safe-missing-primary-expected.out" \
+    2> "$WORK/safe-missing-primary-expected.err"
+assert_safe_result "$WORK/safe-missing-primary-expected.out" 17 fallback error ok true
+if ! grep -q 'primary failed: error' "$WORK/safe-missing-primary-expected.err" ||
+   ! grep -q 'problem 17 .* fallback' "$WORK/safe-missing-primary-expected.err"; then
+  echo "verify test: missing primary expected did not fall back with diagnostics" >&2
+  exit 1
+fi
+
+log_before="$(wc -l < "$PROJECT/log/janus.log")"
+PATH="$FAKE_BIN:/usr/bin:/bin" \
+JANUS_FAKE_PROJECT="$PROJECT" \
+  "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+    --safe-fallback "$WORK/safe-fallback.txt" --problem 13 \
+    > "$WORK/safe-primary-ok.out" 2> "$WORK/safe-primary-ok.err"
+assert_safe_result "$WORK/safe-primary-ok.out" 13 ok ok none false
+log_after="$(wc -l < "$PROJECT/log/janus.log")"
+if [ $((log_after - log_before)) -ne 2 ]; then
+  echo "verify test: safe mode ran fallback even though primary succeeded" >&2
+  exit 1
+fi
+
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+       --safe-fallback "$WORK/safe-fallback.txt" --problem 14 \
+       > "$WORK/safe-both-fail.out" 2> "$WORK/safe-both-fail.err"; then
+  echo "verify test: failed fallback should keep verifier nonzero" >&2
+  exit 1
+fi
+assert_safe_result "$WORK/safe-both-fail.out" 14 mismatch mismatch mismatch true
+assert_safe_top_level_output "$WORK/safe-both-fail.out" 14 \
+  "still-wrong" "stable-fallback"
+
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+       --safe-fallback "$WORK/safe-fallback.txt" --problem 15 \
+       > "$WORK/safe-fallback-segfault.out" 2> "$WORK/safe-fallback-segfault.err"; then
+  echo "verify test: segfaulting fallback should keep verifier nonzero" >&2
+  exit 1
+fi
+assert_safe_result "$WORK/safe-fallback-segfault.out" 15 segfault mismatch segfault true
+assert_safe_top_level_telemetry "$WORK/safe-fallback-segfault.out" 15 \
+  segfault run smoke/problem15.janus SIGSEGV 139
+
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+       --safe-fallback "$WORK/safe-fallback.txt" --problem 16 --timeout 3 \
+       > "$WORK/safe-shared-timeout.out" 2> "$WORK/safe-shared-timeout.err"; then
+  echo "verify test: fallback should not receive a reset per-problem timeout" >&2
+  exit 1
+fi
+assert_safe_shared_deadline "$WORK/safe-shared-timeout.out" 16 3 2
+
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+       --safe-fallback "$WORK/safe-fallback.txt" --problem 16 --timeout 1 \
+       > "$WORK/safe-immediate-deadline.out" \
+       2> "$WORK/safe-immediate-deadline.err"; then
+  echo "verify test: exhausted shared deadline should fail" >&2
+  exit 1
+fi
+assert_safe_shared_deadline "$WORK/safe-immediate-deadline.out" 16 1 2
+
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+       --safe-fallback "$WORK/safe-incomplete.txt" --all \
+       > "$WORK/safe-incomplete.out" 2> "$WORK/safe-incomplete.err"; then
+  echo "verify test: incomplete fallback config should be rejected" >&2
+  exit 1
+fi
+if ! grep -q 'fallback config missing problem' "$WORK/safe-incomplete.err"; then
+  echo "verify test: incomplete fallback config error was not clear" >&2
+  exit 1
+fi
+
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+       --safe-fallback "$WORK/safe-malformed.txt" --problem 12 \
+       > "$WORK/safe-malformed.out" 2> "$WORK/safe-malformed.err"; then
+  echo "verify test: malformed fallback config should be rejected" >&2
+  exit 1
+fi
+if ! grep -q 'invalid config line' "$WORK/safe-malformed.err"; then
+  echo "verify test: malformed fallback config error was not clear" >&2
+  exit 1
+fi
+
+log_before="$(wc -l < "$PROJECT/log/janus.log")"
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+       --safe-fallback "$WORK/safe-trailing-malformed.txt" --problem 12 \
+       > "$WORK/safe-trailing-malformed.out" \
+       2> "$WORK/safe-trailing-malformed.err"; then
+  echo "verify test: trailing malformed fallback config should be rejected" >&2
+  exit 1
+fi
+log_after="$(wc -l < "$PROJECT/log/janus.log")"
+if ! grep -q 'invalid config line' "$WORK/safe-trailing-malformed.err" ||
+   [ "$log_after" -ne "$log_before" ]; then
+  echo "verify test: trailing malformed fallback config was not rejected before execution" >&2
+  exit 1
+fi
+
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+       --safe-fallback "$WORK/safe-duplicate.txt" --problem 12 \
+       > "$WORK/safe-duplicate.out" 2> "$WORK/safe-duplicate.err"; then
+  echo "verify test: duplicate fallback config problem should be rejected" >&2
+  exit 1
+fi
+if ! grep -q 'duplicate problem in fallback config: 12' "$WORK/safe-duplicate.err"; then
+  echo "verify test: duplicate fallback config error was not clear" >&2
+  exit 1
+fi
+
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/safe-primary.txt" \
+       --safe-fallback "$WORK/safe-bad-expected.txt" --problem 12 \
+       > "$WORK/safe-bad-expected.out" 2> "$WORK/safe-bad-expected.err"; then
+  echo "verify test: fallback expected mismatch should be rejected" >&2
+  exit 1
+fi
+if ! grep -q 'fallback expected output does not match primary' "$WORK/safe-bad-expected.err"; then
+  echo "verify test: fallback expected mismatch error was not clear" >&2
   exit 1
 fi
 

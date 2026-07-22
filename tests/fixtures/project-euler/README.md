@@ -31,7 +31,22 @@ scripts/verify-janus-euler-suite.sh \
   --timeout 60 \
   --global-timeout 900 \
   --artifacts-dir /tmp/janus-euler-production-artifacts
+
+scripts/verify-janus-euler-suite.sh \
+  --project tests/fixtures/project-euler \
+  --config tests/fixtures/project-euler/production.txt \
+  --safe-fallback tests/fixtures/project-euler/smoke.txt \
+  --janus /path/to/janus \
+  --all \
+  --timeout 60 \
+  --global-timeout 900 \
+  --artifacts-dir /tmp/janus-euler-production-safe-artifacts
 ```
+
+The production-to-smoke safe command is diagnostic/degraded coverage. A
+`fallback` result means the production algorithm failed and the smoke fixture
+confirmed the canonical answer as a stable fallback; it should not be treated as
+strict production success.
 
 Each artifact run writes `latest`, `index.tsv`, `report.json`, and per-problem
 check/build/run stdout and stderr logs under the selected artifact directory.
