@@ -1,6 +1,7 @@
 #include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/backend/llvm/object_emitter.hpp"
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/diagnostics/high_growth_loop_linter.hpp"
 #include "janus/driver/dependency.hpp"
 #include "janus/driver/formatter.hpp"
 #include "janus/driver/manifest.hpp"
@@ -56,6 +57,7 @@ struct Options {
   bool locked{};
   bool offline{};
   bool format_check{};
+  bool warn_high_growth_loops{};
   std::optional<janus::driver::Manifest> manifest;
   std::vector<std::filesystem::path> dependency_paths;
   std::string test_filter;
@@ -126,7 +128,10 @@ void print_usage() {
             << "  janus run [source.janus] [--release]\n"
             << "  janus test [filter] [--release]\n"
             << "  janus fmt [source.janus] [--check]\n"
+            << "  diagnostics: --warn-high-growth-loops for check, build, "
+               "run\n"
             << "  dependency options: --locked --offline\n"
+            << "  janus --help\n"
             << "  janus --version\n";
 }
 
@@ -231,15 +236,7 @@ Options parse_options(int argc, char **argv) {
       options.command != "run" && options.command != "test" &&
       options.command != "fmt")
     throw std::runtime_error{"unknown command '" + options.command + "'"};
-  int first_option = 2;
-  if (first_option < argc &&
-      !std::string_view{argv[first_option]}.starts_with('-')) {
-    if (options.command == "test")
-      options.test_filter = argv[first_option++];
-    else
-      options.source = argv[first_option++];
-  }
-  for (int index = first_option; index < argc; ++index) {
+  for (int index = 2; index < argc; ++index) {
     const std::string_view argument = argv[index];
     if (argument == "-o") {
       if (++index == argc)
@@ -253,6 +250,8 @@ Options parse_options(int argc, char **argv) {
       options.offline = true;
     } else if (argument == "--check" && options.command == "fmt") {
       options.format_check = true;
+    } else if (argument == "--warn-high-growth-loops") {
+      options.warn_high_growth_loops = true;
     } else if (argument == "--emit") {
       if (++index == argc)
         throw std::runtime_error{"--emit requires 'llvm-ir' or 'object'"};
@@ -263,6 +262,16 @@ Options parse_options(int argc, char **argv) {
         options.emit_object = true;
       else
         throw std::runtime_error{"--emit accepts 'llvm-ir' or 'object'"};
+    } else if (!argument.starts_with('-')) {
+      if (options.command == "test") {
+        if (!options.test_filter.empty())
+          throw std::runtime_error{"test accepts at most one filter"};
+        options.test_filter = argv[index];
+      } else {
+        if (!options.source.empty())
+          throw std::runtime_error{"multiple source paths provided"};
+        options.source = argv[index];
+      }
     } else {
       throw std::runtime_error{"unknown option '" + std::string{argument} +
                                "'"};
@@ -280,8 +289,12 @@ Options parse_options(int argc, char **argv) {
     throw std::runtime_error{"test does not accept -o or --emit"};
   if (options.command == "fmt" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object ||
-       options.release || options.locked || options.offline))
+       options.release || options.locked || options.offline ||
+       options.warn_high_growth_loops))
     throw std::runtime_error{"fmt only accepts a source path and --check"};
+  if ((options.command == "test") && options.warn_high_growth_loops)
+    throw std::runtime_error{
+        "test does not accept --warn-high-growth-loops"};
   if (options.source.empty()) {
     options.manifest = janus::driver::load_manifest(
         janus::driver::find_manifest(std::filesystem::current_path()));
@@ -327,7 +340,8 @@ int command_status(int status) {
 std::unique_ptr<llvm::Module>
 compile(const std::filesystem::path &source, llvm::LLVMContext &context,
         const Toolchain &toolchain,
-        const std::vector<std::filesystem::path> &dependency_paths) {
+        const std::vector<std::filesystem::path> &dependency_paths,
+        bool warn_high_growth_loops) {
   std::vector<std::filesystem::path> search_paths{toolchain.stdlib};
   search_paths.insert(search_paths.end(), dependency_paths.begin(),
                       dependency_paths.end());
@@ -335,6 +349,16 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
   const janus::ast::Program program = loader.load(source);
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
+  if (warn_high_growth_loops) {
+    for (const janus::diagnostics::HighGrowthLoopWarning &warning :
+         janus::diagnostics::find_high_growth_loop_warnings(program)) {
+      std::cerr << source.string() << ':' << warning.location.line << ':'
+                << warning.location.column
+                << ": warning: high-growth loop pattern may cause integer "
+                   "overflow or excessive running time; add an explicit "
+                   "bound, use a safe numeric type, or enforce a time budget\n";
+    }
+  }
   janus::backend::llvm::IrGenerator generator{context};
   std::unique_ptr<llvm::Module> module =
       generator.generate(program, source.string());
@@ -393,7 +417,8 @@ int build(const Options &options, const std::filesystem::path &output,
     std::filesystem::create_directories(output.parent_path());
   llvm::LLVMContext context;
   std::unique_ptr<llvm::Module> module =
-      compile(options.source, context, toolchain, options.dependency_paths);
+      compile(options.source, context, toolchain, options.dependency_paths,
+              options.warn_high_growth_loops);
   if (options.emit_llvm) {
     write_ir(*module, output);
     return 0;
@@ -445,6 +470,7 @@ int run_tests(const Options &options, const Toolchain &toolchain) {
     try {
       Options test_options = options;
       test_options.source = test;
+      test_options.warn_high_growth_loops = false;
       build(test_options, executable, toolchain);
       const int status =
           command_status(std::system(shell_quote(executable).c_str()));
@@ -516,6 +542,10 @@ int format_sources(const Options &options) {
 } // namespace
 
 int main(int argc, char **argv) {
+  if (argc == 2 && std::string_view{argv[1]} == "--help") {
+    print_usage();
+    return 0;
+  }
   if (argc == 2 && std::string_view{argv[1]} == "--version") {
     std::cout << "janus " << JANUS_VERSION << '\n';
     return 0;
@@ -545,7 +575,8 @@ int main(int argc, char **argv) {
     if (options.command == "check") {
       llvm::LLVMContext context;
       static_cast<void>(compile(options.source, context, toolchain,
-                                options.dependency_paths));
+                                options.dependency_paths,
+                                options.warn_high_growth_loops));
       std::cout << "checked " << options.source.string() << '\n';
       return 0;
     }
