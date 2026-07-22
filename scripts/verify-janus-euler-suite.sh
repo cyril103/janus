@@ -11,6 +11,8 @@ options:
   --timeout SECONDS        Per-problem timeout in seconds (default: 60)
   --global-timeout SECONDS Global timeout in seconds
   --json-out FILE          Also write the JSON report to FILE
+  --artifacts-dir DIR      Persist run artifacts under DIR (default: PROJECT/target/verify)
+  --no-artifacts           Do not persist run artifacts
 
 config format:
   N|source.janus|expected-output-file
@@ -71,6 +73,10 @@ now_seconds() {
   date +%s
 }
 
+run_id_timestamp() {
+  date -u +%Y%m%dT%H%M%SZ
+}
+
 remaining_timeout() {
   deadline="$1"
   now="$(now_seconds)"
@@ -98,7 +104,8 @@ run_with_timeout() {
   seconds="$1"
   stdout_file="$2"
   stderr_file="$3"
-  shift 3
+  workdir="$4"
+  shift 4
 
   : > "$stdout_file"
   : > "$stderr_file"
@@ -114,16 +121,46 @@ run_with_timeout() {
   # fallback is inherently racy once children are reparented, so use Perl's
   # POSIX::setsid on platforms (notably macOS) without a setsid executable.
   if command -v setsid >/dev/null 2>&1; then
-    setsid "$@" > "$stdout_file" 2> "$stderr_file" &
+    setsid sh -c 'cd "$1" || exit 125; shift; exec "$@"' sh "$workdir" "$@" \
+      > "$stdout_file" 2> "$stderr_file" &
     command_pid=$!
   elif command -v perl >/dev/null 2>&1; then
-    perl -MPOSIX -e 'POSIX::setsid() >= 0 or die "setsid: $!\n"; exec @ARGV or die "exec: $!\n"' -- \
-      "$@" > "$stdout_file" 2> "$stderr_file" &
+    perl -MPOSIX -e '
+      my $dir = shift @ARGV;
+      my @cmd = @ARGV;
+      my $pid = fork();
+      defined $pid or die "fork: $!\n";
+      if ($pid) {
+        my %exit_for = (HUP => 129, INT => 130, TERM => 143);
+        for my $signal (keys %exit_for) {
+          $SIG{$signal} = sub {
+            kill $signal, -$pid;
+            kill $signal, $pid;
+            # The shell timeout worker also escalates after one second. Kill
+            # the child session immediately here so it cannot kill this
+            # forwarding parent before descendants are reaped.
+            kill "KILL", -$pid;
+            kill "KILL", $pid;
+            exit $exit_for{$signal};
+          };
+        }
+        waitpid($pid, 0);
+        my $status = $?;
+        exit 127 if $status == -1;
+        exit 128 + ($status & 127) if $status & 127;
+        exit($status >> 8);
+      }
+      chdir $dir or exit 125;
+      POSIX::setsid() >= 0 or die "setsid: $!\n";
+      exec @cmd or die "exec: $!\n";
+    ' -- \
+      "$workdir" "$@" > "$stdout_file" 2> "$stderr_file" &
     command_pid=$!
   else
     printf '%s\n' 'timeout support requires setsid or perl' > "$stderr_file"
     return 125
   fi
+  ACTIVE_COMMAND_PID="$command_pid"
 
   (
     trap - EXIT HUP INT TERM
@@ -141,6 +178,7 @@ run_with_timeout() {
     fi
   ) &
   timer_pid=$!
+  ACTIVE_TIMER_PID="$timer_pid"
 
   set +e
   wait "$command_pid"
@@ -155,10 +193,14 @@ run_with_timeout() {
 
   if [ -f "$timeout_file" ]; then
     rm -f "$timeout_file"
+    ACTIVE_COMMAND_PID=
+    ACTIVE_TIMER_PID=
     return 124
   fi
   status="$wait_status"
   rm -f "$timeout_file"
+  ACTIVE_COMMAND_PID=
+  ACTIVE_TIMER_PID=
   return "$status"
 }
 
@@ -183,6 +225,21 @@ resolve_file_path() {
   esac
 }
 
+copy_if_exists() {
+  source_file="$1"
+  target_file="$2"
+  if [ -f "$source_file" ]; then
+    cp "$source_file" "$target_file"
+  fi
+}
+
+is_live_pid() {
+  pid="$1"
+  is_number "$pid" || return 1
+  [ "$pid" -gt 0 ] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
 PROJECT=
 CONFIG=
 JANUS=${JANUS:-janus}
@@ -194,6 +251,8 @@ RELEASE=0
 CASE_TIMEOUT=60
 GLOBAL_TIMEOUT=
 JSON_OUT=
+ARTIFACTS_DIR=
+ARTIFACTS_ENABLED=1
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -245,6 +304,16 @@ while [ "$#" -gt 0 ]; do
       JSON_OUT="$2"
       shift 2
       ;;
+    --artifacts-dir)
+      [ "$#" -ge 2 ] || die "--artifacts-dir requires a directory"
+      ARTIFACTS_DIR="$2"
+      ARTIFACTS_ENABLED=1
+      shift 2
+      ;;
+    --no-artifacts)
+      ARTIFACTS_ENABLED=0
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -274,10 +343,70 @@ JANUS_INPUT="$JANUS"
 case "$JANUS_INPUT" in
   */*) JANUS="$(resolve_file_path "$JANUS_INPUT")" ;;
 esac
+if [ -n "$ARTIFACTS_DIR" ]; then
+  ARTIFACTS_DIR="$(resolve_file_path "$ARTIFACTS_DIR")"
+fi
 PROJECT="$(cd_physical "$PROJECT")"
 CONFIG="$(resolve_file_path "$CONFIG")"
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT HUP INT TERM
+ARTIFACT_RUN_DIR=
+ARTIFACT_RUN_REL=
+ARTIFACT_REPORT_REL=
+ARTIFACTS_FINALIZED=0
+ARTIFACTS_DURABLE=0
+ARTIFACT_LOCK_DIR=
+ARTIFACT_LOCK_FILE=
+ARTIFACT_LOCK_OWNER_FILE=
+ARTIFACT_LOCK_HELD=0
+CLEANED_UP=0
+ACTIVE_COMMAND_PID=
+ACTIVE_TIMER_PID=
+ARTIFACT_LOCK_TIMEOUT_SECONDS=${ARTIFACT_LOCK_TIMEOUT_SECONDS:-30}
+ARTIFACT_LOCK_PID_GRACE_SECONDS=${ARTIFACT_LOCK_PID_GRACE_SECONDS:-2}
+
+cleanup() {
+  [ "$CLEANED_UP" -eq 0 ] || return 0
+  CLEANED_UP=1
+  if [ "$ARTIFACT_LOCK_HELD" -eq 1 ]; then
+    release_artifact_lock
+  fi
+  if [ "$ARTIFACTS_DURABLE" -eq 0 ] && [ -n "$ARTIFACT_RUN_DIR" ]; then
+    rm -rf "$ARTIFACT_RUN_DIR"
+  fi
+  rm -rf "$WORK"
+}
+
+terminate_active_work() {
+  if [ -n "$ACTIVE_TIMER_PID" ]; then
+    kill "$ACTIVE_TIMER_PID" 2>/dev/null || true
+  fi
+  if [ -n "$ACTIVE_COMMAND_PID" ]; then
+    kill -TERM "-$ACTIVE_COMMAND_PID" 2>/dev/null || true
+    kill -TERM "$ACTIVE_COMMAND_PID" 2>/dev/null || true
+    sleep 1
+    kill -KILL "-$ACTIVE_COMMAND_PID" 2>/dev/null || true
+    kill -KILL "$ACTIVE_COMMAND_PID" 2>/dev/null || true
+  fi
+}
+
+handle_signal() {
+  signal="$1"
+  case "$signal" in
+    HUP) signal_status=129 ;;
+    INT) signal_status=130 ;;
+    TERM) signal_status=143 ;;
+    *) signal_status=1 ;;
+  esac
+  trap - EXIT HUP INT TERM
+  terminate_active_work
+  cleanup
+  exit "$signal_status"
+}
+
+trap cleanup EXIT
+trap 'handle_signal HUP' HUP
+trap 'handle_signal INT' INT
+trap 'handle_signal TERM' TERM
 
 REPORT="$WORK/report.json"
 TMP_REPORT="$WORK/results.json"
@@ -288,10 +417,179 @@ PASSED=0
 FAILED=0
 FIRST=1
 EXIT_STATUS=0
+RUN_START="$(now_seconds)"
 GLOBAL_DEADLINE=
 if [ -n "$GLOBAL_TIMEOUT" ]; then
   GLOBAL_DEADLINE=$(($(now_seconds) + GLOBAL_TIMEOUT))
 fi
+init_artifacts() {
+  [ "$ARTIFACTS_ENABLED" -eq 1 ] || return 0
+  if [ -z "$ARTIFACTS_DIR" ]; then
+    ARTIFACTS_DIR="$PROJECT/target/verify"
+  fi
+  mkdir -p "$ARTIFACTS_DIR"
+  base_id="run-$(run_id_timestamp)-$$"
+  counter=0
+  while :; do
+    if [ "$counter" -eq 0 ]; then
+      candidate="$base_id"
+    else
+      candidate="$base_id-$counter"
+    fi
+    if mkdir "$ARTIFACTS_DIR/$candidate" 2>/dev/null; then
+      ARTIFACT_RUN_REL="$candidate"
+      ARTIFACT_RUN_DIR="$ARTIFACTS_DIR/$candidate"
+      ARTIFACT_REPORT_REL="$candidate/report.json"
+      break
+    fi
+    counter=$((counter + 1))
+  done
+}
+
+acquire_artifact_lock() {
+  [ "$ARTIFACTS_ENABLED" -eq 1 ] || return 0
+  ARTIFACT_LOCK_FILE="$ARTIFACTS_DIR/.publish.lock"
+  ARTIFACT_LOCK_DIR="$ARTIFACT_LOCK_FILE"
+  ARTIFACT_LOCK_OWNER_FILE="$ARTIFACTS_DIR/.publish.lock.owner.$$"
+  lock_deadline=$(($(now_seconds) + ARTIFACT_LOCK_TIMEOUT_SECONDS))
+  if ! command -v ln >/dev/null 2>&1; then
+    echo "verify: artifact locking requires ln" >&2
+    return 1
+  fi
+  rm -f "$ARTIFACT_LOCK_OWNER_FILE"
+  if ! printf '%s\n' "$$" > "$ARTIFACT_LOCK_OWNER_FILE"; then
+    echo "verify: failed to create artifact lock owner file: $ARTIFACT_LOCK_OWNER_FILE" >&2
+    return 1
+  fi
+  while :; do
+    lock_pid=
+    lock_state=
+    if ln "$ARTIFACT_LOCK_OWNER_FILE" "$ARTIFACT_LOCK_FILE" 2>/dev/null; then
+      lock_pid="$(sed -n '1p' "$ARTIFACT_LOCK_FILE" 2>/dev/null || true)"
+      if [ "$lock_pid" = "$$" ]; then
+        ARTIFACT_LOCK_HELD=1
+        rm -f "$ARTIFACT_LOCK_OWNER_FILE"
+        ARTIFACT_LOCK_OWNER_FILE=
+        return 0
+      fi
+      lock_state="regular-file"
+    elif [ -d "$ARTIFACT_LOCK_FILE" ]; then
+      lock_state="legacy-directory"
+      if [ -f "$ARTIFACT_LOCK_FILE/pid" ]; then
+        lock_pid="$(sed -n '1p' "$ARTIFACT_LOCK_FILE/pid" 2>/dev/null || true)"
+      fi
+    elif [ -f "$ARTIFACT_LOCK_FILE" ]; then
+      lock_state="regular-file"
+      lock_pid="$(sed -n '1p' "$ARTIFACT_LOCK_FILE" 2>/dev/null || true)"
+    else
+      continue
+    fi
+    if [ "$(now_seconds)" -ge "$lock_deadline" ]; then
+      rm -f "$ARTIFACT_LOCK_OWNER_FILE"
+      ARTIFACT_LOCK_OWNER_FILE=
+      if is_live_pid "$lock_pid"; then
+        echo "verify: artifact lock is still held by live pid $lock_pid after ${ARTIFACT_LOCK_TIMEOUT_SECONDS}s: $ARTIFACT_LOCK_FILE; remove .publish.lock manually only if that process is gone" >&2
+      elif [ "$lock_state" = "legacy-directory" ]; then
+        echo "verify: artifact lock is a stale or malformed legacy directory after ${ARTIFACT_LOCK_TIMEOUT_SECONDS}s: $ARTIFACT_LOCK_FILE; remove .publish.lock manually after confirming no publisher is active" >&2
+      else
+        echo "verify: artifact lock is stale or malformed after ${ARTIFACT_LOCK_TIMEOUT_SECONDS}s: $ARTIFACT_LOCK_FILE; remove .publish.lock manually after confirming no publisher is active" >&2
+      fi
+      return 1
+    fi
+    sleep 1
+  done
+}
+
+release_artifact_lock() {
+  if [ "$ARTIFACT_LOCK_HELD" -eq 1 ] && [ -n "$ARTIFACT_LOCK_FILE" ]; then
+    lock_pid="$(sed -n '1p' "$ARTIFACT_LOCK_FILE" 2>/dev/null || true)"
+    if [ "$lock_pid" = "$$" ]; then
+      rm -f "$ARTIFACT_LOCK_FILE"
+    fi
+    ARTIFACT_LOCK_HELD=0
+  fi
+  if [ -n "$ARTIFACT_LOCK_OWNER_FILE" ]; then
+    rm -f "$ARTIFACT_LOCK_OWNER_FILE"
+    ARTIFACT_LOCK_OWNER_FILE=
+  fi
+}
+
+persist_artifacts() {
+  [ "$ARTIFACTS_ENABLED" -eq 1 ] || return 0
+  [ -n "$ARTIFACT_RUN_DIR" ] || return 0
+
+  if ! cp "$REPORT" "$ARTIFACT_RUN_DIR/report.json"; then
+    echo "verify: failed to persist artifact report: $ARTIFACT_RUN_DIR/report.json" >&2
+    return 1
+  fi
+
+  for stage in check build run; do
+    for stream in out err; do
+      for source_file in "$WORK/$stage"-*."$stream"; do
+        [ -f "$source_file" ] || continue
+        name=${source_file##*/}
+        problem=${name#"$stage"-}
+        problem=${problem%."$stream"}
+        problem_dir="$ARTIFACT_RUN_DIR/problems/$problem"
+        if ! mkdir -p "$problem_dir"; then
+          echo "verify: failed to persist artifact log directory: $problem_dir" >&2
+          return 1
+        fi
+        case "$stream" in
+          out) target_stream=stdout ;;
+          err) target_stream=stderr ;;
+        esac
+        if ! copy_if_exists "$source_file" "$problem_dir/$stage.$target_stream"; then
+          echo "verify: failed to persist artifact log: $problem_dir/$stage.$target_stream" >&2
+          return 1
+        fi
+      done
+    done
+  done
+  ARTIFACTS_DURABLE=1
+
+  if ! acquire_artifact_lock; then
+    return 1
+  fi
+  if [ ! -f "$ARTIFACTS_DIR/index.tsv" ]; then
+    if ! printf 'run_id\tunix_time\texit_code\tduration_seconds\treport\n' \
+      > "$ARTIFACTS_DIR/index.tsv"; then
+      release_artifact_lock
+      echo "verify: failed to persist artifact index: $ARTIFACTS_DIR/index.tsv" >&2
+      return 1
+    fi
+  fi
+  run_duration=$(($(now_seconds) - RUN_START))
+  if ! printf '%s\t%s\t%s\t%s\t%s\n' \
+    "$ARTIFACT_RUN_REL" "$(now_seconds)" "$EXIT_STATUS" "$run_duration" \
+    "$ARTIFACT_RUN_REL/report.json" >> "$ARTIFACTS_DIR/index.tsv"; then
+    release_artifact_lock
+    echo "verify: failed to persist artifact index: $ARTIFACTS_DIR/index.tsv" >&2
+    return 1
+  fi
+  latest_tmp="$ARTIFACTS_DIR/.latest.$$"
+  if ! printf '%s\n' "$ARTIFACT_RUN_REL" > "$latest_tmp"; then
+    release_artifact_lock
+    echo "verify: failed to persist latest artifact pointer: $ARTIFACTS_DIR/latest" >&2
+    return 1
+  fi
+  if ! mv "$latest_tmp" "$ARTIFACTS_DIR/latest"; then
+    rm -f "$latest_tmp"
+    release_artifact_lock
+    echo "verify: failed to persist latest artifact pointer: $ARTIFACTS_DIR/latest" >&2
+    return 1
+  fi
+  release_artifact_lock
+  ARTIFACTS_FINALIZED=1
+}
+
+persist_json_out() {
+  [ -n "$JSON_OUT" ] || return 0
+  if ! cp "$REPORT" "$JSON_OUT"; then
+    echo "verify: failed to persist JSON report: $JSON_OUT" >&2
+    return 1
+  fi
+}
 
 append_result() {
   problem="$1"
@@ -375,12 +673,9 @@ run_problem() {
     return
   fi
   set +e
-  (
-    cd "$PROJECT" &&
-      RUN_TIMEOUT_MARKER="$check_timeout" \
-        run_with_timeout "$timeout_left" "$check_out" "$check_err" \
-          "$JANUS" check "$source"
-  )
+  RUN_TIMEOUT_MARKER="$check_timeout" \
+    run_with_timeout "$timeout_left" "$check_out" "$check_err" "$PROJECT" \
+      "$JANUS" check "$source"
   status=$?
   set -e
   if [ -f "$check_timeout" ]; then
@@ -410,19 +705,13 @@ run_problem() {
   fi
   set +e
   if [ "$RELEASE" -eq 1 ]; then
-    (
-      cd "$PROJECT" &&
         RUN_TIMEOUT_MARKER="$build_timeout" \
-          run_with_timeout "$timeout_left" "$build_out" "$build_err" \
+          run_with_timeout "$timeout_left" "$build_out" "$build_err" "$PROJECT" \
             "$JANUS" build "$source" -o "$executable" --release
-    )
   else
-    (
-      cd "$PROJECT" &&
         RUN_TIMEOUT_MARKER="$build_timeout" \
-          run_with_timeout "$timeout_left" "$build_out" "$build_err" \
+          run_with_timeout "$timeout_left" "$build_out" "$build_err" "$PROJECT" \
             "$JANUS" build "$source" -o "$executable"
-    )
   fi
   status=$?
   set -e
@@ -453,7 +742,7 @@ run_problem() {
   fi
   set +e
   RUN_TIMEOUT_MARKER="$run_timeout" \
-    run_with_timeout "$timeout_left" "$run_out" "$run_err" "$executable"
+    run_with_timeout "$timeout_left" "$run_out" "$run_err" "$PROJECT" "$executable"
   status=$?
   set -e
   duration=$(($(now_seconds) - start))
@@ -486,7 +775,32 @@ run_problem() {
   fi
 }
 
-FOUND=0
+validate_config_selection() {
+  FOUND=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ''|'#'*) continue ;;
+    esac
+    old_ifs=$IFS
+    IFS='|'
+    set -- $line
+    IFS=$old_ifs
+    [ "$#" -eq 3 ] || die "invalid config line: $line"
+    number="$1"
+    is_number "$number" || die "invalid problem number in config: $number"
+    if [ "$MODE" = all ] || [ "$number" = "$REQUESTED_PROBLEM" ]; then
+      FOUND=1
+    fi
+  done < "$CONFIG"
+
+  if [ "$FOUND" -eq 0 ]; then
+    die "problem not found in config: $REQUESTED_PROBLEM"
+  fi
+}
+
+validate_config_selection
+init_artifacts
+
 while IFS= read -r line || [ -n "$line" ]; do
   case "$line" in
     ''|'#'*) continue ;;
@@ -506,19 +820,22 @@ while IFS= read -r line || [ -n "$line" ]; do
   fi
 done < "$CONFIG"
 
-if [ "$FOUND" -eq 0 ]; then
-  die "problem not found in config: $REQUESTED_PROBLEM"
+RUN_DURATION=$(($(now_seconds) - RUN_START))
+RUN_MESSAGE=
+if [ "$EXIT_STATUS" -ne 0 ]; then
+  RUN_MESSAGE="one or more problems failed"
 fi
-
-printf '{"summary":{"total":%s,"ok":%s,"failed":%s},"results":[\n' \
+printf '{"run":{"run_id":"%s","report":"%s","exit_code":%s,"duration_seconds":%s,"message":"%s"},"summary":{"total":%s,"ok":%s,"failed":%s},"results":[\n' \
+  "$(json_escape_text "$ARTIFACT_RUN_REL")" \
+  "$(json_escape_text "$ARTIFACT_REPORT_REL")" \
+  "$EXIT_STATUS" "$RUN_DURATION" "$(json_escape_text "$RUN_MESSAGE")" \
   "$TOTAL" "$PASSED" "$FAILED" > "$REPORT"
 cat "$TMP_REPORT" >> "$REPORT"
 printf '\n]}\n' >> "$REPORT"
 
+persist_artifacts
+persist_json_out
 cat "$REPORT"
-if [ -n "$JSON_OUT" ]; then
-  cp "$REPORT" "$JSON_OUT"
-fi
 echo "summary: $PASSED/$TOTAL ok, $FAILED failed" >&2
 
 exit "$EXIT_STATUS"
