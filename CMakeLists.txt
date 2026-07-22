@@ -339,6 +339,12 @@ if(BUILD_TESTING)
                     "${PROJECT_SOURCE_DIR}/tests/driver/install_script_test.sh"
                     "${PROJECT_SOURCE_DIR}"
         )
+        add_test(
+            NAME toolchain.verify_janus_euler_suite
+            COMMAND sh
+                    "${PROJECT_SOURCE_DIR}/tests/driver/verify_janus_euler_suite_test.sh"
+                    "${PROJECT_SOURCE_DIR}"
+        )
     endif()
     add_executable(manifest_test
         tests/driver/manifest_test.cpp
