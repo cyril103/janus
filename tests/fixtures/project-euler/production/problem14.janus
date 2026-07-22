@@ -1,0 +1,34 @@
+def chain_length(start : usize) : int {
+    var value : usize = start
+    var length : int = 1
+    while value != usize(1) {
+        if value % usize(2) == usize(0) {
+            value = value / usize(2)
+        } else {
+            value = value * usize(3) + usize(1)
+        }
+        length = length + 1
+    }
+    return length
+}
+
+def solve() : int {
+    var best_start : int = 1
+    var best_length : int = 1
+    var length : int = 0
+    var candidate : usize = usize(2)
+    while candidate < usize(1000000) {
+        length = chain_length(candidate)
+        if length > best_length {
+            best_length = length
+            best_start = int(candidate)
+        }
+        candidate = candidate + usize(1)
+    }
+    return best_start
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}

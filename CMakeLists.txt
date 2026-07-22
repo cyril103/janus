@@ -345,6 +345,36 @@ if(BUILD_TESTING)
                     "${PROJECT_SOURCE_DIR}/tests/driver/verify_janus_euler_suite_test.sh"
                     "${PROJECT_SOURCE_DIR}"
         )
+        add_test(
+            NAME project_euler.fixture_structure
+            COMMAND sh
+                    "${PROJECT_SOURCE_DIR}/tests/driver/project_euler_fixture_structure_test.sh"
+                    "${PROJECT_SOURCE_DIR}"
+        )
+        add_test(
+            NAME project_euler.smoke
+            COMMAND sh
+                    "${PROJECT_SOURCE_DIR}/scripts/verify-janus-euler-suite.sh"
+                    --project
+                    "${PROJECT_SOURCE_DIR}/tests/fixtures/project-euler"
+                    --config
+                    "${PROJECT_SOURCE_DIR}/tests/fixtures/project-euler/smoke.txt"
+                    --janus
+                    $<TARGET_FILE:janus>
+                    --all
+                    --timeout
+                    5
+                    --global-timeout
+                    120
+                    --artifacts-dir
+                    "${PROJECT_BINARY_DIR}/project-euler-smoke-artifacts"
+        )
+        set_tests_properties(project_euler.smoke
+            PROPERTIES
+                TIMEOUT 150
+                RUN_SERIAL TRUE
+                LABELS "project-euler;smoke"
+        )
     endif()
     add_executable(manifest_test
         tests/driver/manifest_test.cpp

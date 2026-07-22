@@ -1,0 +1,21 @@
+# Manual algorithm profile. This is not a CI gate.
+1|production/problem1.janus|expected/problem1.txt
+2|production/problem2.janus|expected/problem2.txt
+3|production/problem3.janus|expected/problem3.txt
+4|production/problem4.janus|expected/problem4.txt
+5|production/problem5.janus|expected/problem5.txt
+6|production/problem6.janus|expected/problem6.txt
+7|production/problem7.janus|expected/problem7.txt
+8|production/problem8.janus|expected/problem8.txt
+9|production/problem9.janus|expected/problem9.txt
+10|production/problem10.janus|expected/problem10.txt
+11|production/problem11.janus|expected/problem11.txt
+12|production/problem12.janus|expected/problem12.txt
+13|production/problem13.janus|expected/problem13.txt
+14|production/problem14.janus|expected/problem14.txt
+15|production/problem15.janus|expected/problem15.txt
+16|production/problem16.janus|expected/problem16.txt
+17|production/problem17.janus|expected/problem17.txt
+18|production/problem18.janus|expected/problem18.txt
+19|production/problem19.janus|expected/problem19.txt
+20|production/problem20.janus|expected/problem20.txt

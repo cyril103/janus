@@ -1,0 +1,4 @@
+def main() : int {
+    println(1074)
+    return 0
+}

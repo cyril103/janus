@@ -1,0 +1,36 @@
+def is_prime(candidate : int) : bool {
+    if candidate < 2 {
+        return false
+    }
+    if candidate == 2 {
+        return true
+    }
+    if candidate % 2 == 0 {
+        return false
+    }
+    var divisor : int = 3
+    while divisor * divisor <= candidate {
+        if candidate % divisor == 0 {
+            return false
+        }
+        divisor = divisor + 2
+    }
+    return true
+}
+
+def solve() : int {
+    var count : int = 0
+    var value : int = 1
+    while count < 10001 {
+        value = value + 1
+        if is_prime(value) {
+            count = count + 1
+        }
+    }
+    return value
+}
+
+def main() : int {
+    println(solve())
+    return 0
+}

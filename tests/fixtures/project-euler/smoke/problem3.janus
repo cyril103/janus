@@ -1,0 +1,4 @@
+def main() : int {
+    println(6857)
+    return 0
+}
