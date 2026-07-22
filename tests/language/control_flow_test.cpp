@@ -36,6 +36,32 @@ void expect_compile_error(std::string_view source,
   }
 }
 
+janus::CompileError expect_compile_error(std::string_view source) {
+  try {
+    janus::frontend::Parser parser{source};
+    const janus::ast::Program program = parser.parse_program();
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(program));
+    expect(false, "invalid control-flow source must fail");
+  } catch (const janus::CompileError &error) {
+    return error;
+  }
+  return janus::CompileError{janus::SourceLocation{}, "missing error"};
+}
+
+void expect_message_contains(const janus::CompileError &error,
+                             std::string_view expected_message) {
+  expect(std::string_view{error.what()}.find(expected_message) !=
+             std::string_view::npos,
+         "control-flow error contains the expected explanation");
+}
+
+void expect_location(const janus::CompileError &error, std::uint32_t line,
+                     std::uint32_t column, std::string_view message) {
+  expect(error.location().line == line && error.location().column == column,
+         message);
+}
+
 } // namespace
 
 int main() {
@@ -255,6 +281,67 @@ def main() : int {
       "def main() : int { while true { if true { continue } "
       "else { break } println(1) } return 0 }",
       "unreachable statement");
+
+  {
+    const janus::CompileError error =
+        expect_compile_error("def missing() : int { val x : int = 1 } "
+                             "def main() : int { return 0 }");
+    expect_message_contains(error, "function 'missing'");
+    expect_message_contains(error, "expected return type 'int'");
+    expect_message_contains(error, "add a return statement");
+    expect_location(error, 1, 1,
+                    "missing-return diagnostic points at the function");
+  }
+  {
+    const janus::CompileError error =
+        expect_compile_error("def choose(flag : bool) : int { if flag { "
+                             "return 1 } } def main() : int { return 0 }");
+    expect_message_contains(error, "function 'choose'");
+    expect_message_contains(error, "expected return type 'int'");
+    expect_message_contains(error, "add a return statement");
+    expect_location(error, 1, 1,
+                    "if-without-else missing-return points at the function");
+  }
+  {
+    const janus::CompileError error = expect_compile_error(
+        "def choose(flag : bool) : int { if flag { return 1 } else { "
+        "val x : int = 2 } } def main() : int { return 0 }");
+    expect_message_contains(error, "function 'choose'");
+    expect_message_contains(error, "expected return type 'int'");
+    expect_message_contains(error, "add a return statement");
+  }
+  {
+    const janus::CompileError error = expect_compile_error(
+        "def choose(left : bool, right : bool) : int { if left { if right { "
+        "return 1 } } else { return 0 } } def main() : int { return 0 }");
+    expect_message_contains(error, "function 'choose'");
+    expect_message_contains(error, "expected return type 'int'");
+    expect_message_contains(error, "add a return statement");
+  }
+  expect_compile_error(
+      "def wait() : int { while true { return 1 } } "
+      "def main() : int { return 0 }",
+      "add a return statement");
+  {
+    const janus::CompileError error =
+        expect_compile_error("def wrong() : int {\n    return false\n}\n"
+                             "def main() : int { return 0 }");
+    expect_message_contains(error,
+                            "cannot return expression of type 'bool' from "
+                            "function 'wrong'; expected 'int', received "
+                            "'bool'");
+    expect_location(error, 2, 5,
+                    "wrong-return diagnostic points at the return statement");
+  }
+
+  janus::frontend::Parser returning_branches_parser{
+      "def choose(flag : bool) : int { if flag { return 1 } else { "
+      "return 0 } } def main() : int { return choose(true) }"};
+  static_cast<void>(analyzer.analyze(returning_branches_parser.parse_program()));
+  janus::frontend::Parser void_fallthrough_parser{
+      "def sideEffect() : Unit { println(1) } "
+      "def main() : int { sideEffect() return 0 }"};
+  static_cast<void>(analyzer.analyze(void_fallthrough_parser.parse_program()));
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

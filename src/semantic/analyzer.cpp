@@ -281,6 +281,28 @@ janus::SourceLocation expression_location(const janus::ast::Expression &expr) {
   return std::visit([](const auto &node) { return node.location; }, expr.value);
 }
 
+bool block_guarantees_return(const std::vector<janus::ast::Statement> &block);
+
+bool statement_guarantees_return(const janus::ast::Statement &statement) {
+  if (std::holds_alternative<janus::ast::ReturnStatement>(statement))
+    return true;
+
+  if (const auto *conditional =
+          std::get_if<std::shared_ptr<janus::ast::IfStatement>>(&statement)) {
+    return !(*conditional)->else_body.empty() &&
+           block_guarantees_return((*conditional)->then_body) &&
+           block_guarantees_return((*conditional)->else_body);
+  }
+
+  // Loops are intentionally conservative: reaching the loop does not prove
+  // that an iteration runs or that control cannot leave through break.
+  return false;
+}
+
+bool block_guarantees_return(const std::vector<janus::ast::Statement> &block) {
+  return std::any_of(block.begin(), block.end(), statement_guarantees_return);
+}
+
 std::optional<std::int64_t>
 integer_literal_value(const janus::ast::Expression &expression) {
   if (const auto *literal = std::get_if<janus::ast::IntegerLiteralExpression>(
@@ -988,6 +1010,32 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                        actual.name() + "' where type '" +
                                        expected.name() + "' is required"};
     };
+    const auto validate_return_expression =
+        [&](const ast::ReturnStatement &return_statement) {
+          const ast::Expression &expression = *return_statement.expression;
+          const SemanticType actual = expression_type(expression);
+          if (same_type(actual, return_type))
+            return;
+
+          if (return_type.is_concrete() &&
+              return_type.concrete->kind() == TypeKind::Byte) {
+            if (const auto literal = integer_literal_value(expression)) {
+              if (*literal >= std::numeric_limits<std::int8_t>::min() &&
+                  *literal <= std::numeric_limits<std::int8_t>::max()) {
+                return;
+              }
+              throw CompileError{
+                  expression_location(expression),
+                  "integer literal is outside the signed 8-bit range"};
+            }
+          }
+
+          throw CompileError{
+              return_statement.location,
+              "cannot return expression of type '" + actual.name() +
+                  "' from function '" + function_name + "'; expected '" +
+                  return_type.name() + "', received '" + actual.name() + "'"};
+        };
 
     expression_type = [&](const ast::Expression &expression) -> SemanticType {
       return std::visit(
@@ -2399,8 +2447,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 return_statement.location,
                 "owning value '" + identifier->name +
                     "' is scheduled for deferred cleanup"};
-          validate_expression(*return_statement.expression, return_type,
-                              return_statement.location);
+          validate_return_expression(return_statement);
         }
         has_terminator = true;
       }
@@ -2409,12 +2456,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       return has_terminator;
     };
 
-    const bool has_return = validate_block(body, symbols);
+    static_cast<void>(validate_block(body, symbols));
+    const bool has_return = block_guarantees_return(body);
 
     if (!has_return && (!return_type.is_concrete() ||
                         return_type.concrete->kind() != TypeKind::Unit)) {
-      throw CompileError{function_location, "function '" + function_name +
-                                                "' must return a value"};
+      throw CompileError{
+          function_location,
+          "function '" + function_name +
+              "' must return a value of expected return type '" +
+              return_type.name() +
+              "', but not all control-flow paths do; add a return statement "
+              "returning '" +
+              return_type.name() + "' on every path"};
     }
     const std::string analysis_name =
         owner == nullptr ? function_name : owner->name + "." + function_name;
