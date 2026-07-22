@@ -1,0 +1,7 @@
+import std.math
+
+def main() : int {
+    val max : usize = usize(0) - usize(1)
+    lcm(usize(2), max)
+    return 0
+}

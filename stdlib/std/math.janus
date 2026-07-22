@@ -1,0 +1,53 @@
+module std.math
+
+def gcd(left : usize, right : usize) : usize {
+    var current : usize = left
+    var next : usize = right
+
+    while next != usize(0) {
+        val remainder : usize = current % next
+        current = next
+        next = remainder
+    }
+
+    return current
+}
+
+def lcm(left : usize, right : usize) : usize {
+    if left == usize(0) {
+        return usize(0)
+    }
+    if right == usize(0) {
+        return usize(0)
+    }
+
+    val reduced : usize = left / gcd(left, right)
+    val max : usize = usize(0) - usize(1)
+    if reduced > max / right {
+        panic("lcm overflow\n")
+    }
+
+    return reduced * right
+}
+
+def is_prime(value : usize) : bool {
+    if value < usize(2) {
+        return false
+    }
+    if value == usize(2) {
+        return true
+    }
+    if value % usize(2) == usize(0) {
+        return false
+    }
+
+    var divisor : usize = usize(3)
+    while divisor <= value / divisor {
+        if value % divisor == usize(0) {
+            return false
+        }
+        divisor = divisor + usize(2)
+    }
+
+    return true
+}

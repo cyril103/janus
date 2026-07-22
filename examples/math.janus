@@ -1,0 +1,16 @@
+import std.math
+
+def main() : int {
+    val width : usize = usize(84)
+    val height : usize = usize(30)
+
+    print("gcd: ")
+    println(gcd(width, height))
+
+    print("lcm: ")
+    println(lcm(width, height))
+
+    print("prime: ")
+    println(is_prime(usize(97)))
+    return 0
+}

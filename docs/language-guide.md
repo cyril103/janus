@@ -298,12 +298,45 @@ defer delete doubled
 Les opérations `map`, `filter`, `fold`, `foreach`, `find`, `any`, `all` et
 `count` acceptent des closures.
 
+## Mathématiques
+
+Le module `std.math` fournit des helpers entiers non signés :
+
+```janus
+import std.math
+
+def gcd(left : usize, right : usize) : usize
+def lcm(left : usize, right : usize) : usize
+def is_prime(value : usize) : bool
+```
+
+Ces fonctions utilisent `usize` parce qu'elles ciblent les tailles, indices,
+capacités et identifiants non négatifs qui dominent les usages bas niveau et
+les exercices numériques. Cette API évite aussi les ambiguïtés liées au signe
+pour le plus grand commun diviseur, le plus petit commun multiple et les tests
+de primalité.
+
+`gcd` applique l'algorithme d'Euclide itératif. `gcd(0, 0)` retourne `0` ;
+si un seul argument vaut zéro, le résultat est l'autre argument.
+
+`lcm` retourne `0` si l'un des deux arguments vaut zéro. Sinon, il réduit
+d'abord `left` par `gcd(left, right)` avant de multiplier, afin de limiter le
+risque d'overflow intermédiaire. Si le résultat ne tient pas dans `usize`,
+`lcm` provoque un `panic` déterministe avec le message `lcm overflow`.
+
+`is_prime` retourne `false` pour les valeurs inférieures à `2`, `true` pour
+`2`, et `false` pour les nombres pairs plus grands que `2`. Les diviseurs
+impairs sont testés tant que `divisor <= value / divisor`, pour éviter les
+multiplications qui pourraient s'enrouler avec les règles arithmétiques de
+`usize`.
+
 ## Modules
 
 Les fonctionnalités de la bibliothèque standard sont importées explicitement :
 
 ```janus
 import std.array
+import std.math
 import std.option
 import std.result
 ```

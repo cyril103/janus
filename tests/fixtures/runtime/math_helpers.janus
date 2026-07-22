@@ -1,0 +1,25 @@
+import std.math
+
+def main() : int {
+    val max : usize = usize(0) - usize(1)
+
+    println(gcd(usize(0), usize(0)))
+    println(gcd(usize(0), usize(18)))
+    println(gcd(usize(54), usize(24)))
+    println(gcd(max, usize(0)))
+    println(gcd(max, max - usize(1)))
+
+    println(lcm(usize(0), usize(21)))
+    println(lcm(usize(21), usize(6)))
+    println(lcm(max, usize(1)))
+    println(lcm(max, max))
+
+    println(is_prime(usize(0)))
+    println(is_prime(usize(1)))
+    println(is_prime(usize(2)))
+    println(is_prime(usize(97)))
+    println(is_prime(usize(49)))
+    println(is_prime(usize(100)))
+    println(is_prime(max))
+    return 0
+}
