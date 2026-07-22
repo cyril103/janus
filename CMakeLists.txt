@@ -543,6 +543,24 @@ if(BUILD_TESTING)
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/loop_jumps_runtime"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
+    add_test(
+        NAME docs.canonical_output
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/examples/canonical_output.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/canonical_output"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/canonical_output.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.stdout_normalization
+        COMMAND
+            ${CMAKE_COMMAND}
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/verify_stdout_normalization.cmake"
+    )
 
     add_executable(generic_function_test
         tests/language/generic_function_test.cpp

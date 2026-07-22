@@ -80,6 +80,57 @@ Janus ne convertit pas automatiquement `int` en `double`. Utilisez un cast :
 val ratio : double = double(5) / 2.0
 ```
 
+## Sortie canonique
+
+`print(value)` et `println(value)` écrivent sur la sortie standard. Les deux
+builtins acceptent les valeurs primitives imprimables : `int`, `usize`,
+`double`, `byte`, `char`, `bool` et `string`.
+
+Pour les programmes et les outils dont la sortie est vérifiée par des tests,
+préférez une ligne par valeur :
+
+```janus
+def main() : int {
+    println(42)
+    println(usize(2147483648.0))
+    println(3.5)
+    println("done")
+    return 0
+}
+```
+
+La sortie exacte est :
+
+```text
+42
+2147483648
+3.5
+done
+```
+
+Chaque appel à `println(value)` ajoute une fin de ligne logique après la valeur.
+Sur les systèmes POSIX, cette fin de ligne est écrite sous forme LF ; en mode
+texte Windows, elle peut être émise sous forme CRLF. Les tests de programmes
+doivent donc normaliser CRLF vers LF avant de comparer la sortie texte complète,
+newline final inclus. Utilisez `print(label)` seulement pour préfixer une ligne,
+puis `println(value)` pour terminer cette ligne :
+
+```janus
+print("answer: ")
+println(42)
+```
+
+Les entiers `int` et `usize` sont imprimés en base 10. Les chaînes sont écrites
+telles quelles, sans guillemets ajoutés. Les `double` sont imprimés avec un
+format flottant stable du runtime ; ne les utilisez pas comme représentation
+d'entiers lorsque la précision peut être perdue.
+
+Les littéraux entiers Janus sont actuellement limités à la plage signée 32 bits.
+Un `usize` supérieur à `2147483647` doit donc venir d'un calcul ou d'un cast
+explicite depuis une autre valeur. Si vous casteez depuis un `double`, choisissez
+uniquement une valeur entière exactement représentable, comme `2147483648.0`, et
+n'en déduisez pas une garantie pour tous les grands entiers.
+
 ## Fonctions et généricité
 
 ```janus

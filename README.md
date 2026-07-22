@@ -178,6 +178,43 @@ Les principales fonctionnalités sont :
 Le [guide du langage](docs/language-guide.md) présente chaque fonctionnalité
 avec des exemples.
 
+## Sortie de programme
+
+Pour une sortie stable et facile à tester, utilisez `println(value)` pour
+écrire une valeur par ligne. `println` ajoute une fin de ligne logique après
+chaque valeur. Sur les systèmes POSIX, cette fin de ligne est écrite sous forme
+LF ; en mode texte Windows, elle peut être émise sous forme CRLF. Les tests qui
+comparent la sortie complète doivent donc normaliser CRLF vers LF avant la
+comparaison texte exacte, newline final inclus.
+Pour une ligne avec libellé, utilisez `print(label)` pour le préfixe puis
+`println(value)` pour terminer la ligne.
+
+```janus
+def main() : int {
+    println(42)
+    println(usize(2147483648.0))
+    println(3.5)
+    println("done")
+    return 0
+}
+```
+
+Sortie exacte :
+
+```text
+42
+2147483648
+3.5
+done
+```
+
+`int` et `usize` sont imprimés en base 10, et les chaînes sont écrites sans
+guillemets ajoutés. Les `double` sont des flottants : évitez de les utiliser
+comme entiers lorsque la précision compte. Les littéraux entiers sont limités à
+la plage signée 32 bits ; pour un `usize` plus grand, utilisez un calcul ou un
+cast explicite depuis une valeur exactement représentable, comme
+`usize(2147483648.0)`.
+
 ## Éditeurs
 
 `janus-lsp` fournit les diagnostics pendant la saisie, le survol des symboles,

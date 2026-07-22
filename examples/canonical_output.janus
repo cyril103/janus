@@ -1,0 +1,7 @@
+def main() : int {
+    println(42)
+    println(usize(2147483648.0))
+    println(3.5)
+    println("done")
+    return 0
+}

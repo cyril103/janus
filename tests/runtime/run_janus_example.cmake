@@ -1,6 +1,25 @@
+foreach(required JANUSC CLANG SOURCE RUNTIME OUTPUT_DIR)
+    if(NOT DEFINED ${required})
+        message(FATAL_ERROR "${required} is required")
+    endif()
+endforeach()
+
+if(NOT EXISTS "${SOURCE}")
+    message(FATAL_ERROR "source example not found: ${SOURCE}")
+endif()
+
+if(DEFINED EXPECTED_OUTPUT)
+    include("${CMAKE_CURRENT_LIST_DIR}/compare_janus_output.cmake")
+endif()
+
 file(MAKE_DIRECTORY "${OUTPUT_DIR}")
 set(LLVM_IR "${OUTPUT_DIR}/program.ll")
 set(EXECUTABLE "${OUTPUT_DIR}/program_asan")
+set(PROGRAM_OUTPUT_ARGS)
+if(DEFINED EXPECTED_OUTPUT)
+    set(ACTUAL_OUTPUT "${OUTPUT_DIR}/stdout.txt")
+    set(PROGRAM_OUTPUT_ARGS OUTPUT_FILE "${ACTUAL_OUTPUT}")
+endif()
 
 execute_process(
     COMMAND "${JANUSC}" "${SOURCE}"
@@ -37,10 +56,15 @@ execute_process(
         "${CMAKE_COMMAND}" -E env
         "ASAN_OPTIONS=${ASAN_OPTIONS}"
         "${EXECUTABLE}"
+    ${PROGRAM_OUTPUT_ARGS}
     ERROR_VARIABLE PROGRAM_ERROR
     RESULT_VARIABLE PROGRAM_RESULT
 )
 if(NOT PROGRAM_RESULT EQUAL 0)
     message(FATAL_ERROR
             "native example failed (${PROGRAM_RESULT}):\n${PROGRAM_ERROR}")
+endif()
+
+if(DEFINED EXPECTED_OUTPUT)
+    compare_janus_output("${EXPECTED_OUTPUT}" "${ACTUAL_OUTPUT}")
 endif()
