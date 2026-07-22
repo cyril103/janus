@@ -125,7 +125,35 @@ run_with_timeout() {
       > "$stdout_file" 2> "$stderr_file" &
     command_pid=$!
   elif command -v perl >/dev/null 2>&1; then
-    perl -MPOSIX -e 'my $dir = shift @ARGV; chdir $dir or exit 125; POSIX::setsid() >= 0 or die "setsid: $!\n"; exec @ARGV or die "exec: $!\n"' -- \
+    perl -MPOSIX -e '
+      my $dir = shift @ARGV;
+      my @cmd = @ARGV;
+      my $pid = fork();
+      defined $pid or die "fork: $!\n";
+      if ($pid) {
+        my %exit_for = (HUP => 129, INT => 130, TERM => 143);
+        for my $signal (keys %exit_for) {
+          $SIG{$signal} = sub {
+            kill $signal, -$pid;
+            kill $signal, $pid;
+            # The shell timeout worker also escalates after one second. Kill
+            # the child session immediately here so it cannot kill this
+            # forwarding parent before descendants are reaped.
+            kill "KILL", -$pid;
+            kill "KILL", $pid;
+            exit $exit_for{$signal};
+          };
+        }
+        waitpid($pid, 0);
+        my $status = $?;
+        exit 127 if $status == -1;
+        exit 128 + ($status & 127) if $status & 127;
+        exit($status >> 8);
+      }
+      chdir $dir or exit 125;
+      POSIX::setsid() >= 0 or die "setsid: $!\n";
+      exec @cmd or die "exec: $!\n";
+    ' -- \
       "$workdir" "$@" > "$stdout_file" 2> "$stderr_file" &
     command_pid=$!
   else

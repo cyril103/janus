@@ -698,7 +698,22 @@ cat > "$CONFIG" <<'EOF'
 5|bin/slow|expected/problem1.txt
 EOF
 
-if PATH="$FAKE_BIN:/usr/bin:/bin" \
+FALLBACK_BIN="$WORK/fallback-bin"
+mkdir -p "$FALLBACK_BIN"
+for tool in awk cat chmod cmp cp date grep ln mkdir mktemp mv od ps rm sed sleep; do
+  if tool_path="$(command -v "$tool")"; then
+    ln -s "$tool_path" "$FALLBACK_BIN/$tool"
+  fi
+done
+REAL_PERL="$(command -v perl)"
+cat > "$FALLBACK_BIN/perl" <<EOF
+#!/bin/sh
+exec "$REAL_PERL" -MPOSIX -e 'POSIX::setpgid(0, 0) or die "setpgid: \$!\n"; exec @ARGV or die "exec perl: \$!\n"' -- "$REAL_PERL" "\$@"
+EOF
+chmod +x "$FALLBACK_BIN/perl"
+ln -s "$FAKE_BIN/janus" "$FALLBACK_BIN/janus"
+
+if PATH="$FALLBACK_BIN" \
    JANUS_FAKE_PROJECT="$PROJECT" \
      "$SCRIPT" --project "$PROJECT" --config "$CONFIG" --problem 5 \
      --timeout 1 > "$WORK/timeout.out" 2> "$WORK/timeout.err"; then
@@ -717,15 +732,6 @@ if ! grep -q '"status":"timeout"' "$timeout_run_dir/report.json" ||
   echo "verify test: timeout artifacts did not retain status and logs" >&2
   exit 1
 fi
-
-FALLBACK_BIN="$WORK/fallback-bin"
-mkdir -p "$FALLBACK_BIN"
-for tool in awk cat chmod cmp cp date grep ln mkdir mktemp od perl ps rm sed sleep; do
-  if tool_path="$(command -v "$tool")"; then
-    ln -s "$tool_path" "$FALLBACK_BIN/$tool"
-  fi
-done
-ln -s "$FAKE_BIN/janus" "$FALLBACK_BIN/janus"
 
 LEAK_NAME="janus-verify-leaked-descendant-$$"
 LEAK_PID="$WORK/leaked-descendant.pid"
