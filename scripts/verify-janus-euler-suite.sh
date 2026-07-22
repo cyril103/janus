@@ -20,7 +20,9 @@ config format:
 
 Each JSON result keeps problem/status/stage/exit_code/duration/message and adds
 compile_ok, run_ok, segfault, timeout, and output_mismatch booleans. Harness
-timeouts set timeout=true; a command that exits 124 by itself does not.
+timeouts set timeout=true; a command that exits 124 by itself does not. Process
+failures also include termination, signal name/number (when observed), the
+conventional exit code, source/executable mapping, and stdout/stderr log paths.
 EOF
 }
 
@@ -109,7 +111,8 @@ run_with_timeout() {
   stdout_file="$2"
   stderr_file="$3"
   workdir="$4"
-  shift 4
+  process_status_file="$5"
+  shift 5
 
   : > "$stdout_file"
   : > "$stderr_file"
@@ -120,16 +123,25 @@ run_with_timeout() {
   if [ -n "$timeout_marker" ]; then
     rm -f "$timeout_marker"
   fi
+  rm -f "$process_status_file"
 
   # Always start the command in its own session. A recursive process-tree
   # fallback is inherently racy once children are reparented, so use Perl's
   # POSIX::setsid on platforms (notably macOS) without a setsid executable.
   if command -v setsid >/dev/null 2>&1; then
+    if command -v perl >/dev/null 2>&1; then
+      set -- perl "$PROCESS_OBSERVER" "$process_status_file" "$@"
+    fi
     setsid sh -c 'cd "$1" || exit 125; shift; exec "$@"' sh "$workdir" "$@" \
       > "$stdout_file" 2> "$stderr_file" &
     command_pid=$!
   elif command -v perl >/dev/null 2>&1; then
-    perl -MPOSIX -e '
+    # The Perl fallback is both the session supervisor and process observer.
+    # Keeping those roles in one process avoids a nested process-group wrapper
+    # on macOS and preserves the raw wait status before converting it to the
+    # conventional shell exit code.
+    perl -MPOSIX -MConfig -e '
+      my $status_file = shift @ARGV;
       my $dir = shift @ARGV;
       my @cmd = @ARGV;
       my $pid = fork();
@@ -151,14 +163,33 @@ run_with_timeout() {
         waitpid($pid, 0);
         my $status = $?;
         exit 127 if $status == -1;
-        exit 128 + ($status & 127) if $status & 127;
-        exit($status >> 8);
+        my ($termination, $exit_code, $signal_number, $signal_name);
+        if ($status & 127) {
+          $termination = "signal";
+          $signal_number = $status & 127;
+          my @names = split /\s+/, ($Config::Config{sig_name} // "");
+          $signal_name = $names[$signal_number] || "SIGNAL$signal_number";
+          $signal_name = "SIG$signal_name" unless $signal_name =~ /^SIG/;
+          $exit_code = 128 + $signal_number;
+        } else {
+          $termination = "exit";
+          $exit_code = $status >> 8;
+          $signal_number = 0;
+          $signal_name = "";
+        }
+        my $temporary = "$status_file.$$";
+        open my $handle, ">", $temporary or die "status: $!\n";
+        printf {$handle} "termination=%s\nexit_code=%d\nsignal_number=%d\nsignal_name=%s\n",
+          $termination, $exit_code, $signal_number, $signal_name;
+        close $handle or die "status close: $!\n";
+        rename $temporary, $status_file or die "status publish: $!\n";
+        exit $exit_code;
       }
       chdir $dir or exit 125;
       POSIX::setsid() >= 0 or die "setsid: $!\n";
       exec @cmd or die "exec: $!\n";
     ' -- \
-      "$workdir" "$@" > "$stdout_file" 2> "$stderr_file" &
+      "$process_status_file" "$workdir" "$@" > "$stdout_file" 2> "$stderr_file" &
     command_pid=$!
   else
     printf '%s\n' 'timeout support requires setsid or perl' > "$stderr_file"
@@ -202,10 +233,34 @@ run_with_timeout() {
     return 124
   fi
   status="$wait_status"
+  if [ ! -f "$process_status_file" ]; then
+    # A portable shell only exposes the conventional status here. Without the
+    # observer, never guess that an intentional exit 139 was a signal.
+    printf 'termination=unknown\nexit_code=%s\nsignal_number=0\nsignal_name=\n' \
+      "$status" > "$process_status_file"
+  fi
   rm -f "$timeout_file"
   ACTIVE_COMMAND_PID=
   ACTIVE_TIMER_PID=
   return "$status"
+}
+
+load_process_status() {
+  status_file="$1"
+  fallback_status="$2"
+  PROCESS_TERMINATION=unknown
+  PROCESS_EXIT_CODE="$fallback_status"
+  PROCESS_SIGNAL_NUMBER=0
+  PROCESS_SIGNAL_NAME=
+  [ -f "$status_file" ] || return 0
+  while IFS='=' read -r key value; do
+    case "$key" in
+      termination) PROCESS_TERMINATION="$value" ;;
+      exit_code) PROCESS_EXIT_CODE="$value" ;;
+      signal_number) PROCESS_SIGNAL_NUMBER="$value" ;;
+      signal_name) PROCESS_SIGNAL_NAME="$value" ;;
+    esac
+  done < "$status_file"
 }
 
 cd_physical() {
@@ -257,6 +312,11 @@ GLOBAL_TIMEOUT=
 JSON_OUT=
 ARTIFACTS_DIR=
 ARTIFACTS_ENABLED=1
+case "$0" in
+  */*) SCRIPT_DIR="$(cd_physical "${0%/*}")" ;;
+  *) SCRIPT_DIR="$(pwd)" ;;
+esac
+PROCESS_OBSERVER="$SCRIPT_DIR/observe-process.pl"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -342,6 +402,7 @@ if [ -n "$GLOBAL_TIMEOUT" ]; then
 fi
 [ -d "$PROJECT" ] || die "project directory not found: $PROJECT"
 [ -f "$CONFIG" ] || die "config file not found: $CONFIG"
+[ -f "$PROCESS_OBSERVER" ] || die "process observer not found: $PROCESS_OBSERVER"
 
 JANUS_INPUT="$JANUS"
 case "$JANUS_INPUT" in
@@ -421,6 +482,10 @@ PASSED=0
 FAILED=0
 FIRST=1
 EXIT_STATUS=0
+PROCESS_TERMINATION=unknown
+PROCESS_EXIT_CODE=0
+PROCESS_SIGNAL_NUMBER=0
+PROCESS_SIGNAL_NAME=
 RUN_START="$(now_seconds)"
 GLOBAL_DEADLINE=
 if [ -n "$GLOBAL_TIMEOUT" ]; then
@@ -604,6 +669,10 @@ append_result() {
   message="$6"
   actual_file="$7"
   expected_file="$8"
+  telemetry_source="${9:-}"
+  telemetry_executable="${10:-}"
+  telemetry_stdout="${11:-}"
+  telemetry_stderr="${12:-}"
   compile_ok=false
   run_ok=false
   segfault=false
@@ -642,7 +711,71 @@ append_result() {
   if [ -n "$expected_file" ] && [ -f "$expected_file" ]; then
     printf ',"expected":"%s"' "$(json_escape "$expected_file")" >> "$TMP_REPORT"
   fi
+  if [ -n "$telemetry_source" ]; then
+    printf ',"termination":"%s","conventional_exit_code":%s' \
+      "$(json_escape_text "$PROCESS_TERMINATION")" "$PROCESS_EXIT_CODE" >> "$TMP_REPORT"
+    if [ "$PROCESS_TERMINATION" = signal ]; then
+      printf ',"signal_number":%s,"signal_name":"%s"' \
+        "$PROCESS_SIGNAL_NUMBER" "$(json_escape_text "$PROCESS_SIGNAL_NAME")" >> "$TMP_REPORT"
+    else
+      printf ',"signal_number":null,"signal_name":null' >> "$TMP_REPORT"
+    fi
+    printf ',"source":"%s","executable":"%s","stdout_log":"%s","stderr_log":"%s"' \
+      "$(json_escape_text "$telemetry_source")" \
+      "$(json_escape_text "$telemetry_executable")" \
+      "$(json_escape_text "$telemetry_stdout")" \
+      "$(json_escape_text "$telemetry_stderr")" >> "$TMP_REPORT"
+    if [ "$PROCESS_TERMINATION" = signal ] && [ -n "$actual_file" ] && [ -s "$actual_file" ]; then
+      printf ',"stack_excerpt":"%s"' "$(json_escape "$actual_file")" >> "$TMP_REPORT"
+    fi
+  fi
   printf '}' >> "$TMP_REPORT"
+}
+
+crash_log_path() {
+  problem="$1"
+  stage="$2"
+  stream="$3"
+  if [ "$ARTIFACTS_ENABLED" -eq 1 ] && [ -n "$ARTIFACT_RUN_DIR" ]; then
+    printf '%s/problems/%s/%s.%s\n' "$ARTIFACT_RUN_DIR" "$problem" "$stage" "$stream"
+  else
+    printf '%s/%s-%s.%s\n' "$WORK" "$stage" "$problem" \
+      "$( [ "$stream" = stdout ] && printf out || printf err )"
+  fi
+}
+
+append_process_failure() {
+  problem="$1"
+  stage="$2"
+  status="$3"
+  duration="$4"
+  source="$5"
+  executable="$6"
+  stderr_file="$7"
+  load_process_status "$8" "$status"
+  stdout_log="$(crash_log_path "$problem" "$stage" stdout)"
+  stderr_log="$(crash_log_path "$problem" "$stage" stderr)"
+  if [ "$PROCESS_TERMINATION" = signal ]; then
+    case "$PROCESS_SIGNAL_NAME" in
+      SIGSEGV) result_status=segfault ;;
+      *) result_status=crash ;;
+    esac
+    message="$executable terminated by $PROCESS_SIGNAL_NAME ($PROCESS_SIGNAL_NUMBER)"
+    echo "problem $problem ... $result_status ($stage: $PROCESS_SIGNAL_NAME/$PROCESS_SIGNAL_NUMBER, exit $PROCESS_EXIT_CODE)" >&2
+  else
+    case "$stage" in
+      check|build) result_status=error ;;
+      *) result_status=crash ;;
+    esac
+    message="$executable exited with code $PROCESS_EXIT_CODE"
+    echo "problem $problem ... $result_status ($stage exit $PROCESS_EXIT_CODE)" >&2
+  fi
+  echo "  source: $source" >&2
+  echo "  executable: $executable" >&2
+  echo "  logs: stdout=$stdout_log stderr=$stderr_log" >&2
+  append_result "$problem" "$result_status" "$stage" "$PROCESS_EXIT_CODE" \
+    "$duration" "$message" "$stderr_file" "" "$source" "$executable" \
+    "$stdout_log" "$stderr_log"
 }
 
 run_problem() {
@@ -658,12 +791,15 @@ run_problem() {
   executable="$WORK/problem-$number"
   check_out="$WORK/check-$number.out"
   check_err="$WORK/check-$number.err"
+  check_status="$WORK/check-$number.status"
   check_timeout="$WORK/check-$number.timeout"
   build_out="$WORK/build-$number.out"
   build_err="$WORK/build-$number.err"
+  build_status="$WORK/build-$number.status"
   build_timeout="$WORK/build-$number.timeout"
   run_out="$WORK/run-$number.out"
   run_err="$WORK/run-$number.err"
+  run_status="$WORK/run-$number.status"
   run_timeout="$WORK/run-$number.timeout"
   actual_norm="$WORK/actual-$number.txt"
   expected_norm="$WORK/expected-$number.txt"
@@ -700,7 +836,7 @@ run_problem() {
   fi
   set +e
   RUN_TIMEOUT_MARKER="$check_timeout" \
-    run_with_timeout "$timeout_left" "$check_out" "$check_err" "$PROJECT" \
+    run_with_timeout "$timeout_left" "$check_out" "$check_err" "$PROJECT" "$check_status" \
       "$JANUS" check "$source"
   status=$?
   set -e
@@ -712,20 +848,12 @@ run_problem() {
     append_result "$number" timeout check 124 "$duration" "janus check timed out" "" ""
     return
   fi
-  if [ "$status" -eq 139 ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
-    duration=$(($(now_seconds) - start))
-    echo "problem $number ... segfault (check exit 139)" >&2
-    append_result "$number" segfault check 139 "$duration" "janus check segfaulted" "$check_err" ""
-    return
-  fi
   if [ "$status" -ne 0 ]; then
     FAILED=$((FAILED + 1))
     EXIT_STATUS=1
     duration=$(($(now_seconds) - start))
-    echo "problem $number ... error (check exit $status)" >&2
-    append_result "$number" error check "$status" "$duration" "janus check failed" "$check_err" ""
+    append_process_failure "$number" check "$status" "$duration" "$source" \
+      "$JANUS" "$check_err" "$check_status"
     return
   fi
 
@@ -740,11 +868,11 @@ run_problem() {
   set +e
   if [ "$RELEASE" -eq 1 ]; then
         RUN_TIMEOUT_MARKER="$build_timeout" \
-          run_with_timeout "$timeout_left" "$build_out" "$build_err" "$PROJECT" \
+          run_with_timeout "$timeout_left" "$build_out" "$build_err" "$PROJECT" "$build_status" \
             "$JANUS" build "$source" -o "$executable" --release
   else
         RUN_TIMEOUT_MARKER="$build_timeout" \
-          run_with_timeout "$timeout_left" "$build_out" "$build_err" "$PROJECT" \
+          run_with_timeout "$timeout_left" "$build_out" "$build_err" "$PROJECT" "$build_status" \
             "$JANUS" build "$source" -o "$executable"
   fi
   status=$?
@@ -757,20 +885,12 @@ run_problem() {
     append_result "$number" timeout build 124 "$duration" "janus build timed out" "" ""
     return
   fi
-  if [ "$status" -eq 139 ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
-    duration=$(($(now_seconds) - start))
-    echo "problem $number ... segfault (build exit 139)" >&2
-    append_result "$number" segfault build 139 "$duration" "janus build segfaulted" "$build_err" ""
-    return
-  fi
   if [ "$status" -ne 0 ]; then
     FAILED=$((FAILED + 1))
     EXIT_STATUS=1
     duration=$(($(now_seconds) - start))
-    echo "problem $number ... error (build exit $status)" >&2
-    append_result "$number" error build "$status" "$duration" "janus build failed" "$build_err" ""
+    append_process_failure "$number" build "$status" "$duration" "$source" \
+      "$JANUS" "$build_err" "$build_status"
     return
   fi
 
@@ -784,7 +904,7 @@ run_problem() {
   fi
   set +e
   RUN_TIMEOUT_MARKER="$run_timeout" \
-    run_with_timeout "$timeout_left" "$run_out" "$run_err" "$PROJECT" "$executable"
+    run_with_timeout "$timeout_left" "$run_out" "$run_err" "$PROJECT" "$run_status" "$executable"
   status=$?
   set -e
   duration=$(($(now_seconds) - start))
@@ -795,18 +915,11 @@ run_problem() {
     append_result "$number" timeout run 124 "$duration" "executable timed out" "" ""
     return
   fi
-  if [ "$status" -eq 139 ]; then
-    FAILED=$((FAILED + 1))
-    EXIT_STATUS=1
-    echo "problem $number ... segfault (run exit 139)" >&2
-    append_result "$number" segfault run 139 "$duration" "executable segfaulted" "$run_err" ""
-    return
-  fi
   if [ "$status" -ne 0 ]; then
     FAILED=$((FAILED + 1))
     EXIT_STATUS=1
-    echo "problem $number ... crash (exit $status)" >&2
-    append_result "$number" crash run "$status" "$duration" "executable failed" "$run_err" ""
+    append_process_failure "$number" run "$status" "$duration" "$source" \
+      "$executable" "$run_err" "$run_status"
     return
   fi
 

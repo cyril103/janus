@@ -28,7 +28,8 @@ touch "$PROJECT/src/problem1.janus" "$PROJECT/src/problem2.janus" \
   "$PROJECT/src/problem3.janus" "$PROJECT/src/problem4.janus" \
   "$PROJECT/src/problem5.janus" "$PROJECT/src/problem6.janus" \
   "$PROJECT/src/problem7.janus" "$PROJECT/src/problem8.janus" \
-  "$PROJECT/src/problem9.janus" "$PROJECT/src/problem10.janus"
+  "$PROJECT/src/problem9.janus" "$PROJECT/src/problem10.janus" \
+  "$PROJECT/src/problem11.janus"
 printf '233168\n' > "$PROJECT/expected/problem1.txt"
 printf '4613732\n' > "$PROJECT/expected/problem2.txt"
 printf '6857\n' > "$PROJECT/expected/problem3.txt"
@@ -46,6 +47,7 @@ cat > "$CONFIG" <<'EOF'
 8|src/problem8.janus|expected/problem1.txt
 9|src/problem9.janus|expected/problem1.txt
 10|src/problem10.janus|expected/problem1.txt
+11|src/problem11.janus|expected/problem1.txt
 EOF
 
 cat > "$FAKE_BIN/janus" <<'EOF'
@@ -67,7 +69,7 @@ case "$command" in
         exit 0
         ;;
       *problem3.janus) exit 7 ;;
-      *problem8.janus) exit 139 ;;
+      *problem8.janus) echo 'stack: problem8.janus:8' >&2; kill -SEGV "$$" ;;
       *) exit 0 ;;
     esac
     ;;
@@ -101,7 +103,7 @@ RUNNER
         exit 0
         ;;
       *problem4.janus) exit 8 ;;
-      *problem9.janus) exit 139 ;;
+      *problem9.janus) echo 'stack: problem9.janus:9' >&2; kill -SEGV "$$" ;;
     esac
     case "$source" in
       *problem5.janus)
@@ -133,6 +135,15 @@ RUNNER
       cat > "$output" <<'RUNNER'
 #!/bin/sh
 exit 139
+RUNNER
+      chmod +x "$output"
+      exit 0
+      ;;
+      *problem11.janus)
+      cat > "$output" <<'RUNNER'
+#!/bin/sh
+echo 'stack: problem11.janus:11' >&2
+kill -SEGV "$$"
 RUNNER
       chmod +x "$output"
       exit 0
@@ -225,6 +236,42 @@ for result in payload["results"]:
             % (problem, status, expected, actual)
         )
 raise SystemExit("missing result for problem %s status %s" % (problem, status))
+PY
+}
+
+assert_crash_telemetry() {
+  report="$1"
+  problem="$2"
+  expected_status="$3"
+  expected_stage="$4"
+  expected_signal="$5"
+  expected_exit="$6"
+  "$json_python" - "$report" "$problem" "$expected_status" "$expected_stage" \
+    "$expected_signal" "$expected_exit" <<'PY'
+import json
+import sys
+
+report, problem, status, stage, signal_name, exit_code = (
+    sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5], int(sys.argv[6])
+)
+with open(report, "r", encoding="utf-8") as handle:
+    result = next(item for item in json.load(handle)["results"] if item["problem"] == problem)
+assert result["status"] == status, result
+assert result["stage"] == stage, result
+assert result["termination"] == ("signal" if signal_name != "none" else "exit"), result
+assert result["conventional_exit_code"] == exit_code, result
+assert result["source"].endswith("problem%d.janus" % problem), result
+assert result["executable"], result
+assert result["stdout_log"].endswith("%s.stdout" % stage), result
+assert result["stderr_log"].endswith("%s.stderr" % stage), result
+if signal_name == "none":
+    assert result["signal_name"] is None, result
+    assert result["signal_number"] is None, result
+else:
+    assert result["signal_name"] == signal_name, result
+    assert result["signal_number"] == 11, result
+    assert result["segfault"] is True, result
+    assert "problem%d.janus" % problem in result["stack_excerpt"], result
 PY
 }
 
@@ -587,15 +634,17 @@ assert_result_flags "$WORK/all.out" 3 error false false false false false
 assert_result_flags "$WORK/all.out" 4 error false false false false false
 assert_result_flags "$WORK/all.out" 8 segfault false false true false false
 assert_result_flags "$WORK/all.out" 9 segfault false false true false false
-assert_result_flags "$WORK/all.out" 10 segfault true false true false false
-if ! grep -q 'problem 8 .* segfault (check exit 139)' "$WORK/all.err" ||
-   ! grep -q 'problem 9 .* segfault (build exit 139)' "$WORK/all.err" ||
-   ! grep -q 'problem 10 .* segfault (run exit 139)' "$WORK/all.err"; then
+assert_result_flags "$WORK/all.out" 10 crash true false false false false
+assert_result_flags "$WORK/all.out" 11 segfault true false true false false
+if ! grep -q 'problem 8 .* segfault (check: SIGSEGV/11, exit 139)' "$WORK/all.err" ||
+   ! grep -q 'problem 9 .* segfault (build: SIGSEGV/11, exit 139)' "$WORK/all.err" ||
+   ! grep -q 'problem 10 .* crash (run exit 139)' "$WORK/all.err" ||
+   ! grep -q 'problem 11 .* segfault (run: SIGSEGV/11, exit 139)' "$WORK/all.err"; then
   echo "verify test: console output did not report explicit segfault stages" >&2
   exit 1
 fi
 
-for segfault_problem in 8 9 10; do
+for segfault_problem in 8 9 11; do
   set +e
   PATH="$FAKE_BIN:/usr/bin:/bin" \
   JANUS_FAKE_PROJECT="$PROJECT" \
@@ -616,6 +665,16 @@ for segfault_problem in 8 9 10; do
     exit 1
   fi
 done
+
+all_run_dir="$VERIFY_ARTIFACT_ROOT/$(cat "$VERIFY_ARTIFACT_ROOT/latest")"
+assert_crash_telemetry "$WORK/all.out" 8 segfault check SIGSEGV 139
+assert_crash_telemetry "$WORK/all.out" 9 segfault build SIGSEGV 139
+assert_crash_telemetry "$WORK/all.out" 10 crash run none 139
+assert_crash_telemetry "$WORK/all.out" 11 segfault run SIGSEGV 139
+if ! grep -q "logs: stdout=$all_run_dir/problems/11/run.stdout stderr=$all_run_dir/problems/11/run.stderr" "$WORK/all.err"; then
+  echo "verify test: console crash telemetry did not identify durable logs" >&2
+  exit 1
+fi
 
 if PATH="$FAKE_BIN:/usr/bin:/bin" \
    JANUS_FAKE_PROJECT="$PROJECT" \
