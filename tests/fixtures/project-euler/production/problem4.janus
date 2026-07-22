@@ -12,10 +12,21 @@ def solve() : int {
     var best : int = 0
     var left : int = 999
     while left >= 100 {
-        var right : int = left
-        while right >= 100 {
+        // Once the largest product for this left factor cannot beat the best
+        // palindrome, every smaller left factor is also bounded by the same cap.
+        if left * 999 <= best {
+            break
+        }
+
+        var right : int = 999
+        while right >= left {
             val product : int = left * right
-            if product > best && is_palindrome(product) {
+            // Products shrink as right descends, so the rest of this inner loop
+            // cannot improve the answer once this bound is reached.
+            if product <= best {
+                break
+            }
+            if is_palindrome(product) {
                 best = product
             }
             right = right - 1
