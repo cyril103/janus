@@ -1,0 +1,5 @@
+val answer : int = 42
+
+def main() : int {
+    return answer
+}
