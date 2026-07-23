@@ -4,15 +4,11 @@ def main() : int {
     var total : int = 0
 
     for pair in range(1, 4).zip[int](range(10, 13)) {
-        total = total + match pair {
-            Zipped(left, right) => left + right
-        }
+        total = total + pair.left + pair.right
     }
 
     for indexed in range(5, 8).enumerate() {
-        total = total + match indexed {
-            IndexValue(index, value) => int(index) + value
-        }
+        total = total + int(indexed.index) + indexed.value
     }
 
     for value in range(1, 4).flatMap[int](

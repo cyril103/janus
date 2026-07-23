@@ -5,9 +5,7 @@ import std.hashing
 import std.iterator
 import std.option
 
-enum MapEntry[K, V] {
-    Entry(K, V)
-}
+struct MapEntry[K, V](val key : K, val value : V) {}
 
 private enum MapSlot[K, V] {
     Empty,
@@ -182,7 +180,7 @@ class HashMap[K, V, H <: Hashing[K]](
         return match slots.get(index) {
             Occupied(key, value) =>
                 Option.Some[MapEntry[K, V]](
-                    MapEntry.Entry[K, V](key, value)
+                    new MapEntry[K, V](key, value)
                 ),
             Empty => Option.None[MapEntry[K, V]](),
             Deleted => Option.None[MapEntry[K, V]]()
@@ -382,9 +380,7 @@ class MapBuilder[K, V, H <: Hashing[K]](
     }
 
     def add(entry : MapEntry[K, V]) : Unit {
-        val inserted : bool = match entry {
-            Entry(key, value) => this.insert(key, value)
-        }
+        val inserted : bool = this.insert(entry.key, entry.value)
     }
 
     def size() : usize {

@@ -283,9 +283,9 @@ int main() {
          "enumerate attaches indices lazily");
   expect(adapters_ir.find("Iterator__int__flatMap__int") != std::string::npos,
          "flatMap switches between lazy inner iterators");
-  expect(adapters_ir.find("%enum.ZipItem__int__int = type") !=
+  expect(adapters_ir.find("%struct.ZipItem__int__int = type") !=
              std::string::npos,
-         "zip items are represented inline");
+         "zip items are represented as inline records");
 
   const janus::ast::Program qualified_program =
       loader.load(std::filesystem::path{JANUS_QUALIFIED_ENTRY});

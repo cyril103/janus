@@ -81,16 +81,14 @@ def main() : int {
     }
     var entrySum : int = 0
     for entry in numbers.entries() {
-        entrySum = entrySum + match entry {
-            Entry(key, value) => key + value
-        }
+        entrySum = entrySum + entry.key + entry.value
     }
 
     val mapBuilder : MapBuilder[int, int, IntHashing] =
         new MapBuilder[int, int, IntHashing](usize(4), hashing)
     defer delete mapBuilder
-    mapBuilder.add(MapEntry.Entry[int, int](3, 30))
-    mapBuilder.add(MapEntry.Entry[int, int](4, 40))
+    mapBuilder.add(new MapEntry[int, int](3, 30))
+    mapBuilder.add(new MapEntry[int, int](4, 40))
     val builtMap : HashMap[int, int, IntHashing] =
         mapBuilder.result()
     defer delete builtMap

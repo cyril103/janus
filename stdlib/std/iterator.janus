@@ -7,13 +7,9 @@ trait Iterable[T] {
     def iterator() : Iterator[T]
 }
 
-enum ZipItem[A, B] {
-    Zipped(A, B)
-}
+struct ZipItem[A, B](val left : A, val right : B) {}
 
-enum Indexed[T] {
-    IndexValue(usize, T)
-}
+struct Indexed[T](val index : usize, val value : T) {}
 
 private class MapIteratorState[A, B](
     private val source : Iterator[A],
@@ -103,7 +99,7 @@ private class ZipIteratorState[A, B](
         return match rightValue {
             Some(value) =>
                 Option.Some[ZipItem[A, B]](
-                    ZipItem.Zipped[A, B](leftValue, value)
+                    new ZipItem[A, B](leftValue, value)
                 ),
             None => Option.None[ZipItem[A, B]]()
         }
@@ -135,7 +131,7 @@ private class EnumerateIteratorState[T](
         val current : usize = index
         index = index + usize(1)
         return Option.Some[Indexed[T]](
-            Indexed.IndexValue[T](current, value)
+            new Indexed[T](current, value)
         )
     }
 
