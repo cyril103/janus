@@ -1,0 +1,6 @@
+import identity.left
+import identity.right
+
+def main() : int {
+    return moduleValue()
+}

@@ -1,0 +1,10 @@
+import identity.left
+import identity.right
+
+def read(marker : Marker) : int {
+    return marker.value
+}
+
+def main() : int {
+    return moduleValue()
+}

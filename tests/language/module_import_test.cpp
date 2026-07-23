@@ -1,4 +1,5 @@
 #include "janus/backend/llvm/ir_generator.hpp"
+#include "janus/diagnostics/compile_error.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
@@ -305,6 +306,50 @@ int main() {
   expect(qualified_ir.find("struct.qualified.library.Box") !=
              std::string::npos,
          "a class can be referenced and constructed by qualified name");
+
+  const janus::ast::Program identity_program =
+      loader.load(std::filesystem::path{JANUS_IDENTITY_ENTRY});
+  static_cast<void>(analyzer.analyze(identity_program));
+  llvm::LLVMContext identity_context;
+  janus::backend::llvm::IrGenerator identity_generator{identity_context};
+  const std::unique_ptr<llvm::Module> identity_module =
+      identity_generator.generate(identity_program, "module_identities");
+  std::string identity_ir;
+  llvm::raw_string_ostream identity_output{identity_ir};
+  identity_module->print(identity_output, nullptr);
+  identity_output.flush();
+  expect(identity_ir.find("@identity_left__moduleValue") !=
+             std::string::npos &&
+             identity_ir.find("@identity_right__moduleValue") !=
+                 std::string::npos,
+         "same-named functions from distinct modules have distinct symbols");
+  expect(identity_ir.find("struct.identity.left.Marker") !=
+             std::string::npos &&
+             identity_ir.find("struct.identity.right.Marker") !=
+                 std::string::npos,
+         "same-named types from distinct modules retain distinct identities");
+
+  try {
+    const janus::ast::Program ambiguous_program = loader.load(
+        std::filesystem::path{JANUS_IDENTITY_AMBIGUOUS_ENTRY});
+    static_cast<void>(analyzer.analyze(ambiguous_program));
+    expect(false, "an ambiguous short type name must be rejected");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(
+               "type name 'Marker' is ambiguous") != std::string_view::npos,
+           "ambiguous short type names request qualification");
+  }
+  try {
+    const janus::ast::Program ambiguous_function_program = loader.load(
+        std::filesystem::path{JANUS_IDENTITY_AMBIGUOUS_FUNCTION_ENTRY});
+    static_cast<void>(analyzer.analyze(ambiguous_function_program));
+    expect(false, "an ambiguous short function name must be rejected");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(
+               "function name 'moduleValue' is ambiguous") !=
+               std::string_view::npos,
+           "ambiguous short function names request qualification");
+  }
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

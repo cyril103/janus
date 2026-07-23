@@ -17,6 +17,8 @@ namespace {
 
 constexpr std::size_t enum_arity_marker =
     std::numeric_limits<std::size_t>::max() / 2;
+constexpr std::size_t ambiguous_arity_marker =
+    std::numeric_limits<std::size_t>::max();
 
 const janus::Type *builtin_type(std::string_view name) {
   if (name == "int")
@@ -110,6 +112,11 @@ resolve_type(const janus::ast::TypeReference &reference,
   if (class_arities != nullptr) {
     if (const auto iterator = class_arities->find(reference.name);
         iterator != class_arities->end()) {
+      if (iterator->second == ambiguous_arity_marker)
+        throw janus::CompileError{
+            reference.location,
+            "type name '" + reference.name +
+                "' is ambiguous; use a qualified name"};
       if (iterator->second >= enum_arity_marker) {
         const std::size_t arity = iterator->second - enum_arity_marker;
         if (reference.type_arguments.size() != arity)
@@ -462,6 +469,59 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::unordered_map<std::string, const ast::EnumDeclaration *> enums;
   std::unordered_map<std::string, const ast::TraitDeclaration *> traits;
   std::unordered_map<std::string, std::size_t> class_arities;
+  std::unordered_map<std::string, std::size_t> type_name_counts;
+  std::unordered_set<std::string> type_identities;
+  const auto register_type_identity =
+      [&](const std::optional<std::string> &module, std::string_view name,
+          SourceLocation location) {
+        const std::string identity = global_key(module, name);
+        if (!type_identities.insert(identity).second)
+          throw CompileError{location,
+                             "type '" + identity + "' is already declared"};
+        ++type_name_counts[std::string{name}];
+        return identity;
+      };
+  for (const ast::EnumDeclaration &declaration : program.enums) {
+    const std::string identity = register_type_identity(
+        declaration.module_name, declaration.name, declaration.location);
+    enums.emplace(identity, &declaration);
+    class_arities.emplace(
+        identity,
+        enum_arity_marker + declaration.type_parameters.size());
+  }
+  for (const ast::TraitDeclaration &declaration : program.traits) {
+    const std::string identity = register_type_identity(
+        declaration.module_name, declaration.name, declaration.location);
+    traits.emplace(identity, &declaration);
+  }
+  for (const ast::ClassDeclaration &declaration : program.classes) {
+    const std::string identity = register_type_identity(
+        declaration.module_name, declaration.name, declaration.location);
+    classes.emplace(identity, &declaration);
+    class_arities.emplace(identity, declaration.type_parameters.size());
+  }
+  for (const ast::EnumDeclaration &declaration : program.enums)
+    if (type_name_counts.at(declaration.name) == 1) {
+      enums.emplace(declaration.name, &declaration);
+      class_arities.emplace(
+          declaration.name,
+          enum_arity_marker + declaration.type_parameters.size());
+    } else {
+      class_arities.insert_or_assign(declaration.name,
+                                     ambiguous_arity_marker);
+    }
+  for (const ast::TraitDeclaration &declaration : program.traits)
+    if (type_name_counts.at(declaration.name) == 1)
+      traits.emplace(declaration.name, &declaration);
+  for (const ast::ClassDeclaration &declaration : program.classes)
+    if (type_name_counts.at(declaration.name) == 1) {
+      classes.emplace(declaration.name, &declaration);
+      class_arities.emplace(declaration.name,
+                            declaration.type_parameters.size());
+    } else {
+      class_arities.insert_or_assign(declaration.name,
+                                     ambiguous_arity_marker);
+    }
 
   for (const ast::EnumDeclaration &enum_declaration : program.enums) {
     if (builtin_type(enum_declaration.name) != nullptr ||
@@ -469,21 +529,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       throw CompileError{enum_declaration.location,
                          "enum '" + enum_declaration.name +
                              "' conflicts with a built-in type"};
-    if (!enums.emplace(enum_declaration.name, &enum_declaration).second)
-      throw CompileError{enum_declaration.location,
-                         "enum '" + enum_declaration.name +
-                             "' is already declared"};
-    class_arities.emplace(enum_declaration.name,
-                          enum_arity_marker +
-                              enum_declaration.type_parameters.size());
-    if (enum_declaration.module_name.has_value()) {
-      const std::string qualified =
-          *enum_declaration.module_name + "." + enum_declaration.name;
-      enums.emplace(qualified, &enum_declaration);
-      class_arities.emplace(qualified,
-                            enum_arity_marker +
-                                enum_declaration.type_parameters.size());
-    }
     std::unordered_set<std::string> enum_parameters;
     for (const std::string &parameter : enum_declaration.type_parameters) {
       if (!enum_parameters.insert(parameter).second)
@@ -510,18 +555,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       throw CompileError{trait_declaration.location,
                          "trait '" + trait_declaration.name +
                              "' conflicts with a built-in type"};
-    if (enums.contains(trait_declaration.name))
-      throw CompileError{trait_declaration.location,
-                         "trait '" + trait_declaration.name +
-                             "' conflicts with an enum"};
-    if (!traits.emplace(trait_declaration.name, &trait_declaration).second)
-      throw CompileError{trait_declaration.location,
-                         "trait '" + trait_declaration.name +
-                             "' is already declared"};
-    if (trait_declaration.module_name.has_value())
-      traits.emplace(*trait_declaration.module_name + "." +
-                         trait_declaration.name,
-                     &trait_declaration);
   }
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
     if (builtin_type(class_declaration.name) != nullptr ||
@@ -529,28 +562,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       throw CompileError{class_declaration.location,
                          "class '" + class_declaration.name +
                              "' conflicts with a built-in type"};
-    if (enums.contains(class_declaration.name))
-      throw CompileError{class_declaration.location,
-                         "class '" + class_declaration.name +
-                             "' conflicts with an enum"};
-    if (traits.contains(class_declaration.name))
-      throw CompileError{class_declaration.location,
-                         "class '" + class_declaration.name +
-                             "' conflicts with a trait"};
-    if (!classes.emplace(class_declaration.name, &class_declaration).second) {
-      throw CompileError{class_declaration.location,
-                         "class '" + class_declaration.name +
-                             "' is already declared"};
-    }
-    class_arities.emplace(class_declaration.name,
-                          class_declaration.type_parameters.size());
-    if (class_declaration.module_name.has_value()) {
-      const std::string qualified =
-          *class_declaration.module_name + "." + class_declaration.name;
-      classes.emplace(qualified, &class_declaration);
-      class_arities.emplace(qualified,
-                            class_declaration.type_parameters.size());
-    }
   }
 
   struct ResolvedGlobal {
@@ -1053,16 +1064,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const ast::GlobalDeclaration *global;
   };
   std::vector<FunctionContext> contexts;
+  std::unordered_map<std::string, std::size_t> function_name_counts;
   for (const ast::FunctionDeclaration &function : program.functions) {
     contexts.push_back(FunctionContext{&function, nullptr, nullptr, nullptr});
-    if (!functions.emplace(function.name, &function).second) {
-      throw CompileError{function.location, "function '" + function.name +
-                                                "' is already declared"};
-    }
-    if (function.module_name.has_value())
-      functions.emplace(*function.module_name + "." + function.name,
-                        &function);
+    const std::string identity =
+        global_key(function.module_name, function.name);
+    if (!functions.emplace(identity, &function).second)
+      throw CompileError{function.location,
+                         "function '" + identity + "' is already declared"};
+    ++function_name_counts[function.name];
   }
+  std::unordered_set<std::string> ambiguous_functions;
+  for (const ast::FunctionDeclaration &function : program.functions)
+    if (function_name_counts.at(function.name) == 1)
+      functions.emplace(function.name, &function);
+    else
+      ambiguous_functions.insert(function.name);
   std::vector<ast::FunctionDeclaration> global_initializer_functions;
   global_initializer_functions.reserve(initialization_plan.dynamic.size());
   for (const ast::GlobalDeclaration *global_pointer :
@@ -1738,6 +1755,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               }
               const auto callee_iterator = functions.find(node.callee);
               if (callee_iterator == functions.end()) {
+                if (ambiguous_functions.contains(node.callee))
+                  throw CompileError{
+                      node.location,
+                      "function name '" + node.callee +
+                          "' is ambiguous; use a qualified name"};
                 throw CompileError{node.location,
                                    "unknown function '" + node.callee + "'"};
               }

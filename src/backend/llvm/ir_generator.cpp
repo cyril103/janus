@@ -81,27 +81,38 @@ public:
 #endif
     module_->setPICLevel(::llvm::PICLevel::BigPIC);
     module_->setPIELevel(::llvm::PIELevel::Large);
-    for (const janus::ast::EnumDeclaration &enum_declaration : program.enums) {
-      enums_.emplace(enum_declaration.name, &enum_declaration);
-      if (enum_declaration.module_name.has_value())
-        enums_.emplace(*enum_declaration.module_name + "." +
-                           enum_declaration.name,
-                       &enum_declaration);
+    std::unordered_map<std::string, std::size_t> type_name_counts;
+    for (const janus::ast::EnumDeclaration &declaration : program.enums) {
+      enums_.emplace(source_global_key(declaration.module_name,
+                                      declaration.name),
+                     &declaration);
+      ++type_name_counts[declaration.name];
     }
     for (const janus::ast::ClassDeclaration &class_declaration :
          program.classes) {
-      classes_.emplace(class_declaration.name, &class_declaration);
-      if (class_declaration.module_name.has_value())
-        classes_.emplace(*class_declaration.module_name + "." +
-                             class_declaration.name,
-                         &class_declaration);
+      classes_.emplace(source_global_key(class_declaration.module_name,
+                                        class_declaration.name),
+                       &class_declaration);
+      ++type_name_counts[class_declaration.name];
     }
+    for (const janus::ast::EnumDeclaration &declaration : program.enums)
+      if (type_name_counts.at(declaration.name) == 1)
+        enums_.emplace(declaration.name, &declaration);
+    for (const janus::ast::ClassDeclaration &declaration : program.classes)
+      if (type_name_counts.at(declaration.name) == 1)
+        classes_.emplace(declaration.name, &declaration);
+
+    std::unordered_map<std::string, std::size_t> function_name_counts;
     for (const janus::ast::FunctionDeclaration &function : program.functions) {
-      functions_.emplace(function.name, &function);
-      if (function.module_name.has_value())
-        functions_.emplace(*function.module_name + "." + function.name,
-                           &function);
+      functions_.emplace(
+          source_global_key(function.module_name, function.name), &function);
+      ++function_name_counts[function.name];
     }
+    for (const janus::ast::FunctionDeclaration &function : program.functions)
+      if (function_name_counts.at(function.name) == 1)
+        functions_.emplace(function.name, &function);
+      else
+        ambiguous_function_names_.insert(function.name);
     for (const janus::ast::GlobalDeclaration &global : program.globals) {
       global_declarations_.push_back(&global);
       global_by_key_.emplace(
@@ -768,12 +779,21 @@ private:
       const Substitutions *owner_substitutions = nullptr,
       std::string_view owner_key = {},
       const std::vector<janus::ast::Statement> *body_override = nullptr) {
-    const std::string llvm_name =
-        function.is_external && function.external_symbol.has_value()
-            ? *function.external_symbol
-            : (owner == nullptr ? std::string{}
-                                : std::string{owner_key} + "__") +
+    std::string llvm_name;
+    if (function.is_external) {
+      llvm_name = function.external_symbol.value_or(function.name);
+    } else {
+      llvm_name = (owner == nullptr ? std::string{}
+                                    : std::string{owner_key} + "__") +
                   mangle(function, type_arguments);
+      if (owner == nullptr &&
+          ambiguous_function_names_.contains(function.name) &&
+          function.module_name.has_value()) {
+        std::string module = *function.module_name;
+        std::replace(module.begin(), module.end(), '.', '_');
+        llvm_name = module + "__" + llvm_name;
+      }
+    }
     if (const auto iterator = emitted_.find(llvm_name);
         iterator != emitted_.end())
       return iterator->second;
@@ -2831,6 +2851,7 @@ private:
   std::unique_ptr<::llvm::Module> module_;
   std::unordered_map<std::string, const janus::ast::FunctionDeclaration *>
       functions_;
+  std::unordered_set<std::string> ambiguous_function_names_;
   std::vector<const janus::ast::GlobalDeclaration *> global_declarations_;
   std::unordered_map<std::string, const janus::ast::GlobalDeclaration *>
       global_by_key_;

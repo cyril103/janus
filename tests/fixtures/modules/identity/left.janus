@@ -1,0 +1,7 @@
+module identity.left
+
+struct Marker(val value : int) {}
+
+def moduleValue() : int {
+    return 10
+}

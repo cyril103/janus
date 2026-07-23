@@ -1,0 +1,9 @@
+import identity.left
+import identity.right
+
+def main() : int {
+    val left : identity.left.Marker = new identity.left.Marker(1)
+    val right : identity.right.Marker = new identity.right.Marker(2)
+    return identity.left.moduleValue() + identity.right.moduleValue() +
+        left.value + right.value
+}
