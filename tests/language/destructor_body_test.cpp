@@ -142,6 +142,42 @@ def main() : int {
              failure_cleanup < failure_return,
          "operator ? executes active deferred actions on propagation");
 
+  janus::frontend::Parser aggregate_parser{
+      "class Resource() {} "
+      "struct Box(val resource : Resource) {} "
+      "enum Holder { Some(Box), None } "
+      "def releaseBox() : Unit { "
+      "val box : Box = new Box(new Resource()) delete box } "
+      "def releaseHolder() : Unit { "
+      "val holder : Holder = Holder.Some(new Box(new Resource())) "
+      "defer delete holder } "
+      "def main() : int { releaseBox() releaseHolder() return 0 }"};
+  const janus::ast::Program aggregate_program =
+      aggregate_parser.parse_program();
+  static_cast<void>(analyzer.analyze(aggregate_program));
+  llvm::LLVMContext aggregate_context;
+  janus::backend::llvm::IrGenerator aggregate_generator{aggregate_context};
+  const std::unique_ptr<llvm::Module> aggregate_module =
+      aggregate_generator.generate(aggregate_program, "aggregate_cleanup");
+  std::string aggregate_ir;
+  llvm::raw_string_ostream aggregate_output{aggregate_ir};
+  aggregate_module->print(aggregate_output, nullptr);
+  aggregate_output.flush();
+  const std::size_t release_box =
+      aggregate_ir.find("define void @releaseBox()");
+  expect(release_box != std::string::npos &&
+             aggregate_ir.find("call void @Resource__destructor",
+                               release_box) != std::string::npos,
+         "delete recursively releases resources owned by a struct");
+  const std::size_t release_holder =
+      aggregate_ir.find("define void @releaseHolder()");
+  expect(release_holder != std::string::npos &&
+             aggregate_ir.find("aggregate.enum.release.Some",
+                               release_holder) != std::string::npos &&
+             aggregate_ir.find("call void @Resource__destructor",
+                               release_holder) != std::string::npos,
+         "defer delete recursively releases the active enum payload");
+
   expect_compile_error("class Invalid() { destructor { return 1 } } "
                        "def main() : int { return 0 }",
                        "cannot return a value");

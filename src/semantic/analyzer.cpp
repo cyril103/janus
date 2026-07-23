@@ -3025,11 +3025,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "' is destroyed automatically"};
           const SemanticType deleted_type =
               expression_type(deletion->expression);
-          if (deleted_type.is_class() &&
-              classes.at(deleted_type.parameter)->is_value_type)
+          const bool is_struct =
+              deleted_type.is_class() &&
+              classes.at(deleted_type.parameter)->is_value_type;
+          if (is_struct && !aggregate_owns_value(deleted_type))
             throw CompileError{deletion->location,
                                "struct values do not require delete"};
-          if (!deleted_type.is_class() && !deleted_type.is_function())
+          if (!deleted_type.is_class() && !deleted_type.is_function() &&
+              !(deleted_type.is_enum() &&
+                aggregate_owns_value(deleted_type)))
             throw CompileError{deletion->location,
                                "delete requires an object or a function value"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
@@ -3064,11 +3068,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "' is already scheduled for deferred cleanup"};
             const SemanticType deleted_type =
                 expression_type(deletion->expression);
-            if (deleted_type.is_class() &&
-                classes.at(deleted_type.parameter)->is_value_type)
+            const bool is_struct =
+                deleted_type.is_class() &&
+                classes.at(deleted_type.parameter)->is_value_type;
+            if (is_struct && !aggregate_owns_value(deleted_type))
               throw CompileError{deletion->location,
                                  "struct values do not require delete"};
-            if (!deleted_type.is_class() && !deleted_type.is_function())
+            if (!deleted_type.is_class() && !deleted_type.is_function() &&
+                !(deleted_type.is_enum() &&
+                  aggregate_owns_value(deleted_type)))
               throw CompileError{
                   deletion->location,
                   "deferred delete requires an object or a function value"};

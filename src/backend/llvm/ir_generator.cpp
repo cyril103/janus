@@ -915,18 +915,7 @@ private:
       ::llvm::Value *deleted_value =
           emit_expression(deletion->expression, deleted_type, substitutions,
                           cleanup_locals, builder);
-      ::llvm::Value *pointer = deleted_value;
-      if (deleted_type.kind() == janus::TypeKind::Function) {
-        pointer =
-            builder.CreateExtractValue(deleted_value, 1, "lambda.environment");
-      } else {
-        builder.CreateCall(emit_destructor(std::string{deleted_type.name()}),
-                           {pointer});
-      }
-      ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
-          "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
-                                            {builder.getPtrTy()}, false));
-      builder.CreateCall(free_function, {pointer});
+      emit_owned_value_cleanup(deleted_value, deleted_type, builder);
       return;
     }
     const auto &action =
@@ -1324,18 +1313,7 @@ private:
           ::llvm::Value *deleted_value =
               emit_expression(deletion->expression, deleted_type, substitutions,
                               block_locals, builder);
-          ::llvm::Value *pointer = deleted_value;
-          if (deleted_type.kind() == janus::TypeKind::Function) {
-            pointer = builder.CreateExtractValue(deleted_value, 1,
-                                                 "lambda.environment");
-          } else {
-            builder.CreateCall(
-                emit_destructor(std::string{deleted_type.name()}), {pointer});
-          }
-          ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
-              "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
-                                                {builder.getPtrTy()}, false));
-          builder.CreateCall(free_function, {pointer});
+          emit_owned_value_cleanup(deleted_value, deleted_type, builder);
           continue;
         }
 
