@@ -1,4 +1,5 @@
 #include "janus/backend/llvm/ir_generator.hpp"
+#include "janus/diagnostics/compile_error.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
 
@@ -167,6 +168,22 @@ def main() : int {
 
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
+
+  try {
+    const janus::ast::Program private_program = loader.load(
+        std::filesystem::path{"graphics_private_test/main.janus"},
+        "import std.graphics "
+        "def main() : int { "
+        "return if std.graphics.janus_graphics_available() { 1 } else { 0 } "
+        "}");
+    static_cast<void>(analyzer.analyze(private_program));
+    expect(false, "graphics native primitives must remain module-private");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(
+               "function 'std.graphics.janus_graphics_available' is private") !=
+               std::string_view::npos,
+           "graphics native primitive access reports private visibility");
+  }
 
   llvm::LLVMContext context;
   janus::backend::llvm::IrGenerator generator{context};
