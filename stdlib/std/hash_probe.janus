@@ -1,0 +1,39 @@
+module std.hash_probe
+
+struct HashProbe(
+    private var index : usize,
+    private val capacity : usize,
+    private var checked : usize
+) {
+    def hasNext() : bool {
+        return checked < capacity
+    }
+
+    def next() : usize {
+        val current : usize = index
+        index = (index + usize(1)) % capacity
+        checked = checked + usize(1)
+        return current
+    }
+}
+
+def normalizedHashCapacity(requested : usize) : usize {
+    return if requested < usize(8) {
+        usize(8)
+    } else {
+        requested
+    }
+}
+
+def hashTableShouldGrow(
+    length : usize,
+    deletedCount : usize,
+    capacity : usize
+) : bool {
+    return (length + deletedCount + usize(1)) * usize(4) >=
+        capacity * usize(3)
+}
+
+def hashProbe(hash : usize, capacity : usize) : HashProbe {
+    return new HashProbe(hash % capacity, capacity, usize(0))
+}

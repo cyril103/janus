@@ -1,6 +1,7 @@
 module std.hashmap
 import std.array
 import std.builder
+import std.hash_probe
 import std.hashing
 import std.iterator
 import std.option
@@ -85,11 +86,8 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
     initialCapacity : usize,
     private val hashing : H
 ) {
-    private var slotCapacity : usize = if initialCapacity < usize(8) {
-        usize(8)
-    } else {
-        initialCapacity
-    }
+    private var slotCapacity : usize =
+        normalizedHashCapacity(initialCapacity)
     private var slots : Array[MapSlot[K, V]] =
         new Array[MapSlot[K, V]](slotCapacity)
     private var length : usize = usize(0)
@@ -149,7 +147,7 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
     private def resize(requested : usize) : Unit {
         val previous : Array[MapSlot[K, V]] = move slots
         val previousSize : usize = previous.size()
-        slotCapacity = requested
+        slotCapacity = normalizedHashCapacity(requested)
         slots = new Array[MapSlot[K, V]](slotCapacity)
         length = usize(0)
         deletedCount = usize(0)
@@ -217,9 +215,9 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
 
     def containsKey(key : K) : bool {
         this.initializeSlots()
-        var index : usize = hashing.hash(key) % slotCapacity
-        var checked : usize = usize(0)
-        while checked < slotCapacity {
+        var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
+        while probe.hasNext() {
+            val index : usize = probe.next()
             val slot : MapSlot[K, V] = slots.get(index)
             if this.matches(slot, key) {
                 return true
@@ -227,17 +225,15 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
             if this.isEmptySlot(slot) {
                 return false
             }
-            index = (index + usize(1)) % slotCapacity
-            checked = checked + usize(1)
         }
         return false
     }
 
     def getOption(key : K) : Option[V] {
         this.initializeSlots()
-        var index : usize = hashing.hash(key) % slotCapacity
-        var checked : usize = usize(0)
-        while checked < slotCapacity {
+        var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
+        while probe.hasNext() {
+            val index : usize = probe.next()
             val slot : MapSlot[K, V] = slots.get(index)
             if this.matches(slot, key) {
                 return this.oldValue(slot)
@@ -245,24 +241,21 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
             if this.isEmptySlot(slot) {
                 return Option.None[V]()
             }
-            index = (index + usize(1)) % slotCapacity
-            checked = checked + usize(1)
         }
         return Option.None[V]()
     }
 
     def put(key : K, value : V) : Option[V] {
         this.initializeSlots()
-        if (length + deletedCount + usize(1)) * usize(4) >=
-            slotCapacity * usize(3) {
+        if hashTableShouldGrow(length, deletedCount, slotCapacity) {
             this.resize(slotCapacity * usize(2))
         }
 
-        var index : usize = hashing.hash(key) % slotCapacity
-        var checked : usize = usize(0)
+        var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
         var firstDeleted : usize = usize(0)
         var hasDeleted : bool = false
-        while checked < slotCapacity {
+        while probe.hasNext() {
+            val index : usize = probe.next()
             val slot : MapSlot[K, V] = slots.get(index)
             if this.matches(slot, key) {
                 val previous : Option[V] = this.oldValue(slot)
@@ -289,8 +282,6 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
                 }
                 return Option.None[V]()
             }
-            index = (index + usize(1)) % slotCapacity
-            checked = checked + usize(1)
         }
 
         if hasDeleted {
@@ -308,9 +299,9 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
 
     def remove(key : K) : Option[V] {
         this.initializeSlots()
-        var index : usize = hashing.hash(key) % slotCapacity
-        var checked : usize = usize(0)
-        while checked < slotCapacity {
+        var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
+        while probe.hasNext() {
+            val index : usize = probe.next()
             val slot : MapSlot[K, V] = slots.get(index)
             if this.matches(slot, key) {
                 val removed : Option[V] = this.oldValue(slot)
@@ -322,8 +313,6 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
             if this.isEmptySlot(slot) {
                 return Option.None[V]()
             }
-            index = (index + usize(1)) % slotCapacity
-            checked = checked + usize(1)
         }
         return Option.None[V]()
     }

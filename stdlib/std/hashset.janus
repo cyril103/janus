@@ -1,6 +1,7 @@
 module std.hashset
 import std.array
 import std.builder
+import std.hash_probe
 import std.hashing
 import std.iterator
 import std.option
@@ -36,11 +37,8 @@ class HashSet[T <: Copy, H <: Hashing[T]](
     initialCapacity : usize,
     private val hashing : H
 ) extends Iterable[T] {
-    private var slotCapacity : usize = if initialCapacity < usize(8) {
-        usize(8)
-    } else {
-        initialCapacity
-    }
+    private var slotCapacity : usize =
+        normalizedHashCapacity(initialCapacity)
     private var slots : Array[SetSlot[T]] =
         new Array[SetSlot[T]](slotCapacity)
     private var length : usize = usize(0)
@@ -95,7 +93,7 @@ class HashSet[T <: Copy, H <: Hashing[T]](
     private def resize(requested : usize) : Unit {
         val previous : Array[SetSlot[T]] = move slots
         val previousSize : usize = previous.size()
-        slotCapacity = requested
+        slotCapacity = normalizedHashCapacity(requested)
         slots = new Array[SetSlot[T]](slotCapacity)
         length = usize(0)
         deletedCount = usize(0)
@@ -136,9 +134,9 @@ class HashSet[T <: Copy, H <: Hashing[T]](
 
     def contains(value : T) : bool {
         this.initializeSlots()
-        var index : usize = hashing.hash(value) % slotCapacity
-        var checked : usize = usize(0)
-        while checked < slotCapacity {
+        var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
+        while probe.hasNext() {
+            val index : usize = probe.next()
             val slot : SetSlot[T] = slots.get(index)
             if this.matches(slot, value) {
                 return true
@@ -146,24 +144,21 @@ class HashSet[T <: Copy, H <: Hashing[T]](
             if this.isEmptySlot(slot) {
                 return false
             }
-            index = (index + usize(1)) % slotCapacity
-            checked = checked + usize(1)
         }
         return false
     }
 
     def add(value : T) : bool {
         this.initializeSlots()
-        if (length + deletedCount + usize(1)) * usize(4) >=
-            slotCapacity * usize(3) {
+        if hashTableShouldGrow(length, deletedCount, slotCapacity) {
             this.resize(slotCapacity * usize(2))
         }
 
-        var index : usize = hashing.hash(value) % slotCapacity
-        var checked : usize = usize(0)
+        var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
         var firstDeleted : usize = usize(0)
         var hasDeleted : bool = false
-        while checked < slotCapacity {
+        while probe.hasNext() {
+            val index : usize = probe.next()
             val slot : SetSlot[T] = slots.get(index)
             if this.matches(slot, value) {
                 return false
@@ -185,8 +180,6 @@ class HashSet[T <: Copy, H <: Hashing[T]](
                 }
                 return true
             }
-            index = (index + usize(1)) % slotCapacity
-            checked = checked + usize(1)
         }
 
         if hasDeleted {
@@ -201,9 +194,9 @@ class HashSet[T <: Copy, H <: Hashing[T]](
 
     def remove(value : T) : bool {
         this.initializeSlots()
-        var index : usize = hashing.hash(value) % slotCapacity
-        var checked : usize = usize(0)
-        while checked < slotCapacity {
+        var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
+        while probe.hasNext() {
+            val index : usize = probe.next()
             val slot : SetSlot[T] = slots.get(index)
             if this.matches(slot, value) {
                 slots.set(index, SetSlot.Deleted[T]())
@@ -214,8 +207,6 @@ class HashSet[T <: Copy, H <: Hashing[T]](
             if this.isEmptySlot(slot) {
                 return false
             }
-            index = (index + usize(1)) % slotCapacity
-            checked = checked + usize(1)
         }
         return false
     }

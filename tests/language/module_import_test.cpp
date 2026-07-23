@@ -177,6 +177,8 @@ int main() {
          "IntHashing provides primitive equality");
   expect(ir.find("%enum.SetSlot__int = type") != std::string::npos,
          "HashSet represents empty, occupied, and deleted slots inline");
+  expect(ir.find("define i64 @HashProbe__next") != std::string::npos,
+         "hash collections share a linear probing cursor");
   expect(ir.find("define i1 @HashSet__int__IntHashing__add") !=
              std::string::npos,
          "HashSet.add is specialized with its hashing strategy");
