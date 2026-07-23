@@ -63,6 +63,10 @@ jobs:
             os: windows-2025
 
     runs-on: ${{ matrix.os }}
+    env:
+      EULER_CASE_TIMEOUT: 5
+      EULER_GLOBAL_TIMEOUT: 120
+      EULER_MAX_ERRORS: 0
 
     steps:
       - name: Check out Janus
@@ -120,8 +124,15 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
-      - name: Test
-        if: runner.os != 'Windows'
+      - name: Test on Linux (Euler runs in the explicit gate)
+        if: runner.os == 'Linux'
+        run: >
+          ctest --test-dir build --output-on-failure
+          --stop-on-failure --timeout 60
+          --exclude-regex '^project_euler\.smoke$'
+
+      - name: Test on macOS
+        if: runner.os == 'macOS'
         run: >
           ctest --test-dir build --output-on-failure
           --stop-on-failure --timeout 60
@@ -132,6 +143,32 @@ jobs:
         run: >
           ctest --test-dir build --output-on-failure
           --stop-on-failure --timeout 60
+
+      - name: Euler 1..20 gate
+        if: runner.os == 'Linux'
+        shell: bash
+        timeout-minutes: 3
+        run: |
+          scripts/verify-janus-euler-suite.sh \
+            --project tests/fixtures/project-euler \
+            --config tests/fixtures/project-euler/production.txt \
+            --janus "${GITHUB_WORKSPACE}/build/janus" \
+            --all \
+            --timeout "${EULER_CASE_TIMEOUT}" \
+            --global-timeout "${EULER_GLOBAL_TIMEOUT}" \
+            --max-errors "${EULER_MAX_ERRORS}" \
+            --json-out "${GITHUB_WORKSPACE}/build/euler-gate-report.json" \
+            --artifacts-dir "${GITHUB_WORKSPACE}/build/euler-gate-artifacts"
+
+      - name: Upload Euler gate report and artifacts
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: janus-euler-gate-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            build/euler-gate-report.json
+            build/euler-gate-artifacts
+          if-no-files-found: warn
 
       - name: Package
         run: cmake --build build --target dist

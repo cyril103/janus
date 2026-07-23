@@ -10,6 +10,7 @@ options:
   --release                Pass --release to janus build
   --timeout SECONDS        Per-problem timeout in seconds (default: 60)
   --global-timeout SECONDS Global timeout in seconds
+  --max-errors N           Allow at most N failed problems (default: 0)
   --safe-fallback FILE     Run failed primary cases from fallback config
   --json-out FILE          Also write the JSON report to FILE
   --artifacts-dir DIR      Persist run artifacts under DIR (default: PROJECT/target/verify)
@@ -314,6 +315,7 @@ ALL_SELECTED=0
 RELEASE=0
 CASE_TIMEOUT=60
 GLOBAL_TIMEOUT=
+MAX_ERRORS=0
 JSON_OUT=
 ARTIFACTS_DIR=
 ARTIFACTS_ENABLED=1
@@ -384,6 +386,11 @@ while [ "$#" -gt 0 ]; do
       GLOBAL_TIMEOUT="$2"
       shift 2
       ;;
+    --max-errors)
+      [ "$#" -ge 2 ] || die "--max-errors requires a non-negative integer"
+      MAX_ERRORS="$2"
+      shift 2
+      ;;
     --json-out)
       [ "$#" -ge 2 ] || die "--json-out requires a file"
       JSON_OUT="$2"
@@ -421,6 +428,8 @@ if [ -n "$GLOBAL_TIMEOUT" ]; then
   is_number "$GLOBAL_TIMEOUT" || die "--global-timeout requires a positive integer"
   [ "$GLOBAL_TIMEOUT" -gt 0 ] || die "--global-timeout requires a positive integer"
 fi
+is_number "$MAX_ERRORS" || die "--max-errors requires a non-negative integer"
+[ "$MAX_ERRORS" -ge 0 ] 2>/dev/null || die "--max-errors requires a non-negative integer"
 [ -d "$PROJECT" ] || die "project directory not found: $PROJECT"
 [ -f "$CONFIG" ] || die "config file not found: $CONFIG"
 [ -z "$SAFE_FALLBACK" ] || [ -f "$SAFE_FALLBACK" ] || die "fallback config file not found: $SAFE_FALLBACK"
@@ -872,7 +881,6 @@ record_pass() {
 record_fail() {
   [ "$COUNT_RESULTS" -eq 1 ] || return 0
   FAILED=$((FAILED + 1))
-  EXIT_STATUS=1
 }
 
 run_problem() {
@@ -1367,15 +1375,20 @@ while IFS= read -r line || [ -n "$line" ]; do
   fi
 done < "$CONFIG"
 
+WITHIN_ERROR_BUDGET=true
+if [ "$FAILED" -gt "$MAX_ERRORS" ]; then
+  EXIT_STATUS=1
+  WITHIN_ERROR_BUDGET=false
+fi
 RUN_DURATION=$(($(now_seconds) - RUN_START))
 RUN_MESSAGE=
 if [ "$EXIT_STATUS" -ne 0 ]; then
   RUN_MESSAGE="one or more problems failed"
 fi
 if [ -n "$SAFE_FALLBACK" ]; then
-  SUMMARY_EXTRA=',"fallback_used":'"$FALLBACK_USED"',"primary_failed":'"$PRIMARY_FAILED"
+  SUMMARY_EXTRA=',"max_errors":'"$MAX_ERRORS"',"within_error_budget":'"$WITHIN_ERROR_BUDGET"',"fallback_used":'"$FALLBACK_USED"',"primary_failed":'"$PRIMARY_FAILED"
 else
-  SUMMARY_EXTRA=
+  SUMMARY_EXTRA=',"max_errors":'"$MAX_ERRORS"',"within_error_budget":'"$WITHIN_ERROR_BUDGET"
 fi
 printf '{"run":{"run_id":"%s","report":"%s","exit_code":%s,"duration_seconds":%s,"message":"%s"},"summary":{"total":%s,"ok":%s,"failed":%s%s},"results":[\n' \
   "$(json_escape_text "$ARTIFACT_RUN_REL")" \
