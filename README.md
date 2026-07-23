@@ -142,24 +142,20 @@ def main() : int {
 }
 ```
 
-`val` et `var` sont des déclarations locales ou des champs de classe : Janus ne
-prend pas encore en charge les variables globales au niveau module. Déplacez
-ces déclarations dans une fonction, ou exposez une valeur calculée via une
-fonction.
-
-Invalide :
+`val` et `var` peuvent être déclarées localement, comme champs de classe ou au
+niveau du module. Une globale doit toujours avoir un initialiseur :
 
 ```janus
 val answer : int = 42
-```
+private var requests : int = 0
 
-Valide :
-
-```janus
-def answer() : int {
-    return 42
+def recordRequest() : Unit {
+    requests = requests + 1
 }
 ```
+
+Les initialiseurs non constants sont exécutés avant `main`. Les ressources
+globales possédées sont libérées automatiquement après son exécution.
 
 Les principales fonctionnalités sont :
 

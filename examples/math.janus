@@ -5,12 +5,12 @@ def main() : int {
     val height : usize = usize(30)
 
     print("gcd: ")
-    println(gcd(width, height))
+    println(std.math.gcd(width, height))
 
     print("lcm: ")
-    println(lcm(width, height))
+    println(std.math.lcm(width, height))
 
     print("prime: ")
-    println(is_prime(usize(97)))
+    println(std.math.is_prime(usize(97)))
     return 0
 }

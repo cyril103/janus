@@ -13,10 +13,10 @@ def main() : int {
     while !windowShouldClose() && !isKeyPressed(Key.Escape) {
         beginDrawing()
         clearBackground(rgb(24, 28, 36))
-        drawCircle(400, 225, float(80.0), blue())
-        drawRectangle(mouseX() - 10, mouseY() - 10, 20, 20, red())
-        drawText("Bonjour depuis Janus !", 245, 40, 28, white())
-        drawText("Deplacez la souris dans la fenetre", 235, 390, 18, green())
+        drawCircle(400, 225, float(80.0), Blue)
+        drawRectangle(mouseX() - 10, mouseY() - 10, 20, 20, Red)
+        drawText("Bonjour depuis Janus !", 245, 40, 28, White)
+        drawText("Deplacez la souris dans la fenetre", 235, 390, 18, Green)
         endDrawing()
     }
 

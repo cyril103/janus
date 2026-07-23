@@ -1,20 +1,37 @@
-class Tracker() {
+struct Point(val x : int, val y : int) {}
+
+enum ServiceState {
+    Starting,
+    Ready
+}
+
+private class Tracker() {
     destructor {
         println("destroyed")
     }
 }
 
 val answer : int = 42
-var requests : int = initialRequests()
+val origin : Point = new Point(3, 4)
+val serviceState : ServiceState = ServiceState.Ready
+private val initialRequestCount : int = initialRequests()
+var requests : int = initialRequestCount
 private val message : string = "global"
 private val tracker : Tracker = new Tracker()
 
-def initialRequests() : int {
+private def initialRequests() : int {
     return 10
 }
 
-def recordRequest() : Unit {
+private def recordRequest() : Unit {
     requests = requests + 1
+}
+
+private def stateCode(state : ServiceState) : int {
+    return match state {
+        Starting => 0,
+        Ready => 1
+    }
 }
 
 def main() : int {
@@ -23,5 +40,7 @@ def main() : int {
     println(message)
     println(answer)
     println(requests)
+    println(origin.x + origin.y)
+    println(stateCode(serviceState))
     return 0
 }

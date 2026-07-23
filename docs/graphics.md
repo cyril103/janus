@@ -68,8 +68,8 @@ def main() : int {
     while !windowShouldClose() {
         beginDrawing()
         clearBackground(rgb(24, 28, 36))
-        drawCircle(400, 225, float(80.0), blue())
-        drawText("Bonjour depuis Janus !", 245, 40, 28, white())
+        drawCircle(400, 225, float(80.0), Blue)
+        drawText("Bonjour depuis Janus !", 245, 40, 28, White)
         endDrawing()
     }
     return 0
@@ -90,8 +90,9 @@ val opaqueOrange : uint = rgb(255, 161, 0)
 val translucentBlue : uint = rgba(0, 121, 241, 128)
 ```
 
-Les couleurs prédéfinies du MVP sont `black()`, `white()`, `red()`, `green()`
-et `blue()`.
+Les couleurs prédéfinies sont les valeurs globales `Black`, `White`, `Red`,
+`Green` et `Blue`. Les fonctions historiques `black()`, `white()`, `red()`,
+`green()` et `blue()` restent disponibles pour préserver la compatibilité.
 
 ## Dessin et entrées
 
@@ -108,7 +109,7 @@ val sprite : Texture = loadTexture("assets/sprite.png")
 defer delete sprite
 
 if sprite.isValid() {
-    sprite.draw(100, 80, white())
+    sprite.draw(100, 80, White)
 }
 ```
 
@@ -186,8 +187,8 @@ val target : RenderTexture = loadRenderTexture(320, 180)
 defer delete target
 
 target.begin()
-clearBackground(black())
-drawCircle(160, 90, float(24.0), red())
+clearBackground(Black)
+drawCircle(160, 90, float(24.0), Red)
 endRenderTexture()
 ```
 
@@ -323,7 +324,7 @@ val camera : Camera2D = new Camera2D(
 defer delete camera
 
 beginCamera(camera)
-drawCircle(0, 0, float(24.0), red())
+drawCircle(0, 0, float(24.0), Red)
 endCamera()
 ```
 

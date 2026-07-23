@@ -75,11 +75,12 @@ val configuration : Configuration = loadConfiguration()
 private val callback : () => int = () => configuration.status()
 ```
 
-Les classes, pointeurs et lambdas globaux possédés doivent être déclarés avec
-`val`. Ils sont détruits automatiquement, en ordre inverse, après `main` et ne
-peuvent pas être déplacés ou supprimés manuellement. Les enums et structures
-globales ne sont pas encore pris en charge. Contrairement à une `var` locale,
-une `var` globale ne peut pas être déclarée sans initialiseur.
+Les valeurs globales possédantes doivent être déclarées avec `val`. Elles sont
+détruites automatiquement, en ordre inverse, après `main` et ne peuvent pas
+être déplacées ou supprimées manuellement. Les enums et structures globales
+sont pris en charge, y compris lorsqu'elles contiennent récursivement des
+ressources possédées. Contrairement à une `var` locale, une `var` globale ne
+peut pas être déclarée sans initialiseur.
 
 Un export public peut être utilisé sans qualification ou avec le nom de son
 module :

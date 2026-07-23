@@ -1,4 +1,6 @@
 global
 42
 12
+7
+1
 destroyed
