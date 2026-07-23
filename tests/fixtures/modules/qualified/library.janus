@@ -3,6 +3,15 @@ module qualified.library
 struct Box(val value : int) {
 }
 
+enum Choice[T] {
+    Some(T),
+    None
+}
+
+enum Mode {
+    Ready
+}
+
 def answer() : int {
     return 2
 }

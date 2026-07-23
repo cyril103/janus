@@ -306,6 +306,11 @@ int main() {
   expect(qualified_ir.find("struct.qualified.library.Box") !=
              std::string::npos,
          "a class can be referenced and constructed by qualified name");
+  expect(qualified_ir.find("enum.qualified.library.Choice__int") !=
+                 std::string::npos &&
+             qualified_ir.find("enum.qualified.library.Mode") !=
+                 std::string::npos,
+         "enum cases can be constructed through qualified type names");
 
   const janus::ast::Program identity_program =
       loader.load(std::filesystem::path{JANUS_IDENTITY_ENTRY});

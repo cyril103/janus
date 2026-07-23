@@ -4,7 +4,23 @@ def unwrap(box : qualified.library.Box) : int {
     return box.value
 }
 
+def choiceValue(choice : qualified.library.Choice[int]) : int {
+    return match choice {
+        Some(value) => value,
+        None => 0
+    }
+}
+
 def main() : int {
     val box : qualified.library.Box = new qualified.library.Box(40)
-    return qualified.library.answer() + unwrap(box)
+    val selected : qualified.library.Choice[int] =
+        qualified.library.Choice.Some[int](40)
+    val empty : qualified.library.Choice[int] =
+        qualified.library.Choice.None[int]()
+    val mode : qualified.library.Mode = qualified.library.Mode.Ready
+    val ready : int = match mode {
+        Ready => 1
+    }
+    return qualified.library.answer() + unwrap(box) +
+        choiceValue(selected) + choiceValue(empty) + ready
 }

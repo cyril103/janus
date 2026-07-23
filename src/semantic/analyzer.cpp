@@ -2032,17 +2032,23 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               return instance_type;
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {
-              if (const auto *identifier =
-                      std::get_if<ast::IdentifierExpression>(
-                          &node.object->value);
-                  identifier != nullptr && enums.contains(identifier->name)) {
+              const auto enum_name =
+                  qualified_expression_name(*node.object);
+              if (enum_name.has_value() && enums.contains(*enum_name) &&
+                  (enum_name->find('.') == std::string::npos ||
+                   !active_symbols->contains(
+                       enum_name->substr(0, enum_name->find('.'))))) {
                 const ast::EnumDeclaration &enum_declaration =
-                    *enums.at(identifier->name);
+                    *enums.at(*enum_name);
+                if (enum_declaration.is_private &&
+                    enum_declaration.module_name != context_module)
+                  throw CompileError{node.location,
+                                     "type '" + *enum_name + "' is private"};
                 if (!enum_declaration.type_parameters.empty())
                   throw CompileError{
                       node.location,
                       "generic enum cases require constructor syntax '" +
-                          enum_declaration.name + "." + node.member +
+                          *enum_name + "." + node.member +
                           "[Types](...)'"};
                 const auto enum_case =
                     std::find_if(enum_declaration.cases.begin(),
@@ -2052,15 +2058,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  });
                 if (enum_case == enum_declaration.cases.end())
                   throw CompileError{node.location,
-                                     "enum '" + enum_declaration.name +
+                                     "enum '" + *enum_name +
                                          "' has no case '" + node.member + "'"};
                 if (!enum_case->payload_types.empty())
                   throw CompileError{node.location,
-                                     "enum case '" + enum_declaration.name +
+                                     "enum case '" + *enum_name +
                                          "." + node.member +
                                          "' requires constructor arguments"};
                 return SemanticType{
-                    nullptr, enum_declaration.name, false, {}, false, true};
+                    nullptr, *enum_name, false, {}, false, true};
               }
               if (const auto module = qualified_expression_name(*node.object);
                   module.has_value() && global_modules.contains(*module) &&
@@ -2146,14 +2152,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       node.location, qualified);
                 }
               }
-              if (const auto *identifier =
-                      std::get_if<ast::IdentifierExpression>(
-                          &node.object->value);
-                  identifier != nullptr && enums.contains(identifier->name)) {
+              const auto enum_name =
+                  qualified_expression_name(*node.object);
+              if (enum_name.has_value() && enums.contains(*enum_name) &&
+                  (enum_name->find('.') == std::string::npos ||
+                   !active_symbols->contains(
+                       enum_name->substr(0, enum_name->find('.'))))) {
                 const ast::EnumDeclaration &enum_declaration =
-                    *enums.at(identifier->name);
+                    *enums.at(*enum_name);
+                if (enum_declaration.is_private &&
+                    enum_declaration.module_name != context_module)
+                  throw CompileError{node.location,
+                                     "type '" + *enum_name + "' is private"};
                 const SemanticType instance_type = resolve_type(
-                    ast::TypeReference{enum_declaration.name, node.location,
+                    ast::TypeReference{*enum_name, node.location,
                                        node.type_arguments},
                     *active_type_parameters, &class_arities);
                 const auto enum_case =
@@ -2164,12 +2176,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  });
                 if (enum_case == enum_declaration.cases.end())
                   throw CompileError{node.location,
-                                     "enum '" + enum_declaration.name +
+                                     "enum '" + *enum_name +
                                          "' has no case '" + node.method + "'"};
                 if (node.arguments.size() != enum_case->payload_types.size())
                   throw CompileError{
                       node.location,
-                      "enum case '" + enum_declaration.name + "." +
+                      "enum case '" + *enum_name + "." +
                           node.method + "' expects " +
                           std::to_string(enum_case->payload_types.size()) +
                           " argument(s), got " +

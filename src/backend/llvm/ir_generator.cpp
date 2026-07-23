@@ -2508,8 +2508,13 @@ private:
             const auto *identifier =
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);
-            if (identifier != nullptr && enums_.contains(identifier->name)) {
-              const janus::Type &enum_type = ensure_enum(identifier->name, {});
+            const auto enum_name =
+                qualified_expression_name(*node.object);
+            if (enum_name.has_value() && enums_.contains(*enum_name) &&
+                (enum_name->find('.') == std::string::npos ||
+                 !locals.contains(
+                     enum_name->substr(0, enum_name->find('.'))))) {
+              const janus::Type &enum_type = ensure_enum(*enum_name, {});
               auto *llvm_enum_type =
                   llvm_enum_types_.at(std::string{enum_type.name()});
               ::llvm::Value *value = ::llvm::UndefValue::get(llvm_enum_type);
@@ -2573,13 +2578,18 @@ private:
             const auto *identifier =
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);
-            if (identifier != nullptr && enums_.contains(identifier->name)) {
+            const auto enum_name =
+                qualified_expression_name(*node.object);
+            if (enum_name.has_value() && enums_.contains(*enum_name) &&
+                (enum_name->find('.') == std::string::npos ||
+                 !locals.contains(
+                     enum_name->substr(0, enum_name->find('.'))))) {
               std::vector<const janus::Type *> type_arguments;
               for (const janus::ast::TypeReference &argument :
                    node.type_arguments)
                 type_arguments.push_back(&resolve(argument, substitutions));
               const janus::Type &enum_type =
-                  ensure_enum(identifier->name, type_arguments);
+                  ensure_enum(*enum_name, type_arguments);
               const EnumSpecialization &specialization =
                   enum_specializations_.at(std::string{enum_type.name()});
               const auto enum_case = std::find_if(
