@@ -131,6 +131,21 @@ def main() : int {
       "def main() : int { return 0 }",
       "requires an explicit move");
   expect_compile_error(
+      "class Resource() {} struct Box(val resource : Resource) {} "
+      "enum Holder { Some(Box), None } def main() : int { "
+      "val box : Box = new Box(new Resource()) "
+      "val holder : Holder = Holder.Some(move box) "
+      "val value : int = match holder { Some(item) => 1, None => 0 } "
+      "delete holder return value }",
+      "matching an owning enum requires an explicit move");
+  expect_compile_error(
+      "class Resource() {} struct Box(val resource : Resource) {} "
+      "struct Outer(val box : Box) {} def pass(box : Box) : Unit { "
+      "delete box } def main() : int { "
+      "val outer : Outer = new Outer(new Box(new Resource())) "
+      "pass(outer.box) delete outer return 0 }",
+      "cannot be transferred independently");
+  expect_compile_error(
       "class Box() { consume def take() : int { delete this return 1 } } "
       "class Holder(val child : Box) { def takeChild() : int { "
       "return child.take() } } def main() : int { return 0 }",

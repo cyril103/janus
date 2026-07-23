@@ -107,6 +107,29 @@ def main() : int {
                        "type parameter 'T' is already declared");
   expect_compile_error("def main() : int { return missing }",
                        "unknown value 'missing'");
+  janus::frontend::Parser copy_parser{
+      "def duplicate[T <: Copy](value : T) : T { return value } "
+      "struct Pair(val left : int, val right : int) {} "
+      "def main() : int { val pair : Pair = new Pair(1, 2) "
+      "val copied : Pair = duplicate[Pair](pair) "
+      "return duplicate[int](copied.left + copied.right) }"};
+  static_cast<void>(analyzer.analyze(copy_parser.parse_program()));
+  expect_compile_error(
+      "def duplicate[T <: Copy](value : T) : T { return value } "
+      "class Resource() {} def main() : int { "
+      "val resource : Resource = new Resource() "
+      "duplicate[Resource](resource) delete resource return 0 }",
+      "does not satisfy constraint 'Copy'");
+  expect_compile_error(
+      "def duplicate[T <: Copy](value : T) : T { return value } "
+      "class Resource() {} struct Owned(val resource : Resource) {} "
+      "def main() : int { val owned : Owned = new Owned(new Resource()) "
+      "val copied : Owned = duplicate[Owned](move owned) "
+      "delete copied return 0 }",
+      "does not satisfy constraint 'Copy'");
+  expect_compile_error(
+      "trait Copy {} def main() : int { return 0 }",
+      "trait 'Copy' is intrinsic");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

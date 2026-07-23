@@ -625,6 +625,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
   }
   for (const ast::TraitDeclaration &trait_declaration : program.traits) {
+    if (trait_declaration.name == "Copy")
+      throw CompileError{trait_declaration.location,
+                         "trait 'Copy' is intrinsic and cannot be redeclared"};
     if (builtin_type(trait_declaration.name) != nullptr ||
         trait_declaration.name == "Function")
       throw CompileError{trait_declaration.location,
@@ -887,7 +890,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 "trait constraint '" + constraint.trait.name +
                     "' is already declared for type parameter '" +
                     constraint.parameter + "'"};
-          static_cast<void>(resolve_trait(constraint.trait, type_parameters));
+          if (constraint.trait.name == "Copy") {
+            if (!constraint.trait.type_arguments.empty())
+              throw CompileError{constraint.location,
+                                 "Copy does not accept type arguments"};
+          } else {
+            static_cast<void>(
+                resolve_trait(constraint.trait, type_parameters));
+          }
         }
       };
 
@@ -1363,11 +1373,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     std::unordered_map<std::string, std::vector<TraitInstance>>
         active_trait_constraints;
+    std::unordered_set<std::string> active_copy_constraints;
     const auto add_active_constraints =
         [&](const std::vector<ast::TypeConstraint> &constraints) {
-          for (const ast::TypeConstraint &constraint : constraints)
+          for (const ast::TypeConstraint &constraint : constraints) {
+            if (constraint.trait.name == "Copy") {
+              active_copy_constraints.insert(constraint.parameter);
+              continue;
+            }
             active_trait_constraints[constraint.parameter].push_back(
                 resolve_trait(constraint.trait, type_parameters));
+          }
         };
     if (owner != nullptr)
       add_active_constraints(owner->type_constraints);
@@ -1391,6 +1407,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               active.type_arguments.end(),
                               requirement.type_arguments.begin(), same_type);
           });
+    };
+    const auto satisfies_copy = [&](const SemanticType &candidate) {
+      if (!candidate.is_concrete() && !candidate.is_class() &&
+          !candidate.is_enum() && !candidate.is_pointer() &&
+          !candidate.is_function())
+        return active_copy_constraints.contains(candidate.parameter);
+      return !aggregate_owns_value(candidate);
     };
     SymbolTable *active_symbols = &symbols;
     const auto find_global =
@@ -1456,12 +1479,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               callee.type_parameters.begin(), callee.type_parameters.end()};
           for (const ast::TypeConstraint &constraint :
                callee.type_constraints) {
+            const SemanticType &candidate =
+                substitutions.at(constraint.parameter);
+            if (constraint.trait.name == "Copy") {
+              if (!satisfies_copy(candidate))
+                throw CompileError{
+                    location, "type '" + candidate.name() +
+                                  "' does not satisfy constraint 'Copy' for "
+                                  "type parameter '" +
+                                  constraint.parameter + "'"};
+              continue;
+            }
             TraitInstance requirement =
                 resolve_trait(constraint.trait, callee_parameters);
             for (SemanticType &argument : requirement.type_arguments)
               argument = substitute(std::move(argument), substitutions);
-            const SemanticType &candidate =
-                substitutions.at(constraint.parameter);
             if (!satisfies_active_trait(candidate, requirement))
               throw CompileError{
                   location, "type '" + candidate.name() +
@@ -1524,13 +1556,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if ((actual.is_enum() ||
              (actual.is_class() &&
               classes.at(actual.parameter)->is_value_type)) &&
-            aggregate_owns_value(actual) &&
-            std::holds_alternative<ast::IdentifierExpression>(
-                expression.value))
-          throw CompileError{
-              location,
-              "transferring owning aggregate '" + actual.name() +
-                  "' requires an explicit move"};
+            aggregate_owns_value(actual)) {
+          if (std::holds_alternative<ast::IdentifierExpression>(
+                  expression.value))
+            throw CompileError{
+                location,
+                "transferring owning aggregate '" + actual.name() +
+                    "' requires an explicit move"};
+          if (std::holds_alternative<ast::MemberAccessExpression>(
+                  expression.value))
+            throw CompileError{
+                location,
+                "an owning aggregate field cannot be transferred "
+                "independently; move its enclosing aggregate"};
+        }
         return;
       }
 
@@ -1558,13 +1597,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             if ((actual.is_enum() ||
                  (actual.is_class() &&
                   classes.at(actual.parameter)->is_value_type)) &&
-                aggregate_owns_value(actual) &&
-                std::holds_alternative<ast::IdentifierExpression>(
-                    expression.value))
-              throw CompileError{
-                  return_statement.location,
-                  "returning owning aggregate '" + actual.name() +
-                      "' requires an explicit move"};
+                aggregate_owns_value(actual)) {
+              if (std::holds_alternative<ast::IdentifierExpression>(
+                      expression.value))
+                throw CompileError{
+                    return_statement.location,
+                    "returning owning aggregate '" + actual.name() +
+                        "' requires an explicit move"};
+              if (std::holds_alternative<ast::MemberAccessExpression>(
+                      expression.value))
+                throw CompileError{
+                    return_statement.location,
+                    "an owning aggregate field cannot be returned "
+                    "independently; move its enclosing aggregate"};
+            }
             return;
           }
 
@@ -1906,12 +1952,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   callee.type_parameters.begin(), callee.type_parameters.end()};
               for (const ast::TypeConstraint &constraint :
                    callee.type_constraints) {
+                const SemanticType &candidate =
+                    substitutions.at(constraint.parameter);
+                if (constraint.trait.name == "Copy") {
+                  if (!satisfies_copy(candidate))
+                    throw CompileError{
+                        node.location,
+                        "type '" + candidate.name() +
+                            "' does not satisfy constraint 'Copy' for type "
+                            "parameter '" +
+                            constraint.parameter + "'"};
+                  continue;
+                }
                 TraitInstance requirement =
                     resolve_trait(constraint.trait, callee_parameters);
                 for (SemanticType &argument : requirement.type_arguments)
                   argument = substitute(std::move(argument), substitutions);
-                const SemanticType &candidate =
-                    substitutions.at(constraint.parameter);
                 if (!satisfies_active_trait(candidate, requirement))
                   throw CompileError{node.location,
                                      "type '" + candidate.name() +
@@ -1969,12 +2025,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   class_declaration.type_parameters.end()};
               for (const ast::TypeConstraint &constraint :
                    class_declaration.type_constraints) {
+                const SemanticType &candidate =
+                    substitutions.at(constraint.parameter);
+                if (constraint.trait.name == "Copy") {
+                  if (!satisfies_copy(candidate))
+                    throw CompileError{
+                        node.location,
+                        "type '" + candidate.name() +
+                            "' does not satisfy constraint 'Copy' for type "
+                            "parameter '" +
+                            constraint.parameter + "'"};
+                  continue;
+                }
                 TraitInstance requirement =
                     resolve_trait(constraint.trait, class_parameters);
                 for (SemanticType &argument : requirement.type_arguments)
                   argument = substitute(std::move(argument), substitutions);
-                const SemanticType &candidate =
-                    substitutions.at(constraint.parameter);
                 if (!satisfies_active_trait(candidate, requirement))
                   throw CompileError{node.location,
                                      "type '" + candidate.name() +
@@ -2372,12 +2438,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               }
               for (const ast::TypeConstraint &constraint :
                    method->type_constraints) {
+                const SemanticType &candidate =
+                    substitutions.at(constraint.parameter);
+                if (constraint.trait.name == "Copy") {
+                  if (!satisfies_copy(candidate))
+                    throw CompileError{
+                        node.location,
+                        "type '" + candidate.name() +
+                            "' does not satisfy constraint 'Copy' for type "
+                            "parameter '" +
+                            constraint.parameter + "'"};
+                  continue;
+                }
                 TraitInstance requirement =
                     resolve_trait(constraint.trait, method_parameters);
                 for (SemanticType &argument : requirement.type_arguments)
                   argument = substitute(std::move(argument), substitutions);
-                const SemanticType &candidate =
-                    substitutions.at(constraint.parameter);
                 if (!satisfies_active_trait(candidate, requirement))
                   throw CompileError{node.location,
                                      "type '" + candidate.name() +
@@ -2474,6 +2550,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             } else if constexpr (std::is_same_v<Node, ast::MatchExpression>) {
               const SemanticType scrutinee_type =
                   expression_type(*node.scrutinee);
+              if (scrutinee_type.is_enum() &&
+                  aggregate_owns_value(scrutinee_type) &&
+                  std::holds_alternative<ast::IdentifierExpression>(
+                      node.scrutinee->value))
+                throw CompileError{
+                    node.location,
+                    "matching an owning enum requires an explicit move"};
               const auto previous_transfer_protected =
                   transfer_protected_values;
               for (const auto &[name, symbol] : *active_symbols) {
