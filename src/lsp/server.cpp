@@ -77,6 +77,9 @@ struct DocumentSymbol {
   std::string name;
   std::string detail;
   janus::SourceLocation location;
+  bool is_global{};
+  bool is_private{};
+  std::optional<std::string> module_name;
 };
 
 std::vector<janus::frontend::Token> tokens(std::string_view source) {
@@ -95,8 +98,24 @@ std::vector<DocumentSymbol> symbols(std::string_view source) {
   using janus::frontend::TokenKind;
   const std::vector<Token> document_tokens = tokens(source);
   std::vector<DocumentSymbol> result;
+  std::optional<std::string> module_name;
+  try {
+    janus::frontend::Parser parser{source};
+    module_name = parser.parse_program().module_name;
+  } catch (const std::exception &) {
+  }
+  std::size_t brace_depth = 0;
   for (std::size_t index = 0; index + 1 < document_tokens.size(); ++index) {
     const Token &token = document_tokens[index];
+    if (token.kind == TokenKind::LeftBrace) {
+      ++brace_depth;
+      continue;
+    }
+    if (token.kind == TokenKind::RightBrace) {
+      if (brace_depth != 0)
+        --brace_depth;
+      continue;
+    }
     const Token &name = document_tokens[index + 1];
     if (name.kind != TokenKind::Identifier)
       continue;
@@ -121,9 +140,17 @@ std::vector<DocumentSymbol> symbols(std::string_view source) {
     } else {
       continue;
     }
-    result.push_back(
-        DocumentSymbol{std::string{name.lexeme}, std::move(detail),
-                       name.location});
+    const bool is_global =
+        brace_depth == 0 &&
+        (token.kind == TokenKind::Val || token.kind == TokenKind::Var);
+    const bool is_private =
+        is_global && index != 0 &&
+        document_tokens[index - 1].kind == TokenKind::Private;
+    if (is_private)
+      detail = "private " + detail;
+    result.push_back(DocumentSymbol{std::string{name.lexeme}, std::move(detail),
+                                    name.location, is_global, is_private,
+                                    is_global ? module_name : std::nullopt});
   }
   return result;
 }
@@ -173,6 +200,35 @@ std::optional<char> character_before(std::string_view source,
   if (line == requested_line && column == requested_column && !source.empty())
     return source.back();
   return std::nullopt;
+}
+
+std::optional<std::string>
+member_qualifier_before(std::string_view source, std::uint32_t requested_line,
+                        std::uint32_t requested_column) {
+  std::size_t line_start = 0;
+  for (std::uint32_t line = 0; line < requested_line; ++line) {
+    line_start = source.find('\n', line_start);
+    if (line_start == std::string_view::npos)
+      return std::nullopt;
+    ++line_start;
+  }
+  const std::size_t cursor = line_start + requested_column;
+  if (cursor == 0 || cursor > source.size() || source[cursor - 1] != '.')
+    return std::nullopt;
+  std::size_t start = cursor - 1;
+  while (start != 0) {
+    const char character = source[start - 1];
+    const bool identifier = (character >= 'a' && character <= 'z') ||
+                            (character >= 'A' && character <= 'Z') ||
+                            (character >= '0' && character <= '9') ||
+                            character == '_' || character == '.';
+    if (!identifier)
+      break;
+    --start;
+  }
+  if (start == cursor - 1)
+    return std::nullopt;
+  return std::string{source.substr(start, cursor - 1 - start)};
 }
 
 std::optional<std::filesystem::path> file_uri_path(std::string_view uri) {
@@ -383,35 +439,54 @@ std::vector<std::string> Server::handle(std::string_view message) {
     const std::optional<std::string> identifier = identifier_at(
         document->second, static_cast<std::uint32_t>(*line),
         static_cast<std::uint32_t>(*character));
+    const std::vector<DocumentSymbol> document_symbols =
+        symbols(document->second);
+    const auto locate_symbol =
+        [&](std::string_view name)
+        -> std::optional<std::pair<std::string, DocumentSymbol>> {
+      for (const DocumentSymbol &symbol : document_symbols)
+        if (symbol.name == name)
+          return std::pair<std::string, DocumentSymbol>{uri->str(), symbol};
+      for (const auto &[candidate_uri, candidate_source] : documents_) {
+        if (candidate_uri == uri->str())
+          continue;
+        for (const DocumentSymbol &symbol : symbols(candidate_source))
+          if (symbol.is_global && !symbol.is_private && symbol.name == name)
+            return std::pair<std::string, DocumentSymbol>{candidate_uri,
+                                                          symbol};
+      }
+      return std::nullopt;
+    };
     if (*method == "textDocument/hover") {
       if (identifier) {
-        for (const DocumentSymbol &symbol : symbols(document->second)) {
-          if (symbol.name == *identifier) {
-            return {response(
-                request_id(*request),
-                llvm::json::Object{
-                    {"contents",
-                     llvm::json::Object{
-                         {"kind", "markdown"},
-                         {"value", "```janus\n" + symbol.detail + "\n```"}}},
-                    {"range", range(symbol.location, symbol.name.size())},
-                })};
-          }
+        if (const auto located = locate_symbol(*identifier)) {
+          const DocumentSymbol &symbol = located->second;
+          std::string detail = symbol.detail;
+          if (symbol.is_global && symbol.module_name.has_value())
+            detail += "\n\nmodule `" + *symbol.module_name + "`";
+          return {response(
+              request_id(*request),
+              llvm::json::Object{
+                  {"contents",
+                   llvm::json::Object{
+                       {"kind", "markdown"},
+                       {"value", "```janus\n" + detail + "\n```"}}},
+                  {"range", range(symbol.location, symbol.name.size())},
+              })};
         }
       }
       return {response(request_id(*request), nullptr)};
     }
     if (*method == "textDocument/definition") {
       if (identifier) {
-        for (const DocumentSymbol &symbol : symbols(document->second)) {
-          if (symbol.name == *identifier) {
-            return {response(
-                request_id(*request),
-                llvm::json::Object{
-                    {"uri", uri->str()},
-                    {"range", range(symbol.location, symbol.name.size())},
-                })};
-          }
+        if (const auto located = locate_symbol(*identifier)) {
+          const DocumentSymbol &symbol = located->second;
+          return {response(
+              request_id(*request),
+              llvm::json::Object{
+                  {"uri", located->first},
+                  {"range", range(symbol.location, symbol.name.size())},
+              })};
         }
       }
       return {response(request_id(*request), nullptr)};
@@ -438,6 +513,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
       const bool member_context =
           character_before(document->second, static_cast<std::uint32_t>(*line),
                            static_cast<std::uint32_t>(*character)) == '.';
+      const std::optional<std::string> member_qualifier =
+          member_qualifier_before(document->second,
+                                  static_cast<std::uint32_t>(*line),
+                                  static_cast<std::uint32_t>(*character));
       llvm::json::Array items;
       std::vector<std::string> labels;
       const auto add_item = [&](std::string label, std::string detail,
@@ -452,12 +531,26 @@ std::vector<std::string> Server::handle(std::string_view message) {
         });
       };
 
-      for (const DocumentSymbol &symbol : symbols(document->second)) {
+      bool module_member_context = false;
+      if (member_qualifier.has_value()) {
+        for (const auto &[candidate_uri, candidate_source] : documents_) {
+          static_cast<void>(candidate_uri);
+          for (const DocumentSymbol &symbol : symbols(candidate_source)) {
+            if (symbol.is_global && !symbol.is_private &&
+                symbol.module_name == member_qualifier) {
+              module_member_context = true;
+              add_item(symbol.name, symbol.detail, 6);
+            }
+          }
+        }
+      }
+
+      for (const DocumentSymbol &symbol : document_symbols) {
         const bool member =
-            symbol.detail.starts_with("def ") ||
-            symbol.detail.starts_with("val ") ||
-            symbol.detail.starts_with("var ");
-        if (!member_context || member) {
+            symbol.detail.find("def ") != std::string::npos ||
+            symbol.detail.find("val ") != std::string::npos ||
+            symbol.detail.find("var ") != std::string::npos;
+        if (!module_member_context && (!member_context || member)) {
           const std::int64_t kind =
               symbol.detail.starts_with("def ") ? 3
               : symbol.detail.starts_with("class ") ||
@@ -469,6 +562,13 @@ std::vector<std::string> Server::handle(std::string_view message) {
         }
       }
       if (!member_context) {
+        for (const auto &[candidate_uri, candidate_source] : documents_) {
+          if (candidate_uri == uri->str())
+            continue;
+          for (const DocumentSymbol &symbol : symbols(candidate_source))
+            if (symbol.is_global && !symbol.is_private)
+              add_item(symbol.name, symbol.detail, 6);
+        }
         for (const std::string_view type :
              {"int", "double", "byte", "char", "bool", "string", "unit",
               "usize"})

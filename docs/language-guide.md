@@ -40,7 +40,7 @@ result = 42
 ```
 
 `val` et `var` peuvent aussi être déclarées au niveau du module. Une globale
-doit toujours avoir un initialiseur statique :
+doit toujours avoir un initialiseur :
 
 ```janus
 val answer : int = 42
@@ -57,11 +57,39 @@ Une globale `private` n'est visible que depuis son module :
 private val internalName : string = "janus"
 ```
 
-Les initialiseurs globaux acceptent actuellement les littéraux primitifs et
-leur négation logique ou numérique. Les appels de fonctions, références à une
-autre globale, objets construits, pointeurs possédés et lambdas ne sont pas
-encore des initialiseurs globaux valides. Contrairement à une `var` locale, une
-`var` globale ne peut pas être déclarée sans initialiseur.
+Les expressions constantes sont calculées à la compilation. Elles peuvent
+combiner des littéraux, des opérateurs purs et d'autres `val` globales :
+
+```janus
+val minute : int = 60
+val hour : int = minute * 60
+val ready : bool = hour == 3600 && !false
+```
+
+Le compilateur signale les cycles de dépendances, débordements et divisions par
+zéro. Un initialiseur non constant est exécuté avant `main`, dans l'ordre des
+imports puis des déclarations :
+
+```janus
+val configuration : Configuration = loadConfiguration()
+private val callback : () => int = () => configuration.status()
+```
+
+Les classes, pointeurs et lambdas globaux possédés doivent être déclarés avec
+`val`. Ils sont détruits automatiquement, en ordre inverse, après `main` et ne
+peuvent pas être déplacés ou supprimés manuellement. Les enums et structures
+globales ne sont pas encore pris en charge. Contrairement à une `var` locale,
+une `var` globale ne peut pas être déclarée sans initialiseur.
+
+Un export public peut être utilisé sans qualification ou avec le nom de son
+module :
+
+```janus
+settings.requestCount = settings.requestCount + 1
+```
+
+Deux modules peuvent déclarer le même nom privé, tandis que deux exports
+publics de même nom produisent un diagnostic de collision.
 
 Types primitifs :
 

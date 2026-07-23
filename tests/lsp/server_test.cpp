@@ -90,6 +90,46 @@ int main() {
   assert(completion.front().find("\"label\":\"return\"") !=
          std::string::npos);
 
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///settings.janus","text":"module settings\n\nval sharedCount : int = 42\nprivate val secretCount : int = 7\n"}}})"));
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { return sharedCount }"}]}})"));
+
+  const std::vector<std::string> global_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":10,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":30}}})");
+  assert(global_hover.front().find("val sharedCount : int") !=
+         std::string::npos);
+  assert(global_hover.front().find("module `settings`") != std::string::npos);
+
+  const std::vector<std::string> global_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":11,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":30}}})");
+  assert(global_definition.front().find("\"uri\":\"file:///settings.janus\"") !=
+         std::string::npos);
+  assert(global_definition.front().find("\"line\":2") != std::string::npos);
+
+  const std::vector<std::string> global_references = server.handle(
+      R"({"jsonrpc":"2.0","id":12,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":30},"context":{"includeDeclaration":true}}})");
+  assert(global_references.front().find("file:///settings.janus") !=
+         std::string::npos);
+  assert(global_references.front().find("file:///broken.janus") !=
+         std::string::npos);
+
+  const std::vector<std::string> global_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":13,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":18}}})");
+  assert(global_completion.front().find("\"label\":\"sharedCount\"") !=
+         std::string::npos);
+  assert(global_completion.front().find("\"label\":\"secretCount\"") ==
+         std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { return settings. }"}]}})"));
+  const std::vector<std::string> module_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":14,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":35}}})");
+  assert(module_completion.front().find("\"label\":\"sharedCount\"") !=
+         std::string::npos);
+  assert(module_completion.front().find("\"label\":\"secretCount\"") ==
+         std::string::npos);
+
   const std::vector<std::string> formatting = server.handle(
       R"({"jsonrpc":"2.0","id":6,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///broken.janus"},"options":{"tabSize":2,"insertSpaces":true}}})");
   assert(formatting.front().find("\"newText\"") != std::string::npos);
