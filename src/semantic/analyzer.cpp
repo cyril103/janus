@@ -34,6 +34,10 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::byte_type();
   if (name == "ubyte")
     return &janus::Type::ubyte_type();
+  if (name == "short")
+    return &janus::Type::short_type();
+  if (name == "ushort")
+    return &janus::Type::ushort_type();
   if (name == "char")
     return &janus::Type::char_type();
   if (name == "bool")
@@ -186,6 +190,8 @@ bool is_scalar_cast_type(const janus::semantic::SemanticType &type) {
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
+  case janus::TypeKind::Short:
+  case janus::TypeKind::UShort:
   case janus::TypeKind::ISize:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
@@ -208,6 +214,8 @@ bool is_integer_cast_type(const janus::semantic::SemanticType &type) {
   case janus::TypeKind::ULong:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
+  case janus::TypeKind::Short:
+  case janus::TypeKind::UShort:
   case janus::TypeKind::ISize:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
@@ -233,6 +241,8 @@ bool is_c_abi_type(const janus::semantic::SemanticType &type,
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
+  case janus::TypeKind::Short:
+  case janus::TypeKind::UShort:
   case janus::TypeKind::ISize:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
@@ -264,6 +274,8 @@ bool is_c_variadic_type(const janus::semantic::SemanticType &type) {
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
+  case janus::TypeKind::Short:
+  case janus::TypeKind::UShort:
   case janus::TypeKind::ISize:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
@@ -1218,6 +1230,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                      argument.concrete->kind() != TypeKind::Double &&
                      argument.concrete->kind() != TypeKind::Byte &&
                      argument.concrete->kind() != TypeKind::UByte &&
+                     argument.concrete->kind() != TypeKind::Short &&
+                     argument.concrete->kind() != TypeKind::UShort &&
                      argument.concrete->kind() != TypeKind::Char &&
                      argument.concrete->kind() != TypeKind::Bool &&
                      argument.concrete->kind() != TypeKind::String &&

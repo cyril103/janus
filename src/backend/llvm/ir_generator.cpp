@@ -45,6 +45,10 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::byte_type();
   if (name == "ubyte")
     return &janus::Type::ubyte_type();
+  if (name == "short")
+    return &janus::Type::short_type();
+  if (name == "ushort")
+    return &janus::Type::ushort_type();
   if (name == "char")
     return &janus::Type::char_type();
   if (name == "bool")
@@ -1454,6 +1458,26 @@ private:
                         builder.getVoidTy(), {builder.getInt32Ty()}, false));
                 ::llvm::Value *unsigned_argument = builder.CreateZExt(
                     argument, builder.getInt32Ty(), "print.ubyte.unsigned");
+                result = builder.CreateCall(function, {unsigned_argument});
+                break;
+              }
+              case janus::TypeKind::Short: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_short",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt32Ty()}, false));
+                ::llvm::Value *signed_argument = builder.CreateSExt(
+                    argument, builder.getInt32Ty(), "print.short.signed");
+                result = builder.CreateCall(function, {signed_argument});
+                break;
+              }
+              case janus::TypeKind::UShort: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_ushort",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt32Ty()}, false));
+                ::llvm::Value *unsigned_argument = builder.CreateZExt(
+                    argument, builder.getInt32Ty(), "print.ushort.unsigned");
                 result = builder.CreateCall(function, {unsigned_argument});
                 break;
               }

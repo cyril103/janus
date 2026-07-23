@@ -42,6 +42,16 @@ const Type &Type::ubyte_type() {
   return type;
 }
 
+const Type &Type::short_type() {
+  static const Type type{TypeKind::Short, "short", 16, true};
+  return type;
+}
+
+const Type &Type::ushort_type() {
+  static const Type type{TypeKind::UShort, "ushort", 16, false};
+  return type;
+}
+
 const Type &Type::char_type() {
   static const Type type{TypeKind::Char, "char", 32, false};
   return type;
@@ -104,6 +114,7 @@ bool Type::is_integer() const noexcept {
          kind_ == TypeKind::ULong ||
          kind_ == TypeKind::Byte ||
          kind_ == TypeKind::UByte ||
+         kind_ == TypeKind::Short || kind_ == TypeKind::UShort ||
          kind_ == TypeKind::ISize ||
          kind_ == TypeKind::USize;
 }

@@ -54,6 +54,13 @@ def main() : int {
     val unsignedSecond : ubyte = 10
     val unsignedWrap : ubyte = unsignedFirst + unsignedSecond
     val unsignedOrder : bool = unsignedFirst > unsignedSecond
+    val shortValue : short = -30000
+    val shortDivisor : short = 3
+    val shortResult : short = shortValue / shortDivisor
+    val ushortValue : ushort = 60000
+    val ushortDivisor : ushort = 3
+    val ushortResult : ushort = ushortValue / ushortDivisor
+    val ushortOrder : bool = ushortValue > ushortDivisor
     val uintValue : uint = uint(4000000000.0)
     val uintDivisor : uint = 2
     val uintQuotient : uint = uintValue / uintDivisor
@@ -126,6 +133,12 @@ def main() : int {
          "byte arithmetic keeps its 8-bit representation");
   expect(ir.find("icmp ugt i8") != std::string::npos,
          "ubyte comparison is unsigned");
+  expect(ir.find("sdiv i16") != std::string::npos,
+         "short division is signed");
+  expect(ir.find("udiv i16") != std::string::npos,
+         "ushort division is unsigned");
+  expect(ir.find("icmp ugt i16") != std::string::npos,
+         "ushort comparison is unsigned");
   expect(ir.find("udiv i32") != std::string::npos,
          "uint division is unsigned");
   expect(ir.find("icmp ugt i32") != std::string::npos,
@@ -170,6 +183,12 @@ def main() : int {
   expect_compile_error(
       "def main() : int { val x : ubyte = -1 return 0 }",
       "integer literal is outside the unsigned 8-bit range");
+  expect_compile_error(
+      "def main() : int { val x : short = 32768 return 0 }",
+      "integer literal is outside the signed 16-bit range");
+  expect_compile_error(
+      "def main() : int { val x : ushort = 65536 return 0 }",
+      "integer literal is outside the unsigned 16-bit range");
   expect_compile_error(
       "def main() : int { val x : bool = \"a\" < \"b\" return 0 }",
       "comparison operators require");

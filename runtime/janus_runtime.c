@@ -43,6 +43,14 @@ void janus_print_ubyte(uint32_t value) {
   (void)fprintf(stdout, "%" PRIu32, value);
 }
 
+void janus_print_short(int32_t value) {
+  (void)fprintf(stdout, "%" PRId32, value);
+}
+
+void janus_print_ushort(uint32_t value) {
+  (void)fprintf(stdout, "%" PRIu32, value);
+}
+
 void janus_print_usize(uint64_t value) {
   (void)fprintf(stdout, "%" PRIu64, value);
 }

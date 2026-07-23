@@ -20,6 +20,9 @@ namespace janus::backend::llvm {
   case TypeKind::Byte:
   case TypeKind::UByte:
     return ::llvm::Type::getInt8Ty(context);
+  case TypeKind::Short:
+  case TypeKind::UShort:
+    return ::llvm::Type::getInt16Ty(context);
   case TypeKind::Char:
     return ::llvm::Type::getInt32Ty(context);
   case TypeKind::Bool:

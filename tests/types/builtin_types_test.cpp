@@ -85,6 +85,22 @@ int main() {
   expect(janus::backend::llvm::lower_type(ubyte_type, context)->isIntegerTy(8),
          "ubyte lowers to LLVM i8");
 
+  const janus::Type &short_type = janus::Type::short_type();
+  expect(short_type.name() == "short", "short has the expected name");
+  expect(short_type.bit_width() == 16, "short is 16 bits wide");
+  expect(short_type.is_integer(), "short is an integer");
+  expect(short_type.is_signed(), "short is signed");
+  expect(janus::backend::llvm::lower_type(short_type, context)->isIntegerTy(16),
+         "short lowers to LLVM i16");
+
+  const janus::Type &ushort_type = janus::Type::ushort_type();
+  expect(ushort_type.name() == "ushort", "ushort has the expected name");
+  expect(ushort_type.bit_width() == 16, "ushort is 16 bits wide");
+  expect(ushort_type.is_integer(), "ushort is an integer");
+  expect(!ushort_type.is_signed(), "ushort is unsigned");
+  expect(janus::backend::llvm::lower_type(ushort_type, context)->isIntegerTy(16),
+         "ushort lowers to LLVM i16");
+
   const janus::Type &char_type = janus::Type::char_type();
   expect(char_type.name() == "char", "char has the expected name");
   expect(char_type.bit_width() == 32, "char is 32 bits wide");

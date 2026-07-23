@@ -73,6 +73,8 @@ Types primitifs :
 | `double` | nombre flottant sur 64 bits |
 | `byte` | entier signé sur 8 bits |
 | `ubyte` | entier non signé sur 8 bits |
+| `short` | entier signé sur 16 bits |
+| `ushort` | entier non signé sur 16 bits |
 | `char` | caractère Unicode sur 32 bits |
 | `bool` | `true` ou `false` |
 | `string` | chaîne UTF-8 immuable |
@@ -86,6 +88,8 @@ Les entiers ont une taille fixe et portable :
 | --- | --- |
 | `byte` | `-128` à `127` |
 | `ubyte` | `0` à `255` |
+| `short` | `-32768` à `32767` |
+| `ushort` | `0` à `65535` |
 | `int` | `-2147483648` à `2147483647` |
 | `uint` | `0` à `4294967295` |
 | `long` | `-9223372036854775808` à `9223372036854775807` |
@@ -98,9 +102,8 @@ est acceptée, y compris `-2147483648`; `2147483648` et `-2147483649` sont
 rejetés. Un `usize` supérieur à `2147483647` doit venir d'un calcul ou d'un cast
 explicite.
 
-Pour `byte`, `ubyte`, `int`, `uint`, `long`, `ulong`, `isize` et `usize`, les
-opérations `+`, `-` et `*` s'enroulent modulo `2^largeur` (`2^8`, `2^32` ou
-`2^64`). Le moins unaire suit la même règle pour les types signés. Les casts
+Pour les types entiers, les opérations `+`, `-` et `*` s'enroulent modulo
+`2^largeur`. Le moins unaire suit la même règle pour les types signés. Les casts
 entier-vers-entier conservent les bits de poids faible lors d'un rétrécissement;
 l'élargissement étend le signe depuis une source signée (`byte`, `int`) et
 étend avec des zéros depuis une source non signée (`usize`, `char`, `bool`).
