@@ -100,7 +100,9 @@ Les entiers ont une taille fixe et portable :
 Les littéraux entiers sans cast ont le type `int`. La plage complète de `int`
 est acceptée, y compris `-2147483648`; `2147483648` et `-2147483649` sont
 rejetés. Un `usize` supérieur à `2147483647` doit venir d'un calcul ou d'un cast
-explicite.
+explicite. Un littéral peut initialiser directement `byte`, `ubyte`, `short` ou
+`ushort` lorsque sa valeur tient dans le type. Les autres conversions numériques
+restent explicites.
 
 Pour les types entiers, les opérations `+`, `-` et `*` s'enroulent modulo
 `2^largeur`. Le moins unaire suit la même règle pour les types signés. Les casts

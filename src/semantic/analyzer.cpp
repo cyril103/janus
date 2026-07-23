@@ -391,6 +391,11 @@ bool integer_literal_fits(const janus::ast::Expression &expression,
   return *value >= 0 && static_cast<std::uint64_t>(*value) <= maximum;
 }
 
+bool accepts_contextual_integer_literal(const janus::Type &type) {
+  return type.is_integer() &&
+         type.bit_width() < janus::Type::int_type().bit_width();
+}
+
 std::string integer_range_description(const janus::Type &type) {
   return std::string{type.is_signed() ? "signed " : "unsigned "} +
          std::to_string(type.bit_width()) + "-bit range";
@@ -1069,7 +1074,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       if (same_type(actual, expected))
         return;
 
-      if (expected.is_concrete() && expected.concrete->is_integer()) {
+      if (expected.is_concrete() &&
+          accepts_contextual_integer_literal(*expected.concrete)) {
         if (integer_literal_value(expression)) {
           if (integer_literal_fits(expression, *expected.concrete))
             return;
@@ -1091,7 +1097,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           if (same_type(actual, return_type))
             return;
 
-          if (return_type.is_concrete() && return_type.concrete->is_integer()) {
+          if (return_type.is_concrete() &&
+              accepts_contextual_integer_literal(*return_type.concrete)) {
             if (integer_literal_value(expression)) {
               if (integer_literal_fits(expression, *return_type.concrete))
                 return;
@@ -1240,7 +1247,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   throw CompileError{
                       node.location,
                       node.callee +
-                          " supports numeric, char, bool, and string values"};
+                          " supports int, double, byte, char, bool, string, and "
+                          "usize values, plus the other numeric primitives"};
                 return SemanticType{&Type::unit_type()};
               }
               if (node.callee == "panic") {
