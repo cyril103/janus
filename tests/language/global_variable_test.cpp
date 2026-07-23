@@ -1,3 +1,4 @@
+#include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/frontend/parser.hpp"
@@ -5,7 +6,11 @@
 
 #include <filesystem>
 #include <iostream>
+#include <string>
 #include <string_view>
+
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/Support/raw_ostream.h>
 
 namespace {
 
@@ -42,6 +47,14 @@ var requests : int = 0
 private val enabled : bool = !false
 val greeting : string = "Bonjour"
 
+def globalAnswer() : int {
+    return answer
+}
+
+def reader() : () => int {
+    return () => answer
+}
+
 def main() : int {
     requests = 2
     val answer : int = 7
@@ -64,6 +77,36 @@ def main() : int {
   expect(analysis.functions.at("main").at("answer").type.concrete->kind() ==
              janus::TypeKind::Int,
          "a local value may shadow a global");
+
+  llvm::LLVMContext context;
+  janus::backend::llvm::IrGenerator generator{context};
+  const std::unique_ptr<llvm::Module> module =
+      generator.generate(program, "global_variables");
+  std::string ir;
+  llvm::raw_string_ostream output{ir};
+  module->print(output, nullptr);
+  output.flush();
+
+  expect(ir.find("@__janus_global_entry__answer = constant i32 42") !=
+             std::string::npos,
+         "global val is emitted as an LLVM constant");
+  expect(ir.find("@__janus_global_entry__requests = global i32 0") !=
+             std::string::npos,
+         "global var is emitted as writable LLVM storage");
+  expect(ir.find("@__janus_global_entry__enabled = internal constant i1 true") !=
+             std::string::npos,
+         "private global uses internal linkage");
+  expect(ir.find("@__janus_global_entry__greeting = constant { ptr, i64 }") !=
+             std::string::npos,
+         "global string stores static data and its length");
+  expect(ir.find("load i32, ptr @__janus_global_entry__answer") !=
+             std::string::npos,
+         "global reads load from global storage");
+  expect(ir.find("store i32 2, ptr @__janus_global_entry__requests") !=
+             std::string::npos,
+         "global assignments store into global storage");
+  expect(ir.find("call ptr @janus_alloc") == std::string::npos,
+         "a lambda does not capture global storage");
 
   expect_compile_error(
       "var pending : int\ndef main() : int { return 0 }",
@@ -91,6 +134,22 @@ def main() : int {
   const janus::ast::Program imported_program =
       loader.load(std::filesystem::path{JANUS_GLOBALS_ENTRY});
   static_cast<void>(analyzer.analyze(imported_program));
+  llvm::LLVMContext imported_context;
+  janus::backend::llvm::IrGenerator imported_generator{imported_context};
+  const std::unique_ptr<llvm::Module> imported_module =
+      imported_generator.generate(imported_program, "imported_globals");
+  std::string imported_ir;
+  llvm::raw_string_ostream imported_output{imported_ir};
+  imported_module->print(imported_output, nullptr);
+  imported_output.flush();
+  expect(imported_ir.find(
+             "@__janus_global_global_config__secret = internal constant i32 7") !=
+             std::string::npos,
+         "imported private global is mangled with its module");
+  expect(imported_ir.find(
+             "@__janus_global_entry__localCount = constant i32 2") !=
+             std::string::npos,
+         "entry global uses the entry symbol namespace");
 
   try {
     const janus::ast::Program private_access_program =

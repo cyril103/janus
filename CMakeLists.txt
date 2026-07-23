@@ -675,6 +675,7 @@ if(BUILD_TESTING)
     target_link_libraries(global_variable_test
         PRIVATE
             janus_semantic
+            janus_llvm_backend
     )
     target_compile_definitions(global_variable_test
         PRIVATE

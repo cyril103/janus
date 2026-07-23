@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -86,9 +87,15 @@ public:
     }
     for (const janus::ast::FunctionDeclaration &function : program.functions)
       functions_.emplace(function.name, &function);
+    for (const janus::ast::GlobalDeclaration &global : program.globals)
+      global_declarations_.emplace(global.declaration.name, &global);
   }
 
   std::unique_ptr<::llvm::Module> generate() {
+    for (const auto &[name, declaration] : global_declarations_) {
+      static_cast<void>(name);
+      emit_global(*declaration);
+    }
     for (const auto &[name, class_declaration] : classes_) {
       if (class_declaration->type_parameters.empty())
         static_cast<void>(ensure_class(name, {}));
@@ -160,6 +167,113 @@ private:
     for (const janus::ast::TypeReference &argument : reference.type_arguments)
       type_arguments.push_back(&resolve(argument, substitutions));
     return ensure_class(reference.name, type_arguments);
+  }
+
+  const Local &resolve_storage(
+      std::string_view name,
+      const std::unordered_map<std::string, Local> &locals) const {
+    if (const auto local = locals.find(std::string{name});
+        local != locals.end())
+      return local->second;
+    return global_storage_.at(std::string{name});
+  }
+
+  static std::string
+  global_symbol_name(const janus::ast::GlobalDeclaration &global) {
+    std::string result{"__janus_global_"};
+    const std::string module =
+        global.module_name.has_value() ? *global.module_name : "entry";
+    for (const unsigned char character : module)
+      result += std::isalnum(character) || character == '_' ? character : '_';
+    result += "__" + global.declaration.name;
+    return result;
+  }
+
+  static std::int64_t
+  static_integer_value(const janus::ast::Expression &expression) {
+    if (const auto *literal =
+            std::get_if<janus::ast::IntegerLiteralExpression>(
+                &expression.value))
+      return literal->value;
+    const auto &unary =
+        std::get<janus::ast::UnaryExpression>(expression.value);
+    return -static_integer_value(*unary.operand);
+  }
+
+  static double
+  static_double_value(const janus::ast::Expression &expression) {
+    if (const auto *literal =
+            std::get_if<janus::ast::DoubleLiteralExpression>(
+                &expression.value))
+      return literal->value;
+    const auto &unary =
+        std::get<janus::ast::UnaryExpression>(expression.value);
+    return -static_double_value(*unary.operand);
+  }
+
+  static bool static_boolean_value(const janus::ast::Expression &expression) {
+    if (const auto *literal =
+            std::get_if<janus::ast::BooleanLiteralExpression>(
+                &expression.value))
+      return literal->value;
+    const auto &unary =
+        std::get<janus::ast::UnaryExpression>(expression.value);
+    return !static_boolean_value(*unary.operand);
+  }
+
+  ::llvm::Constant *
+  emit_static_initializer(const janus::ast::Expression &expression,
+                          const janus::Type &type) {
+    ::llvm::Type *llvm_type = lower_type(type, context_);
+    if (type.is_integer())
+      return ::llvm::ConstantInt::get(
+          llvm_type,
+          static_cast<std::uint64_t>(static_integer_value(expression)),
+          type.is_signed());
+    if (type.is_floating_point())
+      return ::llvm::ConstantFP::get(llvm_type,
+                                     static_double_value(expression));
+    if (type.kind() == janus::TypeKind::Bool)
+      return ::llvm::ConstantInt::get(
+          llvm_type, static_boolean_value(expression), false);
+    if (type.kind() == janus::TypeKind::Char) {
+      const auto &literal =
+          std::get<janus::ast::CharacterLiteralExpression>(expression.value);
+      return ::llvm::ConstantInt::get(
+          llvm_type, static_cast<std::uint32_t>(literal.value), false);
+    }
+
+    const auto &literal =
+        std::get<janus::ast::StringLiteralExpression>(expression.value);
+    ::llvm::Constant *data =
+        ::llvm::ConstantDataArray::getString(context_, literal.value, true);
+    auto *storage = new ::llvm::GlobalVariable(
+        *module_, data->getType(), true, ::llvm::GlobalValue::PrivateLinkage,
+        data, ".str." + std::to_string(string_literal_index_++));
+    storage->setUnnamedAddr(::llvm::GlobalValue::UnnamedAddr::Global);
+    ::llvm::Constant *zero =
+        ::llvm::ConstantInt::get(::llvm::Type::getInt32Ty(context_), 0);
+    const std::array<::llvm::Constant *, 2> indices{zero, zero};
+    ::llvm::Constant *pointer =
+        ::llvm::ConstantExpr::getInBoundsGetElementPtr(data->getType(), storage,
+                                                       indices);
+    ::llvm::Constant *length = ::llvm::ConstantInt::get(
+        ::llvm::Type::getInt64Ty(context_), literal.value.size(), false);
+    return ::llvm::ConstantStruct::get(
+        ::llvm::cast<::llvm::StructType>(llvm_type), {pointer, length});
+  }
+
+  void emit_global(const janus::ast::GlobalDeclaration &global) {
+    const janus::ast::ValueDeclaration &declaration = global.declaration;
+    const janus::Type &type = resolve(declaration.declared_type, {});
+    const auto linkage = declaration.is_private
+                             ? ::llvm::GlobalValue::InternalLinkage
+                             : ::llvm::GlobalValue::ExternalLinkage;
+    auto *storage = new ::llvm::GlobalVariable(
+        *module_, lower_type(type, context_), !declaration.is_mutable, linkage,
+        emit_static_initializer(*declaration.initializer, type),
+        global_symbol_name(global));
+    global_storage_.emplace(declaration.name, Local{storage, &type});
   }
 
   const janus::Type &ensure_pointer(const janus::Type &element_type) {
@@ -726,7 +840,8 @@ private:
                                 field_pointer);
             continue;
           }
-          const Local &local = block_locals.at(assignment->name);
+          const Local &local =
+              resolve_storage(assignment->name, block_locals);
           ::llvm::Value *value =
               emit_expression(assignment->expression, *local.type,
                               substitutions, block_locals, builder);
@@ -1076,7 +1191,7 @@ private:
             return janus::Type::string_type();
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
-            return *locals.at(node.name).type;
+            return *resolve_storage(node.name, locals).type;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::LambdaExpression>) {
             std::unordered_map<std::string, Local> lambda_locals = locals;
@@ -1357,7 +1472,7 @@ private:
                 expected_type.is_signed());
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
-            const Local &local = locals.at(node.name);
+            const Local &local = resolve_storage(node.name, locals);
             return builder.CreateLoad(lower_type(*local.type, context_),
                                       local.storage, node.name + ".value");
           } else if constexpr (std::is_same_v<Node,
@@ -2355,6 +2470,9 @@ private:
   std::unique_ptr<::llvm::Module> module_;
   std::unordered_map<std::string, const janus::ast::FunctionDeclaration *>
       functions_;
+  std::unordered_map<std::string, const janus::ast::GlobalDeclaration *>
+      global_declarations_;
+  std::unordered_map<std::string, Local> global_storage_;
   std::unordered_map<std::string, const janus::ast::ClassDeclaration *>
       classes_;
   std::unordered_map<std::string, const janus::ast::EnumDeclaration *> enums_;
