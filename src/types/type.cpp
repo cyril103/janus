@@ -23,7 +23,7 @@ const Type &Type::ulong_type() {
 }
 
 const Type &Type::float_type() {
-  static const Type type{TypeKind::Float, "float", 32, true};
+  static const Type type{TypeKind::Float, "float", 32, false};
   return type;
 }
 

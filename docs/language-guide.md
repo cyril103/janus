@@ -107,11 +107,11 @@ restent explicites.
 Pour les types entiers, les opérations `+`, `-` et `*` s'enroulent modulo
 `2^largeur`. Le moins unaire suit la même règle pour les types signés. Les casts
 entier-vers-entier conservent les bits de poids faible lors d'un rétrécissement;
-l'élargissement étend le signe depuis une source signée (`byte`, `int`) et
-étend avec des zéros depuis une source non signée (`usize`, `char`, `bool`).
+l'élargissement étend le signe depuis une source signée et étend avec des zéros
+depuis une source non signée.
 
 La division signée `/` tronque vers zéro et le reste signé `%` prend le signe du
-dividende. `usize /` et `usize %` utilisent les règles non signées. Diviser ou
+dividende. Les types non signés utilisent les règles non signées. Diviser ou
 prendre le reste par zéro provoque un `panic` déterministe. Pour les types
 signés, `MIN / -1` et `MIN % -1` provoquent aussi un `panic` déterministe.
 
