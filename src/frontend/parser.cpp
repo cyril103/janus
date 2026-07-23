@@ -198,8 +198,11 @@ ast::Program Parser::parse_program() {
     else if (current_.kind == TokenKind::Enum)
       program.enums.push_back(parse_enum_declaration());
     else if (current_.kind == TokenKind::Class ||
-             current_.kind == TokenKind::Struct)
-      program.classes.push_back(parse_class_declaration());
+             current_.kind == TokenKind::Struct) {
+      ast::ClassDeclaration declaration = parse_class_declaration();
+      declaration.module_name = program.module_name;
+      program.classes.push_back(std::move(declaration));
+    }
     else if (current_.kind == TokenKind::Val ||
              current_.kind == TokenKind::Var) {
       ast::ValueDeclaration declaration = parse_variable_declaration();
@@ -207,7 +210,9 @@ ast::Program Parser::parse_program() {
       program.globals.push_back(
           ast::GlobalDeclaration{std::move(declaration), program.module_name});
     } else {
-      program.functions.push_back(parse_function_declaration());
+      ast::FunctionDeclaration declaration = parse_function_declaration();
+      declaration.module_name = program.module_name;
+      program.functions.push_back(std::move(declaration));
     }
   }
 
@@ -311,7 +316,8 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
                                        std::move(type_constraints),
                                        false,
                                        std::nullopt,
-                                       false};
+                                       false,
+                                       std::nullopt};
   return declaration;
 }
 
@@ -550,7 +556,9 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
                                     std::move(methods),
                                     std::move(destructor),
                                     class_token.location,
-                                    std::move(type_constraints)};
+                                    std::move(type_constraints),
+                                    false,
+                                    std::nullopt};
   declaration.is_value_type = is_value_type;
   return declaration;
 }
@@ -657,7 +665,8 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
                                        std::move(type_constraints),
                                        is_external,
                                        std::move(external_symbol),
-                                       is_variadic};
+                                       is_variadic,
+                                       std::nullopt};
   return declaration;
 }
 

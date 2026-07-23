@@ -2,3 +2,7 @@ module global_config
 
 private val secret : int = 7
 var importedCount : usize = 1
+
+def secretValue() : int {
+    return secret
+}

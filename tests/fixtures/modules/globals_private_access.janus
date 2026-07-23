@@ -1,0 +1,5 @@
+import global_config
+
+def main() : int {
+    return secret
+}

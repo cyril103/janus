@@ -283,6 +283,7 @@ struct FunctionDeclaration {
   bool is_external{};
   std::optional<std::string> external_symbol;
   bool is_variadic{};
+  std::optional<std::string> module_name;
 };
 
 struct DestructorDeclaration {
@@ -324,6 +325,7 @@ struct ClassDeclaration {
   SourceLocation location;
   std::vector<TypeConstraint> type_constraints;
   bool is_value_type{};
+  std::optional<std::string> module_name;
 };
 
 struct Program {

@@ -48,6 +48,7 @@ struct Symbol {
 using SymbolTable = std::unordered_map<std::string, Symbol>;
 
 struct AnalysisResult {
+  SymbolTable globals;
   std::unordered_map<std::string, SymbolTable> functions;
 };
 

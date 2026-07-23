@@ -669,6 +669,26 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.mutable_variable COMMAND mutable_variable_test)
 
+    add_executable(global_variable_test
+        tests/language/global_variable_test.cpp
+    )
+    target_link_libraries(global_variable_test
+        PRIVATE
+            janus_semantic
+    )
+    target_compile_definitions(global_variable_test
+        PRIVATE
+            JANUS_GLOBALS_ENTRY="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_entry.janus"
+            JANUS_GLOBALS_PRIVATE_ACCESS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_private_access.janus"
+    )
+    target_compile_options(global_variable_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.global_variable COMMAND global_variable_test)
+
     add_executable(class_test
         tests/language/class_test.cpp
     )

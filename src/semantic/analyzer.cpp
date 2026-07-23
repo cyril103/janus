@@ -398,6 +398,55 @@ bool accepts_contextual_integer_literal(const janus::Type &type) {
          type.bit_width() < janus::Type::int_type().bit_width();
 }
 
+janus::semantic::SemanticType
+static_initializer_type(const janus::ast::Expression &expression) {
+  using namespace janus;
+  using namespace janus::semantic;
+
+  return std::visit(
+      [&](const auto &node) -> SemanticType {
+        using Node = std::decay_t<decltype(node)>;
+        if constexpr (std::is_same_v<Node, ast::IntegerLiteralExpression>)
+          return SemanticType{&Type::int_type()};
+        else if constexpr (std::is_same_v<Node,
+                                          ast::DoubleLiteralExpression>)
+          return SemanticType{&Type::double_type()};
+        else if constexpr (std::is_same_v<Node,
+                                          ast::CharacterLiteralExpression>)
+          return SemanticType{&Type::char_type()};
+        else if constexpr (std::is_same_v<Node,
+                                          ast::BooleanLiteralExpression>)
+          return SemanticType{&Type::bool_type()};
+        else if constexpr (std::is_same_v<Node, ast::StringLiteralExpression>)
+          return SemanticType{&Type::string_type()};
+        else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
+          const SemanticType operand = static_initializer_type(*node.operand);
+          if (node.operation == ast::UnaryOperator::LogicalNot) {
+            if (!operand.is_concrete() ||
+                operand.concrete->kind() != TypeKind::Bool)
+              throw CompileError{
+                  node.location,
+                  "operator '!' requires an operand of type 'bool'"};
+            return operand;
+          }
+          if (!operand.is_concrete() ||
+              (!operand.concrete->is_floating_point() &&
+               (!operand.concrete->is_integer() ||
+                !operand.concrete->is_signed())))
+            throw CompileError{
+                node.location,
+                "unary operator '-' requires a signed integer or "
+                "floating-point operand"};
+          return operand;
+        } else {
+          throw CompileError{
+              node.location,
+              "global initializer must be a compile-time literal"};
+        }
+      },
+      expression.value);
+}
+
 std::string integer_range_description(const janus::Type &type) {
   return std::string{type.is_signed() ? "signed " : "unsigned "} +
          std::to_string(type.bit_width()) + "-bit range";
@@ -512,6 +561,46 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     class_arities.emplace(class_declaration.name,
                           class_declaration.type_parameters.size());
+  }
+
+  struct ResolvedGlobal {
+    const ast::GlobalDeclaration *declaration;
+    Symbol symbol;
+  };
+  std::unordered_map<std::string, ResolvedGlobal> globals;
+  const std::unordered_set<std::string> no_type_parameters;
+  for (const ast::GlobalDeclaration &global : program.globals) {
+    const ast::ValueDeclaration &declaration = global.declaration;
+    if (globals.contains(declaration.name))
+      throw CompileError{declaration.location,
+                         "global value '" + declaration.name +
+                             "' is already declared"};
+    const SemanticType type = resolve_type(
+        declaration.declared_type, no_type_parameters, &class_arities);
+    if (!type.is_concrete() || type.concrete->kind() == TypeKind::Unit)
+      throw CompileError{
+          declaration.location,
+          "global value '" + declaration.name +
+              "' must use a statically initialized built-in value type"};
+    if (!declaration.initializer.has_value())
+      throw CompileError{declaration.location,
+                         "global variable '" + declaration.name +
+                             "' requires an initializer"};
+    const SemanticType initializer =
+        static_initializer_type(*declaration.initializer);
+    if (!same_type(initializer, type)) {
+      if (!type.concrete->is_integer() ||
+          !integer_literal_fits(*declaration.initializer, *type.concrete))
+        throw CompileError{
+            declaration.location,
+            "cannot initialize global value '" + declaration.name +
+                "' of type '" + type.name() + "' with expression of type '" +
+                initializer.name() + "'"};
+    }
+    Symbol symbol{type, declaration.is_mutable, true};
+    result.globals.emplace(declaration.name, symbol);
+    globals.emplace(declaration.name,
+                    ResolvedGlobal{&global, std::move(symbol)});
   }
 
   struct TraitInstance {
@@ -921,6 +1010,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                  : context.function->location;
     const std::string function_name =
         is_destructor ? "destructor" : context.function->name;
+    const std::optional<std::string> &context_module =
+        owner != nullptr ? owner->module_name : context.function->module_name;
     std::unordered_set<std::string> type_parameters;
     if (owner != nullptr) {
       type_parameters.insert(owner->type_parameters.begin(),
@@ -1061,6 +1152,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           });
     };
     SymbolTable *active_symbols = &symbols;
+    const auto visible_global =
+        [&](std::string_view name) -> const Symbol * {
+      const auto iterator = globals.find(std::string{name});
+      if (iterator == globals.end())
+        return nullptr;
+      const ast::GlobalDeclaration &global = *iterator->second.declaration;
+      if (global.declaration.is_private &&
+          global.module_name != context_module)
+        return nullptr;
+      return &iterator->second.symbol;
+    };
     const std::unordered_set<std::string> *active_type_parameters =
         &type_parameters;
     const std::unordered_map<std::string, SemanticType>
@@ -1158,6 +1260,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                 ast::IdentifierExpression>) {
               const auto iterator = active_symbols->find(node.name);
               if (iterator == active_symbols->end()) {
+                if (const Symbol *global = visible_global(node.name))
+                  return global->type;
                 throw CompileError{node.location,
                                    "unknown value '" + node.name + "'"};
               }
@@ -2415,9 +2519,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             continue;
           }
           const auto iterator = block_symbols.find(assignment->name);
-          if (iterator == block_symbols.end())
-            throw CompileError{assignment->location,
-                               "unknown value '" + assignment->name + "'"};
+          if (iterator == block_symbols.end()) {
+            const Symbol *global = visible_global(assignment->name);
+            if (global == nullptr)
+              throw CompileError{assignment->location,
+                                 "unknown value '" + assignment->name + "'"};
+            if (!global->is_mutable)
+              throw CompileError{assignment->location,
+                                 "cannot assign to immutable global value '" +
+                                     assignment->name + "'"};
+            validate_expression(assignment->expression, global->type,
+                                assignment->location);
+            continue;
+          }
           if (deferred_values.contains(assignment->name))
             throw CompileError{
                 assignment->location,
