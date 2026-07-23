@@ -3,8 +3,8 @@ import std.option
 import std.iterator
 
 private class ArrayIteratorState[T <: Copy](
-    private val source : Array[T],
-    private var index : usize
+private val source : Array[T],
+private var index : usize
 ) {
     def next() : Option[T] {
         if index >= source.size() {
@@ -54,10 +54,10 @@ class Array[T <: Copy](initialCapacity : usize) extends Iterable[T] {
 
     def iterator() : Iterator[T] {
         val state : ArrayIteratorState[T] =
-            new ArrayIteratorState[T](this, usize(0))
+        new ArrayIteratorState[T](this, usize(0))
         return new Iterator[T](
-            () => state.next(),
-            () => state.dispose()
+        () => state.next(),
+        () => state.dispose()
         )
     }
 

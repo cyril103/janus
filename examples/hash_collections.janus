@@ -1,0 +1,27 @@
+import std.hashing
+import std.hashmap
+import std.hashset
+
+def main() : int {
+    val hashing : IntHashing = new IntHashing()
+    defer delete hashing
+
+    val unique : HashSet[int, IntHashing] =
+    new HashSet[int, IntHashing](usize(8), hashing)
+    defer delete unique
+    unique.add(10)
+    unique.add(20)
+    unique.add(10)
+
+    val values : HashMap[int, int, IntHashing] =
+    new HashMap[int, int, IntHashing](usize(8), hashing)
+    defer delete values
+    values.put(1, 10)
+    values.put(2, 20)
+
+    val fetched : Option[int] = values.getOption(2)
+    return match fetched {
+        Some(value) => value + int(unique.size()),
+        None => 0
+    }
+}

@@ -12,7 +12,7 @@ def main() : int {
     values.push(12)
 
     val builder : ArrayBuilder[int] =
-        new ArrayBuilder[int](usize(3))
+    new ArrayBuilder[int](usize(3))
     defer delete builder
     builder.addAll[Array[int]](values)
     val pendingSize : int = int(builder.size())
@@ -26,11 +26,11 @@ def main() : int {
     val hashing : IntHashing = new IntHashing()
     defer delete hashing
     val hashSample : int =
-        int(hashing.hash(42) % usize(10))
+    int(hashing.hash(42) % usize(10))
     val hashMatches : bool = hashing.equals(42, 42)
 
     val unique : HashSet[int, IntHashing] =
-        new HashSet[int, IntHashing](usize(4), hashing)
+    new HashSet[int, IntHashing](usize(4), hashing)
     defer delete unique
     unique.add(10)
     unique.add(20)
@@ -44,12 +44,12 @@ def main() : int {
     val setContainsTen : bool = unique.contains(10)
 
     val setBuilder : SetBuilder[int, IntHashing] =
-        new SetBuilder[int, IntHashing](usize(4), hashing)
+    new SetBuilder[int, IntHashing](usize(4), hashing)
     defer delete setBuilder
     setBuilder.addAll[Array[int]](values)
     setBuilder.add(20)
     val builtSet : HashSet[int, IntHashing] =
-        setBuilder.result()
+    setBuilder.result()
     defer delete builtSet
     var setSum : int = 0
     for value in builtSet {
@@ -57,7 +57,7 @@ def main() : int {
     }
 
     val numbers : HashMap[int, int, IntHashing] =
-        new HashMap[int, int, IntHashing](usize(4), hashing)
+    new HashMap[int, int, IntHashing](usize(4), hashing)
     defer delete numbers
     numbers.put(1, 10)
     numbers.put(2, 20)
@@ -85,12 +85,12 @@ def main() : int {
     }
 
     val mapBuilder : MapBuilder[int, int, IntHashing] =
-        new MapBuilder[int, int, IntHashing](usize(4), hashing)
+    new MapBuilder[int, int, IntHashing](usize(4), hashing)
     defer delete mapBuilder
     mapBuilder.add(new MapEntry[int, int](3, 30))
     mapBuilder.add(new MapEntry[int, int](4, 40))
     val builtMap : HashMap[int, int, IntHashing] =
-        mapBuilder.result()
+    mapBuilder.result()
     defer delete builtMap
 
     val replacedValue : int = match replaced {
@@ -107,10 +107,10 @@ def main() : int {
     }
 
     val collected : Array[int] = collectArray[int](
-        values.iterator()
-            .map[int]((value : int) => value * 2)
-            .filter((value : int) => value > 25)
-            .take(usize(1))
+    values.iterator()
+    .map[int]((value : int) => value * 2)
+    .filter((value : int) => value > 25)
+    .take(usize(1))
     )
     defer delete collected
     val first : Option[int] = collected.getOption(usize(0))
@@ -125,26 +125,26 @@ def main() : int {
 
     values.foreach((value : int) => print(""))
     val halved : Array[double] =
-        values.map[double]((value : int) => double(value) / 2.0)
+    values.map[double]((value : int) => double(value) / 2.0)
     defer delete halved
 
     val threshold : int = 11
     val aboveThreshold : (int) => bool =
-        (value : int) => value > threshold
+    (value : int) => value > threshold
     defer delete aboveThreshold
     val filtered : Array[int] = values.filter(aboveThreshold)
     defer delete filtered
 
     val sum : int =
-        values.fold[int](0, (total : int, value : int) => total + value)
+    values.fold[int](0, (total : int, value : int) => total + value)
     val hasTwenty : bool =
-        values.any((value : int) => value == 20)
+    values.any((value : int) => value == 20)
     val allPositive : bool =
-        values.all((value : int) => value > 0)
+    values.all((value : int) => value > 0)
     val largeCount : usize =
-        values.count((value : int) => value > 11)
+    values.count((value : int) => value > 11)
     val found : Option[int] =
-        values.find((value : int) => value == 20)
+    values.find((value : int) => value == 20)
     val missing : Option[int] = values.getOption(usize(100))
     val popped : Option[int] = values.popOption()
 
@@ -162,15 +162,15 @@ def main() : int {
     }
 
     val result : int = sum + int(halved.get(usize(0))) +
-        int(hasTwenty) + int(allPositive) + int(largeCount) +
-        int(filtered.size()) + foundValue + missingValue + poppedValue +
-        int(values.isEmpty()) + firstValue + loopSum + builtSize +
-        pendingSize + hashSample + int(hashMatches) +
-        int(removedFromSet) + int(setContainsTen) +
-        int(unique.size()) + int(builtSet.size()) + setSum +
-        replacedValue + fetchedValue + removedMapValue +
-        int(mapContainsOne) + keySum + valueSum + entrySum +
-        int(builtMap.size())
+    int(hasTwenty) + int(allPositive) + int(largeCount) +
+    int(filtered.size()) + foundValue + missingValue + poppedValue +
+    int(values.isEmpty()) + firstValue + loopSum + builtSize +
+    pendingSize + hashSample + int(hashMatches) +
+    int(removedFromSet) + int(setContainsTen) +
+    int(unique.size()) + int(builtSet.size()) + setSum +
+    replacedValue + fetchedValue + removedMapValue +
+    int(mapContainsOne) + keySum + valueSum + entrySum +
+    int(builtMap.size())
 
     return result
 }

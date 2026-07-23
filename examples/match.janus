@@ -1,7 +1,4 @@
-enum Option[T] {
-    Some(T),
-    None
-}
+import std.option
 
 def main() : int {
     val option : Option[int] = Option.Some[int](42)

@@ -10,7 +10,7 @@ class Counter(initialValue : int, private val step : int) {
 
 def main() : int {
     val counter : Counter = new Counter(40, 2)
+    defer delete counter
     val result : int = counter.next()
-    delete counter
     return result
 }

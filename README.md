@@ -162,12 +162,13 @@ Les principales fonctionnalités sont :
 - types primitifs : `int`, `uint`, `long`, `ulong`, `float`, `double`, `byte`,
   `ubyte`, `short`, `ushort`, `char`, `bool`, `string`, `isize`, `usize` et
   `Unit` ;
-- fonctions et classes génériques ;
+- fonctions et classes génériques, avec contrainte intrinsèque `Copy` ;
 - closures avec captures et fonctions d'ordre supérieur ;
 - contrôle de flux avec `if`, `while`, `for`, `break` et `continue` ;
 - enums avec données associées et expressions `match` ;
 - gestion d'erreurs avec `Option`, `Result` et l'opérateur `?` ;
-- classes allouées avec `new`, libérées avec `delete`, destructeurs et `defer` ;
+- classes et agrégats propriétaires libérés avec `delete`, destructeurs et
+  `defer` ;
 - visibilités `private` et `internal`, traits et contraintes génériques ;
 - modules, dépendances, collections et itérateurs paresseux ;
 - pointeurs typés, allocation brute, casts explicites et `extern def`.

@@ -12,7 +12,7 @@ def main() : int {
     }
 
     for value in range(1, 4).flatMap[int](
-        (item : int) => range(item, item + 2)
+    (item : int) => range(item, item + 2)
     ) {
         total = total + value
     }

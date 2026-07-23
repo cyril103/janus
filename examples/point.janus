@@ -24,9 +24,9 @@ class Point(var x : int, var y : int) {
 
 def main() : int {
     val point : Point = new Point(1, 2)
+    defer delete point
     val changed : int = point.setX(6)
     val hidden : int = point.reveal()
     val result : int = point.currentX()
-    delete point
     return result
 }

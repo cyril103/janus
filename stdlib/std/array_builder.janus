@@ -4,10 +4,10 @@ import std.builder
 import std.iterator
 
 class ArrayBuilder[T <: Copy](
-    initialCapacity : usize
+initialCapacity : usize
 ) extends Builder[T, Array[T]] {
     private var values : Array[T] =
-        new Array[T](initialCapacity)
+    new Array[T](initialCapacity)
 
     def add(value : T) : Unit {
         values.push(value)
@@ -40,7 +40,7 @@ class ArrayBuilder[T <: Copy](
 
 def collectArray[T <: Copy](source : Iterator[T]) : Array[T] {
     val builder : ArrayBuilder[T] =
-        new ArrayBuilder[T](usize(0))
+    new ArrayBuilder[T](usize(0))
     defer delete builder
     return source.collectWith[Array[T], ArrayBuilder[T]](builder)
 }

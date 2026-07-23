@@ -12,15 +12,15 @@ def makeIdentity[T]() : (T) => T {
 
 def main() : int {
     val increment : (int) => int = (value : int) => value + 1
+    defer delete increment
     val first : int = apply[int](increment, 41)
-    delete increment
 
     val addTen : (int) => int = makeAdder(10)
+    defer delete addTen
     val second : int = addTen(first)
-    delete addTen
 
     val identity : (int) => int = makeIdentity[int]()
+    defer delete identity
     val result : int = identity(second)
-    delete identity
     return result
 }

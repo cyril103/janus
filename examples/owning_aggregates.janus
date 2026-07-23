@@ -1,0 +1,20 @@
+import std.option
+
+class Resource(val identifier : int) {
+    destructor {
+        println(identifier)
+    }
+}
+
+struct Box(val resource : Resource) {}
+
+def main() : int {
+    val box : Box = new Box(new Resource(42))
+    val optional : Option[Box] = Option.Some[Box](move box)
+    val extracted : Box = match move optional {
+        Some(value) => move value,
+        None => new Box(new Resource(0))
+    }
+    defer delete extracted
+    return extracted.resource.identifier
+}

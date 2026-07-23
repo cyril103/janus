@@ -1,9 +1,9 @@
 module std.hash_probe
 
 struct HashProbe(
-    private var index : usize,
-    private val capacity : usize,
-    private var checked : usize
+private var index : usize,
+private val capacity : usize,
+private var checked : usize
 ) {
     def hasNext() : bool {
         return checked < capacity
@@ -26,12 +26,12 @@ def normalizedHashCapacity(requested : usize) : usize {
 }
 
 def hashTableShouldGrow(
-    length : usize,
-    deletedCount : usize,
-    capacity : usize
+length : usize,
+deletedCount : usize,
+capacity : usize
 ) : bool {
     return (length + deletedCount + usize(1)) * usize(4) >=
-        capacity * usize(3)
+    capacity * usize(3)
 }
 
 def hashProbe(hash : usize, capacity : usize) : HashProbe {

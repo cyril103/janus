@@ -3,9 +3,9 @@ module std.c
 extern def puts(text : Ptr[byte]) : int
 extern def strlen(text : Ptr[byte]) : usize
 extern def memcmp(
-    left : Ptr[byte],
-    right : Ptr[byte],
-    size : usize
+left : Ptr[byte],
+right : Ptr[byte],
+size : usize
 ) : int
 extern def exit(status : int) : Unit
 extern def printf(format : Ptr[byte], ...) : int

@@ -3,8 +3,8 @@ import std.iterator
 import std.option
 
 private class Range(
-    private var current : int,
-    private val end : int
+private var current : int,
+private val end : int
 ) {
     def next() : Option[int] {
         if current >= end {
@@ -23,7 +23,7 @@ private class Range(
 def range(start : int, end : int) : Iterator[int] {
     val state : Range = new Range(start, end)
     return new Iterator[int](
-        () => state.next(),
-        () => state.dispose()
+    () => state.next(),
+    () => state.dispose()
     )
 }

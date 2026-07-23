@@ -1,0 +1,18 @@
+import std.array
+import std.array_builder
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(4))
+    defer delete values
+    values.push(10)
+    values.push(20)
+    values.push(30)
+
+    val collected : Array[int] = collectArray[int](
+    values.iterator()
+    .map[int]((value : int) => value * 2)
+    .filter((value : int) => value > 20)
+    )
+    defer delete collected
+    return int(collected.size())
+}

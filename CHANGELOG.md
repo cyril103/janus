@@ -3,6 +3,15 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## Non publié
+
+- ajout de la contrainte générique intrinsèque `Copy` ;
+- déplacement et destruction récursive des structs et enums propriétaires ;
+- sécurisation des collections et itérateurs autour des valeurs copiables ;
+- extraction du probing commun aux tables de hachage ;
+- découpage de `std.graphics` en sous-modules et uniformisation des couleurs
+  autour du type `Color`.
+
 ## [0.3.0] - 2026-07-23
 
 Cette version étend le langage numérique, introduit un module graphique 2D

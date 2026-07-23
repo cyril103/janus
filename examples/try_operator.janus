@@ -13,11 +13,11 @@ def convertResult(input : Result[int, string]) : Result[double, string] {
 
 def main() : int {
     val option : Option[double] =
-        convertOption(Option.Some[int](21))
+    convertOption(Option.Some[int](21))
     val result : Result[double, string] =
-        convertResult(Result.Ok[int, string](10))
+    convertResult(Result.Ok[int, string](10))
     val failed : Result[double, string] =
-        convertResult(Result.Error[int, string]("failure"))
+    convertResult(Result.Error[int, string]("failure"))
 
     val optionValue : int = match option {
         Some(value) => int(value),

@@ -5,6 +5,10 @@ raylib 6. Le backend est chargé dynamiquement : un programme qui n'utilise pas
 le graphisme ne dépend pas de raylib, et l'absence de la bibliothèque peut être
 traitée avec `initWindow`.
 
+`std.graphics` est une façade qui regroupe les sous-modules `types`, `drawing`,
+`resources`, `audio` et `input`. Les symboles natifs restent privés dans le
+sous-module qui les utilise.
+
 ## Installer le backend
 
 Sous Linux, WSL et macOS, l'outil livré avec Janus installe les dépendances,
@@ -82,17 +86,17 @@ d'un `return`.
 
 ## Couleurs
 
-Une couleur est représentée par un `uint` opaque au format RGBA. Utilisez les
-constructeurs plutôt que de dépendre de sa représentation :
+Une couleur est représentée par le struct `Color`. Utilisez les constructeurs
+suivants :
 
 ```janus
-val opaqueOrange : uint = rgb(255, 161, 0)
-val translucentBlue : uint = rgba(0, 121, 241, 128)
+val opaqueOrange : Color = rgb(255, 161, 0)
+val translucentBlue : Color = rgba(0, 121, 241, 128)
 ```
 
-Les couleurs prédéfinies sont les valeurs globales `Black`, `White`, `Red`,
-`Green` et `Blue`. Les fonctions historiques `black()`, `white()`, `red()`,
-`green()` et `blue()` restent disponibles pour préserver la compatibilité.
+Les couleurs prédéfinies sont les valeurs globales typées `Black`, `White`,
+`Red`, `Green` et `Blue`. Les fonctions `black()`, `white()`, `red()`,
+`green()` et `blue()` retournent également un `Color`.
 
 ## Dessin et entrées
 

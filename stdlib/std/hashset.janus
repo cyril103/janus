@@ -13,8 +13,8 @@ private enum SetSlot[T] {
 }
 
 private class HashSetIteratorState[T <: Copy, H <: Hashing[T]](
-    private val source : HashSet[T, H],
-    private var index : usize
+private val source : HashSet[T, H],
+private var index : usize
 ) {
     def next() : Option[T] {
         var result : Option[T] = Option.None[T]()
@@ -34,13 +34,13 @@ private class HashSetIteratorState[T <: Copy, H <: Hashing[T]](
 }
 
 class HashSet[T <: Copy, H <: Hashing[T]](
-    initialCapacity : usize,
-    private val hashing : H
+initialCapacity : usize,
+private val hashing : H
 ) extends Iterable[T] {
     private var slotCapacity : usize =
-        normalizedHashCapacity(initialCapacity)
+    normalizedHashCapacity(initialCapacity)
     private var slots : Array[SetSlot[T]] =
-        new Array[SetSlot[T]](slotCapacity)
+    new Array[SetSlot[T]](slotCapacity)
     private var length : usize = usize(0)
     private var deletedCount : usize = usize(0)
 
@@ -224,10 +224,10 @@ class HashSet[T <: Copy, H <: Hashing[T]](
 
     def iterator() : Iterator[T] {
         val state : HashSetIteratorState[T, H] =
-            new HashSetIteratorState[T, H](this, usize(0))
+        new HashSetIteratorState[T, H](this, usize(0))
         return new Iterator[T](
-            () => state.next(),
-            () => state.dispose()
+        () => state.next(),
+        () => state.dispose()
         )
     }
 
@@ -237,11 +237,11 @@ class HashSet[T <: Copy, H <: Hashing[T]](
 }
 
 class SetBuilder[T <: Copy, H <: Hashing[T]](
-    initialCapacity : usize,
-    private val hashing : H
+initialCapacity : usize,
+private val hashing : H
 ) extends Builder[T, HashSet[T, H]] {
     private var values : HashSet[T, H] =
-        new HashSet[T, H](initialCapacity, hashing)
+    new HashSet[T, H](initialCapacity, hashing)
 
     def add(value : T) : Unit {
         values.add(value)

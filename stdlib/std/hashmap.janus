@@ -19,12 +19,12 @@ K <: Copy,
 V <: Copy,
 H <: Hashing[K]
 ](
-    private val source : HashMap[K, V, H],
-    private var index : usize
+private val source : HashMap[K, V, H],
+private var index : usize
 ) {
     def next() : Option[MapEntry[K, V]] {
         var result : Option[MapEntry[K, V]] =
-            Option.None[MapEntry[K, V]]()
+        Option.None[MapEntry[K, V]]()
         while index < source.storageSize() && match result {
             Some(entry) => false,
             None => true
@@ -41,8 +41,8 @@ H <: Hashing[K]
 }
 
 private class MapKeyIteratorState[K <: Copy, V <: Copy, H <: Hashing[K]](
-    private val source : HashMap[K, V, H],
-    private var index : usize
+private val source : HashMap[K, V, H],
+private var index : usize
 ) {
     def next() : Option[K] {
         var result : Option[K] = Option.None[K]()
@@ -62,8 +62,8 @@ private class MapKeyIteratorState[K <: Copy, V <: Copy, H <: Hashing[K]](
 }
 
 private class MapValueIteratorState[K <: Copy, V <: Copy, H <: Hashing[K]](
-    private val source : HashMap[K, V, H],
-    private var index : usize
+private val source : HashMap[K, V, H],
+private var index : usize
 ) {
     def next() : Option[V] {
         var result : Option[V] = Option.None[V]()
@@ -83,13 +83,13 @@ private class MapValueIteratorState[K <: Copy, V <: Copy, H <: Hashing[K]](
 }
 
 class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
-    initialCapacity : usize,
-    private val hashing : H
+initialCapacity : usize,
+private val hashing : H
 ) {
     private var slotCapacity : usize =
-        normalizedHashCapacity(initialCapacity)
+    normalizedHashCapacity(initialCapacity)
     private var slots : Array[MapSlot[K, V]] =
-        new Array[MapSlot[K, V]](slotCapacity)
+    new Array[MapSlot[K, V]](slotCapacity)
     private var length : usize = usize(0)
     private var deletedCount : usize = usize(0)
 
@@ -181,9 +181,9 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
         }
         return match slots.get(index) {
             Occupied(key, value) =>
-                Option.Some[MapEntry[K, V]](
-                    new MapEntry[K, V](key, value)
-                ),
+            Option.Some[MapEntry[K, V]](
+            new MapEntry[K, V](key, value)
+            ),
             Empty => Option.None[MapEntry[K, V]](),
             Deleted => Option.None[MapEntry[K, V]]()
         }
@@ -273,8 +273,8 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
                     index
                 }
                 slots.set(
-                    destination,
-                    MapSlot.Occupied[K, V](key, value)
+                destination,
+                MapSlot.Occupied[K, V](key, value)
                 )
                 length = length + usize(1)
                 if hasDeleted {
@@ -286,8 +286,8 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
 
         if hasDeleted {
             slots.set(
-                firstDeleted,
-                MapSlot.Occupied[K, V](key, value)
+            firstDeleted,
+            MapSlot.Occupied[K, V](key, value)
             )
             length = length + usize(1)
             deletedCount = deletedCount - usize(1)
@@ -330,28 +330,28 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
 
     def entries() : Iterator[MapEntry[K, V]] {
         val state : MapEntryIteratorState[K, V, H] =
-            new MapEntryIteratorState[K, V, H](this, usize(0))
+        new MapEntryIteratorState[K, V, H](this, usize(0))
         return new Iterator[MapEntry[K, V]](
-            () => state.next(),
-            () => state.dispose()
+        () => state.next(),
+        () => state.dispose()
         )
     }
 
     def keys() : Iterator[K] {
         val state : MapKeyIteratorState[K, V, H] =
-            new MapKeyIteratorState[K, V, H](this, usize(0))
+        new MapKeyIteratorState[K, V, H](this, usize(0))
         return new Iterator[K](
-            () => state.next(),
-            () => state.dispose()
+        () => state.next(),
+        () => state.dispose()
         )
     }
 
     def values() : Iterator[V] {
         val state : MapValueIteratorState[K, V, H] =
-            new MapValueIteratorState[K, V, H](this, usize(0))
+        new MapValueIteratorState[K, V, H](this, usize(0))
         return new Iterator[V](
-            () => state.next(),
-            () => state.dispose()
+        () => state.next(),
+        () => state.dispose()
         )
     }
 
@@ -361,11 +361,11 @@ class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
 }
 
 class MapBuilder[K <: Copy, V <: Copy, H <: Hashing[K]](
-    initialCapacity : usize,
-    private val hashing : H
+initialCapacity : usize,
+private val hashing : H
 ) extends Builder[MapEntry[K, V], HashMap[K, V, H]] {
     private var values : HashMap[K, V, H] =
-        new HashMap[K, V, H](initialCapacity, hashing)
+    new HashMap[K, V, H](initialCapacity, hashing)
 
     private def insert(key : K, value : V) : bool {
         values.put(key, value)

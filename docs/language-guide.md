@@ -327,6 +327,27 @@ defer delete point
 Les destructeurs exécutent le nettoyage propre à une classe avant la
 libération de sa mémoire.
 
+Les structures et enums qui contiennent une ressource deviennent eux-mêmes
+propriétaires. Leur transfert doit employer `move`, et `delete` détruit
+récursivement leur contenu :
+
+```janus
+struct Box(val resource : Resource) {}
+enum MaybeBox { Some(Box), None }
+
+val box : Box = new Box(new Resource())
+val optional : MaybeBox = MaybeBox.Some(move box)
+val extracted : Box = match move optional {
+    Some(value) => move value,
+    None => new Box(new Resource())
+}
+defer delete extracted
+```
+
+Une contrainte générique `T <: Copy` garantit qu'un type peut être recopié
+sans dupliquer une ressource. Les tableaux, ensembles, tables de hachage,
+builders et itérateurs de la bibliothèque standard utilisent cette contrainte.
+
 ## Collections et itérateurs
 
 La bibliothèque standard comprend notamment :
@@ -355,6 +376,22 @@ defer delete doubled
 
 Les opérations `map`, `filter`, `fold`, `foreach`, `find`, `any`, `all` et
 `count` acceptent des closures.
+
+Un pipeline paresseux est matérialisé avec `collectArray`, fourni par
+`std.array_builder` :
+
+```janus
+import std.array_builder
+
+val collected : Array[int] = collectArray[int](
+    values.iterator().map[int]((value : int) => value * 2)
+)
+defer delete collected
+```
+
+Les exemples `array.janus`, `hash_collections.janus` et
+`iterator_pipeline.janus` séparent respectivement les opérations de tableau,
+les tables de hachage et les pipelines paresseux.
 
 ## Mathématiques
 
