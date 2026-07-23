@@ -15,7 +15,7 @@ enum Indexed[T] {
     IndexValue(usize, T)
 }
 
-class MapIteratorState[A, B](
+private class MapIteratorState[A, B](
     private val source : Iterator[A],
     private val transform : (A) => B
 ) {
@@ -37,7 +37,7 @@ class MapIteratorState[A, B](
     }
 }
 
-class FilterIteratorState[T](
+private class FilterIteratorState[T](
     private val source : Iterator[T],
     private val predicate : (T) => bool
 ) {
@@ -73,7 +73,7 @@ class FilterIteratorState[T](
     }
 }
 
-class TakeIteratorState[T](
+private class TakeIteratorState[T](
     private val source : Iterator[T],
     private var remaining : usize
 ) {
@@ -94,7 +94,7 @@ class TakeIteratorState[T](
     }
 }
 
-class ZipIteratorState[A, B](
+private class ZipIteratorState[A, B](
     private val left : Iterator[A],
     private val right : Iterator[B]
 ) {
@@ -127,7 +127,7 @@ class ZipIteratorState[A, B](
     }
 }
 
-class EnumerateIteratorState[T](
+private class EnumerateIteratorState[T](
     private val source : Iterator[T],
     private var index : usize
 ) {
@@ -156,7 +156,7 @@ class EnumerateIteratorState[T](
     }
 }
 
-class FlatMapIteratorState[A, B](
+private class FlatMapIteratorState[A, B](
     private val source : Iterator[A],
     private val transform : (A) => Iterator[B],
     private var current : Iterator[B]

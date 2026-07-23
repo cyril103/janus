@@ -9,13 +9,13 @@ enum MapEntry[K, V] {
     Entry(K, V)
 }
 
-enum MapSlot[K, V] {
+private enum MapSlot[K, V] {
     Empty,
     Occupied(K, V),
     Deleted
 }
 
-class MapEntryIteratorState[K, V, H <: Hashing[K]](
+private class MapEntryIteratorState[K, V, H <: Hashing[K]](
     private val source : HashMap[K, V, H],
     private var index : usize
 ) {
@@ -37,7 +37,7 @@ class MapEntryIteratorState[K, V, H <: Hashing[K]](
     }
 }
 
-class MapKeyIteratorState[K, V, H <: Hashing[K]](
+private class MapKeyIteratorState[K, V, H <: Hashing[K]](
     private val source : HashMap[K, V, H],
     private var index : usize
 ) {
@@ -58,7 +58,7 @@ class MapKeyIteratorState[K, V, H <: Hashing[K]](
     }
 }
 
-class MapValueIteratorState[K, V, H <: Hashing[K]](
+private class MapValueIteratorState[K, V, H <: Hashing[K]](
     private val source : HashMap[K, V, H],
     private var index : usize
 ) {

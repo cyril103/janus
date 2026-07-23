@@ -5,13 +5,13 @@ import std.hashing
 import std.iterator
 import std.option
 
-enum SetSlot[T] {
+private enum SetSlot[T] {
     Empty,
     Occupied(T),
     Deleted
 }
 
-class HashSetIteratorState[T, H <: Hashing[T]](
+private class HashSetIteratorState[T, H <: Hashing[T]](
     private val source : HashSet[T, H],
     private var index : usize
 ) {

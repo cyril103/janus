@@ -5,7 +5,7 @@ trait Hashing[T] {
     def equals(left : T, right : T) : bool
 }
 
-def mixHash(value : usize) : usize {
+private def mixHash(value : usize) : usize {
     return value * usize(16777619) + usize(216613626)
 }
 

@@ -2,7 +2,7 @@ module std.array
 import std.option
 import std.iterator
 
-class ArrayIteratorState[T](
+private class ArrayIteratorState[T](
     private val source : Array[T],
     private var index : usize
 ) {

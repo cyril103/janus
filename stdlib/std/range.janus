@@ -2,7 +2,7 @@ module std.range
 import std.iterator
 import std.option
 
-class Range(
+private class Range(
     private var current : int,
     private val end : int
 ) {
