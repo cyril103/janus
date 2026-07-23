@@ -130,6 +130,12 @@ def main() : int {
   expect_compile_error(
       "trait Copy {} def main() : int { return 0 }",
       "trait 'Copy' is intrinsic");
+  expect_compile_error(
+      "class Store[T <: Copy]() {} class Resource() {} "
+      "struct Owned(val resource : Resource) {} def main() : int { "
+      "val store : Store[Owned] = new Store[Owned]() "
+      "delete store return 0 }",
+      "does not satisfy constraint 'Copy'");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

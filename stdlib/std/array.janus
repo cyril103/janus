@@ -2,7 +2,7 @@ module std.array
 import std.option
 import std.iterator
 
-private class ArrayIteratorState[T](
+private class ArrayIteratorState[T <: Copy](
     private val source : Array[T],
     private var index : usize
 ) {
@@ -20,7 +20,7 @@ private class ArrayIteratorState[T](
     }
 }
 
-class Array[T](initialCapacity : usize) extends Iterable[T] {
+class Array[T <: Copy](initialCapacity : usize) extends Iterable[T] {
     private var data : Ptr[T] = alloc[T](initialCapacity)
     private var length : usize = usize(0)
     private var allocated : usize = initialCapacity
@@ -136,7 +136,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
     }
 
-    def map[U](transform : (T) => U) : Array[U] {
+    def map[U <: Copy](transform : (T) => U) : Array[U] {
         val result : Array[U] = new Array[U](length)
         var index : usize = usize(0)
         while index < length {

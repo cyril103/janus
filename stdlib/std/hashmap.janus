@@ -5,7 +5,7 @@ import std.hashing
 import std.iterator
 import std.option
 
-struct MapEntry[K, V](val key : K, val value : V) {}
+struct MapEntry[K <: Copy, V <: Copy](val key : K, val value : V) {}
 
 private enum MapSlot[K, V] {
     Empty,
@@ -13,7 +13,11 @@ private enum MapSlot[K, V] {
     Deleted
 }
 
-private class MapEntryIteratorState[K, V, H <: Hashing[K]](
+private class MapEntryIteratorState[
+K <: Copy,
+V <: Copy,
+H <: Hashing[K]
+](
     private val source : HashMap[K, V, H],
     private var index : usize
 ) {
@@ -35,7 +39,7 @@ private class MapEntryIteratorState[K, V, H <: Hashing[K]](
     }
 }
 
-private class MapKeyIteratorState[K, V, H <: Hashing[K]](
+private class MapKeyIteratorState[K <: Copy, V <: Copy, H <: Hashing[K]](
     private val source : HashMap[K, V, H],
     private var index : usize
 ) {
@@ -56,7 +60,7 @@ private class MapKeyIteratorState[K, V, H <: Hashing[K]](
     }
 }
 
-private class MapValueIteratorState[K, V, H <: Hashing[K]](
+private class MapValueIteratorState[K <: Copy, V <: Copy, H <: Hashing[K]](
     private val source : HashMap[K, V, H],
     private var index : usize
 ) {
@@ -77,7 +81,7 @@ private class MapValueIteratorState[K, V, H <: Hashing[K]](
     }
 }
 
-class HashMap[K, V, H <: Hashing[K]](
+class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
     initialCapacity : usize,
     private val hashing : H
 ) {
@@ -367,7 +371,7 @@ class HashMap[K, V, H <: Hashing[K]](
     }
 }
 
-class MapBuilder[K, V, H <: Hashing[K]](
+class MapBuilder[K <: Copy, V <: Copy, H <: Hashing[K]](
     initialCapacity : usize,
     private val hashing : H
 ) extends Builder[MapEntry[K, V], HashMap[K, V, H]] {

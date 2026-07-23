@@ -3,7 +3,7 @@ import std.array
 import std.builder
 import std.iterator
 
-class ArrayBuilder[T](
+class ArrayBuilder[T <: Copy](
     initialCapacity : usize
 ) extends Builder[T, Array[T]] {
     private var values : Array[T] =
@@ -38,7 +38,7 @@ class ArrayBuilder[T](
     }
 }
 
-def collectArray[T](source : Iterator[T]) : Array[T] {
+def collectArray[T <: Copy](source : Iterator[T]) : Array[T] {
     val builder : ArrayBuilder[T] =
         new ArrayBuilder[T](usize(0))
     defer delete builder

@@ -1408,12 +1408,64 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               requirement.type_arguments.begin(), same_type);
           });
     };
+    const auto potentially_owns_value = [&](const SemanticType &candidate) {
+      return janus::ownership::recursively_owns_value(
+          candidate,
+          [&](const SemanticType &type) {
+            if (type.is_function() || type.is_pointer())
+              return true;
+            if (type.is_class())
+              return !classes.at(type.parameter)->is_value_type;
+            if (!type.is_concrete() && !type.is_enum())
+              return !active_copy_constraints.contains(type.parameter);
+            return false;
+          },
+          [&](const SemanticType &type, const auto &visit) {
+            if (type.is_class()) {
+              const ast::ClassDeclaration &declaration =
+                  *classes.at(type.parameter);
+              if (!declaration.is_value_type)
+                return;
+              const std::unordered_set<std::string> parameters{
+                  declaration.type_parameters.begin(),
+                  declaration.type_parameters.end()};
+              std::unordered_map<std::string, SemanticType> substitutions;
+              for (std::size_t index = 0;
+                   index < declaration.type_parameters.size(); ++index)
+                substitutions.emplace(declaration.type_parameters[index],
+                                      type.type_arguments[index]);
+              for (const ast::ValueDeclaration &field :
+                   declaration.constructor_fields) {
+                SemanticType field_type =
+                    resolve_type(field.declared_type, parameters,
+                                 &class_arities);
+                visit(substitute(std::move(field_type), substitutions));
+              }
+              return;
+            }
+            if (!type.is_enum())
+              return;
+            const ast::EnumDeclaration &declaration = *enums.at(type.parameter);
+            const std::unordered_set<std::string> parameters{
+                declaration.type_parameters.begin(),
+                declaration.type_parameters.end()};
+            std::unordered_map<std::string, SemanticType> substitutions;
+            for (std::size_t index = 0;
+                 index < declaration.type_parameters.size(); ++index)
+              substitutions.emplace(declaration.type_parameters[index],
+                                    type.type_arguments[index]);
+            for (const ast::EnumDeclaration::Case &enum_case :
+                 declaration.cases)
+              for (const ast::TypeReference &payload :
+                   enum_case.payload_types) {
+                SemanticType payload_type =
+                    resolve_type(payload, parameters, &class_arities);
+                visit(substitute(std::move(payload_type), substitutions));
+              }
+          });
+    };
     const auto satisfies_copy = [&](const SemanticType &candidate) {
-      if (!candidate.is_concrete() && !candidate.is_class() &&
-          !candidate.is_enum() && !candidate.is_pointer() &&
-          !candidate.is_function())
-        return active_copy_constraints.contains(candidate.parameter);
-      return !aggregate_owns_value(candidate);
+      return !potentially_owns_value(candidate);
     };
     SymbolTable *active_symbols = &symbols;
     const auto find_global =

@@ -11,7 +11,7 @@ private enum SetSlot[T] {
     Deleted
 }
 
-private class HashSetIteratorState[T, H <: Hashing[T]](
+private class HashSetIteratorState[T <: Copy, H <: Hashing[T]](
     private val source : HashSet[T, H],
     private var index : usize
 ) {
@@ -32,7 +32,7 @@ private class HashSetIteratorState[T, H <: Hashing[T]](
     }
 }
 
-class HashSet[T, H <: Hashing[T]](
+class HashSet[T <: Copy, H <: Hashing[T]](
     initialCapacity : usize,
     private val hashing : H
 ) extends Iterable[T] {
@@ -245,7 +245,7 @@ class HashSet[T, H <: Hashing[T]](
     }
 }
 
-class SetBuilder[T, H <: Hashing[T]](
+class SetBuilder[T <: Copy, H <: Hashing[T]](
     initialCapacity : usize,
     private val hashing : H
 ) extends Builder[T, HashSet[T, H]] {
