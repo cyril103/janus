@@ -1,6 +1,6 @@
 module std.builder
 
-trait Builder[T, C] {
+trait Builder[T <: Copy, C] {
     def add(value : T) : Unit
     def result() : C
 }

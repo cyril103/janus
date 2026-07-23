@@ -2,15 +2,15 @@ module std.iterator
 import std.option
 import std.builder
 
-trait Iterable[T] {
+trait Iterable[T <: Copy] {
     def iterator() : Iterator[T]
 }
 
-struct ZipItem[A, B](val left : A, val right : B) {}
+struct ZipItem[A <: Copy, B <: Copy](val left : A, val right : B) {}
 
-struct Indexed[T](val index : usize, val value : T) {}
+struct Indexed[T <: Copy](val index : usize, val value : T) {}
 
-private class MapIteratorState[A, B](
+private class MapIteratorState[A <: Copy, B <: Copy](
     private val source : Iterator[A],
     private val transform : (A) => B
 ) {
@@ -32,29 +32,19 @@ private class MapIteratorState[A, B](
     }
 }
 
-private class FilterIteratorState[T](
+private class FilterIteratorState[T <: Copy](
     private val source : Iterator[T],
     private val predicate : (T) => bool
 ) {
     def next() : Option[T] {
-        var result : Option[Option[T]] = Option.None[Option[T]]()
-        while match result {
-            Some(value) => false,
-            None => true
-        } {
-            val value : Option[T] = source.next()
-            result = match value {
-                Some(item) => if predicate(item) {
-                    Option.Some[Option[T]](Option.Some[T](item))
-                } else {
-                    Option.None[Option[T]]()
-                },
-                None => Option.Some[Option[T]](Option.None[T]())
-            }
-        }
-        return match result {
-            Some(value) => value,
-            None => this.next()
+        val value : Option[T] = source.next()
+        return match value {
+            Some(item) => if predicate(item) {
+                Option.Some[T](item)
+            } else {
+                this.next()
+            },
+            None => Option.None[T]()
         }
     }
 
@@ -68,7 +58,7 @@ private class FilterIteratorState[T](
     }
 }
 
-private class TakeIteratorState[T](
+private class TakeIteratorState[T <: Copy](
     private val source : Iterator[T],
     private var remaining : usize
 ) {
@@ -89,7 +79,7 @@ private class TakeIteratorState[T](
     }
 }
 
-private class ZipIteratorState[A, B](
+private class ZipIteratorState[A <: Copy, B <: Copy](
     private val left : Iterator[A],
     private val right : Iterator[B]
 ) {
@@ -122,7 +112,7 @@ private class ZipIteratorState[A, B](
     }
 }
 
-private class EnumerateIteratorState[T](
+private class EnumerateIteratorState[T <: Copy](
     private val source : Iterator[T],
     private var index : usize
 ) {
@@ -151,7 +141,7 @@ private class EnumerateIteratorState[T](
     }
 }
 
-private class FlatMapIteratorState[A, B](
+private class FlatMapIteratorState[A <: Copy, B <: Copy](
     private val source : Iterator[A],
     private val transform : (A) => Iterator[B],
     private var current : Iterator[B]
@@ -198,7 +188,7 @@ private class FlatMapIteratorState[A, B](
     }
 }
 
-class Iterator[T](
+class Iterator[T <: Copy](
     private val advance : () => Option[T],
     private val release : () => Unit
 ) {
@@ -206,7 +196,7 @@ class Iterator[T](
         return advance()
     }
 
-    consume def map[U](transform : (T) => U) : Iterator[U] {
+    consume def map[U <: Copy](transform : (T) => U) : Iterator[U] {
         val state : MapIteratorState[T, U] =
             new MapIteratorState[T, U](move this, move transform)
         return new Iterator[U](
@@ -233,7 +223,9 @@ class Iterator[T](
         )
     }
 
-    consume def zip[U](other : Iterator[U]) : Iterator[ZipItem[T, U]] {
+    consume def zip[U <: Copy](
+        other : Iterator[U]
+    ) : Iterator[ZipItem[T, U]] {
         val state : ZipIteratorState[T, U] =
             new ZipIteratorState[T, U](move this, move other)
         return new Iterator[ZipItem[T, U]](
@@ -251,7 +243,9 @@ class Iterator[T](
         )
     }
 
-    consume def flatMap[U](transform : (T) => Iterator[U]) : Iterator[U] {
+    consume def flatMap[U <: Copy](
+        transform : (T) => Iterator[U]
+    ) : Iterator[U] {
         val state : FlatMapIteratorState[T, U] =
             new FlatMapIteratorState[T, U](
                 move this,

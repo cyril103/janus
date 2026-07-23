@@ -73,8 +73,11 @@ def main() : int {
     val first : Box = new Box(new Resource())
     val second : Box = move first
     val holder : Holder = Holder.Some(move second)
-    val movedHolder : Holder = move holder
-    delete movedHolder
+    val extracted : Box = match move holder {
+        Some(value) => move value,
+        None => new Box(new Resource())
+    }
+    delete extracted
     val third : Box = new Box(new Resource())
     consumeBox(move third)
     val fourth : Box = new Box(new Resource())
