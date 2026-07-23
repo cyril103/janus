@@ -561,6 +561,53 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::unordered_map<std::string, std::string> public_globals;
   std::unordered_set<std::string> global_modules;
   const std::unordered_set<std::string> no_type_parameters;
+  std::function<bool(const SemanticType &)> aggregate_owns_value;
+  aggregate_owns_value = [&](const SemanticType &type) {
+    if (type.is_function() || type.is_pointer())
+      return true;
+    if (type.is_class()) {
+      const ast::ClassDeclaration &declaration = *classes.at(type.parameter);
+      if (!declaration.is_value_type)
+        return true;
+      const std::unordered_set<std::string> parameters{
+          declaration.type_parameters.begin(),
+          declaration.type_parameters.end()};
+      std::unordered_map<std::string, SemanticType> substitutions;
+      for (std::size_t index = 0;
+           index < declaration.type_parameters.size(); ++index)
+        substitutions.emplace(declaration.type_parameters[index],
+                              type.type_arguments[index]);
+      for (const ast::ValueDeclaration &field :
+           declaration.constructor_fields) {
+        SemanticType field_type =
+            resolve_type(field.declared_type, parameters, &class_arities);
+        if (aggregate_owns_value(
+                substitute(std::move(field_type), substitutions)))
+          return true;
+      }
+      return false;
+    }
+    if (type.is_enum()) {
+      const ast::EnumDeclaration &declaration = *enums.at(type.parameter);
+      const std::unordered_set<std::string> parameters{
+          declaration.type_parameters.begin(),
+          declaration.type_parameters.end()};
+      std::unordered_map<std::string, SemanticType> substitutions;
+      for (std::size_t index = 0;
+           index < declaration.type_parameters.size(); ++index)
+        substitutions.emplace(declaration.type_parameters[index],
+                              type.type_arguments[index]);
+      for (const ast::EnumDeclaration::Case &enum_case : declaration.cases)
+        for (const ast::TypeReference &payload : enum_case.payload_types) {
+          SemanticType payload_type =
+              resolve_type(payload, parameters, &class_arities);
+          if (aggregate_owns_value(
+                  substitute(std::move(payload_type), substitutions)))
+            return true;
+        }
+    }
+    return false;
+  };
   for (const ast::GlobalDeclaration &global : program.globals) {
     const ast::ValueDeclaration &declaration = global.declaration;
     const std::string key = global_key(global.module_name, declaration.name);
@@ -586,11 +633,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       throw CompileError{
           declaration.location,
           "Unit cannot be used as a global value type"};
-    if (type.is_enum() ||
-        (type.is_class() && classes.at(type.parameter)->is_value_type))
+    if ((type.is_enum() ||
+         (type.is_class() && classes.at(type.parameter)->is_value_type)) &&
+        aggregate_owns_value(type))
       throw CompileError{
           declaration.location,
-          "global enum and struct values are not supported yet"};
+          "owning aggregate global value '" + declaration.name +
+              "' is not supported yet"};
     const bool owns_value =
         type.is_function() || type.is_pointer() ||
         (type.is_class() && !classes.at(type.parameter)->is_value_type);

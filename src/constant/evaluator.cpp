@@ -104,6 +104,38 @@ std::string global_key(const std::optional<std::string> &module,
                             : std::string{name};
 }
 
+bool is_plan_constant_expression(
+    const janus::ast::Expression &expression,
+    const std::unordered_set<std::string> &modules) {
+  return std::visit(
+      [&](const auto &node) {
+        using Node = std::decay_t<decltype(node)>;
+        if constexpr (
+            std::is_same_v<Node, janus::ast::IntegerLiteralExpression> ||
+            std::is_same_v<Node, janus::ast::DoubleLiteralExpression> ||
+            std::is_same_v<Node, janus::ast::CharacterLiteralExpression> ||
+            std::is_same_v<Node, janus::ast::BooleanLiteralExpression> ||
+            std::is_same_v<Node, janus::ast::StringLiteralExpression> ||
+            std::is_same_v<Node, janus::ast::IdentifierExpression>)
+          return true;
+        else if constexpr (std::is_same_v<
+                               Node,
+                               janus::ast::MemberAccessExpression>) {
+          const auto module = qualified_name(*node.object);
+          return module.has_value() && modules.contains(*module);
+        } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::UnaryExpression>)
+          return is_plan_constant_expression(*node.operand, modules);
+        else if constexpr (std::is_same_v<Node,
+                                            janus::ast::BinaryExpression>)
+          return is_plan_constant_expression(*node.left, modules) &&
+                 is_plan_constant_expression(*node.right, modules);
+        else
+          return false;
+      },
+      expression.value);
+}
+
 bool same_type(const Value &left, const Value &right) {
   return left.type->kind() == right.type->kind();
 }
@@ -519,7 +551,8 @@ plan_initialization(const std::vector<ast::GlobalDeclaration> &globals) {
           "cyclic global constant dependency involving '" + key + "'"};
     if (constant_states[key] == 2)
       return constant_results.at(key);
-    if (!is_constant_expression(*global.declaration.initializer)) {
+    if (!is_plan_constant_expression(*global.declaration.initializer,
+                                     modules)) {
       constant_states[key] = 2;
       constant_results.emplace(key, false);
       return false;

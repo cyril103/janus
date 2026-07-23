@@ -251,6 +251,42 @@ def main() : int { return derived }
       "def main() : int { return 0 }",
       "cyclic dynamic global dependency");
 
+  janus::frontend::Parser aggregate_parser{R"(
+enum Direction { North, East }
+struct Point(val x : int, val y : int) {}
+val direction : Direction = Direction.East
+val origin : Point = new Point(3, 4)
+def main() : int {
+    if direction == Direction.East { return origin.x + origin.y }
+    return 0
+}
+)"};
+  const janus::ast::Program aggregate_program =
+      aggregate_parser.parse_program();
+  static_cast<void>(analyzer.analyze(aggregate_program));
+  llvm::LLVMContext aggregate_context;
+  janus::backend::llvm::IrGenerator aggregate_generator{aggregate_context};
+  const std::unique_ptr<llvm::Module> aggregate_module =
+      aggregate_generator.generate(aggregate_program, "aggregate_globals");
+  std::string aggregate_ir;
+  llvm::raw_string_ostream aggregate_output{aggregate_ir};
+  aggregate_module->print(aggregate_output, nullptr);
+  aggregate_output.flush();
+  expect(aggregate_ir.find(
+             "@__janus_global_entry__direction = global %enum.Direction") !=
+             std::string::npos,
+         "enum globals use native aggregate storage");
+  expect(aggregate_ir.find(
+             "@__janus_global_entry__origin = global %struct.Point") !=
+             std::string::npos,
+         "struct globals use inline native storage");
+  expect_compile_error(
+      "class Resource() {}\n"
+      "enum Holder { Some(Resource), None }\n"
+      "val resource : Holder = Holder.Some(new Resource())\n"
+      "def main() : int { return 0 }",
+      "owning aggregate global value 'resource' is not supported yet");
+
   janus::frontend::Parser owned_parser{R"(
 class Resource(val value : int) {
     destructor {
