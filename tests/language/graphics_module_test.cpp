@@ -29,6 +29,15 @@ import std.graphics
 
 def main() : int {
     val color : uint = rgba(18, 52, 86, 120)
+    val typedColor : Color = colorRgba(18, 52, 86, 120)
+    val start : Vector2 = vector2(float(5.0), float(6.0))
+    val end : Vector2 = vector2(float(10.0), float(12.0))
+    val area : Rectangle = rectangle(
+        float(8.0),
+        float(9.0),
+        float(10.0),
+        float(11.0)
+    )
     val keyDown : bool = isKeyDown(Key.Left)
     val mouseDown : bool = isMouseButtonDown(MouseButton.Left)
     setWindowTitle("Janus graphics")
@@ -45,9 +54,14 @@ def main() : int {
     drawCircle(5, 6, float(7.0), color)
     drawRectangle(8, 9, 10, 11, color)
     drawText("Janus", 12, 13, 14, color)
+    drawLineBetween(start, end, typedColor)
+    drawCircleAt(start, float(7.0), typedColor)
+    drawRectangleArea(area, typedColor)
+    drawTextAt("typed", start, 14, typedColor)
     val texture : Texture = loadTexture("sprite.png")
     val textureWidth : int = texture.width()
     texture.draw(textureWidth, texture.height(), white())
+    texture.drawAt(start, typedColor)
     delete texture
     val sound : Sound = loadSound("effect.wav")
     sound.setVolume(float(0.5))
@@ -57,6 +71,10 @@ def main() : int {
     music.update()
     delete sound
     delete music
+    delete start
+    delete end
+    delete area
+    delete typedColor
     endDrawing()
     if keyDown || mouseDown {
         return mouseX() + mouseY() + screenWidth() + screenHeight() +
@@ -110,6 +128,9 @@ def main() : int {
              ir.find("call i32 @janus_graphics_key_pressed") !=
                  std::string::npos,
          "expanded graphics input lowers through the native backend");
+  expect(ir.find("call void @drawLineBetween(ptr") != std::string::npos &&
+             ir.find("call void @drawRectangleArea(ptr") != std::string::npos,
+         "typed vector, rectangle, and color helpers lower successfully");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

@@ -249,6 +249,21 @@ extern def janus_graphics_is_cursor_hidden() : bool
 extern def janus_graphics_enable_cursor() : Unit
 extern def janus_graphics_disable_cursor() : Unit
 
+class Vector2(val x : float, val y : float) {}
+
+class Rectangle(
+val x : float,
+val y : float,
+val width : float,
+val height : float
+) {}
+
+class Color(private val packedValue : uint) {
+    def packed() : uint {
+        return packedValue
+    }
+}
+
 class Texture(private val handle : Ptr[byte]) {
     def isValid() : bool {
         return janus_graphics_texture_is_valid(handle)
@@ -264,6 +279,15 @@ class Texture(private val handle : Ptr[byte]) {
 
     def draw(x : int, y : int, tint : uint) : Unit {
         janus_graphics_draw_texture(handle, x, y, tint)
+    }
+
+    def drawAt(position : Vector2, tint : Color) : Unit {
+        janus_graphics_draw_texture(
+        handle,
+        int(position.x),
+        int(position.y),
+        tint.packed()
+        )
     }
 
     destructor {
@@ -345,6 +369,27 @@ class Music(private val handle : Ptr[byte]) {
 
 def rgba(red : ubyte, green : ubyte, blue : ubyte, alpha : ubyte) : uint {
     return janus_graphics_rgba(red, green, blue, alpha)
+}
+
+def vector2(x : float, y : float) : Vector2 {
+    return new Vector2(x, y)
+}
+
+def rectangle(x : float, y : float, width : float, height : float) : Rectangle {
+    return new Rectangle(x, y, width, height)
+}
+
+def colorRgba(
+red : ubyte,
+green : ubyte,
+blue : ubyte,
+alpha : ubyte
+) : Color {
+    return new Color(rgba(red, green, blue, alpha))
+}
+
+def colorRgb(red : ubyte, green : ubyte, blue : ubyte) : Color {
+    return new Color(rgb(red, green, blue))
 }
 
 def rgb(red : ubyte, green : ubyte, blue : ubyte) : uint {
@@ -471,8 +516,16 @@ def clearBackground(color : uint) : Unit {
     janus_graphics_clear_background(color)
 }
 
+def clearColor(color : Color) : Unit {
+    clearBackground(color.packed())
+}
+
 def drawPixel(x : int, y : int, color : uint) : Unit {
     janus_graphics_draw_pixel(x, y, color)
+}
+
+def drawPixelAt(position : Vector2, color : Color) : Unit {
+    drawPixel(int(position.x), int(position.y), color.packed())
 }
 
 def drawLine(
@@ -485,6 +538,16 @@ color : uint
     janus_graphics_draw_line(startX, startY, endX, endY, color)
 }
 
+def drawLineBetween(start : Vector2, end : Vector2, color : Color) : Unit {
+    drawLine(
+    int(start.x),
+    int(start.y),
+    int(end.x),
+    int(end.y),
+    color.packed()
+    )
+}
+
 def drawCircle(
 centerX : int,
 centerY : int,
@@ -492,6 +555,10 @@ radius : float,
 color : uint
 ) : Unit {
     janus_graphics_draw_circle(centerX, centerY, radius, color)
+}
+
+def drawCircleAt(center : Vector2, radius : float, color : Color) : Unit {
+    drawCircle(int(center.x), int(center.y), radius, color.packed())
 }
 
 def drawRectangle(
@@ -504,6 +571,16 @@ color : uint
     janus_graphics_draw_rectangle(x, y, width, height, color)
 }
 
+def drawRectangleArea(area : Rectangle, color : Color) : Unit {
+    drawRectangle(
+    int(area.x),
+    int(area.y),
+    int(area.width),
+    int(area.height),
+    color.packed()
+    )
+}
+
 def drawText(
 text : string,
 x : int,
@@ -512,6 +589,21 @@ fontSize : int,
 color : uint
 ) : Unit {
     janus_graphics_draw_text(cstr(text), x, y, fontSize, color)
+}
+
+def drawTextAt(
+text : string,
+position : Vector2,
+fontSize : int,
+color : Color
+) : Unit {
+    drawText(
+    text,
+    int(position.x),
+    int(position.y),
+    fontSize,
+    color.packed()
+    )
 }
 
 def loadTexture(fileName : string) : Texture {

@@ -145,6 +145,34 @@ La fenêtre peut être inspectée avec `isWindowFullscreen`, `isWindowHidden`,
 `setWindowSize` et `setWindowOpacity` la contrôlent. `screenWidth` et
 `screenHeight` donnent la taille courante de la zone de dessin.
 
+## Primitives typées
+
+`Vector2`, `Rectangle` et `Color` évitent de mélanger accidentellement des
+coordonnées et des couleurs :
+
+```janus
+val center : Vector2 = vector2(float(320.0), float(180.0))
+defer delete center
+val panel : Rectangle = rectangle(
+    float(20.0),
+    float(20.0),
+    float(600.0),
+    float(320.0)
+)
+defer delete panel
+val accent : Color = colorRgb(0, 121, 241)
+defer delete accent
+
+drawRectangleArea(panel, accent)
+drawCircleAt(center, float(32.0), accent)
+```
+
+Les helpers `drawPixelAt`, `drawLineBetween`, `drawCircleAt`,
+`drawRectangleArea`, `drawTextAt`, `clearColor` et `Texture.drawAt` utilisent
+ces types. Les fonctions à coordonnées et couleurs brutes restent disponibles
+pour préserver la compatibilité. Ces primitives étant actuellement des classes
+Janus, elles doivent être libérées avec `delete`, idéalement via `defer`.
+
 ## État expérimental
 
 Cette première version vise le graphisme 2D immédiat. Elle ne fournit pas encore
