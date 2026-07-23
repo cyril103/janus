@@ -167,4 +167,5 @@ L'extension VS Code se trouve dans
 | `JANUS_CACHE` | cache des dépendances |
 | `JANUS_REGISTRY` | registre local |
 | `JANUS_CC` | pilote Clang utilisé pour l'édition de liens |
+| `JANUS_RAYLIB_PATH` | chemin de la bibliothèque partagée raylib 6 |
 | `JANUS_REQUIRE_ATTESTATION` | exiger la vérification de provenance |

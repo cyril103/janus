@@ -413,3 +413,10 @@ accès mémoire incorrects. Elles sont volontairement réservées au code qui do
 contrôler précisément sa représentation et sa mémoire.
 
 Des programmes complets sont disponibles dans [`examples`](../examples).
+
+## Graphisme 2D
+
+Le module expérimental `std.graphics` permet de créer une fenêtre, dessiner des
+formes et du texte, et lire le clavier ou la souris. Son backend raylib 6 est
+chargé dynamiquement. Consultez le [guide du graphisme](graphics.md) pour
+l'installation et un premier programme.
