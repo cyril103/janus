@@ -1,6 +1,7 @@
 #include "janus/diagnostics/high_growth_loop_linter.hpp"
 
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string_view>
 #include <variant>
@@ -16,18 +17,18 @@ bool is_identifier(const ast::Expression &expression, std::string_view name) {
 
 std::optional<std::int32_t>
 integer_literal_value(const ast::Expression &expression) {
-  if (const auto *literal =
-          std::get_if<ast::IntegerLiteralExpression>(&expression.value))
-    return literal->value;
-
-  const auto *unary = std::get_if<ast::UnaryExpression>(&expression.value);
-  if (unary == nullptr || unary->operation != ast::UnaryOperator::Negate)
+  const auto *literal =
+      std::get_if<ast::IntegerLiteralExpression>(&expression.value);
+  if (literal == nullptr ||
+      literal->magnitude >
+          static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max()) +
+              (literal->is_negative ? 1 : 0))
     return std::nullopt;
-
-  if (const auto *literal =
-          std::get_if<ast::IntegerLiteralExpression>(&unary->operand->value))
-    return -literal->value;
-  return std::nullopt;
+  const std::int64_t value =
+      literal->is_negative
+          ? -static_cast<std::int64_t>(literal->magnitude)
+          : static_cast<std::int64_t>(literal->magnitude);
+  return static_cast<std::int32_t>(value);
 }
 
 bool has_risky_integer_multiplier(const ast::Expression &expression) {

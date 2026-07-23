@@ -871,11 +871,11 @@ def rgb(red : ubyte, green : ubyte, blue : ubyte) : uint {
     return rgba(red, green, blue, 255)
 }
 
-val Black : uint = rgb(0, 0, 0)
-val White : uint = rgb(255, 255, 255)
-val Red : uint = rgb(230, 41, 55)
-val Green : uint = rgb(0, 228, 48)
-val Blue : uint = rgb(0, 121, 241)
+val Black : uint = 255
+val White : uint = 4294967295
+val Red : uint = 3861460991
+val Green : uint = 14954751
+val Blue : uint = 7991807
 
 def black() : uint {
     return Black

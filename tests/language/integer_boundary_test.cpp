@@ -67,8 +67,16 @@ def printByte(value : byte) : Unit {
     println(value)
 }
 
+def acceptUnsigned(value : uint) : uint {
+    return value
+}
+
 def main() : int {
     val minimum : int = -2147483648
+    val maximumUnsigned : uint = 4294967295
+    val maximumUnsignedLong : ulong = 18446744073709551615
+    val minimumLong : long = -9223372036854775808
+    val passedUnsigned : uint = acceptUnsigned(4294967295)
     val wrapped : int = -minimum
     val divisor : int = -1
     val quotient : int = minimum / divisor
@@ -84,6 +92,10 @@ def main() : int {
 
   expect(ir.find("i32 -2147483648") != std::string::npos,
          "the signed i32 minimum literal is representable");
+  expect(ir.find("i32 -1") != std::string::npos &&
+             ir.find("i64 -1") != std::string::npos &&
+             ir.find("i64 -9223372036854775808") != std::string::npos,
+         "context selects the full uint, ulong, and long literal ranges");
   expect(ir.find("sub i32 0") != std::string::npos,
          "unary minus keeps wrapping LLVM semantics");
   expect(ir.find("add nsw") == std::string::npos &&
@@ -114,6 +126,18 @@ def main() : int {
   expect_compile_error("def main() : int { val value : int = -2147483649 "
                        "return value }",
                        "integer literal is outside the signed 32-bit range");
+  expect_compile_error(
+      "def main() : int { val value : uint = 4294967296 return 0 }",
+      "integer literal is outside the unsigned 32-bit range");
+  expect_compile_error(
+      "def main() : int { val value : uint = -1 return 0 }",
+      "integer literal is outside the unsigned 32-bit range");
+  expect_compile_error(
+      "def main() : int { val value : long = 9223372036854775808 return 0 }",
+      "integer literal is outside the signed 64-bit range");
+  expect_compile_error(
+      "def main() : int { val value : ulong = 18446744073709551616 return 0 }",
+      "integer literal is outside the unsigned 64-bit range");
   expect_compiles("def main() : int { val value : int = --2147483648 "
                   "return value }",
                   "nested unary minus preserves the signed int minimum boundary");

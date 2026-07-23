@@ -41,11 +41,11 @@ void expect_compile_error(std::string_view source,
 int main() {
   constexpr std::string_view source = R"(
 def main() : int {
-    var data : Ptr[int] = alloc[int](usize(2))
-    data.store(usize(0), 40)
-    data.store(usize(1), 2)
-    val first : int = data.load(usize(0))
-    val second : int = data.load(usize(1))
+    var data : Ptr[int] = alloc[int](2)
+    data.store(0, 40)
+    data.store(1, 2)
+    val first : int = data.load(0)
+    val second : int = data.load(1)
     data = realloc[int](data, usize(4))
     data.store(usize(2), first + second)
     val missing : Ptr[int] = null[int]()
@@ -93,16 +93,9 @@ def main() : int {
       "def main() : int { val data : Ptr = null[int]() return 0 }",
       "Ptr expects exactly one type argument");
   expect_compile_error(
-      "def main() : int { val data : Ptr[int] = alloc[int](1) return 0 }",
-      "where type 'usize' is required");
-  expect_compile_error(
       "def main() : int { val data : Ptr[int] = alloc[int](usize(1)) "
       "data.store(usize(0), true) return 0 }",
       "where type 'int' is required");
-  expect_compile_error(
-      "def main() : int { val data : Ptr[int] = alloc[int](usize(1)) "
-      "val value : int = data.load(0) return value }",
-      "where type 'usize' is required");
   expect_compile_error("def main() : int { free(1) return 0 }",
                        "free requires a Ptr[T]");
 

@@ -43,6 +43,7 @@ int main() {
 def main() : int {
     val source : int = 5
     val limit : usize = usize(source)
+    val literal : usize = 1
     var index : usize = usize(0)
     var total : usize = usize(0)
     while index < limit {
@@ -79,8 +80,6 @@ def main() : int {
   expect(ir.find("udiv i64") != std::string::npos,
          "usize division is unsigned");
 
-  expect_compile_error("def main() : int { val size : usize = 1 return 0 }",
-                       "expression of type 'int'");
   expect_compile_error(
       "def main() : int { val size : usize = usize(\"12\") return 0 }",
       "cannot explicitly cast type 'string' to 'usize'");

@@ -139,6 +139,8 @@ val wrappedByte : ubyte = ubyte(-1)
 val truncated : int = int(12.75)
 val floating : double = double(42)
 val falseValue : bool = bool(0)
+val maximumUnsigned : uint = 4294967295
+val maximumUnsignedLong : ulong = 18446744073709551615
 def main() : int { return hour }
 )"};
   const janus::ast::Program constant_program =
@@ -184,6 +186,13 @@ def main() : int { return hour }
   expect(constant_ir.find("define internal void @__janus_init_globals") ==
              std::string::npos,
          "constant casts do not require runtime global initialization");
+  expect(constant_ir.find(
+             "@__janus_global_entry__maximumUnsigned = constant i32 -1") !=
+                 std::string::npos &&
+             constant_ir.find(
+                 "@__janus_global_entry__maximumUnsignedLong = constant i64 "
+                 "-1") != std::string::npos,
+         "contextual unsigned literals use their full declared range");
 
   expect_compile_error(
       "val first : int = second\nval second : int = first\n"

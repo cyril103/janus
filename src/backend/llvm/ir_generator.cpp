@@ -2008,9 +2008,11 @@ private:
           } else if constexpr (std::is_same_v<
                                    Node,
                                    janus::ast::IntegerLiteralExpression>) {
+            const std::uint64_t value =
+                node.is_negative ? std::uint64_t{0} - node.magnitude
+                                 : node.magnitude;
             return ::llvm::ConstantInt::get(
-                llvm_type, static_cast<std::uint64_t>(node.value),
-                expected_type.is_signed());
+                llvm_type, value, expected_type.is_signed());
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
             const Local &local = resolve_storage(node.name, locals);

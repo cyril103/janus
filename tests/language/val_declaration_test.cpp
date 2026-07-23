@@ -62,7 +62,7 @@ int main() {
     expect(!declaration.is_mutable, "a val declaration is immutable");
     expect(std::get<janus::ast::IntegerLiteralExpression>(
                declaration.initializer->value)
-                   .value == 5,
+                   .magnitude == 5,
            "the initializer is the integer literal 5");
   }
 

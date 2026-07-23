@@ -21,7 +21,8 @@ struct TypeReference {
 };
 
 struct IntegerLiteralExpression {
-  std::int32_t value;
+  std::uint64_t magnitude;
+  bool is_negative;
   SourceLocation location;
 };
 

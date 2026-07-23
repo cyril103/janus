@@ -197,17 +197,23 @@ def main() : int {
   expect(ir.find("declare i32 @janus_graphics_rgba(i8, i8, i8, i8)") !=
              std::string::npos,
          "graphics colors use the native RGBA helper");
-  expect(ir.find("@__janus_global_std_graphics__Black = global i32 0") !=
+  expect(ir.find("@__janus_global_std_graphics__Black = constant i32 255") !=
                  std::string::npos &&
-             ir.find("@__janus_global_std_graphics__White = global i32 0") !=
+             ir.find("@__janus_global_std_graphics__White = constant i32 -1") !=
                  std::string::npos &&
-             ir.find("@__janus_global_std_graphics__Red = global i32 0") !=
+             ir.find(
+                 "@__janus_global_std_graphics__Red = constant i32 "
+                 "-433506305") !=
                  std::string::npos &&
-             ir.find("@__janus_global_std_graphics__Green = global i32 0") !=
+             ir.find(
+                 "@__janus_global_std_graphics__Green = constant i32 "
+                 "14954751") !=
                  std::string::npos &&
-             ir.find("@__janus_global_std_graphics__Blue = global i32 0") !=
+             ir.find(
+                 "@__janus_global_std_graphics__Blue = constant i32 "
+                 "7991807") !=
                  std::string::npos,
-         "graphics exposes initialized global color values");
+         "graphics exposes statically initialized global color values");
   expect(ir.find("call void @janus_graphics_draw_circle") != std::string::npos,
          "graphics circles lower through the native backend");
   expect(ir.find("call void @janus_graphics_draw_text") != std::string::npos,

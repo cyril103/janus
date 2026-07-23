@@ -360,19 +360,13 @@ bool block_guarantees_return(const std::vector<janus::ast::Statement> &block) {
   return std::any_of(block.begin(), block.end(), statement_guarantees_return);
 }
 
-std::optional<std::int64_t>
+std::optional<__int128>
 integer_literal_value(const janus::ast::Expression &expression) {
   if (const auto *literal = std::get_if<janus::ast::IntegerLiteralExpression>(
           &expression.value)) {
-    return literal->value;
-  }
-  if (const auto *unary =
-          std::get_if<janus::ast::UnaryExpression>(&expression.value);
-      unary != nullptr &&
-      unary->operation == janus::ast::UnaryOperator::Negate) {
-    if (const auto value = integer_literal_value(*unary->operand)) {
-      return -*value;
-    }
+    const __int128 magnitude =
+        static_cast<__int128>(literal->magnitude);
+    return literal->is_negative ? -magnitude : magnitude;
   }
   return std::nullopt;
 }
@@ -384,26 +378,19 @@ bool integer_literal_fits(const janus::ast::Expression &expression,
     return false;
   if (type.is_signed()) {
     const std::uint32_t magnitude_bits = type.bit_width() - 1;
-    const std::int64_t minimum =
-        magnitude_bits == 63
-            ? std::numeric_limits<std::int64_t>::min()
-            : -(std::int64_t{1} << magnitude_bits);
-    const std::int64_t maximum =
-        magnitude_bits == 63
-            ? std::numeric_limits<std::int64_t>::max()
-            : (std::int64_t{1} << magnitude_bits) - 1;
+    const __int128 minimum = -(__int128{1} << magnitude_bits);
+    const __int128 maximum = (__int128{1} << magnitude_bits) - 1;
     return *value >= minimum && *value <= maximum;
   }
-  const std::uint64_t maximum =
+  const unsigned __int128 maximum =
       type.bit_width() == 64
           ? std::numeric_limits<std::uint64_t>::max()
-          : (std::uint64_t{1} << type.bit_width()) - 1;
-  return *value >= 0 && static_cast<std::uint64_t>(*value) <= maximum;
+          : (static_cast<unsigned __int128>(1) << type.bit_width()) - 1;
+  return *value >= 0 && static_cast<unsigned __int128>(*value) <= maximum;
 }
 
 bool accepts_contextual_integer_literal(const janus::Type &type) {
-  return type.is_integer() &&
-         type.bit_width() < janus::Type::int_type().bit_width();
+  return type.is_integer();
 }
 
 std::string integer_range_description(const janus::Type &type) {
@@ -1512,10 +1499,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     validate_expression = [&](const ast::Expression &expression,
                               const SemanticType &expected,
                               SourceLocation location) {
-      const SemanticType actual = expression_type(expression);
-      if (same_type(actual, expected))
-        return;
-
       if (expected.is_concrete() &&
           accepts_contextual_integer_literal(*expected.concrete)) {
         if (integer_literal_value(expression)) {
@@ -1524,9 +1507,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           throw CompileError{
               expression_location(expression),
               "integer literal is outside the " +
-                  integer_range_description(*expected.concrete)};
+              integer_range_description(*expected.concrete)};
         }
       }
+
+      const SemanticType actual = expression_type(expression);
+      if (same_type(actual, expected))
+        return;
 
       throw CompileError{location, "cannot use expression of type '" +
                                        actual.name() + "' where type '" +
@@ -1535,10 +1522,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const auto validate_return_expression =
         [&](const ast::ReturnStatement &return_statement) {
           const ast::Expression &expression = *return_statement.expression;
-          const SemanticType actual = expression_type(expression);
-          if (same_type(actual, return_type))
-            return;
-
           if (return_type.is_concrete() &&
               accepts_contextual_integer_literal(*return_type.concrete)) {
             if (integer_literal_value(expression)) {
@@ -1550,6 +1533,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       integer_range_description(*return_type.concrete)};
             }
           }
+
+          const SemanticType actual = expression_type(expression);
+          if (same_type(actual, return_type))
+            return;
 
           throw CompileError{
               return_statement.location,
@@ -1563,6 +1550,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           [&](const auto &node) -> SemanticType {
             using Node = std::decay_t<decltype(node)>;
             if constexpr (std::is_same_v<Node, ast::IntegerLiteralExpression>) {
+              if (!integer_literal_fits(expression, Type::int_type()))
+                throw CompileError{
+                    node.location,
+                    "integer literal is outside the signed 32-bit range"};
               return SemanticType{&Type::int_type(), {}};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::DoubleLiteralExpression>) {

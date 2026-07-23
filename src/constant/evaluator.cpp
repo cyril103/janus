@@ -606,7 +606,10 @@ Value evaluate_impl(const janus::ast::Expression &expression,
                                      expected_type->is_integer()
                                  ? *expected_type
                                  : Type::int_type();
-          return integer_value(node.value, type, node.location);
+          const __int128 magnitude =
+              static_cast<__int128>(node.magnitude);
+          return integer_value(node.is_negative ? -magnitude : magnitude, type,
+                               node.location);
         } else if constexpr (std::is_same_v<
                                  Node, janus::ast::DoubleLiteralExpression>) {
           const Type &type =
