@@ -1,6 +1,13 @@
+class Tracker() {
+    destructor {
+        println("destroyed")
+    }
+}
+
 val answer : int = 42
 var requests : int = initialRequests()
 private val message : string = "global"
+private val tracker : Tracker = new Tracker()
 
 def initialRequests() : int {
     return 10

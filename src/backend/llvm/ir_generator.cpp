@@ -108,6 +108,7 @@ public:
          global_declarations_)
       emit_global(*declaration);
     emit_global_initializer_function();
+    emit_global_finalizer_function();
     for (const auto &[name, class_declaration] : classes_) {
       if (class_declaration->type_parameters.empty())
         static_cast<void>(ensure_class(name, {}));
@@ -181,17 +182,26 @@ private:
     return ensure_class(reference.name, type_arguments);
   }
 
-  const Local &resolve_storage(
+  const Local *find_storage(
       std::string_view name,
       const std::unordered_map<std::string, Local> &locals) const {
     if (const auto local = locals.find(std::string{name});
         local != locals.end())
-      return local->second;
+      return &local->second;
     const std::string local_key = source_global_key(active_module_, name);
     if (const auto local_global = global_storage_.find(local_key);
         local_global != global_storage_.end())
-      return local_global->second;
-    return global_storage_.at(public_global_keys_.at(std::string{name}));
+      return &local_global->second;
+    const auto exported = public_global_keys_.find(std::string{name});
+    if (exported == public_global_keys_.end())
+      return nullptr;
+    return &global_storage_.at(exported->second);
+  }
+
+  const Local &resolve_storage(
+      std::string_view name,
+      const std::unordered_map<std::string, Local> &locals) const {
+    return *find_storage(name, locals);
   }
 
   const Local &resolve_qualified_global(std::string_view module,
@@ -389,6 +399,55 @@ private:
     builder.CreateRetVoid();
     active_module_ = previous_module;
     active_return_type_ = previous_return_type;
+  }
+
+  void emit_global_finalizer_function() {
+    const bool has_owned = std::any_of(
+        global_declarations_.begin(), global_declarations_.end(),
+        [&](const janus::ast::GlobalDeclaration *global) {
+          const janus::Type &type =
+              resolve(global->declaration.declared_type, {});
+          return type.kind() == janus::TypeKind::Class ||
+                 type.kind() == janus::TypeKind::Pointer ||
+                 type.kind() == janus::TypeKind::Function;
+        });
+    if (!has_owned)
+      return;
+
+    auto *function_type =
+        ::llvm::FunctionType::get(::llvm::Type::getVoidTy(context_), false);
+    global_finalizer_ = ::llvm::Function::Create(
+        function_type, ::llvm::Function::InternalLinkage,
+        "__janus_fini_globals", *module_);
+    auto *entry =
+        ::llvm::BasicBlock::Create(context_, "entry", global_finalizer_);
+    ::llvm::IRBuilder<> builder{entry};
+    ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
+        "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
+                                           {builder.getPtrTy()}, false));
+
+    for (auto iterator = global_declarations_.rbegin();
+         iterator != global_declarations_.rend(); ++iterator) {
+      const janus::ast::GlobalDeclaration &global = **iterator;
+      const janus::Type &type = resolve(global.declaration.declared_type, {});
+      if (type.kind() != janus::TypeKind::Class &&
+          type.kind() != janus::TypeKind::Pointer &&
+          type.kind() != janus::TypeKind::Function)
+        continue;
+      const Local &storage = global_storage_.at(
+          source_global_key(global.module_name, global.declaration.name));
+      ::llvm::Value *value = builder.CreateLoad(
+          lower_type(type, context_), storage.storage,
+          global.declaration.name + ".global.cleanup");
+      ::llvm::Value *pointer = value;
+      if (type.kind() == janus::TypeKind::Class)
+        builder.CreateCall(emit_destructor(std::string{type.name()}), {value});
+      else if (type.kind() == janus::TypeKind::Function)
+        pointer =
+            builder.CreateExtractValue(value, 1, "global.lambda.environment");
+      builder.CreateCall(free_function, {pointer});
+    }
+    builder.CreateRetVoid();
   }
 
   const janus::Type &ensure_pointer(const janus::Type &element_type) {
@@ -1042,6 +1101,9 @@ private:
               emit_expression(*return_statement.expression, return_type,
                               substitutions, block_locals, builder);
         emit_active_cleanups(builder);
+        if (owner == nullptr && function.name == "main" &&
+            global_finalizer_ != nullptr)
+          builder.CreateCall(global_finalizer_);
         if (return_value != nullptr)
           builder.CreateRet(return_value);
         else
@@ -1340,10 +1402,10 @@ private:
             return ensure_function_type(parameters, return_type);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
-            if (const auto local = locals.find(node.callee);
-                local != locals.end() &&
-                local->second.type->kind() == janus::TypeKind::Function)
-              return *function_signature(*local->second.type).return_type;
+            if (const Local *callable = find_storage(node.callee, locals);
+                callable != nullptr &&
+                callable->type->kind() == janus::TypeKind::Function)
+              return *function_signature(*callable->type).return_type;
             if (node.callee == "panic" || node.callee == "print" ||
                 node.callee == "println")
               return janus::Type::unit_type();
@@ -1617,14 +1679,14 @@ private:
                                builder);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
-            if (const auto local = locals.find(node.callee);
-                local != locals.end() &&
-                local->second.type->kind() == janus::TypeKind::Function) {
+            if (const Local *local = find_storage(node.callee, locals);
+                local != nullptr &&
+                local->type->kind() == janus::TypeKind::Function) {
               const FunctionSignature &signature =
-                  function_signature(*local->second.type);
+                  function_signature(*local->type);
               ::llvm::Value *closure = builder.CreateLoad(
-                  lower_type(*local->second.type, context_),
-                  local->second.storage, node.callee + ".closure");
+                  lower_type(*local->type, context_), local->storage,
+                  node.callee + ".closure");
               ::llvm::Value *code =
                   builder.CreateExtractValue(closure, 0, node.callee + ".code");
               ::llvm::Value *environment = builder.CreateExtractValue(
@@ -2128,7 +2190,7 @@ private:
                 expression_type(*node.object, substitutions, locals);
             ::llvm::Value *object_pointer = nullptr;
             if (identifier != nullptr) {
-              const Local &object = locals.at(identifier->name);
+              const Local &object = resolve_storage(identifier->name, locals);
               object_pointer =
                   object_type.kind() == janus::TypeKind::Struct
                       ? object.storage
@@ -2201,7 +2263,7 @@ private:
                 expression_type(*node.object, substitutions, locals);
             ::llvm::Value *object_value = nullptr;
             if (identifier != nullptr) {
-              const Local &object = locals.at(identifier->name);
+              const Local &object = resolve_storage(identifier->name, locals);
               if (object_type.kind() == janus::TypeKind::Struct) {
                 object_value = object.storage;
               } else {
@@ -2624,6 +2686,7 @@ private:
   std::unordered_map<std::string, int> constant_states_;
   std::unordered_map<std::string, janus::constant::Value> constant_values_;
   ::llvm::Function *global_initializer_{};
+  ::llvm::Function *global_finalizer_{};
   std::unordered_map<std::string, const janus::ast::ClassDeclaration *>
       classes_;
   std::unordered_map<std::string, const janus::ast::EnumDeclaration *> enums_;

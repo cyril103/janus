@@ -563,11 +563,23 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       global_modules.insert(*global.module_name);
     const SemanticType type = resolve_type(
         declaration.declared_type, no_type_parameters, &class_arities);
-    if (!type.is_concrete() || type.concrete->kind() == TypeKind::Unit)
+    if (type.is_concrete() && type.concrete->kind() == TypeKind::Unit)
       throw CompileError{
           declaration.location,
-          "global value '" + declaration.name +
-              "' must use a statically initialized built-in value type"};
+          "Unit cannot be used as a global value type"};
+    if (type.is_enum() ||
+        (type.is_class() && classes.at(type.parameter)->is_value_type))
+      throw CompileError{
+          declaration.location,
+          "global enum and struct values are not supported yet"};
+    const bool owns_value =
+        type.is_function() || type.is_pointer() ||
+        (type.is_class() && !classes.at(type.parameter)->is_value_type);
+    if (owns_value && declaration.is_mutable)
+      throw CompileError{
+          declaration.location,
+          "owning global value '" + declaration.name +
+              "' must be declared with 'val'"};
     if (!declaration.initializer.has_value())
       throw CompileError{declaration.location,
                          "global variable '" + declaration.name +
@@ -1383,13 +1395,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   nullptr, "Function", false, std::move(signature),
                   false,   false,      true};
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              const Symbol *callable = nullptr;
               if (const auto local = active_symbols->find(node.callee);
-                  local != active_symbols->end()) {
-                if (!local->second.is_initialized)
+                  local != active_symbols->end())
+                callable = &local->second;
+              else
+                callable = visible_global(node.callee);
+              if (callable != nullptr) {
+                if (!callable->is_initialized)
                   throw CompileError{node.location,
                                      "function value '" + node.callee +
                                          "' is used before initialization"};
-                if (!local->second.type.is_function())
+                if (!callable->type.is_function())
                   throw CompileError{node.location, "value '" + node.callee +
                                                         "' is not callable"};
                 if (!node.type_arguments.empty())
@@ -1397,7 +1414,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       node.location,
                       "a function value does not accept type arguments"};
                 const std::vector<SemanticType> &signature =
-                    local->second.type.type_arguments;
+                    callable->type.type_arguments;
                 const std::size_t parameter_count = signature.size() - 1;
                 if (node.arguments.size() != parameter_count)
                   throw CompileError{node.location,
@@ -2073,6 +2090,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "owning value '" + identifier->name +
                             "' cannot be consumed from a loop, branch "
                             "expression, or closure"};
+                  if (!active_symbols->contains(identifier->name) &&
+                      visible_global(identifier->name) != nullptr)
+                    throw CompileError{
+                        node.location,
+                        "owning global value '" + identifier->name +
+                            "' cannot be consumed"};
                   active_symbols->at(identifier->name).is_initialized = false;
                 } else if (!std::holds_alternative<ast::MoveExpression>(
                                node.object->value) &&
@@ -2245,6 +2268,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     node.location,
                     "owning value '" + identifier->name +
                         "' is scheduled for deferred cleanup"};
+              if (!active_symbols->contains(identifier->name) &&
+                  visible_global(identifier->name) != nullptr)
+                throw CompileError{
+                    node.location,
+                    "owning global value '" + identifier->name +
+                        "' cannot be moved"};
               const SemanticType moved_type = expression_type(*node.operand);
               if (moved_type.is_class() &&
                   classes.at(moved_type.parameter)->is_value_type)
@@ -2670,6 +2699,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 deletion->location,
                 "owning value '" + identifier->name +
                     "' is scheduled for deferred cleanup"};
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &deletion->expression.value);
+              identifier != nullptr && !block_symbols.contains(identifier->name) &&
+              visible_global(identifier->name) != nullptr)
+            throw CompileError{
+                deletion->location,
+                "owning global value '" + identifier->name +
+                    "' is destroyed automatically"};
           const SemanticType deleted_type =
               expression_type(deletion->expression);
           if (deleted_type.is_class() &&
@@ -2698,6 +2735,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{
                   deletion->location,
                   "deferred delete requires an owning local identifier"};
+            if (!block_symbols.contains(identifier->name) &&
+                visible_global(identifier->name) != nullptr)
+              throw CompileError{
+                  deletion->location,
+                  "owning global value '" + identifier->name +
+                      "' is destroyed automatically"};
             if (deferred_values.contains(identifier->name))
               throw CompileError{
                   deletion->location,

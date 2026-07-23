@@ -32,9 +32,12 @@ void expect_compile_error(std::string_view source,
     static_cast<void>(analyzer.analyze(program));
     expect(false, "invalid global declaration must fail");
   } catch (const janus::CompileError &error) {
-    expect(std::string_view{error.what()}.find(expected_message) !=
-               std::string_view::npos,
-           "global diagnostic contains the expected explanation");
+    if (std::string_view{error.what()}.find(expected_message) ==
+        std::string_view::npos) {
+      std::cerr << "FAILED: expected diagnostic containing '" << expected_message
+                << "', got '" << error.what() << "'\n";
+      ++failures;
+    }
   }
 }
 
@@ -116,7 +119,7 @@ def main() : int {
       "constant expression of type 'int' cannot initialize type 'bool'");
   expect_compile_error(
       "val unit : Unit = println(\"x\")\ndef main() : int { return 0 }",
-      "must use a statically initialized built-in value type");
+      "Unit cannot be used as a global value type");
   expect_compile_error(
       "val answer : int = 1\nval answer : int = 2\n"
       "def main() : int { return answer }",
@@ -209,6 +212,61 @@ def main() : int { return dynamic }
       "def compute() : int { return 1 }\n"
       "def main() : int { return 0 }",
       "cannot use expression of type 'int' where type 'bool' is required");
+
+  janus::frontend::Parser owned_parser{R"(
+class Resource(val value : int) {
+    destructor {
+    }
+}
+val resource : Resource = new Resource(42)
+val callback : () => int = () => resource.value
+val memory : Ptr[int] = alloc[int](usize(1))
+def main() : int { return callback() }
+)"};
+  const janus::ast::Program owned_program = owned_parser.parse_program();
+  static_cast<void>(analyzer.analyze(owned_program));
+  llvm::LLVMContext owned_context;
+  janus::backend::llvm::IrGenerator owned_generator{owned_context};
+  const std::unique_ptr<llvm::Module> owned_module =
+      owned_generator.generate(owned_program, "owned_globals");
+  std::string owned_ir;
+  llvm::raw_string_ostream owned_output{owned_ir};
+  owned_module->print(owned_output, nullptr);
+  owned_output.flush();
+  const std::size_t finalizer =
+      owned_ir.find("define internal void @__janus_fini_globals()");
+  const std::size_t free_memory =
+      owned_ir.find("call void @janus_free", finalizer);
+  const std::size_t free_callback =
+      owned_ir.find("call void @janus_free", free_memory + 1);
+  const std::size_t destroy_resource =
+      owned_ir.find("call void @Resource__destructor", free_callback);
+  expect(finalizer != std::string::npos &&
+             free_memory != std::string::npos &&
+             free_callback != std::string::npos &&
+             destroy_resource != std::string::npos &&
+             free_memory < free_callback &&
+             free_callback < destroy_resource,
+         "owning globals are finalized in reverse declaration order");
+  expect(owned_ir.find("call void @__janus_fini_globals()") !=
+             std::string::npos,
+         "entry point invokes global finalization");
+  expect_compile_error(
+      "class Resource() {}\n"
+      "var resource : Resource = new Resource()\n"
+      "def main() : int { return 0 }",
+      "owning global value 'resource' must be declared with 'val'");
+  expect_compile_error(
+      "class Resource() {}\n"
+      "val resource : Resource = new Resource()\n"
+      "def take() : Resource { return move resource }\n"
+      "def main() : int { return 0 }",
+      "owning global value 'resource' cannot be moved");
+  expect_compile_error(
+      "class Resource() {}\n"
+      "val resource : Resource = new Resource()\n"
+      "def main() : int { delete resource return 0 }",
+      "owning global value 'resource' is destroyed automatically");
 
   janus::frontend::ModuleLoader loader;
   const janus::ast::Program imported_program =
