@@ -1,0 +1,3 @@
+module collision_right
+
+val duplicated : int = 2

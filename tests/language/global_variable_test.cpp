@@ -133,7 +133,11 @@ def main() : int {
   janus::frontend::ModuleLoader loader;
   const janus::ast::Program imported_program =
       loader.load(std::filesystem::path{JANUS_GLOBALS_ENTRY});
-  static_cast<void>(analyzer.analyze(imported_program));
+  const janus::semantic::AnalysisResult imported_analysis =
+      analyzer.analyze(imported_program);
+  expect(imported_analysis.globals.contains("global_config.secret") &&
+             imported_analysis.globals.contains("other_config.secret"),
+         "private globals use their qualified module identity");
   llvm::LLVMContext imported_context;
   janus::backend::llvm::IrGenerator imported_generator{imported_context};
   const std::unique_ptr<llvm::Module> imported_module =
@@ -150,6 +154,14 @@ def main() : int {
              "@__janus_global_entry__localCount = constant i32 2") !=
              std::string::npos,
          "entry global uses the entry symbol namespace");
+  expect(imported_ir.find(
+             "store i32 3, ptr @__janus_global_global_config__importedCount") !=
+             std::string::npos,
+         "qualified assignment targets the requested module global");
+  expect(imported_ir.find(
+             "ptr @__janus_global_other_config__visibleCount") !=
+             std::string::npos,
+         "qualified read targets the requested module global");
 
   try {
     const janus::ast::Program private_access_program =
@@ -157,9 +169,22 @@ def main() : int {
     static_cast<void>(analyzer.analyze(private_access_program));
     expect(false, "an imported private global must not be visible");
   } catch (const janus::CompileError &error) {
-    expect(std::string_view{error.what()}.find("unknown value 'secret'") !=
+    expect(std::string_view{error.what()}.find(
+               "global value 'global_config.secret' is private") !=
                std::string_view::npos,
            "private global access is rejected outside its module");
+  }
+
+  try {
+    const janus::ast::Program collision_program =
+        loader.load(std::filesystem::path{JANUS_GLOBALS_PUBLIC_COLLISION});
+    static_cast<void>(analyzer.analyze(collision_program));
+    expect(false, "two public globals with the same name must conflict");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(
+               "public global value 'duplicated' is exported by both modules") !=
+               std::string_view::npos,
+           "public global collision identifies both exporting modules");
   }
 
   if (failures != 0) {

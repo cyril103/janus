@@ -452,6 +452,25 @@ std::string integer_range_description(const janus::Type &type) {
          std::to_string(type.bit_width()) + "-bit range";
 }
 
+std::string global_key(const std::optional<std::string> &module,
+                       std::string_view name) {
+  return module.has_value() ? *module + "." + std::string{name}
+                            : std::string{name};
+}
+
+std::optional<std::string>
+qualified_expression_name(const janus::ast::Expression &expression) {
+  if (const auto *identifier =
+          std::get_if<janus::ast::IdentifierExpression>(&expression.value))
+    return identifier->name;
+  if (const auto *member =
+          std::get_if<janus::ast::MemberAccessExpression>(&expression.value)) {
+    if (auto prefix = qualified_expression_name(*member->object))
+      return *prefix + "." + member->member;
+  }
+  return std::nullopt;
+}
+
 } // namespace
 
 namespace janus::semantic {
@@ -568,13 +587,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     Symbol symbol;
   };
   std::unordered_map<std::string, ResolvedGlobal> globals;
+  std::unordered_map<std::string, std::string> public_globals;
+  std::unordered_set<std::string> global_modules;
   const std::unordered_set<std::string> no_type_parameters;
   for (const ast::GlobalDeclaration &global : program.globals) {
     const ast::ValueDeclaration &declaration = global.declaration;
-    if (globals.contains(declaration.name))
+    const std::string key = global_key(global.module_name, declaration.name);
+    if (globals.contains(key))
       throw CompileError{declaration.location,
-                         "global value '" + declaration.name +
+                         "global value '" + key +
                              "' is already declared"};
+    if (!declaration.is_private) {
+      if (const auto existing = public_globals.find(declaration.name);
+          existing != public_globals.end())
+        throw CompileError{
+            declaration.location,
+            "public global value '" + declaration.name +
+                "' is exported by both modules '" + existing->second +
+                "' and '" + global.module_name.value_or("<entry>") + "'"};
+      public_globals.emplace(declaration.name, key);
+    }
+    if (global.module_name.has_value())
+      global_modules.insert(*global.module_name);
     const SemanticType type = resolve_type(
         declaration.declared_type, no_type_parameters, &class_arities);
     if (!type.is_concrete() || type.concrete->kind() == TypeKind::Unit)
@@ -598,9 +632,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 initializer.name() + "'"};
     }
     Symbol symbol{type, declaration.is_mutable, true};
-    result.globals.emplace(declaration.name, symbol);
-    globals.emplace(declaration.name,
-                    ResolvedGlobal{&global, std::move(symbol)});
+    result.globals.emplace(key, symbol);
+    globals.emplace(key, ResolvedGlobal{&global, std::move(symbol)});
   }
 
   struct TraitInstance {
@@ -1152,16 +1185,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           });
     };
     SymbolTable *active_symbols = &symbols;
+    const auto find_global =
+        [&](const std::optional<std::string> &module,
+            std::string_view name) -> const ResolvedGlobal * {
+      const auto iterator = globals.find(global_key(module, name));
+      return iterator == globals.end() ? nullptr : &iterator->second;
+    };
     const auto visible_global =
         [&](std::string_view name) -> const Symbol * {
-      const auto iterator = globals.find(std::string{name});
-      if (iterator == globals.end())
+      if (const ResolvedGlobal *local = find_global(context_module, name))
+        return &local->symbol;
+      const auto exported = public_globals.find(std::string{name});
+      if (exported == public_globals.end())
         return nullptr;
-      const ast::GlobalDeclaration &global = *iterator->second.declaration;
-      if (global.declaration.is_private &&
-          global.module_name != context_module)
-        return nullptr;
-      return &iterator->second.symbol;
+      return &globals.at(exported->second).symbol;
     };
     const std::unordered_set<std::string> *active_type_parameters =
         &type_parameters;
@@ -1715,6 +1752,26 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          "' requires constructor arguments"};
                 return SemanticType{
                     nullptr, enum_declaration.name, false, {}, false, true};
+              }
+              if (const auto module = qualified_expression_name(*node.object);
+                  module.has_value() && global_modules.contains(*module) &&
+                  !active_symbols->contains(
+                      module->substr(0, module->find('.')))) {
+                const ResolvedGlobal *global =
+                    find_global(std::optional<std::string>{*module},
+                                node.member);
+                if (global == nullptr)
+                  throw CompileError{node.location,
+                                     "module '" + *module +
+                                         "' has no global value '" +
+                                         node.member + "'"};
+                if (global->declaration->declaration.is_private &&
+                    global->declaration->module_name != context_module)
+                  throw CompileError{
+                      node.location,
+                      "global value '" + *module + "." + node.member +
+                          "' is private"};
+                return global->symbol.type;
               }
               const SemanticType object_type = expression_type(*node.object);
               if (!object_type.is_class())
@@ -2472,6 +2529,31 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (const auto *assignment =
                 std::get_if<ast::AssignmentStatement>(&statement)) {
           if (!assignment->object.empty()) {
+            if (!block_symbols.contains(assignment->object) &&
+                global_modules.contains(assignment->object)) {
+              const ResolvedGlobal *global = find_global(
+                  std::optional<std::string>{assignment->object},
+                  assignment->name);
+              if (global == nullptr)
+                throw CompileError{
+                    assignment->location,
+                    "module '" + assignment->object +
+                        "' has no global value '" + assignment->name + "'"};
+              if (global->declaration->declaration.is_private &&
+                  global->declaration->module_name != context_module)
+                throw CompileError{
+                    assignment->location,
+                    "global value '" + assignment->object + "." +
+                        assignment->name + "' is private"};
+              if (!global->symbol.is_mutable)
+                throw CompileError{
+                    assignment->location,
+                    "cannot assign to immutable global value '" +
+                        assignment->object + "." + assignment->name + "'"};
+              validate_expression(assignment->expression, global->symbol.type,
+                                  assignment->location);
+              continue;
+            }
             const auto object = block_symbols.find(assignment->object);
             if (object == block_symbols.end() ||
                 !object->second.type.is_class())

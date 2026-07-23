@@ -691,6 +691,7 @@ if(BUILD_TESTING)
         PRIVATE
             JANUS_GLOBALS_ENTRY="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_entry.janus"
             JANUS_GLOBALS_PRIVATE_ACCESS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_private_access.janus"
+            JANUS_GLOBALS_PUBLIC_COLLISION="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_public_collision.janus"
     )
     target_compile_options(global_variable_test
         PRIVATE

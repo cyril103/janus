@@ -1,0 +1,8 @@
+module other_config
+
+private val secret : int = 9
+val visibleCount : int = 4
+
+def otherSecretValue() : int {
+    return secret
+}

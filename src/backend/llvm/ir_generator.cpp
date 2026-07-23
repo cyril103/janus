@@ -87,15 +87,21 @@ public:
     }
     for (const janus::ast::FunctionDeclaration &function : program.functions)
       functions_.emplace(function.name, &function);
-    for (const janus::ast::GlobalDeclaration &global : program.globals)
-      global_declarations_.emplace(global.declaration.name, &global);
+    for (const janus::ast::GlobalDeclaration &global : program.globals) {
+      global_declarations_.push_back(&global);
+      if (!global.declaration.is_private)
+        public_global_keys_.emplace(
+            global.declaration.name,
+            source_global_key(global.module_name, global.declaration.name));
+      if (global.module_name.has_value())
+        global_modules_.insert(*global.module_name);
+    }
   }
 
   std::unique_ptr<::llvm::Module> generate() {
-    for (const auto &[name, declaration] : global_declarations_) {
-      static_cast<void>(name);
+    for (const janus::ast::GlobalDeclaration *declaration :
+         global_declarations_)
       emit_global(*declaration);
-    }
     for (const auto &[name, class_declaration] : classes_) {
       if (class_declaration->type_parameters.empty())
         static_cast<void>(ensure_class(name, {}));
@@ -175,7 +181,38 @@ private:
     if (const auto local = locals.find(std::string{name});
         local != locals.end())
       return local->second;
-    return global_storage_.at(std::string{name});
+    const std::string local_key = source_global_key(active_module_, name);
+    if (const auto local_global = global_storage_.find(local_key);
+        local_global != global_storage_.end())
+      return local_global->second;
+    return global_storage_.at(public_global_keys_.at(std::string{name}));
+  }
+
+  const Local &resolve_qualified_global(std::string_view module,
+                                        std::string_view name) const {
+    return global_storage_.at(
+        source_global_key(std::optional<std::string>{module}, name));
+  }
+
+  static std::string
+  source_global_key(const std::optional<std::string> &module,
+                    std::string_view name) {
+    return module.has_value() ? *module + "." + std::string{name}
+                              : std::string{name};
+  }
+
+  static std::optional<std::string>
+  qualified_expression_name(const janus::ast::Expression &expression) {
+    if (const auto *identifier =
+            std::get_if<janus::ast::IdentifierExpression>(&expression.value))
+      return identifier->name;
+    if (const auto *member =
+            std::get_if<janus::ast::MemberAccessExpression>(
+                &expression.value)) {
+      if (auto prefix = qualified_expression_name(*member->object))
+        return *prefix + "." + member->member;
+    }
+    return std::nullopt;
   }
 
   static std::string
@@ -273,7 +310,9 @@ private:
         *module_, lower_type(type, context_), !declaration.is_mutable, linkage,
         emit_static_initializer(*declaration.initializer, type),
         global_symbol_name(global));
-    global_storage_.emplace(declaration.name, Local{storage, &type});
+    global_storage_.emplace(
+        source_global_key(global.module_name, declaration.name),
+        Local{storage, &type});
   }
 
   const janus::Type &ensure_pointer(const janus::Type &element_type) {
@@ -568,6 +607,9 @@ private:
     if (function.is_external)
       return llvm_function;
 
+    const auto previous_active_module = active_module_;
+    active_module_ =
+        owner == nullptr ? function.module_name : owner->module_name;
     auto previous_cleanup_scopes = std::move(active_cleanup_scopes_);
     active_cleanup_scopes_.clear();
 
@@ -825,6 +867,16 @@ private:
         if (const auto *assignment =
                 std::get_if<janus::ast::AssignmentStatement>(&statement)) {
           if (!assignment->object.empty()) {
+            if (!block_locals.contains(assignment->object) &&
+                global_modules_.contains(assignment->object)) {
+              const Local &global = resolve_qualified_global(
+                  assignment->object, assignment->name);
+              builder.CreateStore(
+                  emit_expression(assignment->expression, *global.type,
+                                  substitutions, block_locals, builder),
+                  global.storage);
+              continue;
+            }
             const Local &object = block_locals.at(assignment->object);
             ::llvm::Value *object_pointer = builder.CreateLoad(
                 ::llvm::PointerType::getUnqual(context_), object.storage,
@@ -932,6 +984,7 @@ private:
     if (!emitted_return && return_type.kind() == janus::TypeKind::Unit)
       builder.CreateRetVoid();
     active_cleanup_scopes_ = std::move(previous_cleanup_scopes);
+    active_module_ = previous_active_module;
     return llvm_function;
   }
 
@@ -1252,6 +1305,10 @@ private:
                         &node.object->value);
                 identifier != nullptr && enums_.contains(identifier->name))
               return ensure_enum(identifier->name, {});
+            if (const auto module = qualified_expression_name(*node.object);
+                module.has_value() && global_modules_.contains(*module) &&
+                !locals.contains(module->substr(0, module->find('.'))))
+              return *resolve_qualified_global(*module, node.member).type;
             const janus::Type &object_type =
                 expression_type(*node.object, substitutions, locals);
             return *find_field(object_type.name(), node.member).second;
@@ -1979,6 +2036,15 @@ private:
                       enum_case_value(enum_type.name(), node.member)),
                   0, "enum.value");
             }
+            if (const auto module = qualified_expression_name(*node.object);
+                module.has_value() && global_modules_.contains(*module) &&
+                !locals.contains(module->substr(0, module->find('.')))) {
+              const Local &global =
+                  resolve_qualified_global(*module, node.member);
+              return builder.CreateLoad(lower_type(*global.type, context_),
+                                        global.storage,
+                                        node.member + ".global");
+            }
             const janus::Type &object_type =
                 expression_type(*node.object, substitutions, locals);
             ::llvm::Value *object_pointer = nullptr;
@@ -2470,9 +2536,10 @@ private:
   std::unique_ptr<::llvm::Module> module_;
   std::unordered_map<std::string, const janus::ast::FunctionDeclaration *>
       functions_;
-  std::unordered_map<std::string, const janus::ast::GlobalDeclaration *>
-      global_declarations_;
+  std::vector<const janus::ast::GlobalDeclaration *> global_declarations_;
   std::unordered_map<std::string, Local> global_storage_;
+  std::unordered_map<std::string, std::string> public_global_keys_;
+  std::unordered_set<std::string> global_modules_;
   std::unordered_map<std::string, const janus::ast::ClassDeclaration *>
       classes_;
   std::unordered_map<std::string, const janus::ast::EnumDeclaration *> enums_;
@@ -2489,6 +2556,7 @@ private:
   std::unordered_map<std::string, ::llvm::Function *> emitted_;
   std::vector<CleanupScope> active_cleanup_scopes_;
   const janus::Type *active_return_type_{};
+  std::optional<std::string> active_module_;
   std::size_t string_literal_index_{};
   std::size_t lambda_index_{};
 };

@@ -39,18 +39,23 @@ int main() {
       {std::filesystem::path{JANUS_STDLIB_DIR}}};
   const janus::ast::Program globals_program =
       loader.load(std::filesystem::path{JANUS_GLOBALS_ENTRY});
-  expect(globals_program.globals.size() == 3,
+  expect(globals_program.globals.size() == 5,
          "module loading merges imported and entry globals");
-  if (globals_program.globals.size() == 3) {
+  if (globals_program.globals.size() == 5) {
     expect(globals_program.globals[0].declaration.name == "secret",
            "dependency globals preserve source order");
     expect(globals_program.globals[0].module_name == "global_config",
            "dependency globals preserve their declaring module");
     expect(globals_program.globals[1].declaration.name == "importedCount",
            "all dependency globals are merged");
-    expect(globals_program.globals[2].declaration.name == "localCount",
+    expect(globals_program.globals[2].declaration.name == "secret" &&
+               globals_program.globals[2].module_name == "other_config",
+           "private names may recur in distinct modules");
+    expect(globals_program.globals[3].declaration.name == "visibleCount",
+           "second dependency globals are merged");
+    expect(globals_program.globals[4].declaration.name == "localCount",
            "entry globals follow dependency globals");
-    expect(!globals_program.globals[2].module_name.has_value(),
+    expect(!globals_program.globals[4].module_name.has_value(),
            "entry globals without a module remain unqualified");
   }
 

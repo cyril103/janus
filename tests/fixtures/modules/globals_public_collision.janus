@@ -1,0 +1,6 @@
+import collision_left
+import collision_right
+
+def main() : int {
+    return 0
+}

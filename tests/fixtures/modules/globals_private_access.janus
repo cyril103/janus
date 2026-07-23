@@ -1,5 +1,5 @@
 import global_config
 
 def main() : int {
-    return secret
+    return global_config.secret
 }
