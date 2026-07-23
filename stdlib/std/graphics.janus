@@ -120,6 +120,15 @@ enum MouseButton {
     Back
 }
 
+enum TextureFilter {
+    Point,
+    Bilinear,
+    Trilinear,
+    Anisotropic4x,
+    Anisotropic8x,
+    Anisotropic16x
+}
+
 extern def janus_graphics_rgba(
 red : ubyte,
 green : ubyte,
@@ -243,6 +252,25 @@ x : int,
 y : int,
 tint : uint
 ) : Unit
+extern def janus_graphics_draw_texture_pro(
+handle : Ptr[byte],
+sourceX : float,
+sourceY : float,
+sourceWidth : float,
+sourceHeight : float,
+destinationX : float,
+destinationY : float,
+destinationWidth : float,
+destinationHeight : float,
+originX : float,
+originY : float,
+rotation : float,
+tint : uint
+) : Unit
+extern def janus_graphics_set_texture_filter(
+handle : Ptr[byte],
+filter : int
+) : Unit
 extern def janus_graphics_init_audio() : bool
 extern def janus_graphics_close_audio() : Unit
 extern def janus_graphics_set_master_volume(volume : float) : Unit
@@ -348,8 +376,115 @@ class Texture(private val handle : Ptr[byte]) {
         )
     }
 
+    def drawPro(
+    source : Rectangle,
+    destination : Rectangle,
+    origin : Vector2,
+    rotation : float,
+    tint : Color
+    ) : Unit {
+        janus_graphics_draw_texture_pro(
+        handle,
+        source.x,
+        source.y,
+        source.width,
+        source.height,
+        destination.x,
+        destination.y,
+        destination.width,
+        destination.height,
+        origin.x,
+        origin.y,
+        rotation,
+        tint.packed()
+        )
+    }
+
+    def drawFrame(
+    frame : int,
+    frameWidth : int,
+    frameHeight : int,
+    columns : int,
+    position : Vector2,
+    scale : float,
+    rotation : float,
+    flipX : bool,
+    flipY : bool,
+    tint : Color
+    ) : Unit {
+        val column : int = frame % columns
+        val row : int = frame / columns
+        var sourceWidth : float = float(frameWidth)
+        var sourceHeight : float = float(frameHeight)
+        if flipX {
+            sourceWidth = -sourceWidth
+        }
+        if flipY {
+            sourceHeight = -sourceHeight
+        }
+        janus_graphics_draw_texture_pro(
+        handle,
+        float(column * frameWidth),
+        float(row * frameHeight),
+        sourceWidth,
+        sourceHeight,
+        position.x,
+        position.y,
+        float(frameWidth) * scale,
+        float(frameHeight) * scale,
+        float(0.0),
+        float(0.0),
+        rotation,
+        tint.packed()
+        )
+    }
+
+    def setFilter(filter : TextureFilter) : Unit {
+        janus_graphics_set_texture_filter(handle, int(filter))
+    }
+
     destructor {
         janus_graphics_unload_texture(handle)
+    }
+}
+
+class SpriteAnimation(
+val texture : Texture,
+val frameWidth : int,
+val frameHeight : int,
+val columns : int,
+val frameCount : int,
+var currentFrame : int
+) {
+    def advance() : int {
+        currentFrame = (currentFrame + 1) % frameCount
+        return currentFrame
+    }
+
+    def reset() : Unit {
+        currentFrame = 0
+    }
+
+    def draw(
+    position : Vector2,
+    scale : float,
+    rotation : float,
+    flipX : bool,
+    flipY : bool,
+    tint : Color
+    ) : Unit {
+        texture.drawFrame(
+        currentFrame,
+        frameWidth,
+        frameHeight,
+        columns,
+        position,
+        scale,
+        rotation,
+        flipX,
+        flipY,
+        tint
+        )
     }
 }
 

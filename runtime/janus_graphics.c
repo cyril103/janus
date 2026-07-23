@@ -24,6 +24,13 @@ typedef struct {
 } JanusRaylibVector2;
 
 typedef struct {
+  float x;
+  float y;
+  float width;
+  float height;
+} JanusRaylibRectangle;
+
+typedef struct {
   JanusRaylibVector2 offset;
   JanusRaylibVector2 target;
   float rotation;
@@ -99,6 +106,10 @@ typedef struct {
   bool (*IsTextureValid)(JanusRaylibTexture);
   void (*UnloadTexture)(JanusRaylibTexture);
   void (*DrawTexture)(JanusRaylibTexture, int, int, JanusRaylibColor);
+  void (*DrawTexturePro)(JanusRaylibTexture, JanusRaylibRectangle,
+                         JanusRaylibRectangle, JanusRaylibVector2, float,
+                         JanusRaylibColor);
+  void (*SetTextureFilter)(JanusRaylibTexture, int);
   void (*InitAudioDevice)(void);
   void (*CloseAudioDevice)(void);
   bool (*IsAudioDeviceReady)(void);
@@ -264,6 +275,8 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(IsTextureValid);
   JANUS_LOAD_GRAPHICS_SYMBOL(UnloadTexture);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawTexture);
+  JANUS_LOAD_GRAPHICS_SYMBOL(DrawTexturePro);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetTextureFilter);
   JANUS_LOAD_GRAPHICS_SYMBOL(InitAudioDevice);
   JANUS_LOAD_GRAPHICS_SYMBOL(CloseAudioDevice);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsAudioDeviceReady);
@@ -577,6 +590,26 @@ void janus_graphics_draw_texture(const void *handle, int x, int y,
   if (janus_graphics_texture_is_valid(handle))
     graphics_api.DrawTexture(*(const JanusRaylibTexture *)handle, x, y,
                              unpack_color(tint));
+}
+
+void janus_graphics_draw_texture_pro(
+    const void *handle, float source_x, float source_y, float source_width,
+    float source_height, float destination_x, float destination_y,
+    float destination_width, float destination_height, float origin_x,
+    float origin_y, float rotation, uint32_t tint) {
+  if (!janus_graphics_texture_is_valid(handle))
+    return;
+  graphics_api.DrawTexturePro(
+      *(const JanusRaylibTexture *)handle,
+      (JanusRaylibRectangle){source_x, source_y, source_width, source_height},
+      (JanusRaylibRectangle){destination_x, destination_y, destination_width,
+                             destination_height},
+      (JanusRaylibVector2){origin_x, origin_y}, rotation, unpack_color(tint));
+}
+
+void janus_graphics_set_texture_filter(const void *handle, int filter) {
+  if (janus_graphics_texture_is_valid(handle))
+    graphics_api.SetTextureFilter(*(const JanusRaylibTexture *)handle, filter);
 }
 
 bool janus_graphics_init_audio(void) {

@@ -55,6 +55,12 @@ extern int janus_graphics_texture_height(const void *handle);
 extern void janus_graphics_unload_texture(void *handle);
 extern void janus_graphics_draw_texture(const void *handle, int x, int y,
                                         uint32_t tint);
+extern void janus_graphics_draw_texture_pro(
+    const void *handle, float source_x, float source_y, float source_width,
+    float source_height, float destination_x, float destination_y,
+    float destination_width, float destination_height, float origin_x,
+    float origin_y, float rotation, uint32_t tint);
+extern void janus_graphics_set_texture_filter(const void *handle, int filter);
 extern bool janus_graphics_init_audio(void);
 extern void janus_graphics_close_audio(void);
 extern void janus_graphics_set_master_volume(float volume);
@@ -138,6 +144,10 @@ int main(void) {
     return 1;
   }
   janus_graphics_draw_texture(texture, 15, 16, UINT32_C(0xffffffff));
+  janus_graphics_draw_texture_pro(
+      texture, 0.0f, 0.0f, -16.0f, 16.0f, 100.0f, 120.0f, 32.0f, 32.0f,
+      16.0f, 16.0f, 45.0f, UINT32_C(0xffffffff));
+  janus_graphics_set_texture_filter(texture, 1);
   janus_graphics_unload_texture(texture);
   janus_graphics_end_camera();
   janus_graphics_end_drawing();

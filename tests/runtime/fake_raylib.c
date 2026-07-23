@@ -20,6 +20,13 @@ typedef struct {
 } Vector2;
 
 typedef struct {
+  float x;
+  float y;
+  float width;
+  float height;
+} Rectangle;
+
+typedef struct {
   Vector2 offset;
   Vector2 target;
   float rotation;
@@ -185,6 +192,22 @@ RAYLIB_EXPORT void DrawTexture(Texture2D texture, int x, int y, Color tint) {
   (void)x;
   (void)y;
   (void)tint;
+}
+
+RAYLIB_EXPORT void DrawTexturePro(Texture2D texture, Rectangle source,
+                                  Rectangle destination, Vector2 origin,
+                                  float rotation, Color tint) {
+  (void)texture;
+  (void)source;
+  (void)destination;
+  (void)origin;
+  (void)rotation;
+  (void)tint;
+}
+
+RAYLIB_EXPORT void SetTextureFilter(Texture2D texture, int filter) {
+  (void)texture;
+  (void)filter;
 }
 
 RAYLIB_EXPORT void InitAudioDevice(void) { audio_ready = true; }

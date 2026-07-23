@@ -70,9 +70,28 @@ def main() : int {
     drawRectangleArea(area, typedColor)
     drawTextAt("typed", start, 14, typedColor)
     val texture : Texture = loadTexture("sprite.png")
+    texture.setFilter(TextureFilter.Point)
     val textureWidth : int = texture.width()
     texture.draw(textureWidth, texture.height(), white())
     texture.drawAt(start, typedColor)
+    val animation : SpriteAnimation = new SpriteAnimation(
+        texture,
+        16,
+        16,
+        4,
+        8,
+        0
+    )
+    animation.draw(
+        start,
+        float(2.0),
+        float(15.0),
+        true,
+        false,
+        typedColor
+    )
+    val nextFrame : int = animation.advance()
+    delete animation
     endCamera()
     delete texture
     val sound : Sound = loadSound("effect.wav")
@@ -151,6 +170,11 @@ def main() : int {
              ir.find("call float @janus_graphics_screen_to_world_x") !=
                  std::string::npos,
          "typed 2D camera helpers lower through the native backend");
+  expect(ir.find("call void @janus_graphics_draw_texture_pro") !=
+                 std::string::npos &&
+             ir.find("call void @janus_graphics_set_texture_filter") !=
+                 std::string::npos,
+         "advanced sprite drawing lowers through the native backend");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

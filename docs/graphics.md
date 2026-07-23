@@ -116,6 +116,31 @@ if sprite.isValid() {
 charge sont ceux activés dans la construction de raylib, notamment PNG, JPEG,
 BMP, TGA et QOI dans la configuration standard.
 
+### Sprites avancés
+
+`Texture.drawPro` dessine une région source dans un rectangle destination avec
+une origine et une rotation. Une largeur ou hauteur source négative retourne le
+sprite. `Texture.setFilter` sélectionne notamment le filtrage `Point` pour le
+pixel art ou `Bilinear` pour un redimensionnement lissé.
+
+Une spritesheet régulière peut être animée avec `SpriteAnimation` :
+
+```janus
+sprite.setFilter(TextureFilter.Point)
+val animation : SpriteAnimation = new SpriteAnimation(
+    sprite, 16, 16, 4, 8, 0
+)
+defer delete animation
+
+animation.draw(position, float(3.0), float(0.0), false, false, tint)
+animation.advance()
+```
+
+Les paramètres indiquent la texture, la largeur et hauteur d'une image, le
+nombre de colonnes, le nombre total d'images et l'image initiale. L'animation
+référence la texture sans en prendre possession : elle doit donc être détruite
+avant la texture.
+
 ## Audio
 
 Initialisez le périphérique audio une fois, puis chargez des effets courts avec
