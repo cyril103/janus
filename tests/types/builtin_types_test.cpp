@@ -23,6 +23,14 @@ void expect(bool condition, std::string_view message) {
 int main() {
   llvm::LLVMContext context;
 
+  const janus::Type &uint_type = janus::Type::uint_type();
+  expect(uint_type.name() == "uint", "uint has the expected name");
+  expect(uint_type.bit_width() == 32, "uint is 32 bits wide");
+  expect(uint_type.is_integer(), "uint is an integer");
+  expect(!uint_type.is_signed(), "uint is unsigned");
+  expect(janus::backend::llvm::lower_type(uint_type, context)->isIntegerTy(32),
+         "uint lowers to LLVM i32");
+
   const janus::Type &double_type = janus::Type::double_type();
   expect(double_type.name() == "double", "double has the expected name");
   expect(double_type.bit_width() == 64, "double is 64 bits wide");

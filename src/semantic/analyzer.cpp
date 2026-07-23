@@ -20,6 +20,8 @@ constexpr std::size_t enum_arity_marker =
 const janus::Type *builtin_type(std::string_view name) {
   if (name == "int")
     return &janus::Type::int_type();
+  if (name == "uint")
+    return &janus::Type::uint_type();
   if (name == "double")
     return &janus::Type::double_type();
   if (name == "byte")
@@ -169,6 +171,7 @@ bool is_scalar_cast_type(const janus::semantic::SemanticType &type) {
     return false;
   switch (type.concrete->kind()) {
   case janus::TypeKind::Int:
+  case janus::TypeKind::UInt:
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
@@ -188,6 +191,7 @@ bool is_integer_cast_type(const janus::semantic::SemanticType &type) {
     return false;
   switch (type.concrete->kind()) {
   case janus::TypeKind::Int:
+  case janus::TypeKind::UInt:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
   case janus::TypeKind::Char:
@@ -207,6 +211,7 @@ bool is_c_abi_type(const janus::semantic::SemanticType &type,
     return false;
   switch (type.concrete->kind()) {
   case janus::TypeKind::Int:
+  case janus::TypeKind::UInt:
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
@@ -233,6 +238,7 @@ bool is_c_variadic_type(const janus::semantic::SemanticType &type) {
     return false;
   switch (type.concrete->kind()) {
   case janus::TypeKind::Int:
+  case janus::TypeKind::UInt:
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
@@ -1182,6 +1188,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                     expression_type(*node.arguments.front());
                 if (!argument.is_concrete() ||
                     (argument.concrete->kind() != TypeKind::Int &&
+                     argument.concrete->kind() != TypeKind::UInt &&
                      argument.concrete->kind() != TypeKind::Double &&
                      argument.concrete->kind() != TypeKind::Byte &&
                      argument.concrete->kind() != TypeKind::UByte &&

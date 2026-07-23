@@ -54,6 +54,10 @@ def main() : int {
     val unsignedSecond : ubyte = 10
     val unsignedWrap : ubyte = unsignedFirst + unsignedSecond
     val unsignedOrder : bool = unsignedFirst > unsignedSecond
+    val uintValue : uint = uint(4000000000.0)
+    val uintDivisor : uint = 2
+    val uintQuotient : uint = uintValue / uintDivisor
+    val uintOrder : bool = uintValue > uintDivisor
     val onePointFive : double = 1.5
     val twoPointZero : double = 2.0
     val floating : double = onePointFive * twoPointZero + 1.0
@@ -105,6 +109,10 @@ def main() : int {
          "byte arithmetic keeps its 8-bit representation");
   expect(ir.find("icmp ugt i8") != std::string::npos,
          "ubyte comparison is unsigned");
+  expect(ir.find("udiv i32") != std::string::npos,
+         "uint division is unsigned");
+  expect(ir.find("icmp ugt i32") != std::string::npos,
+         "uint comparison is unsigned");
   expect(ir.find("fmul double") != std::string::npos,
          "double multiplication is emitted");
   expect(ir.find("icmp sge i32") != std::string::npos,

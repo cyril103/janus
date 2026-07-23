@@ -11,6 +11,7 @@ namespace janus::backend::llvm {
                          ::llvm::LLVMContext &context) noexcept {
   switch (type.kind()) {
   case TypeKind::Int:
+  case TypeKind::UInt:
     return ::llvm::Type::getInt32Ty(context);
   case TypeKind::Double:
     return ::llvm::Type::getDoubleTy(context);

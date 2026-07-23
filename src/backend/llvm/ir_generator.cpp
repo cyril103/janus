@@ -31,6 +31,8 @@ namespace {
 const janus::Type *builtin_type(std::string_view name) {
   if (name == "int")
     return &janus::Type::int_type();
+  if (name == "uint")
+    return &janus::Type::uint_type();
   if (name == "double")
     return &janus::Type::double_type();
   if (name == "byte")
@@ -1398,6 +1400,14 @@ private:
               case janus::TypeKind::Int: {
                 ::llvm::FunctionCallee function = module_->getOrInsertFunction(
                     "janus_print_int",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt32Ty()}, false));
+                result = builder.CreateCall(function, {argument});
+                break;
+              }
+              case janus::TypeKind::UInt: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_uint",
                     ::llvm::FunctionType::get(
                         builder.getVoidTy(), {builder.getInt32Ty()}, false));
                 result = builder.CreateCall(function, {argument});

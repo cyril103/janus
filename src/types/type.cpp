@@ -7,6 +7,11 @@ const Type &Type::int_type() {
   return type;
 }
 
+const Type &Type::uint_type() {
+  static const Type type{TypeKind::UInt, "uint", 32, false};
+  return type;
+}
+
 const Type &Type::double_type() {
   static const Type type{TypeKind::Double, "double", 64, false};
   return type;
@@ -74,7 +79,8 @@ std::string_view Type::name() const noexcept { return name_; }
 std::uint32_t Type::bit_width() const noexcept { return bit_width_; }
 
 bool Type::is_integer() const noexcept {
-  return kind_ == TypeKind::Int || kind_ == TypeKind::Byte ||
+  return kind_ == TypeKind::Int || kind_ == TypeKind::UInt ||
+         kind_ == TypeKind::Byte ||
          kind_ == TypeKind::UByte ||
          kind_ == TypeKind::USize;
 }

@@ -8,6 +8,7 @@ namespace janus {
 
 enum class TypeKind {
   Int,
+  UInt,
   Double,
   Byte,
   UByte,
@@ -25,6 +26,7 @@ enum class TypeKind {
 class Type final {
 public:
   [[nodiscard]] static const Type &int_type();
+  [[nodiscard]] static const Type &uint_type();
   [[nodiscard]] static const Type &double_type();
   [[nodiscard]] static const Type &byte_type();
   [[nodiscard]] static const Type &ubyte_type();
