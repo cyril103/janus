@@ -25,6 +25,22 @@ janus build fichier.janus -o programme
 Les options `--emit llvm-ir` et `--emit object` arrêtent la compilation après
 la production de l'IR LLVM ou du fichier objet.
 
+### Aide, erreurs et codes de sortie
+
+`janus --help` affiche l'aide générale. Les commandes d'exécution disposent
+aussi d'une aide ciblée : `janus check --help`, `janus build --help`,
+`janus run --help` et `janus test --help`. L'aide est écrite sur la sortie
+standard, renvoie le code `0` et ne recherche ni projet ni chaîne d'outils.
+
+Pour `check`, `build`, `run` et `test`, une erreur d'invocation (option
+inconnue, argument manquant ou combinaison incompatible) renvoie le code `2`,
+affiche sur la sortie d'erreur un diagnostic qualifié par la commande puis
+uniquement son usage. Une erreur opérationnelle
+(compilation, manifeste, dépendance ou édition de liens) renvoie le code `1`
+sans ajouter d'usage. `janus run` transmet le code de sortie du programme
+exécuté. Les diagnostics de compilation utilisent la forme
+`chemin:ligne:colonne: error: message`, y compris pour `janus test`.
+
 ## Diagnostics optionnels
 
 `janus check`, `janus build` et `janus run` acceptent

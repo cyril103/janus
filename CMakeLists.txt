@@ -470,6 +470,13 @@ if(BUILD_TESTING)
                 -DJANUS=$<TARGET_FILE:janus>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_project_creation.cmake"
     )
+    add_test(
+        NAME cli.execution_contract
+        COMMAND "${CMAKE_COMMAND}"
+                -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                -DJANUS=$<TARGET_FILE:janus>
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_cli_execution_contract.cmake"
+    )
 
     add_executable(int_type_test
         tests/types/int_type_test.cpp
