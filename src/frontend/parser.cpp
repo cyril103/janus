@@ -181,6 +181,18 @@ ast::Program Parser::parse_program() {
   }
 
   while (current_.kind != TokenKind::End) {
+    bool is_private = false;
+    if (current_.kind == TokenKind::Private) {
+      is_private = true;
+      advance();
+    }
+    if (is_private && current_.kind != TokenKind::Val &&
+        current_.kind != TokenKind::Var)
+      throw CompileError{
+          current_.location,
+          "expected top-level 'val' or 'var' after 'private', found " +
+              std::string{token_name(current_.kind)}};
+
     if (current_.kind == TokenKind::Trait)
       program.traits.push_back(parse_trait_declaration());
     else if (current_.kind == TokenKind::Enum)
@@ -188,15 +200,15 @@ ast::Program Parser::parse_program() {
     else if (current_.kind == TokenKind::Class ||
              current_.kind == TokenKind::Struct)
       program.classes.push_back(parse_class_declaration());
-    else if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var)
-      throw CompileError{
-          current_.location,
-          "top-level val/var declarations are not supported; found " +
-              std::string{token_name(current_.kind)} +
-              "; move the declaration into a function, or expose it through a "
-              "function."};
-    else
+    else if (current_.kind == TokenKind::Val ||
+             current_.kind == TokenKind::Var) {
+      ast::ValueDeclaration declaration = parse_variable_declaration();
+      declaration.is_private = is_private;
+      program.globals.push_back(
+          ast::GlobalDeclaration{std::move(declaration), program.module_name});
+    } else {
       program.functions.push_back(parse_function_declaration());
+    }
   }
 
   return program;

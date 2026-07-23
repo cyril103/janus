@@ -187,6 +187,11 @@ struct ValueDeclaration {
   bool is_private{};
 };
 
+struct GlobalDeclaration {
+  ValueDeclaration declaration;
+  std::optional<std::string> module_name;
+};
+
 struct AssignmentStatement {
   std::string object;
   std::string name;
@@ -324,6 +329,7 @@ struct ClassDeclaration {
 struct Program {
   std::optional<std::string> module_name;
   std::vector<std::string> imports;
+  std::vector<GlobalDeclaration> globals;
   std::vector<TraitDeclaration> traits;
   std::vector<EnumDeclaration> enums;
   std::vector<ClassDeclaration> classes;

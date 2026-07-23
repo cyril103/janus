@@ -1,7 +1,5 @@
-#include "janus/diagnostics/compile_error.hpp"
 #include "janus/frontend/parser.hpp"
 
-#include <cstdint>
 #include <iostream>
 #include <string_view>
 
@@ -16,53 +14,41 @@ void expect(bool condition, std::string_view message) {
   }
 }
 
-void expect_top_level_declaration_error(std::string_view source,
-                                        std::uint32_t expected_line,
-                                        std::uint32_t expected_column,
-                                        std::string_view keyword) {
-  try {
-    janus::frontend::Parser parser{source};
-    static_cast<void>(parser.parse_program());
-    expect(false, "top-level declaration must fail during parsing");
-  } catch (const janus::CompileError &error) {
-    const std::string_view message{error.what()};
-    expect(message.find("top-level val/var declarations are not supported") !=
-               std::string_view::npos,
-           "error explains that top-level val/var is unsupported");
-    expect(message.find("move the declaration into a function") !=
-               std::string_view::npos,
-           "error recommends moving the declaration into a function");
-    expect(message.find("expose it through a function") !=
-               std::string_view::npos,
-           "error recommends exposing module data through a function");
-    expect(error.location().line == expected_line,
-           "error points at the declaration line");
-    expect(error.location().column == expected_column,
-           "error points at the declaration column");
-    expect(message.find(keyword) != std::string_view::npos,
-           "error includes the offending keyword");
-  }
-}
-
 } // namespace
 
 int main() {
-  expect_top_level_declaration_error("val answer : int = 42\n", 1, 1, "val");
-  expect_top_level_declaration_error(
-      "module sample\nimport std.array\nvar answer : int = 42\n", 3, 1,
-      "var");
+  janus::frontend::Parser parser{R"(
+module sample
+import std.array
+val answer : int = 42
+var requests : usize = 0
+var pending : int
+private val secret : bool = true
+def main() : int { return answer }
+)"};
+  const janus::ast::Program program = parser.parse_program();
 
-  try {
-    janus::frontend::Parser parser{"return 0\n"};
-    static_cast<void>(parser.parse_program());
-    expect(false, "other invalid top-level tokens must still fail");
-  } catch (const janus::CompileError &error) {
-    expect(std::string_view{error.what()}.find("expected 'def', found "
-                                               "'return'") !=
-               std::string_view::npos,
-           "non val/var top-level diagnostics keep the generic parser error");
-    expect(error.location().line == 1, "generic error line is unchanged");
-    expect(error.location().column == 1, "generic error column is unchanged");
+  expect(program.globals.size() == 4, "four globals are parsed");
+  if (program.globals.size() == 4) {
+    const auto &answer = program.globals[0];
+    expect(answer.declaration.name == "answer", "global val keeps its name");
+    expect(!answer.declaration.is_mutable, "global val is immutable");
+    expect(answer.declaration.initializer.has_value(),
+           "global val keeps its initializer");
+    expect(answer.module_name == "sample",
+           "global val keeps its declaring module");
+
+    const auto &requests = program.globals[1];
+    expect(requests.declaration.is_mutable, "global var is mutable");
+    expect(requests.declaration.initializer.has_value(),
+           "initialized global var keeps its initializer");
+
+    const auto &pending = program.globals[2];
+    expect(!pending.declaration.initializer.has_value(),
+           "parser represents an uninitialized global var");
+
+    const auto &secret = program.globals[3];
+    expect(secret.declaration.is_private, "private global keeps its visibility");
   }
 
   if (failures != 0) {
@@ -70,7 +56,6 @@ int main() {
     return 1;
   }
 
-  std::cout << "top-level val/var declarations produce actionable parser "
-               "diagnostics\n";
+  std::cout << "top-level val/var declarations are represented in the AST\n";
   return 0;
 }
