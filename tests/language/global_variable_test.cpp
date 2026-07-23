@@ -254,8 +254,11 @@ def main() : int { return derived }
   janus::frontend::Parser aggregate_parser{R"(
 enum Direction { North, East }
 struct Point(val x : int, val y : int) {}
+enum MaybePoint { Some(Point), None }
 val direction : Direction = Direction.East
 val origin : Point = new Point(3, 4)
+val copied : Point = origin
+val wrapped : MaybePoint = MaybePoint.Some(new Point(5, 6))
 def main() : int {
     if direction == Direction.East { return origin.x + origin.y }
     return 0
@@ -273,13 +276,20 @@ def main() : int {
   aggregate_module->print(aggregate_output, nullptr);
   aggregate_output.flush();
   expect(aggregate_ir.find(
-             "@__janus_global_entry__direction = global %enum.Direction") !=
+             "@__janus_global_entry__direction = constant %enum.Direction") !=
              std::string::npos,
-         "enum globals use native aggregate storage");
+         "constant enum globals use native static storage");
   expect(aggregate_ir.find(
-             "@__janus_global_entry__origin = global %struct.Point") !=
+             "@__janus_global_entry__origin = constant %struct.Point") !=
              std::string::npos,
-         "struct globals use inline native storage");
+         "constant struct globals use inline static storage");
+  expect(aggregate_ir.find("define internal void @__janus_init_globals") ==
+             std::string::npos,
+         "constant aggregate globals require no runtime initializer");
+  expect(aggregate_ir.find(
+             "@__janus_global_entry__wrapped = constant %enum.MaybePoint") !=
+             std::string::npos,
+         "constant enum payloads may contain constant structs");
   janus::frontend::Parser owning_aggregate_parser{R"(
 class Item(val value : int) { destructor {} }
 struct Box(val item : Item) {}

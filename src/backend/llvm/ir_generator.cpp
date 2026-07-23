@@ -126,7 +126,7 @@ public:
         global_modules_.insert(*global.module_name);
     }
     initialization_plan_ =
-        janus::constant::plan_initialization(program.globals);
+        janus::constant::plan_initialization(program);
     for (const janus::ast::GlobalDeclaration *global :
          initialization_plan_.constants)
       constant_global_keys_.insert(
@@ -321,9 +321,65 @@ private:
                           dependency_key + "'"};
       return evaluate_global_constant(target);
     };
+    const janus::constant::ConstructorResolver constructor_resolver =
+        [&](std::string_view name,
+            const std::optional<std::string> &enum_case,
+            const std::vector<janus::ast::TypeReference> &type_references,
+            janus::SourceLocation)
+        -> std::optional<janus::constant::ConstructorShape> {
+      std::vector<const janus::Type *> type_arguments;
+      for (const janus::ast::TypeReference &argument : type_references)
+        type_arguments.push_back(&resolve(argument, {}));
+      if (!enum_case.has_value()) {
+        const auto declaration = classes_.find(std::string{name});
+        if (declaration == classes_.end() ||
+            !declaration->second->is_value_type)
+          return std::nullopt;
+        const janus::Type &aggregate_type =
+            ensure_class(name, type_arguments);
+        const ClassSpecialization &specialization =
+            class_specializations_.at(std::string{aggregate_type.name()});
+        janus::constant::ConstructorShape shape{
+            &aggregate_type, std::nullopt, {}};
+        for (std::size_t index = 0;
+             index < specialization.declaration->constructor_fields.size();
+             ++index)
+          shape.fields.emplace_back(
+              index,
+              &resolve(specialization.declaration->constructor_fields[index]
+                           .declared_type,
+                       specialization.substitutions));
+        return shape;
+      }
+      if (!enums_.contains(std::string{name}))
+        return std::nullopt;
+      const janus::Type &aggregate_type = ensure_enum(name, type_arguments);
+      const EnumSpecialization &specialization =
+          enum_specializations_.at(std::string{aggregate_type.name()});
+      const auto matched = std::find_if(
+          specialization.declaration->cases.begin(),
+          specialization.declaration->cases.end(),
+          [&](const janus::ast::EnumDeclaration::Case &candidate) {
+            return candidate.name == *enum_case;
+          });
+      if (matched == specialization.declaration->cases.end())
+        return std::nullopt;
+      janus::constant::ConstructorShape shape{
+          &aggregate_type, matched->value, {}};
+      const unsigned start =
+          enum_case_payload_start(aggregate_type.name(), *enum_case);
+      for (std::size_t index = 0; index < matched->payload_types.size();
+           ++index)
+        shape.fields.emplace_back(
+            start + index,
+            &resolve(matched->payload_types[index],
+                     specialization.substitutions));
+      return shape;
+    };
     const janus::Type &type = resolve(global.declaration.declared_type, {});
     janus::constant::Value value = janus::constant::evaluate(
-        *global.declaration.initializer, &type, resolver);
+        *global.declaration.initializer, &type, resolver,
+        constructor_resolver);
     constant_states_[key] = 2;
     auto [iterator, inserted] =
         constant_values_.emplace(key, std::move(value));
@@ -347,6 +403,24 @@ private:
       return ::llvm::ConstantInt::get(
           llvm_type,
           static_cast<std::uint32_t>(std::get<char32_t>(value.data)), false);
+    if (type.kind() == janus::TypeKind::Struct ||
+        type.kind() == janus::TypeKind::Enum) {
+      const auto &aggregate =
+          *std::get<std::shared_ptr<janus::constant::AggregateValue>>(
+              value.data);
+      auto *struct_type = ::llvm::cast<::llvm::StructType>(llvm_type);
+      std::vector<::llvm::Constant *> fields;
+      fields.reserve(struct_type->getNumElements());
+      for (unsigned index = 0; index < struct_type->getNumElements(); ++index)
+        fields.push_back(
+            ::llvm::Constant::getNullValue(struct_type->getElementType(index)));
+      if (aggregate.tag.has_value())
+        fields[0] = ::llvm::ConstantInt::get(
+            ::llvm::Type::getInt32Ty(context_), *aggregate.tag, true);
+      for (const auto &[index, field] : aggregate.fields)
+        fields[index] = emit_static_initializer(field, *field.type);
+      return ::llvm::ConstantStruct::get(struct_type, fields);
+    }
 
     const std::string &literal = std::get<std::string>(value.data);
     ::llvm::Constant *data =

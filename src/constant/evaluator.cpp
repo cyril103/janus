@@ -2,6 +2,7 @@
 
 #include "janus/diagnostics/compile_error.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <type_traits>
@@ -106,7 +107,8 @@ std::string global_key(const std::optional<std::string> &module,
 
 bool is_plan_constant_expression(
     const janus::ast::Expression &expression,
-    const std::unordered_set<std::string> &modules) {
+    const std::unordered_set<std::string> &modules,
+    const std::unordered_set<std::string> &aggregate_types) {
   return std::visit(
       [&](const auto &node) {
         using Node = std::decay_t<decltype(node)>;
@@ -122,14 +124,39 @@ bool is_plan_constant_expression(
                                Node,
                                janus::ast::MemberAccessExpression>) {
           const auto module = qualified_name(*node.object);
-          return module.has_value() && modules.contains(*module);
+          return module.has_value() &&
+                 (modules.contains(*module) ||
+                  aggregate_types.contains(*module));
+        } else if constexpr (std::is_same_v<
+                                 Node, janus::ast::NewExpression>) {
+          return aggregate_types.contains(node.class_name) &&
+                 std::all_of(
+                     node.arguments.begin(), node.arguments.end(),
+                     [&](const auto &argument) {
+                       return is_plan_constant_expression(
+                           *argument, modules, aggregate_types);
+                     });
+        } else if constexpr (std::is_same_v<
+                                 Node, janus::ast::MethodCallExpression>) {
+          const auto type_name = qualified_name(*node.object);
+          return type_name.has_value() &&
+                 aggregate_types.contains(*type_name) &&
+                 std::all_of(
+                     node.arguments.begin(), node.arguments.end(),
+                     [&](const auto &argument) {
+                       return is_plan_constant_expression(
+                           *argument, modules, aggregate_types);
+                     });
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::UnaryExpression>)
-          return is_plan_constant_expression(*node.operand, modules);
+          return is_plan_constant_expression(*node.operand, modules,
+                                             aggregate_types);
         else if constexpr (std::is_same_v<Node,
                                             janus::ast::BinaryExpression>)
-          return is_plan_constant_expression(*node.left, modules) &&
-                 is_plan_constant_expression(*node.right, modules);
+          return is_plan_constant_expression(*node.left, modules,
+                                             aggregate_types) &&
+                 is_plan_constant_expression(*node.right, modules,
+                                             aggregate_types);
         else
           return false;
       },
@@ -177,24 +204,30 @@ Value integer_value(__int128 value, const Type &type,
 
 Value evaluate_impl(const janus::ast::Expression &expression,
                     const Type *expected_type,
-                    const janus::constant::Resolver &resolve);
+                    const janus::constant::Resolver &resolve,
+                    const janus::constant::ConstructorResolver
+                        &resolve_constructor);
 
 Value evaluate_binary(const janus::ast::BinaryExpression &binary,
                       const Type *expected_type,
-                      const janus::constant::Resolver &resolve) {
+                      const janus::constant::Resolver &resolve,
+                      const janus::constant::ConstructorResolver
+                          &resolve_constructor) {
   using janus::ast::BinaryOperator;
   const bool logical = binary.operation == BinaryOperator::LogicalAnd ||
                        binary.operation == BinaryOperator::LogicalOr;
   if (logical) {
     const Value left =
-        evaluate_impl(*binary.left, &Type::bool_type(), resolve);
+        evaluate_impl(*binary.left, &Type::bool_type(), resolve,
+                      resolve_constructor);
     const bool left_value = std::get<bool>(left.data);
     if (binary.operation == BinaryOperator::LogicalAnd && !left_value)
       return Value{&Type::bool_type(), false};
     if (binary.operation == BinaryOperator::LogicalOr && left_value)
       return Value{&Type::bool_type(), true};
     const Value right =
-        evaluate_impl(*binary.right, &Type::bool_type(), resolve);
+        evaluate_impl(*binary.right, &Type::bool_type(), resolve,
+                      resolve_constructor);
     return Value{&Type::bool_type(), std::get<bool>(right.data)};
   }
 
@@ -206,8 +239,10 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
       binary.operation == BinaryOperator::Equal ||
       binary.operation == BinaryOperator::NotEqual;
   const Type *operand_hint = comparison ? nullptr : expected_type;
-  const Value left = evaluate_impl(*binary.left, operand_hint, resolve);
-  const Value right = evaluate_impl(*binary.right, left.type, resolve);
+  const Value left = evaluate_impl(*binary.left, operand_hint, resolve,
+                                   resolve_constructor);
+  const Value right = evaluate_impl(*binary.right, left.type, resolve,
+                                    resolve_constructor);
   if (!same_type(left, right))
     throw janus::CompileError{
         binary.location,
@@ -393,7 +428,9 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
 
 Value evaluate_impl(const janus::ast::Expression &expression,
                     const Type *expected_type,
-                    const janus::constant::Resolver &resolve) {
+                    const janus::constant::Resolver &resolve,
+                    const janus::constant::ConstructorResolver
+                        &resolve_constructor) {
   return std::visit(
       [&](const auto &node) -> Value {
         using Node = std::decay_t<decltype(node)>;
@@ -431,21 +468,82 @@ Value evaluate_impl(const janus::ast::Expression &expression,
         } else if constexpr (std::is_same_v<
                                  Node, janus::ast::MemberAccessExpression>) {
           const auto module = qualified_name(*node.object);
+          if (module.has_value() && resolve_constructor) {
+            if (auto shape = resolve_constructor(
+                    *module, std::optional<std::string>{node.member}, {},
+                    node.location)) {
+              auto aggregate = std::make_shared<
+                  janus::constant::AggregateValue>();
+              aggregate->tag = shape->tag;
+              return Value{shape->type, std::move(aggregate)};
+            }
+          }
           if (module.has_value())
             if (auto value = resolve(module, node.member, node.location))
               return *value;
           throw janus::CompileError{
               node.location,
               "global initializer references non-constant qualified value"};
+        } else if constexpr (std::is_same_v<
+                                 Node, janus::ast::NewExpression>) {
+          if (!resolve_constructor)
+            throw janus::CompileError{
+                node.location,
+                "aggregate constructor is not available in constant context"};
+          const auto shape =
+              resolve_constructor(node.class_name, std::nullopt,
+                                  node.type_arguments, node.location);
+          if (!shape.has_value() ||
+              shape->fields.size() != node.arguments.size())
+            throw janus::CompileError{
+                node.location,
+                "global initializer is not a constant struct constructor"};
+          auto aggregate =
+              std::make_shared<janus::constant::AggregateValue>();
+          aggregate->tag = shape->tag;
+          for (std::size_t index = 0; index < node.arguments.size(); ++index)
+            aggregate->fields.emplace_back(
+                shape->fields[index].first,
+                evaluate_impl(*node.arguments[index],
+                              shape->fields[index].second, resolve,
+                              resolve_constructor));
+          return Value{shape->type, std::move(aggregate)};
+        } else if constexpr (std::is_same_v<
+                                 Node, janus::ast::MethodCallExpression>) {
+          const auto type_name = qualified_name(*node.object);
+          if (!type_name.has_value() || !resolve_constructor)
+            throw janus::CompileError{
+                node.location,
+                "global initializer is not a constant enum constructor"};
+          const auto shape = resolve_constructor(
+              *type_name, std::optional<std::string>{node.method},
+              node.type_arguments, node.location);
+          if (!shape.has_value() ||
+              shape->fields.size() != node.arguments.size())
+            throw janus::CompileError{
+                node.location,
+                "global initializer is not a constant enum constructor"};
+          auto aggregate =
+              std::make_shared<janus::constant::AggregateValue>();
+          aggregate->tag = shape->tag;
+          for (std::size_t index = 0; index < node.arguments.size(); ++index)
+            aggregate->fields.emplace_back(
+                shape->fields[index].first,
+                evaluate_impl(*node.arguments[index],
+                              shape->fields[index].second, resolve,
+                              resolve_constructor));
+          return Value{shape->type, std::move(aggregate)};
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::UnaryExpression>) {
           if (node.operation == janus::ast::UnaryOperator::LogicalNot) {
             const Value operand =
-                evaluate_impl(*node.operand, &Type::bool_type(), resolve);
+                evaluate_impl(*node.operand, &Type::bool_type(), resolve,
+                              resolve_constructor);
             return Value{&Type::bool_type(), !std::get<bool>(operand.data)};
           }
           const Value operand =
-              evaluate_impl(*node.operand, expected_type, resolve);
+              evaluate_impl(*node.operand, expected_type, resolve,
+                            resolve_constructor);
           if (operand.type->is_floating_point())
             return Value{operand.type, -std::get<double>(operand.data)};
           if (!operand.type->is_integer() || !operand.type->is_signed())
@@ -456,7 +554,8 @@ Value evaluate_impl(const janus::ast::Expression &expression,
                                *operand.type, node.location);
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::BinaryExpression>) {
-          return evaluate_binary(node, expected_type, resolve);
+          return evaluate_binary(node, expected_type, resolve,
+                                 resolve_constructor);
         } else {
           throw janus::CompileError{
               node.location,
@@ -495,10 +594,28 @@ bool is_constant_expression(const ast::Expression &expression) {
 }
 
 InitializationPlan
-plan_initialization(const std::vector<ast::GlobalDeclaration> &globals) {
+plan_initialization(const ast::Program &program) {
+  const std::vector<ast::GlobalDeclaration> &globals = program.globals;
   std::unordered_map<std::string, const ast::GlobalDeclaration *> by_key;
   std::unordered_map<std::string, std::string> public_by_name;
   std::unordered_set<std::string> modules;
+  std::unordered_set<std::string> aggregate_types;
+  std::unordered_map<std::string, std::size_t> aggregate_name_counts;
+  for (const ast::EnumDeclaration &declaration : program.enums) {
+    aggregate_types.insert(
+        global_key(declaration.module_name, declaration.name));
+    ++aggregate_name_counts[declaration.name];
+  }
+  for (const ast::ClassDeclaration &declaration : program.classes) {
+    if (!declaration.is_value_type)
+      continue;
+    aggregate_types.insert(
+        global_key(declaration.module_name, declaration.name));
+    ++aggregate_name_counts[declaration.name];
+  }
+  for (const auto &[name, count] : aggregate_name_counts)
+    if (count == 1)
+      aggregate_types.insert(name);
   for (const ast::GlobalDeclaration &global : globals) {
     const std::string key =
         global_key(global.module_name, global.declaration.name);
@@ -551,8 +668,8 @@ plan_initialization(const std::vector<ast::GlobalDeclaration> &globals) {
           "cyclic global constant dependency involving '" + key + "'"};
     if (constant_states[key] == 2)
       return constant_results.at(key);
-    if (!is_plan_constant_expression(*global.declaration.initializer,
-                                     modules)) {
+    if (!is_plan_constant_expression(*global.declaration.initializer, modules,
+                                     aggregate_types)) {
       constant_states[key] = 2;
       constant_results.emplace(key, false);
       return false;
@@ -609,8 +726,10 @@ plan_initialization(const std::vector<ast::GlobalDeclaration> &globals) {
 }
 
 Value evaluate(const ast::Expression &expression, const Type *expected_type,
-               const Resolver &resolve) {
-  Value result = evaluate_impl(expression, expected_type, resolve);
+               const Resolver &resolve,
+               const ConstructorResolver &resolve_constructor) {
+  Value result =
+      evaluate_impl(expression, expected_type, resolve, resolve_constructor);
   if (expected_type != nullptr && result.type->kind() != expected_type->kind())
     throw CompileError{
         std::visit([](const auto &node) { return node.location; },

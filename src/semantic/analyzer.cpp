@@ -750,7 +750,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::unordered_map<std::string, ConstantState> constant_states;
   std::unordered_map<std::string, constant::Value> constant_values;
   const constant::InitializationPlan initialization_plan =
-      constant::plan_initialization(program.globals);
+      constant::plan_initialization(program);
   std::function<const constant::Value &(const std::string &)> evaluate_global;
   evaluate_global = [&](const std::string &key) -> const constant::Value & {
     const ConstantState state = constant_states[key];
@@ -807,9 +807,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     return iterator->second;
   };
   for (const ast::GlobalDeclaration *global : initialization_plan.constants)
-    static_cast<void>(
-        evaluate_global(global_key(global->module_name,
-                                   global->declaration.name)));
+    if (globals
+            .at(global_key(global->module_name, global->declaration.name))
+            .symbol.type.concrete != nullptr)
+      static_cast<void>(
+          evaluate_global(global_key(global->module_name,
+                                     global->declaration.name)));
 
   struct TraitInstance {
     const ast::TraitDeclaration *declaration;
