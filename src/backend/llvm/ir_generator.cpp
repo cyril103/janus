@@ -454,9 +454,7 @@ private:
         [&](const janus::ast::GlobalDeclaration *global) {
           const janus::Type &type =
               resolve(global->declaration.declared_type, {});
-          return type.kind() == janus::TypeKind::Class ||
-                 type.kind() == janus::TypeKind::Pointer ||
-                 type.kind() == janus::TypeKind::Function;
+          return owns_value(type);
         });
     if (!has_owned)
       return;
@@ -484,17 +482,11 @@ private:
     builder.SetInsertPoint(cleanup);
     builder.CreateStore(::llvm::ConstantInt::getTrue(context_),
                         global_finalization_finished_);
-    ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
-        "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
-                                           {builder.getPtrTy()}, false));
-
     for (std::size_t index = initialization_plan_.dynamic.size(); index-- > 0;) {
       const janus::ast::GlobalDeclaration &global =
           *initialization_plan_.dynamic[index];
       const janus::Type &type = resolve(global.declaration.declared_type, {});
-      if (type.kind() != janus::TypeKind::Class &&
-          type.kind() != janus::TypeKind::Pointer &&
-          type.kind() != janus::TypeKind::Function)
+      if (!owns_value(type))
         continue;
       auto *release = ::llvm::BasicBlock::Create(
           context_, "release." + global.declaration.name, global_finalizer_);
@@ -514,13 +506,7 @@ private:
       ::llvm::Value *value = builder.CreateLoad(
           lower_type(type, context_), storage.storage,
           global.declaration.name + ".global.cleanup");
-      ::llvm::Value *pointer = value;
-      if (type.kind() == janus::TypeKind::Class)
-        builder.CreateCall(emit_destructor(std::string{type.name()}), {value});
-      else if (type.kind() == janus::TypeKind::Function)
-        pointer =
-            builder.CreateExtractValue(value, 1, "global.lambda.environment");
-      builder.CreateCall(free_function, {pointer});
+      emit_owned_value_cleanup(value, type, builder);
       builder.CreateBr(next);
       builder.SetInsertPoint(next);
     }
@@ -710,6 +696,124 @@ private:
           lower_type(resolve(field.declared_type, substitutions), context_));
     llvm_class_type->setBody(fields);
     return type_iterator->second;
+  }
+
+  bool owns_value(const janus::Type &type) {
+    if (type.kind() == janus::TypeKind::Class ||
+        type.kind() == janus::TypeKind::Pointer ||
+        type.kind() == janus::TypeKind::Function)
+      return true;
+    if (type.kind() == janus::TypeKind::Struct) {
+      const ClassSpecialization &specialization =
+          class_specializations_.at(std::string{type.name()});
+      for (const janus::ast::ValueDeclaration &field :
+           specialization.declaration->constructor_fields)
+        if (owns_value(resolve(field.declared_type,
+                               specialization.substitutions)))
+          return true;
+      return false;
+    }
+    if (type.kind() == janus::TypeKind::Enum) {
+      const EnumSpecialization &specialization =
+          enum_specializations_.at(std::string{type.name()});
+      for (const janus::ast::EnumDeclaration::Case &enum_case :
+           specialization.declaration->cases)
+        for (const janus::ast::TypeReference &payload :
+             enum_case.payload_types)
+          if (owns_value(resolve(payload, specialization.substitutions)))
+            return true;
+    }
+    return false;
+  }
+
+  void emit_owned_value_cleanup(::llvm::Value *value, const janus::Type &type,
+                                ::llvm::IRBuilder<> &builder) {
+    if (!owns_value(type))
+      return;
+    ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
+        "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
+                                                {builder.getPtrTy()}, false));
+    if (type.kind() == janus::TypeKind::Class) {
+      builder.CreateCall(emit_destructor(std::string{type.name()}), {value});
+      builder.CreateCall(free_function, {value});
+      return;
+    }
+    if (type.kind() == janus::TypeKind::Pointer) {
+      builder.CreateCall(free_function, {value});
+      return;
+    }
+    if (type.kind() == janus::TypeKind::Function) {
+      ::llvm::Value *environment =
+          builder.CreateExtractValue(value, 1, "aggregate.lambda.environment");
+      builder.CreateCall(free_function, {environment});
+      return;
+    }
+    if (type.kind() == janus::TypeKind::Struct) {
+      const ClassSpecialization &specialization =
+          class_specializations_.at(std::string{type.name()});
+      for (std::size_t index =
+               specialization.declaration->constructor_fields.size();
+           index-- > 0;) {
+        const janus::Type &field_type =
+            resolve(specialization.declaration->constructor_fields[index]
+                        .declared_type,
+                    specialization.substitutions);
+        if (owns_value(field_type))
+          emit_owned_value_cleanup(
+              builder.CreateExtractValue(value, index,
+                                         "aggregate.struct.field"),
+              field_type, builder);
+      }
+      return;
+    }
+
+    const EnumSpecialization &specialization =
+        enum_specializations_.at(std::string{type.name()});
+    ::llvm::Function *function = builder.GetInsertBlock()->getParent();
+    auto *done = ::llvm::BasicBlock::Create(
+        context_, "aggregate.enum.cleanup.done", function);
+    ::llvm::Value *tag =
+        builder.CreateExtractValue(value, 0, "aggregate.enum.tag");
+    unsigned payload_index = 1;
+    for (const janus::ast::EnumDeclaration::Case &enum_case :
+         specialization.declaration->cases) {
+      bool case_owns = false;
+      for (const janus::ast::TypeReference &payload : enum_case.payload_types)
+        case_owns =
+            case_owns ||
+            owns_value(resolve(payload, specialization.substitutions));
+      if (!case_owns) {
+        payload_index +=
+            static_cast<unsigned>(enum_case.payload_types.size());
+        continue;
+      }
+      auto *release = ::llvm::BasicBlock::Create(
+          context_, "aggregate.enum.release." + enum_case.name, function);
+      auto *next = ::llvm::BasicBlock::Create(
+          context_, "aggregate.enum.next." + enum_case.name, function);
+      builder.CreateCondBr(
+          builder.CreateICmpEQ(
+              tag, builder.getInt32(enum_case.value),
+              "aggregate.enum.is." + enum_case.name),
+          release, next);
+      builder.SetInsertPoint(release);
+      for (std::size_t index = enum_case.payload_types.size(); index-- > 0;) {
+        const janus::Type &payload_type =
+            resolve(enum_case.payload_types[index],
+                    specialization.substitutions);
+        if (owns_value(payload_type))
+          emit_owned_value_cleanup(
+              builder.CreateExtractValue(value, payload_index + index,
+                                         "aggregate.enum.payload"),
+              payload_type, builder);
+      }
+      builder.CreateBr(done);
+      builder.SetInsertPoint(next);
+      payload_index +=
+          static_cast<unsigned>(enum_case.payload_types.size());
+    }
+    builder.CreateBr(done);
+    builder.SetInsertPoint(done);
   }
 
   std::string mangle(const janus::ast::FunctionDeclaration &function,

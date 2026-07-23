@@ -280,12 +280,38 @@ def main() : int {
              "@__janus_global_entry__origin = global %struct.Point") !=
              std::string::npos,
          "struct globals use inline native storage");
+  janus::frontend::Parser owning_aggregate_parser{R"(
+class Item(val value : int) { destructor {} }
+struct Box(val item : Item) {}
+enum Holder { Some(Box), None }
+val boxed : Box = new Box(new Item(1))
+val held : Holder = Holder.Some(new Box(new Item(2)))
+def main() : int { return boxed.item.value }
+)"};
+  const janus::ast::Program owning_aggregate_program =
+      owning_aggregate_parser.parse_program();
+  static_cast<void>(analyzer.analyze(owning_aggregate_program));
+  llvm::LLVMContext owning_aggregate_context;
+  janus::backend::llvm::IrGenerator owning_aggregate_generator{
+      owning_aggregate_context};
+  const std::unique_ptr<llvm::Module> owning_aggregate_module =
+      owning_aggregate_generator.generate(owning_aggregate_program,
+                                          "owning_aggregate_globals");
+  std::string owning_aggregate_ir;
+  llvm::raw_string_ostream owning_aggregate_output{owning_aggregate_ir};
+  owning_aggregate_module->print(owning_aggregate_output, nullptr);
+  owning_aggregate_output.flush();
+  expect(owning_aggregate_ir.find("aggregate.struct.field") !=
+             std::string::npos &&
+             owning_aggregate_ir.find("aggregate.enum.payload") !=
+                 std::string::npos,
+         "owning struct and enum globals are finalized recursively");
   expect_compile_error(
-      "class Resource() {}\n"
-      "enum Holder { Some(Resource), None }\n"
-      "val resource : Holder = Holder.Some(new Resource())\n"
+      "class Item() {}\n"
+      "struct Box(val item : Item) {}\n"
+      "var boxed : Box = new Box(new Item())\n"
       "def main() : int { return 0 }",
-      "owning aggregate global value 'resource' is not supported yet");
+      "owning global value 'boxed' must be declared with 'val'");
 
   janus::frontend::Parser owned_parser{R"(
 class Resource(val value : int) {

@@ -731,16 +731,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       throw CompileError{
           declaration.location,
           "Unit cannot be used as a global value type"};
-    if ((type.is_enum() ||
-         (type.is_class() && classes.at(type.parameter)->is_value_type)) &&
-        aggregate_owns_value(type))
-      throw CompileError{
-          declaration.location,
-          "owning aggregate global value '" + declaration.name +
-              "' is not supported yet"};
-    const bool owns_value =
-        type.is_function() || type.is_pointer() ||
-        (type.is_class() && !classes.at(type.parameter)->is_value_type);
+    const bool owns_value = aggregate_owns_value(type);
     if (owns_value && declaration.is_mutable)
       throw CompileError{
           declaration.location,

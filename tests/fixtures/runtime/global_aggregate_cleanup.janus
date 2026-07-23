@@ -1,0 +1,15 @@
+class Item(val value : int) {
+    destructor {
+        println(value)
+    }
+}
+
+struct Box(val item : Item) {}
+enum Holder { Some(Box), None }
+
+val boxed : Box = new Box(new Item(1))
+val held : Holder = Holder.Some(new Box(new Item(2)))
+
+def main() : int {
+    return 0
+}
