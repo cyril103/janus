@@ -14,9 +14,11 @@
 #include <cstdint>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -78,6 +80,7 @@ struct DocumentSymbol {
   std::string detail;
   janus::SourceLocation location;
   bool is_global{};
+  bool is_top_level{};
   bool is_private{};
   std::optional<std::string> module_name;
 };
@@ -149,15 +152,21 @@ std::vector<DocumentSymbol> symbols(std::string_view source) {
     if (is_private)
       detail = "private " + detail;
     result.push_back(DocumentSymbol{std::string{name.lexeme}, std::move(detail),
-                                    name.location, is_global, is_private,
+                                    name.location, is_global, brace_depth == 0,
+                                    is_private,
                                     is_global ? module_name : std::nullopt});
   }
   return result;
 }
 
-std::optional<std::string> identifier_at(std::string_view source,
-                                         std::uint32_t line,
-                                         std::uint32_t column) {
+struct LocatedIdentifier {
+  std::string name;
+  janus::SourceLocation location;
+};
+
+std::optional<LocatedIdentifier> identifier_at(std::string_view source,
+                                               std::uint32_t line,
+                                               std::uint32_t column) {
   using janus::frontend::TokenKind;
   for (const janus::frontend::Token &token : tokens(source)) {
     if (token.kind == TokenKind::Identifier &&
@@ -166,7 +175,7 @@ std::optional<std::string> identifier_at(std::string_view source,
       const std::uint32_t end =
           start + static_cast<std::uint32_t>(token.lexeme.size());
       if (column >= start && column <= end)
-        return std::string{token.lexeme};
+        return LocatedIdentifier{std::string{token.lexeme}, token.location};
     }
   }
   return std::nullopt;
@@ -265,6 +274,98 @@ std::optional<std::filesystem::path> file_uri_path(std::string_view uri) {
     decoded.erase(decoded.begin());
 #endif
   return std::filesystem::path{decoded};
+}
+
+struct IndexedDocument {
+  std::string uri;
+  std::string source;
+  std::vector<DocumentSymbol> symbols;
+};
+
+struct SemanticIndex {
+  std::vector<IndexedDocument> documents;
+};
+
+std::string file_uri(const std::filesystem::path &path) {
+  return "file://" +
+         std::filesystem::absolute(path).lexically_normal().generic_string();
+}
+
+std::optional<std::filesystem::path>
+resolve_import(std::string_view module, const std::filesystem::path &root,
+               const std::vector<std::filesystem::path> &search_paths) {
+  std::filesystem::path relative;
+  std::size_t start = 0;
+  while (start < module.size()) {
+    const std::size_t separator = module.find('.', start);
+    relative /= module.substr(start, separator == std::string_view::npos
+                                         ? module.size() - start
+                                         : separator - start);
+    if (separator == std::string_view::npos)
+      break;
+    start = separator + 1;
+  }
+  relative += ".janus";
+  std::vector<std::filesystem::path> roots{root};
+  roots.insert(roots.end(), search_paths.begin(), search_paths.end());
+  for (const std::filesystem::path &candidate_root : roots) {
+    const std::filesystem::path candidate = candidate_root / relative;
+    if (std::filesystem::is_regular_file(candidate))
+      return std::filesystem::absolute(candidate).lexically_normal();
+  }
+  return std::nullopt;
+}
+
+SemanticIndex build_semantic_index(
+    std::string_view active_uri, std::string_view active_source,
+    const std::unordered_map<std::string, std::string> &open_documents,
+    const std::vector<std::filesystem::path> &search_paths) {
+  SemanticIndex index;
+  std::unordered_set<std::string> indexed_uris;
+  const auto add_document = [&](std::string uri, std::string source) {
+    if (!indexed_uris.insert(uri).second)
+      return false;
+    index.documents.push_back(
+        IndexedDocument{std::move(uri), std::move(source), {}});
+    index.documents.back().symbols = symbols(index.documents.back().source);
+    return true;
+  };
+  add_document(std::string{active_uri}, std::string{active_source});
+  for (const auto &[uri, source] : open_documents)
+    add_document(uri, source);
+
+  for (std::size_t document_index = 0;
+       document_index < index.documents.size(); ++document_index) {
+    const IndexedDocument &document = index.documents[document_index];
+    const std::optional<std::filesystem::path> document_path =
+        file_uri_path(document.uri);
+    if (!document_path.has_value())
+      continue;
+    janus::ast::Program program;
+    try {
+      janus::frontend::Parser parser{document.source};
+      program = parser.parse_program();
+    } catch (const std::exception &) {
+      continue;
+    }
+    const std::filesystem::path root = document_path->parent_path();
+    for (const std::string &import : program.imports) {
+      const std::optional<std::filesystem::path> imported =
+          resolve_import(import, root, search_paths);
+      if (!imported.has_value())
+        continue;
+      const std::string uri = file_uri(*imported);
+      if (indexed_uris.contains(uri))
+        continue;
+      std::ifstream input{*imported, std::ios::binary};
+      if (!input)
+        continue;
+      std::string source{std::istreambuf_iterator<char>{input},
+                         std::istreambuf_iterator<char>{}};
+      add_document(uri, std::move(source));
+    }
+  }
+  return index;
 }
 
 } // namespace
@@ -436,23 +537,34 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                   : request_position->getInteger("character");
   const auto document = open_document;
   if (uri && line && character && document != documents_.end()) {
-    const std::optional<std::string> identifier = identifier_at(
+    const std::optional<LocatedIdentifier> identifier = identifier_at(
         document->second, static_cast<std::uint32_t>(*line),
         static_cast<std::uint32_t>(*character));
-    const std::vector<DocumentSymbol> document_symbols =
-        symbols(document->second);
+    const SemanticIndex semantic_index =
+        build_semantic_index(uri->str(), document->second, documents_,
+                             module_search_paths_);
+    const std::vector<DocumentSymbol> &document_symbols =
+        semantic_index.documents.front().symbols;
     const auto locate_symbol =
-        [&](std::string_view name)
+        [&](const LocatedIdentifier &requested)
         -> std::optional<std::pair<std::string, DocumentSymbol>> {
-      for (const DocumentSymbol &symbol : document_symbols)
-        if (symbol.name == name)
-          return std::pair<std::string, DocumentSymbol>{uri->str(), symbol};
-      for (const auto &[candidate_uri, candidate_source] : documents_) {
-        if (candidate_uri == uri->str())
+      const DocumentSymbol *best = nullptr;
+      for (const DocumentSymbol &symbol : document_symbols) {
+        if (symbol.name != requested.name ||
+            symbol.location.offset > requested.location.offset)
           continue;
-        for (const DocumentSymbol &symbol : symbols(candidate_source))
-          if (symbol.is_global && !symbol.is_private && symbol.name == name)
-            return std::pair<std::string, DocumentSymbol>{candidate_uri,
+        if (best == nullptr || symbol.location.offset > best->location.offset)
+          best = &symbol;
+      }
+      if (best != nullptr)
+        return std::pair<std::string, DocumentSymbol>{uri->str(), *best};
+      for (const IndexedDocument &candidate : semantic_index.documents) {
+        if (candidate.uri == uri->str())
+          continue;
+        for (const DocumentSymbol &symbol : candidate.symbols)
+          if (symbol.is_top_level && !symbol.is_private &&
+              symbol.name == requested.name)
+            return std::pair<std::string, DocumentSymbol>{candidate.uri,
                                                           symbol};
       }
       return std::nullopt;
@@ -494,12 +606,16 @@ std::vector<std::string> Server::handle(std::string_view message) {
     if (*method == "textDocument/references") {
       if (identifier) {
         llvm::json::Array references;
-        for (const auto &[document_uri, document_source] : documents_) {
-          for (const frontend::Token &token : tokens(document_source)) {
+        const auto target = locate_symbol(*identifier);
+        for (const IndexedDocument &indexed : semantic_index.documents) {
+          if (target.has_value() && !target->second.is_top_level &&
+              indexed.uri != target->first)
+            continue;
+          for (const frontend::Token &token : tokens(indexed.source)) {
             if (token.kind == frontend::TokenKind::Identifier &&
-                token.lexeme == *identifier) {
+                token.lexeme == identifier->name) {
               references.emplace_back(llvm::json::Object{
-                  {"uri", document_uri},
+                  {"uri", indexed.uri},
                   {"range", range(token.location, token.lexeme.size())},
               });
             }
@@ -533,9 +649,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
 
       bool module_member_context = false;
       if (member_qualifier.has_value()) {
-        for (const auto &[candidate_uri, candidate_source] : documents_) {
-          static_cast<void>(candidate_uri);
-          for (const DocumentSymbol &symbol : symbols(candidate_source)) {
+        for (const IndexedDocument &candidate : semantic_index.documents) {
+          for (const DocumentSymbol &symbol : candidate.symbols) {
             if (symbol.is_global && !symbol.is_private &&
                 symbol.module_name == member_qualifier) {
               module_member_context = true;
@@ -562,12 +677,20 @@ std::vector<std::string> Server::handle(std::string_view message) {
         }
       }
       if (!member_context) {
-        for (const auto &[candidate_uri, candidate_source] : documents_) {
-          if (candidate_uri == uri->str())
+        for (const IndexedDocument &candidate : semantic_index.documents) {
+          if (candidate.uri == uri->str())
             continue;
-          for (const DocumentSymbol &symbol : symbols(candidate_source))
-            if (symbol.is_global && !symbol.is_private)
-              add_item(symbol.name, symbol.detail, 6);
+          for (const DocumentSymbol &symbol : candidate.symbols)
+            if (symbol.is_top_level && !symbol.is_private) {
+              const std::int64_t kind =
+                  symbol.detail.starts_with("def ") ? 3
+                  : symbol.detail.starts_with("class ") ||
+                            symbol.detail.starts_with("trait ") ||
+                            symbol.detail.starts_with("enum ")
+                      ? 7
+                      : 6;
+              add_item(symbol.name, symbol.detail, kind);
+            }
         }
         for (const std::string_view type :
              {"int", "double", "byte", "char", "bool", "string", "unit",

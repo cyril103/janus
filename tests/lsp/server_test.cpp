@@ -35,6 +35,10 @@ int main() {
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///array.janus","text":"import std.array\n\ndef main() : int {\n    val values : Array[int] = new Array[int](usize(1))\n    return int(values.size())\n}\n"}}})");
   assert(imported.size() == 1);
   assert(imported.front().find("\"diagnostics\":[]") != std::string::npos);
+  const std::vector<std::string> imported_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":15,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///array.janus"},"position":{"line":3,"character":20}}})");
+  assert(imported_definition.front().find("stdlib/std/array.janus") !=
+         std::string::npos);
 
   const std::vector<std::string> module = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///library.janus","text":"module library\n\ndef helper() : int { return 42 }"}}})");
@@ -65,6 +69,16 @@ int main() {
   const std::vector<std::string> definition = server.handle(
       R"({"jsonrpc":"2.0","id":3,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50}}})");
   assert(definition.front().find("\"character\":23") != std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"val answer : int = 1\ndef main() : int { val answer : int = 2 return answer }"}]}})"));
+  const std::vector<std::string> shadowed_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":16,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":1,"character":49}}})");
+  assert(shadowed_definition.front().find("\"line\":1") != std::string::npos);
+  assert(shadowed_definition.front().find("\"character\":23") !=
+         std::string::npos);
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 return answer }"}]}})"));
 
   const std::vector<std::string> references = server.handle(
       R"({"jsonrpc":"2.0","id":4,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50},"context":{"includeDeclaration":true}}})");
