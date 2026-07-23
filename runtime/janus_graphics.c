@@ -51,7 +51,23 @@ typedef struct {
   void (*InitWindow)(int, int, const char *);
   bool (*IsWindowReady)(void);
   bool (*WindowShouldClose)(void);
+  bool (*IsWindowFullscreen)(void);
+  bool (*IsWindowHidden)(void);
+  bool (*IsWindowMinimized)(void);
+  bool (*IsWindowMaximized)(void);
+  bool (*IsWindowFocused)(void);
+  bool (*IsWindowResized)(void);
   void (*CloseWindow)(void);
+  void (*ToggleFullscreen)(void);
+  void (*MaximizeWindow)(void);
+  void (*MinimizeWindow)(void);
+  void (*RestoreWindow)(void);
+  void (*SetWindowTitle)(const char *);
+  void (*SetWindowPosition)(int, int);
+  void (*SetWindowSize)(int, int);
+  void (*SetWindowOpacity)(float);
+  int (*GetScreenWidth)(void);
+  int (*GetScreenHeight)(void);
   void (*SetTargetFPS)(int);
   void (*BeginDrawing)(void);
   void (*EndDrawing)(void);
@@ -90,10 +106,18 @@ typedef struct {
   void (*SetMusicPan)(JanusRaylibMusic, float);
   bool (*IsKeyDown)(int);
   bool (*IsKeyPressed)(int);
+  int (*GetKeyPressed)(void);
   int (*GetMouseX)(void);
   int (*GetMouseY)(void);
+  void (*SetMousePosition)(int, int);
+  float (*GetMouseWheelMove)(void);
   bool (*IsMouseButtonDown)(int);
   bool (*IsMouseButtonPressed)(int);
+  void (*ShowCursor)(void);
+  void (*HideCursor)(void);
+  bool (*IsCursorHidden)(void);
+  void (*EnableCursor)(void);
+  void (*DisableCursor)(void);
 } JanusGraphicsApi;
 
 static JanusGraphicsApi graphics_api;
@@ -188,7 +212,23 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(InitWindow);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsWindowReady);
   JANUS_LOAD_GRAPHICS_SYMBOL(WindowShouldClose);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsWindowFullscreen);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsWindowHidden);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsWindowMinimized);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsWindowMaximized);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsWindowFocused);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsWindowResized);
   JANUS_LOAD_GRAPHICS_SYMBOL(CloseWindow);
+  JANUS_LOAD_GRAPHICS_SYMBOL(ToggleFullscreen);
+  JANUS_LOAD_GRAPHICS_SYMBOL(MaximizeWindow);
+  JANUS_LOAD_GRAPHICS_SYMBOL(MinimizeWindow);
+  JANUS_LOAD_GRAPHICS_SYMBOL(RestoreWindow);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetWindowTitle);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetWindowPosition);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetWindowSize);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetWindowOpacity);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetScreenWidth);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetScreenHeight);
   JANUS_LOAD_GRAPHICS_SYMBOL(SetTargetFPS);
   JANUS_LOAD_GRAPHICS_SYMBOL(BeginDrawing);
   JANUS_LOAD_GRAPHICS_SYMBOL(EndDrawing);
@@ -227,10 +267,18 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(SetMusicPan);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsKeyDown);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsKeyPressed);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetKeyPressed);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseX);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseY);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetMousePosition);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseWheelMove);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsMouseButtonDown);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsMouseButtonPressed);
+  JANUS_LOAD_GRAPHICS_SYMBOL(ShowCursor);
+  JANUS_LOAD_GRAPHICS_SYMBOL(HideCursor);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsCursorHidden);
+  JANUS_LOAD_GRAPHICS_SYMBOL(EnableCursor);
+  JANUS_LOAD_GRAPHICS_SYMBOL(DisableCursor);
 
 #undef JANUS_LOAD_GRAPHICS_SYMBOL
 
@@ -276,6 +324,78 @@ bool janus_graphics_window_should_close(void) {
 void janus_graphics_close_window(void) {
   if (graphics_loaded && graphics_api.IsWindowReady())
     graphics_api.CloseWindow();
+}
+
+bool janus_graphics_is_window_fullscreen(void) {
+  return graphics_loaded && graphics_api.IsWindowFullscreen();
+}
+
+bool janus_graphics_is_window_hidden(void) {
+  return graphics_loaded && graphics_api.IsWindowHidden();
+}
+
+bool janus_graphics_is_window_minimized(void) {
+  return graphics_loaded && graphics_api.IsWindowMinimized();
+}
+
+bool janus_graphics_is_window_maximized(void) {
+  return graphics_loaded && graphics_api.IsWindowMaximized();
+}
+
+bool janus_graphics_is_window_focused(void) {
+  return graphics_loaded && graphics_api.IsWindowFocused();
+}
+
+bool janus_graphics_is_window_resized(void) {
+  return graphics_loaded && graphics_api.IsWindowResized();
+}
+
+void janus_graphics_toggle_fullscreen(void) {
+  if (graphics_loaded)
+    graphics_api.ToggleFullscreen();
+}
+
+void janus_graphics_maximize_window(void) {
+  if (graphics_loaded)
+    graphics_api.MaximizeWindow();
+}
+
+void janus_graphics_minimize_window(void) {
+  if (graphics_loaded)
+    graphics_api.MinimizeWindow();
+}
+
+void janus_graphics_restore_window(void) {
+  if (graphics_loaded)
+    graphics_api.RestoreWindow();
+}
+
+void janus_graphics_set_window_title(const void *title) {
+  if (graphics_loaded && title != NULL)
+    graphics_api.SetWindowTitle((const char *)title);
+}
+
+void janus_graphics_set_window_position(int x, int y) {
+  if (graphics_loaded)
+    graphics_api.SetWindowPosition(x, y);
+}
+
+void janus_graphics_set_window_size(int width, int height) {
+  if (graphics_loaded && width > 0 && height > 0)
+    graphics_api.SetWindowSize(width, height);
+}
+
+void janus_graphics_set_window_opacity(float opacity) {
+  if (graphics_loaded)
+    graphics_api.SetWindowOpacity(opacity);
+}
+
+int janus_graphics_screen_width(void) {
+  return graphics_loaded ? graphics_api.GetScreenWidth() : 0;
+}
+
+int janus_graphics_screen_height(void) {
+  return graphics_loaded ? graphics_api.GetScreenHeight() : 0;
 }
 
 void janus_graphics_set_target_fps(int frames_per_second) {
@@ -507,6 +627,10 @@ bool janus_graphics_is_key_pressed(int key) {
   return graphics_loaded && graphics_api.IsKeyPressed(key);
 }
 
+int janus_graphics_key_pressed(void) {
+  return graphics_loaded ? graphics_api.GetKeyPressed() : 0;
+}
+
 int janus_graphics_mouse_x(void) {
   return graphics_loaded ? graphics_api.GetMouseX() : 0;
 }
@@ -515,10 +639,43 @@ int janus_graphics_mouse_y(void) {
   return graphics_loaded ? graphics_api.GetMouseY() : 0;
 }
 
+void janus_graphics_set_mouse_position(int x, int y) {
+  if (graphics_loaded)
+    graphics_api.SetMousePosition(x, y);
+}
+
+float janus_graphics_mouse_wheel_move(void) {
+  return graphics_loaded ? graphics_api.GetMouseWheelMove() : 0.0f;
+}
+
 bool janus_graphics_is_mouse_button_down(int button) {
   return graphics_loaded && graphics_api.IsMouseButtonDown(button);
 }
 
 bool janus_graphics_is_mouse_button_pressed(int button) {
   return graphics_loaded && graphics_api.IsMouseButtonPressed(button);
+}
+
+void janus_graphics_show_cursor(void) {
+  if (graphics_loaded)
+    graphics_api.ShowCursor();
+}
+
+void janus_graphics_hide_cursor(void) {
+  if (graphics_loaded)
+    graphics_api.HideCursor();
+}
+
+bool janus_graphics_is_cursor_hidden(void) {
+  return graphics_loaded && graphics_api.IsCursorHidden();
+}
+
+void janus_graphics_enable_cursor(void) {
+  if (graphics_loaded)
+    graphics_api.EnableCursor();
+}
+
+void janus_graphics_disable_cursor(void) {
+  if (graphics_loaded)
+    graphics_api.DisableCursor();
 }

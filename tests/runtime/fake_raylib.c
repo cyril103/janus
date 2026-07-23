@@ -45,6 +45,9 @@ typedef struct {
 
 static bool window_ready;
 static bool audio_ready;
+static bool window_fullscreen;
+static bool window_maximized;
+static bool cursor_hidden;
 
 RAYLIB_EXPORT void InitWindow(int width, int height, const char *title) {
   window_ready = width > 0 && height > 0 && title != 0;
@@ -54,7 +57,34 @@ RAYLIB_EXPORT bool IsWindowReady(void) { return window_ready; }
 
 RAYLIB_EXPORT bool WindowShouldClose(void) { return false; }
 
+RAYLIB_EXPORT bool IsWindowFullscreen(void) { return window_fullscreen; }
+RAYLIB_EXPORT bool IsWindowHidden(void) { return false; }
+RAYLIB_EXPORT bool IsWindowMinimized(void) { return false; }
+RAYLIB_EXPORT bool IsWindowMaximized(void) { return window_maximized; }
+RAYLIB_EXPORT bool IsWindowFocused(void) { return true; }
+RAYLIB_EXPORT bool IsWindowResized(void) { return true; }
+
 RAYLIB_EXPORT void CloseWindow(void) { window_ready = false; }
+
+RAYLIB_EXPORT void ToggleFullscreen(void) {
+  window_fullscreen = !window_fullscreen;
+}
+
+RAYLIB_EXPORT void MaximizeWindow(void) { window_maximized = true; }
+RAYLIB_EXPORT void MinimizeWindow(void) { window_maximized = false; }
+RAYLIB_EXPORT void RestoreWindow(void) { window_maximized = false; }
+RAYLIB_EXPORT void SetWindowTitle(const char *title) { (void)title; }
+RAYLIB_EXPORT void SetWindowPosition(int x, int y) {
+  (void)x;
+  (void)y;
+}
+RAYLIB_EXPORT void SetWindowSize(int width, int height) {
+  (void)width;
+  (void)height;
+}
+RAYLIB_EXPORT void SetWindowOpacity(float opacity) { (void)opacity; }
+RAYLIB_EXPORT int GetScreenWidth(void) { return 800; }
+RAYLIB_EXPORT int GetScreenHeight(void) { return 450; }
 
 RAYLIB_EXPORT void SetTargetFPS(int frames_per_second) {
   (void)frames_per_second;
@@ -213,10 +243,25 @@ RAYLIB_EXPORT bool IsKeyDown(int key) { return key == 263; }
 
 RAYLIB_EXPORT bool IsKeyPressed(int key) { return key == 256; }
 
+RAYLIB_EXPORT int GetKeyPressed(void) { return 65; }
+
 RAYLIB_EXPORT int GetMouseX(void) { return 123; }
 
 RAYLIB_EXPORT int GetMouseY(void) { return 234; }
 
+RAYLIB_EXPORT void SetMousePosition(int x, int y) {
+  (void)x;
+  (void)y;
+}
+
+RAYLIB_EXPORT float GetMouseWheelMove(void) { return 1.5f; }
+
 RAYLIB_EXPORT bool IsMouseButtonDown(int button) { return button == 0; }
 
 RAYLIB_EXPORT bool IsMouseButtonPressed(int button) { return button == 1; }
+
+RAYLIB_EXPORT void ShowCursor(void) { cursor_hidden = false; }
+RAYLIB_EXPORT void HideCursor(void) { cursor_hidden = true; }
+RAYLIB_EXPORT bool IsCursorHidden(void) { return cursor_hidden; }
+RAYLIB_EXPORT void EnableCursor(void) { cursor_hidden = false; }
+RAYLIB_EXPORT void DisableCursor(void) { cursor_hidden = true; }

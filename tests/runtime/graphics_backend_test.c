@@ -6,6 +6,19 @@ extern bool janus_graphics_available(void);
 extern bool janus_graphics_init_window(int width, int height, const void *title);
 extern bool janus_graphics_window_should_close(void);
 extern void janus_graphics_close_window(void);
+extern bool janus_graphics_is_window_fullscreen(void);
+extern bool janus_graphics_is_window_maximized(void);
+extern bool janus_graphics_is_window_focused(void);
+extern bool janus_graphics_is_window_resized(void);
+extern void janus_graphics_toggle_fullscreen(void);
+extern void janus_graphics_maximize_window(void);
+extern void janus_graphics_restore_window(void);
+extern void janus_graphics_set_window_title(const void *title);
+extern void janus_graphics_set_window_position(int x, int y);
+extern void janus_graphics_set_window_size(int width, int height);
+extern void janus_graphics_set_window_opacity(float opacity);
+extern int janus_graphics_screen_width(void);
+extern int janus_graphics_screen_height(void);
 extern void janus_graphics_set_target_fps(int frames_per_second);
 extern void janus_graphics_begin_drawing(void);
 extern void janus_graphics_end_drawing(void);
@@ -42,10 +55,18 @@ extern void janus_graphics_update_music(const void *handle);
 extern bool janus_graphics_music_is_playing(const void *handle);
 extern bool janus_graphics_is_key_down(int key);
 extern bool janus_graphics_is_key_pressed(int key);
+extern int janus_graphics_key_pressed(void);
 extern int janus_graphics_mouse_x(void);
 extern int janus_graphics_mouse_y(void);
+extern void janus_graphics_set_mouse_position(int x, int y);
+extern float janus_graphics_mouse_wheel_move(void);
 extern bool janus_graphics_is_mouse_button_down(int button);
 extern bool janus_graphics_is_mouse_button_pressed(int button);
+extern void janus_graphics_hide_cursor(void);
+extern void janus_graphics_show_cursor(void);
+extern bool janus_graphics_is_cursor_hidden(void);
+extern void janus_graphics_disable_cursor(void);
+extern void janus_graphics_enable_cursor(void);
 
 int main(void) {
   if (!janus_graphics_available() ||
@@ -55,6 +76,23 @@ int main(void) {
           stderr);
     return 1;
   }
+
+  janus_graphics_toggle_fullscreen();
+  janus_graphics_maximize_window();
+  janus_graphics_set_window_title("renamed");
+  janus_graphics_set_window_position(10, 20);
+  janus_graphics_set_window_size(1024, 576);
+  janus_graphics_set_window_opacity(0.75f);
+  if (!janus_graphics_is_window_fullscreen() ||
+      !janus_graphics_is_window_maximized() ||
+      !janus_graphics_is_window_focused() ||
+      !janus_graphics_is_window_resized() ||
+      janus_graphics_screen_width() != 800 ||
+      janus_graphics_screen_height() != 450) {
+    fputs("graphics backend did not forward window controls\n", stderr);
+    return 1;
+  }
+  janus_graphics_restore_window();
 
   janus_graphics_set_target_fps(60);
   janus_graphics_begin_drawing();
@@ -101,10 +139,25 @@ int main(void) {
 
   if (!janus_graphics_is_key_down(263) ||
       !janus_graphics_is_key_pressed(256) ||
+      janus_graphics_key_pressed() != 65 ||
       janus_graphics_mouse_x() != 123 || janus_graphics_mouse_y() != 234 ||
+      janus_graphics_mouse_wheel_move() != 1.5f ||
       !janus_graphics_is_mouse_button_down(0) ||
       !janus_graphics_is_mouse_button_pressed(1)) {
     fputs("graphics backend did not forward input through raylib\n", stderr);
+    return 1;
+  }
+  janus_graphics_set_mouse_position(50, 60);
+  janus_graphics_hide_cursor();
+  if (!janus_graphics_is_cursor_hidden()) {
+    fputs("graphics backend did not hide the cursor\n", stderr);
+    return 1;
+  }
+  janus_graphics_show_cursor();
+  janus_graphics_disable_cursor();
+  janus_graphics_enable_cursor();
+  if (janus_graphics_is_cursor_hidden()) {
+    fputs("graphics backend did not restore the cursor\n", stderr);
     return 1;
   }
 

@@ -4,22 +4,120 @@ import std.c
 
 enum Key {
     Space = 32,
+    Apostrophe = 39,
+    Comma = 44,
+    Minus = 45,
+    Period = 46,
+    Slash = 47,
+    Digit0 = 48,
+    Digit1 = 49,
+    Digit2 = 50,
+    Digit3 = 51,
+    Digit4 = 52,
+    Digit5 = 53,
+    Digit6 = 54,
+    Digit7 = 55,
+    Digit8 = 56,
+    Digit9 = 57,
+    Semicolon = 59,
+    Equal = 61,
     A = 65,
+    B = 66,
+    C = 67,
     D = 68,
+    E = 69,
+    F = 70,
+    G = 71,
+    H = 72,
+    I = 73,
+    J = 74,
+    K = 75,
+    L = 76,
+    M = 77,
+    N = 78,
+    O = 79,
+    P = 80,
+    Q = 81,
+    R = 82,
     S = 83,
+    T = 84,
+    U = 85,
+    V = 86,
     W = 87,
+    X = 88,
+    Y = 89,
+    Z = 90,
+    LeftBracket = 91,
+    Backslash = 92,
+    RightBracket = 93,
+    Grave = 96,
     Escape = 256,
     Enter = 257,
+    Tab = 258,
+    Backspace = 259,
+    Insert = 260,
+    Delete = 261,
     Right = 262,
     Left = 263,
     Down = 264,
-    Up = 265
+    Up = 265,
+    PageUp = 266,
+    PageDown = 267,
+    Home = 268,
+    End = 269,
+    CapsLock = 280,
+    ScrollLock = 281,
+    NumLock = 282,
+    PrintScreen = 283,
+    Pause = 284,
+    F1 = 290,
+    F2 = 291,
+    F3 = 292,
+    F4 = 293,
+    F5 = 294,
+    F6 = 295,
+    F7 = 296,
+    F8 = 297,
+    F9 = 298,
+    F10 = 299,
+    F11 = 300,
+    F12 = 301,
+    Keypad0 = 320,
+    Keypad1 = 321,
+    Keypad2 = 322,
+    Keypad3 = 323,
+    Keypad4 = 324,
+    Keypad5 = 325,
+    Keypad6 = 326,
+    Keypad7 = 327,
+    Keypad8 = 328,
+    Keypad9 = 329,
+    KeypadDecimal = 330,
+    KeypadDivide = 331,
+    KeypadMultiply = 332,
+    KeypadSubtract = 333,
+    KeypadAdd = 334,
+    KeypadEnter = 335,
+    KeypadEqual = 336,
+    LeftShift = 340,
+    LeftControl = 341,
+    LeftAlt = 342,
+    LeftSuper = 343,
+    RightShift = 344,
+    RightControl = 345,
+    RightAlt = 346,
+    RightSuper = 347,
+    Menu = 348
 }
 
 enum MouseButton {
     Left,
     Right,
-    Middle
+    Middle,
+    Side,
+    Extra,
+    Forward,
+    Back
 }
 
 extern def janus_graphics_rgba(
@@ -37,6 +135,22 @@ title : Ptr[byte]
 ) : bool
 extern def janus_graphics_window_should_close() : bool
 extern def janus_graphics_close_window() : Unit
+extern def janus_graphics_is_window_fullscreen() : bool
+extern def janus_graphics_is_window_hidden() : bool
+extern def janus_graphics_is_window_minimized() : bool
+extern def janus_graphics_is_window_maximized() : bool
+extern def janus_graphics_is_window_focused() : bool
+extern def janus_graphics_is_window_resized() : bool
+extern def janus_graphics_toggle_fullscreen() : Unit
+extern def janus_graphics_maximize_window() : Unit
+extern def janus_graphics_minimize_window() : Unit
+extern def janus_graphics_restore_window() : Unit
+extern def janus_graphics_set_window_title(title : Ptr[byte]) : Unit
+extern def janus_graphics_set_window_position(x : int, y : int) : Unit
+extern def janus_graphics_set_window_size(width : int, height : int) : Unit
+extern def janus_graphics_set_window_opacity(opacity : float) : Unit
+extern def janus_graphics_screen_width() : int
+extern def janus_graphics_screen_height() : int
 extern def janus_graphics_set_target_fps(framesPerSecond : int) : Unit
 extern def janus_graphics_begin_drawing() : Unit
 extern def janus_graphics_end_drawing() : Unit
@@ -122,10 +236,18 @@ pan : float
 ) : Unit
 extern def janus_graphics_is_key_down(key : int) : bool
 extern def janus_graphics_is_key_pressed(key : int) : bool
+extern def janus_graphics_key_pressed() : int
 extern def janus_graphics_mouse_x() : int
 extern def janus_graphics_mouse_y() : int
+extern def janus_graphics_set_mouse_position(x : int, y : int) : Unit
+extern def janus_graphics_mouse_wheel_move() : float
 extern def janus_graphics_is_mouse_button_down(button : int) : bool
 extern def janus_graphics_is_mouse_button_pressed(button : int) : bool
+extern def janus_graphics_show_cursor() : Unit
+extern def janus_graphics_hide_cursor() : Unit
+extern def janus_graphics_is_cursor_hidden() : bool
+extern def janus_graphics_enable_cursor() : Unit
+extern def janus_graphics_disable_cursor() : Unit
 
 class Texture(private val handle : Ptr[byte]) {
     def isValid() : bool {
@@ -269,6 +391,70 @@ def closeWindow() : Unit {
     janus_graphics_close_window()
 }
 
+def isWindowFullscreen() : bool {
+    return janus_graphics_is_window_fullscreen()
+}
+
+def isWindowHidden() : bool {
+    return janus_graphics_is_window_hidden()
+}
+
+def isWindowMinimized() : bool {
+    return janus_graphics_is_window_minimized()
+}
+
+def isWindowMaximized() : bool {
+    return janus_graphics_is_window_maximized()
+}
+
+def isWindowFocused() : bool {
+    return janus_graphics_is_window_focused()
+}
+
+def isWindowResized() : bool {
+    return janus_graphics_is_window_resized()
+}
+
+def toggleFullscreen() : Unit {
+    janus_graphics_toggle_fullscreen()
+}
+
+def maximizeWindow() : Unit {
+    janus_graphics_maximize_window()
+}
+
+def minimizeWindow() : Unit {
+    janus_graphics_minimize_window()
+}
+
+def restoreWindow() : Unit {
+    janus_graphics_restore_window()
+}
+
+def setWindowTitle(title : string) : Unit {
+    janus_graphics_set_window_title(cstr(title))
+}
+
+def setWindowPosition(x : int, y : int) : Unit {
+    janus_graphics_set_window_position(x, y)
+}
+
+def setWindowSize(width : int, height : int) : Unit {
+    janus_graphics_set_window_size(width, height)
+}
+
+def setWindowOpacity(opacity : float) : Unit {
+    janus_graphics_set_window_opacity(opacity)
+}
+
+def screenWidth() : int {
+    return janus_graphics_screen_width()
+}
+
+def screenHeight() : int {
+    return janus_graphics_screen_height()
+}
+
 def setTargetFps(framesPerSecond : int) : Unit {
     janus_graphics_set_target_fps(framesPerSecond)
 }
@@ -360,6 +546,10 @@ def isKeyPressed(key : Key) : bool {
     return janus_graphics_is_key_pressed(int(key))
 }
 
+def keyPressed() : int {
+    return janus_graphics_key_pressed()
+}
+
 def mouseX() : int {
     return janus_graphics_mouse_x()
 }
@@ -368,10 +558,38 @@ def mouseY() : int {
     return janus_graphics_mouse_y()
 }
 
+def setMousePosition(x : int, y : int) : Unit {
+    janus_graphics_set_mouse_position(x, y)
+}
+
+def mouseWheelMove() : float {
+    return janus_graphics_mouse_wheel_move()
+}
+
 def isMouseButtonDown(button : MouseButton) : bool {
     return janus_graphics_is_mouse_button_down(int(button))
 }
 
 def isMouseButtonPressed(button : MouseButton) : bool {
     return janus_graphics_is_mouse_button_pressed(int(button))
+}
+
+def showCursor() : Unit {
+    janus_graphics_show_cursor()
+}
+
+def hideCursor() : Unit {
+    janus_graphics_hide_cursor()
+}
+
+def isCursorHidden() : bool {
+    return janus_graphics_is_cursor_hidden()
+}
+
+def enableCursor() : Unit {
+    janus_graphics_enable_cursor()
+}
+
+def disableCursor() : Unit {
+    janus_graphics_disable_cursor()
 }

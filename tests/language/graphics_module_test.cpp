@@ -31,6 +31,13 @@ def main() : int {
     val color : uint = rgba(18, 52, 86, 120)
     val keyDown : bool = isKeyDown(Key.Left)
     val mouseDown : bool = isMouseButtonDown(MouseButton.Left)
+    setWindowTitle("Janus graphics")
+    setWindowPosition(10, 20)
+    setWindowSize(800, 450)
+    setWindowOpacity(float(0.9))
+    setMousePosition(100, 120)
+    hideCursor()
+    showCursor()
     beginDrawing()
     clearBackground(color)
     drawPixel(1, 2, color)
@@ -52,7 +59,8 @@ def main() : int {
     delete music
     endDrawing()
     if keyDown || mouseDown {
-        return mouseX() + mouseY()
+        return mouseX() + mouseY() + screenWidth() + screenHeight() +
+            keyPressed()
     }
     return 0
 }
@@ -92,6 +100,16 @@ def main() : int {
   expect(ir.find("call i1 @isKeyDown(%enum.Key { i32 263 })") !=
              std::string::npos,
          "graphics keys retain their raylib-compatible code");
+  expect(ir.find("call void @janus_graphics_set_window_title") !=
+                 std::string::npos &&
+             ir.find("call i32 @janus_graphics_screen_width") !=
+                 std::string::npos,
+         "graphics window controls lower through the native backend");
+  expect(ir.find("call void @janus_graphics_set_mouse_position") !=
+                 std::string::npos &&
+             ir.find("call i32 @janus_graphics_key_pressed") !=
+                 std::string::npos,
+         "expanded graphics input lowers through the native backend");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

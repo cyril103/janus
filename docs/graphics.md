@@ -128,11 +128,22 @@ proposent `play`, `stop`, `isPlaying`, `setVolume`, `setPitch` et `setPan`.
 Entrées disponibles :
 
 - `isKeyDown` et `isKeyPressed` avec l'enum `Key` ;
-- `mouseX` et `mouseY` ;
+- `keyPressed` pour lire la prochaine touche saisie ;
+- `mouseX`, `mouseY`, `setMousePosition` et `mouseWheelMove` ;
 - `isMouseButtonDown` et `isMouseButtonPressed` avec `MouseButton`.
+- `showCursor`, `hideCursor`, `enableCursor`, `disableCursor` et
+  `isCursorHidden`.
 
-Le MVP expose les touches `Space`, `Enter`, `Escape`, les flèches et les
-touches `W`, `A`, `S`, `D`.
+L'enum `Key` couvre les lettres, chiffres, ponctuation, flèches, touches de
+fonction, pavé numérique et modificateurs. `MouseButton` couvre les sept
+boutons reconnus par raylib.
+
+La fenêtre peut être inspectée avec `isWindowFullscreen`, `isWindowHidden`,
+`isWindowMinimized`, `isWindowMaximized`, `isWindowFocused` et
+`isWindowResized`. Les fonctions `toggleFullscreen`, `maximizeWindow`,
+`minimizeWindow`, `restoreWindow`, `setWindowTitle`, `setWindowPosition`,
+`setWindowSize` et `setWindowOpacity` la contrôlent. `screenWidth` et
+`screenHeight` donnent la taille courante de la zone de dessin.
 
 ## État expérimental
 
