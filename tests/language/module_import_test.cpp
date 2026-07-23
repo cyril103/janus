@@ -393,6 +393,28 @@ int main() {
                std::string_view::npos,
            "private type access reports its qualified identity");
   }
+  try {
+    const janus::ast::Program internal_method_program = loader.load(
+        std::filesystem::path{JANUS_VISIBILITY_INTERNAL_METHOD_ENTRY});
+    static_cast<void>(analyzer.analyze(internal_method_program));
+    expect(false, "an internal method must be inaccessible outside its module");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(
+               "method 'increment' is internal to module "
+               "'visibility.library'") != std::string_view::npos,
+           "internal method access reports its declaring module");
+  }
+  try {
+    const janus::ast::Program internal_field_program = loader.load(
+        std::filesystem::path{JANUS_VISIBILITY_INTERNAL_FIELD_ENTRY});
+    static_cast<void>(analyzer.analyze(internal_field_program));
+    expect(false, "an internal field must be inaccessible outside its module");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(
+               "field 'value' is internal to module "
+               "'visibility.library'") != std::string_view::npos,
+           "internal field access reports its declaring module");
+  }
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

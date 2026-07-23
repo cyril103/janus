@@ -186,6 +186,7 @@ struct ValueDeclaration {
   std::optional<Expression> initializer;
   SourceLocation location;
   bool is_private{};
+  bool is_internal{};
 };
 
 struct GlobalDeclaration {
@@ -285,6 +286,7 @@ struct FunctionDeclaration {
   std::optional<std::string> external_symbol;
   bool is_variadic{};
   std::optional<std::string> module_name;
+  bool is_internal{};
 };
 
 struct DestructorDeclaration {

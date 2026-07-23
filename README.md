@@ -168,7 +168,7 @@ Les principales fonctionnalités sont :
 - enums avec données associées et expressions `match` ;
 - gestion d'erreurs avec `Option`, `Result` et l'opérateur `?` ;
 - classes allouées avec `new`, libérées avec `delete`, destructeurs et `defer` ;
-- visibilité `private`, traits et contraintes génériques ;
+- visibilités `private` et `internal`, traits et contraintes génériques ;
 - modules, dépendances, collections et itérateurs paresseux ;
 - pointeurs typés, allocation brute, casts explicites et `extern def`.
 

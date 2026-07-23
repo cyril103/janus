@@ -999,7 +999,7 @@ private:
         function.is_variadic);
     const ::llvm::GlobalValue::LinkageTypes linkage =
         !function.is_external &&
-                (function.is_private ||
+                (function.is_private || function.is_internal ||
                  (owner != nullptr && function.name == "destructor"))
             ? ::llvm::Function::InternalLinkage
             : ::llvm::Function::ExternalLinkage;

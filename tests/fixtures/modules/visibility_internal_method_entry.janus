@@ -1,0 +1,7 @@
+import visibility.library
+
+def main() : int {
+    val counter : visibility.library.ModuleCounter =
+        new visibility.library.ModuleCounter(1)
+    return counter.increment()
+}

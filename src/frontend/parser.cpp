@@ -181,6 +181,10 @@ ast::Program Parser::parse_program() {
   }
 
   while (current_.kind != TokenKind::End) {
+    if (current_.kind == TokenKind::Internal)
+      throw CompileError{
+          current_.location,
+          "'internal' can only modify class fields and methods"};
     bool is_private = false;
     if (current_.kind == TokenKind::Private) {
       is_private = true;
@@ -478,8 +482,14 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
   if (current_.kind != TokenKind::RightParen) {
     do {
       const bool is_private = current_.kind == TokenKind::Private;
-      if (is_private)
+      const bool is_internal = current_.kind == TokenKind::Internal;
+      if (is_private || is_internal)
         advance();
+      if ((is_private && current_.kind == TokenKind::Internal) ||
+          (is_internal && current_.kind == TokenKind::Private))
+        throw CompileError{
+            current_.location,
+            "a class member cannot be both private and internal"};
       if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
         parsed_field = true;
         const bool is_mutable = current_.kind == TokenKind::Var;
@@ -491,12 +501,13 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
                                           parse_type(), is_mutable,
                                           std::nullopt, keyword.location};
         declaration.is_private = is_private;
+        declaration.is_internal = is_internal;
         constructor_fields.push_back(std::move(declaration));
       } else {
-        if (is_private)
+        if (is_private || is_internal)
           throw CompileError{
               current_.location,
-              "a non-field constructor parameter cannot be private"};
+              "a non-field constructor parameter cannot have visibility"};
         if (parsed_field)
           throw CompileError{
               current_.location,
@@ -529,8 +540,14 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
   std::optional<ast::DestructorDeclaration> destructor;
   while (current_.kind != TokenKind::RightBrace) {
     const bool is_private = current_.kind == TokenKind::Private;
-    if (is_private)
+    const bool is_internal = current_.kind == TokenKind::Internal;
+    if (is_private || is_internal)
       advance();
+    if ((is_private && current_.kind == TokenKind::Internal) ||
+        (is_internal && current_.kind == TokenKind::Private))
+      throw CompileError{
+          current_.location,
+          "a class member cannot be both private and internal"};
     const bool is_consuming = current_.kind == TokenKind::Consume;
     if (is_consuming)
       advance();
@@ -540,14 +557,16 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
                            "consume can only modify a method"};
       ast::ValueDeclaration field = parse_variable_declaration();
       field.is_private = is_private;
+      field.is_internal = is_internal;
       fields.push_back(std::move(field));
     } else if (current_.kind == TokenKind::Def) {
       ast::FunctionDeclaration method = parse_function_declaration();
       method.is_private = is_private;
+      method.is_internal = is_internal;
       method.is_consuming = is_consuming;
       methods.push_back(std::move(method));
     } else if (current_.kind == TokenKind::Destructor) {
-      if (is_private || is_consuming)
+      if (is_private || is_internal || is_consuming)
         throw CompileError{current_.location,
                            "destructor cannot have method modifiers"};
       if (destructor.has_value())

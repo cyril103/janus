@@ -289,6 +289,7 @@ Les paramètres `val` et `var` du constructeur deviennent des champs :
 ```janus
 class Point(var x : int, var y : int) {
     private val secret : int = 42
+    internal val identifier : int = 7
 
     def move(dx : int, dy : int) : Unit {
         x = x + dx
@@ -301,7 +302,9 @@ class Point(var x : int, var y : int) {
 ```
 
 Les classes et les traits peuvent recevoir des paramètres génériques. Le mot
-clé `private` protège un champ ou une méthode contre les accès extérieurs.
+clé `private` réserve un champ ou une méthode à sa classe. `internal` autorise
+les autres déclarations du même module à y accéder, tout en interdisant son
+utilisation depuis les modules importateurs.
 
 ## Gestion manuelle de la mémoire
 

@@ -23,6 +23,7 @@ enum class TokenKind {
   Delete,
   Destructor,
   Private,
+  Internal,
   If,
   Else,
   Match,
@@ -113,6 +114,8 @@ struct Token {
     return "'destructor'";
   case TokenKind::Private:
     return "'private'";
+  case TokenKind::Internal:
+    return "'internal'";
   case TokenKind::If:
     return "'if'";
   case TokenKind::Else:

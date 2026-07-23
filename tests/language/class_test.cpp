@@ -43,11 +43,15 @@ int main() {
 class Point(var x : int, var y : int) {
     val label : string = "point"
     private val secret : int = 42
+    internal val moduleCode : int = 7
     private def secretValue() : int {
         return secret
     }
     def reveal() : int {
         return this.secretValue()
+    }
+    internal def moduleValue() : int {
+        return moduleCode
     }
     def setX(value : int) : int {
         x = value
@@ -64,6 +68,7 @@ def main() : int {
     val point : Point = new Point(1, 2)
     val changed : int = point.setX(6)
     val hidden : int = point.reveal()
+    val moduleValue : int = point.moduleValue() + point.moduleCode
     val result : int = point.currentX()
     delete point
     return result
@@ -78,14 +83,18 @@ def main() : int {
          "constructor parameters become fields");
   expect(program.classes.front().constructor_fields.front().is_mutable,
          "var constructor fields are mutable");
-  expect(program.classes.front().fields.size() == 2,
+  expect(program.classes.front().fields.size() == 3,
          "the class body can declare fields");
-  expect(program.classes.front().fields.back().is_private,
+  expect(program.classes.front().fields[1].is_private,
          "private marks a field as private");
-  expect(program.classes.front().methods.size() == 4,
+  expect(program.classes.front().fields.back().is_internal,
+         "internal marks a field as module-visible");
+  expect(program.classes.front().methods.size() == 5,
          "the class body can declare methods");
   expect(program.classes.front().methods.front().is_private,
          "private marks a method as private");
+  expect(program.classes.front().methods[2].is_internal,
+         "internal marks a method as module-visible");
   expect(program.classes.front().destructor.has_value(),
          "the destructor is parsed");
 
@@ -101,7 +110,8 @@ def main() : int {
   module->print(output, nullptr);
   output.flush();
 
-  expect(ir.find("%class.Point = type { i32, i32, { ptr, i64 }, i32 }") !=
+  expect(ir.find(
+             "%class.Point = type { i32, i32, { ptr, i64 }, i32, i32 }") !=
              std::string::npos,
          "Point has an LLVM heap layout");
   expect(ir.find("call ptr @janus_alloc") != std::string::npos,
@@ -120,6 +130,10 @@ def main() : int {
          "a method can read a member through this");
   expect(ir.find("call i32 @Point__secretValue") != std::string::npos,
          "a class method can call a private method internally");
+  expect(ir.find("define internal i32 @Point__moduleValue") !=
+                 std::string::npos &&
+             ir.find("call i32 @Point__moduleValue") != std::string::npos,
+         "an internal method uses hidden linkage and remains callable locally");
   expect(ir.find("call void @Point__destructor") != std::string::npos,
          "delete invokes the destructor");
   expect(ir.find("call void @janus_free") != std::string::npos,
@@ -170,6 +184,14 @@ def main() : int {
       "def main() : int { val secret : Secret = new Secret(42) "
       "return secret.value }",
       "field 'value' is private");
+  expect_compile_error(
+      "internal def hidden() : int { return 1 } "
+      "def main() : int { return 0 }",
+      "'internal' can only modify class fields and methods");
+  expect_compile_error(
+      "class Invalid() { private internal def hidden() : int { return 1 } } "
+      "def main() : int { return 0 }",
+      "cannot be both private and internal");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

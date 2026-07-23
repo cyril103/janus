@@ -2095,6 +2095,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                        "field '" + node.member +
                                            "' is private in class '" +
                                            class_declaration.name + "'"};
+                  if (field.is_internal &&
+                      class_declaration.module_name != context_module)
+                    throw CompileError{
+                        node.location,
+                        "field '" + node.member +
+                            "' is internal to module '" +
+                            class_declaration.module_name.value_or("<entry>") +
+                            "'"};
                   return substitute(resolve_type(field.declared_type,
                                                  class_parameters,
                                                  &class_arities),
@@ -2110,6 +2118,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                        "field '" + node.member +
                                            "' is private in class '" +
                                            class_declaration.name + "'"};
+                  if (field.is_internal &&
+                      class_declaration.module_name != context_module)
+                    throw CompileError{
+                        node.location,
+                        "field '" + node.member +
+                            "' is internal to module '" +
+                            class_declaration.module_name.value_or("<entry>") +
+                            "'"};
                   return substitute(resolve_type(field.declared_type,
                                                  class_parameters,
                                                  &class_arities),
@@ -2298,6 +2314,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "method '" + node.method +
                                        "' is private in class '" +
                                        class_declaration->name + "'"};
+              if (class_declaration != nullptr && method->is_internal &&
+                  class_declaration->module_name != context_module)
+                throw CompileError{
+                    node.location,
+                    "method '" + node.method + "' is internal to module '" +
+                        class_declaration->module_name.value_or("<entry>") +
+                        "'"};
               if (node.type_arguments.size() != method->type_parameters.size())
                 throw CompileError{
                     node.location,
@@ -2926,6 +2949,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  "field '" + assignment->name +
                                      "' is private in class '" +
                                      class_declaration.name + "'"};
+            if (matched->is_internal &&
+                class_declaration.module_name != context_module)
+              throw CompileError{
+                  assignment->location,
+                  "field '" + assignment->name +
+                      "' is internal to module '" +
+                      class_declaration.module_name.value_or("<entry>") + "'"};
             if (!matched->is_mutable)
               throw CompileError{assignment->location,
                                  "cannot assign to immutable field '" +

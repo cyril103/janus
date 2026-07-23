@@ -169,12 +169,12 @@ class HashMap[K, V, H <: Hashing[K]](
         return length == usize(0)
     }
 
-    def storageSize() : usize {
+    internal def storageSize() : usize {
         this.initializeSlots()
         return slotCapacity
     }
 
-    def entryAt(index : usize) : Option[MapEntry[K, V]] {
+    internal def entryAt(index : usize) : Option[MapEntry[K, V]] {
         this.initializeSlots()
         if index >= slotCapacity {
             return Option.None[MapEntry[K, V]]()
@@ -189,7 +189,7 @@ class HashMap[K, V, H <: Hashing[K]](
         }
     }
 
-    def keyAt(index : usize) : Option[K] {
+    internal def keyAt(index : usize) : Option[K] {
         this.initializeSlots()
         if index >= slotCapacity {
             return Option.None[K]()
@@ -201,7 +201,7 @@ class HashMap[K, V, H <: Hashing[K]](
         }
     }
 
-    def valueAt(index : usize) : Option[V] {
+    internal def valueAt(index : usize) : Option[V] {
         this.initializeSlots()
         if index >= slotCapacity {
             return Option.None[V]()

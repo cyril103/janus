@@ -117,12 +117,12 @@ class HashSet[T, H <: Hashing[T]](
         return length == usize(0)
     }
 
-    def storageSize() : usize {
+    internal def storageSize() : usize {
         this.initializeSlots()
         return slotCapacity
     }
 
-    def valueAt(index : usize) : Option[T] {
+    internal def valueAt(index : usize) : Option[T] {
         this.initializeSlots()
         if index >= slotCapacity {
             return Option.None[T]()

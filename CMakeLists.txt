@@ -1229,6 +1229,8 @@ if(BUILD_TESTING)
             JANUS_VISIBILITY_ENTRY="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/visibility_entry.janus"
             JANUS_VISIBILITY_PRIVATE_FUNCTION_ENTRY="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/visibility_private_function_entry.janus"
             JANUS_VISIBILITY_PRIVATE_TYPE_ENTRY="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/visibility_private_type_entry.janus"
+            JANUS_VISIBILITY_INTERNAL_METHOD_ENTRY="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/visibility_internal_method_entry.janus"
+            JANUS_VISIBILITY_INTERNAL_FIELD_ENTRY="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/visibility_internal_field_entry.janus"
             JANUS_ARRAY_EXAMPLE="${PROJECT_SOURCE_DIR}/examples/array.janus"
             JANUS_OPTION_RESULT_EXAMPLE="${PROJECT_SOURCE_DIR}/examples/option_result.janus"
             JANUS_RANGE_EXAMPLE="${PROJECT_SOURCE_DIR}/examples/range.janus"

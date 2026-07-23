@@ -7,6 +7,16 @@ private def secretValue() : int {
     return secret.value
 }
 
+class ModuleCounter(internal var value : int) {
+    internal def increment() : int {
+        value = value + 1
+        return value
+    }
+}
+
 def publicValue() : int {
-    return secretValue() + 1
+    val counter : ModuleCounter = new ModuleCounter(secretValue())
+    val result : int = counter.increment() + counter.value
+    delete counter
+    return result
 }
