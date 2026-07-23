@@ -326,16 +326,16 @@ extern def janus_graphics_is_cursor_hidden() : bool
 extern def janus_graphics_enable_cursor() : Unit
 extern def janus_graphics_disable_cursor() : Unit
 
-class Vector2(val x : float, val y : float) {}
+struct Vector2(val x : float, val y : float) {}
 
-class Rectangle(
+struct Rectangle(
 val x : float,
 val y : float,
 val width : float,
 val height : float
 ) {}
 
-class Color(private val packedValue : uint) {
+struct Color(private val packedValue : uint) {
     def packed() : uint {
         return packedValue
     }

@@ -15,6 +15,7 @@ enum class TokenKind {
   Extends,
   Enum,
   Class,
+  Struct,
   New,
   Move,
   Consume,
@@ -96,6 +97,8 @@ struct Token {
     return "'enum'";
   case TokenKind::Class:
     return "'class'";
+  case TokenKind::Struct:
+    return "'struct'";
   case TokenKind::New:
     return "'new'";
   case TokenKind::Move:

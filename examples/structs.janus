@@ -1,0 +1,20 @@
+struct Point(var x : int, var y : int) {
+    def translate(dx : int, dy : int) : Unit {
+        x = x + dx
+        y = y + dy
+    }
+
+    def sum() : int {
+        return x + y
+    }
+}
+
+def main() : int {
+    val original : Point = new Point(2, 3)
+    var copied : Point = original
+    copied.translate(4, 5)
+
+    println(original.sum())
+    println(copied.sum())
+    return 0
+}

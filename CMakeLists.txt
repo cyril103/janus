@@ -1181,6 +1181,22 @@ if(BUILD_TESTING)
             JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
     )
     add_test(NAME language.graphics_module COMMAND graphics_module_test)
+
+    add_executable(struct_value_test
+        tests/language/struct_value_test.cpp
+    )
+    target_link_libraries(struct_value_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(struct_value_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.struct_value COMMAND struct_value_test)
 endif()
 
 add_executable(janus_bundled_clang IMPORTED GLOBAL)

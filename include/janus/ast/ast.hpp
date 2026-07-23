@@ -318,6 +318,7 @@ struct ClassDeclaration {
   std::optional<DestructorDeclaration> destructor;
   SourceLocation location;
   std::vector<TypeConstraint> type_constraints;
+  bool is_value_type{};
 };
 
 struct Program {

@@ -46,6 +46,8 @@ namespace janus::backend::llvm {
     return ::llvm::PointerType::getUnqual(context);
   case TypeKind::Class:
     return ::llvm::PointerType::getUnqual(context);
+  case TypeKind::Struct:
+    return nullptr;
   }
 
   return nullptr;

@@ -255,6 +255,7 @@ bool is_c_abi_type(const janus::semantic::SemanticType &type,
   case janus::TypeKind::Function:
   case janus::TypeKind::Pointer:
   case janus::TypeKind::Class:
+  case janus::TypeKind::Struct:
     return false;
   }
   return false;
@@ -287,6 +288,7 @@ bool is_c_variadic_type(const janus::semantic::SemanticType &type) {
   case janus::TypeKind::Function:
   case janus::TypeKind::Pointer:
   case janus::TypeKind::Class:
+  case janus::TypeKind::Struct:
     return false;
   }
   return false;
@@ -669,6 +671,23 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                                "' conflicts with a built-in type"};
     }
     validate_constraints(class_declaration.type_constraints, parameters);
+    if (class_declaration.is_value_type) {
+      if (!class_declaration.constructor_parameters.empty())
+        throw CompileError{
+            class_declaration.location,
+            "struct constructors only support val/var fields"};
+      if (!class_declaration.fields.empty())
+        throw CompileError{
+            class_declaration.location,
+            "struct fields must be declared in the constructor"};
+      if (class_declaration.destructor.has_value())
+        throw CompileError{class_declaration.location,
+                           "struct values cannot declare a destructor"};
+      if (!class_declaration.implemented_traits.empty())
+        throw CompileError{
+            class_declaration.location,
+            "struct trait implementations are not supported yet"};
+    }
     std::unordered_set<std::string> constructor_names;
     for (const ast::FunctionDeclaration::Parameter &parameter :
          class_declaration.constructor_parameters) {
@@ -2034,6 +2053,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                     "owning value '" + identifier->name +
                         "' is scheduled for deferred cleanup"};
               const SemanticType moved_type = expression_type(*node.operand);
+              if (moved_type.is_class() &&
+                  classes.at(moved_type.parameter)->is_value_type)
+                throw CompileError{node.location,
+                                   "struct values are copied and cannot be moved"};
               if (moved_type.is_concrete() || moved_type.is_enum())
                 throw CompileError{
                     node.location,
@@ -2421,6 +2444,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                     "' is scheduled for deferred cleanup"};
           const SemanticType deleted_type =
               expression_type(deletion->expression);
+          if (deleted_type.is_class() &&
+              classes.at(deleted_type.parameter)->is_value_type)
+            throw CompileError{deletion->location,
+                               "struct values do not require delete"};
           if (!deleted_type.is_class() && !deleted_type.is_function())
             throw CompileError{deletion->location,
                                "delete requires an object or a function value"};
@@ -2450,6 +2477,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                       "' is already scheduled for deferred cleanup"};
             const SemanticType deleted_type =
                 expression_type(deletion->expression);
+            if (deleted_type.is_class() &&
+                classes.at(deleted_type.parameter)->is_value_type)
+              throw CompileError{deletion->location,
+                                 "struct values do not require delete"};
             if (!deleted_type.is_class() && !deleted_type.is_function())
               throw CompileError{
                   deletion->location,

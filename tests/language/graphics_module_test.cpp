@@ -102,13 +102,7 @@ def main() : int {
     music.update()
     delete sound
     delete music
-    delete start
-    delete end
-    delete area
-    delete screen
-    delete world
     delete camera
-    delete typedColor
     endDrawing()
     if keyDown || mouseDown {
         return mouseX() + mouseY() + screenWidth() + screenHeight() +
@@ -162,8 +156,9 @@ def main() : int {
              ir.find("call i32 @janus_graphics_key_pressed") !=
                  std::string::npos,
          "expanded graphics input lowers through the native backend");
-  expect(ir.find("call void @drawLineBetween(ptr") != std::string::npos &&
-             ir.find("call void @drawRectangleArea(ptr") != std::string::npos,
+  expect(ir.find("call void @drawLineBetween(") != std::string::npos &&
+             ir.find("call void @drawRectangleArea(") != std::string::npos &&
+             ir.find("%struct.Vector2") != std::string::npos,
          "typed vector, rectangle, and color helpers lower successfully");
   expect(ir.find("call void @janus_graphics_begin_camera") !=
                  std::string::npos &&

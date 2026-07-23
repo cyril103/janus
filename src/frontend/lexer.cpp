@@ -47,6 +47,8 @@ Token Lexer::next() {
       kind = TokenKind::Enum;
     } else if (lexeme == "class") {
       kind = TokenKind::Class;
+    } else if (lexeme == "struct") {
+      kind = TokenKind::Struct;
     } else if (lexeme == "new") {
       kind = TokenKind::New;
     } else if (lexeme == "move") {

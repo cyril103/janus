@@ -250,6 +250,8 @@ private:
                            ::llvm::LLVMContext &context) {
     if (type.kind() == janus::TypeKind::Enum)
       return llvm_enum_types_.at(std::string{type.name()});
+    if (type.kind() == janus::TypeKind::Struct)
+      return llvm_class_types_.at(std::string{type.name()});
     return janus::backend::llvm::lower_type(type, context);
   }
 
@@ -319,11 +321,15 @@ private:
       substitutions.emplace(declaration.type_parameters[index],
                             type_arguments[index]);
 
-    auto [type_iterator, inserted] =
-        class_types_.emplace(key, janus::Type::class_type(key));
+    auto [type_iterator, inserted] = class_types_.emplace(
+        key, declaration.is_value_type ? janus::Type::struct_type(key)
+                                       : janus::Type::class_type(key));
     static_cast<void>(inserted);
     ::llvm::StructType *llvm_class_type =
-        ::llvm::StructType::create(context_, "class." + key);
+        ::llvm::StructType::create(
+            context_,
+            std::string{declaration.is_value_type ? "struct." : "class."} +
+                key);
     llvm_class_types_.emplace(key, llvm_class_type);
     class_specializations_.emplace(
         key, ClassSpecialization{&declaration, substitutions});
@@ -1762,6 +1768,25 @@ private:
                 class_specializations_.at(std::string{object_type.name()});
             ::llvm::StructType *class_type =
                 llvm_class_types_.at(std::string{object_type.name()});
+            if (class_declaration.is_value_type) {
+              ::llvm::Value *value = ::llvm::UndefValue::get(class_type);
+              for (std::size_t index = 0;
+                   index < class_declaration.constructor_fields.size();
+                   ++index) {
+                const auto &field_declaration =
+                    class_declaration.constructor_fields[index];
+                const janus::Type &field_type =
+                    resolve(field_declaration.declared_type,
+                            specialization.substitutions);
+                value = builder.CreateInsertValue(
+                    value,
+                    emit_expression(*node.arguments[index], field_type,
+                                    substitutions, locals, builder),
+                    static_cast<unsigned>(index),
+                    field_declaration.name + ".value");
+              }
+              return value;
+            }
             ::llvm::FunctionCallee malloc_function =
                 module_->getOrInsertFunction(
                     "janus_alloc",
@@ -1844,11 +1869,22 @@ private:
             if (identifier != nullptr) {
               const Local &object = locals.at(identifier->name);
               object_pointer =
-                  builder.CreateLoad(builder.getPtrTy(), object.storage,
-                                     identifier->name + ".object");
+                  object_type.kind() == janus::TypeKind::Struct
+                      ? object.storage
+                      : builder.CreateLoad(builder.getPtrTy(), object.storage,
+                                           identifier->name + ".object");
             } else {
-              object_pointer = emit_expression(*node.object, object_type,
-                                               substitutions, locals, builder);
+              ::llvm::Value *object_value =
+                  emit_expression(*node.object, object_type, substitutions,
+                                  locals, builder);
+              if (object_type.kind() == janus::TypeKind::Struct) {
+                object_pointer = builder.CreateAlloca(
+                    lower_type(object_type, context_), nullptr,
+                    node.member + ".temporary");
+                builder.CreateStore(object_value, object_pointer);
+              } else {
+                object_pointer = object_value;
+              }
             }
             const auto [field_index, field_type] =
                 find_field(object_type.name(), node.member);
@@ -1905,15 +1941,26 @@ private:
             ::llvm::Value *object_value = nullptr;
             if (identifier != nullptr) {
               const Local &object = locals.at(identifier->name);
-              object_value = builder.CreateLoad(
-                  builder.getPtrTy(), object.storage,
-                  identifier->name +
-                      (object_type.kind() == janus::TypeKind::Pointer
-                           ? ".pointer"
-                           : ".object"));
+              if (object_type.kind() == janus::TypeKind::Struct) {
+                object_value = object.storage;
+              } else {
+                object_value = builder.CreateLoad(
+                    builder.getPtrTy(), object.storage,
+                    identifier->name +
+                        (object_type.kind() == janus::TypeKind::Pointer
+                             ? ".pointer"
+                             : ".object"));
+              }
             } else {
               object_value = emit_expression(*node.object, object_type,
                                              substitutions, locals, builder);
+              if (object_type.kind() == janus::TypeKind::Struct) {
+                ::llvm::Value *storage = builder.CreateAlloca(
+                    lower_type(object_type, context_), nullptr,
+                    node.method + ".temporary");
+                builder.CreateStore(object_value, storage);
+                object_value = storage;
+              }
             }
             if (object_type.kind() == janus::TypeKind::Pointer) {
               const janus::Type &element_type = pointer_element(object_type);

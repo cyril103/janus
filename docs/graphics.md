@@ -196,16 +196,13 @@ coordonnées et des couleurs :
 
 ```janus
 val center : Vector2 = vector2(float(320.0), float(180.0))
-defer delete center
 val panel : Rectangle = rectangle(
     float(20.0),
     float(20.0),
     float(600.0),
     float(320.0)
 )
-defer delete panel
 val accent : Color = colorRgb(0, 121, 241)
-defer delete accent
 
 drawRectangleArea(panel, accent)
 drawCircleAt(center, float(32.0), accent)
@@ -214,8 +211,9 @@ drawCircleAt(center, float(32.0), accent)
 Les helpers `drawPixelAt`, `drawLineBetween`, `drawCircleAt`,
 `drawRectangleArea`, `drawTextAt`, `clearColor` et `Texture.drawAt` utilisent
 ces types. Les fonctions à coordonnées et couleurs brutes restent disponibles
-pour préserver la compatibilité. Ces primitives étant actuellement des classes
-Janus, elles doivent être libérées avec `delete`, idéalement via `defer`.
+pour préserver la compatibilité. Ces primitives sont des `struct` copiés par
+valeur : elles ne font aucune allocation et ne doivent pas être libérées avec
+`delete`.
 
 ## Caméra 2D
 
@@ -239,8 +237,7 @@ endCamera()
 ```
 
 `screenToWorld` et `worldToScreen` convertissent un `Vector2` entre les deux
-repères. Le résultat est une nouvelle valeur possédée qui doit également être
-libérée dans le modèle de classes actuel.
+repères. Le résultat est une valeur autonome sans allocation.
 
 ## État expérimental
 

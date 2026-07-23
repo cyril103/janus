@@ -111,7 +111,8 @@ std::vector<DocumentSymbol> symbols(std::string_view source) {
         detail += " : " + std::string{document_tokens[index + 3].lexeme};
     } else if (token.kind == TokenKind::Def) {
       detail = "def " + std::string{name.lexeme};
-    } else if (token.kind == TokenKind::Class) {
+    } else if (token.kind == TokenKind::Class ||
+               token.kind == TokenKind::Struct) {
       detail = "class " + std::string{name.lexeme};
     } else if (token.kind == TokenKind::Trait) {
       detail = "trait " + std::string{name.lexeme};
@@ -471,7 +472,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
               "usize"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
-             {"val", "var", "def", "class", "trait", "enum", "new",
+             {"val", "var", "def", "class", "struct", "trait", "enum", "new",
               "delete", "defer", "if", "else", "match", "for", "while",
               "return", "true", "false"})
           add_item(std::string{keyword}, "Janus keyword", 14);

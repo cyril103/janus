@@ -27,6 +27,7 @@ enum class TypeKind {
   Function,
   Pointer,
   Class,
+  Struct,
 };
 
 class Type final {
@@ -51,6 +52,7 @@ public:
   [[nodiscard]] static Type function_type(std::string_view name);
   [[nodiscard]] static Type pointer_type(std::string_view name);
   [[nodiscard]] static Type class_type(std::string_view name);
+  [[nodiscard]] static Type struct_type(std::string_view name);
 
   [[nodiscard]] TypeKind kind() const noexcept;
   [[nodiscard]] std::string_view name() const noexcept;

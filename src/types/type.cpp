@@ -98,6 +98,10 @@ Type Type::class_type(std::string_view name) {
   return Type{TypeKind::Class, name, 0, false};
 }
 
+Type Type::struct_type(std::string_view name) {
+  return Type{TypeKind::Struct, name, 0, false};
+}
+
 Type::Type(TypeKind kind, std::string_view name, std::uint32_t bit_width,
            bool is_signed)
     : kind_{kind}, name_{name}, bit_width_{bit_width}, is_signed_{is_signed} {}

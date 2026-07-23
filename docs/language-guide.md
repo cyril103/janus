@@ -414,6 +414,29 @@ contrôler précisément sa représentation et sa mémoire.
 
 Des programmes complets sont disponibles dans [`examples`](../examples).
 
+## Structures copiées par valeur
+
+Une `struct` regroupe de petites données sans allocation dynamique. Sa syntaxe
+reprend celle des champs de constructeur d'une classe :
+
+```janus
+struct Point(var x : int, var y : int) {
+    def translate(dx : int, dy : int) : Unit {
+        x = x + dx
+        y = y + dy
+    }
+}
+
+val original : Point = new Point(10, 20)
+var copy : Point = original
+copy.translate(5, 0)
+```
+
+L'affectation et le passage à une fonction copient la valeur. `original` reste
+donc inchangé lorsque `copy` est modifié. Une structure n'utilise ni `move` ni
+`delete` et ne peut pas déclarer de destructeur. Dans cette première version,
+ses champs doivent tous être déclarés entre parenthèses avec `val` ou `var`.
+
 ## Graphisme 2D
 
 Le module expérimental `std.graphics` permet de créer une fenêtre, dessiner des

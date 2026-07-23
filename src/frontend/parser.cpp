@@ -185,7 +185,8 @@ ast::Program Parser::parse_program() {
       program.traits.push_back(parse_trait_declaration());
     else if (current_.kind == TokenKind::Enum)
       program.enums.push_back(parse_enum_declaration());
-    else if (current_.kind == TokenKind::Class)
+    else if (current_.kind == TokenKind::Class ||
+             current_.kind == TokenKind::Struct)
       program.classes.push_back(parse_class_declaration());
     else if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var)
       throw CompileError{
@@ -408,7 +409,9 @@ std::string Parser::parse_qualified_name() {
 }
 
 ast::ClassDeclaration Parser::parse_class_declaration() {
-  const Token class_token = expect(TokenKind::Class);
+  const bool is_value_type = current_.kind == TokenKind::Struct;
+  const Token class_token =
+      expect(is_value_type ? TokenKind::Struct : TokenKind::Class);
   const Token name = expect(TokenKind::Identifier);
 
   std::vector<std::string> type_parameters;
@@ -536,6 +539,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
                                     std::move(destructor),
                                     class_token.location,
                                     std::move(type_constraints)};
+  declaration.is_value_type = is_value_type;
   return declaration;
 }
 
