@@ -264,9 +264,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p dist/artifacts dist/release
-          gh run download "$GITHUB_RUN_ID" --dir dist/artifacts
-          find dist/artifacts -type f -exec cp '{}' dist/release/ ';'
+          mkdir -p dist/release
+          for artifact in \
+            janus-Linux-X64 \
+            janus-macOS-ARM64 \
+            janus-Windows-X64 \
+            janus-vscode
+          do
+            gh run download "$GITHUB_RUN_ID" \
+              --name "$artifact" \
+              --dir dist/release
+          done
 
       - name: Attest release provenance
         uses: actions/attest@v4
@@ -323,9 +331,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p dist/artifacts dist/release
-          gh run download "$GITHUB_RUN_ID" --dir dist/artifacts
-          find dist/artifacts -type f -exec cp '{}' dist/release/ ';'
+          mkdir -p dist/release
+          for artifact in \
+            janus-Linux-X64 \
+            janus-macOS-ARM64 \
+            janus-Windows-X64 \
+            janus-vscode
+          do
+            gh run download "$GITHUB_RUN_ID" \
+              --name "$artifact" \
+              --dir dist/release
+          done
 
       - name: Attest nightly provenance
         uses: actions/attest@v4
