@@ -1520,8 +1520,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
 
       const SemanticType actual = expression_type(expression);
-      if (same_type(actual, expected))
+      if (same_type(actual, expected)) {
+        if ((actual.is_enum() ||
+             (actual.is_class() &&
+              classes.at(actual.parameter)->is_value_type)) &&
+            aggregate_owns_value(actual) &&
+            std::holds_alternative<ast::IdentifierExpression>(
+                expression.value))
+          throw CompileError{
+              location,
+              "transferring owning aggregate '" + actual.name() +
+                  "' requires an explicit move"};
         return;
+      }
 
       throw CompileError{location, "cannot use expression of type '" +
                                        actual.name() + "' where type '" +
@@ -1543,8 +1554,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           }
 
           const SemanticType actual = expression_type(expression);
-          if (same_type(actual, return_type))
+          if (same_type(actual, return_type)) {
+            if ((actual.is_enum() ||
+                 (actual.is_class() &&
+                  classes.at(actual.parameter)->is_value_type)) &&
+                aggregate_owns_value(actual) &&
+                std::holds_alternative<ast::IdentifierExpression>(
+                    expression.value))
+              throw CompileError{
+                  return_statement.location,
+                  "returning owning aggregate '" + actual.name() +
+                      "' requires an explicit move"};
             return;
+          }
 
           throw CompileError{
               return_statement.location,
@@ -2584,15 +2606,23 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "owning global value '" + identifier->name +
                         "' cannot be moved"};
               const SemanticType moved_type = expression_type(*node.operand);
-              if (moved_type.is_class() &&
-                  classes.at(moved_type.parameter)->is_value_type)
-                throw CompileError{node.location,
-                                   "struct values are copied and cannot be moved"};
-              if (moved_type.is_concrete() || moved_type.is_enum())
+              const bool is_value_struct =
+                  moved_type.is_class() &&
+                  classes.at(moved_type.parameter)->is_value_type;
+              if (is_value_struct && !aggregate_owns_value(moved_type))
+                throw CompileError{
+                    node.location,
+                    "non-owning struct values are copied and cannot be moved"};
+              if (moved_type.is_enum() &&
+                  !aggregate_owns_value(moved_type))
+                throw CompileError{
+                    node.location,
+                    "non-owning enum values are copied and cannot be moved"};
+              if (moved_type.is_concrete())
                 throw CompileError{
                     node.location,
                     "move requires an owning class, function, pointer, or "
-                    "generic value"};
+                    "aggregate value"};
               active_symbols->at(identifier->name).is_initialized = false;
               return moved_type;
             } else if constexpr (std::is_same_v<Node, ast::TryExpression>) {

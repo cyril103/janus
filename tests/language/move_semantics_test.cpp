@@ -59,6 +59,39 @@ def main() : int {
   janus::backend::llvm::IrGenerator generator{context};
   static_cast<void>(generator.generate(program, "move_semantics"));
 
+  constexpr std::string_view aggregate_source = R"(
+class Resource() {}
+struct Box(val resource : Resource) {}
+enum Holder { Some(Box), None }
+def consumeBox(box : Box) : Unit {
+    delete box
+}
+def transferBox(box : Box) : Box {
+    return move box
+}
+def main() : int {
+    val first : Box = new Box(new Resource())
+    val second : Box = move first
+    val holder : Holder = Holder.Some(move second)
+    val movedHolder : Holder = move holder
+    delete movedHolder
+    val third : Box = new Box(new Resource())
+    consumeBox(move third)
+    val fourth : Box = new Box(new Resource())
+    val fifth : Box = transferBox(move fourth)
+    delete fifth
+    return 0
+}
+)";
+  janus::frontend::Parser aggregate_parser{aggregate_source};
+  const janus::ast::Program aggregate_program =
+      aggregate_parser.parse_program();
+  static_cast<void>(analyzer.analyze(aggregate_program));
+  llvm::LLVMContext aggregate_context;
+  janus::backend::llvm::IrGenerator aggregate_generator{aggregate_context};
+  static_cast<void>(
+      aggregate_generator.generate(aggregate_program, "aggregate_moves"));
+
   expect_compile_error(
       "class Box() {} def main() : int { val first : Box = new Box() "
       "val second : Box = move first delete second return first.value }",
@@ -75,6 +108,28 @@ def main() : int {
       "def main() : int { val box : Box = new Box() val value : int = "
       "box.take() return box.take() }",
       "used before initialization");
+  expect_compile_error(
+      "class Resource() {} struct Box(val resource : Resource) {} "
+      "def main() : int { val first : Box = new Box(new Resource()) "
+      "val second : Box = first delete first delete second return 0 }",
+      "requires an explicit move");
+  expect_compile_error(
+      "class Resource() {} struct Box(val resource : Resource) {} "
+      "enum Holder { Some(Box), None } def main() : int { "
+      "val box : Box = new Box(new Resource()) "
+      "val first : Holder = Holder.Some(move box) "
+      "val second : Holder = move first delete second delete first return 0 }",
+      "used before initialization");
+  expect_compile_error(
+      "class Resource() {} struct Box(val resource : Resource) {} "
+      "def pass(box : Box) : Unit { delete box } def main() : int { "
+      "val box : Box = new Box(new Resource()) pass(box) return 0 }",
+      "requires an explicit move");
+  expect_compile_error(
+      "class Resource() {} struct Box(val resource : Resource) {} "
+      "def pass(box : Box) : Box { return box } "
+      "def main() : int { return 0 }",
+      "requires an explicit move");
   expect_compile_error(
       "class Box() { consume def take() : int { delete this return 1 } } "
       "class Holder(val child : Box) { def takeChild() : int { "
