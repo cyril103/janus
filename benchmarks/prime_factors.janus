@@ -1,0 +1,37 @@
+import std.math
+import std.array
+
+def factor_checksum(value : usize) : usize {
+    val factors : Array[usize] = prime_factors(value)
+    var checksum : usize = value + factors.size()
+    var index : usize = usize(0)
+
+    while index < factors.size() {
+        checksum = checksum * usize(131) + factors.get(index)
+        index = index + usize(1)
+    }
+
+    delete factors
+    return checksum
+}
+
+def main() : int {
+    var checksum : usize = usize(0)
+    var iteration : usize = usize(0)
+
+    while iteration < usize(100) {
+        checksum = checksum + factor_checksum(usize(0))
+        checksum = checksum + factor_checksum(usize(1))
+        checksum = checksum + factor_checksum(usize(2))
+        checksum = checksum + factor_checksum(usize(12))
+        checksum = checksum + factor_checksum(usize(49))
+        checksum = checksum + factor_checksum(usize(65536))
+        checksum = checksum + factor_checksum(usize(99991))
+        checksum = checksum + factor_checksum(usize(2147483647.0))
+        checksum = checksum + factor_checksum(usize(600851475143.0))
+        iteration = iteration + usize(1)
+    }
+
+    println(checksum)
+    return 0
+}

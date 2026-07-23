@@ -308,13 +308,15 @@ import std.math
 def gcd(left : usize, right : usize) : usize
 def lcm(left : usize, right : usize) : usize
 def is_prime(value : usize) : bool
+def prime_factors(value : usize) : Array[usize]
 ```
 
 Ces fonctions utilisent `usize` parce qu'elles ciblent les tailles, indices,
 capacités et identifiants non négatifs qui dominent les usages bas niveau et
 les exercices numériques. Cette API évite aussi les ambiguïtés liées au signe
 pour le plus grand commun diviseur, le plus petit commun multiple et les tests
-de primalité.
+de primalité ou de factorisation. Il n'existe pas de surcharge `int` ni de
+version `BigInt`.
 
 `gcd` applique l'algorithme d'Euclide itératif. `gcd(0, 0)` retourne `0` ;
 si un seul argument vaut zéro, le résultat est l'autre argument.
@@ -329,6 +331,33 @@ risque d'overflow intermédiaire. Si le résultat ne tient pas dans `usize`,
 impairs sont testés tant que `divisor <= value / divisor`, pour éviter les
 multiplications qui pourraient s'enrouler avec les règles arithmétiques de
 `usize`.
+
+`prime_factors` retourne un nouveau `Array[usize]` possédé par l'appelant. Les
+facteurs premiers sont en ordre croissant et les multiplicités sont conservées :
+`prime_factors(usize(12))` retourne `2, 2, 3`. Pour `0` et `1`, le tableau est
+vide. Pour une entrée première, le tableau contient seulement cette entrée.
+L'appelant doit libérer le tableau avec `delete`.
+
+```janus
+import std.math
+import std.array
+
+def main() : int {
+    val factors : Array[usize] = prime_factors(usize(49))
+    defer delete factors
+
+    println(factors.get(usize(0))) // 7
+    println(factors.get(usize(1))) // 7
+    return 0
+}
+```
+
+L'implémentation utilise une division d'essai déterministe : elle divise d'abord
+tous les facteurs `2`, puis teste les candidats impairs. La borne de boucle est
+recalculée sur le reste réduit avec `candidate <= remaining / candidate`, ce qui
+évite `candidate * candidate` et ses risques d'overflow. La complexité en temps
+est `O(sqrt(n))` dans le pire cas, avec une allocation proportionnelle au nombre
+de facteurs retournés.
 
 ## Modules
 

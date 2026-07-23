@@ -1,4 +1,5 @@
 module std.math
+import std.array
 
 def gcd(left : usize, right : usize) : usize {
     var current : usize = left
@@ -50,4 +51,29 @@ def is_prime(value : usize) : bool {
     }
 
     return true
+}
+
+def prime_factors(value : usize) : Array[usize] {
+    val factors : Array[usize] = new Array[usize](usize(8))
+    var remaining : usize = value
+
+    while remaining > usize(1) && remaining % usize(2) == usize(0) {
+        factors.push(usize(2))
+        remaining = remaining / usize(2)
+    }
+
+    var candidate : usize = usize(3)
+    while candidate <= remaining / candidate {
+        while remaining % candidate == usize(0) {
+            factors.push(candidate)
+            remaining = remaining / candidate
+        }
+        candidate = candidate + usize(2)
+    }
+
+    if remaining > usize(1) {
+        factors.push(remaining)
+    }
+
+    return factors
 }

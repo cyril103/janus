@@ -1,0 +1,147 @@
+import std.math
+import std.array
+
+def expect_empty(value : usize) : Unit {
+    val factors : Array[usize] = prime_factors(value)
+    if factors.size() != usize(0) {
+        panic("expected no prime factors\n")
+    }
+    delete factors
+}
+
+def expect_one(value : usize, first : usize) : Unit {
+    val factors : Array[usize] = prime_factors(value)
+    if factors.size() != usize(1) {
+        panic("expected one prime factor\n")
+    }
+    if factors.get(usize(0)) != first {
+        panic("unexpected prime factor\n")
+    }
+    delete factors
+}
+
+def expect_two(value : usize, first : usize, second : usize) : Unit {
+    val factors : Array[usize] = prime_factors(value)
+    if factors.size() != usize(2) {
+        panic("expected two prime factors\n")
+    }
+    if factors.get(usize(0)) != first {
+        panic("unexpected first prime factor\n")
+    }
+    if factors.get(usize(1)) != second {
+        panic("unexpected second prime factor\n")
+    }
+    delete factors
+}
+
+def expect_three(
+    value : usize,
+    first : usize,
+    second : usize,
+    third : usize
+) : Unit {
+    val factors : Array[usize] = prime_factors(value)
+    if factors.size() != usize(3) {
+        panic("expected three prime factors\n")
+    }
+    if factors.get(usize(0)) != first {
+        panic("unexpected first prime factor\n")
+    }
+    if factors.get(usize(1)) != second {
+        panic("unexpected second prime factor\n")
+    }
+    if factors.get(usize(2)) != third {
+        panic("unexpected third prime factor\n")
+    }
+    delete factors
+}
+
+def expect_four(
+    value : usize,
+    first : usize,
+    second : usize,
+    third : usize,
+    fourth : usize
+) : Unit {
+    val factors : Array[usize] = prime_factors(value)
+    if factors.size() != usize(4) {
+        panic("expected four prime factors\n")
+    }
+    if factors.get(usize(0)) != first {
+        panic("unexpected first prime factor\n")
+    }
+    if factors.get(usize(1)) != second {
+        panic("unexpected second prime factor\n")
+    }
+    if factors.get(usize(2)) != third {
+        panic("unexpected third prime factor\n")
+    }
+    if factors.get(usize(3)) != fourth {
+        panic("unexpected fourth prime factor\n")
+    }
+    delete factors
+}
+
+def expect_repeated(value : usize, factor : usize, count : usize) : Unit {
+    val factors : Array[usize] = prime_factors(value)
+    if factors.size() != count {
+        panic("unexpected prime factor count\n")
+    }
+
+    var index : usize = usize(0)
+    while index < factors.size() {
+        if factors.get(index) != factor {
+            panic("unexpected repeated prime factor\n")
+        }
+        index = index + usize(1)
+    }
+    delete factors
+}
+
+def expect_usize_max() : Unit {
+    val max : usize = usize(0) - usize(1)
+    val factors : Array[usize] = prime_factors(max)
+    val expected : Array[usize] = new Array[usize](usize(7))
+    expected.push(usize(3))
+    expected.push(usize(5))
+    expected.push(usize(17))
+    expected.push(usize(257))
+    expected.push(usize(641))
+    expected.push(usize(65537))
+    expected.push(usize(6700417))
+
+    if factors.size() != expected.size() {
+        panic("unexpected usize max factor count\n")
+    }
+
+    var index : usize = usize(0)
+    while index < expected.size() {
+        if factors.get(index) != expected.get(index) {
+            panic("unexpected usize max prime factor\n")
+        }
+        index = index + usize(1)
+    }
+
+    delete expected
+    delete factors
+}
+
+def main() : int {
+    expect_empty(usize(0))
+    expect_empty(usize(1))
+    expect_one(usize(2), usize(2))
+    expect_three(usize(12), usize(2), usize(2), usize(3))
+    expect_two(usize(49), usize(7), usize(7))
+    expect_repeated(usize(65536), usize(2), usize(16))
+    expect_one(usize(2147483647.0), usize(2147483647.0))
+    expect_four(
+        usize(600851475143.0),
+        usize(71),
+        usize(839),
+        usize(1471),
+        usize(6857)
+    )
+    expect_usize_max()
+    println("prime_factors ok")
+    return 0
+}
