@@ -82,8 +82,8 @@ janusup update
 janusup install stable
 janusup install beta
 janusup install nightly
-janusup install 0.2.1
-janusup default 0.2.1
+janusup install 0.3.0
+janusup default 0.3.0
 janusup list
 ```
 

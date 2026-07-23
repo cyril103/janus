@@ -3,6 +3,36 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.3.0] - 2026-07-23
+
+Cette version étend le langage numérique, introduit un module graphique 2D
+typé et renforce les outils de validation de programmes Janus.
+
+### Langage et bibliothèque standard
+
+- ajout des types `ubyte`, `uint`, `long`, `ulong`, `isize`, `float` et des
+  entiers courts, avec une sémantique explicite des conversions et
+  débordements ;
+- ajout des structures définies et construites directement comme valeurs ;
+- ajout d'utilitaires mathématiques et de factorisation entière ;
+- amélioration des diagnostics pour les retours manquants et les déclarations
+  non prises en charge au niveau supérieur.
+
+### Graphisme 2D
+
+- nouveau module graphique typé fondé sur un backend raylib chargé
+  dynamiquement ;
+- gestion des fenêtres, entrées, textures, sons, musiques, polices UTF-8,
+  caméras, sprites, animations, render textures et shaders ;
+- ajout d'un script d'installation de raylib et d'une documentation dédiée.
+
+### Outils et fiabilité
+
+- harmonisation de l'interface des commandes d'exécution ;
+- ajout d'un corpus Project Euler 1 à 20 et d'un validateur produisant des
+  résultats structurés, avec budgets et garde-fous d'exécution ;
+- diagnostics LSP corrects pour les modules ne déclarant pas de point d'entrée.
+
 ## [0.2.1] - 2026-07-20
 
 Cette version corrective fiabilise les diagnostics du serveur de langage,
@@ -98,6 +128,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.3.0]: https://github.com/cyril103/janus/releases/tag/v0.3.0
 [0.2.1]: https://github.com/cyril103/janus/releases/tag/v0.2.1
 [0.2.0]: https://github.com/cyril103/janus/releases/tag/v0.2.0
 [0.1.0]: https://github.com/cyril103/janus/releases/tag/v0.1.0
