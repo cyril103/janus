@@ -1,0 +1,16 @@
+val answer : int = 42
+var requests : int = 0
+private val message : string = "global"
+
+def recordRequest() : Unit {
+    requests = requests + 1
+}
+
+def main() : int {
+    recordRequest()
+    recordRequest()
+    println(message)
+    println(answer)
+    println(requests)
+    return 0
+}

@@ -14,6 +14,8 @@ typé et renforce les outils de validation de programmes Janus.
   entiers courts, avec une sémantique explicite des conversions et
   débordements ;
 - ajout des structures définies et construites directement comme valeurs ;
+- ajout des `val` et `var` globales à initialisation statique, avec visibilité
+  privée par module ;
 - ajout d'utilitaires mathématiques et de factorisation entière ;
 - amélioration des diagnostics pour les retours manquants et les déclarations
   non prises en charge au niveau supérieur.

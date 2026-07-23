@@ -360,6 +360,16 @@ if(BUILD_TESTING)
         NAME parser.top_level_declaration
         COMMAND parser_top_level_declaration_test
     )
+    add_test(
+        NAME cli.check_top_level_val
+        COMMAND janus check
+                "${PROJECT_SOURCE_DIR}/tests/fixtures/parser/top_level_val.janus"
+    )
+    add_test(
+        NAME cli.check_top_level_var
+        COMMAND janus check
+                "${PROJECT_SOURCE_DIR}/tests/fixtures/parser/top_level_var.janus"
+    )
     add_executable(lsp_server_test
         tests/lsp/server_test.cpp
     )
@@ -689,6 +699,18 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.global_variable COMMAND global_variable_test)
+    add_test(
+        NAME runtime.global_variable
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/examples/global_variables.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/global_variable_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/global_variables.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
 
     add_executable(class_test
         tests/language/class_test.cpp

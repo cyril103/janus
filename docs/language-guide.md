@@ -39,27 +39,29 @@ var result : int
 result = 42
 ```
 
-Au niveau module, Janus accepte les déclarations de types et de fonctions, mais
-pas encore les variables globales. Une déclaration `val` ou `var` top-level doit
-être déplacée dans une fonction, ou exposée par une fonction.
-
-Invalide :
+`val` et `var` peuvent aussi être déclarées au niveau du module. Une globale
+doit toujours avoir un initialiseur statique :
 
 ```janus
 val answer : int = 42
+var requests : int = 0
+
+def recordRequest() : Unit {
+    requests = requests + 1
+}
 ```
 
-Valide :
+Une globale `private` n'est visible que depuis son module :
 
 ```janus
-def answer() : int {
-    return 42
-}
-
-def main() : int {
-    return answer()
-}
+private val internalName : string = "janus"
 ```
+
+Les initialiseurs globaux acceptent actuellement les littéraux primitifs et
+leur négation logique ou numérique. Les appels de fonctions, références à une
+autre globale, objets construits, pointeurs possédés et lambdas ne sont pas
+encore des initialiseurs globaux valides. Contrairement à une `var` locale, une
+`var` globale ne peut pas être déclarée sans initialiseur.
 
 Types primitifs :
 
