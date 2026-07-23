@@ -24,6 +24,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::double_type();
   if (name == "byte")
     return &janus::Type::byte_type();
+  if (name == "ubyte")
+    return &janus::Type::ubyte_type();
   if (name == "char")
     return &janus::Type::char_type();
   if (name == "bool")
@@ -169,6 +171,7 @@ bool is_scalar_cast_type(const janus::semantic::SemanticType &type) {
   case janus::TypeKind::Int:
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
+  case janus::TypeKind::UByte:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
   case janus::TypeKind::USize:
@@ -186,6 +189,7 @@ bool is_integer_cast_type(const janus::semantic::SemanticType &type) {
   switch (type.concrete->kind()) {
   case janus::TypeKind::Int:
   case janus::TypeKind::Byte:
+  case janus::TypeKind::UByte:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
   case janus::TypeKind::USize:
@@ -205,6 +209,7 @@ bool is_c_abi_type(const janus::semantic::SemanticType &type,
   case janus::TypeKind::Int:
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
+  case janus::TypeKind::UByte:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
   case janus::TypeKind::USize:
@@ -230,6 +235,7 @@ bool is_c_variadic_type(const janus::semantic::SemanticType &type) {
   case janus::TypeKind::Int:
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
+  case janus::TypeKind::UByte:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
   case janus::TypeKind::USize:
@@ -318,6 +324,35 @@ integer_literal_value(const janus::ast::Expression &expression) {
     }
   }
   return std::nullopt;
+}
+
+bool integer_literal_fits(const janus::ast::Expression &expression,
+                          const janus::Type &type) {
+  const auto value = integer_literal_value(expression);
+  if (!value || !type.is_integer())
+    return false;
+  if (type.is_signed()) {
+    const std::uint32_t magnitude_bits = type.bit_width() - 1;
+    const std::int64_t minimum =
+        magnitude_bits == 63
+            ? std::numeric_limits<std::int64_t>::min()
+            : -(std::int64_t{1} << magnitude_bits);
+    const std::int64_t maximum =
+        magnitude_bits == 63
+            ? std::numeric_limits<std::int64_t>::max()
+            : (std::int64_t{1} << magnitude_bits) - 1;
+    return *value >= minimum && *value <= maximum;
+  }
+  const std::uint64_t maximum =
+      type.bit_width() == 64
+          ? std::numeric_limits<std::uint64_t>::max()
+          : (std::uint64_t{1} << type.bit_width()) - 1;
+  return *value >= 0 && static_cast<std::uint64_t>(*value) <= maximum;
+}
+
+std::string integer_range_description(const janus::Type &type) {
+  return std::string{type.is_signed() ? "signed " : "unsigned "} +
+         std::to_string(type.bit_width()) + "-bit range";
 }
 
 } // namespace
@@ -993,16 +1028,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
       if (same_type(actual, expected))
         return;
 
-      if (expected.is_concrete() &&
-          expected.concrete->kind() == TypeKind::Byte) {
-        if (const auto literal = integer_literal_value(expression)) {
-          if (*literal >= std::numeric_limits<std::int8_t>::min() &&
-              *literal <= std::numeric_limits<std::int8_t>::max()) {
+      if (expected.is_concrete() && expected.concrete->is_integer()) {
+        if (integer_literal_value(expression)) {
+          if (integer_literal_fits(expression, *expected.concrete))
             return;
-          }
           throw CompileError{
               expression_location(expression),
-              "integer literal is outside the signed 8-bit range"};
+              "integer literal is outside the " +
+                  integer_range_description(*expected.concrete)};
         }
       }
 
@@ -1017,16 +1050,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
           if (same_type(actual, return_type))
             return;
 
-          if (return_type.is_concrete() &&
-              return_type.concrete->kind() == TypeKind::Byte) {
-            if (const auto literal = integer_literal_value(expression)) {
-              if (*literal >= std::numeric_limits<std::int8_t>::min() &&
-                  *literal <= std::numeric_limits<std::int8_t>::max()) {
+          if (return_type.is_concrete() && return_type.concrete->is_integer()) {
+            if (integer_literal_value(expression)) {
+              if (integer_literal_fits(expression, *return_type.concrete))
                 return;
-              }
               throw CompileError{
                   expression_location(expression),
-                  "integer literal is outside the signed 8-bit range"};
+                  "integer literal is outside the " +
+                      integer_range_description(*return_type.concrete)};
             }
           }
 
@@ -1153,6 +1184,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                     (argument.concrete->kind() != TypeKind::Int &&
                      argument.concrete->kind() != TypeKind::Double &&
                      argument.concrete->kind() != TypeKind::Byte &&
+                     argument.concrete->kind() != TypeKind::UByte &&
                      argument.concrete->kind() != TypeKind::Char &&
                      argument.concrete->kind() != TypeKind::Bool &&
                      argument.concrete->kind() != TypeKind::String &&
@@ -1160,8 +1192,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                   throw CompileError{
                       node.location,
                       node.callee +
-                          " supports int, double, byte, char, bool, string, "
-                          "and usize values"};
+                          " supports numeric, char, bool, and string values"};
                 return SemanticType{&Type::unit_type()};
               }
               if (node.callee == "panic") {
@@ -1999,13 +2030,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               }
 
               if (!operand_type.is_concrete() ||
-                  (operand_type.concrete->kind() != TypeKind::Int &&
-                   operand_type.concrete->kind() != TypeKind::Byte &&
-                   operand_type.concrete->kind() != TypeKind::Double)) {
+                  (!operand_type.concrete->is_floating_point() &&
+                   (!operand_type.concrete->is_integer() ||
+                    !operand_type.concrete->is_signed()))) {
                 throw CompileError{
                     node.location,
-                    "unary operator '-' requires an operand of type 'int', "
-                    "'byte', or 'double'"};
+                    "unary operator '-' requires a signed integer or "
+                    "floating-point operand"};
               }
               return operand_type;
             } else {
@@ -2023,9 +2054,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
               const TypeKind kind =
                   is_concrete ? left_type.concrete->kind() : TypeKind::Int;
               const bool is_numeric =
-                  is_concrete &&
-                  (kind == TypeKind::Int || kind == TypeKind::Byte ||
-                   kind == TypeKind::Double || kind == TypeKind::USize);
+                  is_concrete && (left_type.concrete->is_integer() ||
+                                  left_type.concrete->is_floating_point());
               const bool is_orderable =
                   is_numeric || (is_concrete && kind == TypeKind::Char);
 
@@ -2043,12 +2073,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 return left_type;
               case ast::BinaryOperator::Remainder:
                 if (!is_concrete ||
-                    (kind != TypeKind::Int && kind != TypeKind::Byte &&
-                     kind != TypeKind::USize)) {
+                    !left_type.concrete->is_integer()) {
                   throw CompileError{
                       node.location,
-                      "operator '%' requires operands of type 'int', 'byte', "
-                      "or 'usize'"};
+                      "operator '%' requires integer operands"};
                 }
                 return left_type;
               case ast::BinaryOperator::Less:

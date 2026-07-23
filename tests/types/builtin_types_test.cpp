@@ -38,6 +38,14 @@ int main() {
   expect(janus::backend::llvm::lower_type(byte_type, context)->isIntegerTy(8),
          "byte lowers to LLVM i8");
 
+  const janus::Type &ubyte_type = janus::Type::ubyte_type();
+  expect(ubyte_type.name() == "ubyte", "ubyte has the expected name");
+  expect(ubyte_type.bit_width() == 8, "ubyte is 8 bits wide");
+  expect(ubyte_type.is_integer(), "ubyte is an integer");
+  expect(!ubyte_type.is_signed(), "ubyte is unsigned");
+  expect(janus::backend::llvm::lower_type(ubyte_type, context)->isIntegerTy(8),
+         "ubyte lowers to LLVM i8");
+
   const janus::Type &char_type = janus::Type::char_type();
   expect(char_type.name() == "char", "char has the expected name");
   expect(char_type.bit_width() == 32, "char is 32 bits wide");

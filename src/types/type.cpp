@@ -17,6 +17,11 @@ const Type &Type::byte_type() {
   return type;
 }
 
+const Type &Type::ubyte_type() {
+  static const Type type{TypeKind::UByte, "ubyte", 8, false};
+  return type;
+}
+
 const Type &Type::char_type() {
   static const Type type{TypeKind::Char, "char", 32, false};
   return type;
@@ -70,6 +75,7 @@ std::uint32_t Type::bit_width() const noexcept { return bit_width_; }
 
 bool Type::is_integer() const noexcept {
   return kind_ == TypeKind::Int || kind_ == TypeKind::Byte ||
+         kind_ == TypeKind::UByte ||
          kind_ == TypeKind::USize;
 }
 

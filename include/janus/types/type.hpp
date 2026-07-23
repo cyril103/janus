@@ -10,6 +10,7 @@ enum class TypeKind {
   Int,
   Double,
   Byte,
+  UByte,
   Char,
   Bool,
   String,
@@ -26,6 +27,7 @@ public:
   [[nodiscard]] static const Type &int_type();
   [[nodiscard]] static const Type &double_type();
   [[nodiscard]] static const Type &byte_type();
+  [[nodiscard]] static const Type &ubyte_type();
   [[nodiscard]] static const Type &char_type();
   [[nodiscard]] static const Type &bool_type();
   [[nodiscard]] static const Type &string_type();

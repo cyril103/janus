@@ -35,6 +35,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::double_type();
   if (name == "byte")
     return &janus::Type::byte_type();
+  if (name == "ubyte")
+    return &janus::Type::ubyte_type();
   if (name == "char")
     return &janus::Type::char_type();
   if (name == "bool")
@@ -1411,6 +1413,16 @@ private:
                 result = builder.CreateCall(function, {signed_argument});
                 break;
               }
+              case janus::TypeKind::UByte: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_ubyte",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt32Ty()}, false));
+                ::llvm::Value *unsigned_argument = builder.CreateZExt(
+                    argument, builder.getInt32Ty(), "print.ubyte.unsigned");
+                result = builder.CreateCall(function, {unsigned_argument});
+                break;
+              }
               case janus::TypeKind::USize: {
                 ::llvm::FunctionCallee function = module_->getOrInsertFunction(
                     "janus_print_usize",
@@ -1636,9 +1648,11 @@ private:
                 ::llvm::Value *argument = emit_expression(
                     *node.arguments[index], argument_type, substitutions,
                     locals, builder);
-                if (argument_type.kind() == janus::TypeKind::Byte)
-                  argument = builder.CreateSExt(argument, builder.getInt32Ty(),
-                                                "vararg.byte");
+                if (argument_type.bit_width() < 32 &&
+                    argument_type.is_integer())
+                  argument = builder.CreateIntCast(
+                      argument, builder.getInt32Ty(), argument_type.is_signed(),
+                      "vararg.integer");
                 else if (argument_type.kind() == janus::TypeKind::Bool)
                   argument = builder.CreateZExt(argument, builder.getInt32Ty(),
                                                 "vararg.bool");
@@ -2038,7 +2052,7 @@ private:
                                               janus::ast::UnaryExpression>) {
             const janus::Type *operand_type =
                 &expression_type(*node.operand, substitutions, locals);
-            if (expected_type.kind() == janus::TypeKind::Byte &&
+            if (expected_type.is_integer() &&
                 std::holds_alternative<janus::ast::IntegerLiteralExpression>(
                     node.operand->value)) {
               operand_type = &expected_type;
@@ -2099,7 +2113,7 @@ private:
                 operand_type.kind() == janus::TypeKind::Double;
             const bool is_unsigned_integer =
                 operand_type.kind() == janus::TypeKind::Char ||
-                operand_type.kind() == janus::TypeKind::USize;
+                (operand_type.is_integer() && !operand_type.is_signed());
 
             switch (node.operation) {
             case janus::ast::BinaryOperator::Add:

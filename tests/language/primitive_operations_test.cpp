@@ -50,6 +50,10 @@ def main() : int {
     val minimum : byte = -128
     val first : byte = 7
     val second : byte = first + first
+    val unsignedFirst : ubyte = 250
+    val unsignedSecond : ubyte = 10
+    val unsignedWrap : ubyte = unsignedFirst + unsignedSecond
+    val unsignedOrder : bool = unsignedFirst > unsignedSecond
     val onePointFive : double = 1.5
     val twoPointZero : double = 2.0
     val floating : double = onePointFive * twoPointZero + 1.0
@@ -99,6 +103,8 @@ def main() : int {
          "signed integer remainder is emitted");
   expect(ir.find("add i8") != std::string::npos,
          "byte arithmetic keeps its 8-bit representation");
+  expect(ir.find("icmp ugt i8") != std::string::npos,
+         "ubyte comparison is unsigned");
   expect(ir.find("fmul double") != std::string::npos,
          "double multiplication is emitted");
   expect(ir.find("icmp sge i32") != std::string::npos,
@@ -121,6 +127,12 @@ def main() : int {
   expect_compile_error(
       "def main() : int { val x : double = 4.0 % 2.0 return 0 }",
       "operator '%' requires");
+  expect_compile_error(
+      "def main() : int { val x : ubyte = 256 return 0 }",
+      "integer literal is outside the unsigned 8-bit range");
+  expect_compile_error(
+      "def main() : int { val x : ubyte = -1 return 0 }",
+      "integer literal is outside the unsigned 8-bit range");
   expect_compile_error(
       "def main() : int { val x : bool = \"a\" < \"b\" return 0 }",
       "comparison operators require");
