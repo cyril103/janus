@@ -1,0 +1,446 @@
+module std.graphics.resources
+import std.c
+import std.graphics.types
+
+private extern def janus_graphics_load_font(
+fileName : Ptr[byte],
+fontSize : int
+) : Ptr[byte]
+private extern def janus_graphics_load_font_utf8(
+fileName : Ptr[byte],
+fontSize : int,
+characters : Ptr[byte]
+) : Ptr[byte]
+private extern def janus_graphics_font_is_valid(handle : Ptr[byte]) : bool
+private extern def janus_graphics_unload_font(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_draw_text_font(
+handle : Ptr[byte],
+text : Ptr[byte],
+x : float,
+y : float,
+fontSize : float,
+spacing : float,
+color : uint
+) : Unit
+private extern def janus_graphics_measure_text_width(
+handle : Ptr[byte],
+text : Ptr[byte],
+fontSize : float,
+spacing : float
+) : float
+private extern def janus_graphics_measure_text_height(
+handle : Ptr[byte],
+text : Ptr[byte],
+fontSize : float,
+spacing : float
+) : float
+private extern def janus_graphics_load_texture(fileName : Ptr[byte]) : Ptr[byte]
+private extern def janus_graphics_texture_is_valid(handle : Ptr[byte]) : bool
+private extern def janus_graphics_texture_width(handle : Ptr[byte]) : int
+private extern def janus_graphics_texture_height(handle : Ptr[byte]) : int
+private extern def janus_graphics_unload_texture(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_draw_texture(
+handle : Ptr[byte],
+x : int,
+y : int,
+tint : uint
+) : Unit
+private extern def janus_graphics_draw_texture_pro(
+handle : Ptr[byte],
+sourceX : float,
+sourceY : float,
+sourceWidth : float,
+sourceHeight : float,
+destinationX : float,
+destinationY : float,
+destinationWidth : float,
+destinationHeight : float,
+originX : float,
+originY : float,
+rotation : float,
+tint : uint
+) : Unit
+private extern def janus_graphics_set_texture_filter(
+handle : Ptr[byte],
+filter : int
+) : Unit
+private extern def janus_graphics_load_render_texture(
+width : int,
+height : int
+) : Ptr[byte]
+private extern def janus_graphics_render_texture_is_valid(
+handle : Ptr[byte]
+) : bool
+private extern def janus_graphics_render_texture_width(handle : Ptr[byte]) : int
+private extern def janus_graphics_render_texture_height(handle : Ptr[byte]) : int
+private extern def janus_graphics_unload_render_texture(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_begin_render_texture(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_end_render_texture() : Unit
+private extern def janus_graphics_draw_render_texture_pro(
+handle : Ptr[byte],
+sourceX : float,
+sourceY : float,
+sourceWidth : float,
+sourceHeight : float,
+destinationX : float,
+destinationY : float,
+destinationWidth : float,
+destinationHeight : float,
+originX : float,
+originY : float,
+rotation : float,
+tint : uint
+) : Unit
+private extern def janus_graphics_load_fragment_shader(
+fragmentFile : Ptr[byte]
+) : Ptr[byte]
+private extern def janus_graphics_load_shader(
+vertexFile : Ptr[byte],
+fragmentFile : Ptr[byte]
+) : Ptr[byte]
+private extern def janus_graphics_shader_is_valid(handle : Ptr[byte]) : bool
+private extern def janus_graphics_unload_shader(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_begin_shader(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_end_shader() : Unit
+private extern def janus_graphics_shader_location(
+handle : Ptr[byte],
+name : Ptr[byte]
+) : int
+private extern def janus_graphics_set_shader_float(
+handle : Ptr[byte],
+location : int,
+value : float
+) : Unit
+private extern def janus_graphics_set_shader_vector2(
+handle : Ptr[byte],
+location : int,
+x : float,
+y : float
+) : Unit
+private extern def janus_graphics_set_shader_color(
+handle : Ptr[byte],
+location : int,
+color : uint
+) : Unit
+private extern def janus_graphics_set_shader_int(
+handle : Ptr[byte],
+location : int,
+value : int
+) : Unit
+class Texture(private val handle : Ptr[byte]) {
+    def isValid() : bool {
+        return janus_graphics_texture_is_valid(handle)
+    }
+
+    def width() : int {
+        return janus_graphics_texture_width(handle)
+    }
+
+    def height() : int {
+        return janus_graphics_texture_height(handle)
+    }
+
+    def draw(x : int, y : int, tint : Color) : Unit {
+        janus_graphics_draw_texture(handle, x, y, tint.packed())
+    }
+
+    def drawAt(position : Vector2, tint : Color) : Unit {
+        janus_graphics_draw_texture(
+        handle,
+        int(position.x),
+        int(position.y),
+        tint.packed()
+        )
+    }
+
+    def drawPro(
+    source : Rectangle,
+    destination : Rectangle,
+    origin : Vector2,
+    rotation : float,
+    tint : Color
+    ) : Unit {
+        janus_graphics_draw_texture_pro(
+        handle,
+        source.x,
+        source.y,
+        source.width,
+        source.height,
+        destination.x,
+        destination.y,
+        destination.width,
+        destination.height,
+        origin.x,
+        origin.y,
+        rotation,
+        tint.packed()
+        )
+    }
+
+    def drawFrame(
+    frame : int,
+    frameWidth : int,
+    frameHeight : int,
+    columns : int,
+    position : Vector2,
+    scale : float,
+    rotation : float,
+    flipX : bool,
+    flipY : bool,
+    tint : Color
+    ) : Unit {
+        val column : int = frame % columns
+        val row : int = frame / columns
+        var sourceWidth : float = float(frameWidth)
+        var sourceHeight : float = float(frameHeight)
+        if flipX {
+            sourceWidth = -sourceWidth
+        }
+        if flipY {
+            sourceHeight = -sourceHeight
+        }
+        janus_graphics_draw_texture_pro(
+        handle,
+        float(column * frameWidth),
+        float(row * frameHeight),
+        sourceWidth,
+        sourceHeight,
+        position.x,
+        position.y,
+        float(frameWidth) * scale,
+        float(frameHeight) * scale,
+        float(0.0),
+        float(0.0),
+        rotation,
+        tint.packed()
+        )
+    }
+
+    def setFilter(filter : TextureFilter) : Unit {
+        janus_graphics_set_texture_filter(handle, int(filter))
+    }
+
+    destructor {
+        janus_graphics_unload_texture(handle)
+    }
+}
+
+class Font(private val handle : Ptr[byte]) {
+    def isValid() : bool {
+        return janus_graphics_font_is_valid(handle)
+    }
+
+    def draw(
+    text : string,
+    position : Vector2,
+    fontSize : float,
+    spacing : float,
+    color : Color
+    ) : Unit {
+        janus_graphics_draw_text_font(
+        handle,
+        cstr(text),
+        position.x,
+        position.y,
+        fontSize,
+        spacing,
+        color.packed()
+        )
+    }
+
+    def measure(
+    text : string,
+    fontSize : float,
+    spacing : float
+    ) : Vector2 {
+        return vector2(
+        janus_graphics_measure_text_width(
+        handle,
+        cstr(text),
+        fontSize,
+        spacing
+        ),
+        janus_graphics_measure_text_height(
+        handle,
+        cstr(text),
+        fontSize,
+        spacing
+        )
+        )
+    }
+
+    destructor {
+        janus_graphics_unload_font(handle)
+    }
+}
+
+class RenderTexture(private val handle : Ptr[byte]) {
+    def isValid() : bool {
+        return janus_graphics_render_texture_is_valid(handle)
+    }
+
+    def width() : int {
+        return janus_graphics_render_texture_width(handle)
+    }
+
+    def height() : int {
+        return janus_graphics_render_texture_height(handle)
+    }
+
+    def begin() : Unit {
+        janus_graphics_begin_render_texture(handle)
+    }
+
+    def drawPro(
+    source : Rectangle,
+    destination : Rectangle,
+    origin : Vector2,
+    rotation : float,
+    tint : Color
+    ) : Unit {
+        janus_graphics_draw_render_texture_pro(
+        handle,
+        source.x,
+        source.y,
+        source.width,
+        source.height,
+        destination.x,
+        destination.y,
+        destination.width,
+        destination.height,
+        origin.x,
+        origin.y,
+        rotation,
+        tint.packed()
+        )
+    }
+
+    destructor {
+        janus_graphics_unload_render_texture(handle)
+    }
+}
+
+class Shader(private val handle : Ptr[byte]) {
+    def isValid() : bool {
+        return janus_graphics_shader_is_valid(handle)
+    }
+
+    def begin() : Unit {
+        janus_graphics_begin_shader(handle)
+    }
+
+    def location(name : string) : int {
+        return janus_graphics_shader_location(handle, cstr(name))
+    }
+
+    def setFloat(location : int, value : float) : Unit {
+        janus_graphics_set_shader_float(handle, location, value)
+    }
+
+    def setVector2(location : int, value : Vector2) : Unit {
+        janus_graphics_set_shader_vector2(
+        handle,
+        location,
+        value.x,
+        value.y
+        )
+    }
+
+    def setColor(location : int, value : Color) : Unit {
+        janus_graphics_set_shader_color(handle, location, value.packed())
+    }
+
+    def setInt(location : int, value : int) : Unit {
+        janus_graphics_set_shader_int(handle, location, value)
+    }
+
+    destructor {
+        janus_graphics_unload_shader(handle)
+    }
+}
+
+class SpriteAnimation(
+val texture : Texture,
+val frameWidth : int,
+val frameHeight : int,
+val columns : int,
+val frameCount : int,
+var currentFrame : int
+) {
+    def advance() : int {
+        currentFrame = (currentFrame + 1) % frameCount
+        return currentFrame
+    }
+
+    def reset() : Unit {
+        currentFrame = 0
+    }
+
+    def draw(
+    position : Vector2,
+    scale : float,
+    rotation : float,
+    flipX : bool,
+    flipY : bool,
+    tint : Color
+    ) : Unit {
+        texture.drawFrame(
+        currentFrame,
+        frameWidth,
+        frameHeight,
+        columns,
+        position,
+        scale,
+        rotation,
+        flipX,
+        flipY,
+        tint
+        )
+    }
+}
+
+def loadTexture(fileName : string) : Texture {
+    return new Texture(janus_graphics_load_texture(cstr(fileName)))
+}
+
+def loadFont(fileName : string, fontSize : int) : Font {
+    return new Font(janus_graphics_load_font(cstr(fileName), fontSize))
+}
+
+def loadFontUtf8(
+fileName : string,
+fontSize : int,
+characters : string
+) : Font {
+    return new Font(
+    janus_graphics_load_font_utf8(
+    cstr(fileName),
+    fontSize,
+    cstr(characters)
+    )
+    )
+}
+
+def loadRenderTexture(width : int, height : int) : RenderTexture {
+    return new RenderTexture(janus_graphics_load_render_texture(width, height))
+}
+
+def endRenderTexture() : Unit {
+    janus_graphics_end_render_texture()
+}
+
+def loadFragmentShader(fragmentFile : string) : Shader {
+    return new Shader(
+    janus_graphics_load_fragment_shader(cstr(fragmentFile))
+    )
+}
+
+def loadShader(vertexFile : string, fragmentFile : string) : Shader {
+    return new Shader(
+    janus_graphics_load_shader(cstr(vertexFile), cstr(fragmentFile))
+    )
+}
+
+def endShader() : Unit {
+    janus_graphics_end_shader()
+}

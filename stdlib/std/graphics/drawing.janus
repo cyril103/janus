@@ -1,0 +1,373 @@
+module std.graphics.drawing
+import std.c
+import std.graphics.types
+
+private extern def janus_graphics_last_error() : Ptr[byte]
+private extern def janus_graphics_available() : bool
+private extern def janus_graphics_init_window(
+width : int,
+height : int,
+title : Ptr[byte]
+) : bool
+private extern def janus_graphics_window_should_close() : bool
+private extern def janus_graphics_close_window() : Unit
+private extern def janus_graphics_is_window_fullscreen() : bool
+private extern def janus_graphics_is_window_hidden() : bool
+private extern def janus_graphics_is_window_minimized() : bool
+private extern def janus_graphics_is_window_maximized() : bool
+private extern def janus_graphics_is_window_focused() : bool
+private extern def janus_graphics_is_window_resized() : bool
+private extern def janus_graphics_toggle_fullscreen() : Unit
+private extern def janus_graphics_maximize_window() : Unit
+private extern def janus_graphics_minimize_window() : Unit
+private extern def janus_graphics_restore_window() : Unit
+private extern def janus_graphics_set_window_title(title : Ptr[byte]) : Unit
+private extern def janus_graphics_set_window_position(x : int, y : int) : Unit
+private extern def janus_graphics_set_window_size(width : int, height : int) : Unit
+private extern def janus_graphics_set_window_opacity(opacity : float) : Unit
+private extern def janus_graphics_screen_width() : int
+private extern def janus_graphics_screen_height() : int
+private extern def janus_graphics_set_target_fps(framesPerSecond : int) : Unit
+private extern def janus_graphics_begin_drawing() : Unit
+private extern def janus_graphics_end_drawing() : Unit
+private extern def janus_graphics_begin_camera(
+offsetX : float,
+offsetY : float,
+targetX : float,
+targetY : float,
+rotation : float,
+zoom : float
+) : Unit
+private extern def janus_graphics_end_camera() : Unit
+private extern def janus_graphics_screen_to_world_x(
+x : float,
+y : float,
+offsetX : float,
+offsetY : float,
+targetX : float,
+targetY : float,
+rotation : float,
+zoom : float
+) : float
+private extern def janus_graphics_screen_to_world_y(
+x : float,
+y : float,
+offsetX : float,
+offsetY : float,
+targetX : float,
+targetY : float,
+rotation : float,
+zoom : float
+) : float
+private extern def janus_graphics_world_to_screen_x(
+x : float,
+y : float,
+offsetX : float,
+offsetY : float,
+targetX : float,
+targetY : float,
+rotation : float,
+zoom : float
+) : float
+private extern def janus_graphics_world_to_screen_y(
+x : float,
+y : float,
+offsetX : float,
+offsetY : float,
+targetX : float,
+targetY : float,
+rotation : float,
+zoom : float
+) : float
+private extern def janus_graphics_clear_background(color : uint) : Unit
+private extern def janus_graphics_draw_pixel(x : int, y : int, color : uint) : Unit
+private extern def janus_graphics_draw_line(
+startX : int,
+startY : int,
+endX : int,
+endY : int,
+color : uint
+) : Unit
+private extern def janus_graphics_draw_circle(
+centerX : int,
+centerY : int,
+radius : float,
+color : uint
+) : Unit
+private extern def janus_graphics_draw_rectangle(
+x : int,
+y : int,
+width : int,
+height : int,
+color : uint
+) : Unit
+private extern def janus_graphics_draw_text(
+text : Ptr[byte],
+x : int,
+y : int,
+fontSize : int,
+color : uint
+) : Unit
+class Camera2D(
+var offsetX : float,
+var offsetY : float,
+var targetX : float,
+var targetY : float,
+var rotation : float,
+var zoom : float
+) {}
+
+def graphicsAvailable() : bool {
+    return janus_graphics_available()
+}
+
+def graphicsLastError() : Ptr[byte] {
+    return janus_graphics_last_error()
+}
+
+def initWindow(width : int, height : int, title : string) : bool {
+    return janus_graphics_init_window(width, height, cstr(title))
+}
+
+def windowShouldClose() : bool {
+    return janus_graphics_window_should_close()
+}
+
+def closeWindow() : Unit {
+    janus_graphics_close_window()
+}
+
+def isWindowFullscreen() : bool {
+    return janus_graphics_is_window_fullscreen()
+}
+
+def isWindowHidden() : bool {
+    return janus_graphics_is_window_hidden()
+}
+
+def isWindowMinimized() : bool {
+    return janus_graphics_is_window_minimized()
+}
+
+def isWindowMaximized() : bool {
+    return janus_graphics_is_window_maximized()
+}
+
+def isWindowFocused() : bool {
+    return janus_graphics_is_window_focused()
+}
+
+def isWindowResized() : bool {
+    return janus_graphics_is_window_resized()
+}
+
+def toggleFullscreen() : Unit {
+    janus_graphics_toggle_fullscreen()
+}
+
+def maximizeWindow() : Unit {
+    janus_graphics_maximize_window()
+}
+
+def minimizeWindow() : Unit {
+    janus_graphics_minimize_window()
+}
+
+def restoreWindow() : Unit {
+    janus_graphics_restore_window()
+}
+
+def setWindowTitle(title : string) : Unit {
+    janus_graphics_set_window_title(cstr(title))
+}
+
+def setWindowPosition(x : int, y : int) : Unit {
+    janus_graphics_set_window_position(x, y)
+}
+
+def setWindowSize(width : int, height : int) : Unit {
+    janus_graphics_set_window_size(width, height)
+}
+
+def setWindowOpacity(opacity : float) : Unit {
+    janus_graphics_set_window_opacity(opacity)
+}
+
+def screenWidth() : int {
+    return janus_graphics_screen_width()
+}
+
+def screenHeight() : int {
+    return janus_graphics_screen_height()
+}
+
+def setTargetFps(framesPerSecond : int) : Unit {
+    janus_graphics_set_target_fps(framesPerSecond)
+}
+
+def beginDrawing() : Unit {
+    janus_graphics_begin_drawing()
+}
+
+def endDrawing() : Unit {
+    janus_graphics_end_drawing()
+}
+
+def beginCamera(camera : Camera2D) : Unit {
+    janus_graphics_begin_camera(
+    camera.offsetX,
+    camera.offsetY,
+    camera.targetX,
+    camera.targetY,
+    camera.rotation,
+    camera.zoom
+    )
+}
+
+def endCamera() : Unit {
+    janus_graphics_end_camera()
+}
+
+def screenToWorld(position : Vector2, camera : Camera2D) : Vector2 {
+    return vector2(
+    janus_graphics_screen_to_world_x(
+    position.x,
+    position.y,
+    camera.offsetX,
+    camera.offsetY,
+    camera.targetX,
+    camera.targetY,
+    camera.rotation,
+    camera.zoom
+    ),
+    janus_graphics_screen_to_world_y(
+    position.x,
+    position.y,
+    camera.offsetX,
+    camera.offsetY,
+    camera.targetX,
+    camera.targetY,
+    camera.rotation,
+    camera.zoom
+    )
+    )
+}
+
+def worldToScreen(position : Vector2, camera : Camera2D) : Vector2 {
+    return vector2(
+    janus_graphics_world_to_screen_x(
+    position.x,
+    position.y,
+    camera.offsetX,
+    camera.offsetY,
+    camera.targetX,
+    camera.targetY,
+    camera.rotation,
+    camera.zoom
+    ),
+    janus_graphics_world_to_screen_y(
+    position.x,
+    position.y,
+    camera.offsetX,
+    camera.offsetY,
+    camera.targetX,
+    camera.targetY,
+    camera.rotation,
+    camera.zoom
+    )
+    )
+}
+
+def clearBackground(color : Color) : Unit {
+    janus_graphics_clear_background(color.packed())
+}
+
+def clearColor(color : Color) : Unit {
+    clearBackground(color)
+}
+
+def drawPixel(x : int, y : int, color : Color) : Unit {
+    janus_graphics_draw_pixel(x, y, color.packed())
+}
+
+def drawPixelAt(position : Vector2, color : Color) : Unit {
+    drawPixel(int(position.x), int(position.y), color)
+}
+
+def drawLine(
+startX : int,
+startY : int,
+endX : int,
+endY : int,
+color : Color
+) : Unit {
+    janus_graphics_draw_line(startX, startY, endX, endY, color.packed())
+}
+
+def drawLineBetween(start : Vector2, end : Vector2, color : Color) : Unit {
+    drawLine(
+    int(start.x),
+    int(start.y),
+    int(end.x),
+    int(end.y),
+    color
+    )
+}
+
+def drawCircle(
+centerX : int,
+centerY : int,
+radius : float,
+color : Color
+) : Unit {
+    janus_graphics_draw_circle(centerX, centerY, radius, color.packed())
+}
+
+def drawCircleAt(center : Vector2, radius : float, color : Color) : Unit {
+    drawCircle(int(center.x), int(center.y), radius, color)
+}
+
+def drawRectangle(
+x : int,
+y : int,
+width : int,
+height : int,
+color : Color
+) : Unit {
+    janus_graphics_draw_rectangle(x, y, width, height, color.packed())
+}
+
+def drawRectangleArea(area : Rectangle, color : Color) : Unit {
+    drawRectangle(
+    int(area.x),
+    int(area.y),
+    int(area.width),
+    int(area.height),
+    color
+    )
+}
+
+def drawText(
+text : string,
+x : int,
+y : int,
+fontSize : int,
+color : Color
+) : Unit {
+    janus_graphics_draw_text(cstr(text), x, y, fontSize, color.packed())
+}
+
+def drawTextAt(
+text : string,
+position : Vector2,
+fontSize : int,
+color : Color
+) : Unit {
+    drawText(
+    text,
+    int(position.x),
+    int(position.y),
+    fontSize,
+    color
+    )
+}

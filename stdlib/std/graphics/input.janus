@@ -1,0 +1,141 @@
+module std.graphics.input
+import std.graphics.types
+
+private extern def janus_graphics_is_key_down(key : int) : bool
+private extern def janus_graphics_is_key_pressed(key : int) : bool
+private extern def janus_graphics_key_pressed() : int
+private extern def janus_graphics_mouse_x() : int
+private extern def janus_graphics_mouse_y() : int
+private extern def janus_graphics_set_mouse_position(x : int, y : int) : Unit
+private extern def janus_graphics_mouse_wheel_move() : float
+private extern def janus_graphics_is_mouse_button_down(button : int) : bool
+private extern def janus_graphics_is_mouse_button_pressed(button : int) : bool
+private extern def janus_graphics_show_cursor() : Unit
+private extern def janus_graphics_hide_cursor() : Unit
+private extern def janus_graphics_is_cursor_hidden() : bool
+private extern def janus_graphics_enable_cursor() : Unit
+private extern def janus_graphics_disable_cursor() : Unit
+private extern def janus_graphics_is_gamepad_available(gamepad : int) : bool
+private extern def janus_graphics_gamepad_name(gamepad : int) : Ptr[byte]
+private extern def janus_graphics_is_gamepad_button_down(
+gamepad : int,
+button : int
+) : bool
+private extern def janus_graphics_is_gamepad_button_pressed(
+gamepad : int,
+button : int
+) : bool
+private extern def janus_graphics_is_gamepad_button_released(
+gamepad : int,
+button : int
+) : bool
+private extern def janus_graphics_gamepad_button_pressed() : int
+private extern def janus_graphics_gamepad_axis_count(gamepad : int) : int
+private extern def janus_graphics_gamepad_axis(gamepad : int, axis : int) : float
+private extern def janus_graphics_set_gamepad_vibration(
+gamepad : int,
+leftMotor : float,
+rightMotor : float,
+duration : float
+) : Unit
+def isKeyDown(key : Key) : bool {
+    return janus_graphics_is_key_down(int(key))
+}
+
+def isKeyPressed(key : Key) : bool {
+    return janus_graphics_is_key_pressed(int(key))
+}
+
+def keyPressed() : int {
+    return janus_graphics_key_pressed()
+}
+
+def mouseX() : int {
+    return janus_graphics_mouse_x()
+}
+
+def mouseY() : int {
+    return janus_graphics_mouse_y()
+}
+
+def setMousePosition(x : int, y : int) : Unit {
+    janus_graphics_set_mouse_position(x, y)
+}
+
+def mouseWheelMove() : float {
+    return janus_graphics_mouse_wheel_move()
+}
+
+def isMouseButtonDown(button : MouseButton) : bool {
+    return janus_graphics_is_mouse_button_down(int(button))
+}
+
+def isMouseButtonPressed(button : MouseButton) : bool {
+    return janus_graphics_is_mouse_button_pressed(int(button))
+}
+
+def showCursor() : Unit {
+    janus_graphics_show_cursor()
+}
+
+def hideCursor() : Unit {
+    janus_graphics_hide_cursor()
+}
+
+def isCursorHidden() : bool {
+    return janus_graphics_is_cursor_hidden()
+}
+
+def enableCursor() : Unit {
+    janus_graphics_enable_cursor()
+}
+
+def disableCursor() : Unit {
+    janus_graphics_disable_cursor()
+}
+
+def isGamepadAvailable(gamepad : int) : bool {
+    return janus_graphics_is_gamepad_available(gamepad)
+}
+
+def gamepadName(gamepad : int) : Ptr[byte] {
+    return janus_graphics_gamepad_name(gamepad)
+}
+
+def isGamepadButtonDown(gamepad : int, button : GamepadButton) : bool {
+    return janus_graphics_is_gamepad_button_down(gamepad, int(button))
+}
+
+def isGamepadButtonPressed(gamepad : int, button : GamepadButton) : bool {
+    return janus_graphics_is_gamepad_button_pressed(gamepad, int(button))
+}
+
+def isGamepadButtonReleased(gamepad : int, button : GamepadButton) : bool {
+    return janus_graphics_is_gamepad_button_released(gamepad, int(button))
+}
+
+def gamepadButtonPressed() : int {
+    return janus_graphics_gamepad_button_pressed()
+}
+
+def gamepadAxisCount(gamepad : int) : int {
+    return janus_graphics_gamepad_axis_count(gamepad)
+}
+
+def gamepadAxis(gamepad : int, axis : GamepadAxis) : float {
+    return janus_graphics_gamepad_axis(gamepad, int(axis))
+}
+
+def setGamepadVibration(
+gamepad : int,
+leftMotor : float,
+rightMotor : float,
+duration : float
+) : Unit {
+    janus_graphics_set_gamepad_vibration(
+    gamepad,
+    leftMotor,
+    rightMotor,
+    duration
+    )
+}

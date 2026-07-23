@@ -29,7 +29,7 @@ int main() {
 import std.graphics
 
 def main() : int {
-    val color : uint = rgba(18, 52, 86, 120)
+    val color : Color = rgba(18, 52, 86, 120)
     val typedColor : Color = colorRgba(18, 52, 86, 120)
     val start : Vector2 = vector2(float(5.0), float(6.0))
     val end : Vector2 = vector2(float(10.0), float(12.0))
@@ -174,13 +174,15 @@ def main() : int {
         std::filesystem::path{"graphics_private_test/main.janus"},
         "import std.graphics "
         "def main() : int { "
-        "return if std.graphics.janus_graphics_available() { 1 } else { 0 } "
+        "return if std.graphics.drawing.janus_graphics_available() "
+        "{ 1 } else { 0 } "
         "}");
     static_cast<void>(analyzer.analyze(private_program));
     expect(false, "graphics native primitives must remain module-private");
   } catch (const janus::CompileError &error) {
     expect(std::string_view{error.what()}.find(
-               "function 'std.graphics.janus_graphics_available' is private") !=
+               "function 'std.graphics.drawing.janus_graphics_available' "
+               "is private") !=
                std::string_view::npos,
            "graphics native primitive access reports private visibility");
   }
@@ -197,21 +199,23 @@ def main() : int {
   expect(ir.find("declare i32 @janus_graphics_rgba(i8, i8, i8, i8)") !=
              std::string::npos,
          "graphics colors use the native RGBA helper");
-  expect(ir.find("@__janus_global_std_graphics__Black = constant i32 255") !=
+  expect(ir.find("@__janus_global_std_graphics_types__Black = constant "
+                 "%struct.Color { i32 255 }") !=
                  std::string::npos &&
-             ir.find("@__janus_global_std_graphics__White = constant i32 -1") !=
-                 std::string::npos &&
-             ir.find(
-                 "@__janus_global_std_graphics__Red = constant i32 "
-                 "-433506305") !=
+             ir.find("@__janus_global_std_graphics_types__White = constant "
+                     "%struct.Color { i32 -1 }") !=
                  std::string::npos &&
              ir.find(
-                 "@__janus_global_std_graphics__Green = constant i32 "
-                 "14954751") !=
+                 "@__janus_global_std_graphics_types__Red = constant "
+                 "%struct.Color { i32 -433506305 }") !=
                  std::string::npos &&
              ir.find(
-                 "@__janus_global_std_graphics__Blue = constant i32 "
-                 "7991807") !=
+                 "@__janus_global_std_graphics_types__Green = constant "
+                 "%struct.Color { i32 14954751 }") !=
+                 std::string::npos &&
+             ir.find(
+                 "@__janus_global_std_graphics_types__Blue = constant "
+                 "%struct.Color { i32 7991807 }") !=
                  std::string::npos,
          "graphics exposes statically initialized global color values");
   expect(ir.find("call void @janus_graphics_draw_circle") != std::string::npos,

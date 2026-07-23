@@ -1,0 +1,135 @@
+module std.graphics.audio
+import std.c
+
+private extern def janus_graphics_init_audio() : bool
+private extern def janus_graphics_close_audio() : Unit
+private extern def janus_graphics_set_master_volume(volume : float) : Unit
+private extern def janus_graphics_load_sound(fileName : Ptr[byte]) : Ptr[byte]
+private extern def janus_graphics_sound_is_valid(handle : Ptr[byte]) : bool
+private extern def janus_graphics_unload_sound(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_play_sound(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_stop_sound(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_sound_is_playing(handle : Ptr[byte]) : bool
+private extern def janus_graphics_set_sound_volume(
+handle : Ptr[byte],
+volume : float
+) : Unit
+private extern def janus_graphics_set_sound_pitch(
+handle : Ptr[byte],
+pitch : float
+) : Unit
+private extern def janus_graphics_set_sound_pan(
+handle : Ptr[byte],
+pan : float
+) : Unit
+private extern def janus_graphics_load_music(fileName : Ptr[byte]) : Ptr[byte]
+private extern def janus_graphics_music_is_valid(handle : Ptr[byte]) : bool
+private extern def janus_graphics_unload_music(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_play_music(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_stop_music(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_update_music(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_music_is_playing(handle : Ptr[byte]) : bool
+private extern def janus_graphics_set_music_volume(
+handle : Ptr[byte],
+volume : float
+) : Unit
+private extern def janus_graphics_set_music_pitch(
+handle : Ptr[byte],
+pitch : float
+) : Unit
+private extern def janus_graphics_set_music_pan(
+handle : Ptr[byte],
+pan : float
+) : Unit
+class Sound(private val handle : Ptr[byte]) {
+    def isValid() : bool {
+        return janus_graphics_sound_is_valid(handle)
+    }
+
+    def play() : Unit {
+        janus_graphics_play_sound(handle)
+    }
+
+    def stop() : Unit {
+        janus_graphics_stop_sound(handle)
+    }
+
+    def isPlaying() : bool {
+        return janus_graphics_sound_is_playing(handle)
+    }
+
+    def setVolume(volume : float) : Unit {
+        janus_graphics_set_sound_volume(handle, volume)
+    }
+
+    def setPitch(pitch : float) : Unit {
+        janus_graphics_set_sound_pitch(handle, pitch)
+    }
+
+    def setPan(pan : float) : Unit {
+        janus_graphics_set_sound_pan(handle, pan)
+    }
+
+    destructor {
+        janus_graphics_unload_sound(handle)
+    }
+}
+
+class Music(private val handle : Ptr[byte]) {
+    def isValid() : bool {
+        return janus_graphics_music_is_valid(handle)
+    }
+
+    def play() : Unit {
+        janus_graphics_play_music(handle)
+    }
+
+    def stop() : Unit {
+        janus_graphics_stop_music(handle)
+    }
+
+    def update() : Unit {
+        janus_graphics_update_music(handle)
+    }
+
+    def isPlaying() : bool {
+        return janus_graphics_music_is_playing(handle)
+    }
+
+    def setVolume(volume : float) : Unit {
+        janus_graphics_set_music_volume(handle, volume)
+    }
+
+    def setPitch(pitch : float) : Unit {
+        janus_graphics_set_music_pitch(handle, pitch)
+    }
+
+    def setPan(pan : float) : Unit {
+        janus_graphics_set_music_pan(handle, pan)
+    }
+
+    destructor {
+        janus_graphics_unload_music(handle)
+    }
+}
+
+def initAudio() : bool {
+    return janus_graphics_init_audio()
+}
+
+def closeAudio() : Unit {
+    janus_graphics_close_audio()
+}
+
+def setMasterVolume(volume : float) : Unit {
+    janus_graphics_set_master_volume(volume)
+}
+
+def loadSound(fileName : string) : Sound {
+    return new Sound(janus_graphics_load_sound(cstr(fileName)))
+}
+
+def loadMusic(fileName : string) : Music {
+    return new Music(janus_graphics_load_music(cstr(fileName)))
+}
+
