@@ -414,7 +414,7 @@ if(BUILD_TESTING)
                     --project
                     "${PROJECT_SOURCE_DIR}/tests/fixtures/project-euler"
                     --config
-                    "${PROJECT_SOURCE_DIR}/tests/fixtures/project-euler/smoke.txt"
+                    "${PROJECT_SOURCE_DIR}/tests/fixtures/project-euler/production.txt"
                     --janus
                     $<TARGET_FILE:janus>
                     --all

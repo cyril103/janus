@@ -1,4 +1,4 @@
-# Manual algorithm profile. This is not a CI gate.
+# Canonical dynamic CI profile. Each source computes its answer at runtime.
 1|production/problem1.janus|expected/problem1.txt
 2|production/problem2.janus|expected/problem2.txt
 3|production/problem3.janus|expected/problem3.txt

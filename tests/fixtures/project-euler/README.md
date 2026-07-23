@@ -1,52 +1,26 @@
 # Project Euler fixtures
 
-This corpus covers canonical Project Euler answers for problems 1 through 20.
+This corpus covers canonical Project Euler problems 1 through 20. The
+`production.txt` manifest is the sole canonical profile: every Janus source
+computes its answer dynamically from the problem inputs, and the corresponding
+file under `expected/` remains the output oracle.
 
-The `smoke.txt` profile is the stable CI gate. It compiles, builds, and runs
-twenty tiny Janus programs through `scripts/verify-janus-euler-suite.sh`; each
-program prints one canonical answer and exits. CTest runs this profile with a
-short per-problem timeout so compiler/runtime regressions are caught without
-making CI depend on long algorithms.
+CTest keeps the historical `project_euler.smoke` test name for compatibility,
+but that gate runs the dynamic production corpus. Each problem has a five-second
+budget and the complete run has a 120-second budget.
 
-The `production.txt` profile is for manual algorithm checks. It contains one
-source per problem and uses direct Janus algorithms over the canonical inputs.
-
-Commands:
+Run the same corpus directly with:
 
 ```sh
 scripts/verify-janus-euler-suite.sh \
   --project tests/fixtures/project-euler \
-  --config tests/fixtures/project-euler/smoke.txt \
-  --janus /path/to/janus \
+  --config tests/fixtures/project-euler/production.txt \
+  --janus /absolute/path/to/janus \
   --all \
   --timeout 5 \
   --global-timeout 120 \
-  --artifacts-dir /tmp/janus-euler-smoke-artifacts
-
-scripts/verify-janus-euler-suite.sh \
-  --project tests/fixtures/project-euler \
-  --config tests/fixtures/project-euler/production.txt \
-  --janus /path/to/janus \
-  --all \
-  --timeout 60 \
-  --global-timeout 900 \
-  --artifacts-dir /tmp/janus-euler-production-artifacts
-
-scripts/verify-janus-euler-suite.sh \
-  --project tests/fixtures/project-euler \
-  --config tests/fixtures/project-euler/production.txt \
-  --safe-fallback tests/fixtures/project-euler/smoke.txt \
-  --janus /path/to/janus \
-  --all \
-  --timeout 60 \
-  --global-timeout 900 \
-  --artifacts-dir /tmp/janus-euler-production-safe-artifacts
+  --artifacts-dir /tmp/janus-euler-artifacts
 ```
-
-The production-to-smoke safe command is diagnostic/degraded coverage. A
-`fallback` result means the production algorithm failed and the smoke fixture
-confirmed the canonical answer as a stable fallback; it should not be treated as
-strict production success.
 
 Each artifact run writes `latest`, `index.tsv`, `report.json`, and per-problem
 check/build/run stdout and stderr logs under the selected artifact directory.
