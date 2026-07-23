@@ -63,6 +63,17 @@ struct Options {
   std::string test_filter;
 };
 
+class UsageError final : public std::runtime_error {
+public:
+  UsageError(std::string command, std::string message)
+      : std::runtime_error{std::move(message)}, command_{std::move(command)} {}
+
+  [[nodiscard]] const std::string &command() const noexcept { return command_; }
+
+private:
+  std::string command_;
+};
+
 std::filesystem::path executable_path(const char *argv0) {
 #ifdef _WIN32
   std::wstring buffer(32768, L'\0');
@@ -114,8 +125,8 @@ Toolchain locate_toolchain(const char *argv0) {
   };
 }
 
-void print_usage() {
-  std::cerr << "usage:\n"
+void print_usage(std::ostream &output) {
+  output << "usage:\n"
             << "  janus new <directory> [--name <name>]\n"
             << "  janus init [directory] [--name <name>]\n"
             << "  janus add <name>[@<version>] [--path <path> | "
@@ -133,6 +144,36 @@ void print_usage() {
             << "  dependency options: --locked --offline\n"
             << "  janus --help\n"
             << "  janus --version\n";
+}
+
+void print_command_usage(std::ostream &output, std::string_view command) {
+  output << "usage: janus " << command;
+  if (command == "check")
+    output << " [source.janus] [--locked] [--offline] "
+              "[--warn-high-growth-loops]\n";
+  else if (command == "build")
+    output << " [source.janus] [-o output] [--release] "
+              "[--emit llvm-ir|object] [--locked] [--offline] "
+              "[--warn-high-growth-loops]\n";
+  else if (command == "run")
+    output << " [source.janus] [--release] [--locked] [--offline] "
+              "[--warn-high-growth-loops]\n";
+  else if (command == "test")
+    output << " [filter] [--release] [--locked] [--offline]\n";
+  else
+    output << " [source.janus] [--check]\n";
+}
+
+bool is_execution_command(std::string_view command) {
+  return command == "check" || command == "build" || command == "run" ||
+         command == "test";
+}
+
+void print_compile_error(const std::filesystem::path &path,
+                         const janus::CompileError &error) {
+  const janus::SourceLocation location = error.location();
+  std::cerr << path.string() << ':' << location.line << ':' << location.column
+            << ": error: " << error.what() << '\n';
 }
 
 int manage_package(int argc, char **argv) {
@@ -229,18 +270,18 @@ int create_or_initialize(int argc, char **argv) {
 
 Options parse_options(int argc, char **argv) {
   if (argc < 2)
-    throw std::runtime_error{"missing command"};
+    throw UsageError{"", "missing command"};
   Options options;
   options.command = argv[1];
   if (options.command != "check" && options.command != "build" &&
       options.command != "run" && options.command != "test" &&
       options.command != "fmt")
-    throw std::runtime_error{"unknown command '" + options.command + "'"};
+    throw UsageError{"", "unknown command '" + options.command + "'"};
   for (int index = 2; index < argc; ++index) {
     const std::string_view argument = argv[index];
     if (argument == "-o") {
       if (++index == argc)
-        throw std::runtime_error{"-o requires an output path"};
+        throw UsageError{options.command, "-o requires an output path"};
       options.output = argv[index];
     } else if (argument == "--release") {
       options.release = true;
@@ -253,48 +294,55 @@ Options parse_options(int argc, char **argv) {
     } else if (argument == "--warn-high-growth-loops") {
       options.warn_high_growth_loops = true;
     } else if (argument == "--emit") {
+      if (options.emit_llvm || options.emit_object)
+        throw UsageError{options.command,
+                         "--emit may be specified only once"};
       if (++index == argc)
-        throw std::runtime_error{"--emit requires 'llvm-ir' or 'object'"};
+        throw UsageError{options.command,
+                         "--emit requires 'llvm-ir' or 'object'"};
       const std::string_view kind = argv[index];
       if (kind == "llvm-ir")
         options.emit_llvm = true;
       else if (kind == "object")
         options.emit_object = true;
       else
-        throw std::runtime_error{"--emit accepts 'llvm-ir' or 'object'"};
+        throw UsageError{options.command,
+                         "--emit accepts 'llvm-ir' or 'object'"};
     } else if (!argument.starts_with('-')) {
       if (options.command == "test") {
         if (!options.test_filter.empty())
-          throw std::runtime_error{"test accepts at most one filter"};
+          throw UsageError{options.command,
+                           "test accepts at most one filter"};
         options.test_filter = argv[index];
       } else {
         if (!options.source.empty())
-          throw std::runtime_error{"multiple source paths provided"};
+          throw UsageError{options.command, "multiple source paths provided"};
         options.source = argv[index];
       }
     } else {
-      throw std::runtime_error{"unknown option '" + std::string{argument} +
-                               "'"};
+      throw UsageError{options.command,
+                       "unknown option '" + std::string{argument} + "'"};
     }
   }
   if (options.command == "check" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object ||
        options.release))
-    throw std::runtime_error{"check does not accept build options"};
+    throw UsageError{options.command, "check does not accept build options"};
   if (options.command == "run" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object))
-    throw std::runtime_error{"run does not accept -o or --emit"};
+    throw UsageError{options.command, "run does not accept -o or --emit"};
   if (options.command == "test" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object))
-    throw std::runtime_error{"test does not accept -o or --emit"};
+    throw UsageError{options.command, "test does not accept -o or --emit"};
   if (options.command == "fmt" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object ||
        options.release || options.locked || options.offline ||
        options.warn_high_growth_loops))
-    throw std::runtime_error{"fmt only accepts a source path and --check"};
+    throw UsageError{options.command,
+                     "fmt only accepts a source path and --check"};
   if ((options.command == "test") && options.warn_high_growth_loops)
-    throw std::runtime_error{
-        "test does not accept --warn-high-growth-loops"};
+    throw UsageError{options.command,
+                     "test does not accept --warn-high-growth-loops"};
   if (options.source.empty()) {
     options.manifest = janus::driver::load_manifest(
         janus::driver::find_manifest(std::filesystem::current_path()));
@@ -480,6 +528,9 @@ int run_tests(const Options &options, const Toolchain &toolchain) {
       } else {
         std::cout << "FAILED (exit " << status << ")\n";
       }
+    } catch (const janus::CompileError &error) {
+      std::cout << "FAILED\n";
+      print_compile_error(test, error);
     } catch (const std::exception &error) {
       std::cout << "FAILED\n";
       std::cerr << test.string() << ": " << error.what() << '\n';
@@ -543,11 +594,16 @@ int format_sources(const Options &options) {
 
 int main(int argc, char **argv) {
   if (argc == 2 && std::string_view{argv[1]} == "--help") {
-    print_usage();
+    print_usage(std::cout);
     return 0;
   }
   if (argc == 2 && std::string_view{argv[1]} == "--version") {
     std::cout << "janus " << JANUS_VERSION << '\n';
+    return 0;
+  }
+  if (argc == 3 && is_execution_command(argv[1]) &&
+      std::string_view{argv[2]} == "--help") {
+    print_command_usage(std::cout, argv[1]);
     return 0;
   }
 
@@ -560,10 +616,10 @@ int main(int argc, char **argv) {
                       std::string_view{argv[1]} == "remove" ||
                       std::string_view{argv[1]} == "publish"))
       return manage_package(argc, argv);
-    const Toolchain toolchain = locate_toolchain(argv[0]);
     Options options = parse_options(argc, argv);
     if (options.command == "fmt")
       return format_sources(options);
+    const Toolchain toolchain = locate_toolchain(argv[0]);
     if (options.manifest.has_value())
       options.dependency_paths = janus::driver::resolve_dependencies(
           *options.manifest, {options.locked, options.offline});
@@ -601,13 +657,20 @@ int main(int argc, char **argv) {
     if (temporary)
       std::filesystem::remove(executable, ignored);
     return run_status;
+  } catch (const UsageError &error) {
+    std::cerr << "janus";
+    if (!error.command().empty())
+      std::cerr << ' ' << error.command();
+    std::cerr << ": error: " << error.what() << '\n';
+    if (error.command().empty())
+      print_usage(std::cerr);
+    else
+      print_command_usage(std::cerr, error.command());
+    return 2;
   } catch (const janus::CompileError &error) {
-    const janus::SourceLocation location = error.location();
-    std::cerr << diagnostic_path.string() << ':' << location.line << ':'
-              << location.column << ": error: " << error.what() << '\n';
+    print_compile_error(diagnostic_path, error);
   } catch (const std::exception &error) {
     std::cerr << "janus: error: " << error.what() << '\n';
-    print_usage();
   }
   return 1;
 }
