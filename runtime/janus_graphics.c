@@ -67,6 +67,15 @@ typedef struct {
 } JanusRaylibMusic;
 
 typedef struct {
+  int base_size;
+  int glyph_count;
+  int glyph_padding;
+  JanusRaylibTexture texture;
+  JanusRaylibRectangle *recs;
+  void *glyphs;
+} JanusRaylibFont;
+
+typedef struct {
   void (*InitWindow)(int, int, const char *);
   bool (*IsWindowReady)(void);
   bool (*WindowShouldClose)(void);
@@ -102,6 +111,13 @@ typedef struct {
   void (*DrawCircle)(int, int, float, JanusRaylibColor);
   void (*DrawRectangle)(int, int, int, int, JanusRaylibColor);
   void (*DrawText)(const char *, int, int, int, JanusRaylibColor);
+  JanusRaylibFont (*LoadFontEx)(const char *, int, int *, int);
+  bool (*IsFontValid)(JanusRaylibFont);
+  void (*UnloadFont)(JanusRaylibFont);
+  void (*DrawTextEx)(JanusRaylibFont, const char *, JanusRaylibVector2, float,
+                     float, JanusRaylibColor);
+  JanusRaylibVector2 (*MeasureTextEx)(JanusRaylibFont, const char *, float,
+                                      float);
   JanusRaylibTexture (*LoadTexture)(const char *);
   bool (*IsTextureValid)(JanusRaylibTexture);
   void (*UnloadTexture)(JanusRaylibTexture);
@@ -271,6 +287,11 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawCircle);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawRectangle);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawText);
+  JANUS_LOAD_GRAPHICS_SYMBOL(LoadFontEx);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsFontValid);
+  JANUS_LOAD_GRAPHICS_SYMBOL(UnloadFont);
+  JANUS_LOAD_GRAPHICS_SYMBOL(DrawTextEx);
+  JANUS_LOAD_GRAPHICS_SYMBOL(MeasureTextEx);
   JANUS_LOAD_GRAPHICS_SYMBOL(LoadTexture);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsTextureValid);
   JANUS_LOAD_GRAPHICS_SYMBOL(UnloadTexture);
@@ -551,6 +572,65 @@ void janus_graphics_draw_text(const void *text, int x, int y, int font_size,
   if (graphics_loaded && text != NULL)
     graphics_api.DrawText((const char *)text, x, y, font_size,
                           unpack_color(color));
+}
+
+void *janus_graphics_load_font(const void *file_name, int font_size) {
+  if (!graphics_loaded || file_name == NULL || font_size <= 0)
+    return NULL;
+  JanusRaylibFont *font = malloc(sizeof(*font));
+  if (font == NULL)
+    return NULL;
+  *font = graphics_api.LoadFontEx((const char *)file_name, font_size, NULL, 0);
+  if (!graphics_api.IsFontValid(*font)) {
+    free(font);
+    return NULL;
+  }
+  return font;
+}
+
+bool janus_graphics_font_is_valid(const void *handle) {
+  return graphics_loaded && handle != NULL &&
+         graphics_api.IsFontValid(*(const JanusRaylibFont *)handle);
+}
+
+void janus_graphics_unload_font(void *handle) {
+  if (handle == NULL)
+    return;
+  if (graphics_loaded) {
+    JanusRaylibFont *font = handle;
+    if (graphics_api.IsFontValid(*font))
+      graphics_api.UnloadFont(*font);
+  }
+  free(handle);
+}
+
+void janus_graphics_draw_text_font(const void *handle, const void *text,
+                                   float x, float y, float font_size,
+                                   float spacing, uint32_t color) {
+  if (janus_graphics_font_is_valid(handle) && text != NULL)
+    graphics_api.DrawTextEx(*(const JanusRaylibFont *)handle,
+                            (const char *)text, (JanusRaylibVector2){x, y},
+                            font_size, spacing, unpack_color(color));
+}
+
+float janus_graphics_measure_text_width(const void *handle, const void *text,
+                                        float font_size, float spacing) {
+  if (!janus_graphics_font_is_valid(handle) || text == NULL)
+    return 0.0f;
+  return graphics_api
+      .MeasureTextEx(*(const JanusRaylibFont *)handle, (const char *)text,
+                     font_size, spacing)
+      .x;
+}
+
+float janus_graphics_measure_text_height(const void *handle, const void *text,
+                                         float font_size, float spacing) {
+  if (!janus_graphics_font_is_valid(handle) || text == NULL)
+    return 0.0f;
+  return graphics_api
+      .MeasureTextEx(*(const JanusRaylibFont *)handle, (const char *)text,
+                     font_size, spacing)
+      .y;
 }
 
 void *janus_graphics_load_texture(const void *file_name) {

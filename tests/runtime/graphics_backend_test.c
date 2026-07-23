@@ -48,6 +48,18 @@ extern void janus_graphics_draw_rectangle(int x, int y, int width, int height,
                                           uint32_t color);
 extern void janus_graphics_draw_text(const void *text, int x, int y,
                                      int font_size, uint32_t color);
+extern void *janus_graphics_load_font(const void *file_name, int font_size);
+extern bool janus_graphics_font_is_valid(const void *handle);
+extern void janus_graphics_unload_font(void *handle);
+extern void janus_graphics_draw_text_font(const void *handle, const void *text,
+                                          float x, float y, float font_size,
+                                          float spacing, uint32_t color);
+extern float janus_graphics_measure_text_width(const void *handle,
+                                               const void *text,
+                                               float font_size, float spacing);
+extern float janus_graphics_measure_text_height(const void *handle,
+                                                const void *text,
+                                                float font_size, float spacing);
 extern void *janus_graphics_load_texture(const void *file_name);
 extern bool janus_graphics_texture_is_valid(const void *handle);
 extern int janus_graphics_texture_width(const void *handle);
@@ -136,6 +148,18 @@ int main(void) {
   janus_graphics_draw_circle(5, 6, 7.0f, UINT32_C(0xffffffff));
   janus_graphics_draw_rectangle(8, 9, 10, 11, UINT32_C(0xffffffff));
   janus_graphics_draw_text("Janus", 12, 13, 14, UINT32_C(0xffffffff));
+  void *font = janus_graphics_load_font("font.ttf", 24);
+  if (!janus_graphics_font_is_valid(font) ||
+      janus_graphics_measure_text_width(font, "Janus UTF-8", 20.0f, 1.0f) !=
+          80.0f ||
+      janus_graphics_measure_text_height(font, "Janus UTF-8", 20.0f, 1.0f) !=
+          20.0f) {
+    fputs("graphics backend did not load or measure a font\n", stderr);
+    return 1;
+  }
+  janus_graphics_draw_text_font(font, "Hé Janus", 10.0f, 20.0f, 24.0f, 1.0f,
+                                UINT32_C(0xffffffff));
+  janus_graphics_unload_font(font);
   void *texture = janus_graphics_load_texture("sprite.png");
   if (!janus_graphics_texture_is_valid(texture) ||
       janus_graphics_texture_width(texture) != 64 ||

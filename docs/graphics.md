@@ -141,6 +141,35 @@ nombre de colonnes, le nombre total d'images et l'image initiale. L'animation
 référence la texture sans en prendre possession : elle doit donc être détruite
 avant la texture.
 
+## Polices et texte UTF-8
+
+Une police personnalisée est une ressource possédée :
+
+```janus
+val font : Font = loadFont("assets/Inter-Regular.ttf", 32)
+defer delete font
+
+if font.isValid() {
+    val position : Vector2 = vector2(float(40.0), float(60.0))
+    val size : Vector2 = font.measure(
+        "Bonjour, 世界 !",
+        float(32.0),
+        float(1.0)
+    )
+    font.draw(
+        "Bonjour, 世界 !",
+        position,
+        float(32.0),
+        float(1.0),
+        colorRgb(240, 240, 240)
+    )
+}
+```
+
+`Font.draw` et `Font.measure` décodent les chaînes UTF-8 via raylib. La police
+doit contenir les glyphes utilisés ; un glyphe absent est remplacé par le
+glyphe de secours de raylib. `measure` renvoie un `Vector2` par valeur.
+
 ## Audio
 
 Initialisez le périphérique audio une fois, puis chargez des effets courts avec

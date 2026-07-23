@@ -69,6 +69,20 @@ def main() : int {
     drawCircleAt(start, float(7.0), typedColor)
     drawRectangleArea(area, typedColor)
     drawTextAt("typed", start, 14, typedColor)
+    val font : Font = loadFont("font.ttf", 24)
+    val textSize : Vector2 = font.measure(
+        "Hé Janus",
+        float(24.0),
+        float(1.0)
+    )
+    font.draw(
+        "Hé Janus",
+        textSize,
+        float(24.0),
+        float(1.0),
+        typedColor
+    )
+    delete font
     val texture : Texture = loadTexture("sprite.png")
     texture.setFilter(TextureFilter.Point)
     val textureWidth : int = texture.width()
@@ -170,6 +184,12 @@ def main() : int {
              ir.find("call void @janus_graphics_set_texture_filter") !=
                  std::string::npos,
          "advanced sprite drawing lowers through the native backend");
+  expect(ir.find("call ptr @janus_graphics_load_font") != std::string::npos &&
+             ir.find("call void @janus_graphics_draw_text_font") !=
+                 std::string::npos &&
+             ir.find("call void @janus_graphics_unload_font") !=
+                 std::string::npos,
+         "owned fonts and UTF-8 text lower through the native backend");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

@@ -62,6 +62,15 @@ typedef struct {
   void *context_data;
 } Music;
 
+typedef struct {
+  int base_size;
+  int glyph_count;
+  int glyph_padding;
+  Texture2D texture;
+  Rectangle *recs;
+  void *glyphs;
+} Font;
+
 static bool window_ready;
 static bool audio_ready;
 static bool window_fullscreen;
@@ -172,6 +181,38 @@ RAYLIB_EXPORT void DrawText(const char *text, int x, int y, int font_size,
   (void)y;
   (void)font_size;
   (void)color;
+}
+
+RAYLIB_EXPORT Font LoadFontEx(const char *file_name, int font_size,
+                              int *codepoints, int codepoint_count) {
+  (void)codepoints;
+  (void)codepoint_count;
+  Font font = {font_size, 95, 0, {2, 256, 256, 1, 7}, 0, 0};
+  if (file_name == 0)
+    font.texture.id = 0;
+  return font;
+}
+
+RAYLIB_EXPORT bool IsFontValid(Font font) { return font.texture.id != 0; }
+
+RAYLIB_EXPORT void UnloadFont(Font font) { (void)font; }
+
+RAYLIB_EXPORT void DrawTextEx(Font font, const char *text, Vector2 position,
+                              float font_size, float spacing, Color tint) {
+  (void)font;
+  (void)text;
+  (void)position;
+  (void)font_size;
+  (void)spacing;
+  (void)tint;
+}
+
+RAYLIB_EXPORT Vector2 MeasureTextEx(Font font, const char *text,
+                                    float font_size, float spacing) {
+  (void)font;
+  (void)text;
+  (void)spacing;
+  return (Vector2){font_size * 4.0f, font_size};
 }
 
 RAYLIB_EXPORT Texture2D LoadTexture(const char *file_name) {

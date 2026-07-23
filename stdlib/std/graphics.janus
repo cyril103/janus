@@ -241,6 +241,33 @@ y : int,
 fontSize : int,
 color : uint
 ) : Unit
+extern def janus_graphics_load_font(
+fileName : Ptr[byte],
+fontSize : int
+) : Ptr[byte]
+extern def janus_graphics_font_is_valid(handle : Ptr[byte]) : bool
+extern def janus_graphics_unload_font(handle : Ptr[byte]) : Unit
+extern def janus_graphics_draw_text_font(
+handle : Ptr[byte],
+text : Ptr[byte],
+x : float,
+y : float,
+fontSize : float,
+spacing : float,
+color : uint
+) : Unit
+extern def janus_graphics_measure_text_width(
+handle : Ptr[byte],
+text : Ptr[byte],
+fontSize : float,
+spacing : float
+) : float
+extern def janus_graphics_measure_text_height(
+handle : Ptr[byte],
+text : Ptr[byte],
+fontSize : float,
+spacing : float
+) : float
 extern def janus_graphics_load_texture(fileName : Ptr[byte]) : Ptr[byte]
 extern def janus_graphics_texture_is_valid(handle : Ptr[byte]) : bool
 extern def janus_graphics_texture_width(handle : Ptr[byte]) : int
@@ -445,6 +472,55 @@ class Texture(private val handle : Ptr[byte]) {
 
     destructor {
         janus_graphics_unload_texture(handle)
+    }
+}
+
+class Font(private val handle : Ptr[byte]) {
+    def isValid() : bool {
+        return janus_graphics_font_is_valid(handle)
+    }
+
+    def draw(
+    text : string,
+    position : Vector2,
+    fontSize : float,
+    spacing : float,
+    color : Color
+    ) : Unit {
+        janus_graphics_draw_text_font(
+        handle,
+        cstr(text),
+        position.x,
+        position.y,
+        fontSize,
+        spacing,
+        color.packed()
+        )
+    }
+
+    def measure(
+    text : string,
+    fontSize : float,
+    spacing : float
+    ) : Vector2 {
+        return vector2(
+        janus_graphics_measure_text_width(
+        handle,
+        cstr(text),
+        fontSize,
+        spacing
+        ),
+        janus_graphics_measure_text_height(
+        handle,
+        cstr(text),
+        fontSize,
+        spacing
+        )
+        )
+    }
+
+    destructor {
+        janus_graphics_unload_font(handle)
     }
 }
 
@@ -866,6 +942,10 @@ color : Color
 
 def loadTexture(fileName : string) : Texture {
     return new Texture(janus_graphics_load_texture(cstr(fileName)))
+}
+
+def loadFont(fileName : string, fontSize : int) : Font {
+    return new Font(janus_graphics_load_font(cstr(fileName), fontSize))
 }
 
 def initAudio() : bool {
