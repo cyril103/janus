@@ -22,6 +22,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::int_type();
   if (name == "uint")
     return &janus::Type::uint_type();
+  if (name == "long")
+    return &janus::Type::long_type();
   if (name == "double")
     return &janus::Type::double_type();
   if (name == "byte")
@@ -172,6 +174,7 @@ bool is_scalar_cast_type(const janus::semantic::SemanticType &type) {
   switch (type.concrete->kind()) {
   case janus::TypeKind::Int:
   case janus::TypeKind::UInt:
+  case janus::TypeKind::Long:
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
@@ -192,6 +195,7 @@ bool is_integer_cast_type(const janus::semantic::SemanticType &type) {
   switch (type.concrete->kind()) {
   case janus::TypeKind::Int:
   case janus::TypeKind::UInt:
+  case janus::TypeKind::Long:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
   case janus::TypeKind::Char:
@@ -212,6 +216,7 @@ bool is_c_abi_type(const janus::semantic::SemanticType &type,
   switch (type.concrete->kind()) {
   case janus::TypeKind::Int:
   case janus::TypeKind::UInt:
+  case janus::TypeKind::Long:
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
@@ -239,6 +244,7 @@ bool is_c_variadic_type(const janus::semantic::SemanticType &type) {
   switch (type.concrete->kind()) {
   case janus::TypeKind::Int:
   case janus::TypeKind::UInt:
+  case janus::TypeKind::Long:
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
@@ -1189,6 +1195,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                 if (!argument.is_concrete() ||
                     (argument.concrete->kind() != TypeKind::Int &&
                      argument.concrete->kind() != TypeKind::UInt &&
+                     argument.concrete->kind() != TypeKind::Long &&
                      argument.concrete->kind() != TypeKind::Double &&
                      argument.concrete->kind() != TypeKind::Byte &&
                      argument.concrete->kind() != TypeKind::UByte &&

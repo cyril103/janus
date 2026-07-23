@@ -28,6 +28,7 @@ namespace janus::backend::llvm {
   case TypeKind::Unit:
     return ::llvm::Type::getVoidTy(context);
   case TypeKind::USize:
+  case TypeKind::Long:
     return ::llvm::Type::getInt64Ty(context);
   case TypeKind::Enum:
     return ::llvm::Type::getInt32Ty(context);

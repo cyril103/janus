@@ -163,7 +163,8 @@ def answer() : int {
 
 Les principales fonctionnalités sont :
 
-- types primitifs : `int`, `uint`, `double`, `byte`, `ubyte`, `char`, `bool`, `string`,
+- types primitifs : `int`, `uint`, `long`, `double`, `byte`, `ubyte`, `char`,
+  `bool`, `string`,
   `usize` et `Unit` ;
 - fonctions et classes génériques ;
 - closures avec captures et fonctions d'ordre supérieur ;

@@ -31,6 +31,14 @@ int main() {
   expect(janus::backend::llvm::lower_type(uint_type, context)->isIntegerTy(32),
          "uint lowers to LLVM i32");
 
+  const janus::Type &long_type = janus::Type::long_type();
+  expect(long_type.name() == "long", "long has the expected name");
+  expect(long_type.bit_width() == 64, "long is 64 bits wide");
+  expect(long_type.is_integer(), "long is an integer");
+  expect(long_type.is_signed(), "long is signed");
+  expect(janus::backend::llvm::lower_type(long_type, context)->isIntegerTy(64),
+         "long lowers to LLVM i64");
+
   const janus::Type &double_type = janus::Type::double_type();
   expect(double_type.name() == "double", "double has the expected name");
   expect(double_type.bit_width() == 64, "double is 64 bits wide");

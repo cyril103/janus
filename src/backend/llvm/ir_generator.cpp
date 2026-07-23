@@ -33,6 +33,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::int_type();
   if (name == "uint")
     return &janus::Type::uint_type();
+  if (name == "long")
+    return &janus::Type::long_type();
   if (name == "double")
     return &janus::Type::double_type();
   if (name == "byte")
@@ -1410,6 +1412,14 @@ private:
                     "janus_print_uint",
                     ::llvm::FunctionType::get(
                         builder.getVoidTy(), {builder.getInt32Ty()}, false));
+                result = builder.CreateCall(function, {argument});
+                break;
+              }
+              case janus::TypeKind::Long: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_long",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt64Ty()}, false));
                 result = builder.CreateCall(function, {argument});
                 break;
               }
