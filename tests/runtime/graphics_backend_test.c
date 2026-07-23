@@ -101,6 +101,16 @@ extern void janus_graphics_show_cursor(void);
 extern bool janus_graphics_is_cursor_hidden(void);
 extern void janus_graphics_disable_cursor(void);
 extern void janus_graphics_enable_cursor(void);
+extern bool janus_graphics_is_gamepad_available(int gamepad);
+extern const void *janus_graphics_gamepad_name(int gamepad);
+extern bool janus_graphics_is_gamepad_button_down(int gamepad, int button);
+extern bool janus_graphics_is_gamepad_button_pressed(int gamepad, int button);
+extern bool janus_graphics_is_gamepad_button_released(int gamepad, int button);
+extern int janus_graphics_gamepad_button_pressed(void);
+extern int janus_graphics_gamepad_axis_count(int gamepad);
+extern float janus_graphics_gamepad_axis(int gamepad, int axis);
+extern void janus_graphics_set_gamepad_vibration(
+    int gamepad, float left_motor, float right_motor, float duration);
 
 int main(void) {
   if (!janus_graphics_available() ||
@@ -223,6 +233,18 @@ int main(void) {
     fputs("graphics backend did not restore the cursor\n", stderr);
     return 1;
   }
+  if (!janus_graphics_is_gamepad_available(0) ||
+      janus_graphics_gamepad_name(0) == NULL ||
+      !janus_graphics_is_gamepad_button_down(0, 7) ||
+      !janus_graphics_is_gamepad_button_pressed(0, 8) ||
+      !janus_graphics_is_gamepad_button_released(0, 9) ||
+      janus_graphics_gamepad_button_pressed() != 8 ||
+      janus_graphics_gamepad_axis_count(0) != 6 ||
+      janus_graphics_gamepad_axis(0, 0) != 0.75f) {
+    fputs("graphics backend did not forward gamepad input\n", stderr);
+    return 1;
+  }
+  janus_graphics_set_gamepad_vibration(0, 0.5f, 0.75f, 0.2f);
 
   janus_graphics_close_window();
   return 0;

@@ -57,6 +57,13 @@ def main() : int {
     setMousePosition(100, 120)
     hideCursor()
     showCursor()
+    val gamepadReady : bool = isGamepadAvailable(0)
+    val gamepadDown : bool = isGamepadButtonDown(
+        0,
+        GamepadButton.RightFaceDown
+    )
+    val leftX : float = gamepadAxis(0, GamepadAxis.LeftX)
+    setGamepadVibration(0, float(0.5), float(0.5), float(0.1))
     beginDrawing()
     beginCamera(camera)
     clearBackground(color)
@@ -118,7 +125,7 @@ def main() : int {
     delete music
     delete camera
     endDrawing()
-    if keyDown || mouseDown {
+    if keyDown || mouseDown || gamepadReady || gamepadDown {
         return mouseX() + mouseY() + screenWidth() + screenHeight() +
             keyPressed()
     }
@@ -190,6 +197,13 @@ def main() : int {
              ir.find("call void @janus_graphics_unload_font") !=
                  std::string::npos,
          "owned fonts and UTF-8 text lower through the native backend");
+  expect(ir.find("call i1 @janus_graphics_is_gamepad_available") !=
+                 std::string::npos &&
+             ir.find("call float @janus_graphics_gamepad_axis") !=
+                 std::string::npos &&
+             ir.find("call void @janus_graphics_set_gamepad_vibration") !=
+                 std::string::npos,
+         "typed gamepad input and vibration lower through the native backend");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

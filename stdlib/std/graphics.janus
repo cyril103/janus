@@ -129,6 +129,36 @@ enum TextureFilter {
     Anisotropic16x
 }
 
+enum GamepadButton {
+    Unknown,
+    LeftFaceUp,
+    LeftFaceRight,
+    LeftFaceDown,
+    LeftFaceLeft,
+    RightFaceUp,
+    RightFaceRight,
+    RightFaceDown,
+    RightFaceLeft,
+    LeftTrigger1,
+    LeftTrigger2,
+    RightTrigger1,
+    RightTrigger2,
+    MiddleLeft,
+    Middle,
+    MiddleRight,
+    LeftThumb,
+    RightThumb
+}
+
+enum GamepadAxis {
+    LeftX,
+    LeftY,
+    RightX,
+    RightY,
+    LeftTrigger,
+    RightTrigger
+}
+
 extern def janus_graphics_rgba(
 red : ubyte,
 green : ubyte,
@@ -352,6 +382,29 @@ extern def janus_graphics_hide_cursor() : Unit
 extern def janus_graphics_is_cursor_hidden() : bool
 extern def janus_graphics_enable_cursor() : Unit
 extern def janus_graphics_disable_cursor() : Unit
+extern def janus_graphics_is_gamepad_available(gamepad : int) : bool
+extern def janus_graphics_gamepad_name(gamepad : int) : Ptr[byte]
+extern def janus_graphics_is_gamepad_button_down(
+gamepad : int,
+button : int
+) : bool
+extern def janus_graphics_is_gamepad_button_pressed(
+gamepad : int,
+button : int
+) : bool
+extern def janus_graphics_is_gamepad_button_released(
+gamepad : int,
+button : int
+) : bool
+extern def janus_graphics_gamepad_button_pressed() : int
+extern def janus_graphics_gamepad_axis_count(gamepad : int) : int
+extern def janus_graphics_gamepad_axis(gamepad : int, axis : int) : float
+extern def janus_graphics_set_gamepad_vibration(
+gamepad : int,
+leftMotor : float,
+rightMotor : float,
+duration : float
+) : Unit
 
 struct Vector2(val x : float, val y : float) {}
 
@@ -1022,4 +1075,50 @@ def enableCursor() : Unit {
 
 def disableCursor() : Unit {
     janus_graphics_disable_cursor()
+}
+
+def isGamepadAvailable(gamepad : int) : bool {
+    return janus_graphics_is_gamepad_available(gamepad)
+}
+
+def gamepadName(gamepad : int) : Ptr[byte] {
+    return janus_graphics_gamepad_name(gamepad)
+}
+
+def isGamepadButtonDown(gamepad : int, button : GamepadButton) : bool {
+    return janus_graphics_is_gamepad_button_down(gamepad, int(button))
+}
+
+def isGamepadButtonPressed(gamepad : int, button : GamepadButton) : bool {
+    return janus_graphics_is_gamepad_button_pressed(gamepad, int(button))
+}
+
+def isGamepadButtonReleased(gamepad : int, button : GamepadButton) : bool {
+    return janus_graphics_is_gamepad_button_released(gamepad, int(button))
+}
+
+def gamepadButtonPressed() : int {
+    return janus_graphics_gamepad_button_pressed()
+}
+
+def gamepadAxisCount(gamepad : int) : int {
+    return janus_graphics_gamepad_axis_count(gamepad)
+}
+
+def gamepadAxis(gamepad : int, axis : GamepadAxis) : float {
+    return janus_graphics_gamepad_axis(gamepad, int(axis))
+}
+
+def setGamepadVibration(
+gamepad : int,
+leftMotor : float,
+rightMotor : float,
+duration : float
+) : Unit {
+    janus_graphics_set_gamepad_vibration(
+    gamepad,
+    leftMotor,
+    rightMotor,
+    duration
+    )
 }

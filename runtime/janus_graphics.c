@@ -163,6 +163,15 @@ typedef struct {
   bool (*IsCursorHidden)(void);
   void (*EnableCursor)(void);
   void (*DisableCursor)(void);
+  bool (*IsGamepadAvailable)(int);
+  const char *(*GetGamepadName)(int);
+  bool (*IsGamepadButtonDown)(int, int);
+  bool (*IsGamepadButtonPressed)(int, int);
+  bool (*IsGamepadButtonReleased)(int, int);
+  int (*GetGamepadButtonPressed)(void);
+  int (*GetGamepadAxisCount)(int);
+  float (*GetGamepadAxisMovement)(int, int);
+  void (*SetGamepadVibration)(int, float, float, float);
 } JanusGraphicsApi;
 
 static JanusGraphicsApi graphics_api;
@@ -335,6 +344,15 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(IsCursorHidden);
   JANUS_LOAD_GRAPHICS_SYMBOL(EnableCursor);
   JANUS_LOAD_GRAPHICS_SYMBOL(DisableCursor);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsGamepadAvailable);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetGamepadName);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsGamepadButtonDown);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsGamepadButtonPressed);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsGamepadButtonReleased);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetGamepadButtonPressed);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetGamepadAxisCount);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetGamepadAxisMovement);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetGamepadVibration);
 
 #undef JANUS_LOAD_GRAPHICS_SYMBOL
 
@@ -883,4 +901,47 @@ void janus_graphics_enable_cursor(void) {
 void janus_graphics_disable_cursor(void) {
   if (graphics_loaded)
     graphics_api.DisableCursor();
+}
+
+bool janus_graphics_is_gamepad_available(int gamepad) {
+  return graphics_loaded && graphics_api.IsGamepadAvailable(gamepad);
+}
+
+const void *janus_graphics_gamepad_name(int gamepad) {
+  return graphics_loaded ? graphics_api.GetGamepadName(gamepad) : NULL;
+}
+
+bool janus_graphics_is_gamepad_button_down(int gamepad, int button) {
+  return graphics_loaded &&
+         graphics_api.IsGamepadButtonDown(gamepad, button);
+}
+
+bool janus_graphics_is_gamepad_button_pressed(int gamepad, int button) {
+  return graphics_loaded &&
+         graphics_api.IsGamepadButtonPressed(gamepad, button);
+}
+
+bool janus_graphics_is_gamepad_button_released(int gamepad, int button) {
+  return graphics_loaded &&
+         graphics_api.IsGamepadButtonReleased(gamepad, button);
+}
+
+int janus_graphics_gamepad_button_pressed(void) {
+  return graphics_loaded ? graphics_api.GetGamepadButtonPressed() : 0;
+}
+
+int janus_graphics_gamepad_axis_count(int gamepad) {
+  return graphics_loaded ? graphics_api.GetGamepadAxisCount(gamepad) : 0;
+}
+
+float janus_graphics_gamepad_axis(int gamepad, int axis) {
+  return graphics_loaded ? graphics_api.GetGamepadAxisMovement(gamepad, axis)
+                         : 0.0f;
+}
+
+void janus_graphics_set_gamepad_vibration(int gamepad, float left_motor,
+                                          float right_motor, float duration) {
+  if (graphics_loaded)
+    graphics_api.SetGamepadVibration(gamepad, left_motor, right_motor,
+                                     duration);
 }

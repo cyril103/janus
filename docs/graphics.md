@@ -218,6 +218,25 @@ La fenêtre peut être inspectée avec `isWindowFullscreen`, `isWindowHidden`,
 `setWindowSize` et `setWindowOpacity` la contrôlent. `screenWidth` et
 `screenHeight` donnent la taille courante de la zone de dessin.
 
+### Manettes
+
+Les manettes utilisent un index, généralement `0` pour la première :
+
+```janus
+if isGamepadAvailable(0) {
+    val horizontal : float = gamepadAxis(0, GamepadAxis.LeftX)
+    if isGamepadButtonPressed(0, GamepadButton.RightFaceDown) {
+        setGamepadVibration(0, float(0.4), float(0.4), float(0.15))
+    }
+}
+```
+
+`GamepadButton` couvre les directions, boutons d'action, gâchettes, boutons
+centraux et sticks. `GamepadAxis` couvre les deux sticks et les deux gâchettes
+analogiques. `gamepadAxisCount`, `gamepadButtonPressed` et `gamepadName`
+permettent l'inspection bas niveau ; ce dernier renvoie une chaîne C
+`Ptr[byte]`, utilisable notamment avec `printf`.
+
 ## Primitives typées
 
 `Vector2`, `Rectangle` et `Color` évitent de mélanger accidentellement des

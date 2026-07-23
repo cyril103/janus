@@ -359,3 +359,39 @@ RAYLIB_EXPORT void HideCursor(void) { cursor_hidden = true; }
 RAYLIB_EXPORT bool IsCursorHidden(void) { return cursor_hidden; }
 RAYLIB_EXPORT void EnableCursor(void) { cursor_hidden = false; }
 RAYLIB_EXPORT void DisableCursor(void) { cursor_hidden = true; }
+
+RAYLIB_EXPORT bool IsGamepadAvailable(int gamepad) { return gamepad == 0; }
+
+RAYLIB_EXPORT const char *GetGamepadName(int gamepad) {
+  return gamepad == 0 ? "Fake Gamepad" : 0;
+}
+
+RAYLIB_EXPORT bool IsGamepadButtonDown(int gamepad, int button) {
+  return gamepad == 0 && button == 7;
+}
+
+RAYLIB_EXPORT bool IsGamepadButtonPressed(int gamepad, int button) {
+  return gamepad == 0 && button == 8;
+}
+
+RAYLIB_EXPORT bool IsGamepadButtonReleased(int gamepad, int button) {
+  return gamepad == 0 && button == 9;
+}
+
+RAYLIB_EXPORT int GetGamepadButtonPressed(void) { return 8; }
+
+RAYLIB_EXPORT int GetGamepadAxisCount(int gamepad) {
+  return gamepad == 0 ? 6 : 0;
+}
+
+RAYLIB_EXPORT float GetGamepadAxisMovement(int gamepad, int axis) {
+  return gamepad == 0 && axis == 0 ? 0.75f : 0.0f;
+}
+
+RAYLIB_EXPORT void SetGamepadVibration(int gamepad, float left_motor,
+                                       float right_motor, float duration) {
+  (void)gamepad;
+  (void)left_motor;
+  (void)right_motor;
+  (void)duration;
+}
