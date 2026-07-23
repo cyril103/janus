@@ -286,6 +286,26 @@ int main() {
              std::string::npos,
          "zip items are represented inline");
 
+  const janus::ast::Program qualified_program =
+      loader.load(std::filesystem::path{JANUS_QUALIFIED_ENTRY});
+  expect(qualified_program.classes.front().module_name ==
+             "qualified.library",
+         "type declarations preserve their qualified module identity");
+  static_cast<void>(analyzer.analyze(qualified_program));
+  llvm::LLVMContext qualified_context;
+  janus::backend::llvm::IrGenerator qualified_generator{qualified_context};
+  const std::unique_ptr<llvm::Module> qualified_module =
+      qualified_generator.generate(qualified_program, "qualified_symbols");
+  std::string qualified_ir;
+  llvm::raw_string_ostream qualified_output{qualified_ir};
+  qualified_module->print(qualified_output, nullptr);
+  qualified_output.flush();
+  expect(qualified_ir.find("call i32 @answer()") != std::string::npos,
+         "a function can be called through its qualified module name");
+  expect(qualified_ir.find("struct.qualified.library.Box") !=
+             std::string::npos,
+         "a class can be referenced and constructed by qualified name");
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;

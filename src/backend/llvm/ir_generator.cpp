@@ -81,14 +81,27 @@ public:
 #endif
     module_->setPICLevel(::llvm::PICLevel::BigPIC);
     module_->setPIELevel(::llvm::PIELevel::Large);
-    for (const janus::ast::EnumDeclaration &enum_declaration : program.enums)
+    for (const janus::ast::EnumDeclaration &enum_declaration : program.enums) {
       enums_.emplace(enum_declaration.name, &enum_declaration);
+      if (enum_declaration.module_name.has_value())
+        enums_.emplace(*enum_declaration.module_name + "." +
+                           enum_declaration.name,
+                       &enum_declaration);
+    }
     for (const janus::ast::ClassDeclaration &class_declaration :
          program.classes) {
       classes_.emplace(class_declaration.name, &class_declaration);
+      if (class_declaration.module_name.has_value())
+        classes_.emplace(*class_declaration.module_name + "." +
+                             class_declaration.name,
+                         &class_declaration);
     }
-    for (const janus::ast::FunctionDeclaration &function : program.functions)
+    for (const janus::ast::FunctionDeclaration &function : program.functions) {
       functions_.emplace(function.name, &function);
+      if (function.module_name.has_value())
+        functions_.emplace(*function.module_name + "." + function.name,
+                           &function);
+    }
     for (const janus::ast::GlobalDeclaration &global : program.globals) {
       global_declarations_.push_back(&global);
       global_by_key_.emplace(
@@ -1452,6 +1465,22 @@ private:
             return *find_field(object_type.name(), node.member).second;
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::MethodCallExpression>) {
+            if (const auto module = qualified_expression_name(*node.object);
+                module.has_value() &&
+                !locals.contains(module->substr(0, module->find('.')))) {
+              const std::string qualified = *module + "." + node.method;
+              if (const auto function = functions_.find(qualified);
+                  function != functions_.end()) {
+                const auto &callee = *function->second;
+                Substitutions callee_substitutions;
+                for (std::size_t index = 0;
+                     index < node.type_arguments.size(); ++index)
+                  callee_substitutions.emplace(
+                      callee.type_parameters[index],
+                      &resolve(node.type_arguments[index], substitutions));
+                return resolve(callee.return_type, callee_substitutions);
+              }
+            }
             if (const auto *identifier =
                     std::get_if<janus::ast::IdentifierExpression>(
                         &node.object->value);
@@ -1617,6 +1646,58 @@ private:
                          : builder.CreateSRem(left, right, "rem");
     return is_unsigned ? builder.CreateUDiv(left, right, "div")
                        : builder.CreateSDiv(left, right, "div");
+  }
+
+  ::llvm::Value *
+  emit_declared_call(
+      const janus::ast::FunctionDeclaration &callee,
+      const std::vector<janus::ast::TypeReference> &call_type_arguments,
+      const std::vector<std::unique_ptr<janus::ast::Expression>> &call_arguments,
+      std::string_view result_name, const Substitutions &substitutions,
+      const std::unordered_map<std::string, Local> &locals,
+      ::llvm::IRBuilder<> &builder) {
+    std::vector<const janus::Type *> type_arguments;
+    type_arguments.reserve(call_type_arguments.size());
+    for (const janus::ast::TypeReference &argument : call_type_arguments)
+      type_arguments.push_back(&resolve(argument, substitutions));
+    ::llvm::Function *target = emit_function(callee, type_arguments);
+
+    Substitutions callee_substitutions;
+    for (std::size_t index = 0; index < type_arguments.size(); ++index)
+      callee_substitutions.emplace(callee.type_parameters[index],
+                                   type_arguments[index]);
+    std::vector<::llvm::Value *> arguments;
+    arguments.reserve(call_arguments.size());
+    for (std::size_t index = 0; index < call_arguments.size(); ++index) {
+      if (index >= callee.parameters.size()) {
+        const janus::Type &argument_type =
+            expression_type(*call_arguments[index], substitutions, locals);
+        ::llvm::Value *argument =
+            emit_expression(*call_arguments[index], argument_type,
+                            substitutions, locals, builder);
+        if (argument_type.bit_width() < 32 && argument_type.is_integer())
+          argument = builder.CreateIntCast(
+              argument, builder.getInt32Ty(), argument_type.is_signed(),
+              "vararg.integer");
+        else if (argument_type.kind() == janus::TypeKind::Float)
+          argument = builder.CreateFPExt(argument, builder.getDoubleTy(),
+                                         "vararg.float");
+        else if (argument_type.kind() == janus::TypeKind::Bool)
+          argument =
+              builder.CreateZExt(argument, builder.getInt32Ty(), "vararg.bool");
+        arguments.push_back(argument);
+        continue;
+      }
+      const janus::Type &parameter_type =
+          resolve(callee.parameters[index].type, callee_substitutions);
+      arguments.push_back(emit_expression(*call_arguments[index],
+                                          parameter_type, substitutions,
+                                          locals, builder));
+    }
+    return target->getReturnType()->isVoidTy()
+               ? builder.CreateCall(target, arguments)
+               : builder.CreateCall(target, arguments,
+                                    std::string{result_name} + ".result");
   }
 
   ::llvm::Value *
@@ -2215,6 +2296,16 @@ private:
                                       field_pointer, node.member + ".value");
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::MethodCallExpression>) {
+            if (const auto module = qualified_expression_name(*node.object);
+                module.has_value() &&
+                !locals.contains(module->substr(0, module->find('.')))) {
+              const std::string qualified = *module + "." + node.method;
+              if (const auto function = functions_.find(qualified);
+                  function != functions_.end())
+                return emit_declared_call(
+                    *function->second, node.type_arguments, node.arguments,
+                    qualified, substitutions, locals, builder);
+            }
             const auto *identifier =
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);

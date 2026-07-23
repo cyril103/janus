@@ -476,6 +476,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     class_arities.emplace(enum_declaration.name,
                           enum_arity_marker +
                               enum_declaration.type_parameters.size());
+    if (enum_declaration.module_name.has_value()) {
+      const std::string qualified =
+          *enum_declaration.module_name + "." + enum_declaration.name;
+      enums.emplace(qualified, &enum_declaration);
+      class_arities.emplace(qualified,
+                            enum_arity_marker +
+                                enum_declaration.type_parameters.size());
+    }
     std::unordered_set<std::string> enum_parameters;
     for (const std::string &parameter : enum_declaration.type_parameters) {
       if (!enum_parameters.insert(parameter).second)
@@ -510,6 +518,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       throw CompileError{trait_declaration.location,
                          "trait '" + trait_declaration.name +
                              "' is already declared"};
+    if (trait_declaration.module_name.has_value())
+      traits.emplace(*trait_declaration.module_name + "." +
+                         trait_declaration.name,
+                     &trait_declaration);
   }
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
     if (builtin_type(class_declaration.name) != nullptr ||
@@ -532,6 +544,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     class_arities.emplace(class_declaration.name,
                           class_declaration.type_parameters.size());
+    if (class_declaration.module_name.has_value()) {
+      const std::string qualified =
+          *class_declaration.module_name + "." + class_declaration.name;
+      classes.emplace(qualified, &class_declaration);
+      class_arities.emplace(qualified,
+                            class_declaration.type_parameters.size());
+    }
   }
 
   struct ResolvedGlobal {
@@ -991,6 +1010,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       throw CompileError{function.location, "function '" + function.name +
                                                 "' is already declared"};
     }
+    if (function.module_name.has_value())
+      functions.emplace(*function.module_name + "." + function.name,
+                        &function);
   }
   std::vector<ast::FunctionDeclaration> global_initializer_functions;
   global_initializer_functions.reserve(initialization_plan.dynamic.size());
@@ -1258,6 +1280,76 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::function<void(const ast::Expression &, const SemanticType &,
                        SourceLocation)>
         validate_expression;
+    const auto declared_call_type =
+        [&](const ast::FunctionDeclaration &callee,
+            const std::vector<ast::TypeReference> &type_arguments,
+            const std::vector<std::unique_ptr<ast::Expression>> &arguments,
+            SourceLocation location, std::string_view display_name) {
+          if (type_arguments.size() != callee.type_parameters.size())
+            throw CompileError{
+                location, "function '" + std::string{display_name} +
+                              "' expects " +
+                              std::to_string(callee.type_parameters.size()) +
+                              " type argument(s), got " +
+                              std::to_string(type_arguments.size())};
+          if ((!callee.is_variadic &&
+               arguments.size() != callee.parameters.size()) ||
+              (callee.is_variadic &&
+               arguments.size() < callee.parameters.size()))
+            throw CompileError{
+                location, "function '" + std::string{display_name} +
+                              "' expects " +
+                              (callee.is_variadic ? "at least " : "") +
+                              std::to_string(callee.parameters.size()) +
+                              " argument(s), got " +
+                              std::to_string(arguments.size())};
+
+          std::unordered_map<std::string, SemanticType> substitutions;
+          for (std::size_t index = 0; index < type_arguments.size(); ++index)
+            substitutions.emplace(
+                callee.type_parameters[index],
+                resolve_type(type_arguments[index], *active_type_parameters,
+                             &class_arities));
+          const std::unordered_set<std::string> callee_parameters{
+              callee.type_parameters.begin(), callee.type_parameters.end()};
+          for (const ast::TypeConstraint &constraint :
+               callee.type_constraints) {
+            TraitInstance requirement =
+                resolve_trait(constraint.trait, callee_parameters);
+            for (SemanticType &argument : requirement.type_arguments)
+              argument = substitute(std::move(argument), substitutions);
+            const SemanticType &candidate =
+                substitutions.at(constraint.parameter);
+            if (!satisfies_active_trait(candidate, requirement))
+              throw CompileError{
+                  location, "type '" + candidate.name() +
+                                "' does not satisfy constraint '" +
+                                requirement.declaration->name +
+                                "' for type parameter '" +
+                                constraint.parameter + "'"};
+          }
+          for (std::size_t index = 0; index < arguments.size(); ++index) {
+            if (index >= callee.parameters.size()) {
+              const SemanticType argument_type =
+                  expression_type(*arguments[index]);
+              if (!is_c_variadic_type(argument_type))
+                throw CompileError{
+                    expression_location(*arguments[index]),
+                    "variadic C argument has incompatible type '" +
+                        argument_type.name() + "'"};
+              continue;
+            }
+            SemanticType expected =
+                resolve_type(callee.parameters[index].type, callee_parameters,
+                             &class_arities);
+            expected = substitute(std::move(expected), substitutions);
+            validate_expression(*arguments[index], expected,
+                                expression_location(*arguments[index]));
+          }
+          return substitute(resolve_type(callee.return_type, callee_parameters,
+                                         &class_arities),
+                            substitutions);
+        };
     const auto class_substitutions =
         [](const ast::ClassDeclaration &class_declaration,
            const SemanticType &instance) {
@@ -1868,6 +1960,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      "' has no field '" + node.member + "'"};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MethodCallExpression>) {
+              if (const auto module =
+                      qualified_expression_name(*node.object);
+                  module.has_value() &&
+                  !active_symbols->contains(
+                      module->substr(0, module->find('.')))) {
+                const std::string qualified = *module + "." + node.method;
+                if (const auto function = functions.find(qualified);
+                    function != functions.end())
+                  return declared_call_type(
+                      *function->second, node.type_arguments, node.arguments,
+                      node.location, qualified);
+              }
               if (const auto *identifier =
                       std::get_if<ast::IdentifierExpression>(
                           &node.object->value);

@@ -193,10 +193,15 @@ ast::Program Parser::parse_program() {
           "expected top-level 'val' or 'var' after 'private', found " +
               std::string{token_name(current_.kind)}};
 
-    if (current_.kind == TokenKind::Trait)
-      program.traits.push_back(parse_trait_declaration());
-    else if (current_.kind == TokenKind::Enum)
-      program.enums.push_back(parse_enum_declaration());
+    if (current_.kind == TokenKind::Trait) {
+      ast::TraitDeclaration declaration = parse_trait_declaration();
+      declaration.module_name = program.module_name;
+      program.traits.push_back(std::move(declaration));
+    } else if (current_.kind == TokenKind::Enum) {
+      ast::EnumDeclaration declaration = parse_enum_declaration();
+      declaration.module_name = program.module_name;
+      program.enums.push_back(std::move(declaration));
+    }
     else if (current_.kind == TokenKind::Class ||
              current_.kind == TokenKind::Struct) {
       ast::ClassDeclaration declaration = parse_class_declaration();
@@ -256,7 +261,7 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
   static_cast<void>(expect(TokenKind::RightBrace));
   ast::TraitDeclaration declaration{
       std::string{name.lexeme}, std::move(type_parameters), std::move(methods),
-      trait_token.location, std::move(type_constraints)};
+      trait_token.location, std::move(type_constraints), std::nullopt};
   return declaration;
 }
 
@@ -413,7 +418,7 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
                            "' must declare at least one case"};
   return ast::EnumDeclaration{std::string{name.lexeme},
                               std::move(type_parameters), std::move(cases),
-                              enum_token.location};
+                              enum_token.location, std::nullopt};
 }
 
 std::string Parser::parse_qualified_name() {
@@ -1043,7 +1048,7 @@ ast::Expression Parser::parse_primary() {
 
   if (current_.kind == TokenKind::New) {
     const Token new_token = expect(TokenKind::New);
-    const Token class_name = expect(TokenKind::Identifier);
+    const std::string class_name = parse_qualified_name();
     std::vector<ast::TypeReference> type_arguments;
     if (current_.kind == TokenKind::LeftBracket) {
       advance();
@@ -1067,7 +1072,7 @@ ast::Expression Parser::parse_primary() {
       } while (true);
     }
     static_cast<void>(expect(TokenKind::RightParen));
-    return ast::NewExpression{std::string{class_name.lexeme},
+    return ast::NewExpression{class_name,
                               std::move(type_arguments), std::move(arguments),
                               new_token.location};
   }
@@ -1189,6 +1194,12 @@ ast::TypeReference Parser::parse_type() {
                               std::move(arguments)};
   }
   const Token type_name = expect(TokenKind::Identifier);
+  std::string qualified_type_name{type_name.lexeme};
+  while (current_.kind == TokenKind::Dot) {
+    advance();
+    const Token component = expect(TokenKind::Identifier);
+    qualified_type_name += "." + std::string{component.lexeme};
+  }
   std::vector<ast::TypeReference> type_arguments;
   if (current_.kind == TokenKind::LeftBracket) {
     advance();
@@ -1200,7 +1211,7 @@ ast::TypeReference Parser::parse_type() {
     } while (true);
     static_cast<void>(expect(TokenKind::RightBracket));
   }
-  return ast::TypeReference{std::string{type_name.lexeme}, type_name.location,
+  return ast::TypeReference{std::move(qualified_type_name), type_name.location,
                             std::move(type_arguments)};
 }
 

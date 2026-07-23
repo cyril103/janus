@@ -1,0 +1,8 @@
+module qualified.library
+
+struct Box(val value : int) {
+}
+
+def answer() : int {
+    return 2
+}

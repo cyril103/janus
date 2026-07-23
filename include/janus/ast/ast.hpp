@@ -303,6 +303,7 @@ struct EnumDeclaration {
   std::vector<std::string> type_parameters;
   std::vector<Case> cases;
   SourceLocation location;
+  std::optional<std::string> module_name;
 };
 
 struct TraitDeclaration {
@@ -311,6 +312,7 @@ struct TraitDeclaration {
   std::vector<FunctionDeclaration> methods;
   SourceLocation location;
   std::vector<TypeConstraint> type_constraints;
+  std::optional<std::string> module_name;
 };
 
 struct ClassDeclaration {

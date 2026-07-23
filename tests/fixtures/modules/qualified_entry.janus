@@ -1,0 +1,10 @@
+import qualified.library
+
+def unwrap(box : qualified.library.Box) : int {
+    return box.value
+}
+
+def main() : int {
+    val box : qualified.library.Box = new qualified.library.Box(40)
+    return qualified.library.answer() + unwrap(box)
+}
