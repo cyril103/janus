@@ -49,6 +49,7 @@ execute_process(
 )
 
 add_library(janus_runtime STATIC
+    runtime/janus_graphics.c
     runtime/janus_runtime.c
 )
 target_compile_options(janus_runtime
@@ -304,6 +305,18 @@ target_compile_definitions(janus-lsp
 include(CTest)
 if(BUILD_TESTING)
     set(CLANG_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}")
+
+    add_executable(graphics_runtime_test
+        tests/runtime/graphics_runtime_test.c
+    )
+    target_link_libraries(graphics_runtime_test PRIVATE janus_runtime)
+    target_compile_options(graphics_runtime_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME runtime.graphics_loader COMMAND graphics_runtime_test)
 
     add_test(
         NAME cli.check
