@@ -97,6 +97,34 @@ if sprite.isValid() {
 charge sont ceux activés dans la construction de raylib, notamment PNG, JPEG,
 BMP, TGA et QOI dans la configuration standard.
 
+## Audio
+
+Initialisez le périphérique audio une fois, puis chargez des effets courts avec
+`Sound` ou de la musique diffusée progressivement avec `Music` :
+
+```janus
+if initAudio() {
+    defer closeAudio()
+
+    val effect : Sound = loadSound("assets/jump.wav")
+    defer delete effect
+    effect.play()
+
+    val music : Music = loadMusic("assets/theme.ogg")
+    defer delete music
+    music.play()
+
+    while !windowShouldClose() {
+        music.update()
+        // dessin de l'image
+    }
+}
+```
+
+Une musique doit recevoir `update()` à chaque image. `Sound` et `Music`
+proposent `play`, `stop`, `isPlaying`, `setVolume`, `setPitch` et `setPan`.
+`setMasterVolume` règle le volume global.
+
 Entrées disponibles :
 
 - `isKeyDown` et `isKeyPressed` avec l'enum `Key` ;
@@ -109,7 +137,7 @@ touches `W`, `A`, `S`, `D`.
 ## État expérimental
 
 Cette première version vise le graphisme 2D immédiat. Elle ne fournit pas encore
-les polices personnalisées, l'audio, les manettes, la 3D ni le
+les polices personnalisées, les manettes, la 3D ni le
 chargement automatique de raylib par le gestionnaire de paquets. L'API publique
 reste indépendante du backend afin de pouvoir ajouter ces fonctionnalités sans
 exposer directement les structures natives de raylib.

@@ -42,6 +42,14 @@ def main() : int {
     val textureWidth : int = texture.width()
     texture.draw(textureWidth, texture.height(), white())
     delete texture
+    val sound : Sound = loadSound("effect.wav")
+    sound.setVolume(float(0.5))
+    sound.play()
+    val music : Music = loadMusic("music.ogg")
+    music.play()
+    music.update()
+    delete sound
+    delete music
     endDrawing()
     if keyDown || mouseDown {
         return mouseX() + mouseY()
@@ -78,6 +86,9 @@ def main() : int {
              ir.find("call void @janus_graphics_unload_texture") !=
                  std::string::npos,
          "graphics textures load and unload through owned handles");
+  expect(ir.find("call ptr @janus_graphics_load_sound") != std::string::npos &&
+             ir.find("call ptr @janus_graphics_load_music") != std::string::npos,
+         "graphics audio resources lower through owned native handles");
   expect(ir.find("call i1 @isKeyDown(%enum.Key { i32 263 })") !=
              std::string::npos,
          "graphics keys retain their raylib-compatible code");

@@ -27,6 +27,27 @@ typedef struct {
 } JanusRaylibTexture;
 
 typedef struct {
+  void *buffer;
+  void *processor;
+  uint32_t sample_rate;
+  uint32_t sample_size;
+  uint32_t channels;
+} JanusRaylibAudioStream;
+
+typedef struct {
+  JanusRaylibAudioStream stream;
+  uint32_t frame_count;
+} JanusRaylibSound;
+
+typedef struct {
+  JanusRaylibAudioStream stream;
+  uint32_t frame_count;
+  bool looping;
+  int context_type;
+  void *context_data;
+} JanusRaylibMusic;
+
+typedef struct {
   void (*InitWindow)(int, int, const char *);
   bool (*IsWindowReady)(void);
   bool (*WindowShouldClose)(void);
@@ -44,6 +65,29 @@ typedef struct {
   bool (*IsTextureValid)(JanusRaylibTexture);
   void (*UnloadTexture)(JanusRaylibTexture);
   void (*DrawTexture)(JanusRaylibTexture, int, int, JanusRaylibColor);
+  void (*InitAudioDevice)(void);
+  void (*CloseAudioDevice)(void);
+  bool (*IsAudioDeviceReady)(void);
+  void (*SetMasterVolume)(float);
+  JanusRaylibSound (*LoadSound)(const char *);
+  bool (*IsSoundValid)(JanusRaylibSound);
+  void (*UnloadSound)(JanusRaylibSound);
+  void (*PlaySound)(JanusRaylibSound);
+  void (*StopSound)(JanusRaylibSound);
+  bool (*IsSoundPlaying)(JanusRaylibSound);
+  void (*SetSoundVolume)(JanusRaylibSound, float);
+  void (*SetSoundPitch)(JanusRaylibSound, float);
+  void (*SetSoundPan)(JanusRaylibSound, float);
+  JanusRaylibMusic (*LoadMusicStream)(const char *);
+  bool (*IsMusicValid)(JanusRaylibMusic);
+  void (*UnloadMusicStream)(JanusRaylibMusic);
+  void (*PlayMusicStream)(JanusRaylibMusic);
+  bool (*IsMusicStreamPlaying)(JanusRaylibMusic);
+  void (*UpdateMusicStream)(JanusRaylibMusic);
+  void (*StopMusicStream)(JanusRaylibMusic);
+  void (*SetMusicVolume)(JanusRaylibMusic, float);
+  void (*SetMusicPitch)(JanusRaylibMusic, float);
+  void (*SetMusicPan)(JanusRaylibMusic, float);
   bool (*IsKeyDown)(int);
   bool (*IsKeyPressed)(int);
   int (*GetMouseX)(void);
@@ -158,6 +202,29 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(IsTextureValid);
   JANUS_LOAD_GRAPHICS_SYMBOL(UnloadTexture);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawTexture);
+  JANUS_LOAD_GRAPHICS_SYMBOL(InitAudioDevice);
+  JANUS_LOAD_GRAPHICS_SYMBOL(CloseAudioDevice);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsAudioDeviceReady);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetMasterVolume);
+  JANUS_LOAD_GRAPHICS_SYMBOL(LoadSound);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsSoundValid);
+  JANUS_LOAD_GRAPHICS_SYMBOL(UnloadSound);
+  JANUS_LOAD_GRAPHICS_SYMBOL(PlaySound);
+  JANUS_LOAD_GRAPHICS_SYMBOL(StopSound);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsSoundPlaying);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetSoundVolume);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetSoundPitch);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetSoundPan);
+  JANUS_LOAD_GRAPHICS_SYMBOL(LoadMusicStream);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsMusicValid);
+  JANUS_LOAD_GRAPHICS_SYMBOL(UnloadMusicStream);
+  JANUS_LOAD_GRAPHICS_SYMBOL(PlayMusicStream);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsMusicStreamPlaying);
+  JANUS_LOAD_GRAPHICS_SYMBOL(UpdateMusicStream);
+  JANUS_LOAD_GRAPHICS_SYMBOL(StopMusicStream);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetMusicVolume);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetMusicPitch);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetMusicPan);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsKeyDown);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsKeyPressed);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseX);
@@ -298,6 +365,138 @@ void janus_graphics_draw_texture(const void *handle, int x, int y,
   if (janus_graphics_texture_is_valid(handle))
     graphics_api.DrawTexture(*(const JanusRaylibTexture *)handle, x, y,
                              unpack_color(tint));
+}
+
+bool janus_graphics_init_audio(void) {
+  if (!load_graphics_api())
+    return false;
+  graphics_api.InitAudioDevice();
+  return graphics_api.IsAudioDeviceReady();
+}
+
+void janus_graphics_close_audio(void) {
+  if (graphics_loaded && graphics_api.IsAudioDeviceReady())
+    graphics_api.CloseAudioDevice();
+}
+
+void janus_graphics_set_master_volume(float volume) {
+  if (graphics_loaded && graphics_api.IsAudioDeviceReady())
+    graphics_api.SetMasterVolume(volume);
+}
+
+void *janus_graphics_load_sound(const void *file_name) {
+  if (!graphics_loaded || !graphics_api.IsAudioDeviceReady() ||
+      file_name == NULL)
+    return NULL;
+  JanusRaylibSound *sound = malloc(sizeof(*sound));
+  if (sound == NULL)
+    return NULL;
+  *sound = graphics_api.LoadSound((const char *)file_name);
+  return sound;
+}
+
+bool janus_graphics_sound_is_valid(const void *handle) {
+  return graphics_loaded && handle != NULL &&
+         graphics_api.IsSoundValid(*(const JanusRaylibSound *)handle);
+}
+
+void janus_graphics_unload_sound(void *handle) {
+  if (handle == NULL)
+    return;
+  JanusRaylibSound sound = *(JanusRaylibSound *)handle;
+  if (graphics_loaded && graphics_api.IsSoundValid(sound))
+    graphics_api.UnloadSound(sound);
+  free(handle);
+}
+
+void janus_graphics_play_sound(const void *handle) {
+  if (janus_graphics_sound_is_valid(handle))
+    graphics_api.PlaySound(*(const JanusRaylibSound *)handle);
+}
+
+void janus_graphics_stop_sound(const void *handle) {
+  if (janus_graphics_sound_is_valid(handle))
+    graphics_api.StopSound(*(const JanusRaylibSound *)handle);
+}
+
+bool janus_graphics_sound_is_playing(const void *handle) {
+  return janus_graphics_sound_is_valid(handle) &&
+         graphics_api.IsSoundPlaying(*(const JanusRaylibSound *)handle);
+}
+
+void janus_graphics_set_sound_volume(const void *handle, float volume) {
+  if (janus_graphics_sound_is_valid(handle))
+    graphics_api.SetSoundVolume(*(const JanusRaylibSound *)handle, volume);
+}
+
+void janus_graphics_set_sound_pitch(const void *handle, float pitch) {
+  if (janus_graphics_sound_is_valid(handle))
+    graphics_api.SetSoundPitch(*(const JanusRaylibSound *)handle, pitch);
+}
+
+void janus_graphics_set_sound_pan(const void *handle, float pan) {
+  if (janus_graphics_sound_is_valid(handle))
+    graphics_api.SetSoundPan(*(const JanusRaylibSound *)handle, pan);
+}
+
+void *janus_graphics_load_music(const void *file_name) {
+  if (!graphics_loaded || !graphics_api.IsAudioDeviceReady() ||
+      file_name == NULL)
+    return NULL;
+  JanusRaylibMusic *music = malloc(sizeof(*music));
+  if (music == NULL)
+    return NULL;
+  *music = graphics_api.LoadMusicStream((const char *)file_name);
+  return music;
+}
+
+bool janus_graphics_music_is_valid(const void *handle) {
+  return graphics_loaded && handle != NULL &&
+         graphics_api.IsMusicValid(*(const JanusRaylibMusic *)handle);
+}
+
+void janus_graphics_unload_music(void *handle) {
+  if (handle == NULL)
+    return;
+  JanusRaylibMusic music = *(JanusRaylibMusic *)handle;
+  if (graphics_loaded && graphics_api.IsMusicValid(music))
+    graphics_api.UnloadMusicStream(music);
+  free(handle);
+}
+
+void janus_graphics_play_music(const void *handle) {
+  if (janus_graphics_music_is_valid(handle))
+    graphics_api.PlayMusicStream(*(const JanusRaylibMusic *)handle);
+}
+
+void janus_graphics_stop_music(const void *handle) {
+  if (janus_graphics_music_is_valid(handle))
+    graphics_api.StopMusicStream(*(const JanusRaylibMusic *)handle);
+}
+
+void janus_graphics_update_music(const void *handle) {
+  if (janus_graphics_music_is_valid(handle))
+    graphics_api.UpdateMusicStream(*(const JanusRaylibMusic *)handle);
+}
+
+bool janus_graphics_music_is_playing(const void *handle) {
+  return janus_graphics_music_is_valid(handle) &&
+         graphics_api.IsMusicStreamPlaying(*(const JanusRaylibMusic *)handle);
+}
+
+void janus_graphics_set_music_volume(const void *handle, float volume) {
+  if (janus_graphics_music_is_valid(handle))
+    graphics_api.SetMusicVolume(*(const JanusRaylibMusic *)handle, volume);
+}
+
+void janus_graphics_set_music_pitch(const void *handle, float pitch) {
+  if (janus_graphics_music_is_valid(handle))
+    graphics_api.SetMusicPitch(*(const JanusRaylibMusic *)handle, pitch);
+}
+
+void janus_graphics_set_music_pan(const void *handle, float pan) {
+  if (janus_graphics_music_is_valid(handle))
+    graphics_api.SetMusicPan(*(const JanusRaylibMusic *)handle, pan);
 }
 
 bool janus_graphics_is_key_down(int key) {

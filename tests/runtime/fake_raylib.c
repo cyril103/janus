@@ -22,7 +22,29 @@ typedef struct {
   int format;
 } Texture2D;
 
+typedef struct {
+  void *buffer;
+  void *processor;
+  uint32_t sample_rate;
+  uint32_t sample_size;
+  uint32_t channels;
+} AudioStream;
+
+typedef struct {
+  AudioStream stream;
+  uint32_t frame_count;
+} Sound;
+
+typedef struct {
+  AudioStream stream;
+  uint32_t frame_count;
+  bool looping;
+  int context_type;
+  void *context_data;
+} Music;
+
 static bool window_ready;
+static bool audio_ready;
 
 RAYLIB_EXPORT void InitWindow(int width, int height, const char *title) {
   window_ready = width > 0 && height > 0 && title != 0;
@@ -103,6 +125,88 @@ RAYLIB_EXPORT void DrawTexture(Texture2D texture, int x, int y, Color tint) {
   (void)x;
   (void)y;
   (void)tint;
+}
+
+RAYLIB_EXPORT void InitAudioDevice(void) { audio_ready = true; }
+
+RAYLIB_EXPORT void CloseAudioDevice(void) { audio_ready = false; }
+
+RAYLIB_EXPORT bool IsAudioDeviceReady(void) { return audio_ready; }
+
+RAYLIB_EXPORT void SetMasterVolume(float volume) { (void)volume; }
+
+RAYLIB_EXPORT Sound LoadSound(const char *file_name) {
+  Sound sound = {{(void *)1, 0, 44100, 16, 2}, 128};
+  if (file_name == 0)
+    sound.stream.buffer = 0;
+  return sound;
+}
+
+RAYLIB_EXPORT bool IsSoundValid(Sound sound) {
+  return sound.stream.buffer != 0;
+}
+
+RAYLIB_EXPORT void UnloadSound(Sound sound) { (void)sound; }
+
+RAYLIB_EXPORT void PlaySound(Sound sound) { (void)sound; }
+
+RAYLIB_EXPORT void StopSound(Sound sound) { (void)sound; }
+
+RAYLIB_EXPORT bool IsSoundPlaying(Sound sound) {
+  return IsSoundValid(sound);
+}
+
+RAYLIB_EXPORT void SetSoundVolume(Sound sound, float volume) {
+  (void)sound;
+  (void)volume;
+}
+
+RAYLIB_EXPORT void SetSoundPitch(Sound sound, float pitch) {
+  (void)sound;
+  (void)pitch;
+}
+
+RAYLIB_EXPORT void SetSoundPan(Sound sound, float pan) {
+  (void)sound;
+  (void)pan;
+}
+
+RAYLIB_EXPORT Music LoadMusicStream(const char *file_name) {
+  Music music = {{(void *)1, 0, 44100, 16, 2}, 1024, true, 0, (void *)1};
+  if (file_name == 0)
+    music.context_data = 0;
+  return music;
+}
+
+RAYLIB_EXPORT bool IsMusicValid(Music music) {
+  return music.context_data != 0;
+}
+
+RAYLIB_EXPORT void UnloadMusicStream(Music music) { (void)music; }
+
+RAYLIB_EXPORT void PlayMusicStream(Music music) { (void)music; }
+
+RAYLIB_EXPORT bool IsMusicStreamPlaying(Music music) {
+  return IsMusicValid(music);
+}
+
+RAYLIB_EXPORT void UpdateMusicStream(Music music) { (void)music; }
+
+RAYLIB_EXPORT void StopMusicStream(Music music) { (void)music; }
+
+RAYLIB_EXPORT void SetMusicVolume(Music music, float volume) {
+  (void)music;
+  (void)volume;
+}
+
+RAYLIB_EXPORT void SetMusicPitch(Music music, float pitch) {
+  (void)music;
+  (void)pitch;
+}
+
+RAYLIB_EXPORT void SetMusicPan(Music music, float pan) {
+  (void)music;
+  (void)pan;
 }
 
 RAYLIB_EXPORT bool IsKeyDown(int key) { return key == 263; }
