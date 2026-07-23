@@ -156,8 +156,8 @@ int main() {
   expect(ir.find("define internal void @TakeIteratorState__int__destructor") !=
              std::string::npos,
          "a take iterator owns its source");
-  expect(ir.find("define ptr @Iterator__int__collect") != std::string::npos,
-         "Iterator.collect materializes the lazy pipeline");
+  expect(ir.find("define ptr @collectArray__int") != std::string::npos,
+         "collectArray materializes a lazy pipeline without an import cycle");
   expect(ir.find("define void @ArrayBuilder__int__add") != std::string::npos,
          "ArrayBuilder accumulates values incrementally");
   expect(ir.find("define ptr @ArrayBuilder__int__result") != std::string::npos,
@@ -170,7 +170,7 @@ int main() {
          "ArrayBuilder.addAll accepts statically constrained Iterable values");
   expect(ir.find("Iterator__int__collectWith__Array__int__ArrayBuilder__int") !=
              std::string::npos,
-         "Iterator.collect delegates materialization to a generic Builder");
+         "collectArray delegates materialization to a generic Builder");
   expect(ir.find("define i64 @IntHashing__hash") != std::string::npos,
          "IntHashing provides a monomorphized primitive hash");
   expect(ir.find("define i1 @IntHashing__equals") != std::string::npos,

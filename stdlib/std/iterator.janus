@@ -1,6 +1,5 @@
 module std.iterator
 import std.option
-import std.array
 import std.builder
 
 trait Iterable[T] {
@@ -270,15 +269,6 @@ class Iterator[T](
             builder.add(value)
         }
         return builder.result()
-    }
-
-    consume def collect() : Array[T] {
-        val builder : ArrayBuilder[T] =
-            new ArrayBuilder[T](usize(0))
-        val result : Array[T] =
-            this.collectWith[Array[T], ArrayBuilder[T]](builder)
-        delete builder
-        return result
     }
 
     destructor {

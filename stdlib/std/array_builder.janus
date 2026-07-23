@@ -1,0 +1,46 @@
+module std.array_builder
+import std.array
+import std.builder
+import std.iterator
+
+class ArrayBuilder[T](
+    initialCapacity : usize
+) extends Builder[T, Array[T]] {
+    private var values : Array[T] =
+        new Array[T](initialCapacity)
+
+    def add(value : T) : Unit {
+        values.push(value)
+    }
+
+    def addAll[C <: Iterable[T]](source : C) : Unit {
+        for value in source {
+            this.add(value)
+        }
+    }
+
+    def size() : usize {
+        return values.size()
+    }
+
+    def clear() : Unit {
+        values.clear()
+    }
+
+    def result() : Array[T] {
+        val completed : Array[T] = move values
+        values = new Array[T](usize(0))
+        return completed
+    }
+
+    destructor {
+        delete values
+    }
+}
+
+def collectArray[T](source : Iterator[T]) : Array[T] {
+    val builder : ArrayBuilder[T] =
+        new ArrayBuilder[T](usize(0))
+    defer delete builder
+    return source.collectWith[Array[T], ArrayBuilder[T]](builder)
+}

@@ -1,5 +1,5 @@
 import std.array
-import std.builder
+import std.array_builder
 import std.hashing
 import std.hashmap
 import std.hashset
@@ -106,12 +106,12 @@ def main() : int {
         None => 0
     }
 
-    val collected : Array[int] =
+    val collected : Array[int] = collectArray[int](
         values.iterator()
             .map[int]((value : int) => value * 2)
             .filter((value : int) => value > 25)
             .take(usize(1))
-            .collect()
+    )
     defer delete collected
     val first : Option[int] = collected.getOption(usize(0))
     val firstValue : int = match first {
