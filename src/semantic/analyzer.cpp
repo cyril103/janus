@@ -434,7 +434,8 @@ std::string SemanticType::name() const {
   return result;
 }
 
-AnalysisResult Analyzer::analyze(const ast::Program &program) const {
+AnalysisResult Analyzer::analyze(const ast::Program &program,
+                                 AnalysisOptions options) const {
   AnalysisResult result;
   std::unordered_map<std::string, const ast::FunctionDeclaration *> functions;
   std::unordered_map<std::string, const ast::ClassDeclaration *> classes;
@@ -898,7 +899,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
   }
 
   const auto main_iterator = functions.find("main");
-  if (main_iterator == functions.end()) {
+  if (options.require_entry_point && main_iterator == functions.end()) {
     throw CompileError{SourceLocation{},
                        "program must declare an entry point 'main'"};
   }

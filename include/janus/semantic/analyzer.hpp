@@ -51,9 +51,15 @@ struct AnalysisResult {
   std::unordered_map<std::string, SymbolTable> functions;
 };
 
+struct AnalysisOptions {
+  bool require_entry_point{true};
+};
+
 class Analyzer final {
 public:
-  [[nodiscard]] AnalysisResult analyze(const ast::Program &program) const;
+  [[nodiscard]] AnalysisResult
+  analyze(const ast::Program &program,
+          AnalysisOptions options = {}) const;
 };
 
 } // namespace janus::semantic

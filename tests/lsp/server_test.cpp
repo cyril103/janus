@@ -36,6 +36,17 @@ int main() {
   assert(imported.size() == 1);
   assert(imported.front().find("\"diagnostics\":[]") != std::string::npos);
 
+  const std::vector<std::string> module = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///library.janus","text":"module library\n\ndef helper() : int { return 42 }"}}})");
+  assert(module.size() == 1);
+  assert(module.front().find("\"diagnostics\":[]") != std::string::npos);
+  assert(module.front().find("entry point") == std::string::npos);
+
+  const std::vector<std::string> invalid_module = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///invalid-library.janus","text":"module invalid_library\n\ndef helper() : int { return missing }"}}})");
+  assert(invalid_module.size() == 1);
+  assert(invalid_module.front().find("unknown value") != std::string::npos);
+
   const std::vector<std::string> closed = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"file:///array.janus"}}})");
   assert(closed.size() == 1);

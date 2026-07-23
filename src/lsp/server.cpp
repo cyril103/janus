@@ -230,7 +230,9 @@ std::string Server::diagnostics(std::string_view uri,
       frontend::Parser parser{source};
       program = parser.parse_program();
     }
-    static_cast<void>(semantic::Analyzer{}.analyze(program));
+    const bool is_module = program.module_name.has_value();
+    static_cast<void>(semantic::Analyzer{}.analyze(
+        program, semantic::AnalysisOptions{!is_module}));
   } catch (const CompileError &error) {
     const SourceLocation location = error.location();
     const std::uint32_t line = location.line > 0 ? location.line - 1 : 0;
