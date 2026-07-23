@@ -1,0 +1,52 @@
+var releases : int = 0
+
+class Resource() {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+struct Box(val resource : Resource) {}
+
+enum Holder {
+    Some(Box),
+    None
+}
+
+def returnFromBranch(flag : bool) : int {
+    val box : Box = new Box(new Resource())
+    val holder : Holder = Holder.Some(move box)
+    defer delete holder
+    if flag {
+        return 1
+    }
+    return 0
+}
+
+def breakFromLoop() : Unit {
+    while true {
+        val box : Box = new Box(new Resource())
+        defer delete box
+        break
+    }
+}
+
+def continueFromLoop() : Unit {
+    var index : int = 0
+    while index < 2 {
+        val box : Box = new Box(new Resource())
+        val holder : Holder = Holder.Some(move box)
+        defer delete holder
+        index = index + 1
+        continue
+    }
+}
+
+def main() : int {
+    returnFromBranch(true)
+    returnFromBranch(false)
+    breakFromLoop()
+    continueFromLoop()
+    println(releases)
+    return 0
+}
