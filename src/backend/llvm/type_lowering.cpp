@@ -15,6 +15,8 @@ namespace janus::backend::llvm {
     return ::llvm::Type::getInt32Ty(context);
   case TypeKind::Double:
     return ::llvm::Type::getDoubleTy(context);
+  case TypeKind::Float:
+    return ::llvm::Type::getFloatTy(context);
   case TypeKind::Byte:
   case TypeKind::UByte:
     return ::llvm::Type::getInt8Ty(context);

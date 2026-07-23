@@ -37,6 +37,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::long_type();
   if (name == "ulong")
     return &janus::Type::ulong_type();
+  if (name == "float")
+    return &janus::Type::float_type();
   if (name == "double")
     return &janus::Type::double_type();
   if (name == "byte")
@@ -1479,6 +1481,14 @@ private:
                 result = builder.CreateCall(function, {argument});
                 break;
               }
+              case janus::TypeKind::Float: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_float",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getFloatTy()}, false));
+                result = builder.CreateCall(function, {argument});
+                break;
+              }
               case janus::TypeKind::Bool: {
                 ::llvm::FunctionCallee function = module_->getOrInsertFunction(
                     "janus_print_bool",
@@ -1608,9 +1618,9 @@ private:
                 source = builder.CreateExtractValue(source, 0, "enum.tag");
               if (conversion_type.kind() == janus::TypeKind::Enum) {
                 ::llvm::Value *tag = source;
-                if (source_type.kind() == janus::TypeKind::Double)
+                if (source_type.is_floating_point())
                   tag = builder.CreateFPToSI(source, builder.getInt32Ty(),
-                                             "double.to.enum");
+                                             "floating.to.enum");
                 else if (source_is_reference)
                   tag = builder.CreatePtrToInt(source, builder.getInt32Ty(),
                                                "pointer.to.enum");
@@ -1639,27 +1649,30 @@ private:
                 return builder.CreateIntToPtr(source, destination_type,
                                               "usize.to.pointer");
               if (conversion_type.kind() == janus::TypeKind::Bool) {
-                if (source_type.kind() == janus::TypeKind::Double)
+                if (source_type.is_floating_point())
                   return builder.CreateFCmpUNE(
                       source, ::llvm::ConstantFP::get(source->getType(), 0.0),
-                      "double.to.bool");
+                      "floating.to.bool");
                 return builder.CreateICmpNE(
                     source, ::llvm::ConstantInt::get(source->getType(), 0),
                     "integer.to.bool");
               }
-              if (conversion_type.kind() == janus::TypeKind::Double) {
+              if (conversion_type.is_floating_point()) {
+                if (source_type.is_floating_point())
+                  return builder.CreateFPCast(source, destination_type,
+                                              node.callee + ".conversion");
                 if (source_type.is_signed())
                   return builder.CreateSIToFP(source, destination_type,
-                                              "signed.to.double");
+                                              "signed.to.floating");
                 return builder.CreateUIToFP(source, destination_type,
-                                            "unsigned.to.double");
+                                            "unsigned.to.floating");
               }
-              if (source_type.kind() == janus::TypeKind::Double) {
+              if (source_type.is_floating_point()) {
                 if (conversion_type.is_signed())
                   return builder.CreateFPToSI(source, destination_type,
-                                              "double.to.signed");
+                                              "floating.to.signed");
                 return builder.CreateFPToUI(source, destination_type,
-                                            "double.to.unsigned");
+                                            "floating.to.unsigned");
               }
               return builder.CreateIntCast(source, destination_type,
                                            source_type.is_signed(),
@@ -1693,6 +1706,9 @@ private:
                   argument = builder.CreateIntCast(
                       argument, builder.getInt32Ty(), argument_type.is_signed(),
                       "vararg.integer");
+                else if (argument_type.kind() == janus::TypeKind::Float)
+                  argument = builder.CreateFPExt(argument, builder.getDoubleTy(),
+                                                 "vararg.float");
                 else if (argument_type.kind() == janus::TypeKind::Bool)
                   argument = builder.CreateZExt(argument, builder.getInt32Ty(),
                                                 "vararg.bool");
@@ -2101,7 +2117,7 @@ private:
                 *node.operand, *operand_type, substitutions, locals, builder);
             if (node.operation == janus::ast::UnaryOperator::LogicalNot)
               return builder.CreateNot(operand, "not");
-            if (operand_type->kind() == janus::TypeKind::Double)
+            if (operand_type->is_floating_point())
               return builder.CreateFNeg(operand, "neg");
             return builder.CreateNeg(operand, "neg");
           } else {
@@ -2149,51 +2165,50 @@ private:
               left = builder.CreateExtractValue(left, 0, "enum.left.tag");
               right = builder.CreateExtractValue(right, 0, "enum.right.tag");
             }
-            const bool is_double =
-                operand_type.kind() == janus::TypeKind::Double;
+            const bool is_floating = operand_type.is_floating_point();
             const bool is_unsigned_integer =
                 operand_type.kind() == janus::TypeKind::Char ||
                 (operand_type.is_integer() && !operand_type.is_signed());
 
             switch (node.operation) {
             case janus::ast::BinaryOperator::Add:
-              return is_double ? builder.CreateFAdd(left, right, "add")
-                               : builder.CreateAdd(left, right, "add");
+              return is_floating ? builder.CreateFAdd(left, right, "add")
+                                 : builder.CreateAdd(left, right, "add");
             case janus::ast::BinaryOperator::Subtract:
-              return is_double ? builder.CreateFSub(left, right, "sub")
-                               : builder.CreateSub(left, right, "sub");
+              return is_floating ? builder.CreateFSub(left, right, "sub")
+                                 : builder.CreateSub(left, right, "sub");
             case janus::ast::BinaryOperator::Multiply:
-              return is_double ? builder.CreateFMul(left, right, "mul")
-                               : builder.CreateMul(left, right, "mul");
+              return is_floating ? builder.CreateFMul(left, right, "mul")
+                                 : builder.CreateMul(left, right, "mul");
             case janus::ast::BinaryOperator::Divide:
-              return is_double ? builder.CreateFDiv(left, right, "div")
-                               : emit_integer_division(left, right,
-                                                       operand_type, false,
-                                                       is_unsigned_integer,
-                                                       builder);
+              return is_floating
+                         ? builder.CreateFDiv(left, right, "div")
+                         : emit_integer_division(left, right, operand_type,
+                                                 false, is_unsigned_integer,
+                                                 builder);
             case janus::ast::BinaryOperator::Remainder:
               return emit_integer_division(left, right, operand_type, true,
                                            is_unsigned_integer, builder);
             case janus::ast::BinaryOperator::Less:
-              if (is_double)
+              if (is_floating)
                 return builder.CreateFCmpOLT(left, right, "cmp");
               return is_unsigned_integer
                          ? builder.CreateICmpULT(left, right, "cmp")
                          : builder.CreateICmpSLT(left, right, "cmp");
             case janus::ast::BinaryOperator::LessEqual:
-              if (is_double)
+              if (is_floating)
                 return builder.CreateFCmpOLE(left, right, "cmp");
               return is_unsigned_integer
                          ? builder.CreateICmpULE(left, right, "cmp")
                          : builder.CreateICmpSLE(left, right, "cmp");
             case janus::ast::BinaryOperator::Greater:
-              if (is_double)
+              if (is_floating)
                 return builder.CreateFCmpOGT(left, right, "cmp");
               return is_unsigned_integer
                          ? builder.CreateICmpUGT(left, right, "cmp")
                          : builder.CreateICmpSGT(left, right, "cmp");
             case janus::ast::BinaryOperator::GreaterEqual:
-              if (is_double)
+              if (is_floating)
                 return builder.CreateFCmpOGE(left, right, "cmp");
               return is_unsigned_integer
                          ? builder.CreateICmpUGE(left, right, "cmp")
@@ -2202,7 +2217,7 @@ private:
             case janus::ast::BinaryOperator::NotEqual: {
               const bool is_not_equal =
                   node.operation == janus::ast::BinaryOperator::NotEqual;
-              if (is_double) {
+              if (is_floating) {
                 return is_not_equal
                            ? builder.CreateFCmpUNE(left, right, "equal")
                            : builder.CreateFCmpOEQ(left, right, "equal");

@@ -22,6 +22,11 @@ const Type &Type::ulong_type() {
   return type;
 }
 
+const Type &Type::float_type() {
+  static const Type type{TypeKind::Float, "float", 32, true};
+  return type;
+}
+
 const Type &Type::double_type() {
   static const Type type{TypeKind::Double, "double", 64, false};
   return type;
@@ -104,7 +109,7 @@ bool Type::is_integer() const noexcept {
 }
 
 bool Type::is_floating_point() const noexcept {
-  return kind_ == TypeKind::Double;
+  return kind_ == TypeKind::Float || kind_ == TypeKind::Double;
 }
 
 bool Type::is_character() const noexcept { return kind_ == TypeKind::Char; }

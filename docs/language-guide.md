@@ -69,6 +69,7 @@ Types primitifs :
 | `uint` | entier non signé sur 32 bits |
 | `long` | entier signé sur 64 bits |
 | `ulong` | entier non signé sur 64 bits |
+| `float` | nombre flottant sur 32 bits |
 | `double` | nombre flottant sur 64 bits |
 | `byte` | entier signé sur 8 bits |
 | `ubyte` | entier non signé sur 8 bits |
@@ -113,6 +114,13 @@ Janus ne convertit pas automatiquement `int` en `double`. Utilisez un cast :
 
 ```janus
 val ratio : double = double(5) / 2.0
+```
+
+Les littéraux flottants ont le type `double`. Construisez explicitement un
+`float` lorsqu'une valeur sur 32 bits est souhaitée :
+
+```janus
+val opacity : float = float(0.75)
 ```
 
 Les casts depuis `double` vers un entier sont définis seulement pour les valeurs

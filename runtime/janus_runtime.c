@@ -55,6 +55,10 @@ void janus_print_double(double value) {
   (void)fprintf(stdout, "%.17g", value);
 }
 
+void janus_print_float(float value) {
+  (void)fprintf(stdout, "%.9g", (double)value);
+}
+
 void janus_print_bool(bool value) {
   const char *text = value ? "true" : "false";
   janus_write_stdout(text, value ? 4 : 5);

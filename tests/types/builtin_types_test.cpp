@@ -62,6 +62,13 @@ int main() {
   expect(janus::backend::llvm::lower_type(double_type, context)->isDoubleTy(),
          "double lowers to LLVM double");
 
+  const janus::Type &float_type = janus::Type::float_type();
+  expect(float_type.name() == "float", "float has the expected name");
+  expect(float_type.bit_width() == 32, "float is 32 bits wide");
+  expect(float_type.is_floating_point(), "float is floating point");
+  expect(janus::backend::llvm::lower_type(float_type, context)->isFloatTy(),
+         "float lowers to LLVM float");
+
   const janus::Type &byte_type = janus::Type::byte_type();
   expect(byte_type.name() == "byte", "byte has the expected name");
   expect(byte_type.bit_width() == 8, "byte is 8 bits wide");

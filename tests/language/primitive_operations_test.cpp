@@ -73,6 +73,11 @@ def main() : int {
     val onePointFive : double = 1.5
     val twoPointZero : double = 2.0
     val floating : double = onePointFive * twoPointZero + 1.0
+    val floatOne : float = float(1.5)
+    val floatTwo : float = float(2.0)
+    val floatResult : float = -floatOne * floatTwo + float(1.0)
+    val floatOrder : bool = floatResult < floatTwo
+    val widenedFloat : double = double(floatResult)
     val ordered : bool = result >= 16 && remainder == 1
     val textEqual : bool = "Janus" == "Janus"
     val textDifferent : bool = "a" != "b"
@@ -135,6 +140,10 @@ def main() : int {
          "ulong comparison is unsigned");
   expect(ir.find("fmul double") != std::string::npos,
          "double multiplication is emitted");
+  expect(ir.find("fmul float") != std::string::npos,
+         "float multiplication keeps its 32-bit representation");
+  expect(ir.find("fpext float") != std::string::npos,
+         "float converts explicitly to double");
   expect(ir.find("icmp sge i32") != std::string::npos,
          "signed integer comparison is emitted");
   expect(ir.find("icmp ult i32") != std::string::npos,
