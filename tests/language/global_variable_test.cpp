@@ -114,10 +114,10 @@ def main() : int {
   expect_compile_error(
       "val dynamic : int = compute()\ndef compute() : int { return 1 }\n"
       "def main() : int { return dynamic }",
-      "global initializer must be a compile-time literal");
+      "global initializer is not a constant expression");
   expect_compile_error(
       "val wrong : bool = 1\ndef main() : int { return 0 }",
-      "cannot initialize global value 'wrong'");
+      "constant expression of type 'int' cannot initialize type 'bool'");
   expect_compile_error(
       "val unit : Unit = println(\"x\")\ndef main() : int { return 0 }",
       "must use a statically initialized built-in value type");
@@ -129,6 +129,54 @@ def main() : int {
       "val answer : int = 1\n"
       "def main() : int { answer = 2 return answer }",
       "cannot assign to immutable global value 'answer'");
+
+  janus::frontend::Parser constant_parser{R"(
+val minute : int = 60
+val hour : int = minute * 60
+val small : byte = 120 + 7
+val ready : bool = hour == 3600 && !false
+def main() : int { return hour }
+)"};
+  const janus::ast::Program constant_program =
+      constant_parser.parse_program();
+  static_cast<void>(analyzer.analyze(constant_program));
+  llvm::LLVMContext constant_context;
+  janus::backend::llvm::IrGenerator constant_generator{constant_context};
+  const std::unique_ptr<llvm::Module> constant_module =
+      constant_generator.generate(constant_program, "constant_globals");
+  std::string constant_ir;
+  llvm::raw_string_ostream constant_output{constant_ir};
+  constant_module->print(constant_output, nullptr);
+  constant_output.flush();
+  expect(constant_ir.find(
+             "@__janus_global_entry__hour = constant i32 3600") !=
+             std::string::npos,
+         "constant global references and arithmetic are folded");
+  expect(constant_ir.find(
+             "@__janus_global_entry__small = constant i8 127") !=
+             std::string::npos,
+         "constant arithmetic uses the declared integer type");
+  expect(constant_ir.find(
+             "@__janus_global_entry__ready = constant i1 true") !=
+             std::string::npos,
+         "constant comparisons and logical operators are folded");
+
+  expect_compile_error(
+      "val first : int = second\nval second : int = first\n"
+      "def main() : int { return 0 }",
+      "cyclic global constant dependency");
+  expect_compile_error(
+      "val invalid : int = 1 / 0\n"
+      "def main() : int { return 0 }",
+      "division by zero in constant expression");
+  expect_compile_error(
+      "val invalid : byte = 127 + 1\n"
+      "def main() : int { return 0 }",
+      "constant integer expression overflows type 'byte'");
+  expect_compile_error(
+      "var mutable : int = 1\nval copy : int = mutable\n"
+      "def main() : int { return 0 }",
+      "cannot depend on mutable global 'mutable'");
 
   janus::frontend::ModuleLoader loader;
   const janus::ast::Program imported_program =

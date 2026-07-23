@@ -1,7 +1,7 @@
 module other_config
 
 private val secret : int = 9
-val visibleCount : int = 4
+val visibleCount : int = secret - 5
 
 def otherSecretValue() : int {
     return secret

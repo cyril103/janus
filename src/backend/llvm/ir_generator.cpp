@@ -1,6 +1,8 @@
 #include "janus/backend/llvm/ir_generator.hpp"
 
 #include "janus/backend/llvm/type_lowering.hpp"
+#include "janus/constant/evaluator.hpp"
+#include "janus/diagnostics/compile_error.hpp"
 
 #include <algorithm>
 #include <array>
@@ -89,6 +91,9 @@ public:
       functions_.emplace(function.name, &function);
     for (const janus::ast::GlobalDeclaration &global : program.globals) {
       global_declarations_.push_back(&global);
+      global_by_key_.emplace(
+          source_global_key(global.module_name, global.declaration.name),
+          &global);
       if (!global.declaration.is_private)
         public_global_keys_.emplace(
             global.declaration.name,
@@ -226,64 +231,85 @@ private:
     return result;
   }
 
-  static std::int64_t
-  static_integer_value(const janus::ast::Expression &expression) {
-    if (const auto *literal =
-            std::get_if<janus::ast::IntegerLiteralExpression>(
-                &expression.value))
-      return literal->value;
-    const auto &unary =
-        std::get<janus::ast::UnaryExpression>(expression.value);
-    return -static_integer_value(*unary.operand);
-  }
+  const janus::constant::Value &
+  evaluate_global_constant(const janus::ast::GlobalDeclaration &global) {
+    const std::string key =
+        source_global_key(global.module_name, global.declaration.name);
+    const int state = constant_states_[key];
+    if (state == 1)
+      throw janus::CompileError{
+          global.declaration.location,
+          "cyclic global constant dependency involving '" + key + "'"};
+    if (state == 2)
+      return constant_values_.at(key);
 
-  static double
-  static_double_value(const janus::ast::Expression &expression) {
-    if (const auto *literal =
-            std::get_if<janus::ast::DoubleLiteralExpression>(
-                &expression.value))
-      return literal->value;
-    const auto &unary =
-        std::get<janus::ast::UnaryExpression>(expression.value);
-    return -static_double_value(*unary.operand);
-  }
-
-  static bool static_boolean_value(const janus::ast::Expression &expression) {
-    if (const auto *literal =
-            std::get_if<janus::ast::BooleanLiteralExpression>(
-                &expression.value))
-      return literal->value;
-    const auto &unary =
-        std::get<janus::ast::UnaryExpression>(expression.value);
-    return !static_boolean_value(*unary.operand);
+    constant_states_[key] = 1;
+    const janus::constant::Resolver resolver =
+        [&](const std::optional<std::string> &qualified_module,
+            std::string_view name,
+            janus::SourceLocation location)
+        -> std::optional<janus::constant::Value> {
+      std::string dependency_key;
+      if (qualified_module.has_value()) {
+        dependency_key = source_global_key(qualified_module, name);
+      } else {
+        const std::string local_key =
+            source_global_key(global.module_name, name);
+        if (global_by_key_.contains(local_key))
+          dependency_key = local_key;
+        else if (const auto exported =
+                     public_global_keys_.find(std::string{name});
+                 exported != public_global_keys_.end())
+          dependency_key = exported->second;
+        else
+          return std::nullopt;
+      }
+      const auto dependency = global_by_key_.find(dependency_key);
+      if (dependency == global_by_key_.end())
+        return std::nullopt;
+      const janus::ast::GlobalDeclaration &target = *dependency->second;
+      if (target.declaration.is_private &&
+          target.module_name != global.module_name)
+        throw janus::CompileError{location,
+                                  "global constant '" + dependency_key +
+                                      "' is private"};
+      if (target.declaration.is_mutable)
+        throw janus::CompileError{
+            location, "global constant initializer cannot depend on mutable "
+                      "global '" +
+                          dependency_key + "'"};
+      return evaluate_global_constant(target);
+    };
+    const janus::Type &type = resolve(global.declaration.declared_type, {});
+    janus::constant::Value value = janus::constant::evaluate(
+        *global.declaration.initializer, &type, resolver);
+    constant_states_[key] = 2;
+    auto [iterator, inserted] =
+        constant_values_.emplace(key, std::move(value));
+    static_cast<void>(inserted);
+    return iterator->second;
   }
 
   ::llvm::Constant *
-  emit_static_initializer(const janus::ast::Expression &expression,
+  emit_static_initializer(const janus::constant::Value &value,
                           const janus::Type &type) {
     ::llvm::Type *llvm_type = lower_type(type, context_);
     if (type.is_integer())
       return ::llvm::ConstantInt::get(
-          llvm_type,
-          static_cast<std::uint64_t>(static_integer_value(expression)),
-          type.is_signed());
+          llvm_type, std::get<std::uint64_t>(value.data), type.is_signed());
     if (type.is_floating_point())
-      return ::llvm::ConstantFP::get(llvm_type,
-                                     static_double_value(expression));
+      return ::llvm::ConstantFP::get(llvm_type, std::get<double>(value.data));
     if (type.kind() == janus::TypeKind::Bool)
       return ::llvm::ConstantInt::get(
-          llvm_type, static_boolean_value(expression), false);
-    if (type.kind() == janus::TypeKind::Char) {
-      const auto &literal =
-          std::get<janus::ast::CharacterLiteralExpression>(expression.value);
+          llvm_type, std::get<bool>(value.data), false);
+    if (type.kind() == janus::TypeKind::Char)
       return ::llvm::ConstantInt::get(
-          llvm_type, static_cast<std::uint32_t>(literal.value), false);
-    }
+          llvm_type,
+          static_cast<std::uint32_t>(std::get<char32_t>(value.data)), false);
 
-    const auto &literal =
-        std::get<janus::ast::StringLiteralExpression>(expression.value);
+    const std::string &literal = std::get<std::string>(value.data);
     ::llvm::Constant *data =
-        ::llvm::ConstantDataArray::getString(context_, literal.value, true);
+        ::llvm::ConstantDataArray::getString(context_, literal, true);
     auto *storage = new ::llvm::GlobalVariable(
         *module_, data->getType(), true, ::llvm::GlobalValue::PrivateLinkage,
         data, ".str." + std::to_string(string_literal_index_++));
@@ -295,7 +321,7 @@ private:
         ::llvm::ConstantExpr::getInBoundsGetElementPtr(data->getType(), storage,
                                                        indices);
     ::llvm::Constant *length = ::llvm::ConstantInt::get(
-        ::llvm::Type::getInt64Ty(context_), literal.value.size(), false);
+        ::llvm::Type::getInt64Ty(context_), literal.size(), false);
     return ::llvm::ConstantStruct::get(
         ::llvm::cast<::llvm::StructType>(llvm_type), {pointer, length});
   }
@@ -308,7 +334,7 @@ private:
                              : ::llvm::GlobalValue::ExternalLinkage;
     auto *storage = new ::llvm::GlobalVariable(
         *module_, lower_type(type, context_), !declaration.is_mutable, linkage,
-        emit_static_initializer(*declaration.initializer, type),
+        emit_static_initializer(evaluate_global_constant(global), type),
         global_symbol_name(global));
     global_storage_.emplace(
         source_global_key(global.module_name, declaration.name),
@@ -2537,9 +2563,13 @@ private:
   std::unordered_map<std::string, const janus::ast::FunctionDeclaration *>
       functions_;
   std::vector<const janus::ast::GlobalDeclaration *> global_declarations_;
+  std::unordered_map<std::string, const janus::ast::GlobalDeclaration *>
+      global_by_key_;
   std::unordered_map<std::string, Local> global_storage_;
   std::unordered_map<std::string, std::string> public_global_keys_;
   std::unordered_set<std::string> global_modules_;
+  std::unordered_map<std::string, int> constant_states_;
+  std::unordered_map<std::string, janus::constant::Value> constant_values_;
   std::unordered_map<std::string, const janus::ast::ClassDeclaration *>
       classes_;
   std::unordered_map<std::string, const janus::ast::EnumDeclaration *> enums_;

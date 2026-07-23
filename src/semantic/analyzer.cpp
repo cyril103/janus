@@ -1,5 +1,6 @@
 #include "janus/semantic/analyzer.hpp"
 
+#include "janus/constant/evaluator.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 
 #include <algorithm>
@@ -398,55 +399,6 @@ bool accepts_contextual_integer_literal(const janus::Type &type) {
          type.bit_width() < janus::Type::int_type().bit_width();
 }
 
-janus::semantic::SemanticType
-static_initializer_type(const janus::ast::Expression &expression) {
-  using namespace janus;
-  using namespace janus::semantic;
-
-  return std::visit(
-      [&](const auto &node) -> SemanticType {
-        using Node = std::decay_t<decltype(node)>;
-        if constexpr (std::is_same_v<Node, ast::IntegerLiteralExpression>)
-          return SemanticType{&Type::int_type()};
-        else if constexpr (std::is_same_v<Node,
-                                          ast::DoubleLiteralExpression>)
-          return SemanticType{&Type::double_type()};
-        else if constexpr (std::is_same_v<Node,
-                                          ast::CharacterLiteralExpression>)
-          return SemanticType{&Type::char_type()};
-        else if constexpr (std::is_same_v<Node,
-                                          ast::BooleanLiteralExpression>)
-          return SemanticType{&Type::bool_type()};
-        else if constexpr (std::is_same_v<Node, ast::StringLiteralExpression>)
-          return SemanticType{&Type::string_type()};
-        else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
-          const SemanticType operand = static_initializer_type(*node.operand);
-          if (node.operation == ast::UnaryOperator::LogicalNot) {
-            if (!operand.is_concrete() ||
-                operand.concrete->kind() != TypeKind::Bool)
-              throw CompileError{
-                  node.location,
-                  "operator '!' requires an operand of type 'bool'"};
-            return operand;
-          }
-          if (!operand.is_concrete() ||
-              (!operand.concrete->is_floating_point() &&
-               (!operand.concrete->is_integer() ||
-                !operand.concrete->is_signed())))
-            throw CompileError{
-                node.location,
-                "unary operator '-' requires a signed integer or "
-                "floating-point operand"};
-          return operand;
-        } else {
-          throw CompileError{
-              node.location,
-              "global initializer must be a compile-time literal"};
-        }
-      },
-      expression.value);
-}
-
 std::string integer_range_description(const janus::Type &type) {
   return std::string{type.is_signed() ? "signed " : "unsigned "} +
          std::to_string(type.bit_width()) + "-bit range";
@@ -620,20 +572,72 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       throw CompileError{declaration.location,
                          "global variable '" + declaration.name +
                              "' requires an initializer"};
-    const SemanticType initializer =
-        static_initializer_type(*declaration.initializer);
-    if (!same_type(initializer, type)) {
-      if (!type.concrete->is_integer() ||
-          !integer_literal_fits(*declaration.initializer, *type.concrete))
-        throw CompileError{
-            declaration.location,
-            "cannot initialize global value '" + declaration.name +
-                "' of type '" + type.name() + "' with expression of type '" +
-                initializer.name() + "'"};
-    }
     Symbol symbol{type, declaration.is_mutable, true};
     result.globals.emplace(key, symbol);
     globals.emplace(key, ResolvedGlobal{&global, std::move(symbol)});
+  }
+
+  enum class ConstantState { Unvisited, Visiting, Complete };
+  std::unordered_map<std::string, ConstantState> constant_states;
+  std::unordered_map<std::string, constant::Value> constant_values;
+  std::function<const constant::Value &(const std::string &)> evaluate_global;
+  evaluate_global = [&](const std::string &key) -> const constant::Value & {
+    const ConstantState state = constant_states[key];
+    if (state == ConstantState::Visiting)
+      throw CompileError{
+          globals.at(key).declaration->declaration.location,
+          "cyclic global constant dependency involving '" + key + "'"};
+    if (state == ConstantState::Complete)
+      return constant_values.at(key);
+
+    constant_states[key] = ConstantState::Visiting;
+    const ResolvedGlobal &resolved = globals.at(key);
+    const ast::GlobalDeclaration &global = *resolved.declaration;
+    const constant::Resolver resolver =
+        [&](const std::optional<std::string> &qualified_module,
+            std::string_view name,
+            SourceLocation location) -> std::optional<constant::Value> {
+      std::string dependency_key;
+      if (qualified_module.has_value()) {
+        dependency_key = global_key(qualified_module, name);
+      } else {
+        const std::string local_key = global_key(global.module_name, name);
+        if (globals.contains(local_key))
+          dependency_key = local_key;
+        else if (const auto exported = public_globals.find(std::string{name});
+                 exported != public_globals.end())
+          dependency_key = exported->second;
+        else
+          return std::nullopt;
+      }
+      const auto dependency = globals.find(dependency_key);
+      if (dependency == globals.end())
+        return std::nullopt;
+      const ast::GlobalDeclaration &target = *dependency->second.declaration;
+      if (target.declaration.is_private &&
+          target.module_name != global.module_name)
+        throw CompileError{location,
+                           "global constant '" + dependency_key +
+                               "' is private"};
+      if (target.declaration.is_mutable)
+        throw CompileError{
+            location, "global constant initializer cannot depend on mutable "
+                      "global '" +
+                          dependency_key + "'"};
+      return evaluate_global(dependency_key);
+    };
+    constant::Value value = constant::evaluate(
+        *global.declaration.initializer, resolved.symbol.type.concrete,
+        resolver);
+    constant_states[key] = ConstantState::Complete;
+    auto [iterator, inserted] =
+        constant_values.emplace(key, std::move(value));
+    static_cast<void>(inserted);
+    return iterator->second;
+  };
+  for (const auto &[key, resolved] : globals) {
+    static_cast<void>(resolved);
+    static_cast<void>(evaluate_global(key));
   }
 
   struct TraitInstance {

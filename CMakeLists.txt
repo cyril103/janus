@@ -93,6 +93,24 @@ target_compile_options(janus_frontend
         -Wpedantic
 )
 
+add_library(janus_constant
+    src/constant/evaluator.cpp
+)
+target_include_directories(janus_constant
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+)
+target_link_libraries(janus_constant
+    PUBLIC
+        janus_types
+)
+target_compile_options(janus_constant
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+)
+
 add_library(janus_semantic
     src/semantic/analyzer.cpp
 )
@@ -103,6 +121,7 @@ target_include_directories(janus_semantic
 target_link_libraries(janus_semantic
     PUBLIC
         janus_frontend
+        janus_constant
 )
 target_compile_options(janus_semantic
     PRIVATE
@@ -142,6 +161,7 @@ target_link_libraries(janus_llvm_backend
     PUBLIC
         janus_types
         janus_frontend
+        janus_constant
 )
 llvm_map_components_to_libnames(
     JANUS_LLVM_LIBS

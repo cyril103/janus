@@ -1,7 +1,7 @@
 import global_config
 import other_config
 
-val localCount : int = 2
+val localCount : int = other_config.visibleCount - 2
 
 def main() : int {
     global_config.importedCount = 3
