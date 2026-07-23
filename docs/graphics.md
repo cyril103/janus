@@ -192,6 +192,31 @@ ces types. Les fonctions à coordonnées et couleurs brutes restent disponibles
 pour préserver la compatibilité. Ces primitives étant actuellement des classes
 Janus, elles doivent être libérées avec `delete`, idéalement via `defer`.
 
+## Caméra 2D
+
+Une `Camera2D` définit le point visé, son décalage à l'écran, sa rotation et
+son zoom :
+
+```janus
+val camera : Camera2D = new Camera2D(
+    float(400.0),
+    float(225.0),
+    float(0.0),
+    float(0.0),
+    float(0.0),
+    float(2.0)
+)
+defer delete camera
+
+beginCamera(camera)
+drawCircle(0, 0, float(24.0), red())
+endCamera()
+```
+
+`screenToWorld` et `worldToScreen` convertissent un `Vector2` entre les deux
+repères. Le résultat est une nouvelle valeur possédée qui doit également être
+libérée dans le modèle de classes actuel.
+
 ## État expérimental
 
 Cette première version vise le graphisme 2D immédiat. Elle ne fournit pas encore

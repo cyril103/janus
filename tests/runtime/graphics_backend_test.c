@@ -22,6 +22,22 @@ extern int janus_graphics_screen_height(void);
 extern void janus_graphics_set_target_fps(int frames_per_second);
 extern void janus_graphics_begin_drawing(void);
 extern void janus_graphics_end_drawing(void);
+extern void janus_graphics_begin_camera(float offset_x, float offset_y,
+                                        float target_x, float target_y,
+                                        float rotation, float zoom);
+extern void janus_graphics_end_camera(void);
+extern float janus_graphics_screen_to_world_x(
+    float x, float y, float offset_x, float offset_y, float target_x,
+    float target_y, float rotation, float zoom);
+extern float janus_graphics_screen_to_world_y(
+    float x, float y, float offset_x, float offset_y, float target_x,
+    float target_y, float rotation, float zoom);
+extern float janus_graphics_world_to_screen_x(
+    float x, float y, float offset_x, float offset_y, float target_x,
+    float target_y, float rotation, float zoom);
+extern float janus_graphics_world_to_screen_y(
+    float x, float y, float offset_x, float offset_y, float target_x,
+    float target_y, float rotation, float zoom);
 extern void janus_graphics_clear_background(uint32_t color);
 extern void janus_graphics_draw_pixel(int x, int y, uint32_t color);
 extern void janus_graphics_draw_line(int start_x, int start_y, int end_x,
@@ -96,6 +112,18 @@ int main(void) {
 
   janus_graphics_set_target_fps(60);
   janus_graphics_begin_drawing();
+  janus_graphics_begin_camera(400.0f, 225.0f, 100.0f, 50.0f, 0.0f, 2.0f);
+  if (janus_graphics_screen_to_world_x(420.0f, 245.0f, 400.0f, 225.0f,
+                                       100.0f, 50.0f, 0.0f, 2.0f) != 110.0f ||
+      janus_graphics_screen_to_world_y(420.0f, 245.0f, 400.0f, 225.0f,
+                                       100.0f, 50.0f, 0.0f, 2.0f) != 60.0f ||
+      janus_graphics_world_to_screen_x(110.0f, 60.0f, 400.0f, 225.0f,
+                                       100.0f, 50.0f, 0.0f, 2.0f) != 420.0f ||
+      janus_graphics_world_to_screen_y(110.0f, 60.0f, 400.0f, 225.0f,
+                                       100.0f, 50.0f, 0.0f, 2.0f) != 245.0f) {
+    fputs("graphics backend did not forward camera transforms\n", stderr);
+    return 1;
+  }
   janus_graphics_clear_background(UINT32_C(0x182000ff));
   janus_graphics_draw_pixel(1, 2, UINT32_C(0xffffffff));
   janus_graphics_draw_line(1, 2, 3, 4, UINT32_C(0xffffffff));
@@ -111,6 +139,7 @@ int main(void) {
   }
   janus_graphics_draw_texture(texture, 15, 16, UINT32_C(0xffffffff));
   janus_graphics_unload_texture(texture);
+  janus_graphics_end_camera();
   janus_graphics_end_drawing();
 
   if (!janus_graphics_init_audio()) {

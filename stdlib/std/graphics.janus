@@ -154,6 +154,55 @@ extern def janus_graphics_screen_height() : int
 extern def janus_graphics_set_target_fps(framesPerSecond : int) : Unit
 extern def janus_graphics_begin_drawing() : Unit
 extern def janus_graphics_end_drawing() : Unit
+extern def janus_graphics_begin_camera(
+offsetX : float,
+offsetY : float,
+targetX : float,
+targetY : float,
+rotation : float,
+zoom : float
+) : Unit
+extern def janus_graphics_end_camera() : Unit
+extern def janus_graphics_screen_to_world_x(
+x : float,
+y : float,
+offsetX : float,
+offsetY : float,
+targetX : float,
+targetY : float,
+rotation : float,
+zoom : float
+) : float
+extern def janus_graphics_screen_to_world_y(
+x : float,
+y : float,
+offsetX : float,
+offsetY : float,
+targetX : float,
+targetY : float,
+rotation : float,
+zoom : float
+) : float
+extern def janus_graphics_world_to_screen_x(
+x : float,
+y : float,
+offsetX : float,
+offsetY : float,
+targetX : float,
+targetY : float,
+rotation : float,
+zoom : float
+) : float
+extern def janus_graphics_world_to_screen_y(
+x : float,
+y : float,
+offsetX : float,
+offsetY : float,
+targetX : float,
+targetY : float,
+rotation : float,
+zoom : float
+) : float
 extern def janus_graphics_clear_background(color : uint) : Unit
 extern def janus_graphics_draw_pixel(x : int, y : int, color : uint) : Unit
 extern def janus_graphics_draw_line(
@@ -263,6 +312,15 @@ class Color(private val packedValue : uint) {
         return packedValue
     }
 }
+
+class Camera2D(
+var offsetX : float,
+var offsetY : float,
+var targetX : float,
+var targetY : float,
+var rotation : float,
+var zoom : float
+) {}
 
 class Texture(private val handle : Ptr[byte]) {
     def isValid() : bool {
@@ -510,6 +568,71 @@ def beginDrawing() : Unit {
 
 def endDrawing() : Unit {
     janus_graphics_end_drawing()
+}
+
+def beginCamera(camera : Camera2D) : Unit {
+    janus_graphics_begin_camera(
+    camera.offsetX,
+    camera.offsetY,
+    camera.targetX,
+    camera.targetY,
+    camera.rotation,
+    camera.zoom
+    )
+}
+
+def endCamera() : Unit {
+    janus_graphics_end_camera()
+}
+
+def screenToWorld(position : Vector2, camera : Camera2D) : Vector2 {
+    return vector2(
+    janus_graphics_screen_to_world_x(
+    position.x,
+    position.y,
+    camera.offsetX,
+    camera.offsetY,
+    camera.targetX,
+    camera.targetY,
+    camera.rotation,
+    camera.zoom
+    ),
+    janus_graphics_screen_to_world_y(
+    position.x,
+    position.y,
+    camera.offsetX,
+    camera.offsetY,
+    camera.targetX,
+    camera.targetY,
+    camera.rotation,
+    camera.zoom
+    )
+    )
+}
+
+def worldToScreen(position : Vector2, camera : Camera2D) : Vector2 {
+    return vector2(
+    janus_graphics_world_to_screen_x(
+    position.x,
+    position.y,
+    camera.offsetX,
+    camera.offsetY,
+    camera.targetX,
+    camera.targetY,
+    camera.rotation,
+    camera.zoom
+    ),
+    janus_graphics_world_to_screen_y(
+    position.x,
+    position.y,
+    camera.offsetX,
+    camera.offsetY,
+    camera.targetX,
+    camera.targetY,
+    camera.rotation,
+    camera.zoom
+    )
+    )
 }
 
 def clearBackground(color : uint) : Unit {

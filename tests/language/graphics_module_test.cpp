@@ -38,6 +38,16 @@ def main() : int {
         float(10.0),
         float(11.0)
     )
+    val camera : Camera2D = new Camera2D(
+        float(400.0),
+        float(225.0),
+        float(0.0),
+        float(0.0),
+        float(0.0),
+        float(1.0)
+    )
+    val world : Vector2 = screenToWorld(start, camera)
+    val screen : Vector2 = worldToScreen(world, camera)
     val keyDown : bool = isKeyDown(Key.Left)
     val mouseDown : bool = isMouseButtonDown(MouseButton.Left)
     setWindowTitle("Janus graphics")
@@ -48,6 +58,7 @@ def main() : int {
     hideCursor()
     showCursor()
     beginDrawing()
+    beginCamera(camera)
     clearBackground(color)
     drawPixel(1, 2, color)
     drawLine(1, 2, 3, 4, color)
@@ -62,6 +73,7 @@ def main() : int {
     val textureWidth : int = texture.width()
     texture.draw(textureWidth, texture.height(), white())
     texture.drawAt(start, typedColor)
+    endCamera()
     delete texture
     val sound : Sound = loadSound("effect.wav")
     sound.setVolume(float(0.5))
@@ -74,6 +86,9 @@ def main() : int {
     delete start
     delete end
     delete area
+    delete screen
+    delete world
+    delete camera
     delete typedColor
     endDrawing()
     if keyDown || mouseDown {
@@ -131,6 +146,11 @@ def main() : int {
   expect(ir.find("call void @drawLineBetween(ptr") != std::string::npos &&
              ir.find("call void @drawRectangleArea(ptr") != std::string::npos,
          "typed vector, rectangle, and color helpers lower successfully");
+  expect(ir.find("call void @janus_graphics_begin_camera") !=
+                 std::string::npos &&
+             ir.find("call float @janus_graphics_screen_to_world_x") !=
+                 std::string::npos,
+         "typed 2D camera helpers lower through the native backend");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

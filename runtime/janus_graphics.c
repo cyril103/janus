@@ -19,6 +19,18 @@ typedef struct {
 } JanusRaylibColor;
 
 typedef struct {
+  float x;
+  float y;
+} JanusRaylibVector2;
+
+typedef struct {
+  JanusRaylibVector2 offset;
+  JanusRaylibVector2 target;
+  float rotation;
+  float zoom;
+} JanusRaylibCamera2D;
+
+typedef struct {
   uint32_t id;
   int width;
   int height;
@@ -71,6 +83,12 @@ typedef struct {
   void (*SetTargetFPS)(int);
   void (*BeginDrawing)(void);
   void (*EndDrawing)(void);
+  void (*BeginMode2D)(JanusRaylibCamera2D);
+  void (*EndMode2D)(void);
+  JanusRaylibVector2 (*GetScreenToWorld2D)(JanusRaylibVector2,
+                                           JanusRaylibCamera2D);
+  JanusRaylibVector2 (*GetWorldToScreen2D)(JanusRaylibVector2,
+                                           JanusRaylibCamera2D);
   void (*ClearBackground)(JanusRaylibColor);
   void (*DrawPixel)(int, int, JanusRaylibColor);
   void (*DrawLine)(int, int, int, int, JanusRaylibColor);
@@ -232,6 +250,10 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(SetTargetFPS);
   JANUS_LOAD_GRAPHICS_SYMBOL(BeginDrawing);
   JANUS_LOAD_GRAPHICS_SYMBOL(EndDrawing);
+  JANUS_LOAD_GRAPHICS_SYMBOL(BeginMode2D);
+  JANUS_LOAD_GRAPHICS_SYMBOL(EndMode2D);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetScreenToWorld2D);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetWorldToScreen2D);
   JANUS_LOAD_GRAPHICS_SYMBOL(ClearBackground);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawPixel);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawLine);
@@ -411,6 +433,76 @@ void janus_graphics_begin_drawing(void) {
 void janus_graphics_end_drawing(void) {
   if (graphics_loaded)
     graphics_api.EndDrawing();
+}
+
+static JanusRaylibCamera2D make_camera(float offset_x, float offset_y,
+                                       float target_x, float target_y,
+                                       float rotation, float zoom) {
+  JanusRaylibCamera2D camera = {{offset_x, offset_y},
+                                {target_x, target_y},
+                                rotation,
+                                zoom};
+  return camera;
+}
+
+void janus_graphics_begin_camera(float offset_x, float offset_y, float target_x,
+                                 float target_y, float rotation, float zoom) {
+  if (graphics_loaded)
+    graphics_api.BeginMode2D(make_camera(offset_x, offset_y, target_x, target_y,
+                                         rotation, zoom));
+}
+
+void janus_graphics_end_camera(void) {
+  if (graphics_loaded)
+    graphics_api.EndMode2D();
+}
+
+float janus_graphics_screen_to_world_x(float x, float y, float offset_x,
+                                       float offset_y, float target_x,
+                                       float target_y, float rotation,
+                                       float zoom) {
+  if (!graphics_loaded)
+    return 0.0f;
+  JanusRaylibVector2 result = graphics_api.GetScreenToWorld2D(
+      (JanusRaylibVector2){x, y},
+      make_camera(offset_x, offset_y, target_x, target_y, rotation, zoom));
+  return result.x;
+}
+
+float janus_graphics_screen_to_world_y(float x, float y, float offset_x,
+                                       float offset_y, float target_x,
+                                       float target_y, float rotation,
+                                       float zoom) {
+  if (!graphics_loaded)
+    return 0.0f;
+  JanusRaylibVector2 result = graphics_api.GetScreenToWorld2D(
+      (JanusRaylibVector2){x, y},
+      make_camera(offset_x, offset_y, target_x, target_y, rotation, zoom));
+  return result.y;
+}
+
+float janus_graphics_world_to_screen_x(float x, float y, float offset_x,
+                                       float offset_y, float target_x,
+                                       float target_y, float rotation,
+                                       float zoom) {
+  if (!graphics_loaded)
+    return 0.0f;
+  JanusRaylibVector2 result = graphics_api.GetWorldToScreen2D(
+      (JanusRaylibVector2){x, y},
+      make_camera(offset_x, offset_y, target_x, target_y, rotation, zoom));
+  return result.x;
+}
+
+float janus_graphics_world_to_screen_y(float x, float y, float offset_x,
+                                       float offset_y, float target_x,
+                                       float target_y, float rotation,
+                                       float zoom) {
+  if (!graphics_loaded)
+    return 0.0f;
+  JanusRaylibVector2 result = graphics_api.GetWorldToScreen2D(
+      (JanusRaylibVector2){x, y},
+      make_camera(offset_x, offset_y, target_x, target_y, rotation, zoom));
+  return result.y;
 }
 
 void janus_graphics_clear_background(uint32_t color) {

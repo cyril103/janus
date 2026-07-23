@@ -15,6 +15,18 @@ typedef struct {
 } Color;
 
 typedef struct {
+  float x;
+  float y;
+} Vector2;
+
+typedef struct {
+  Vector2 offset;
+  Vector2 target;
+  float rotation;
+  float zoom;
+} Camera2D;
+
+typedef struct {
   uint32_t id;
   int width;
   int height;
@@ -93,6 +105,24 @@ RAYLIB_EXPORT void SetTargetFPS(int frames_per_second) {
 RAYLIB_EXPORT void BeginDrawing(void) {}
 
 RAYLIB_EXPORT void EndDrawing(void) {}
+
+RAYLIB_EXPORT void BeginMode2D(Camera2D camera) { (void)camera; }
+
+RAYLIB_EXPORT void EndMode2D(void) {}
+
+RAYLIB_EXPORT Vector2 GetScreenToWorld2D(Vector2 position, Camera2D camera) {
+  Vector2 result = {
+      (position.x - camera.offset.x) / camera.zoom + camera.target.x,
+      (position.y - camera.offset.y) / camera.zoom + camera.target.y};
+  return result;
+}
+
+RAYLIB_EXPORT Vector2 GetWorldToScreen2D(Vector2 position, Camera2D camera) {
+  Vector2 result = {
+      (position.x - camera.target.x) * camera.zoom + camera.offset.x,
+      (position.y - camera.target.y) * camera.zoom + camera.offset.y};
+  return result;
+}
 
 RAYLIB_EXPORT void ClearBackground(Color color) { (void)color; }
 
