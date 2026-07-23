@@ -2,6 +2,7 @@
 
 #include "janus/constant/evaluator.hpp"
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/ownership/classifier.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -646,14 +647,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::unordered_map<std::string, std::string> public_globals;
   std::unordered_set<std::string> global_modules;
   const std::unordered_set<std::string> no_type_parameters;
-  std::function<bool(const SemanticType &)> aggregate_owns_value;
-  aggregate_owns_value = [&](const SemanticType &type) {
+  const auto directly_owns_value = [&](const SemanticType &type) {
     if (type.is_function() || type.is_pointer())
       return true;
     if (type.is_class()) {
       const ast::ClassDeclaration &declaration = *classes.at(type.parameter);
       if (!declaration.is_value_type)
         return true;
+    }
+    return false;
+  };
+  const auto visit_owned_children =
+      [&](const SemanticType &type, const auto &visit) {
+    if (type.is_class()) {
+      const ast::ClassDeclaration &declaration = *classes.at(type.parameter);
+      if (!declaration.is_value_type)
+        return;
       const std::unordered_set<std::string> parameters{
           declaration.type_parameters.begin(),
           declaration.type_parameters.end()};
@@ -666,11 +675,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
            declaration.constructor_fields) {
         SemanticType field_type =
             resolve_type(field.declared_type, parameters, &class_arities);
-        if (aggregate_owns_value(
-                substitute(std::move(field_type), substitutions)))
-          return true;
+        visit(substitute(std::move(field_type), substitutions));
       }
-      return false;
+      return;
     }
     if (type.is_enum()) {
       const ast::EnumDeclaration &declaration = *enums.at(type.parameter);
@@ -686,12 +693,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         for (const ast::TypeReference &payload : enum_case.payload_types) {
           SemanticType payload_type =
               resolve_type(payload, parameters, &class_arities);
-          if (aggregate_owns_value(
-                  substitute(std::move(payload_type), substitutions)))
-            return true;
+          visit(substitute(std::move(payload_type), substitutions));
         }
     }
-    return false;
+  };
+  const auto aggregate_owns_value = [&](const SemanticType &type) {
+    return janus::ownership::recursively_owns_value(
+        type, directly_owns_value, visit_owned_children);
   };
   for (const ast::GlobalDeclaration &global : program.globals) {
     const ast::ValueDeclaration &declaration = global.declaration;

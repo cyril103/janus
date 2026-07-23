@@ -3,6 +3,7 @@
 #include "janus/backend/llvm/type_lowering.hpp"
 #include "janus/constant/evaluator.hpp"
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/ownership/classifier.hpp"
 
 #include <algorithm>
 #include <array>
@@ -773,31 +774,33 @@ private:
   }
 
   bool owns_value(const janus::Type &type) {
-    if (type.kind() == janus::TypeKind::Class ||
-        type.kind() == janus::TypeKind::Pointer ||
-        type.kind() == janus::TypeKind::Function)
-      return true;
-    if (type.kind() == janus::TypeKind::Struct) {
-      const ClassSpecialization &specialization =
-          class_specializations_.at(std::string{type.name()});
-      for (const janus::ast::ValueDeclaration &field :
-           specialization.declaration->constructor_fields)
-        if (owns_value(resolve(field.declared_type,
-                               specialization.substitutions)))
-          return true;
-      return false;
-    }
-    if (type.kind() == janus::TypeKind::Enum) {
-      const EnumSpecialization &specialization =
-          enum_specializations_.at(std::string{type.name()});
-      for (const janus::ast::EnumDeclaration::Case &enum_case :
-           specialization.declaration->cases)
-        for (const janus::ast::TypeReference &payload :
-             enum_case.payload_types)
-          if (owns_value(resolve(payload, specialization.substitutions)))
-            return true;
-    }
-    return false;
+    return janus::ownership::recursively_owns_value(
+        type,
+        [](const janus::Type &candidate) {
+          return candidate.kind() == janus::TypeKind::Class ||
+                 candidate.kind() == janus::TypeKind::Pointer ||
+                 candidate.kind() == janus::TypeKind::Function;
+        },
+        [&](const janus::Type &candidate, const auto &visit) {
+          if (candidate.kind() == janus::TypeKind::Struct) {
+            const ClassSpecialization &specialization =
+                class_specializations_.at(std::string{candidate.name()});
+            for (const janus::ast::ValueDeclaration &field :
+                 specialization.declaration->constructor_fields)
+              visit(resolve(field.declared_type,
+                            specialization.substitutions));
+            return;
+          }
+          if (candidate.kind() != janus::TypeKind::Enum)
+            return;
+          const EnumSpecialization &specialization =
+              enum_specializations_.at(std::string{candidate.name()});
+          for (const janus::ast::EnumDeclaration::Case &enum_case :
+               specialization.declaration->cases)
+            for (const janus::ast::TypeReference &payload :
+                 enum_case.payload_types)
+              visit(resolve(payload, specialization.substitutions));
+        });
   }
 
   void emit_owned_value_cleanup(::llvm::Value *value, const janus::Type &type,
