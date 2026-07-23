@@ -8,7 +8,6 @@ fi
 
 SOURCE_DIR="$(cd "$1" && pwd)"
 FIXTURE_DIR="$SOURCE_DIR/tests/fixtures/project-euler"
-SMOKE_CONFIG="$FIXTURE_DIR/smoke.txt"
 PRODUCTION_CONFIG="$FIXTURE_DIR/production.txt"
 
 [ -d "$FIXTURE_DIR" ] || {
@@ -91,30 +90,29 @@ validate_config() {
   fi
 }
 
-validate_config smoke "$SMOKE_CONFIG" smoke
 validate_config production "$PRODUCTION_CONFIG" production
 
 number=1
 while [ "$number" -le 20 ]; do
-  smoke="$FIXTURE_DIR/smoke/problem$number.janus"
   production="$FIXTURE_DIR/production/problem$number.janus"
   expected="$FIXTURE_DIR/expected/problem$number.txt"
   [ -s "$expected" ] || {
     echo "problem $number expected answer must not be empty" >&2
     exit 1
   }
-  if cmp -s "$smoke" "$production"; then
-    echo "problem $number smoke and production sources must be distinct" >&2
-    exit 1
-  fi
-
   if ! grep -Eq '(^|[[:space:]])(while|for)([[:space:]]|$)' "$production"; then
     echo "problem $number production source must contain an algorithmic loop" >&2
     exit 1
   fi
 
   expected_answer="$(sed 's/[[:space:]]*$//' "$expected")"
-  if grep -Eq "return[[:space:]]+$expected_answer(\\.0)?([[:space:]]|$)" "$production"; then
+  for source in "$FIXTURE_DIR"/*/problem"$number".janus; do
+    if grep -Eq "println[[:space:]]*\([[:space:]]*$expected_answer(\.0)?[[:space:]]*\)" "$source"; then
+      echo "problem $number source must not directly print the expected answer: ${source#"$FIXTURE_DIR"/}" >&2
+      exit 1
+    fi
+  done
+  if grep -Eq "return[[:space:]]+$expected_answer(\.0)?([[:space:]]|$)" "$production"; then
     echo "problem $number production source must not directly return the expected answer" >&2
     exit 1
   fi
@@ -189,12 +187,21 @@ if grep -Eiq 'placeholder|deferred|canonical answer|winning window|winning diago
   exit 1
 fi
 
+if [ -e "$FIXTURE_DIR/smoke.txt" ] || [ -e "$FIXTURE_DIR/smoke" ]; then
+  echo "the obsolete smoke corpus must not exist" >&2
+  exit 1
+fi
+
 if ! grep -q 'NAME project_euler.smoke' "$SOURCE_DIR/CMakeLists.txt"; then
   echo "missing CTest entry project_euler.smoke" >&2
   exit 1
 fi
-if ! grep -q 'tests/fixtures/project-euler/smoke.txt' "$SOURCE_DIR/CMakeLists.txt"; then
-  echo "project_euler.smoke must use the versioned smoke manifest" >&2
+if ! grep -q 'tests/fixtures/project-euler/production.txt' "$SOURCE_DIR/CMakeLists.txt"; then
+  echo "project_euler.smoke must use the canonical production manifest" >&2
+  exit 1
+fi
+if grep -q 'tests/fixtures/project-euler/smoke.txt' "$SOURCE_DIR/CMakeLists.txt"; then
+  echo "project_euler.smoke must not use the obsolete smoke manifest" >&2
   exit 1
 fi
 

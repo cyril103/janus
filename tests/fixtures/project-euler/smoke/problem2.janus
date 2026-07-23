@@ -1,4 +1,0 @@
-def main() : int {
-    println(4613732)
-    return 0
-}
