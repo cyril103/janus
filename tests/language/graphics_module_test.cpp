@@ -66,11 +66,11 @@ def main() : int {
     setGamepadVibration(0, float(0.5), float(0.5), float(0.1))
     beginDrawing()
     beginCamera(camera)
-    clearBackground(color)
-    drawPixel(1, 2, color)
-    drawLine(1, 2, 3, 4, color)
-    drawCircle(5, 6, float(7.0), color)
-    drawRectangle(8, 9, 10, 11, color)
+    clearBackground(Black)
+    drawPixel(1, 2, White)
+    drawLine(1, 2, 3, 4, Red)
+    drawCircle(5, 6, float(7.0), Green)
+    drawRectangle(8, 9, 10, 11, Blue)
     drawText("Janus", 12, 13, 14, color)
     drawLineBetween(start, end, typedColor)
     drawCircleAt(start, float(7.0), typedColor)
@@ -180,6 +180,17 @@ def main() : int {
   expect(ir.find("declare i32 @janus_graphics_rgba(i8, i8, i8, i8)") !=
              std::string::npos,
          "graphics colors use the native RGBA helper");
+  expect(ir.find("@__janus_global_std_graphics__Black = global i32 0") !=
+                 std::string::npos &&
+             ir.find("@__janus_global_std_graphics__White = global i32 0") !=
+                 std::string::npos &&
+             ir.find("@__janus_global_std_graphics__Red = global i32 0") !=
+                 std::string::npos &&
+             ir.find("@__janus_global_std_graphics__Green = global i32 0") !=
+                 std::string::npos &&
+             ir.find("@__janus_global_std_graphics__Blue = global i32 0") !=
+                 std::string::npos,
+         "graphics exposes initialized global color values");
   expect(ir.find("call void @janus_graphics_draw_circle") != std::string::npos,
          "graphics circles lower through the native backend");
   expect(ir.find("call void @janus_graphics_draw_text") != std::string::npos,
