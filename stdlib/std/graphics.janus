@@ -1,0 +1,208 @@
+module std.graphics
+
+import std.c
+
+enum Key {
+    Space = 32,
+    A = 65,
+    D = 68,
+    S = 83,
+    W = 87,
+    Escape = 256,
+    Enter = 257,
+    Right = 262,
+    Left = 263,
+    Down = 264,
+    Up = 265
+}
+
+enum MouseButton {
+    Left,
+    Right,
+    Middle
+}
+
+extern def janus_graphics_rgba(
+red : ubyte,
+green : ubyte,
+blue : ubyte,
+alpha : ubyte
+) : uint
+extern def janus_graphics_last_error() : Ptr[byte]
+extern def janus_graphics_available() : bool
+extern def janus_graphics_init_window(
+width : int,
+height : int,
+title : Ptr[byte]
+) : bool
+extern def janus_graphics_window_should_close() : bool
+extern def janus_graphics_close_window() : Unit
+extern def janus_graphics_set_target_fps(framesPerSecond : int) : Unit
+extern def janus_graphics_begin_drawing() : Unit
+extern def janus_graphics_end_drawing() : Unit
+extern def janus_graphics_clear_background(color : uint) : Unit
+extern def janus_graphics_draw_pixel(x : int, y : int, color : uint) : Unit
+extern def janus_graphics_draw_line(
+startX : int,
+startY : int,
+endX : int,
+endY : int,
+color : uint
+) : Unit
+extern def janus_graphics_draw_circle(
+centerX : int,
+centerY : int,
+radius : float,
+color : uint
+) : Unit
+extern def janus_graphics_draw_rectangle(
+x : int,
+y : int,
+width : int,
+height : int,
+color : uint
+) : Unit
+extern def janus_graphics_draw_text(
+text : Ptr[byte],
+x : int,
+y : int,
+fontSize : int,
+color : uint
+) : Unit
+extern def janus_graphics_is_key_down(key : int) : bool
+extern def janus_graphics_is_key_pressed(key : int) : bool
+extern def janus_graphics_mouse_x() : int
+extern def janus_graphics_mouse_y() : int
+extern def janus_graphics_is_mouse_button_down(button : int) : bool
+extern def janus_graphics_is_mouse_button_pressed(button : int) : bool
+
+def rgba(red : ubyte, green : ubyte, blue : ubyte, alpha : ubyte) : uint {
+    return janus_graphics_rgba(red, green, blue, alpha)
+}
+
+def rgb(red : ubyte, green : ubyte, blue : ubyte) : uint {
+    return rgba(red, green, blue, 255)
+}
+
+def black() : uint {
+    return rgb(0, 0, 0)
+}
+
+def white() : uint {
+    return rgb(255, 255, 255)
+}
+
+def red() : uint {
+    return rgb(230, 41, 55)
+}
+
+def green() : uint {
+    return rgb(0, 228, 48)
+}
+
+def blue() : uint {
+    return rgb(0, 121, 241)
+}
+
+def graphicsAvailable() : bool {
+    return janus_graphics_available()
+}
+
+def graphicsLastError() : Ptr[byte] {
+    return janus_graphics_last_error()
+}
+
+def initWindow(width : int, height : int, title : string) : bool {
+    return janus_graphics_init_window(width, height, cstr(title))
+}
+
+def windowShouldClose() : bool {
+    return janus_graphics_window_should_close()
+}
+
+def closeWindow() : Unit {
+    janus_graphics_close_window()
+}
+
+def setTargetFps(framesPerSecond : int) : Unit {
+    janus_graphics_set_target_fps(framesPerSecond)
+}
+
+def beginDrawing() : Unit {
+    janus_graphics_begin_drawing()
+}
+
+def endDrawing() : Unit {
+    janus_graphics_end_drawing()
+}
+
+def clearBackground(color : uint) : Unit {
+    janus_graphics_clear_background(color)
+}
+
+def drawPixel(x : int, y : int, color : uint) : Unit {
+    janus_graphics_draw_pixel(x, y, color)
+}
+
+def drawLine(
+startX : int,
+startY : int,
+endX : int,
+endY : int,
+color : uint
+) : Unit {
+    janus_graphics_draw_line(startX, startY, endX, endY, color)
+}
+
+def drawCircle(
+centerX : int,
+centerY : int,
+radius : float,
+color : uint
+) : Unit {
+    janus_graphics_draw_circle(centerX, centerY, radius, color)
+}
+
+def drawRectangle(
+x : int,
+y : int,
+width : int,
+height : int,
+color : uint
+) : Unit {
+    janus_graphics_draw_rectangle(x, y, width, height, color)
+}
+
+def drawText(
+text : string,
+x : int,
+y : int,
+fontSize : int,
+color : uint
+) : Unit {
+    janus_graphics_draw_text(cstr(text), x, y, fontSize, color)
+}
+
+def isKeyDown(key : Key) : bool {
+    return janus_graphics_is_key_down(int(key))
+}
+
+def isKeyPressed(key : Key) : bool {
+    return janus_graphics_is_key_pressed(int(key))
+}
+
+def mouseX() : int {
+    return janus_graphics_mouse_x()
+}
+
+def mouseY() : int {
+    return janus_graphics_mouse_y()
+}
+
+def isMouseButtonDown(button : MouseButton) : bool {
+    return janus_graphics_is_mouse_button_down(int(button))
+}
+
+def isMouseButtonPressed(button : MouseButton) : bool {
+    return janus_graphics_is_mouse_button_pressed(int(button))
+}

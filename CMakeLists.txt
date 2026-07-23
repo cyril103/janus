@@ -318,6 +318,29 @@ if(BUILD_TESTING)
     )
     add_test(NAME runtime.graphics_loader COMMAND graphics_runtime_test)
 
+    add_library(fake_raylib SHARED tests/runtime/fake_raylib.c)
+    target_compile_options(fake_raylib
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_executable(graphics_backend_test
+        tests/runtime/graphics_backend_test.c
+    )
+    target_link_libraries(graphics_backend_test PRIVATE janus_runtime)
+    target_compile_options(graphics_backend_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME runtime.graphics_backend COMMAND graphics_backend_test)
+    set_tests_properties(runtime.graphics_backend
+        PROPERTIES
+            ENVIRONMENT "JANUS_RAYLIB_PATH=$<TARGET_FILE:fake_raylib>"
+    )
+
     add_test(
         NAME cli.check
         COMMAND janus check "${PROJECT_SOURCE_DIR}/examples/value.janus"
@@ -1132,6 +1155,26 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.module_import COMMAND module_import_test)
+
+    add_executable(graphics_module_test
+        tests/language/graphics_module_test.cpp
+    )
+    target_link_libraries(graphics_module_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(graphics_module_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    target_compile_definitions(graphics_module_test
+        PRIVATE
+            JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+    )
+    add_test(NAME language.graphics_module COMMAND graphics_module_test)
 endif()
 
 add_executable(janus_bundled_clang IMPORTED GLOBAL)

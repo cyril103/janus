@@ -165,15 +165,6 @@ static JanusRaylibColor unpack_color(uint32_t color) {
   return result;
 }
 
-static int raylib_key(int key) {
-  static const int keys[] = {
-      256, 257, 32, 263, 262, 265, 264, 65, 68, 83, 87,
-  };
-  if (key < 0 || (size_t)key >= sizeof(keys) / sizeof(keys[0]))
-    return 0;
-  return keys[key];
-}
-
 uint32_t janus_graphics_rgba(uint8_t red, uint8_t green, uint8_t blue,
                              uint8_t alpha) {
   return ((uint32_t)red << 24) | ((uint32_t)green << 16) |
@@ -255,11 +246,11 @@ void janus_graphics_draw_text(const void *text, int x, int y, int font_size,
 }
 
 bool janus_graphics_is_key_down(int key) {
-  return graphics_loaded && graphics_api.IsKeyDown(raylib_key(key));
+  return graphics_loaded && graphics_api.IsKeyDown(key);
 }
 
 bool janus_graphics_is_key_pressed(int key) {
-  return graphics_loaded && graphics_api.IsKeyPressed(raylib_key(key));
+  return graphics_loaded && graphics_api.IsKeyPressed(key);
 }
 
 int janus_graphics_mouse_x(void) {
