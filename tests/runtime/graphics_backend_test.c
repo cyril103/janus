@@ -19,6 +19,13 @@ extern void janus_graphics_draw_rectangle(int x, int y, int width, int height,
                                           uint32_t color);
 extern void janus_graphics_draw_text(const void *text, int x, int y,
                                      int font_size, uint32_t color);
+extern void *janus_graphics_load_texture(const void *file_name);
+extern bool janus_graphics_texture_is_valid(const void *handle);
+extern int janus_graphics_texture_width(const void *handle);
+extern int janus_graphics_texture_height(const void *handle);
+extern void janus_graphics_unload_texture(void *handle);
+extern void janus_graphics_draw_texture(const void *handle, int x, int y,
+                                        uint32_t tint);
 extern bool janus_graphics_is_key_down(int key);
 extern bool janus_graphics_is_key_pressed(int key);
 extern int janus_graphics_mouse_x(void);
@@ -43,6 +50,15 @@ int main(void) {
   janus_graphics_draw_circle(5, 6, 7.0f, UINT32_C(0xffffffff));
   janus_graphics_draw_rectangle(8, 9, 10, 11, UINT32_C(0xffffffff));
   janus_graphics_draw_text("Janus", 12, 13, 14, UINT32_C(0xffffffff));
+  void *texture = janus_graphics_load_texture("sprite.png");
+  if (!janus_graphics_texture_is_valid(texture) ||
+      janus_graphics_texture_width(texture) != 64 ||
+      janus_graphics_texture_height(texture) != 32) {
+    fputs("graphics backend did not load texture metadata\n", stderr);
+    return 1;
+  }
+  janus_graphics_draw_texture(texture, 15, 16, UINT32_C(0xffffffff));
+  janus_graphics_unload_texture(texture);
   janus_graphics_end_drawing();
 
   if (!janus_graphics_is_key_down(263) ||

@@ -82,6 +82,21 @@ Commandes de dessin disponibles :
 - `drawCircle` et `drawRectangle` ;
 - `drawText`.
 
+Les textures sont des ressources possédées et doivent être libérées :
+
+```janus
+val sprite : Texture = loadTexture("assets/sprite.png")
+defer delete sprite
+
+if sprite.isValid() {
+    sprite.draw(100, 80, white())
+}
+```
+
+`width()` et `height()` donnent les dimensions chargées. Les formats pris en
+charge sont ceux activés dans la construction de raylib, notamment PNG, JPEG,
+BMP, TGA et QOI dans la configuration standard.
+
 Entrées disponibles :
 
 - `isKeyDown` et `isKeyPressed` avec l'enum `Key` ;
@@ -94,7 +109,7 @@ touches `W`, `A`, `S`, `D`.
 ## État expérimental
 
 Cette première version vise le graphisme 2D immédiat. Elle ne fournit pas encore
-les textures, les polices personnalisées, l'audio, les manettes, la 3D ni le
+les polices personnalisées, l'audio, les manettes, la 3D ni le
 chargement automatique de raylib par le gestionnaire de paquets. L'API publique
 reste indépendante du backend afin de pouvoir ajouter ces fonctionnalités sans
 exposer directement les structures natives de raylib.

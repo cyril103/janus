@@ -14,6 +14,14 @@ typedef struct {
   uint8_t alpha;
 } Color;
 
+typedef struct {
+  uint32_t id;
+  int width;
+  int height;
+  int mipmaps;
+  int format;
+} Texture2D;
+
 static bool window_ready;
 
 RAYLIB_EXPORT void InitWindow(int width, int height, const char *title) {
@@ -75,6 +83,26 @@ RAYLIB_EXPORT void DrawText(const char *text, int x, int y, int font_size,
   (void)y;
   (void)font_size;
   (void)color;
+}
+
+RAYLIB_EXPORT Texture2D LoadTexture(const char *file_name) {
+  Texture2D texture = {1, 64, 32, 1, 7};
+  if (file_name == 0)
+    texture.id = 0;
+  return texture;
+}
+
+RAYLIB_EXPORT bool IsTextureValid(Texture2D texture) {
+  return texture.id != 0;
+}
+
+RAYLIB_EXPORT void UnloadTexture(Texture2D texture) { (void)texture; }
+
+RAYLIB_EXPORT void DrawTexture(Texture2D texture, int x, int y, Color tint) {
+  (void)texture;
+  (void)x;
+  (void)y;
+  (void)tint;
 }
 
 RAYLIB_EXPORT bool IsKeyDown(int key) { return key == 263; }

@@ -19,6 +19,14 @@ typedef struct {
 } JanusRaylibColor;
 
 typedef struct {
+  uint32_t id;
+  int width;
+  int height;
+  int mipmaps;
+  int format;
+} JanusRaylibTexture;
+
+typedef struct {
   void (*InitWindow)(int, int, const char *);
   bool (*IsWindowReady)(void);
   bool (*WindowShouldClose)(void);
@@ -32,6 +40,10 @@ typedef struct {
   void (*DrawCircle)(int, int, float, JanusRaylibColor);
   void (*DrawRectangle)(int, int, int, int, JanusRaylibColor);
   void (*DrawText)(const char *, int, int, int, JanusRaylibColor);
+  JanusRaylibTexture (*LoadTexture)(const char *);
+  bool (*IsTextureValid)(JanusRaylibTexture);
+  void (*UnloadTexture)(JanusRaylibTexture);
+  void (*DrawTexture)(JanusRaylibTexture, int, int, JanusRaylibColor);
   bool (*IsKeyDown)(int);
   bool (*IsKeyPressed)(int);
   int (*GetMouseX)(void);
@@ -142,6 +154,10 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawCircle);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawRectangle);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawText);
+  JANUS_LOAD_GRAPHICS_SYMBOL(LoadTexture);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsTextureValid);
+  JANUS_LOAD_GRAPHICS_SYMBOL(UnloadTexture);
+  JANUS_LOAD_GRAPHICS_SYMBOL(DrawTexture);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsKeyDown);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsKeyPressed);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseX);
@@ -243,6 +259,45 @@ void janus_graphics_draw_text(const void *text, int x, int y, int font_size,
   if (graphics_loaded && text != NULL)
     graphics_api.DrawText((const char *)text, x, y, font_size,
                           unpack_color(color));
+}
+
+void *janus_graphics_load_texture(const void *file_name) {
+  if (!graphics_loaded || file_name == NULL)
+    return NULL;
+  JanusRaylibTexture *texture = malloc(sizeof(*texture));
+  if (texture == NULL)
+    return NULL;
+  *texture = graphics_api.LoadTexture((const char *)file_name);
+  return texture;
+}
+
+bool janus_graphics_texture_is_valid(const void *handle) {
+  return graphics_loaded && handle != NULL &&
+         graphics_api.IsTextureValid(*(const JanusRaylibTexture *)handle);
+}
+
+int janus_graphics_texture_width(const void *handle) {
+  return handle != NULL ? ((const JanusRaylibTexture *)handle)->width : 0;
+}
+
+int janus_graphics_texture_height(const void *handle) {
+  return handle != NULL ? ((const JanusRaylibTexture *)handle)->height : 0;
+}
+
+void janus_graphics_unload_texture(void *handle) {
+  if (handle == NULL)
+    return;
+  JanusRaylibTexture texture = *(JanusRaylibTexture *)handle;
+  if (graphics_loaded && graphics_api.IsTextureValid(texture))
+    graphics_api.UnloadTexture(texture);
+  free(handle);
+}
+
+void janus_graphics_draw_texture(const void *handle, int x, int y,
+                                 uint32_t tint) {
+  if (janus_graphics_texture_is_valid(handle))
+    graphics_api.DrawTexture(*(const JanusRaylibTexture *)handle, x, y,
+                             unpack_color(tint));
 }
 
 bool janus_graphics_is_key_down(int key) {

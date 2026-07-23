@@ -38,6 +38,10 @@ def main() : int {
     drawCircle(5, 6, float(7.0), color)
     drawRectangle(8, 9, 10, 11, color)
     drawText("Janus", 12, 13, 14, color)
+    val texture : Texture = loadTexture("sprite.png")
+    val textureWidth : int = texture.width()
+    texture.draw(textureWidth, texture.height(), white())
+    delete texture
     endDrawing()
     if keyDown || mouseDown {
         return mouseX() + mouseY()
@@ -70,6 +74,10 @@ def main() : int {
          "graphics circles lower through the native backend");
   expect(ir.find("call void @janus_graphics_draw_text") != std::string::npos,
          "graphics text lowers through the native backend");
+  expect(ir.find("call ptr @janus_graphics_load_texture") != std::string::npos &&
+             ir.find("call void @janus_graphics_unload_texture") !=
+                 std::string::npos,
+         "graphics textures load and unload through owned handles");
   expect(ir.find("call i1 @isKeyDown(%enum.Key { i32 263 })") !=
              std::string::npos,
          "graphics keys retain their raylib-compatible code");
