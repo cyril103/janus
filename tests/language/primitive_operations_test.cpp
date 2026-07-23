@@ -62,6 +62,10 @@ def main() : int {
     val longDivisor : long = -2
     val longQuotient : long = longValue / longDivisor
     val longOrder : bool = longQuotient < longValue
+    val ulongValue : ulong = ulong(-1)
+    val ulongDivisor : ulong = 2
+    val ulongQuotient : ulong = ulongValue / ulongDivisor
+    val ulongOrder : bool = ulongValue > ulongDivisor
     val onePointFive : double = 1.5
     val twoPointZero : double = 2.0
     val floating : double = onePointFive * twoPointZero + 1.0
@@ -121,6 +125,10 @@ def main() : int {
          "long division is signed");
   expect(ir.find("icmp slt i64") != std::string::npos,
          "long comparison is signed");
+  expect(ir.find("udiv i64") != std::string::npos,
+         "ulong division is unsigned");
+  expect(ir.find("icmp ugt i64") != std::string::npos,
+         "ulong comparison is unsigned");
   expect(ir.find("fmul double") != std::string::npos,
          "double multiplication is emitted");
   expect(ir.find("icmp sge i32") != std::string::npos,

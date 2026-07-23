@@ -17,6 +17,11 @@ const Type &Type::long_type() {
   return type;
 }
 
+const Type &Type::ulong_type() {
+  static const Type type{TypeKind::ULong, "ulong", 64, false};
+  return type;
+}
+
 const Type &Type::double_type() {
   static const Type type{TypeKind::Double, "double", 64, false};
   return type;
@@ -86,6 +91,7 @@ std::uint32_t Type::bit_width() const noexcept { return bit_width_; }
 bool Type::is_integer() const noexcept {
   return kind_ == TypeKind::Int || kind_ == TypeKind::UInt ||
          kind_ == TypeKind::Long ||
+         kind_ == TypeKind::ULong ||
          kind_ == TypeKind::Byte ||
          kind_ == TypeKind::UByte ||
          kind_ == TypeKind::USize;
