@@ -592,6 +592,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   enum class ConstantState { Unvisited, Visiting, Complete };
   std::unordered_map<std::string, ConstantState> constant_states;
   std::unordered_map<std::string, constant::Value> constant_values;
+  const constant::InitializationPlan initialization_plan =
+      constant::plan_initialization(program.globals);
   std::function<const constant::Value &(const std::string &)> evaluate_global;
   evaluate_global = [&](const std::string &key) -> const constant::Value & {
     const ConstantState state = constant_states[key];
@@ -647,11 +649,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     static_cast<void>(inserted);
     return iterator->second;
   };
-  for (const auto &[key, resolved] : globals) {
-    if (constant::is_constant_expression(
-            *resolved.declaration->declaration.initializer))
-      static_cast<void>(evaluate_global(key));
-  }
+  for (const ast::GlobalDeclaration *global : initialization_plan.constants)
+    static_cast<void>(
+        evaluate_global(global_key(global->module_name,
+                                   global->declaration.name)));
 
   struct TraitInstance {
     const ast::TraitDeclaration *declaration;
@@ -992,10 +993,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
   }
   std::vector<ast::FunctionDeclaration> global_initializer_functions;
-  global_initializer_functions.reserve(program.globals.size());
-  for (const ast::GlobalDeclaration &global : program.globals) {
-    if (constant::is_constant_expression(*global.declaration.initializer))
-      continue;
+  global_initializer_functions.reserve(initialization_plan.dynamic.size());
+  for (const ast::GlobalDeclaration *global_pointer :
+       initialization_plan.dynamic) {
+    const ast::GlobalDeclaration &global = *global_pointer;
     global_initializer_functions.push_back(ast::FunctionDeclaration{
         "__global_init_" + global.declaration.name,
         {},

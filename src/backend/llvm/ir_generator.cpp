@@ -101,6 +101,12 @@ public:
       if (global.module_name.has_value())
         global_modules_.insert(*global.module_name);
     }
+    initialization_plan_ =
+        janus::constant::plan_initialization(program.globals);
+    for (const janus::ast::GlobalDeclaration *global :
+         initialization_plan_.constants)
+      constant_global_keys_.insert(
+          source_global_key(global->module_name, global->declaration.name));
   }
 
   std::unique_ptr<::llvm::Module> generate() {
@@ -340,8 +346,8 @@ private:
   void emit_global(const janus::ast::GlobalDeclaration &global) {
     const janus::ast::ValueDeclaration &declaration = global.declaration;
     const janus::Type &type = resolve(declaration.declared_type, {});
-    const bool is_constant =
-        janus::constant::is_constant_expression(*declaration.initializer);
+    const bool is_constant = constant_global_keys_.contains(
+        source_global_key(global.module_name, declaration.name));
     const auto linkage = declaration.is_private
                              ? ::llvm::GlobalValue::InternalLinkage
                              : ::llvm::GlobalValue::ExternalLinkage;
@@ -359,13 +365,7 @@ private:
   }
 
   void emit_global_initializer_function() {
-    const bool has_dynamic =
-        std::any_of(global_declarations_.begin(), global_declarations_.end(),
-                    [](const janus::ast::GlobalDeclaration *global) {
-                      return !janus::constant::is_constant_expression(
-                          *global->declaration.initializer);
-                    });
-    if (!has_dynamic)
+    if (initialization_plan_.dynamic.empty())
       return;
 
     auto *function_type =
@@ -382,10 +382,7 @@ private:
     const janus::Type *previous_return_type = active_return_type_;
     active_return_type_ = &janus::Type::unit_type();
     for (const janus::ast::GlobalDeclaration *global :
-         global_declarations_) {
-      if (janus::constant::is_constant_expression(
-              *global->declaration.initializer))
-        continue;
+         initialization_plan_.dynamic) {
       active_module_ = global->module_name;
       const janus::Type &type =
           resolve(global->declaration.declared_type, substitutions);
@@ -426,8 +423,8 @@ private:
         "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
                                            {builder.getPtrTy()}, false));
 
-    for (auto iterator = global_declarations_.rbegin();
-         iterator != global_declarations_.rend(); ++iterator) {
+    for (auto iterator = initialization_plan_.dynamic.rbegin();
+         iterator != initialization_plan_.dynamic.rend(); ++iterator) {
       const janus::ast::GlobalDeclaration &global = **iterator;
       const janus::Type &type = resolve(global.declaration.declared_type, {});
       if (type.kind() != janus::TypeKind::Class &&
@@ -2683,6 +2680,8 @@ private:
   std::unordered_map<std::string, Local> global_storage_;
   std::unordered_map<std::string, std::string> public_global_keys_;
   std::unordered_set<std::string> global_modules_;
+  janus::constant::InitializationPlan initialization_plan_;
+  std::unordered_set<std::string> constant_global_keys_;
   std::unordered_map<std::string, int> constant_states_;
   std::unordered_map<std::string, janus::constant::Value> constant_values_;
   ::llvm::Function *global_initializer_{};

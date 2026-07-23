@@ -213,6 +213,44 @@ def main() : int { return dynamic }
       "def main() : int { return 0 }",
       "cannot use expression of type 'int' where type 'bool' is required");
 
+  janus::frontend::Parser dependency_parser{R"(
+val derived : int = base + 1
+val base : int = compute()
+def compute() : int { return 41 }
+def main() : int { return derived }
+)"};
+  const janus::ast::Program dependency_program =
+      dependency_parser.parse_program();
+  static_cast<void>(analyzer.analyze(dependency_program));
+  llvm::LLVMContext dependency_context;
+  janus::backend::llvm::IrGenerator dependency_generator{dependency_context};
+  const std::unique_ptr<llvm::Module> dependency_module =
+      dependency_generator.generate(dependency_program,
+                                    "dependency_globals");
+  std::string dependency_ir;
+  llvm::raw_string_ostream dependency_output{dependency_ir};
+  dependency_module->print(dependency_output, nullptr);
+  dependency_output.flush();
+  const std::size_t initialize_base = dependency_ir.find(
+      "store i32 %compute.result, ptr @__janus_global_entry__base");
+  const std::size_t initialize_derived = dependency_ir.find(
+      "store i32 %add, ptr @__janus_global_entry__derived");
+  expect(initialize_base != std::string::npos &&
+             initialize_derived != std::string::npos &&
+             initialize_base < initialize_derived,
+         "dynamic global dependencies are initialized topologically");
+  expect(dependency_ir.find(
+             "@__janus_global_entry__derived = global i32 0") !=
+             std::string::npos,
+         "a constant-shaped expression depending on a dynamic global is "
+         "classified as dynamic");
+  expect_compile_error(
+      "val first : int = identity(second)\n"
+      "val second : int = identity(first)\n"
+      "def identity(value : int) : int { return value }\n"
+      "def main() : int { return 0 }",
+      "cyclic dynamic global dependency");
+
   janus::frontend::Parser owned_parser{R"(
 class Resource(val value : int) {
     destructor {

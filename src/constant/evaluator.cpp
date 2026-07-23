@@ -5,6 +5,8 @@
 #include <cmath>
 #include <limits>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace {
 
@@ -23,6 +25,83 @@ qualified_name(const janus::ast::Expression &expression) {
       return *prefix + "." + member->member;
   }
   return std::nullopt;
+}
+
+struct Reference {
+  std::optional<std::string> module;
+  std::string name;
+  janus::SourceLocation location;
+};
+
+void collect_references(const janus::ast::Expression &expression,
+                        const std::unordered_set<std::string> &modules,
+                        std::vector<Reference> &references) {
+  std::visit(
+      [&](const auto &node) {
+        using Node = std::decay_t<decltype(node)>;
+        if constexpr (std::is_same_v<Node,
+                                     janus::ast::IdentifierExpression>) {
+          references.push_back(Reference{std::nullopt, node.name,
+                                         node.location});
+        } else if constexpr (std::is_same_v<
+                                 Node, janus::ast::MemberAccessExpression>) {
+          const auto module = qualified_name(*node.object);
+          if (module.has_value() && modules.contains(*module))
+            references.push_back(
+                Reference{module, node.member, node.location});
+          else
+            collect_references(*node.object, modules, references);
+        } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::MethodCallExpression>) {
+          collect_references(*node.object, modules, references);
+          for (const auto &argument : node.arguments)
+            collect_references(*argument, modules, references);
+        } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::CallExpression>) {
+          references.push_back(
+              Reference{std::nullopt, node.callee, node.location});
+          for (const auto &argument : node.arguments)
+            collect_references(*argument, modules, references);
+        } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::NewExpression>) {
+          for (const auto &argument : node.arguments)
+            collect_references(*argument, modules, references);
+        } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::IfExpression>) {
+          collect_references(*node.condition, modules, references);
+          collect_references(*node.then_expression, modules, references);
+          collect_references(*node.else_expression, modules, references);
+        } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::MatchExpression>) {
+          collect_references(*node.scrutinee, modules, references);
+          for (const auto &arm : node.arms)
+            collect_references(*arm.expression, modules, references);
+        } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::MoveExpression> ||
+                             std::is_same_v<Node,
+                                            janus::ast::TryExpression> ||
+                             std::is_same_v<Node,
+                                            janus::ast::UnaryExpression>) {
+          if constexpr (std::is_same_v<Node,
+                                       janus::ast::MoveExpression> ||
+                        std::is_same_v<Node,
+                                       janus::ast::TryExpression>)
+            collect_references(*node.operand, modules, references);
+          else
+            collect_references(*node.operand, modules, references);
+        } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::BinaryExpression>) {
+          collect_references(*node.left, modules, references);
+          collect_references(*node.right, modules, references);
+        }
+      },
+      expression.value);
+}
+
+std::string global_key(const std::optional<std::string> &module,
+                       std::string_view name) {
+  return module.has_value() ? *module + "." + std::string{name}
+                            : std::string{name};
 }
 
 bool same_type(const Value &left, const Value &right) {
@@ -381,6 +460,119 @@ bool is_constant_expression(const ast::Expression &expression) {
           return false;
       },
       expression.value);
+}
+
+InitializationPlan
+plan_initialization(const std::vector<ast::GlobalDeclaration> &globals) {
+  std::unordered_map<std::string, const ast::GlobalDeclaration *> by_key;
+  std::unordered_map<std::string, std::string> public_by_name;
+  std::unordered_set<std::string> modules;
+  for (const ast::GlobalDeclaration &global : globals) {
+    const std::string key =
+        global_key(global.module_name, global.declaration.name);
+    by_key.emplace(key, &global);
+    if (!global.declaration.is_private)
+      public_by_name.emplace(global.declaration.name, key);
+    if (global.module_name.has_value())
+      modules.insert(*global.module_name);
+  }
+
+  const auto dependencies =
+      [&](const ast::GlobalDeclaration &global) {
+        std::vector<Reference> references;
+        collect_references(*global.declaration.initializer, modules,
+                           references);
+        std::vector<std::pair<const ast::GlobalDeclaration *, SourceLocation>>
+            result;
+        for (const Reference &reference : references) {
+          std::string key;
+          if (reference.module.has_value()) {
+            key = global_key(reference.module, reference.name);
+          } else {
+            const std::string local =
+                global_key(global.module_name, reference.name);
+            if (by_key.contains(local))
+              key = local;
+            else if (const auto exported =
+                         public_by_name.find(reference.name);
+                     exported != public_by_name.end())
+              key = exported->second;
+            else
+              continue;
+          }
+          if (const auto dependency = by_key.find(key);
+              dependency != by_key.end())
+            result.emplace_back(dependency->second, reference.location);
+        }
+        return result;
+      };
+
+  std::unordered_map<std::string, int> constant_states;
+  std::unordered_map<std::string, bool> constant_results;
+  std::function<bool(const ast::GlobalDeclaration &)> classify_constant;
+  classify_constant = [&](const ast::GlobalDeclaration &global) {
+    const std::string key =
+        global_key(global.module_name, global.declaration.name);
+    if (constant_states[key] == 1)
+      throw CompileError{
+          global.declaration.location,
+          "cyclic global constant dependency involving '" + key + "'"};
+    if (constant_states[key] == 2)
+      return constant_results.at(key);
+    if (!is_constant_expression(*global.declaration.initializer)) {
+      constant_states[key] = 2;
+      constant_results.emplace(key, false);
+      return false;
+    }
+    constant_states[key] = 1;
+    bool result = true;
+    for (const auto &[dependency, location] : dependencies(global)) {
+      if (dependency->declaration.is_mutable)
+        throw CompileError{
+            location, "global constant initializer cannot depend on mutable "
+                      "global '" +
+                          global_key(dependency->module_name,
+                                     dependency->declaration.name) +
+                          "'"};
+      if (!classify_constant(*dependency))
+        result = false;
+    }
+    constant_states[key] = 2;
+    constant_results.emplace(key, result);
+    return result;
+  };
+
+  InitializationPlan plan;
+  for (const ast::GlobalDeclaration &global : globals)
+    if (classify_constant(global))
+      plan.constants.push_back(&global);
+
+  std::unordered_set<std::string> constant_keys;
+  for (const ast::GlobalDeclaration *global : plan.constants)
+    constant_keys.insert(
+        global_key(global->module_name, global->declaration.name));
+  std::unordered_map<std::string, int> dynamic_states;
+  std::function<void(const ast::GlobalDeclaration &)> visit_dynamic;
+  visit_dynamic = [&](const ast::GlobalDeclaration &global) {
+    const std::string key =
+        global_key(global.module_name, global.declaration.name);
+    if (constant_keys.contains(key) || dynamic_states[key] == 2)
+      return;
+    if (dynamic_states[key] == 1)
+      throw CompileError{
+          global.declaration.location,
+          "cyclic dynamic global dependency involving '" + key + "'"};
+    dynamic_states[key] = 1;
+    for (const auto &[dependency, location] : dependencies(global)) {
+      static_cast<void>(location);
+      visit_dynamic(*dependency);
+    }
+    dynamic_states[key] = 2;
+    plan.dynamic.push_back(&global);
+  };
+  for (const ast::GlobalDeclaration &global : globals)
+    visit_dynamic(global);
+  return plan;
 }
 
 Value evaluate(const ast::Expression &expression, const Type *expected_type,
