@@ -275,6 +275,11 @@ extern def janus_graphics_load_font(
 fileName : Ptr[byte],
 fontSize : int
 ) : Ptr[byte]
+extern def janus_graphics_load_font_utf8(
+fileName : Ptr[byte],
+fontSize : int,
+characters : Ptr[byte]
+) : Ptr[byte]
 extern def janus_graphics_font_is_valid(handle : Ptr[byte]) : bool
 extern def janus_graphics_unload_font(handle : Ptr[byte]) : Unit
 extern def janus_graphics_draw_text_font(
@@ -1147,6 +1152,20 @@ def loadTexture(fileName : string) : Texture {
 
 def loadFont(fileName : string, fontSize : int) : Font {
     return new Font(janus_graphics_load_font(cstr(fileName), fontSize))
+}
+
+def loadFontUtf8(
+fileName : string,
+fontSize : int,
+characters : string
+) : Font {
+    return new Font(
+    janus_graphics_load_font_utf8(
+    cstr(fileName),
+    fontSize,
+    cstr(characters)
+    )
+    )
 }
 
 def loadRenderTexture(width : int, height : int) : RenderTexture {

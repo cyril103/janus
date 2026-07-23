@@ -49,6 +49,8 @@ extern void janus_graphics_draw_rectangle(int x, int y, int width, int height,
 extern void janus_graphics_draw_text(const void *text, int x, int y,
                                      int font_size, uint32_t color);
 extern void *janus_graphics_load_font(const void *file_name, int font_size);
+extern void *janus_graphics_load_font_utf8(const void *file_name, int font_size,
+                                           const void *characters);
 extern bool janus_graphics_font_is_valid(const void *handle);
 extern void janus_graphics_unload_font(void *handle);
 extern void janus_graphics_draw_text_font(const void *handle, const void *text,
@@ -196,6 +198,13 @@ int main(void) {
   janus_graphics_draw_text_font(font, "Hé Janus", 10.0f, 20.0f, 24.0f, 1.0f,
                                 UINT32_C(0xffffffff));
   janus_graphics_unload_font(font);
+  void *unicode_font =
+      janus_graphics_load_font_utf8("font.ttf", 24, "Hé 世界");
+  if (!janus_graphics_font_is_valid(unicode_font)) {
+    fputs("graphics backend did not load requested UTF-8 glyphs\n", stderr);
+    return 1;
+  }
+  janus_graphics_unload_font(unicode_font);
   void *texture = janus_graphics_load_texture("sprite.png");
   if (!janus_graphics_texture_is_valid(texture) ||
       janus_graphics_texture_width(texture) != 64 ||

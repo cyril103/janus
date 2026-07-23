@@ -90,6 +90,12 @@ def main() : int {
         typedColor
     )
     delete font
+    val unicodeFont : Font = loadFontUtf8(
+        "font.ttf",
+        24,
+        "Hé 世界"
+    )
+    delete unicodeFont
     val target : RenderTexture = loadRenderTexture(320, 180)
     target.begin()
     clearBackground(black())
@@ -213,6 +219,8 @@ def main() : int {
                  std::string::npos,
          "advanced sprite drawing lowers through the native backend");
   expect(ir.find("call ptr @janus_graphics_load_font") != std::string::npos &&
+             ir.find("call ptr @janus_graphics_load_font_utf8") !=
+                 std::string::npos &&
              ir.find("call void @janus_graphics_draw_text_font") !=
                  std::string::npos &&
              ir.find("call void @janus_graphics_unload_font") !=

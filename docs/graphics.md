@@ -146,7 +146,11 @@ avant la texture.
 Une police personnalisée est une ressource possédée :
 
 ```janus
-val font : Font = loadFont("assets/Inter-Regular.ttf", 32)
+val font : Font = loadFontUtf8(
+    "assets/Inter-Regular.ttf",
+    32,
+    "Bonjour, 世界 !"
+)
 defer delete font
 
 if font.isValid() {
@@ -166,9 +170,11 @@ if font.isValid() {
 }
 ```
 
-`Font.draw` et `Font.measure` décodent les chaînes UTF-8 via raylib. La police
-doit contenir les glyphes utilisés ; un glyphe absent est remplacé par le
-glyphe de secours de raylib. `measure` renvoie un `Vector2` par valeur.
+`loadFontUtf8` construit l'atlas avec les caractères UTF-8 indiqués dans son
+troisième argument. La police source doit contenir ces glyphes ; sinon raylib
+utilise son glyphe de secours. `loadFont` charge seulement le jeu de caractères
+par défaut. `Font.draw` et `Font.measure` décodent ensuite les chaînes UTF-8,
+et `measure` renvoie un `Vector2` par valeur.
 
 ## Rendu hors écran et shaders
 

@@ -123,6 +123,8 @@ typedef struct {
   void (*DrawRectangle)(int, int, int, int, JanusRaylibColor);
   void (*DrawText)(const char *, int, int, int, JanusRaylibColor);
   JanusRaylibFont (*LoadFontEx)(const char *, int, int *, int);
+  int *(*LoadCodepoints)(const char *, int *);
+  void (*UnloadCodepoints)(int *);
   bool (*IsFontValid)(JanusRaylibFont);
   void (*UnloadFont)(JanusRaylibFont);
   void (*DrawTextEx)(JanusRaylibFont, const char *, JanusRaylibVector2, float,
@@ -320,6 +322,8 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawRectangle);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawText);
   JANUS_LOAD_GRAPHICS_SYMBOL(LoadFontEx);
+  JANUS_LOAD_GRAPHICS_SYMBOL(LoadCodepoints);
+  JANUS_LOAD_GRAPHICS_SYMBOL(UnloadCodepoints);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsFontValid);
   JANUS_LOAD_GRAPHICS_SYMBOL(UnloadFont);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawTextEx);
@@ -634,6 +638,35 @@ void *janus_graphics_load_font(const void *file_name, int font_size) {
   if (font == NULL)
     return NULL;
   *font = graphics_api.LoadFontEx((const char *)file_name, font_size, NULL, 0);
+  if (!graphics_api.IsFontValid(*font)) {
+    free(font);
+    return NULL;
+  }
+  return font;
+}
+
+void *janus_graphics_load_font_utf8(const void *file_name, int font_size,
+                                    const void *characters) {
+  if (!graphics_loaded || file_name == NULL || characters == NULL ||
+      font_size <= 0)
+    return NULL;
+  int codepoint_count = 0;
+  int *codepoints =
+      graphics_api.LoadCodepoints((const char *)characters, &codepoint_count);
+  if (codepoints == NULL)
+    return NULL;
+  if (codepoint_count <= 0) {
+    graphics_api.UnloadCodepoints(codepoints);
+    return NULL;
+  }
+  JanusRaylibFont *font = malloc(sizeof(*font));
+  if (font == NULL) {
+    graphics_api.UnloadCodepoints(codepoints);
+    return NULL;
+  }
+  *font = graphics_api.LoadFontEx((const char *)file_name, font_size, codepoints,
+                                  codepoint_count);
+  graphics_api.UnloadCodepoints(codepoints);
   if (!graphics_api.IsFontValid(*font)) {
     free(font);
     return NULL;

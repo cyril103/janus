@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #define RAYLIB_EXPORT __declspec(dllexport)
@@ -203,6 +204,21 @@ RAYLIB_EXPORT Font LoadFontEx(const char *file_name, int font_size,
     font.texture.id = 0;
   return font;
 }
+
+RAYLIB_EXPORT int *LoadCodepoints(const char *text, int *count) {
+  if (text == 0 || count == 0)
+    return 0;
+  *count = 3;
+  int *codepoints = malloc(sizeof(int) * 3);
+  if (codepoints != 0) {
+    codepoints[0] = 'A';
+    codepoints[1] = 0x00e9;
+    codepoints[2] = 0x4e16;
+  }
+  return codepoints;
+}
+
+RAYLIB_EXPORT void UnloadCodepoints(int *codepoints) { free(codepoints); }
 
 RAYLIB_EXPORT bool IsFontValid(Font font) { return font.texture.id != 0; }
 
