@@ -426,6 +426,12 @@ if(BUILD_TESTING)
     )
     if(UNIX)
         add_test(
+            NAME toolchain.install_raylib_script
+            COMMAND sh
+                    "${PROJECT_SOURCE_DIR}/tests/driver/install_raylib_script_test.sh"
+                    "${PROJECT_SOURCE_DIR}"
+        )
+        add_test(
             NAME toolchain.install_script
             COMMAND sh
                     "${PROJECT_SOURCE_DIR}/tests/driver/install_script_test.sh"
@@ -1232,6 +1238,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         PROGRAMS cmake/clang-wrapper.sh
         DESTINATION ${CMAKE_INSTALL_BINDIR}
         RENAME clang
+    )
+endif()
+if(UNIX)
+    install(
+        PROGRAMS scripts/install-raylib.sh
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        RENAME janus-install-raylib
     )
 endif()
 install(

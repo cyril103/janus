@@ -7,8 +7,27 @@ traitée avec `initWindow`.
 
 ## Installer le backend
 
-Installez la bibliothèque partagée raylib 6 pour votre système, ou compilez-la
-depuis les sources en suivant la
+Sous Linux, WSL et macOS, l'outil livré avec Janus installe les dépendances,
+compile raylib 6 comme bibliothèque partagée puis l'installe dans
+`/usr/local` :
+
+```bash
+janus-install-raylib
+```
+
+Pour installer Janus et raylib en une seule commande, activez l'option de
+l'installateur :
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf \
+  https://raw.githubusercontent.com/cyril103/janus/main/scripts/install.sh |
+  JANUS_INSTALL_RAYLIB=1 sh
+```
+
+Le script accepte `--prefix`, `--skip-dependencies` et `--dry-run`. La révision
+raylib correspondant à la version 6.0 est épinglée pour rendre la construction
+reproductible. Sous Windows, installez pour l'instant `raylib.dll` séparément.
+Vous pouvez aussi compiler raylib depuis les sources en suivant la
 [documentation officielle](https://github.com/raysan5/raylib/wiki/Working-on-GNU-Linux).
 
 Janus recherche automatiquement :

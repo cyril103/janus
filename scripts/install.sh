@@ -59,6 +59,10 @@ PACKAGE_ROOT="$TMP/package/janus-${VERSION}-${OS}-${ARCH}"
 JANUSUP_HOME="$HOME_DIR" "$PACKAGE_ROOT/bin/janusup" \
   install "$PACKAGE_ROOT" "$VERSION"
 
+if [ "${JANUS_INSTALL_RAYLIB:-0}" = "1" ]; then
+  "$PACKAGE_ROOT/bin/janus-install-raylib"
+fi
+
 case ":${PATH}:" in
   *":${HOME_DIR}/bin:"*) ;;
   *)
