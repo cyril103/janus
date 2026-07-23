@@ -42,6 +42,17 @@ typedef struct {
 } Texture2D;
 
 typedef struct {
+  uint32_t id;
+  Texture2D texture;
+  Texture2D depth;
+} RenderTexture2D;
+
+typedef struct {
+  uint32_t id;
+  int *locations;
+} Shader;
+
+typedef struct {
   void *buffer;
   void *processor;
   uint32_t sample_rate;
@@ -249,6 +260,50 @@ RAYLIB_EXPORT void DrawTexturePro(Texture2D texture, Rectangle source,
 RAYLIB_EXPORT void SetTextureFilter(Texture2D texture, int filter) {
   (void)texture;
   (void)filter;
+}
+
+RAYLIB_EXPORT RenderTexture2D LoadRenderTexture(int width, int height) {
+  return (RenderTexture2D){3,
+                           {4, width, height, 1, 7},
+                           {5, width, height, 1, 19}};
+}
+
+RAYLIB_EXPORT bool IsRenderTextureValid(RenderTexture2D target) {
+  return target.id != 0;
+}
+
+RAYLIB_EXPORT void UnloadRenderTexture(RenderTexture2D target) {
+  (void)target;
+}
+
+RAYLIB_EXPORT void BeginTextureMode(RenderTexture2D target) { (void)target; }
+
+RAYLIB_EXPORT void EndTextureMode(void) {}
+
+RAYLIB_EXPORT Shader LoadShader(const char *vertex_file,
+                                const char *fragment_file) {
+  (void)vertex_file;
+  return (Shader){fragment_file == 0 ? 0u : 6u, 0};
+}
+
+RAYLIB_EXPORT bool IsShaderValid(Shader shader) { return shader.id != 0; }
+
+RAYLIB_EXPORT void UnloadShader(Shader shader) { (void)shader; }
+
+RAYLIB_EXPORT void BeginShaderMode(Shader shader) { (void)shader; }
+
+RAYLIB_EXPORT void EndShaderMode(void) {}
+
+RAYLIB_EXPORT int GetShaderLocation(Shader shader, const char *name) {
+  return shader.id != 0 && name != 0 ? 7 : -1;
+}
+
+RAYLIB_EXPORT void SetShaderValue(Shader shader, int location,
+                                  const void *value, int uniform_type) {
+  (void)shader;
+  (void)location;
+  (void)value;
+  (void)uniform_type;
 }
 
 RAYLIB_EXPORT void InitAudioDevice(void) { audio_ready = true; }

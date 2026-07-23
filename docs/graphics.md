@@ -170,6 +170,43 @@ if font.isValid() {
 doit contenir les glyphes utilisés ; un glyphe absent est remplacé par le
 glyphe de secours de raylib. `measure` renvoie un `Vector2` par valeur.
 
+## Rendu hors écran et shaders
+
+`RenderTexture` permet de dessiner dans une surface indépendante, par exemple
+pour produire une image pixel art en basse résolution :
+
+```janus
+val target : RenderTexture = loadRenderTexture(320, 180)
+defer delete target
+
+target.begin()
+clearBackground(black())
+drawCircle(160, 90, float(24.0), red())
+endRenderTexture()
+```
+
+La texture obtenue se dessine avec `target.drawPro`. Pour l'afficher à
+l'endroit, utilisez une hauteur source négative, car les coordonnées des
+textures de rendu sont inversées verticalement.
+
+Un shader de fragment utilise le shader de sommets par défaut :
+
+```janus
+val shader : Shader = loadFragmentShader("assets/post.fs")
+defer delete shader
+val time : int = shader.location("time")
+shader.setFloat(time, elapsed)
+
+shader.begin()
+target.drawPro(source, destination, origin, float(0.0), whiteColor)
+endShader()
+```
+
+`loadShader` accepte aussi un shader de sommets et un shader de fragments.
+Les uniforms sont résolus avec `location`, puis configurés avec `setFloat`,
+`setInt`, `setVector2` ou `setColor`. Une localisation `-1` est ignorée sans
+erreur, ce qui permet au compilateur GLSL d'éliminer un uniform inutilisé.
+
 ## Audio
 
 Initialisez le périphérique audio une fois, puis chargez des effets courts avec

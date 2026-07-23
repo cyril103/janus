@@ -90,6 +90,27 @@ def main() : int {
         typedColor
     )
     delete font
+    val target : RenderTexture = loadRenderTexture(320, 180)
+    target.begin()
+    clearBackground(black())
+    endRenderTexture()
+    val shader : Shader = loadFragmentShader("post.fs")
+    val timeLocation : int = shader.location("time")
+    shader.setFloat(timeLocation, float(1.0))
+    shader.setVector2(timeLocation, start)
+    shader.setColor(timeLocation, typedColor)
+    shader.setInt(timeLocation, 2)
+    shader.begin()
+    target.drawPro(
+        rectangle(float(0.0), float(0.0), float(320.0), float(-180.0)),
+        rectangle(float(0.0), float(0.0), float(640.0), float(360.0)),
+        vector2(float(0.0), float(0.0)),
+        float(0.0),
+        typedColor
+    )
+    endShader()
+    delete shader
+    delete target
     val texture : Texture = loadTexture("sprite.png")
     texture.setFilter(TextureFilter.Point)
     val textureWidth : int = texture.width()
@@ -204,6 +225,13 @@ def main() : int {
              ir.find("call void @janus_graphics_set_gamepad_vibration") !=
                  std::string::npos,
          "typed gamepad input and vibration lower through the native backend");
+  expect(ir.find("call ptr @janus_graphics_load_render_texture") !=
+                 std::string::npos &&
+             ir.find("call ptr @janus_graphics_load_fragment_shader") !=
+                 std::string::npos &&
+             ir.find("call void @janus_graphics_set_shader_float") !=
+                 std::string::npos,
+         "render textures and typed shader uniforms lower successfully");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

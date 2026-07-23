@@ -46,6 +46,17 @@ typedef struct {
 } JanusRaylibTexture;
 
 typedef struct {
+  uint32_t id;
+  JanusRaylibTexture texture;
+  JanusRaylibTexture depth;
+} JanusRaylibRenderTexture;
+
+typedef struct {
+  uint32_t id;
+  int *locations;
+} JanusRaylibShader;
+
+typedef struct {
   void *buffer;
   void *processor;
   uint32_t sample_rate;
@@ -126,6 +137,18 @@ typedef struct {
                          JanusRaylibRectangle, JanusRaylibVector2, float,
                          JanusRaylibColor);
   void (*SetTextureFilter)(JanusRaylibTexture, int);
+  JanusRaylibRenderTexture (*LoadRenderTexture)(int, int);
+  bool (*IsRenderTextureValid)(JanusRaylibRenderTexture);
+  void (*UnloadRenderTexture)(JanusRaylibRenderTexture);
+  void (*BeginTextureMode)(JanusRaylibRenderTexture);
+  void (*EndTextureMode)(void);
+  JanusRaylibShader (*LoadShader)(const char *, const char *);
+  bool (*IsShaderValid)(JanusRaylibShader);
+  void (*UnloadShader)(JanusRaylibShader);
+  void (*BeginShaderMode)(JanusRaylibShader);
+  void (*EndShaderMode)(void);
+  int (*GetShaderLocation)(JanusRaylibShader, const char *);
+  void (*SetShaderValue)(JanusRaylibShader, int, const void *, int);
   void (*InitAudioDevice)(void);
   void (*CloseAudioDevice)(void);
   bool (*IsAudioDeviceReady)(void);
@@ -307,6 +330,18 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawTexture);
   JANUS_LOAD_GRAPHICS_SYMBOL(DrawTexturePro);
   JANUS_LOAD_GRAPHICS_SYMBOL(SetTextureFilter);
+  JANUS_LOAD_GRAPHICS_SYMBOL(LoadRenderTexture);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsRenderTextureValid);
+  JANUS_LOAD_GRAPHICS_SYMBOL(UnloadRenderTexture);
+  JANUS_LOAD_GRAPHICS_SYMBOL(BeginTextureMode);
+  JANUS_LOAD_GRAPHICS_SYMBOL(EndTextureMode);
+  JANUS_LOAD_GRAPHICS_SYMBOL(LoadShader);
+  JANUS_LOAD_GRAPHICS_SYMBOL(IsShaderValid);
+  JANUS_LOAD_GRAPHICS_SYMBOL(UnloadShader);
+  JANUS_LOAD_GRAPHICS_SYMBOL(BeginShaderMode);
+  JANUS_LOAD_GRAPHICS_SYMBOL(EndShaderMode);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetShaderLocation);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetShaderValue);
   JANUS_LOAD_GRAPHICS_SYMBOL(InitAudioDevice);
   JANUS_LOAD_GRAPHICS_SYMBOL(CloseAudioDevice);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsAudioDeviceReady);
@@ -708,6 +743,169 @@ void janus_graphics_draw_texture_pro(
 void janus_graphics_set_texture_filter(const void *handle, int filter) {
   if (janus_graphics_texture_is_valid(handle))
     graphics_api.SetTextureFilter(*(const JanusRaylibTexture *)handle, filter);
+}
+
+void *janus_graphics_load_render_texture(int width, int height) {
+  if (!graphics_loaded || width <= 0 || height <= 0)
+    return NULL;
+  JanusRaylibRenderTexture *target = malloc(sizeof(*target));
+  if (target == NULL)
+    return NULL;
+  *target = graphics_api.LoadRenderTexture(width, height);
+  if (!graphics_api.IsRenderTextureValid(*target)) {
+    free(target);
+    return NULL;
+  }
+  return target;
+}
+
+bool janus_graphics_render_texture_is_valid(const void *handle) {
+  return graphics_loaded && handle != NULL &&
+         graphics_api.IsRenderTextureValid(
+             *(const JanusRaylibRenderTexture *)handle);
+}
+
+int janus_graphics_render_texture_width(const void *handle) {
+  return janus_graphics_render_texture_is_valid(handle)
+             ? ((const JanusRaylibRenderTexture *)handle)->texture.width
+             : 0;
+}
+
+int janus_graphics_render_texture_height(const void *handle) {
+  return janus_graphics_render_texture_is_valid(handle)
+             ? ((const JanusRaylibRenderTexture *)handle)->texture.height
+             : 0;
+}
+
+void janus_graphics_unload_render_texture(void *handle) {
+  if (handle == NULL)
+    return;
+  if (graphics_loaded) {
+    JanusRaylibRenderTexture *target = handle;
+    if (graphics_api.IsRenderTextureValid(*target))
+      graphics_api.UnloadRenderTexture(*target);
+  }
+  free(handle);
+}
+
+void janus_graphics_begin_render_texture(const void *handle) {
+  if (janus_graphics_render_texture_is_valid(handle))
+    graphics_api.BeginTextureMode(*(const JanusRaylibRenderTexture *)handle);
+}
+
+void janus_graphics_end_render_texture(void) {
+  if (graphics_loaded)
+    graphics_api.EndTextureMode();
+}
+
+void janus_graphics_draw_render_texture_pro(
+    const void *handle, float source_x, float source_y, float source_width,
+    float source_height, float destination_x, float destination_y,
+    float destination_width, float destination_height, float origin_x,
+    float origin_y, float rotation, uint32_t tint) {
+  if (!janus_graphics_render_texture_is_valid(handle))
+    return;
+  const JanusRaylibRenderTexture *target = handle;
+  graphics_api.DrawTexturePro(
+      target->texture,
+      (JanusRaylibRectangle){source_x, source_y, source_width, source_height},
+      (JanusRaylibRectangle){destination_x, destination_y, destination_width,
+                             destination_height},
+      (JanusRaylibVector2){origin_x, origin_y}, rotation, unpack_color(tint));
+}
+
+static void *load_shader(const char *vertex_file, const char *fragment_file) {
+  if (!graphics_loaded || fragment_file == NULL)
+    return NULL;
+  JanusRaylibShader *shader = malloc(sizeof(*shader));
+  if (shader == NULL)
+    return NULL;
+  *shader = graphics_api.LoadShader(vertex_file, fragment_file);
+  if (!graphics_api.IsShaderValid(*shader)) {
+    free(shader);
+    return NULL;
+  }
+  return shader;
+}
+
+void *janus_graphics_load_fragment_shader(const void *fragment_file) {
+  return load_shader(NULL, (const char *)fragment_file);
+}
+
+void *janus_graphics_load_shader(const void *vertex_file,
+                                 const void *fragment_file) {
+  if (vertex_file == NULL)
+    return NULL;
+  return load_shader((const char *)vertex_file, (const char *)fragment_file);
+}
+
+bool janus_graphics_shader_is_valid(const void *handle) {
+  return graphics_loaded && handle != NULL &&
+         graphics_api.IsShaderValid(*(const JanusRaylibShader *)handle);
+}
+
+void janus_graphics_unload_shader(void *handle) {
+  if (handle == NULL)
+    return;
+  if (graphics_loaded) {
+    JanusRaylibShader *shader = handle;
+    if (graphics_api.IsShaderValid(*shader))
+      graphics_api.UnloadShader(*shader);
+  }
+  free(handle);
+}
+
+void janus_graphics_begin_shader(const void *handle) {
+  if (janus_graphics_shader_is_valid(handle))
+    graphics_api.BeginShaderMode(*(const JanusRaylibShader *)handle);
+}
+
+void janus_graphics_end_shader(void) {
+  if (graphics_loaded)
+    graphics_api.EndShaderMode();
+}
+
+int janus_graphics_shader_location(const void *handle, const void *name) {
+  if (!janus_graphics_shader_is_valid(handle) || name == NULL)
+    return -1;
+  return graphics_api.GetShaderLocation(*(const JanusRaylibShader *)handle,
+                                        (const char *)name);
+}
+
+void janus_graphics_set_shader_float(const void *handle, int location,
+                                     float value) {
+  if (janus_graphics_shader_is_valid(handle) && location >= 0)
+    graphics_api.SetShaderValue(*(const JanusRaylibShader *)handle, location,
+                                &value, 0);
+}
+
+void janus_graphics_set_shader_vector2(const void *handle, int location,
+                                       float x, float y) {
+  if (!janus_graphics_shader_is_valid(handle) || location < 0)
+    return;
+  const float value[2] = {x, y};
+  graphics_api.SetShaderValue(*(const JanusRaylibShader *)handle, location,
+                              value, 1);
+}
+
+void janus_graphics_set_shader_color(const void *handle, int location,
+                                     uint32_t color) {
+  if (!janus_graphics_shader_is_valid(handle) || location < 0)
+    return;
+  JanusRaylibColor unpacked = unpack_color(color);
+  const float value[4] = {(float)unpacked.red / 255.0f,
+                          (float)unpacked.green / 255.0f,
+                          (float)unpacked.blue / 255.0f,
+                          (float)unpacked.alpha / 255.0f};
+  graphics_api.SetShaderValue(*(const JanusRaylibShader *)handle, location,
+                              value, 3);
+}
+
+void janus_graphics_set_shader_int(const void *handle, int location,
+                                   int value) {
+  if (janus_graphics_shader_is_valid(handle) && location >= 0)
+    graphics_api.SetShaderValue(*(const JanusRaylibShader *)handle, location,
+                                &value, 4);
 }
 
 bool janus_graphics_init_audio(void) {

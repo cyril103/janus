@@ -73,6 +73,32 @@ extern void janus_graphics_draw_texture_pro(
     float destination_width, float destination_height, float origin_x,
     float origin_y, float rotation, uint32_t tint);
 extern void janus_graphics_set_texture_filter(const void *handle, int filter);
+extern void *janus_graphics_load_render_texture(int width, int height);
+extern bool janus_graphics_render_texture_is_valid(const void *handle);
+extern int janus_graphics_render_texture_width(const void *handle);
+extern int janus_graphics_render_texture_height(const void *handle);
+extern void janus_graphics_unload_render_texture(void *handle);
+extern void janus_graphics_begin_render_texture(const void *handle);
+extern void janus_graphics_end_render_texture(void);
+extern void janus_graphics_draw_render_texture_pro(
+    const void *handle, float source_x, float source_y, float source_width,
+    float source_height, float destination_x, float destination_y,
+    float destination_width, float destination_height, float origin_x,
+    float origin_y, float rotation, uint32_t tint);
+extern void *janus_graphics_load_fragment_shader(const void *fragment_file);
+extern bool janus_graphics_shader_is_valid(const void *handle);
+extern void janus_graphics_unload_shader(void *handle);
+extern void janus_graphics_begin_shader(const void *handle);
+extern void janus_graphics_end_shader(void);
+extern int janus_graphics_shader_location(const void *handle, const void *name);
+extern void janus_graphics_set_shader_float(const void *handle, int location,
+                                            float value);
+extern void janus_graphics_set_shader_vector2(const void *handle, int location,
+                                              float x, float y);
+extern void janus_graphics_set_shader_color(const void *handle, int location,
+                                            uint32_t color);
+extern void janus_graphics_set_shader_int(const void *handle, int location,
+                                          int value);
 extern bool janus_graphics_init_audio(void);
 extern void janus_graphics_close_audio(void);
 extern void janus_graphics_set_master_volume(float volume);
@@ -183,6 +209,29 @@ int main(void) {
       16.0f, 16.0f, 45.0f, UINT32_C(0xffffffff));
   janus_graphics_set_texture_filter(texture, 1);
   janus_graphics_unload_texture(texture);
+  void *target = janus_graphics_load_render_texture(320, 180);
+  void *shader = janus_graphics_load_fragment_shader("post.fs");
+  if (!janus_graphics_render_texture_is_valid(target) ||
+      janus_graphics_render_texture_width(target) != 320 ||
+      janus_graphics_render_texture_height(target) != 180 ||
+      !janus_graphics_shader_is_valid(shader)) {
+    fputs("graphics backend did not load render resources\n", stderr);
+    return 1;
+  }
+  janus_graphics_begin_render_texture(target);
+  janus_graphics_end_render_texture();
+  int location = janus_graphics_shader_location(shader, "time");
+  janus_graphics_set_shader_float(shader, location, 1.0f);
+  janus_graphics_set_shader_vector2(shader, location, 320.0f, 180.0f);
+  janus_graphics_set_shader_color(shader, location, UINT32_C(0xffffffff));
+  janus_graphics_set_shader_int(shader, location, 2);
+  janus_graphics_begin_shader(shader);
+  janus_graphics_draw_render_texture_pro(
+      target, 0.0f, 0.0f, 320.0f, -180.0f, 0.0f, 0.0f, 640.0f, 360.0f,
+      0.0f, 0.0f, 0.0f, UINT32_C(0xffffffff));
+  janus_graphics_end_shader();
+  janus_graphics_unload_shader(shader);
+  janus_graphics_unload_render_texture(target);
   janus_graphics_end_camera();
   janus_graphics_end_drawing();
 

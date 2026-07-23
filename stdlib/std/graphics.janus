@@ -328,6 +328,69 @@ extern def janus_graphics_set_texture_filter(
 handle : Ptr[byte],
 filter : int
 ) : Unit
+extern def janus_graphics_load_render_texture(
+width : int,
+height : int
+) : Ptr[byte]
+extern def janus_graphics_render_texture_is_valid(
+handle : Ptr[byte]
+) : bool
+extern def janus_graphics_render_texture_width(handle : Ptr[byte]) : int
+extern def janus_graphics_render_texture_height(handle : Ptr[byte]) : int
+extern def janus_graphics_unload_render_texture(handle : Ptr[byte]) : Unit
+extern def janus_graphics_begin_render_texture(handle : Ptr[byte]) : Unit
+extern def janus_graphics_end_render_texture() : Unit
+extern def janus_graphics_draw_render_texture_pro(
+handle : Ptr[byte],
+sourceX : float,
+sourceY : float,
+sourceWidth : float,
+sourceHeight : float,
+destinationX : float,
+destinationY : float,
+destinationWidth : float,
+destinationHeight : float,
+originX : float,
+originY : float,
+rotation : float,
+tint : uint
+) : Unit
+extern def janus_graphics_load_fragment_shader(
+fragmentFile : Ptr[byte]
+) : Ptr[byte]
+extern def janus_graphics_load_shader(
+vertexFile : Ptr[byte],
+fragmentFile : Ptr[byte]
+) : Ptr[byte]
+extern def janus_graphics_shader_is_valid(handle : Ptr[byte]) : bool
+extern def janus_graphics_unload_shader(handle : Ptr[byte]) : Unit
+extern def janus_graphics_begin_shader(handle : Ptr[byte]) : Unit
+extern def janus_graphics_end_shader() : Unit
+extern def janus_graphics_shader_location(
+handle : Ptr[byte],
+name : Ptr[byte]
+) : int
+extern def janus_graphics_set_shader_float(
+handle : Ptr[byte],
+location : int,
+value : float
+) : Unit
+extern def janus_graphics_set_shader_vector2(
+handle : Ptr[byte],
+location : int,
+x : float,
+y : float
+) : Unit
+extern def janus_graphics_set_shader_color(
+handle : Ptr[byte],
+location : int,
+color : uint
+) : Unit
+extern def janus_graphics_set_shader_int(
+handle : Ptr[byte],
+location : int,
+value : int
+) : Unit
 extern def janus_graphics_init_audio() : bool
 extern def janus_graphics_close_audio() : Unit
 extern def janus_graphics_set_master_volume(volume : float) : Unit
@@ -574,6 +637,91 @@ class Font(private val handle : Ptr[byte]) {
 
     destructor {
         janus_graphics_unload_font(handle)
+    }
+}
+
+class RenderTexture(private val handle : Ptr[byte]) {
+    def isValid() : bool {
+        return janus_graphics_render_texture_is_valid(handle)
+    }
+
+    def width() : int {
+        return janus_graphics_render_texture_width(handle)
+    }
+
+    def height() : int {
+        return janus_graphics_render_texture_height(handle)
+    }
+
+    def begin() : Unit {
+        janus_graphics_begin_render_texture(handle)
+    }
+
+    def drawPro(
+    source : Rectangle,
+    destination : Rectangle,
+    origin : Vector2,
+    rotation : float,
+    tint : Color
+    ) : Unit {
+        janus_graphics_draw_render_texture_pro(
+        handle,
+        source.x,
+        source.y,
+        source.width,
+        source.height,
+        destination.x,
+        destination.y,
+        destination.width,
+        destination.height,
+        origin.x,
+        origin.y,
+        rotation,
+        tint.packed()
+        )
+    }
+
+    destructor {
+        janus_graphics_unload_render_texture(handle)
+    }
+}
+
+class Shader(private val handle : Ptr[byte]) {
+    def isValid() : bool {
+        return janus_graphics_shader_is_valid(handle)
+    }
+
+    def begin() : Unit {
+        janus_graphics_begin_shader(handle)
+    }
+
+    def location(name : string) : int {
+        return janus_graphics_shader_location(handle, cstr(name))
+    }
+
+    def setFloat(location : int, value : float) : Unit {
+        janus_graphics_set_shader_float(handle, location, value)
+    }
+
+    def setVector2(location : int, value : Vector2) : Unit {
+        janus_graphics_set_shader_vector2(
+        handle,
+        location,
+        value.x,
+        value.y
+        )
+    }
+
+    def setColor(location : int, value : Color) : Unit {
+        janus_graphics_set_shader_color(handle, location, value.packed())
+    }
+
+    def setInt(location : int, value : int) : Unit {
+        janus_graphics_set_shader_int(handle, location, value)
+    }
+
+    destructor {
+        janus_graphics_unload_shader(handle)
     }
 }
 
@@ -999,6 +1147,30 @@ def loadTexture(fileName : string) : Texture {
 
 def loadFont(fileName : string, fontSize : int) : Font {
     return new Font(janus_graphics_load_font(cstr(fileName), fontSize))
+}
+
+def loadRenderTexture(width : int, height : int) : RenderTexture {
+    return new RenderTexture(janus_graphics_load_render_texture(width, height))
+}
+
+def endRenderTexture() : Unit {
+    janus_graphics_end_render_texture()
+}
+
+def loadFragmentShader(fragmentFile : string) : Shader {
+    return new Shader(
+    janus_graphics_load_fragment_shader(cstr(fragmentFile))
+    )
+}
+
+def loadShader(vertexFile : string, fragmentFile : string) : Shader {
+    return new Shader(
+    janus_graphics_load_shader(cstr(vertexFile), cstr(fragmentFile))
+    )
+}
+
+def endShader() : Unit {
+    janus_graphics_end_shader()
 }
 
 def initAudio() : bool {
