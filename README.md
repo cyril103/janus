@@ -230,6 +230,7 @@ Une extension VS Code est disponible dans
 - [Installation et premier projet](docs/getting-started.md)
 - [Guide du langage](docs/language-guide.md)
 - [Commandes, projets, dépendances et outils](docs/tooling.md)
+- [Dépannage du corpus Project Euler](docs/project-euler-troubleshooting.md)
 - [Compiler Janus depuis les sources](docs/development.md)
 - [Exemples complets](examples)
 - [Historique des versions](CHANGELOG.md)
