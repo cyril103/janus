@@ -601,7 +601,7 @@ latest_concurrent_rel="$(cat "$CONCURRENT_ARTIFACTS/latest")"
 latest_concurrent_report="$CONCURRENT_ARTIFACTS/$latest_concurrent_rel/report.json"
 if [ ! -s "$latest_concurrent_report" ] ||
    ! grep -q "\"run_id\":\"$latest_concurrent_rel\"" "$latest_concurrent_report" ||
-   ! grep -q '"summary":{"total":1,"ok":1,"failed":0}' "$latest_concurrent_report"; then
+   ! grep -q '"summary":{"total":1,"ok":1,"failed":0' "$latest_concurrent_report"; then
   echo "verify test: concurrent latest did not point at a complete report" >&2
   exit 1
 fi
@@ -911,6 +911,95 @@ fi
 assert_safe_result "$WORK/safe-both-fail.out" 14 mismatch mismatch mismatch true
 assert_safe_top_level_output "$WORK/safe-both-fail.out" 14 \
   "still-wrong" "stable-fallback"
+
+cat > "$WORK/error-budget.txt" <<'EOF'
+1|src/problem1.janus|expected/problem1.txt
+2|src/problem2.janus|expected/problem2.txt
+EOF
+
+# The default budget is strict: the mismatch remains a recorded failure and
+# makes the verifier fail even though the complete two-case suite was run.
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/error-budget.txt" --all \
+       --no-artifacts > "$WORK/error-budget-default.out" \
+       2> "$WORK/error-budget-default.err"; then
+  echo "verify test: default error budget should reject one failure" >&2
+  exit 1
+fi
+
+if PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/error-budget.txt" --all \
+       --max-errors 0 --no-artifacts > "$WORK/error-budget-zero.out" \
+       2> "$WORK/error-budget-zero.err"; then
+  echo "verify test: --max-errors 0 should reject one failure" >&2
+  exit 1
+fi
+
+if ! PATH="$FAKE_BIN:/usr/bin:/bin" \
+   JANUS_FAKE_PROJECT="$PROJECT" \
+     "$SCRIPT" --project "$PROJECT" --config "$WORK/error-budget.txt" --all \
+       --max-errors 1 --no-artifacts > "$WORK/error-budget-one.out" \
+       2> "$WORK/error-budget-one.err"; then
+  echo "verify test: --max-errors 1 should accept exactly one failure" >&2
+  exit 1
+fi
+"$json_python" - "$WORK/error-budget-default.out" "$WORK/error-budget-zero.out" \
+  "$WORK/error-budget-one.out" <<'PY'
+import json
+import sys
+
+for report, max_errors, within_budget in (
+    (sys.argv[1], 0, False),
+    (sys.argv[2], 0, False),
+    (sys.argv[3], 1, True),
+):
+    with open(report, "r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    summary = payload["summary"]
+    assert summary["total"] == 2, summary
+    assert summary["ok"] == 1, summary
+    assert summary["failed"] == 1, summary
+    assert summary["max_errors"] == max_errors, summary
+    assert summary["within_error_budget"] is within_budget, summary
+    statuses = {result["problem"]: result["status"] for result in payload["results"]}
+    assert statuses == {1: "ok", 2: "mismatch"}, statuses
+PY
+
+for invalid_max_errors in -1 nope 1.5; do
+  set +e
+  PATH="$FAKE_BIN:/usr/bin:/bin" JANUS_FAKE_PROJECT="$PROJECT" \
+    "$SCRIPT" --project "$PROJECT" --config "$WORK/error-budget.txt" \
+      --all --max-errors "$invalid_max_errors" --no-artifacts \
+      > "$WORK/error-budget-invalid.out" 2> "$WORK/error-budget-invalid.err"
+  invalid_status=$?
+  set -e
+  if [ "$invalid_status" -ne 2 ]; then
+    echo "verify test: invalid --max-errors value '$invalid_max_errors' returned $invalid_status, expected 2" >&2
+    exit 1
+  fi
+  if ! grep -q -- '--max-errors requires a non-negative integer' \
+       "$WORK/error-budget-invalid.err"; then
+    echo "verify test: invalid --max-errors value '$invalid_max_errors' lacked its diagnostic" >&2
+    exit 1
+  fi
+done
+set +e
+PATH="$FAKE_BIN:/usr/bin:/bin" JANUS_FAKE_PROJECT="$PROJECT" \
+  "$SCRIPT" --project "$PROJECT" --config "$WORK/error-budget.txt" \
+    --all --max-errors > "$WORK/error-budget-missing.out" \
+    2> "$WORK/error-budget-missing.err"
+missing_status=$?
+set -e
+if [ "$missing_status" -ne 2 ]; then
+  echo "verify test: missing --max-errors argument returned $missing_status, expected 2" >&2
+  exit 1
+fi
+if ! grep -q -- '--max-errors requires' "$WORK/error-budget-missing.err"; then
+  echo "verify test: missing --max-errors diagnostic was not explicit" >&2
+  exit 1
+fi
 
 if PATH="$FAKE_BIN:/usr/bin:/bin" \
    JANUS_FAKE_PROJECT="$PROJECT" \
