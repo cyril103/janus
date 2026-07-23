@@ -732,6 +732,18 @@ if(BUILD_TESTING)
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/global_variables.expected.txt"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
+    add_test(
+        NAME runtime.global_panic_cleanup
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/global_panic_cleanup.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/global_panic_cleanup_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/global_panic_cleanup.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_panic_cleanup.cmake"
+    )
 
     add_executable(class_test
         tests/language/class_test.cpp

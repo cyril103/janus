@@ -1,0 +1,17 @@
+class Resource(val value : int) {
+    destructor {
+        println(value)
+    }
+}
+
+val ready : Resource = new Resource(1)
+val failed : Resource = fail()
+
+def fail() : Resource {
+    panic("global initialization failed\n")
+    return new Resource(2)
+}
+
+def main() : int {
+    return 0
+}

@@ -325,6 +325,26 @@ def main() : int { return callback() }
   expect(owned_ir.find("call void @__janus_fini_globals()") !=
              std::string::npos,
          "entry point invokes global finalization");
+  expect(owned_ir.find(
+             "@__janus_globals_initialization_started = internal global i1 "
+             "false") != std::string::npos &&
+             owned_ir.find(
+                 "@__janus_globals_finalization_finished = internal global "
+                 "i1 false") != std::string::npos,
+         "global initialization and finalization have idempotency guards");
+  expect(owned_ir.find("@__janus_globals_initialized_count = internal global "
+                       "i64 0") != std::string::npos &&
+             owned_ir.find("icmp uge i64 %initialized.count") !=
+                 std::string::npos,
+         "the finalizer only releases globals initialized successfully");
+  const std::size_t register_panic_cleanup =
+      owned_ir.find("call void @janus_set_panic_cleanup");
+  const std::size_t invoke_initializer =
+      owned_ir.find("call void @__janus_init_globals()", register_panic_cleanup);
+  expect(register_panic_cleanup != std::string::npos &&
+             invoke_initializer != std::string::npos &&
+             register_panic_cleanup < invoke_initializer,
+         "panic cleanup is registered before dynamic global initialization");
   expect_compile_error(
       "class Resource() {}\n"
       "var resource : Resource = new Resource()\n"

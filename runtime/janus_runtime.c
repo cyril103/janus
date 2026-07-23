@@ -97,8 +97,20 @@ void janus_print_char(uint32_t codepoint) {
   janus_write_stdout(bytes, (uint64_t)size);
 }
 
+static void (*janus_panic_cleanup)(void);
+
+void janus_set_panic_cleanup(void (*cleanup)(void)) {
+  janus_panic_cleanup = cleanup;
+}
+
 _Noreturn void janus_panic(const char *data, uint64_t size) {
   (void)fwrite(data, 1, (size_t)size, stderr);
   (void)fflush(stderr);
+  if (janus_panic_cleanup != NULL) {
+    void (*cleanup)(void) = janus_panic_cleanup;
+    janus_panic_cleanup = NULL;
+    cleanup();
+  }
+  (void)fflush(stdout);
   abort();
 }

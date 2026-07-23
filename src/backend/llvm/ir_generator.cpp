@@ -381,6 +381,16 @@ private:
     if (initialization_plan_.dynamic.empty())
       return;
 
+    auto *boolean_type = ::llvm::Type::getInt1Ty(context_);
+    auto *count_type = ::llvm::Type::getInt64Ty(context_);
+    global_initialization_started_ = new ::llvm::GlobalVariable(
+        *module_, boolean_type, false, ::llvm::GlobalValue::InternalLinkage,
+        ::llvm::ConstantInt::getFalse(context_),
+        "__janus_globals_initialization_started");
+    global_initialized_count_ = new ::llvm::GlobalVariable(
+        *module_, count_type, false, ::llvm::GlobalValue::InternalLinkage,
+        ::llvm::ConstantInt::get(count_type, 0),
+        "__janus_globals_initialized_count");
     auto *function_type =
         ::llvm::FunctionType::get(::llvm::Type::getVoidTy(context_), false);
     global_initializer_ = ::llvm::Function::Create(
@@ -389,13 +399,25 @@ private:
     auto *entry =
         ::llvm::BasicBlock::Create(context_, "entry", global_initializer_);
     ::llvm::IRBuilder<> builder{entry};
+    auto *initialize = ::llvm::BasicBlock::Create(
+        context_, "initialize", global_initializer_);
+    auto *done =
+        ::llvm::BasicBlock::Create(context_, "done", global_initializer_);
+    ::llvm::Value *started = builder.CreateLoad(
+        boolean_type, global_initialization_started_, "initialization.started");
+    builder.CreateCondBr(started, done, initialize);
+    builder.SetInsertPoint(initialize);
+    builder.CreateStore(::llvm::ConstantInt::getTrue(context_),
+                        global_initialization_started_);
     const Substitutions substitutions;
     const std::unordered_map<std::string, Local> locals;
     const auto previous_module = active_module_;
     const janus::Type *previous_return_type = active_return_type_;
     active_return_type_ = &janus::Type::unit_type();
-    for (const janus::ast::GlobalDeclaration *global :
-         initialization_plan_.dynamic) {
+    for (std::size_t index = 0;
+         index < initialization_plan_.dynamic.size(); ++index) {
+      const janus::ast::GlobalDeclaration *global =
+          initialization_plan_.dynamic[index];
       active_module_ = global->module_name;
       const janus::Type &type =
           resolve(global->declaration.declared_type, substitutions);
@@ -405,7 +427,11 @@ private:
       const Local &storage = global_storage_.at(source_global_key(
           global->module_name, global->declaration.name));
       builder.CreateStore(value, storage.storage);
+      builder.CreateStore(::llvm::ConstantInt::get(count_type, index + 1),
+                          global_initialized_count_);
     }
+    builder.CreateBr(done);
+    builder.SetInsertPoint(done);
     builder.CreateRetVoid();
     active_module_ = previous_module;
     active_return_type_ = previous_return_type;
@@ -432,18 +458,46 @@ private:
     auto *entry =
         ::llvm::BasicBlock::Create(context_, "entry", global_finalizer_);
     ::llvm::IRBuilder<> builder{entry};
+    auto *boolean_type = builder.getInt1Ty();
+    global_finalization_finished_ = new ::llvm::GlobalVariable(
+        *module_, boolean_type, false, ::llvm::GlobalValue::InternalLinkage,
+        ::llvm::ConstantInt::getFalse(context_),
+        "__janus_globals_finalization_finished");
+    auto *cleanup =
+        ::llvm::BasicBlock::Create(context_, "cleanup", global_finalizer_);
+    auto *done =
+        ::llvm::BasicBlock::Create(context_, "done", global_finalizer_);
+    ::llvm::Value *finished = builder.CreateLoad(
+        boolean_type, global_finalization_finished_, "finalization.finished");
+    builder.CreateCondBr(finished, done, cleanup);
+    builder.SetInsertPoint(cleanup);
+    builder.CreateStore(::llvm::ConstantInt::getTrue(context_),
+                        global_finalization_finished_);
     ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
         "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
                                            {builder.getPtrTy()}, false));
 
-    for (auto iterator = initialization_plan_.dynamic.rbegin();
-         iterator != initialization_plan_.dynamic.rend(); ++iterator) {
-      const janus::ast::GlobalDeclaration &global = **iterator;
+    for (std::size_t index = initialization_plan_.dynamic.size(); index-- > 0;) {
+      const janus::ast::GlobalDeclaration &global =
+          *initialization_plan_.dynamic[index];
       const janus::Type &type = resolve(global.declaration.declared_type, {});
       if (type.kind() != janus::TypeKind::Class &&
           type.kind() != janus::TypeKind::Pointer &&
           type.kind() != janus::TypeKind::Function)
         continue;
+      auto *release = ::llvm::BasicBlock::Create(
+          context_, "release." + global.declaration.name, global_finalizer_);
+      auto *next = ::llvm::BasicBlock::Create(
+          context_, "next." + global.declaration.name, global_finalizer_);
+      ::llvm::Value *initialized_count = builder.CreateLoad(
+          builder.getInt64Ty(), global_initialized_count_,
+          "initialized.count");
+      builder.CreateCondBr(
+          builder.CreateICmpUGE(
+              initialized_count,
+              ::llvm::ConstantInt::get(builder.getInt64Ty(), index + 1)),
+          release, next);
+      builder.SetInsertPoint(release);
       const Local &storage = global_storage_.at(
           source_global_key(global.module_name, global.declaration.name));
       ::llvm::Value *value = builder.CreateLoad(
@@ -456,7 +510,11 @@ private:
         pointer =
             builder.CreateExtractValue(value, 1, "global.lambda.environment");
       builder.CreateCall(free_function, {pointer});
+      builder.CreateBr(next);
+      builder.SetInsertPoint(next);
     }
+    builder.CreateBr(done);
+    builder.SetInsertPoint(done);
     builder.CreateRetVoid();
   }
 
@@ -761,6 +819,14 @@ private:
     auto *entry = ::llvm::BasicBlock::Create(context_, "entry", llvm_function);
     ::llvm::IRBuilder<> builder{entry};
     std::unordered_map<std::string, Local> locals;
+    if (owner == nullptr && function.name == "main" &&
+        global_finalizer_ != nullptr) {
+      ::llvm::FunctionCallee register_cleanup = module_->getOrInsertFunction(
+          "janus_set_panic_cleanup",
+          ::llvm::FunctionType::get(builder.getVoidTy(),
+                                    {builder.getPtrTy()}, false));
+      builder.CreateCall(register_cleanup, {global_finalizer_});
+    }
     if (owner == nullptr && function.name == "main" &&
         global_initializer_ != nullptr)
       builder.CreateCall(global_initializer_);
@@ -2777,6 +2843,9 @@ private:
   std::unordered_map<std::string, janus::constant::Value> constant_values_;
   ::llvm::Function *global_initializer_{};
   ::llvm::Function *global_finalizer_{};
+  ::llvm::GlobalVariable *global_initialization_started_{};
+  ::llvm::GlobalVariable *global_initialized_count_{};
+  ::llvm::GlobalVariable *global_finalization_finished_{};
   std::unordered_map<std::string, const janus::ast::ClassDeclaration *>
       classes_;
   std::unordered_map<std::string, const janus::ast::EnumDeclaration *> enums_;
