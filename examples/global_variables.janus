@@ -1,6 +1,10 @@
 val answer : int = 42
-var requests : int = 0
+var requests : int = initialRequests()
 private val message : string = "global"
+
+def initialRequests() : int {
+    return 10
+}
 
 def recordRequest() : Unit {
     requests = requests + 1

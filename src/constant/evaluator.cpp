@@ -359,6 +359,30 @@ Value evaluate_impl(const janus::ast::Expression &expression,
 
 namespace janus::constant {
 
+bool is_constant_expression(const ast::Expression &expression) {
+  return std::visit(
+      [](const auto &node) {
+        using Node = std::decay_t<decltype(node)>;
+        if constexpr (std::is_same_v<Node, ast::IntegerLiteralExpression> ||
+                      std::is_same_v<Node, ast::DoubleLiteralExpression> ||
+                      std::is_same_v<Node, ast::CharacterLiteralExpression> ||
+                      std::is_same_v<Node, ast::BooleanLiteralExpression> ||
+                      std::is_same_v<Node, ast::StringLiteralExpression> ||
+                      std::is_same_v<Node, ast::IdentifierExpression>)
+          return true;
+        else if constexpr (std::is_same_v<Node, ast::MemberAccessExpression>)
+          return qualified_name(*node.object).has_value();
+        else if constexpr (std::is_same_v<Node, ast::UnaryExpression>)
+          return is_constant_expression(*node.operand);
+        else if constexpr (std::is_same_v<Node, ast::BinaryExpression>)
+          return is_constant_expression(*node.left) &&
+                 is_constant_expression(*node.right);
+        else
+          return false;
+      },
+      expression.value);
+}
+
 Value evaluate(const ast::Expression &expression, const Type *expected_type,
                const Resolver &resolve) {
   Value result = evaluate_impl(expression, expected_type, resolve);

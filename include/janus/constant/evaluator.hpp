@@ -20,6 +20,8 @@ struct Value {
 using Resolver = std::function<std::optional<Value>(
     const std::optional<std::string> &, std::string_view, SourceLocation)>;
 
+[[nodiscard]] bool is_constant_expression(const ast::Expression &expression);
+
 [[nodiscard]] Value evaluate(const ast::Expression &expression,
                              const Type *expected_type,
                              const Resolver &resolve);

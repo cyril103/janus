@@ -636,8 +636,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     return iterator->second;
   };
   for (const auto &[key, resolved] : globals) {
-    static_cast<void>(resolved);
-    static_cast<void>(evaluate_global(key));
+    if (constant::is_constant_expression(
+            *resolved.declaration->declaration.initializer))
+      static_cast<void>(evaluate_global(key));
   }
 
   struct TraitInstance {
@@ -968,14 +969,37 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const ast::FunctionDeclaration *function;
     const ast::ClassDeclaration *owner;
     const ast::DestructorDeclaration *destructor;
+    const ast::GlobalDeclaration *global;
   };
   std::vector<FunctionContext> contexts;
   for (const ast::FunctionDeclaration &function : program.functions) {
-    contexts.push_back(FunctionContext{&function, nullptr, nullptr});
+    contexts.push_back(FunctionContext{&function, nullptr, nullptr, nullptr});
     if (!functions.emplace(function.name, &function).second) {
       throw CompileError{function.location, "function '" + function.name +
                                                 "' is already declared"};
     }
+  }
+  std::vector<ast::FunctionDeclaration> global_initializer_functions;
+  global_initializer_functions.reserve(program.globals.size());
+  for (const ast::GlobalDeclaration &global : program.globals) {
+    if (constant::is_constant_expression(*global.declaration.initializer))
+      continue;
+    global_initializer_functions.push_back(ast::FunctionDeclaration{
+        "__global_init_" + global.declaration.name,
+        {},
+        {},
+        ast::TypeReference{"Unit", global.declaration.location, {}},
+        {},
+        global.declaration.location,
+        false,
+        false,
+        {},
+        false,
+        std::nullopt,
+        false,
+        global.module_name});
+    contexts.push_back(FunctionContext{&global_initializer_functions.back(),
+                                       nullptr, nullptr, &global});
   }
   std::unordered_map<std::string, const ast::FunctionDeclaration *>
       external_symbols;
@@ -1017,11 +1041,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "' is already declared in class '" +
                                class_declaration.name + "'"};
       }
-      contexts.push_back(FunctionContext{&method, &class_declaration, nullptr});
+      contexts.push_back(
+          FunctionContext{&method, &class_declaration, nullptr, nullptr});
     }
     if (class_declaration.destructor.has_value())
       contexts.push_back(FunctionContext{nullptr, &class_declaration,
-                                         &*class_declaration.destructor});
+                                         &*class_declaration.destructor,
+                                         nullptr});
   }
 
   const auto main_iterator = functions.find("main");
@@ -1032,6 +1058,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
   for (const FunctionContext &context : contexts) {
     const bool is_destructor = context.destructor != nullptr;
+    const bool is_global_initializer = context.global != nullptr;
     const ast::ClassDeclaration *owner = context.owner;
     const std::vector<std::string> empty_type_parameters;
     const std::vector<ast::FunctionDeclaration::Parameter> empty_parameters;
@@ -2771,6 +2798,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       deferred_values = previous_deferred_values;
       return has_terminator;
     };
+
+    if (is_global_initializer) {
+      const std::string key = global_key(context.global->module_name,
+                                         context.global->declaration.name);
+      validate_expression(*context.global->declaration.initializer,
+                          globals.at(key).symbol.type,
+                          context.global->declaration.location);
+      continue;
+    }
 
     static_cast<void>(validate_block(body, symbols));
     const bool has_return = block_guarantees_return(body);

@@ -107,6 +107,7 @@ public:
     for (const janus::ast::GlobalDeclaration *declaration :
          global_declarations_)
       emit_global(*declaration);
+    emit_global_initializer_function();
     for (const auto &[name, class_declaration] : classes_) {
       if (class_declaration->type_parameters.empty())
         static_cast<void>(ensure_class(name, {}));
@@ -329,16 +330,65 @@ private:
   void emit_global(const janus::ast::GlobalDeclaration &global) {
     const janus::ast::ValueDeclaration &declaration = global.declaration;
     const janus::Type &type = resolve(declaration.declared_type, {});
+    const bool is_constant =
+        janus::constant::is_constant_expression(*declaration.initializer);
     const auto linkage = declaration.is_private
                              ? ::llvm::GlobalValue::InternalLinkage
                              : ::llvm::GlobalValue::ExternalLinkage;
+    ::llvm::Constant *initializer =
+        is_constant
+            ? emit_static_initializer(evaluate_global_constant(global), type)
+            : ::llvm::Constant::getNullValue(lower_type(type, context_));
     auto *storage = new ::llvm::GlobalVariable(
-        *module_, lower_type(type, context_), !declaration.is_mutable, linkage,
-        emit_static_initializer(evaluate_global_constant(global), type),
+        *module_, lower_type(type, context_),
+        is_constant && !declaration.is_mutable, linkage, initializer,
         global_symbol_name(global));
     global_storage_.emplace(
         source_global_key(global.module_name, declaration.name),
         Local{storage, &type});
+  }
+
+  void emit_global_initializer_function() {
+    const bool has_dynamic =
+        std::any_of(global_declarations_.begin(), global_declarations_.end(),
+                    [](const janus::ast::GlobalDeclaration *global) {
+                      return !janus::constant::is_constant_expression(
+                          *global->declaration.initializer);
+                    });
+    if (!has_dynamic)
+      return;
+
+    auto *function_type =
+        ::llvm::FunctionType::get(::llvm::Type::getVoidTy(context_), false);
+    global_initializer_ = ::llvm::Function::Create(
+        function_type, ::llvm::Function::InternalLinkage,
+        "__janus_init_globals", *module_);
+    auto *entry =
+        ::llvm::BasicBlock::Create(context_, "entry", global_initializer_);
+    ::llvm::IRBuilder<> builder{entry};
+    const Substitutions substitutions;
+    const std::unordered_map<std::string, Local> locals;
+    const auto previous_module = active_module_;
+    const janus::Type *previous_return_type = active_return_type_;
+    active_return_type_ = &janus::Type::unit_type();
+    for (const janus::ast::GlobalDeclaration *global :
+         global_declarations_) {
+      if (janus::constant::is_constant_expression(
+              *global->declaration.initializer))
+        continue;
+      active_module_ = global->module_name;
+      const janus::Type &type =
+          resolve(global->declaration.declared_type, substitutions);
+      ::llvm::Value *value =
+          emit_expression(*global->declaration.initializer, type,
+                          substitutions, locals, builder);
+      const Local &storage = global_storage_.at(source_global_key(
+          global->module_name, global->declaration.name));
+      builder.CreateStore(value, storage.storage);
+    }
+    builder.CreateRetVoid();
+    active_module_ = previous_module;
+    active_return_type_ = previous_return_type;
   }
 
   const janus::Type &ensure_pointer(const janus::Type &element_type) {
@@ -642,6 +692,9 @@ private:
     auto *entry = ::llvm::BasicBlock::Create(context_, "entry", llvm_function);
     ::llvm::IRBuilder<> builder{entry};
     std::unordered_map<std::string, Local> locals;
+    if (owner == nullptr && function.name == "main" &&
+        global_initializer_ != nullptr)
+      builder.CreateCall(global_initializer_);
 
     auto argument_iterator = llvm_function->arg_begin();
     if (owner != nullptr) {
@@ -2570,6 +2623,7 @@ private:
   std::unordered_set<std::string> global_modules_;
   std::unordered_map<std::string, int> constant_states_;
   std::unordered_map<std::string, janus::constant::Value> constant_values_;
+  ::llvm::Function *global_initializer_{};
   std::unordered_map<std::string, const janus::ast::ClassDeclaration *>
       classes_;
   std::unordered_map<std::string, const janus::ast::EnumDeclaration *> enums_;

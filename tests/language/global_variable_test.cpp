@@ -112,10 +112,6 @@ def main() : int {
       "var pending : int\ndef main() : int { return 0 }",
       "global variable 'pending' requires an initializer");
   expect_compile_error(
-      "val dynamic : int = compute()\ndef compute() : int { return 1 }\n"
-      "def main() : int { return dynamic }",
-      "global initializer is not a constant expression");
-  expect_compile_error(
       "val wrong : bool = 1\ndef main() : int { return 0 }",
       "constant expression of type 'int' cannot initialize type 'bool'");
   expect_compile_error(
@@ -177,6 +173,42 @@ def main() : int { return hour }
       "var mutable : int = 1\nval copy : int = mutable\n"
       "def main() : int { return 0 }",
       "cannot depend on mutable global 'mutable'");
+
+  janus::frontend::Parser dynamic_parser{R"(
+val dynamic : int = compute()
+def compute() : int { return 21 * 2 }
+def main() : int { return dynamic }
+)"};
+  const janus::ast::Program dynamic_program = dynamic_parser.parse_program();
+  static_cast<void>(analyzer.analyze(dynamic_program));
+  llvm::LLVMContext dynamic_context;
+  janus::backend::llvm::IrGenerator dynamic_generator{dynamic_context};
+  const std::unique_ptr<llvm::Module> dynamic_module =
+      dynamic_generator.generate(dynamic_program, "dynamic_globals");
+  std::string dynamic_ir;
+  llvm::raw_string_ostream dynamic_output{dynamic_ir};
+  dynamic_module->print(dynamic_output, nullptr);
+  dynamic_output.flush();
+  expect(dynamic_ir.find(
+             "@__janus_global_entry__dynamic = global i32 0") !=
+             std::string::npos,
+         "dynamic global starts with zeroed native storage");
+  expect(dynamic_ir.find("define internal void @__janus_init_globals()") !=
+             std::string::npos,
+         "dynamic globals generate an initialization function");
+  expect(dynamic_ir.find("call i32 @compute()") != std::string::npos &&
+             dynamic_ir.find(
+                 "store i32 %compute.result, ptr "
+                 "@__janus_global_entry__dynamic") != std::string::npos,
+         "dynamic initializer result is stored globally");
+  expect(dynamic_ir.find("call void @__janus_init_globals()") !=
+             std::string::npos,
+         "entry point invokes global initialization");
+  expect_compile_error(
+      "val invalid : bool = compute()\n"
+      "def compute() : int { return 1 }\n"
+      "def main() : int { return 0 }",
+      "cannot use expression of type 'int' where type 'bool' is required");
 
   janus::frontend::ModuleLoader loader;
   const janus::ast::Program imported_program =
