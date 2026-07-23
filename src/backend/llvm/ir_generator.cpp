@@ -51,6 +51,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::string_type();
   if (name == "Unit")
     return &janus::Type::unit_type();
+  if (name == "isize")
+    return &janus::Type::isize_type();
   if (name == "usize")
     return &janus::Type::usize_type();
   return nullptr;
@@ -1456,6 +1458,14 @@ private:
               case janus::TypeKind::USize: {
                 ::llvm::FunctionCallee function = module_->getOrInsertFunction(
                     "janus_print_usize",
+                    ::llvm::FunctionType::get(
+                        builder.getVoidTy(), {builder.getInt64Ty()}, false));
+                result = builder.CreateCall(function, {argument});
+                break;
+              }
+              case janus::TypeKind::ISize: {
+                ::llvm::FunctionCallee function = module_->getOrInsertFunction(
+                    "janus_print_isize",
                     ::llvm::FunctionType::get(
                         builder.getVoidTy(), {builder.getInt64Ty()}, false));
                 result = builder.CreateCall(function, {argument});

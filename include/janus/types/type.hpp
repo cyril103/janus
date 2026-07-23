@@ -18,6 +18,7 @@ enum class TypeKind {
   Bool,
   String,
   Unit,
+  ISize,
   USize,
   Enum,
   Function,
@@ -38,6 +39,7 @@ public:
   [[nodiscard]] static const Type &bool_type();
   [[nodiscard]] static const Type &string_type();
   [[nodiscard]] static const Type &unit_type();
+  [[nodiscard]] static const Type &isize_type();
   [[nodiscard]] static const Type &usize_type();
   [[nodiscard]] static Type enum_type(std::string_view name);
   [[nodiscard]] static Type function_type(std::string_view name);

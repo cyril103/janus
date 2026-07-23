@@ -57,6 +57,11 @@ const Type &Type::unit_type() {
   return type;
 }
 
+const Type &Type::isize_type() {
+  static const Type type{TypeKind::ISize, "isize", 64, true};
+  return type;
+}
+
 const Type &Type::usize_type() {
   static const Type type{TypeKind::USize, "usize", 64, false};
   return type;
@@ -94,6 +99,7 @@ bool Type::is_integer() const noexcept {
          kind_ == TypeKind::ULong ||
          kind_ == TypeKind::Byte ||
          kind_ == TypeKind::UByte ||
+         kind_ == TypeKind::ISize ||
          kind_ == TypeKind::USize;
 }
 

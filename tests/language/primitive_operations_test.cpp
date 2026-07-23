@@ -66,6 +66,10 @@ def main() : int {
     val ulongDivisor : ulong = 2
     val ulongQuotient : ulong = ulongValue / ulongDivisor
     val ulongOrder : bool = ulongValue > ulongDivisor
+    val signedSize : isize = -16
+    val signedSizeDivisor : isize = 2
+    val signedSizeResult : isize = signedSize / signedSizeDivisor
+    val signedSizeOrder : bool = signedSizeResult < signedSizeDivisor
     val onePointFive : double = 1.5
     val twoPointZero : double = 2.0
     val floating : double = onePointFive * twoPointZero + 1.0

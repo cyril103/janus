@@ -47,6 +47,10 @@ void janus_print_usize(uint64_t value) {
   (void)fprintf(stdout, "%" PRIu64, value);
 }
 
+void janus_print_isize(int64_t value) {
+  (void)fprintf(stdout, "%" PRId64, value);
+}
+
 void janus_print_double(double value) {
   (void)fprintf(stdout, "%.17g", value);
 }

@@ -40,6 +40,8 @@ const janus::Type *builtin_type(std::string_view name) {
     return &janus::Type::string_type();
   if (name == "Unit")
     return &janus::Type::unit_type();
+  if (name == "isize")
+    return &janus::Type::isize_type();
   if (name == "usize")
     return &janus::Type::usize_type();
   return nullptr;
@@ -181,6 +183,7 @@ bool is_scalar_cast_type(const janus::semantic::SemanticType &type) {
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
+  case janus::TypeKind::ISize:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
   case janus::TypeKind::USize:
@@ -202,6 +205,7 @@ bool is_integer_cast_type(const janus::semantic::SemanticType &type) {
   case janus::TypeKind::ULong:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
+  case janus::TypeKind::ISize:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
   case janus::TypeKind::USize:
@@ -225,6 +229,7 @@ bool is_c_abi_type(const janus::semantic::SemanticType &type,
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
+  case janus::TypeKind::ISize:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
   case janus::TypeKind::USize:
@@ -254,6 +259,7 @@ bool is_c_variadic_type(const janus::semantic::SemanticType &type) {
   case janus::TypeKind::Double:
   case janus::TypeKind::Byte:
   case janus::TypeKind::UByte:
+  case janus::TypeKind::ISize:
   case janus::TypeKind::Char:
   case janus::TypeKind::Bool:
   case janus::TypeKind::USize:
@@ -1209,6 +1215,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program) const {
                      argument.concrete->kind() != TypeKind::Char &&
                      argument.concrete->kind() != TypeKind::Bool &&
                      argument.concrete->kind() != TypeKind::String &&
+                     argument.concrete->kind() != TypeKind::ISize &&
                      argument.concrete->kind() != TypeKind::USize))
                   throw CompileError{
                       node.location,
