@@ -77,6 +77,16 @@ int main() {
   assert(shadowed_definition.front().find("\"line\":1") != std::string::npos);
   assert(shadowed_definition.front().find("\"character\":23") !=
          std::string::npos);
+  const std::vector<std::string> shadowed_references = server.handle(
+      R"({"jsonrpc":"2.0","id":17,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":1,"character":49},"context":{"includeDeclaration":true}}})");
+  std::size_t reference_count = 0;
+  std::size_t reference_position = 0;
+  while ((reference_position = shadowed_references.front().find(
+              "\"uri\"", reference_position)) != std::string::npos) {
+    ++reference_count;
+    reference_position += 5;
+  }
+  assert(reference_count == 2);
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 return answer }"}]}})"));
 
