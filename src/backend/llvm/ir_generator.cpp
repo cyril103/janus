@@ -998,8 +998,9 @@ private:
         lower_type(return_type, context_), parameter_types,
         function.is_variadic);
     const ::llvm::GlobalValue::LinkageTypes linkage =
-        function.is_private ||
-                (owner != nullptr && function.name == "destructor")
+        !function.is_external &&
+                (function.is_private ||
+                 (owner != nullptr && function.name == "destructor"))
             ? ::llvm::Function::InternalLinkage
             : ::llvm::Function::ExternalLinkage;
     auto *llvm_function =

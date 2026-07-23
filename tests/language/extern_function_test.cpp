@@ -7,6 +7,7 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -77,6 +78,52 @@ int main() {
          "an external function has no LLVM body");
   expect(ir.find("call i32 @c_add(i32 20, i32 22)") != std::string::npos,
          "Janus calls the emitted external declaration");
+
+  janus::frontend::Parser private_parser{
+      "module native.bridge "
+      "private extern(\"abs\") def absolute(value : int) : int "
+      "def main() : int { return absolute(-42) }"};
+  const janus::ast::Program private_program = private_parser.parse_program();
+  expect(private_program.functions[0].is_private &&
+             private_program.functions[0].is_external,
+         "an external function can be private in its Janus module");
+  static_cast<void>(analyzer.analyze(private_program));
+  llvm::LLVMContext private_context;
+  janus::backend::llvm::IrGenerator private_generator{private_context};
+  const std::unique_ptr<llvm::Module> private_module =
+      private_generator.generate(private_program, "private_external");
+  std::string private_ir;
+  llvm::raw_string_ostream private_output{private_ir};
+  private_module->print(private_output, nullptr);
+  private_output.flush();
+  expect(private_ir.find("declare i32 @abs(i32)") != std::string::npos &&
+             private_ir.find("declare internal i32 @abs") ==
+                 std::string::npos,
+         "a private external keeps external native linkage");
+
+  janus::frontend::Parser private_library_parser{
+      "module native.bridge "
+      "private extern(\"abs\") def absolute(value : int) : int"};
+  janus::frontend::Parser private_client_parser{
+      "module application.main "
+      "def main() : int { return native.bridge.absolute(-42) }"};
+  janus::ast::Program private_access_program =
+      private_library_parser.parse_program();
+  janus::ast::Program private_client =
+      private_client_parser.parse_program();
+  private_access_program.functions.insert(
+      private_access_program.functions.end(),
+      std::make_move_iterator(private_client.functions.begin()),
+      std::make_move_iterator(private_client.functions.end()));
+  try {
+    static_cast<void>(analyzer.analyze(private_access_program));
+    expect(false, "a private external must not be callable from another module");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(
+               "function 'native.bridge.absolute' is private") !=
+               std::string_view::npos,
+           "private external access reports its qualified identity");
+  }
 
   janus::frontend::Parser alias_parser{
       "extern(\"abs\") def absolute(value : int) : int "

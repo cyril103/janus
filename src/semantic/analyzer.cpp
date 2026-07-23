@@ -1188,10 +1188,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   for (const ast::FunctionDeclaration &function : program.functions) {
     if (!function.is_external)
       continue;
-    if (function.is_private)
-      throw CompileError{function.location,
-                         "external function '" + function.name +
-                             "' cannot be private"};
     const std::string &symbol =
         function.external_symbol.has_value() ? *function.external_symbol
                                              : function.name;
