@@ -3,14 +3,36 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
-## Non publié
+## [0.4.0] - 2026-07-24
+
+Cette version renforce le modèle de propriété, consolide les symboles entre
+modules et rend les outils plus précis sur les programmes répartis dans
+plusieurs fichiers.
+
+### Langage et modèle de propriété
 
 - ajout de la contrainte générique intrinsèque `Copy` ;
 - déplacement et destruction récursive des structs et enums propriétaires ;
+- initialisation et finalisation sûres des agrégats globaux, y compris en cas
+  de panique ;
+- évaluation constante des conversions numériques primitives et des
+  initialiseurs d'agrégats ;
+- contextualisation des littéraux entiers pleine largeur.
+
+### Modules et outils
+
+- qualification cohérente des valeurs, fonctions, types et constructeurs
+  d'enums entre modules ;
+- visibilité privée étendue aux fonctions externes, types et membres internes ;
+- index LSP enrichi pour les imports, symboles masqués et références.
+
+### Bibliothèque standard et graphisme
+
 - sécurisation des collections et itérateurs autour des valeurs copiables ;
 - extraction du probing commun aux tables de hachage ;
 - découpage de `std.graphics` en sous-modules et uniformisation des couleurs
-  autour du type `Color`.
+  autour du type `Color` ;
+- masquage des primitives natives internes du backend graphique.
 
 ## [0.3.0] - 2026-07-23
 
@@ -140,6 +162,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.4.0]: https://github.com/cyril103/janus/releases/tag/v0.4.0
 [0.3.0]: https://github.com/cyril103/janus/releases/tag/v0.3.0
 [0.2.1]: https://github.com/cyril103/janus/releases/tag/v0.2.1
 [0.2.0]: https://github.com/cyril103/janus/releases/tag/v0.2.0

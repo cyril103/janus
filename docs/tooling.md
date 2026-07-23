@@ -119,8 +119,8 @@ janusup list
 janusup install stable
 janusup install beta
 janusup install nightly
-janusup install 0.3.0
-janusup default 0.3.0
+janusup install 0.4.0
+janusup default 0.4.0
 janusup update
 janusup uninstall 0.1.0
 janusup home
