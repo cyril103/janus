@@ -15,6 +15,38 @@ using janus::Type;
 using janus::TypeKind;
 using janus::constant::Value;
 
+const Type *constant_cast_type(std::string_view name) {
+  if (name == "int")
+    return &Type::int_type();
+  if (name == "uint")
+    return &Type::uint_type();
+  if (name == "long")
+    return &Type::long_type();
+  if (name == "ulong")
+    return &Type::ulong_type();
+  if (name == "float")
+    return &Type::float_type();
+  if (name == "double")
+    return &Type::double_type();
+  if (name == "byte")
+    return &Type::byte_type();
+  if (name == "ubyte")
+    return &Type::ubyte_type();
+  if (name == "short")
+    return &Type::short_type();
+  if (name == "ushort")
+    return &Type::ushort_type();
+  if (name == "char")
+    return &Type::char_type();
+  if (name == "bool")
+    return &Type::bool_type();
+  if (name == "isize")
+    return &Type::isize_type();
+  if (name == "usize")
+    return &Type::usize_type();
+  return nullptr;
+}
+
 std::optional<std::string>
 qualified_name(const janus::ast::Expression &expression) {
   if (const auto *identifier =
@@ -59,8 +91,9 @@ void collect_references(const janus::ast::Expression &expression,
             collect_references(*argument, modules, references);
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::CallExpression>) {
-          references.push_back(
-              Reference{std::nullopt, node.callee, node.location});
+          if (constant_cast_type(node.callee) == nullptr)
+            references.push_back(
+                Reference{std::nullopt, node.callee, node.location});
           for (const auto &argument : node.arguments)
             collect_references(*argument, modules, references);
         } else if constexpr (std::is_same_v<Node,
@@ -105,6 +138,43 @@ std::string global_key(const std::optional<std::string> &module,
                             : std::string{name};
 }
 
+bool is_plan_scalar_constant_expression(
+    const janus::ast::Expression &expression,
+    const std::unordered_set<std::string> &modules) {
+  return std::visit(
+      [&](const auto &node) {
+        using Node = std::decay_t<decltype(node)>;
+        if constexpr (
+            std::is_same_v<Node, janus::ast::IntegerLiteralExpression> ||
+            std::is_same_v<Node, janus::ast::DoubleLiteralExpression> ||
+            std::is_same_v<Node, janus::ast::CharacterLiteralExpression> ||
+            std::is_same_v<Node, janus::ast::BooleanLiteralExpression> ||
+            std::is_same_v<Node, janus::ast::IdentifierExpression>)
+          return true;
+        else if constexpr (std::is_same_v<
+                               Node,
+                               janus::ast::MemberAccessExpression>) {
+          const auto module = qualified_name(*node.object);
+          return module.has_value() && modules.contains(*module);
+        } else if constexpr (std::is_same_v<
+                                 Node, janus::ast::CallExpression>) {
+          return constant_cast_type(node.callee) != nullptr &&
+                 node.arguments.size() == 1 &&
+                 is_plan_scalar_constant_expression(*node.arguments.front(),
+                                                    modules);
+        } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::UnaryExpression>)
+          return is_plan_scalar_constant_expression(*node.operand, modules);
+        else if constexpr (std::is_same_v<Node,
+                                            janus::ast::BinaryExpression>)
+          return is_plan_scalar_constant_expression(*node.left, modules) &&
+                 is_plan_scalar_constant_expression(*node.right, modules);
+        else
+          return false;
+      },
+      expression.value);
+}
+
 bool is_plan_constant_expression(
     const janus::ast::Expression &expression,
     const std::unordered_set<std::string> &modules,
@@ -147,6 +217,12 @@ bool is_plan_constant_expression(
                        return is_plan_constant_expression(
                            *argument, modules, aggregate_types);
                      });
+        } else if constexpr (std::is_same_v<
+                                 Node, janus::ast::CallExpression>) {
+          return constant_cast_type(node.callee) != nullptr &&
+                 node.arguments.size() == 1 &&
+                 is_plan_scalar_constant_expression(*node.arguments.front(),
+                                                    modules);
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::UnaryExpression>)
           return is_plan_constant_expression(*node.operand, modules,
@@ -200,6 +276,96 @@ Value integer_value(__int128 value, const Type &type,
                     janus::SourceLocation location) {
   require_integer_range(value, type, location);
   return Value{&type, static_cast<std::uint64_t>(value)};
+}
+
+std::uint64_t integer_bits(const Value &value) {
+  if (value.type->is_integer())
+    return std::get<std::uint64_t>(value.data);
+  if (value.type->is_character())
+    return static_cast<std::uint32_t>(std::get<char32_t>(value.data));
+  if (value.type->kind() == TypeKind::Enum)
+    return static_cast<std::uint32_t>(
+        std::get<std::shared_ptr<janus::constant::AggregateValue>>(value.data)
+            ->tag.value());
+  return std::get<bool>(value.data) ? 1 : 0;
+}
+
+double floating_value(const Value &value) {
+  if (value.type->is_floating_point())
+    return std::get<double>(value.data);
+  if (value.type->is_integer() && value.type->is_signed())
+    return static_cast<double>(
+        static_cast<std::int64_t>(std::get<std::uint64_t>(value.data)));
+  return static_cast<double>(integer_bits(value));
+}
+
+Value cast_value(const Value &source, const Type &destination,
+                 janus::SourceLocation location) {
+  if (destination.is_boolean()) {
+    const bool result = source.type->is_floating_point()
+                            ? std::get<double>(source.data) != 0.0
+                            : integer_bits(source) != 0;
+    return Value{&destination, result};
+  }
+
+  if (destination.is_floating_point()) {
+    const double converted = floating_value(source);
+    const double result = destination.kind() == TypeKind::Float
+                              ? static_cast<double>(
+                                    static_cast<float>(converted))
+                              : converted;
+    if (!std::isfinite(result))
+      throw janus::CompileError{
+          location, "floating constant conversion is not finite"};
+    return Value{&destination, result};
+  }
+
+  std::uint64_t converted{};
+  if (source.type->is_floating_point()) {
+    const double value = std::get<double>(source.data);
+    if (!std::isfinite(value))
+      throw janus::CompileError{
+          location, "floating constant conversion is not finite"};
+    const long double truncated = std::trunc(static_cast<long double>(value));
+    const long double minimum =
+        destination.is_signed()
+            ? -std::ldexp(static_cast<long double>(1),
+                          static_cast<int>(destination.bit_width() - 1))
+            : 0.0L;
+    const long double maximum =
+        destination.is_signed()
+            ? std::ldexp(static_cast<long double>(1),
+                         static_cast<int>(destination.bit_width() - 1))
+            : std::ldexp(static_cast<long double>(1),
+                         static_cast<int>(destination.bit_width()));
+    if (truncated < minimum || truncated >= maximum)
+      throw janus::CompileError{
+          location, "floating constant conversion overflows type '" +
+                        std::string{destination.name()} + "'"};
+    if (destination.is_signed())
+      converted = static_cast<std::uint64_t>(
+          static_cast<std::int64_t>(truncated));
+    else
+      converted = static_cast<std::uint64_t>(truncated);
+  } else {
+    converted = integer_bits(source);
+    if (source.type->is_integer() && source.type->is_signed() &&
+        source.type->bit_width() < 64) {
+      const std::uint64_t sign =
+          std::uint64_t{1} << (source.type->bit_width() - 1);
+      const std::uint64_t mask =
+          (std::uint64_t{1} << source.type->bit_width()) - 1;
+      converted &= mask;
+      if ((converted & sign) != 0)
+        converted |= ~mask;
+    }
+  }
+
+  if (destination.bit_width() < 64)
+    converted &= (std::uint64_t{1} << destination.bit_width()) - 1;
+  if (destination.is_character())
+    return Value{&destination, static_cast<char32_t>(converted)};
+  return Value{&destination, converted};
 }
 
 Value evaluate_impl(const janus::ast::Expression &expression,
@@ -533,6 +699,16 @@ Value evaluate_impl(const janus::ast::Expression &expression,
                               shape->fields[index].second, resolve,
                               resolve_constructor));
           return Value{shape->type, std::move(aggregate)};
+        } else if constexpr (std::is_same_v<
+                                 Node, janus::ast::CallExpression>) {
+          const Type *destination = constant_cast_type(node.callee);
+          if (destination == nullptr || node.arguments.size() != 1)
+            throw janus::CompileError{
+                node.location,
+                "global initializer is not a constant expression"};
+          const Value source = evaluate_impl(
+              *node.arguments.front(), nullptr, resolve, resolve_constructor);
+          return cast_value(source, *destination, node.location);
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::UnaryExpression>) {
           if (node.operation == janus::ast::UnaryOperator::LogicalNot) {
@@ -582,6 +758,10 @@ bool is_constant_expression(const ast::Expression &expression) {
           return true;
         else if constexpr (std::is_same_v<Node, ast::MemberAccessExpression>)
           return qualified_name(*node.object).has_value();
+        else if constexpr (std::is_same_v<Node, ast::CallExpression>)
+          return constant_cast_type(node.callee) != nullptr &&
+                 node.arguments.size() == 1 &&
+                 is_constant_expression(*node.arguments.front());
         else if constexpr (std::is_same_v<Node, ast::UnaryExpression>)
           return is_constant_expression(*node.operand);
         else if constexpr (std::is_same_v<Node, ast::BinaryExpression>)

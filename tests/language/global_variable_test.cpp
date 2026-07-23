@@ -134,6 +134,11 @@ val minute : int = 60
 val hour : int = minute * 60
 val small : byte = 120 + 7
 val ready : bool = hour == 3600 && !false
+val unsignedValue : uint = uint(255)
+val wrappedByte : ubyte = ubyte(-1)
+val truncated : int = int(12.75)
+val floating : double = double(42)
+val falseValue : bool = bool(0)
 def main() : int { return hour }
 )"};
   const janus::ast::Program constant_program =
@@ -159,6 +164,26 @@ def main() : int { return hour }
              "@__janus_global_entry__ready = constant i1 true") !=
              std::string::npos,
          "constant comparisons and logical operators are folded");
+  expect(constant_ir.find(
+             "@__janus_global_entry__unsignedValue = constant i32 255") !=
+                 std::string::npos &&
+             constant_ir.find(
+                 "@__janus_global_entry__wrappedByte = constant i8 -1") !=
+                 std::string::npos &&
+             constant_ir.find(
+                 "@__janus_global_entry__truncated = constant i32 12") !=
+                 std::string::npos,
+         "constant numeric casts preserve runtime conversion semantics");
+  expect(constant_ir.find(
+             "@__janus_global_entry__floating = constant double "
+             "4.200000e+01") != std::string::npos &&
+             constant_ir.find(
+                 "@__janus_global_entry__falseValue = constant i1 false") !=
+                 std::string::npos,
+         "constant casts cover floating-point and boolean destinations");
+  expect(constant_ir.find("define internal void @__janus_init_globals") ==
+             std::string::npos,
+         "constant casts do not require runtime global initialization");
 
   expect_compile_error(
       "val first : int = second\nval second : int = first\n"
