@@ -64,6 +64,8 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
   for (const std::string &import : parsed.imports) {
     ast::Program dependency =
         load_file(resolve_import(import, project_root), project_root, &import);
+    for (ast::GlobalDeclaration &global : dependency.globals)
+      result.globals.push_back(std::move(global));
     for (ast::TraitDeclaration &trait_declaration : dependency.traits)
       result.traits.push_back(std::move(trait_declaration));
     for (ast::EnumDeclaration &enum_declaration : dependency.enums)
@@ -73,6 +75,8 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
     for (ast::FunctionDeclaration &function : dependency.functions)
       result.functions.push_back(std::move(function));
   }
+  for (ast::GlobalDeclaration &global : parsed.globals)
+    result.globals.push_back(std::move(global));
   for (ast::TraitDeclaration &trait_declaration : parsed.traits)
     result.traits.push_back(std::move(trait_declaration));
   for (ast::EnumDeclaration &enum_declaration : parsed.enums)

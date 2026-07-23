@@ -1,0 +1,7 @@
+import global_config
+
+val localCount : int = 2
+
+def main() : int {
+    return localCount
+}

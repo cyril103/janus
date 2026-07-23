@@ -1133,6 +1133,7 @@ if(BUILD_TESTING)
     target_compile_definitions(module_import_test
         PRIVATE
             JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+            JANUS_GLOBALS_ENTRY="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_entry.janus"
             JANUS_ARRAY_EXAMPLE="${PROJECT_SOURCE_DIR}/examples/array.janus"
             JANUS_OPTION_RESULT_EXAMPLE="${PROJECT_SOURCE_DIR}/examples/option_result.janus"
             JANUS_RANGE_EXAMPLE="${PROJECT_SOURCE_DIR}/examples/range.janus"
