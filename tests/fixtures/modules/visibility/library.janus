@@ -1,0 +1,12 @@
+module visibility.library
+
+private struct Secret(val value : int) {}
+
+private def secretValue() : int {
+    val secret : Secret = new Secret(41)
+    return secret.value
+}
+
+def publicValue() : int {
+    return secretValue() + 1
+}

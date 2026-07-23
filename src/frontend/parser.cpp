@@ -187,24 +187,32 @@ ast::Program Parser::parse_program() {
       advance();
     }
     if (is_private && current_.kind != TokenKind::Val &&
-        current_.kind != TokenKind::Var)
+        current_.kind != TokenKind::Var && current_.kind != TokenKind::Def &&
+        current_.kind != TokenKind::Extern &&
+        current_.kind != TokenKind::Class &&
+        current_.kind != TokenKind::Struct &&
+        current_.kind != TokenKind::Trait &&
+        current_.kind != TokenKind::Enum)
       throw CompileError{
           current_.location,
-          "expected top-level 'val' or 'var' after 'private', found " +
+          "expected a top-level declaration after 'private', found " +
               std::string{token_name(current_.kind)}};
 
     if (current_.kind == TokenKind::Trait) {
       ast::TraitDeclaration declaration = parse_trait_declaration();
+      declaration.is_private = is_private;
       declaration.module_name = program.module_name;
       program.traits.push_back(std::move(declaration));
     } else if (current_.kind == TokenKind::Enum) {
       ast::EnumDeclaration declaration = parse_enum_declaration();
+      declaration.is_private = is_private;
       declaration.module_name = program.module_name;
       program.enums.push_back(std::move(declaration));
     }
     else if (current_.kind == TokenKind::Class ||
              current_.kind == TokenKind::Struct) {
       ast::ClassDeclaration declaration = parse_class_declaration();
+      declaration.is_private = is_private;
       declaration.module_name = program.module_name;
       program.classes.push_back(std::move(declaration));
     }
@@ -216,6 +224,7 @@ ast::Program Parser::parse_program() {
           ast::GlobalDeclaration{std::move(declaration), program.module_name});
     } else {
       ast::FunctionDeclaration declaration = parse_function_declaration();
+      declaration.is_private = is_private;
       declaration.module_name = program.module_name;
       program.functions.push_back(std::move(declaration));
     }
@@ -261,7 +270,7 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
   static_cast<void>(expect(TokenKind::RightBrace));
   ast::TraitDeclaration declaration{
       std::string{name.lexeme}, std::move(type_parameters), std::move(methods),
-      trait_token.location, std::move(type_constraints), std::nullopt};
+      trait_token.location, std::move(type_constraints), false, std::nullopt};
   return declaration;
 }
 
@@ -418,7 +427,7 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
                            "' must declare at least one case"};
   return ast::EnumDeclaration{std::string{name.lexeme},
                               std::move(type_parameters), std::move(cases),
-                              enum_token.location, std::nullopt};
+                              enum_token.location, false, std::nullopt};
 }
 
 std::string Parser::parse_qualified_name() {
@@ -562,6 +571,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
                                     std::move(destructor),
                                     class_token.location,
                                     std::move(type_constraints),
+                                    false,
                                     false,
                                     std::nullopt};
   declaration.is_value_type = is_value_type;

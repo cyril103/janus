@@ -303,6 +303,7 @@ struct EnumDeclaration {
   std::vector<std::string> type_parameters;
   std::vector<Case> cases;
   SourceLocation location;
+  bool is_private{};
   std::optional<std::string> module_name;
 };
 
@@ -312,6 +313,7 @@ struct TraitDeclaration {
   std::vector<FunctionDeclaration> methods;
   SourceLocation location;
   std::vector<TypeConstraint> type_constraints;
+  bool is_private{};
   std::optional<std::string> module_name;
 };
 
@@ -327,6 +329,7 @@ struct ClassDeclaration {
   SourceLocation location;
   std::vector<TypeConstraint> type_constraints;
   bool is_value_type{};
+  bool is_private{};
   std::optional<std::string> module_name;
 };
 

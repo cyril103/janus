@@ -1,0 +1,9 @@
+import visibility.library
+
+def reveal(secret : visibility.library.Secret) : int {
+    return secret.value
+}
+
+def main() : int {
+    return 0
+}

@@ -351,6 +351,44 @@ int main() {
            "ambiguous short function names request qualification");
   }
 
+  const janus::ast::Program visibility_program =
+      loader.load(std::filesystem::path{JANUS_VISIBILITY_ENTRY});
+  static_cast<void>(analyzer.analyze(visibility_program));
+  llvm::LLVMContext visibility_context;
+  janus::backend::llvm::IrGenerator visibility_generator{visibility_context};
+  const std::unique_ptr<llvm::Module> visibility_module =
+      visibility_generator.generate(visibility_program, "visibility");
+  std::string visibility_ir;
+  llvm::raw_string_ostream visibility_output{visibility_ir};
+  visibility_module->print(visibility_output, nullptr);
+  visibility_output.flush();
+  expect(visibility_ir.find("define internal i32 @secretValue") !=
+             std::string::npos,
+         "private top-level functions use internal LLVM linkage");
+
+  try {
+    const janus::ast::Program private_function_program = loader.load(
+        std::filesystem::path{JANUS_VISIBILITY_PRIVATE_FUNCTION_ENTRY});
+    static_cast<void>(analyzer.analyze(private_function_program));
+    expect(false, "a private imported function must be inaccessible");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(
+               "function 'visibility.library.secretValue' is private") !=
+               std::string_view::npos,
+           "private function access reports its qualified identity");
+  }
+  try {
+    const janus::ast::Program private_type_program = loader.load(
+        std::filesystem::path{JANUS_VISIBILITY_PRIVATE_TYPE_ENTRY});
+    static_cast<void>(analyzer.analyze(private_type_program));
+    expect(false, "a private imported type must be inaccessible");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(
+               "type 'visibility.library.Secret' is private") !=
+               std::string_view::npos,
+           "private type access reports its qualified identity");
+  }
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;

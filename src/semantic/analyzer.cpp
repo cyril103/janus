@@ -523,6 +523,93 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      ambiguous_arity_marker);
     }
 
+  struct TypeVisibility {
+    bool is_private;
+    std::optional<std::string> module;
+  };
+  std::unordered_map<std::string, TypeVisibility> type_visibility;
+  for (const ast::EnumDeclaration &declaration : program.enums)
+    type_visibility.emplace(
+        global_key(declaration.module_name, declaration.name),
+        TypeVisibility{declaration.is_private, declaration.module_name});
+  for (const ast::TraitDeclaration &declaration : program.traits)
+    type_visibility.emplace(
+        global_key(declaration.module_name, declaration.name),
+        TypeVisibility{declaration.is_private, declaration.module_name});
+  for (const ast::ClassDeclaration &declaration : program.classes)
+    type_visibility.emplace(
+        global_key(declaration.module_name, declaration.name),
+        TypeVisibility{declaration.is_private, declaration.module_name});
+  const auto check_type_visibility =
+      [&](const auto &self, const ast::TypeReference &reference,
+          const std::optional<std::string> &context_module) -> void {
+    std::string identity = reference.name;
+    if (reference.name.find('.') == std::string::npos) {
+      const std::string local = global_key(context_module, reference.name);
+      if (type_visibility.contains(local))
+        identity = local;
+      else if (type_name_counts.contains(reference.name) &&
+               type_name_counts.at(reference.name) == 1)
+        for (const auto &[candidate, visibility] : type_visibility)
+          if (candidate == reference.name ||
+              candidate.ends_with("." + reference.name)) {
+            identity = candidate;
+            break;
+          }
+    }
+    if (const auto visibility = type_visibility.find(identity);
+        visibility != type_visibility.end() &&
+        visibility->second.is_private &&
+        visibility->second.module != context_module)
+      throw CompileError{reference.location,
+                         "type '" + identity + "' is private"};
+    for (const ast::TypeReference &argument : reference.type_arguments)
+      self(self, argument, context_module);
+  };
+  const auto check_function_signature_visibility =
+      [&](const ast::FunctionDeclaration &function,
+          const std::optional<std::string> &context_module) {
+        check_type_visibility(check_type_visibility, function.return_type,
+                              context_module);
+        for (const ast::FunctionDeclaration::Parameter &parameter :
+             function.parameters)
+          check_type_visibility(check_type_visibility, parameter.type,
+                                context_module);
+      };
+  for (const ast::FunctionDeclaration &function : program.functions)
+    check_function_signature_visibility(function, function.module_name);
+  for (const ast::GlobalDeclaration &global : program.globals)
+    check_type_visibility(check_type_visibility,
+                          global.declaration.declared_type,
+                          global.module_name);
+  for (const ast::EnumDeclaration &declaration : program.enums)
+    for (const ast::EnumDeclaration::Case &enum_case : declaration.cases)
+      for (const ast::TypeReference &payload : enum_case.payload_types)
+        check_type_visibility(check_type_visibility, payload,
+                              declaration.module_name);
+  for (const ast::TraitDeclaration &declaration : program.traits)
+    for (const ast::FunctionDeclaration &method : declaration.methods)
+      check_function_signature_visibility(method, declaration.module_name);
+  for (const ast::ClassDeclaration &declaration : program.classes) {
+    for (const ast::TypeReference &implemented :
+         declaration.implemented_traits)
+      check_type_visibility(check_type_visibility, implemented,
+                            declaration.module_name);
+    for (const ast::FunctionDeclaration::Parameter &parameter :
+         declaration.constructor_parameters)
+      check_type_visibility(check_type_visibility, parameter.type,
+                            declaration.module_name);
+    for (const ast::ValueDeclaration &field :
+         declaration.constructor_fields)
+      check_type_visibility(check_type_visibility, field.declared_type,
+                            declaration.module_name);
+    for (const ast::ValueDeclaration &field : declaration.fields)
+      check_type_visibility(check_type_visibility, field.declared_type,
+                            declaration.module_name);
+    for (const ast::FunctionDeclaration &method : declaration.methods)
+      check_function_signature_visibility(method, declaration.module_name);
+  }
+
   for (const ast::EnumDeclaration &enum_declaration : program.enums) {
     if (builtin_type(enum_declaration.name) != nullptr ||
         enum_declaration.name == "Function")
@@ -1107,6 +1194,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   for (const ast::FunctionDeclaration &function : program.functions) {
     if (!function.is_external)
       continue;
+    if (function.is_private)
+      throw CompileError{function.location,
+                         "external function '" + function.name +
+                             "' cannot be private"};
     const std::string &symbol =
         function.external_symbol.has_value() ? *function.external_symbol
                                              : function.name;
@@ -1764,6 +1855,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "unknown function '" + node.callee + "'"};
               }
               const ast::FunctionDeclaration &callee = *callee_iterator->second;
+              if (callee.is_private &&
+                  callee.module_name != context_module)
+                throw CompileError{
+                    node.location,
+                    "function '" +
+                        global_key(callee.module_name, callee.name) +
+                        "' is private"};
               if (node.type_arguments.size() != callee.type_parameters.size()) {
                 throw CompileError{
                     node.location,
@@ -1841,6 +1939,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "unknown class '" + node.class_name + "'"};
               const ast::ClassDeclaration &class_declaration =
                   *iterator->second;
+              if (class_declaration.is_private &&
+                  class_declaration.module_name != context_module)
+                throw CompileError{node.location,
+                                   "type '" + node.class_name +
+                                       "' is private"};
               SemanticType instance_type = resolve_type(
                   ast::TypeReference{node.class_name, node.location,
                                      node.type_arguments},
@@ -2038,10 +2141,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       module->substr(0, module->find('.')))) {
                 const std::string qualified = *module + "." + node.method;
                 if (const auto function = functions.find(qualified);
-                    function != functions.end())
+                    function != functions.end()) {
+                  if (function->second->is_private &&
+                      function->second->module_name != context_module)
+                    throw CompileError{node.location,
+                                       "function '" + qualified +
+                                           "' is private"};
                   return declared_call_type(
                       *function->second, node.type_arguments, node.arguments,
                       node.location, qualified);
+                }
               }
               if (const auto *identifier =
                       std::get_if<ast::IdentifierExpression>(

@@ -1,0 +1,5 @@
+import visibility.library
+
+def main() : int {
+    return visibility.library.secretValue()
+}
