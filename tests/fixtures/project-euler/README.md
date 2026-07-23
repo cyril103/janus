@@ -25,3 +25,7 @@ scripts/verify-janus-euler-suite.sh \
 Each artifact run writes `latest`, `index.tsv`, `report.json`, and per-problem
 check/build/run stdout and stderr logs under the selected artifact directory.
 Use `--no-artifacts` for disposable local runs.
+
+For stage isolation, status interpretation, segfault triage, and fallback
+semantics, see the
+[Project Euler troubleshooting playbook](../../../docs/project-euler-troubleshooting.md).
