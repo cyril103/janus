@@ -365,6 +365,11 @@ if(BUILD_TESTING)
         NAME cli.check
         COMMAND janus check "${PROJECT_SOURCE_DIR}/examples/value.janus"
     )
+    add_test(
+        NAME examples.snake.check
+        COMMAND janus check
+                "${PROJECT_SOURCE_DIR}/examples/snake/main.janus"
+    )
     add_test(NAME lsp.version COMMAND janus-lsp --version)
     add_executable(parser_top_level_declaration_test
         tests/frontend/parser_top_level_declaration_test.cpp

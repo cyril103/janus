@@ -335,6 +335,19 @@ endCamera()
 `screenToWorld` et `worldToScreen` convertissent un `Vector2` entre les deux
 repères. Le résultat est une valeur autonome sans allocation.
 
+## Exemple complet : Snake
+
+[`examples/snake`](../examples/snake) contient un jeu complet qui combine une
+boucle interactive, les entrées clavier, un `Array` de cellules, une render
+texture et un fragment shader. Le plateau est rendu normalement tandis que le
+shader de halo néon s'applique uniquement au serpent.
+
+Depuis la racine du dépôt :
+
+```bash
+janus run examples/snake/main.janus
+```
+
 ## État expérimental
 
 Cette première version vise le graphisme 2D immédiat. Elle ne fournit pas encore

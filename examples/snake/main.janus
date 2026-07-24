@@ -1,0 +1,364 @@
+import std.array
+import std.c
+import std.graphics
+
+val screenWidth : int = 800
+val screenHeight : int = 600
+val columns : int = 30
+val rows : int = 20
+val cellSize : int = 24
+val boardX : int = 40
+val boardY : int = 88
+
+struct Cell(val x : int, val y : int) {}
+
+def contains(snake : Array[Cell], x : int, y : int) : bool {
+    var index : usize = usize(0)
+    while index < snake.size() {
+        val part : Cell = snake.get(index)
+        if part.x == x && part.y == y {
+            return true
+        }
+        index = index + usize(1)
+    }
+    return false
+}
+
+def placeFood(snake : Array[Cell], seedValue : int) : Cell {
+    var seed : int = seedValue
+    var x : int = 0
+    var y : int = 0
+    var occupied : bool = true
+    var attempts : int = 0
+    seed = (seed * 73 + 41) % 1000003
+    val start : int = seed % (columns * rows)
+
+    while occupied && attempts < columns * rows {
+        val candidate : int = (start + attempts) % (columns * rows)
+        x = candidate % columns
+        y = candidate / columns
+        occupied = contains(snake, x, y)
+        attempts = attempts + 1
+    }
+    return new Cell(x, y)
+}
+
+def drawDigit(digit : int, x : int, y : int, color : Color) : Unit {
+    val thickness : int = 3
+    val width : int = 12
+    val height : int = 20
+
+    if digit == 0 || digit == 2 || digit == 3 || digit == 5 ||
+    digit == 6 || digit == 7 || digit == 8 || digit == 9 {
+        drawRectangle(x + thickness, y, width, thickness, color)
+    }
+    if digit == 0 || digit == 1 || digit == 2 || digit == 3 ||
+    digit == 4 || digit == 7 || digit == 8 || digit == 9 {
+        drawRectangle(x + width, y + thickness, thickness, height / 2, color)
+    }
+    if digit == 0 || digit == 1 || digit == 3 || digit == 4 ||
+    digit == 5 || digit == 6 || digit == 7 || digit == 8 || digit == 9 {
+        drawRectangle(
+        x + width,
+        y + height / 2 + thickness,
+        thickness,
+        height / 2,
+        color
+        )
+    }
+    if digit == 0 || digit == 2 || digit == 3 || digit == 5 ||
+    digit == 6 || digit == 8 || digit == 9 {
+        drawRectangle(x + thickness, y + height, width, thickness, color)
+    }
+    if digit == 0 || digit == 2 || digit == 6 || digit == 8 {
+        drawRectangle(x, y + height / 2 + thickness, thickness, height / 2, color)
+    }
+    if digit == 0 || digit == 4 || digit == 5 || digit == 6 ||
+    digit == 8 || digit == 9 {
+        drawRectangle(x, y + thickness, thickness, height / 2, color)
+    }
+    if digit == 2 || digit == 3 || digit == 4 || digit == 5 ||
+    digit == 6 || digit == 8 || digit == 9 {
+        drawRectangle(x + thickness, y + height / 2, width, thickness, color)
+    }
+}
+
+def drawScore(score : int) : Unit {
+    val value : int = score % 1000
+    drawText("SCORE", 40, 30, 22, rgb(151, 164, 184))
+    drawDigit((value / 100) % 10, 120, 31, rgb(115, 231, 155))
+    drawDigit((value / 10) % 10, 140, 31, rgb(115, 231, 155))
+    drawDigit(value % 10, 160, 31, rgb(115, 231, 155))
+}
+
+def drawSnake(snake : Array[Cell]) : Unit {
+    var index : usize = snake.size()
+    while index > usize(0) {
+        index = index - usize(1)
+        val part : Cell = snake.get(index)
+        val inset : int = if index == usize(0) { 2 } else { 4 }
+        val color : Color = if index == usize(0) {
+            rgb(160, 255, 191)
+        } else {
+            rgb(74, 204, 127)
+        }
+        drawRectangle(
+        boardX + part.x * cellSize + inset,
+        boardY + part.y * cellSize + inset,
+        cellSize - inset * 2,
+        cellSize - inset * 2,
+        color
+        )
+    }
+}
+
+def drawGame(food : Cell, score : int) : Unit {
+    clearBackground(rgb(12, 17, 27))
+
+    drawScore(score)
+    drawText("FLECHES / ZQSD", 560, 31, 18, rgb(151, 164, 184))
+
+    drawRectangle(
+    boardX - 4,
+    boardY - 4,
+    columns * cellSize + 8,
+    rows * cellSize + 8,
+    rgb(40, 50, 68)
+    )
+    drawRectangle(
+    boardX,
+    boardY,
+    columns * cellSize,
+    rows * cellSize,
+    rgb(18, 26, 40)
+    )
+
+    var line : int = 1
+    while line < columns {
+        drawLine(
+        boardX + line * cellSize,
+        boardY,
+        boardX + line * cellSize,
+        boardY + rows * cellSize,
+        rgb(23, 33, 49)
+        )
+        line = line + 1
+    }
+    line = 1
+    while line < rows {
+        drawLine(
+        boardX,
+        boardY + line * cellSize,
+        boardX + columns * cellSize,
+        boardY + line * cellSize,
+        rgb(23, 33, 49)
+        )
+        line = line + 1
+    }
+
+    val foodCenterX : int = boardX + food.x * cellSize + cellSize / 2
+    val foodCenterY : int = boardY + food.y * cellSize + cellSize / 2
+    drawCircle(foodCenterX, foodCenterY, float(9.0), rgb(255, 91, 105))
+    drawRectangle(foodCenterX, foodCenterY - 13, 3, 6, rgb(115, 231, 155))
+
+    drawText("ESPACE : PAUSE   |   ECHAP : QUITTER", 214, 574, 16,
+    rgb(112, 126, 148))
+}
+
+def drawStatus(paused : bool, gameOver : bool) : Unit {
+    if paused && !gameOver {
+        drawRectangle(250, 275, 300, 70, rgba(7, 11, 18, 230))
+        drawText("PAUSE", 348, 288, 34, White)
+    }
+    if gameOver {
+        drawRectangle(190, 248, 420, 120, rgba(7, 11, 18, 238))
+        drawText("PARTIE TERMINEE", 257, 267, 32, rgb(255, 91, 105))
+        drawText("ENTREE POUR REJOUER", 275, 324, 20, White)
+    }
+}
+
+def resetSnake(snake : Array[Cell]) : Unit {
+    snake.clear()
+    snake.push(new Cell(15, 10))
+    snake.push(new Cell(14, 10))
+    snake.push(new Cell(13, 10))
+    snake.push(new Cell(12, 10))
+    snake.push(new Cell(11, 10))
+}
+
+def main() : int {
+    if !initWindow(screenWidth, screenHeight, "Snake - Janus") {
+        printf(cstr("Erreur graphique : %s\n"), graphicsLastError())
+        return 1
+    }
+    defer closeWindow()
+    setTargetFps(60)
+
+    val snakeLayer : RenderTexture =
+    loadRenderTexture(screenWidth, screenHeight)
+    defer delete snakeLayer
+    val neonShader : Shader =
+    loadFragmentShader("examples/snake/neon.fs")
+    defer delete neonShader
+    val shaderReady : bool = snakeLayer.isValid() && neonShader.isValid()
+    val timeLocation : int = neonShader.location("time")
+    val resolutionLocation : int = neonShader.location("resolution")
+    neonShader.setVector2(
+    resolutionLocation,
+    vector2(float(screenWidth), float(screenHeight))
+    )
+
+    val snake : Array[Cell] = new Array[Cell](usize(columns * rows))
+    defer delete snake
+    resetSnake(snake)
+
+    var directionX : int = 1
+    var directionY : int = 0
+    var nextX : int = 1
+    var nextY : int = 0
+    var seed : int = 27183
+    var food : Cell = placeFood(snake, seed)
+    var score : int = 0
+    var frame : int = 0
+    var paused : bool = false
+    var gameOver : bool = false
+    var elapsed : float = float(0.0)
+
+    while !windowShouldClose() && !isKeyPressed(Key.Escape) {
+        elapsed = elapsed + float(0.0166667)
+        if isKeyPressed(Key.Space) && !gameOver {
+            paused = !paused
+        }
+
+        if gameOver && isKeyPressed(Key.Enter) {
+            resetSnake(snake)
+            directionX = 1
+            directionY = 0
+            nextX = 1
+            nextY = 0
+            score = 0
+            frame = 0
+            paused = false
+            gameOver = false
+            seed = (seed + 7919) % 1000003
+            food = placeFood(snake, seed)
+        }
+
+        if !paused && !gameOver {
+            if (isKeyPressed(Key.Up) || isKeyPressed(Key.Z) ||
+            isKeyPressed(Key.W)) && directionY != 1 {
+                nextX = 0
+                nextY = -1
+            }
+            if (isKeyPressed(Key.Down) || isKeyPressed(Key.S)) &&
+            directionY != -1 {
+                nextX = 0
+                nextY = 1
+            }
+            if (isKeyPressed(Key.Left) || isKeyPressed(Key.Q) ||
+            isKeyPressed(Key.A)) && directionX != 1 {
+                nextX = -1
+                nextY = 0
+            }
+            if isKeyPressed(Key.Right) || isKeyPressed(Key.D) {
+                if directionX != -1 {
+                    nextX = 1
+                    nextY = 0
+                }
+            }
+
+            frame = frame + 1
+            val moveDelay : int = if score < 8 { 7 } else {
+                if score < 20 { 6 } else { 5 }
+            }
+            if frame >= moveDelay {
+                frame = 0
+                directionX = nextX
+                directionY = nextY
+
+                val head : Cell = snake.get(usize(0))
+                val newX : int = head.x + directionX
+                val newY : int = head.y + directionY
+                val ate : bool = newX == food.x && newY == food.y
+
+                var hitBody : bool = false
+                var bodyIndex : usize = usize(0)
+                val collisionLimit : usize = if ate {
+                    snake.size()
+                } else {
+                    snake.size() - usize(1)
+                }
+                while bodyIndex < collisionLimit {
+                    val part : Cell = snake.get(bodyIndex)
+                    if part.x == newX && part.y == newY {
+                        hitBody = true
+                    }
+                    bodyIndex = bodyIndex + usize(1)
+                }
+
+                if newX < 0 || newX >= columns || newY < 0 || newY >= rows ||
+                hitBody {
+                    gameOver = true
+                } else {
+                    if ate {
+                        val tail : Cell = snake.get(snake.size() - usize(1))
+                        snake.push(tail)
+                    }
+
+                    var index : usize = snake.size() - usize(1)
+                    while index > usize(0) {
+                        snake.set(index, snake.get(index - usize(1)))
+                        index = index - usize(1)
+                    }
+                    snake.set(usize(0), new Cell(newX, newY))
+
+                    if ate {
+                        score = score + 1
+                        seed = (seed + newX * 97 + newY * 193 + score) % 1000003
+                        food = placeFood(snake, seed)
+                    }
+                }
+            }
+        }
+
+        if shaderReady {
+            snakeLayer.begin()
+            clearBackground(rgba(0, 0, 0, 0))
+            drawSnake(snake)
+            endRenderTexture()
+        }
+
+        beginDrawing()
+        drawGame(food, score)
+        if shaderReady {
+            neonShader.setFloat(timeLocation, elapsed)
+            neonShader.begin()
+        }
+        if shaderReady {
+            snakeLayer.drawPro(
+            rectangle(
+            float(0.0),
+            float(0.0),
+            float(screenWidth),
+            float(-screenHeight)
+            ),
+            rectangle(
+            float(0.0),
+            float(0.0),
+            float(screenWidth),
+            float(screenHeight)
+            ),
+            vector2(float(0.0), float(0.0)),
+            float(0.0),
+            White
+            )
+            endShader()
+        } else {
+            drawSnake(snake)
+        }
+        drawStatus(paused, gameOver)
+        endDrawing()
+    }
+
+    return 0
+}
