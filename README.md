@@ -230,6 +230,7 @@ Une extension VS Code est disponible dans
 - [Conversion, formatage et parsing de texte](docs/text.md)
 - [Commandes, projets, dépendances et outils](docs/tooling.md)
 - [Graphisme 2D](docs/graphics.md)
+- [Contrat de stabilité proposé pour Janus 1.0](docs/stability-contract.md)
 - [Dépannage du corpus Project Euler](docs/project-euler-troubleshooting.md)
 - [Compiler Janus depuis les sources](docs/development.md)
 - [Exemples complets](examples)

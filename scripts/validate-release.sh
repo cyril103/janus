@@ -18,6 +18,19 @@ fi
 
 cmake --build "$build_dir" --parallel
 ctest --test-dir "$build_dir" --output-on-failure
+if [[ -n "${JANUS_PREVIOUS:-}" ]]; then
+    if [[ ! -x "$JANUS_PREVIOUS" ]]; then
+        echo "JANUS_PREVIOUS is not executable: $JANUS_PREVIOUS" >&2
+        exit 1
+    fi
+    cmake \
+        -DPREVIOUS_JANUS="$JANUS_PREVIOUS" \
+        -DCURRENT_JANUS="$build_dir/janus" \
+        -DFIXTURE_DIR="$root_dir/tests/compatibility" \
+        -DOUTPUT_DIR="$build_dir/compatibility-N-N+1" \
+        -DEXECUTABLE_SUFFIX= \
+        -P "$root_dir/tests/compatibility/run_compatibility.cmake"
+fi
 cmake --build "$build_dir" --target dist
 
 archive="$(find "$build_dir" -maxdepth 1 -type f \
