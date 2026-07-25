@@ -1366,8 +1366,9 @@ ln -s "$FAKE_BIN/janus" "$FALLBACK_BIN/janus"
 
 if PATH="$FALLBACK_BIN" \
    JANUS_FAKE_PROJECT="$PROJECT" \
+   JANUS_SLOW_SECONDS=30 \
      "$SCRIPT" --project "$PROJECT" --config "$CONFIG" --problem 5 \
-     --timeout 1 > "$WORK/timeout.out" 2> "$WORK/timeout.err"; then
+     --timeout 5 > "$WORK/timeout.out" 2> "$WORK/timeout.err"; then
   echo "verify test: timeout should fail" >&2
   exit 1
 fi
