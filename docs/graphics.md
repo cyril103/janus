@@ -350,8 +350,15 @@ janus run examples/snake/main.janus
 
 ## État expérimental
 
-Cette première version vise le graphisme 2D immédiat. Elle ne fournit pas encore
-les polices personnalisées, les manettes, la 3D ni le
-chargement automatique de raylib par le gestionnaire de paquets. L'API publique
-reste indépendante du backend afin de pouvoir ajouter ces fonctionnalités sans
-exposer directement les structures natives de raylib.
+Le module couvre le graphisme 2D immédiat, notamment les polices personnalisées
+UTF-8 et les manettes. Il ne fournit pas encore :
+
+- d'API 3D ;
+- de temps par image ou de temps écoulé ;
+- de modes de fusion configurables, de capture d'écran ou de contrôle explicite
+  du wrapping des textures ;
+- de diagnostic distinct entre un shader invalide et le shader de repli ;
+- d'installation automatique de raylib par le gestionnaire de paquets.
+
+L'API publique reste indépendante du backend afin que ces capacités puissent
+être ajoutées sans exposer directement les structures natives de raylib.

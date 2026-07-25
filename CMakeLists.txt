@@ -672,6 +672,13 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(
+        NAME docs.version_consistency
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            -P "${PROJECT_SOURCE_DIR}/cmake/verify_documentation.cmake"
+    )
+    add_test(
         NAME docs.canonical_output
         COMMAND
             ${CMAKE_COMMAND}
