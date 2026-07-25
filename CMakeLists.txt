@@ -339,6 +339,21 @@ if(BUILD_TESTING)
     )
     add_test(NAME runtime.graphics_loader COMMAND graphics_runtime_test)
 
+    add_executable(floating_runtime_test
+        tests/runtime/floating_runtime_test.c
+    )
+    target_link_libraries(floating_runtime_test PRIVATE janus_runtime)
+    if(UNIX)
+        target_link_libraries(floating_runtime_test PRIVATE m)
+    endif()
+    target_compile_options(floating_runtime_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME runtime.floating COMMAND floating_runtime_test)
+
     add_library(fake_raylib SHARED tests/runtime/fake_raylib.c)
     target_compile_options(fake_raylib
         PRIVATE
@@ -688,6 +703,18 @@ if(BUILD_TESTING)
             "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/canonical_output"
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/canonical_output.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME language.text_api_runtime
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/text_api.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/text_api_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/text_api.expected.txt"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(

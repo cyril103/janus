@@ -227,6 +227,7 @@ Une extension VS Code est disponible dans
 
 - [Installation et premier projet](docs/getting-started.md)
 - [Guide du langage](docs/language-guide.md)
+- [Conversion, formatage et parsing de texte](docs/text.md)
 - [Commandes, projets, dépendances et outils](docs/tooling.md)
 - [Graphisme 2D](docs/graphics.md)
 - [Dépannage du corpus Project Euler](docs/project-euler-troubleshooting.md)

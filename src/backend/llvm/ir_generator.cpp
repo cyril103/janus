@@ -1667,6 +1667,12 @@ private:
               return janus::Type::unit_type();
             if (node.callee == "cstr")
               return ensure_pointer(janus::Type::byte_type());
+            if (node.callee == "stringData")
+              return ensure_pointer(janus::Type::byte_type());
+            if (node.callee == "stringLength")
+              return janus::Type::usize_type();
+            if (node.callee == "stringView")
+              return janus::Type::string_type();
             if (node.callee == "alloc" || node.callee == "realloc" ||
                 node.callee == "null") {
               const janus::Type &element =
@@ -2195,6 +2201,31 @@ private:
                   *node.arguments.front(), janus::Type::string_type(),
                   substitutions, locals, builder);
               return builder.CreateExtractValue(text, 0, "cstr.data");
+            }
+            if (node.callee == "stringData" ||
+                node.callee == "stringLength") {
+              ::llvm::Value *text = emit_expression(
+                  *node.arguments.front(), janus::Type::string_type(),
+                  substitutions, locals, builder);
+              return builder.CreateExtractValue(
+                  text, node.callee == "stringData" ? 0 : 1,
+                  node.callee == "stringData" ? "string.data"
+                                               : "string.length");
+            }
+            if (node.callee == "stringView") {
+              const janus::Type &pointer_type =
+                  expression_type(*node.arguments[0], substitutions, locals);
+              ::llvm::Value *data = emit_expression(
+                  *node.arguments[0], pointer_type, substitutions, locals,
+                  builder);
+              ::llvm::Value *length = emit_expression(
+                  *node.arguments[1], janus::Type::usize_type(), substitutions,
+                  locals, builder);
+              ::llvm::Value *view = llvm::UndefValue::get(
+                  lower_type(janus::Type::string_type(), context_));
+              view = builder.CreateInsertValue(view, data, 0, "string.view.data");
+              return builder.CreateInsertValue(view, length, 1,
+                                               "string.view.length");
             }
             if (node.callee == "panic") {
               ::llvm::Value *message = emit_expression(
