@@ -1,0 +1,67 @@
+module std.time
+
+private extern def janus_monotonic_nanoseconds() : usize
+
+struct Duration(private val value : usize) {
+    def nanoseconds() : usize {
+        return value
+    }
+
+    def microseconds() : usize {
+        return value / usize(1000)
+    }
+
+    def milliseconds() : usize {
+        return value / usize(1000000)
+    }
+
+    def seconds() : double {
+        return double(value) / double(1000000000.0)
+    }
+}
+
+struct Instant(private val value : usize) {
+    def durationSince(earlier : Instant) : Duration {
+        if value < earlier.value {
+            panic("instant precedes earlier instant\n")
+        }
+        return new Duration(value - earlier.value)
+    }
+
+    def elapsed() : Duration {
+        val current : Instant = monotonicNow()
+        return new Duration(current.value - value)
+    }
+}
+
+def nanoseconds(value : usize) : Duration {
+    return new Duration(value)
+}
+
+def microseconds(value : usize) : Duration {
+    val max : usize = usize(0) - usize(1)
+    if value > max / usize(1000) {
+        panic("duration overflow\n")
+    }
+    return new Duration(value * usize(1000))
+}
+
+def milliseconds(value : usize) : Duration {
+    val max : usize = usize(0) - usize(1)
+    if value > max / usize(1000000) {
+        panic("duration overflow\n")
+    }
+    return new Duration(value * usize(1000000))
+}
+
+def seconds(value : usize) : Duration {
+    val max : usize = usize(0) - usize(1)
+    if value > max / usize(1000000000) {
+        panic("duration overflow\n")
+    }
+    return new Duration(value * usize(1000000000))
+}
+
+def monotonicNow() : Instant {
+    return new Instant(janus_monotonic_nanoseconds())
+}

@@ -1,0 +1,7 @@
+import std.time
+
+def main() : int {
+    val max : usize = usize(0) - usize(1)
+    val impossible : Duration = seconds(max)
+    return int(impossible.nanoseconds())
+}

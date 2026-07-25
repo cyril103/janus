@@ -1,0 +1,7 @@
+import std.random
+
+def main() : int {
+    val generator : Random = new Random(usize(42))
+    defer delete generator
+    return int(generator.nextBounded(usize(0)))
+}

@@ -65,6 +65,8 @@ def main() : int {
     )
     val leftX : float = gamepadAxis(0, GamepadAxis.LeftX)
     setGamepadVibration(0, float(0.5), float(0.5), float(0.1))
+    val frameDuration : Duration = frameTime()
+    val totalDuration : Duration = elapsedTime()
     beginDrawing()
     beginCamera(camera)
     clearBackground(Black)

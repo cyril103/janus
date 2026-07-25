@@ -1,0 +1,51 @@
+module std.random
+
+private extern def janus_random_mix(value : usize) : usize
+private extern def janus_random_advance(state : usize) : usize
+private extern def janus_random_seed() : usize
+
+private var automaticState : usize = janus_random_seed()
+
+class Random(seed : usize) {
+    private var state : usize = seed
+
+    def nextUSize() : usize {
+        state = janus_random_advance(state)
+        return janus_random_mix(state)
+    }
+
+    def nextBounded(upperExclusive : usize) : usize {
+        if upperExclusive == usize(0) {
+            panic("random upper bound must be positive\n")
+        }
+        val threshold : usize =
+        (usize(0) - upperExclusive) % upperExclusive
+        var value : usize = this.nextUSize()
+        while value < threshold {
+            value = this.nextUSize()
+        }
+        return value % upperExclusive
+    }
+}
+
+def randomUSize() : usize {
+    automaticState = janus_random_advance(automaticState)
+    return janus_random_mix(automaticState)
+}
+
+def randomBounded(upperExclusive : usize) : usize {
+    if upperExclusive == usize(0) {
+        panic("random upper bound must be positive\n")
+    }
+    val threshold : usize =
+    (usize(0) - upperExclusive) % upperExclusive
+    var value : usize = randomUSize()
+    while value < threshold {
+        value = randomUSize()
+    }
+    return value % upperExclusive
+}
+
+def automaticRandom() : Random {
+    return new Random(janus_random_seed())
+}

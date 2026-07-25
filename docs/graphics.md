@@ -218,6 +218,23 @@ Les uniforms sont résolus avec `location`, puis configurés avec `setFloat`,
 `setInt`, `setVector2` ou `setColor`. Une localisation `-1` est ignorée sans
 erreur, ce qui permet au compilateur GLSL d'éliminer un uniform inutilisé.
 
+## Temps de rendu
+
+`frameTime()` retourne une `Duration` mesurée depuis son appel précédent ;
+appelez-la une fois au début de chaque image. `elapsedTime()` mesure le temps
+écoulé depuis l'initialisation du module graphique. Ces deux fonctions reposent
+sur l'horloge monotone de `std.time` et ne dépendent pas de raylib :
+
+```janus
+val delta : Duration = frameTime()
+val elapsed : double = elapsedTime().seconds()
+shader.setFloat(time, float(elapsed))
+```
+
+Pour mesurer une autre opération ou utiliser le temps hors d'une application
+graphique, importez directement `std.time`. Le temps civil reste disponible
+séparément dans `std.wall_time`.
+
 ## Audio
 
 Initialisez le périphérique audio une fois, puis chargez des effets courts avec

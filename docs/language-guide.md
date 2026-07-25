@@ -454,6 +454,63 @@ recalculée sur le reste réduit avec `candidate <= remaining / candidate`, ce q
 est `O(sqrt(n))` dans le pire cas, avec une allocation proportionnelle au nombre
 de facteurs retournés.
 
+## Temps
+
+`std.time` fournit une horloge monotone indépendante du module graphique :
+
+```janus
+import std.time
+
+val start : Instant = monotonicNow()
+// travail...
+val elapsed : Duration = start.elapsed()
+println(elapsed.milliseconds())
+```
+
+Une `Duration` stocke un nombre non signé de nanosecondes. Les fonctions
+`nanoseconds`, `microseconds`, `milliseconds` et `seconds` construisent une
+durée ; les trois dernières provoquent un `panic` avec `duration overflow` si
+la conversion ne tient pas dans `usize`. Les méthodes de lecture tronquent vers
+zéro pour les microsecondes et millisecondes entières. `Duration.seconds()`
+retourne une valeur flottante.
+
+`Instant.durationSince(earlier)` provoque un `panic` si le receveur précède
+`earlier`. Les valeurs brutes d'un `Instant` ne sont volontairement pas
+exposées : elles n'ont de sens que dans le processus courant. L'horloge ne
+recule pas, mais deux lectures successives peuvent être égales.
+
+Le temps civil est séparé dans `std.wall_time`. `wallNow()` retourne un
+`WallTime` dont les méthodes `unixNanoseconds`, `unixMilliseconds` et
+`unixSeconds` mesurent le temps depuis l'époque Unix. Cette horloge peut avancer
+ou reculer à la suite d'une correction du système et ne doit pas servir à
+mesurer une durée.
+
+## Nombres pseudo-aléatoires
+
+`std.random.Random` implémente SplitMix64. Une seed explicite produit toujours
+la même suite sur toutes les plateformes :
+
+```janus
+import std.random
+
+val random : Random = new Random(usize(42))
+defer delete random
+
+val any : usize = random.nextUSize()
+val die : usize = random.nextBounded(usize(6)) + usize(1)
+```
+
+`nextBounded(upperExclusive)` retourne une valeur dans
+`[0, upperExclusive)` et utilise un rejet pour éviter le biais de modulo. Une
+borne nulle provoque un `panic` avec
+`random upper bound must be positive`.
+
+Pour les applications qui ne requièrent pas une suite reproductible,
+`randomUSize()` et `randomBounded()` utilisent une source globale initialisée
+automatiquement. `automaticRandom()` crée une source indépendante avec une seed
+automatique. Ces sources ne sont pas cryptographiques ; une seed explicite doit
+être conservée pour les tests, simulations reproductibles et sauvegardes.
+
 ## Modules
 
 Les fonctionnalités de la bibliothèque standard sont importées explicitement :
@@ -462,7 +519,10 @@ Les fonctionnalités de la bibliothèque standard sont importées explicitement 
 import std.array
 import std.math
 import std.option
+import std.random
 import std.result
+import std.time
+import std.wall_time
 ```
 
 Consultez les fichiers du dossier [`stdlib/std`](../stdlib/std) pour les
