@@ -6,9 +6,11 @@ les entrées clavier, une render texture et un fragment shader appliqué
 uniquement au serpent.
 
 Le score dynamique utilise le tampon réutilisable sûr de `std.text`; l'exemple
-n'importe pas `std.c`. Le temps du shader vient de l'horloge monotone et le
-placement de la nourriture utilise la source pseudo-aléatoire initialisée
-automatiquement de `std.random`.
+n'importe pas `std.c`. Le déplacement est cadencé par `frameTime()` plutôt que
+par un nombre d'images, donc sa vitesse ne dépend pas du FPS cible. Le temps du
+shader vient de l'horloge monotone, son halo additif est limité au sprite du
+serpent, et le placement de la nourriture utilise la source pseudo-aléatoire
+initialisée automatiquement de `std.random`.
 
 Depuis la racine du dépôt :
 

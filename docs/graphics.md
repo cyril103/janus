@@ -84,6 +84,26 @@ def main() : int {
 chaque image. `defer closeWindow()` garantit la fermeture de la fenêtre lors
 d'un `return`.
 
+## Modes de fusion
+
+`beginBlend()` accepte un `BlendMode` typé. `BlendMode.Alpha` conserve la
+composition transparente habituelle et `BlendMode.Additive` additionne la
+lumière des sprites, par exemple pour un halo. Associez toujours l'ouverture à
+un `defer endBlend()` dans la même portée : le mode précédent est alors
+restauré à la sortie normale, lors d'un `return` et même lorsque les portées
+sont imbriquées.
+
+```janus
+if haloVisible {
+    beginBlend(BlendMode.Additive)
+    defer endBlend()
+    haloSprite.drawAt(position, White)
+}
+```
+
+Ici, seul `haloSprite` est rendu en additif ; le dessin qui suit le bloc
+retrouve automatiquement le mode alpha.
+
 ## Couleurs
 
 Une couleur est représentée par le struct `Color`. Utilisez les constructeurs
@@ -220,10 +240,15 @@ erreur, ce qui permet au compilateur GLSL d'éliminer un uniform inutilisé.
 
 ## Temps de rendu
 
-`frameTime()` retourne une `Duration` mesurée depuis son appel précédent ;
-appelez-la une fois au début de chaque image. `elapsedTime()` mesure le temps
-écoulé depuis l'initialisation du module graphique. Ces deux fonctions reposent
-sur l'horloge monotone de `std.time` et ne dépendent pas de raylib :
+`frameTime()` retourne une `Duration` mesurée depuis son appel précédent (ou
+depuis l'initialisation du module lors du premier appel) ; appelez-la une fois
+au début de chaque image. `elapsedTime()` mesure le temps écoulé depuis cette
+même initialisation. Les durées sont positives ou nulles, stockées en
+nanosecondes et convertibles en microsecondes, millisecondes ou secondes.
+
+Ces deux fonctions reposent sur l'horloge monotone de `std.time` : elles ne
+reculent pas lorsque l'heure civile change et ne dépendent ni du FPS cible ni
+de raylib.
 
 ```janus
 val delta : Duration = frameTime()

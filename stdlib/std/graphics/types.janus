@@ -127,6 +127,11 @@ enum TextureFilter {
     Anisotropic16x
 }
 
+enum BlendMode {
+    Alpha,
+    Additive
+}
+
 enum GamepadButton {
     Unknown,
     LeftFaceUp,
