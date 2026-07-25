@@ -9,6 +9,9 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <locale.h>
+#if defined(__APPLE__)
+#include <xlocale.h>
+#endif
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
