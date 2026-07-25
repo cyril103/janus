@@ -154,6 +154,37 @@ int main() {
   assert(module_completion.front().find("\"label\":\"secretCount\"") ==
          std::string::npos);
 
+  const std::vector<std::string> else_if_document = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def choose(first : bool, second : bool) : int {\n    if first {\n        val low : int = 1\n        return low\n    } else if second {\n        val middle : int = 2\n        return middle\n    } else {\n        val high : int = 3\n        return high\n    }\n}\ndef main() : int { return choose(true, false) }"}]}})");
+  assert(else_if_document.size() == 1);
+  assert(else_if_document.front().find("\"diagnostics\":[]") !=
+         std::string::npos);
+  const std::vector<std::string> low_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":18,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":3,"character":15}}})");
+  assert(low_definition.front().find("\"line\":2") != std::string::npos);
+  assert(low_definition.front().find("\"character\":12") !=
+         std::string::npos);
+  const std::vector<std::string> middle_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":19,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":6,"character":15}}})");
+  assert(middle_definition.front().find("\"line\":5") != std::string::npos);
+  assert(middle_definition.front().find("\"character\":12") !=
+         std::string::npos);
+  const std::vector<std::string> high_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":20,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":9,"character":15}}})");
+  assert(high_definition.front().find("\"line\":8") != std::string::npos);
+  assert(high_definition.front().find("\"character\":12") !=
+         std::string::npos);
+  const std::vector<std::string> middle_references = server.handle(
+      R"({"jsonrpc":"2.0","id":21,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":6,"character":15},"context":{"includeDeclaration":true}}})");
+  std::size_t else_if_reference_count = 0;
+  std::size_t else_if_reference_position = 0;
+  while ((else_if_reference_position = middle_references.front().find(
+              "\"uri\"", else_if_reference_position)) != std::string::npos) {
+    ++else_if_reference_count;
+    else_if_reference_position += 5;
+  }
+  assert(else_if_reference_count == 2);
+
   const std::vector<std::string> formatting = server.handle(
       R"({"jsonrpc":"2.0","id":6,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///broken.janus"},"options":{"tabSize":2,"insertSpaces":true}}})");
   assert(formatting.front().find("\"newText\"") != std::string::npos);

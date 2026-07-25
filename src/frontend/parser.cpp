@@ -824,7 +824,10 @@ std::shared_ptr<ast::IfStatement> Parser::parse_if_statement() {
   std::vector<ast::Statement> else_body;
   if (current_.kind == TokenKind::Else) {
     advance();
-    else_body = parse_block();
+    if (current_.kind == TokenKind::If)
+      else_body.emplace_back(parse_if_statement());
+    else
+      else_body = parse_block();
   }
   return std::make_shared<ast::IfStatement>(
       ast::IfStatement{std::move(condition), std::move(then_body),

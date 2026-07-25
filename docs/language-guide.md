@@ -245,8 +245,10 @@ utilisée.
 ```janus
 if value > 0 {
     println("positif")
+} else if value < 0 {
+    println("négatif")
 } else {
-    println("nul ou négatif")
+    println("nul")
 }
 
 while value < 10 {
@@ -259,7 +261,8 @@ for item in collection {
 ```
 
 `break` quitte la boucle la plus proche et `continue` passe à l'itération
-suivante.
+suivante. Une chaîne peut contenir autant de branches `else if` que nécessaire ;
+chaque branche possède la même portée locale qu'un bloc `if` indépendant.
 
 ## Enums, `match`, `Option` et `Result`
 
