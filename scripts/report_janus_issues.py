@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
+import urllib.error
+import urllib.request
 from collections import defaultdict
 from typing import Any
-
-from rollout_janus_euler_github_plan import api_request, get_token
 
 
 PRIORITY_RANK = {
@@ -16,12 +18,37 @@ PRIORITY_RANK = {
 }
 
 
+def get_token() -> str:
+    token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+    if not token:
+        raise SystemExit("No GitHub token found (GITHUB_TOKEN or GH_TOKEN).")
+    return token
+
+
+def api_request(token: str, endpoint: str) -> Any:
+    request = urllib.request.Request(
+        f"https://api.github.com{endpoint}",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "janus-issue-report",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"GitHub API returned {error.code} for {endpoint}: {detail}"
+        ) from error
+
+
 def fetch_open_issues(token: str, owner: str, repo: str) -> list[dict[str, Any]]:
     issues: list[dict[str, Any]] = []
     page = 1
     while True:
         batch = api_request(
-            "GET",
             token,
             f"/repos/{owner}/{repo}/issues?state=open&per_page=100&page={page}",
         )
