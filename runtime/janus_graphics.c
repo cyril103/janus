@@ -108,6 +108,8 @@ typedef struct {
   int (*GetScreenWidth)(void);
   int (*GetScreenHeight)(void);
   void (*SetTargetFPS)(int);
+  void (*BeginBlendMode)(int);
+  void (*EndBlendMode)(void);
   void (*BeginDrawing)(void);
   void (*EndDrawing)(void);
   void (*BeginMode2D)(JanusRaylibCamera2D);
@@ -202,6 +204,14 @@ typedef struct {
 static JanusGraphicsApi graphics_api;
 static bool graphics_loaded;
 static const char *graphics_error = "raylib has not been loaded";
+enum {
+  JANUS_GRAPHICS_BLEND_ALPHA = 0,
+  JANUS_GRAPHICS_BLEND_ADDITIVE = 1,
+  JANUS_GRAPHICS_BLEND_STACK_CAPACITY = 32
+};
+static int graphics_blend_mode = JANUS_GRAPHICS_BLEND_ALPHA;
+static int graphics_blend_stack[JANUS_GRAPHICS_BLEND_STACK_CAPACITY];
+static size_t graphics_blend_depth;
 
 #ifdef _WIN32
 static HMODULE graphics_library;
@@ -309,6 +319,8 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(GetScreenWidth);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetScreenHeight);
   JANUS_LOAD_GRAPHICS_SYMBOL(SetTargetFPS);
+  JANUS_LOAD_GRAPHICS_SYMBOL(BeginBlendMode);
+  JANUS_LOAD_GRAPHICS_SYMBOL(EndBlendMode);
   JANUS_LOAD_GRAPHICS_SYMBOL(BeginDrawing);
   JANUS_LOAD_GRAPHICS_SYMBOL(EndDrawing);
   JANUS_LOAD_GRAPHICS_SYMBOL(BeginMode2D);
@@ -437,6 +449,8 @@ bool janus_graphics_window_should_close(void) {
 void janus_graphics_close_window(void) {
   if (graphics_loaded && graphics_api.IsWindowReady())
     graphics_api.CloseWindow();
+  graphics_blend_depth = 0;
+  graphics_blend_mode = JANUS_GRAPHICS_BLEND_ALPHA;
 }
 
 bool janus_graphics_is_window_fullscreen(void) {
@@ -514,6 +528,29 @@ int janus_graphics_screen_height(void) {
 void janus_graphics_set_target_fps(int frames_per_second) {
   if (graphics_loaded)
     graphics_api.SetTargetFPS(frames_per_second);
+}
+
+void janus_graphics_begin_blend(int mode) {
+  if (!graphics_loaded ||
+      (mode != JANUS_GRAPHICS_BLEND_ALPHA &&
+       mode != JANUS_GRAPHICS_BLEND_ADDITIVE) ||
+      graphics_blend_depth == JANUS_GRAPHICS_BLEND_STACK_CAPACITY)
+    return;
+  graphics_blend_stack[graphics_blend_depth++] = graphics_blend_mode;
+  graphics_blend_mode = mode;
+  graphics_api.BeginBlendMode(mode);
+}
+
+void janus_graphics_end_blend(void) {
+  if (!graphics_loaded || graphics_blend_depth == 0)
+    return;
+  const int previous_mode = graphics_blend_stack[--graphics_blend_depth];
+  graphics_api.EndBlendMode();
+  graphics_blend_mode = JANUS_GRAPHICS_BLEND_ALPHA;
+  if (previous_mode != JANUS_GRAPHICS_BLEND_ALPHA) {
+    graphics_api.BeginBlendMode(previous_mode);
+    graphics_blend_mode = previous_mode;
+  }
 }
 
 void janus_graphics_begin_drawing(void) {

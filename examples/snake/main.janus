@@ -11,6 +11,16 @@ val cellSize : int = 24
 val boardX : int = 40
 val boardY : int = 88
 
+def movementDelay(score : int) : usize {
+    if score < 8 {
+        return usize(116666667)
+    }
+    if score < 20 {
+        return usize(100000000)
+    }
+    return usize(83333333)
+}
+
 struct Cell(val x : int, val y : int) {}
 
 def contains(snake : Array[Cell], x : int, y : int) : bool {
@@ -221,11 +231,12 @@ def main() : int {
     defer delete random
     var food : Cell = placeFood(snake, random)
     var score : int = 0
-    var frame : int = 0
+    var movementElapsed : usize = usize(0)
     var paused : bool = false
     var gameOver : bool = false
 
     while !windowShouldClose() && !isKeyPressed(Key.Escape) {
+        val frameDuration : Duration = frameTime()
         val elapsedDuration : Duration = elapsedTime()
         val elapsed : float = float(elapsedDuration.seconds())
         if isKeyPressed(Key.Space) && !gameOver {
@@ -239,7 +250,7 @@ def main() : int {
             nextX = 1
             nextY = 0
             score = 0
-            frame = 0
+            movementElapsed = usize(0)
             paused = false
             gameOver = false
             food = placeFood(snake, random)
@@ -268,12 +279,10 @@ def main() : int {
                 }
             }
 
-            frame = frame + 1
-            val moveDelay : int = if score < 8 { 7 } else {
-                if score < 20 { 6 } else { 5 }
-            }
-            if frame >= moveDelay {
-                frame = 0
+            movementElapsed =
+            movementElapsed + frameDuration.nanoseconds()
+            while movementElapsed >= movementDelay(score) && !gameOver {
+                movementElapsed = movementElapsed - movementDelay(score)
                 directionX = nextX
                 directionY = nextY
 
@@ -333,8 +342,8 @@ def main() : int {
         if shaderReady {
             neonShader.setFloat(timeLocation, elapsed)
             neonShader.begin()
-        }
-        if shaderReady {
+            beginBlend(BlendMode.Additive)
+            defer endBlend()
             snakeLayer.drawPro(
             rectangle(
             float(0.0),

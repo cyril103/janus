@@ -88,6 +88,7 @@ static bool audio_ready;
 static bool window_fullscreen;
 static bool window_maximized;
 static bool cursor_hidden;
+static int blend_test_step;
 
 RAYLIB_EXPORT void InitWindow(int width, int height, const char *title) {
   window_ready = width > 0 && height > 0 && title != 0;
@@ -104,7 +105,11 @@ RAYLIB_EXPORT bool IsWindowMaximized(void) { return window_maximized; }
 RAYLIB_EXPORT bool IsWindowFocused(void) { return true; }
 RAYLIB_EXPORT bool IsWindowResized(void) { return true; }
 
-RAYLIB_EXPORT void CloseWindow(void) { window_ready = false; }
+RAYLIB_EXPORT void CloseWindow(void) {
+  if (blend_test_step != 5)
+    abort();
+  window_ready = false;
+}
 
 RAYLIB_EXPORT void ToggleFullscreen(void) {
   window_fullscreen = !window_fullscreen;
@@ -128,6 +133,28 @@ RAYLIB_EXPORT int GetScreenHeight(void) { return 450; }
 
 RAYLIB_EXPORT void SetTargetFPS(int frames_per_second) {
   (void)frames_per_second;
+}
+
+RAYLIB_EXPORT void BeginBlendMode(int mode) {
+  if (blend_test_step == 0 && mode == 1) {
+    blend_test_step = 1;
+  } else if (blend_test_step == 1 && mode == 0) {
+    blend_test_step = 2;
+  } else if (blend_test_step == 3 && mode == 1) {
+    blend_test_step = 4;
+  } else {
+    abort();
+  }
+}
+
+RAYLIB_EXPORT void EndBlendMode(void) {
+  if (blend_test_step == 2) {
+    blend_test_step = 3;
+  } else if (blend_test_step == 4) {
+    blend_test_step = 5;
+  } else {
+    abort();
+  }
 }
 
 RAYLIB_EXPORT void BeginDrawing(void) {}

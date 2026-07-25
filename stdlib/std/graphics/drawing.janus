@@ -29,6 +29,8 @@ private extern def janus_graphics_set_window_opacity(opacity : float) : Unit
 private extern def janus_graphics_screen_width() : int
 private extern def janus_graphics_screen_height() : int
 private extern def janus_graphics_set_target_fps(framesPerSecond : int) : Unit
+private extern def janus_graphics_begin_blend(mode : int) : Unit
+private extern def janus_graphics_end_blend() : Unit
 private extern def janus_graphics_begin_drawing() : Unit
 private extern def janus_graphics_end_drawing() : Unit
 private extern def janus_graphics_begin_camera(
@@ -208,6 +210,14 @@ def screenHeight() : int {
 
 def setTargetFps(framesPerSecond : int) : Unit {
     janus_graphics_set_target_fps(framesPerSecond)
+}
+
+def beginBlend(mode : BlendMode) : Unit {
+    janus_graphics_begin_blend(int(mode))
+}
+
+def endBlend() : Unit {
+    janus_graphics_end_blend()
 }
 
 def frameTime() : Duration {

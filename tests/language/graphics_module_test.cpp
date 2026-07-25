@@ -68,6 +68,8 @@ def main() : int {
     val frameDuration : Duration = frameTime()
     val totalDuration : Duration = elapsedTime()
     beginDrawing()
+    beginBlend(BlendMode.Additive)
+    defer endBlend()
     beginCamera(camera)
     clearBackground(Black)
     drawPixel(1, 2, White)
@@ -253,6 +255,11 @@ def main() : int {
              ir.find("call float @janus_graphics_screen_to_world_x") !=
                  std::string::npos,
          "typed 2D camera helpers lower through the native backend");
+  expect(ir.find("call void @janus_graphics_begin_blend") !=
+                 std::string::npos &&
+             ir.find("call void @janus_graphics_end_blend()") !=
+                 std::string::npos,
+         "typed blend scopes lower through the native backend");
   expect(ir.find("call void @janus_graphics_draw_texture_pro") !=
                  std::string::npos &&
              ir.find("call void @janus_graphics_set_texture_filter") !=

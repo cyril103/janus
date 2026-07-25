@@ -20,6 +20,8 @@ extern void janus_graphics_set_window_opacity(float opacity);
 extern int janus_graphics_screen_width(void);
 extern int janus_graphics_screen_height(void);
 extern void janus_graphics_set_target_fps(int frames_per_second);
+extern void janus_graphics_begin_blend(int mode);
+extern void janus_graphics_end_blend(void);
 extern void janus_graphics_begin_drawing(void);
 extern void janus_graphics_end_drawing(void);
 extern void janus_graphics_begin_camera(float offset_x, float offset_y,
@@ -167,6 +169,10 @@ int main(void) {
   janus_graphics_restore_window();
 
   janus_graphics_set_target_fps(60);
+  janus_graphics_begin_blend(1);
+  janus_graphics_begin_blend(0);
+  janus_graphics_end_blend();
+  janus_graphics_end_blend();
   janus_graphics_begin_drawing();
   janus_graphics_begin_camera(400.0f, 225.0f, 100.0f, 50.0f, 0.0f, 2.0f);
   if (janus_graphics_screen_to_world_x(420.0f, 245.0f, 400.0f, 225.0f,
