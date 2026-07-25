@@ -1,5 +1,8 @@
 #if !defined(_WIN32)
 #define _GNU_SOURCE
+#if defined(__APPLE__)
+#define _DARWIN_C_SOURCE
+#endif
 #endif
 
 #include <errno.h>
