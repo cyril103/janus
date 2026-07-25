@@ -5,6 +5,9 @@ Cet exemple complet montre comment combiner les collections et le module
 les entrées clavier, une render texture et un fragment shader appliqué
 uniquement au serpent.
 
+Le score dynamique utilise le tampon réutilisable sûr de `std.text`; l'exemple
+n'importe pas `std.c`.
+
 Depuis la racine du dépôt :
 
 ```bash

@@ -1844,6 +1844,36 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     {SemanticType{&Type::byte_type()}},
                     true};
               }
+              if (node.callee == "stringData" ||
+                  node.callee == "stringLength") {
+                if (!node.type_arguments.empty() || node.arguments.size() != 1)
+                  throw CompileError{node.location,
+                                     node.callee +
+                                         " expects one string argument"};
+                validate_expression(
+                    *node.arguments.front(), SemanticType{&Type::string_type()},
+                    expression_location(*node.arguments.front()));
+                if (node.callee == "stringLength")
+                  return SemanticType{&Type::usize_type()};
+                return SemanticType{
+                    nullptr, "Ptr", false,
+                    {SemanticType{&Type::byte_type()}}, true};
+              }
+              if (node.callee == "stringView") {
+                if (!node.type_arguments.empty() || node.arguments.size() != 2)
+                  throw CompileError{node.location,
+                                     "stringView expects a byte pointer and "
+                                     "byte length"};
+                const SemanticType byte_pointer{
+                    nullptr, "Ptr", false,
+                    {SemanticType{&Type::byte_type()}}, true};
+                validate_expression(*node.arguments[0], byte_pointer,
+                                    expression_location(*node.arguments[0]));
+                validate_expression(
+                    *node.arguments[1], SemanticType{&Type::usize_type()},
+                    expression_location(*node.arguments[1]));
+                return SemanticType{&Type::string_type()};
+              }
               if (node.callee == "alloc" || node.callee == "realloc" ||
                   node.callee == "null" || node.callee == "sizeof" ||
                   node.callee == "alignof") {

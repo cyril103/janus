@@ -1,6 +1,6 @@
 import std.array
-import std.c
 import std.graphics
+import std.text
 
 val screenWidth : int = 800
 val screenHeight : int = 600
@@ -83,12 +83,11 @@ def drawDigit(digit : int, x : int, y : int, color : Color) : Unit {
     }
 }
 
-def drawScore(score : int) : Unit {
-    val value : int = score % 1000
-    drawText("SCORE", 40, 30, 22, rgb(151, 164, 184))
-    drawDigit((value / 100) % 10, 120, 31, rgb(115, 231, 155))
-    drawDigit((value / 10) % 10, 140, 31, rgb(115, 231, 155))
-    drawDigit(value % 10, 160, 31, rgb(115, 231, 155))
+def drawScore(score : int, text : TextBuilder) : Unit {
+    text.clear()
+    text.append("SCORE ")
+    text.appendInt(score)
+    drawText(text.view(), 40, 30, 22, rgb(115, 231, 155))
 }
 
 def drawSnake(snake : Array[Cell]) : Unit {
@@ -112,10 +111,10 @@ def drawSnake(snake : Array[Cell]) : Unit {
     }
 }
 
-def drawGame(food : Cell, score : int) : Unit {
+def drawGame(food : Cell, score : int, scoreText : TextBuilder) : Unit {
     clearBackground(rgb(12, 17, 27))
 
-    drawScore(score)
+    drawScore(score, scoreText)
     drawText("FLECHES / ZQSD", 560, 31, 18, rgb(151, 164, 184))
 
     drawRectangle(
@@ -188,7 +187,7 @@ def resetSnake(snake : Array[Cell]) : Unit {
 
 def main() : int {
     if !initWindow(screenWidth, screenHeight, "Snake - Janus") {
-        printf(cstr("Erreur graphique : %s\n"), graphicsLastError())
+        println("Erreur graphique : initialisation impossible")
         return 1
     }
     defer closeWindow()
@@ -210,6 +209,8 @@ def main() : int {
 
     val snake : Array[Cell] = new Array[Cell](usize(columns * rows))
     defer delete snake
+    val scoreText : TextBuilder = new TextBuilder()
+    defer delete scoreText
     resetSnake(snake)
 
     var directionX : int = 1
@@ -329,7 +330,7 @@ def main() : int {
         }
 
         beginDrawing()
-        drawGame(food, score)
+        drawGame(food, score, scoreText)
         if shaderReady {
             neonShader.setFloat(timeLocation, elapsed)
             neonShader.begin()

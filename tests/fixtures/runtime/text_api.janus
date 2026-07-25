@@ -1,0 +1,154 @@
+import std.text
+import std.result
+import std.c
+
+def intValue(result : Result[int, ParseError]) : int {
+    return match result {
+        Ok(value) => value
+        Error(_) => 0
+    }
+}
+
+def isError(result : Result[int, ParseError], expected : ParseError) : bool {
+    return match result {
+        Ok(_) => false
+        Error(error) => error == expected
+    }
+}
+
+def main() : int {
+    val text : TextBuilder = new TextBuilder()
+    defer delete text
+
+    text.append("score=")
+    text.appendInt(42)
+    text.append(", ok=")
+    text.appendBool(true)
+    println(text.view())
+
+    text.clear()
+    text.appendChar(char(955))
+    println(text.view())
+
+    text.clear()
+    val maximumUInt : uint = 4294967295
+    val minimumLong : long = -9223372036854775808
+    val maximumULong : ulong = 18446744073709551615
+    val minimumISize : isize = -9223372036854775808
+    val maximumUSize : usize = 18446744073709551615
+    text.appendInt(-2147483648)
+    text.append(",")
+    text.appendUInt(maximumUInt)
+    text.append(",")
+    text.appendLong(minimumLong)
+    text.append(",")
+    text.appendULong(maximumULong)
+    println(text.view())
+
+    text.clear()
+    text.appendByte(byte(-128))
+    text.append(",")
+    text.appendUByte(ubyte(255))
+    text.append(",")
+    text.appendShort(short(-32768))
+    text.append(",")
+    text.appendUShort(ushort(65535))
+    text.append(",")
+    text.appendISize(minimumISize)
+    text.append(",")
+    text.appendUSize(maximumUSize)
+    println(text.view())
+
+    text.clear()
+    text.appendFloat(float(1.5))
+    text.append(",")
+    text.appendDouble(0.125)
+    text.append(",")
+    text.appendHex(ulong(255), true)
+    text.append(",")
+    text.appendFixed(3.5, uint(2))
+    println(text.view())
+
+    text.clear()
+    text.append("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789")
+    text.append(text.view())
+    println(text.view() == "01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789")
+
+    text.clear()
+    text.appendInt(12345)
+    text.clear()
+    text.append("ab")
+    println(strlen(cstr(text.view())) == text.size())
+
+    println(intValue(parseInt("-2147483648")))
+    println(isError(parseInt(""), ParseError.Empty))
+    println(isError(parseInt("12x"), ParseError.Invalid))
+    println(isError(parseInt("2147483648"), ParseError.Overflow))
+    println(isError(parseInt("-2147483649"), ParseError.Underflow))
+    println(match parseUInt("-1") {
+        Ok(_) => false
+        Error(error) => error == ParseError.Sign
+    })
+    println(match parseDouble("1.25tail") {
+        Ok(_) => false
+        Error(error) => error == ParseError.Invalid
+    })
+    println(match parseDouble("nan") {
+        Ok(_) => false
+        Error(error) => error == ParseError.NonFinite
+    })
+    println(match parseBool("true") {
+        Ok(value) => value
+        Error(_) => false
+    })
+    println(match parseChar("λ") {
+        Ok(value) => value == char(955)
+        Error(_) => false
+    })
+    println(match parseUInt("4294967295") {
+        Ok(value) => value == maximumUInt
+        Error(_) => false
+    })
+    println(match parseLong("-9223372036854775808") {
+        Ok(value) => value == minimumLong
+        Error(_) => false
+    })
+    println(match parseULong("18446744073709551615") {
+        Ok(value) => value == maximumULong
+        Error(_) => false
+    })
+    println(match parseByte("-128") {
+        Ok(value) => value == byte(-128)
+        Error(_) => false
+    })
+    println(match parseUByte("255") {
+        Ok(value) => value == ubyte(255)
+        Error(_) => false
+    })
+    println(match parseShort("-32768") {
+        Ok(value) => value == short(-32768)
+        Error(_) => false
+    })
+    println(match parseUShort("65535") {
+        Ok(value) => value == ushort(65535)
+        Error(_) => false
+    })
+    println(match parseISize("-9223372036854775808") {
+        Ok(value) => value == minimumISize
+        Error(_) => false
+    })
+    println(match parseUSize("18446744073709551615") {
+        Ok(value) => value == maximumUSize
+        Error(_) => false
+    })
+    println(match parseFloat("1.5") {
+        Ok(value) => value == float(1.5)
+        Error(_) => false
+    })
+    println(match parseDouble("0.125") {
+        Ok(value) => value == 0.125
+        Error(_) => false
+    })
+
+    return 0
+}
