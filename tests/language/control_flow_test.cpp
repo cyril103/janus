@@ -90,6 +90,53 @@ def main() : int {
              program.functions[0].body[3]),
          "if/else is represented in the AST");
 
+  constexpr std::string_view else_if_source = R"(
+def classify(value : int) : int {
+    if value < 0 {
+        val result : int = -1
+        return result
+    } else if value == 0 {
+        val result : int = 0
+        return result
+    } else if value < 10 {
+        val result : int = value + 1
+        return result
+    } else {
+        return 10
+    }
+}
+def main() : int { return classify(5) }
+)";
+  janus::frontend::Parser else_if_parser{else_if_source};
+  const janus::ast::Program else_if_program = else_if_parser.parse_program();
+  const auto &outer_if =
+      *std::get<std::shared_ptr<janus::ast::IfStatement>>(
+          else_if_program.functions[0].body[0]);
+  expect(outer_if.location.line == 3 && outer_if.location.column == 5,
+         "the outer if retains its source location");
+  expect(outer_if.else_body.size() == 1 &&
+             std::holds_alternative<
+                 std::shared_ptr<janus::ast::IfStatement>>(
+                 outer_if.else_body[0]),
+         "else if is represented as a nested if statement");
+  const auto &first_else_if =
+      *std::get<std::shared_ptr<janus::ast::IfStatement>>(
+          outer_if.else_body[0]);
+  expect(first_else_if.location.line == 6 &&
+             first_else_if.location.column == 12,
+         "the first else-if branch retains the nested if location");
+  expect(first_else_if.else_body.size() == 1 &&
+             std::holds_alternative<
+                 std::shared_ptr<janus::ast::IfStatement>>(
+                 first_else_if.else_body[0]),
+         "multiple else-if branches remain nested");
+  const auto &second_else_if =
+      *std::get<std::shared_ptr<janus::ast::IfStatement>>(
+          first_else_if.else_body[0]);
+  expect(second_else_if.location.line == 9 &&
+             second_else_if.location.column == 12,
+         "the second else-if branch retains the nested if location");
+
   janus::frontend::Parser jump_parser{
       "def main() : int { while true { continue break } return 0 }"};
   const janus::ast::Program jump_program = jump_parser.parse_program();
@@ -104,6 +151,7 @@ def main() : int {
 
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
+  static_cast<void>(analyzer.analyze(else_if_program));
   janus::frontend::Parser valid_jump_parser{
       "def main() : int { while true { while true { break } continue } "
       "return 0 }"};
@@ -124,6 +172,24 @@ def main() : int {
          "if/else creates distinct LLVM blocks");
   expect(ir.find("br i1") != std::string::npos,
          "conditions generate conditional branches");
+
+  llvm::LLVMContext else_if_context;
+  janus::backend::llvm::IrGenerator else_if_generator{else_if_context};
+  const std::unique_ptr<llvm::Module> else_if_module =
+      else_if_generator.generate(else_if_program, "else_if");
+  std::string else_if_ir;
+  llvm::raw_string_ostream else_if_output{else_if_ir};
+  else_if_module->print(else_if_output, nullptr);
+  else_if_output.flush();
+  const std::size_t first_condition = else_if_ir.find("br i1");
+  const std::size_t second_condition =
+      else_if_ir.find("br i1", first_condition + 1);
+  const std::size_t third_condition =
+      else_if_ir.find("br i1", second_condition + 1);
+  expect(first_condition != std::string::npos &&
+             second_condition != std::string::npos &&
+             third_condition != std::string::npos,
+         "each else-if condition emits a conditional branch");
 
   janus::frontend::Parser emitted_jump_parser{R"(
 def main() : int {
@@ -281,6 +347,28 @@ def main() : int {
       "def main() : int { while true { if true { continue } "
       "else { break } println(1) } return 0 }",
       "unreachable statement");
+  {
+    const janus::CompileError error = expect_compile_error(
+        "def main() : int {\n"
+        "    if true {\n"
+        "    } else if {\n"
+        "    }\n"
+        "    return 0\n"
+        "}");
+    expect_message_contains(error, "expected expression, found '{'");
+    expect_location(error, 3, 15,
+                    "a missing else-if condition points at its block");
+  }
+  {
+    const janus::CompileError error = expect_compile_error(
+        "def main() : int {\n"
+        "    if true {\n"
+        "    } else if true\n"
+        "}");
+    expect_message_contains(error, "expected '{', found '}'");
+    expect_location(error, 4, 1,
+                    "a missing else-if block points at the next token");
+  }
 
   {
     const janus::CompileError error =

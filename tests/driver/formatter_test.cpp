@@ -34,6 +34,35 @@ int main() {
     std::cerr << "comments or formatter options were not preserved\n";
     return 1;
   }
+
+  const std::string else_if =
+      "def choose(first : bool, second : bool) : int {\n"
+      "if first {\n"
+      "return 1\n"
+      "} else if second {\n"
+      "return 2\n"
+      "} else {\n"
+      "return 0\n"
+      "}\n"
+      "}\n";
+  const std::string expected_else_if =
+      "def choose(first : bool, second : bool) : int {\n"
+      "    if first {\n"
+      "        return 1\n"
+      "    } else if second {\n"
+      "        return 2\n"
+      "    } else {\n"
+      "        return 0\n"
+      "    }\n"
+      "}\n";
+  const std::string formatted_else_if =
+      janus::driver::format_source(else_if);
+  if (formatted_else_if != expected_else_if ||
+      janus::driver::format_source(formatted_else_if) !=
+          formatted_else_if) {
+    std::cerr << "else-if formatting is not canonical and idempotent\n";
+    return 1;
+  }
   std::cout << "Janus formatting is deterministic\n";
   return 0;
 }
