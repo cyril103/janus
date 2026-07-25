@@ -56,14 +56,20 @@ if(COMPILE_STATUS EQUAL 0)
 endif()
 require_no_janus_temporaries("compile error")
 
-set(LINK_OUTPUT "${TEST_ROOT}/existing-output")
-file(MAKE_DIRECTORY "${LINK_OUTPUT}")
+set(LINK_SOURCE "${TEST_ROOT}/link-error.janus")
+file(WRITE "${LINK_SOURCE}"
+     "extern def janus_missing_test_symbol() : int\n"
+     "def main() : int { return janus_missing_test_symbol() }\n")
+set(LINK_OUTPUT "${TEST_ROOT}/link-error")
+if(WIN32)
+    string(APPEND LINK_OUTPUT ".exe")
+endif()
 execute_process(
-    COMMAND "${JANUS}" build "${VALID_SOURCE}" -o "${LINK_OUTPUT}"
+    COMMAND "${JANUS}" build "${LINK_SOURCE}" -o "${LINK_OUTPUT}"
     RESULT_VARIABLE LINK_STATUS
     ERROR_VARIABLE LINK_ERROR
 )
 if(LINK_STATUS EQUAL 0)
-    message(FATAL_ERROR "linking to an existing directory unexpectedly succeeded")
+    message(FATAL_ERROR "unresolved external symbol unexpectedly linked")
 endif()
 require_no_janus_temporaries("link error")
