@@ -208,6 +208,7 @@ add_library(janus_driver
     src/driver/dependency.cpp
     src/driver/semver.cpp
     src/driver/registry.cpp
+    src/driver/temporary_directory.cpp
 )
 target_include_directories(janus_driver
     PUBLIC
@@ -524,6 +525,39 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME driver.formatter COMMAND formatter_test)
+    find_package(Threads REQUIRED)
+    add_executable(temporary_directory_test
+        tests/driver/temporary_directory_test.cpp
+    )
+    target_link_libraries(temporary_directory_test
+        PRIVATE
+            janus_driver
+            Threads::Threads
+    )
+    target_compile_options(temporary_directory_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME driver.temporary_directory COMMAND temporary_directory_test)
+    foreach(INDEX RANGE 1 8)
+        add_test(
+            NAME cli.concurrent_build_${INDEX}
+            COMMAND "${CMAKE_COMMAND}"
+                    -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                    -DJANUS=$<TARGET_FILE:janus>
+                    -DID=${INDEX}
+                    -P "${PROJECT_SOURCE_DIR}/tests/driver/run_concurrent_build.cmake"
+        )
+    endforeach()
+    add_test(
+        NAME cli.temporary_cleanup
+        COMMAND "${CMAKE_COMMAND}"
+                -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                -DJANUS=$<TARGET_FILE:janus>
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_temporary_cleanup.cmake"
+    )
     add_test(
         NAME cli.project_creation
         COMMAND "${CMAKE_COMMAND}"
