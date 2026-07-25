@@ -1,7 +1,9 @@
 #include "janus/lsp/server.hpp"
 
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/driver/dependency.hpp"
 #include "janus/driver/formatter.hpp"
+#include "janus/driver/manifest.hpp"
 #include "janus/frontend/lexer.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/frontend/parser.hpp"
@@ -11,6 +13,8 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
+#include <cctype>
+#include <chrono>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
@@ -18,6 +22,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -156,8 +161,9 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
     const bool is_global =
         brace_depth == 0 &&
         (token.kind == TokenKind::Val || token.kind == TokenKind::Var);
+    const bool is_top_level = brace_depth == 0;
     const bool is_private =
-        is_global && index != 0 &&
+        is_top_level && index != 0 &&
         document_tokens[index - 1].kind == TokenKind::Private;
     if (is_private)
       detail = "private " + detail;
@@ -172,7 +178,6 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
         scope_end = scope.end;
         scope_depth = scope.depth;
       }
-    const bool is_top_level = brace_depth == 0;
     const std::string identity =
         is_top_level
             ? (module_name.has_value() ? *module_name : std::string{uri}) +
@@ -328,6 +333,22 @@ std::string file_uri(const std::filesystem::path &path) {
          std::filesystem::absolute(path).lexically_normal().generic_string();
 }
 
+bool path_is_within(const std::filesystem::path &path,
+                    const std::filesystem::path &directory) {
+  const std::filesystem::path normalized_path =
+      std::filesystem::absolute(path).lexically_normal();
+  const std::filesystem::path normalized_directory =
+      std::filesystem::absolute(directory).lexically_normal();
+  auto path_part = normalized_path.begin();
+  for (auto directory_part = normalized_directory.begin();
+       directory_part != normalized_directory.end();
+       ++directory_part, ++path_part) {
+    if (path_part == normalized_path.end() || *path_part != *directory_part)
+      return false;
+  }
+  return true;
+}
+
 std::optional<std::filesystem::path>
 resolve_import(std::string_view module, const std::filesystem::path &root,
                const std::vector<std::filesystem::path> &search_paths) {
@@ -356,10 +377,11 @@ resolve_import(std::string_view module, const std::filesystem::path &root,
 SemanticIndex build_semantic_index(
     std::string_view active_uri, std::string_view active_source,
     const std::unordered_map<std::string, std::string> &open_documents,
+    const std::unordered_set<std::string> &workspace_uris,
     const std::vector<std::filesystem::path> &search_paths,
     std::unordered_map<std::string, janus::lsp::DocumentIndex> &cache) {
-  SemanticIndex index;
   std::unordered_set<std::string> indexed_uris;
+  std::vector<std::string> ordered_uris;
   const auto add_document = [&](std::string uri, std::string source) {
     if (!indexed_uris.insert(uri).second)
       return false;
@@ -367,26 +389,32 @@ SemanticIndex build_semantic_index(
     if (cached == cache.end() || cached->second.source != source) {
       janus::lsp::DocumentIndex document{std::move(source), {}};
       document.symbols = symbols(uri, document.source);
-      cached = cache.insert_or_assign(uri, std::move(document)).first;
+      cache.insert_or_assign(uri, std::move(document));
     }
-    index.documents.push_back(IndexedDocument{std::move(uri),
-                                              &cached->second});
+    ordered_uris.push_back(std::move(uri));
     return true;
   };
   add_document(std::string{active_uri}, std::string{active_source});
   for (const auto &[uri, source] : open_documents)
     add_document(uri, source);
+  for (const std::string &uri : workspace_uris) {
+    if (const auto cached = cache.find(uri); cached != cache.end())
+      add_document(uri, cached->second.source);
+  }
 
   for (std::size_t document_index = 0;
-       document_index < index.documents.size(); ++document_index) {
-    const IndexedDocument &document = index.documents[document_index];
+       document_index < ordered_uris.size(); ++document_index) {
+    const std::string &document_uri = ordered_uris[document_index];
+    const auto cached_document = cache.find(document_uri);
+    if (cached_document == cache.end())
+      continue;
     const std::optional<std::filesystem::path> document_path =
-        file_uri_path(document.uri);
+        file_uri_path(document_uri);
     if (!document_path.has_value())
       continue;
     janus::ast::Program program;
     try {
-      janus::frontend::Parser parser{document.index->source};
+      janus::frontend::Parser parser{cached_document->second.source};
       program = parser.parse_program();
     } catch (const std::exception &) {
       continue;
@@ -408,6 +436,14 @@ SemanticIndex build_semantic_index(
       add_document(uri, std::move(source));
     }
   }
+
+  SemanticIndex index;
+  index.documents.reserve(ordered_uris.size());
+  for (std::string &uri : ordered_uris) {
+    if (const auto cached = cache.find(uri); cached != cache.end())
+      index.documents.push_back(
+          IndexedDocument{std::move(uri), &cached->second});
+  }
   return index;
 }
 
@@ -418,13 +454,170 @@ namespace janus::lsp {
 Server::Server(std::vector<std::filesystem::path> module_search_paths)
     : module_search_paths_{std::move(module_search_paths)} {}
 
+void Server::refresh_workspace_metrics(std::uint64_t startup_milliseconds) {
+  WorkspaceIndexMetrics metrics;
+  metrics.startup_milliseconds =
+      startup_milliseconds == 0 ? workspace_metrics_.startup_milliseconds
+                                : startup_milliseconds;
+  for (const std::string &uri : workspace_uris_) {
+    const auto document = index_cache_.find(uri);
+    if (document == index_cache_.end())
+      continue;
+    ++metrics.files;
+    metrics.source_bytes += document->second.source.size();
+    metrics.estimated_memory_bytes +=
+        sizeof(DocumentIndex) + document->second.source.size();
+    for (const IndexedSymbol &symbol : document->second.symbols) {
+      ++metrics.symbols;
+      metrics.estimated_memory_bytes +=
+          sizeof(IndexedSymbol) + symbol.id.size() + symbol.name.size() +
+          symbol.detail.size();
+      if (symbol.module_name.has_value())
+        metrics.estimated_memory_bytes += symbol.module_name->size();
+    }
+  }
+  workspace_metrics_ = metrics;
+}
+
+void Server::index_workspace_file(const std::filesystem::path &path,
+                                  bool dependency) {
+  if (path.extension() != ".janus" || !std::filesystem::is_regular_file(path))
+    return;
+  const std::string uri = file_uri(path);
+  std::string source;
+  if (const auto open = documents_.find(uri); open != documents_.end()) {
+    source = open->second;
+  } else {
+    std::ifstream input{path, std::ios::binary};
+    if (!input)
+      return;
+    source.assign(std::istreambuf_iterator<char>{input},
+                  std::istreambuf_iterator<char>{});
+  }
+  DocumentIndex index{std::move(source), {}};
+  index.symbols = symbols(uri, index.source);
+  index_cache_.insert_or_assign(uri, std::move(index));
+  workspace_uris_.insert(uri);
+  if (dependency)
+    dependency_uris_.insert(uri);
+  else
+    dependency_uris_.erase(uri);
+}
+
+void Server::remove_workspace_file(std::string_view uri) {
+  workspace_uris_.erase(std::string{uri});
+  dependency_uris_.erase(std::string{uri});
+  if (!documents_.contains(std::string{uri}))
+    index_cache_.erase(std::string{uri});
+  refresh_workspace_metrics();
+}
+
+void Server::initialize_workspace(
+    const std::vector<std::filesystem::path> &roots) {
+  const auto started = std::chrono::steady_clock::now();
+  for (const std::string &uri : workspace_uris_)
+    if (!documents_.contains(uri))
+      index_cache_.erase(uri);
+  workspace_uris_.clear();
+  dependency_uris_.clear();
+  workspace_roots_.clear();
+  dependency_roots_.clear();
+  workspace_search_paths_.clear();
+
+  const auto add_search_path = [&](const std::filesystem::path &path) {
+    const std::filesystem::path normalized =
+        std::filesystem::absolute(path).lexically_normal();
+    if (std::filesystem::is_directory(normalized) &&
+        std::find(workspace_search_paths_.begin(),
+                  workspace_search_paths_.end(),
+                  normalized) == workspace_search_paths_.end())
+      workspace_search_paths_.push_back(normalized);
+  };
+  const auto scan_directory = [&](const std::filesystem::path &directory,
+                                  bool dependency) {
+    if (!std::filesystem::is_directory(directory))
+      return;
+    std::error_code error;
+    for (std::filesystem::recursive_directory_iterator iterator{
+             directory,
+             std::filesystem::directory_options::skip_permission_denied,
+             error},
+         end;
+         iterator != end; iterator.increment(error)) {
+      if (error) {
+        error.clear();
+        continue;
+      }
+      if (iterator->is_regular_file(error))
+        index_workspace_file(iterator->path(), dependency);
+      error.clear();
+    }
+  };
+
+  std::unordered_set<std::string> visited_manifests;
+  const auto scan_package = [&](const auto &self,
+                                const std::filesystem::path &root,
+                                bool dependency) -> void {
+    const std::filesystem::path normalized =
+        std::filesystem::absolute(root).lexically_normal();
+    const std::filesystem::path manifest_path = normalized / "janus.toml";
+    const std::string identity = manifest_path.generic_string();
+    if (!visited_manifests.insert(identity).second)
+      return;
+    if (dependency)
+      dependency_roots_.push_back(normalized);
+    add_search_path(normalized / "src");
+    scan_directory(normalized / "src", dependency);
+    if (!dependency)
+      scan_directory(normalized / "tests", false);
+    if (!std::filesystem::is_regular_file(manifest_path))
+      return;
+    try {
+      const driver::Manifest manifest = driver::load_manifest(manifest_path);
+      index_workspace_file(manifest.entry_path(), dependency);
+      for (const driver::Dependency &child : manifest.dependencies)
+        if (!child.path.empty())
+          self(self, (manifest.root() / child.path).lexically_normal(), true);
+      if (std::filesystem::is_regular_file(manifest.root() / "janus.lock")) {
+        try {
+          for (const std::filesystem::path &search_path :
+               driver::resolve_dependencies(
+                   manifest, driver::DependencyOptions{true, true})) {
+            add_search_path(search_path);
+            scan_directory(search_path, true);
+            dependency_roots_.push_back(search_path.parent_path());
+          }
+        } catch (const std::exception &) {
+        }
+      }
+    } catch (const std::exception &) {
+    }
+  };
+
+  for (const std::filesystem::path &root : roots) {
+    const std::filesystem::path normalized =
+        std::filesystem::absolute(root).lexically_normal();
+    if (!std::filesystem::is_directory(normalized))
+      continue;
+    workspace_roots_.push_back(normalized);
+    scan_package(scan_package, normalized, false);
+  }
+  const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now() - started);
+  refresh_workspace_metrics(
+      static_cast<std::uint64_t>(elapsed.count()) + UINT64_C(1));
+}
+
 std::string Server::diagnostics(std::string_view uri,
                                 std::string_view source) const {
   llvm::json::Array items;
   try {
     ast::Program program;
     if (const std::optional<std::filesystem::path> path = file_uri_path(uri)) {
-      frontend::ModuleLoader loader{module_search_paths_};
+      std::vector<std::filesystem::path> search_paths = module_search_paths_;
+      search_paths.insert(search_paths.end(), workspace_search_paths_.begin(),
+                          workspace_search_paths_.end());
+      frontend::ModuleLoader loader{std::move(search_paths)};
       program = loader.load(*path, source);
     } else {
       frontend::Parser parser{source};
@@ -472,25 +665,60 @@ std::vector<std::string> Server::handle(std::string_view message) {
     return {error_response(nullptr, -32600, "Invalid Request")};
 
   const std::optional<llvm::StringRef> method = request->getString("method");
+  if (!method && request->get("id") != nullptr &&
+      (request->get("result") != nullptr || request->get("error") != nullptr))
+    return {};
   if (!method)
     return {error_response(request_id(*request), -32600, "Invalid Request")};
+  const llvm::json::Object *params = request->getObject("params");
 
   if (*method == "initialize") {
+    std::vector<std::filesystem::path> roots;
+    if (params != nullptr) {
+      if (const llvm::json::Array *folders =
+              params->getArray("workspaceFolders")) {
+        for (const llvm::json::Value &folder : *folders)
+          if (const llvm::json::Object *entry = folder.getAsObject())
+            if (const std::optional<llvm::StringRef> folder_uri =
+                    entry->getString("uri"))
+              if (const auto path = file_uri_path(*folder_uri))
+                roots.push_back(*path);
+      }
+      if (roots.empty())
+        if (const std::optional<llvm::StringRef> root_uri =
+                params->getString("rootUri"))
+          if (const auto path = file_uri_path(*root_uri))
+            roots.push_back(*path);
+      if (roots.empty())
+        if (const std::optional<llvm::StringRef> root_path =
+                params->getString("rootPath"))
+          roots.emplace_back(root_path->str());
+    }
+    initialize_workspace(roots);
     return {response(
         request_id(*request),
         llvm::json::Object{
             {"capabilities",
              llvm::json::Object{
                  {"textDocumentSync",
-                  llvm::json::Object{{"openClose", true}, {"change", 1}}},
+                  llvm::json::Object{{"openClose", true},
+                                     {"change", 1},
+                                     {"save", true}}},
                  {"hoverProvider", true},
                  {"definitionProvider", true},
                  {"referencesProvider", true},
+                 {"workspaceSymbolProvider", true},
                  {"completionProvider",
                   llvm::json::Object{
                       {"triggerCharacters", llvm::json::Array{".", ":"}},
                   }},
                  {"documentFormattingProvider", true},
+                 {"workspace",
+                  llvm::json::Object{
+                      {"workspaceFolders",
+                       llvm::json::Object{{"supported", true},
+                                          {"changeNotifications", true}}},
+                  }},
              }},
             {"serverInfo",
              llvm::json::Object{{"name", "janus-lsp"},
@@ -504,7 +732,112 @@ std::vector<std::string> Server::handle(std::string_view message) {
   if (*method == "exit")
     return {};
 
-  const llvm::json::Object *params = request->getObject("params");
+  if (*method == "initialized") {
+    return {serialize(llvm::json::Object{
+        {"jsonrpc", "2.0"},
+        {"id", "janus-watch-files"},
+        {"method", "client/registerCapability"},
+        {"params",
+         llvm::json::Object{
+             {"registrations",
+              llvm::json::Array{llvm::json::Object{
+                  {"id", "janus-workspace-files"},
+                  {"method", "workspace/didChangeWatchedFiles"},
+                  {"registerOptions",
+                   llvm::json::Object{
+                       {"watchers",
+                        llvm::json::Array{
+                            llvm::json::Object{
+                                {"globPattern", "**/*.janus"}, {"kind", 7}},
+                            llvm::json::Object{
+                                {"globPattern", "**/janus.toml"},
+                                {"kind", 7}},
+                        }},
+                   }},
+              }}},
+         }},
+    })};
+  }
+
+  if (*method == "workspace/didChangeWorkspaceFolders" && params != nullptr) {
+    std::vector<std::filesystem::path> roots = workspace_roots_;
+    if (const llvm::json::Object *event = params->getObject("event")) {
+      if (const llvm::json::Array *removed = event->getArray("removed"))
+        for (const llvm::json::Value &folder : *removed)
+          if (const llvm::json::Object *entry = folder.getAsObject())
+            if (const std::optional<llvm::StringRef> folder_uri =
+                    entry->getString("uri"))
+              if (const auto path = file_uri_path(*folder_uri)) {
+                const std::filesystem::path normalized =
+                    std::filesystem::absolute(*path).lexically_normal();
+                std::erase(roots, normalized);
+              }
+      if (const llvm::json::Array *added = event->getArray("added"))
+        for (const llvm::json::Value &folder : *added)
+          if (const llvm::json::Object *entry = folder.getAsObject())
+            if (const std::optional<llvm::StringRef> folder_uri =
+                    entry->getString("uri"))
+              if (const auto path = file_uri_path(*folder_uri)) {
+                const std::filesystem::path normalized =
+                    std::filesystem::absolute(*path).lexically_normal();
+                if (std::find(roots.begin(), roots.end(), normalized) ==
+                    roots.end())
+                  roots.push_back(normalized);
+              }
+    }
+    initialize_workspace(roots);
+    return {};
+  }
+
+  if (*method == "workspace/didChangeWatchedFiles" && params != nullptr) {
+    bool rebuild = false;
+    if (const llvm::json::Array *changes = params->getArray("changes")) {
+      for (const llvm::json::Value &change : *changes) {
+        const llvm::json::Object *entry = change.getAsObject();
+        if (entry == nullptr)
+          continue;
+        const std::optional<llvm::StringRef> changed_uri =
+            entry->getString("uri");
+        const std::optional<std::int64_t> kind = entry->getInteger("type");
+        if (!changed_uri || !kind)
+          continue;
+        const auto path = file_uri_path(*changed_uri);
+        if (!path)
+          continue;
+        const bool project =
+            std::any_of(workspace_roots_.begin(), workspace_roots_.end(),
+                        [&](const std::filesystem::path &root) {
+                          return path_is_within(*path, root);
+                        });
+        const bool dependency =
+            std::any_of(dependency_roots_.begin(), dependency_roots_.end(),
+                        [&](const std::filesystem::path &root) {
+                          return path_is_within(*path, root);
+                        });
+        if (!project && !dependency)
+          continue;
+        if (path->filename() == "janus.toml") {
+          rebuild = true;
+          continue;
+        }
+        if (path->extension() != ".janus")
+          continue;
+        if (*kind == 3) {
+          remove_workspace_file(*changed_uri);
+          continue;
+        }
+        index_workspace_file(*path, dependency);
+      }
+    }
+    if (rebuild) {
+      const std::vector<std::filesystem::path> roots = workspace_roots_;
+      initialize_workspace(roots);
+    } else {
+      refresh_workspace_metrics();
+    }
+    return {};
+  }
+
   const llvm::json::Object *text_document =
       params == nullptr ? nullptr : params->getObject("textDocument");
   const std::optional<llvm::StringRef> uri =
@@ -519,6 +852,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
       DocumentIndex index{text->str(), {}};
       index.symbols = symbols(*uri, index.source);
       index_cache_.insert_or_assign(uri->str(), std::move(index));
+      if (workspace_uris_.contains(uri->str()))
+        refresh_workspace_metrics();
       return {diagnostics(*uri, *text)};
     }
     return {};
@@ -534,15 +869,101 @@ std::vector<std::string> Server::handle(std::string_view message) {
         DocumentIndex index{text->str(), {}};
         index.symbols = symbols(*uri, index.source);
         index_cache_.insert_or_assign(uri->str(), std::move(index));
+        if (workspace_uris_.contains(uri->str()))
+          refresh_workspace_metrics();
         return {diagnostics(*uri, *text)};
       }
     }
     return {};
   }
+  if (*method == "textDocument/didSave" && uri) {
+    if (params != nullptr)
+      if (const std::optional<llvm::StringRef> text = params->getString("text"))
+        documents_.insert_or_assign(uri->str(), text->str());
+    if (const auto path = file_uri_path(*uri)) {
+      const bool dependency = dependency_uris_.contains(uri->str());
+      index_workspace_file(*path, dependency);
+      refresh_workspace_metrics();
+    }
+    return {};
+  }
   if (*method == "textDocument/didClose" && uri) {
     documents_.erase(uri->str());
-    index_cache_.erase(uri->str());
+    if (workspace_uris_.contains(uri->str())) {
+      if (const auto path = file_uri_path(*uri))
+        index_workspace_file(*path, dependency_uris_.contains(uri->str()));
+      refresh_workspace_metrics();
+    } else {
+      index_cache_.erase(uri->str());
+    }
     return {publish_diagnostics(*uri, {})};
+  }
+
+  if (*method == "janus/workspaceIndexStats") {
+    return {response(
+        request_id(*request),
+        llvm::json::Object{
+            {"files", static_cast<std::int64_t>(workspace_metrics_.files)},
+            {"symbols", static_cast<std::int64_t>(workspace_metrics_.symbols)},
+            {"sourceBytes",
+             static_cast<std::int64_t>(workspace_metrics_.source_bytes)},
+            {"estimatedMemoryBytes",
+             static_cast<std::int64_t>(
+                 workspace_metrics_.estimated_memory_bytes)},
+            {"startupMilliseconds",
+             static_cast<std::int64_t>(
+                 workspace_metrics_.startup_milliseconds)},
+        })};
+  }
+
+  if (*method == "workspace/symbol") {
+    std::string query;
+    if (params != nullptr)
+      if (const std::optional<llvm::StringRef> requested =
+              params->getString("query"))
+        query = requested->lower();
+    struct WorkspaceSymbol {
+      std::string uri;
+      DocumentSymbol symbol;
+    };
+    std::vector<WorkspaceSymbol> matches;
+    for (const std::string &indexed_uri : workspace_uris_) {
+      const auto document = index_cache_.find(indexed_uri);
+      if (document == index_cache_.end())
+        continue;
+      for (const DocumentSymbol &symbol : document->second.symbols) {
+        std::string name = symbol.name;
+        std::transform(name.begin(), name.end(), name.begin(),
+                       [](unsigned char character) {
+                         return static_cast<char>(std::tolower(character));
+                       });
+        if (symbol.is_top_level && !symbol.is_private &&
+            (query.empty() || name.find(query) != std::string::npos))
+          matches.push_back(WorkspaceSymbol{indexed_uri, symbol});
+      }
+    }
+    std::sort(matches.begin(), matches.end(),
+              [](const WorkspaceSymbol &left, const WorkspaceSymbol &right) {
+                if (left.symbol.name != right.symbol.name)
+                  return left.symbol.name < right.symbol.name;
+                return left.uri < right.uri;
+              });
+    llvm::json::Array result;
+    for (const WorkspaceSymbol &match : matches) {
+      const std::int64_t kind =
+          match.symbol.detail.starts_with("def ") ? 12 : 13;
+      result.emplace_back(llvm::json::Object{
+          {"name", match.symbol.name},
+          {"kind", kind},
+          {"location",
+           llvm::json::Object{
+               {"uri", match.uri},
+               {"range",
+                range(match.symbol.location, match.symbol.name.size())},
+           }},
+      });
+    }
+    return {response(request_id(*request), std::move(result))};
   }
 
   const auto open_document =
@@ -590,9 +1011,12 @@ std::vector<std::string> Server::handle(std::string_view message) {
     const std::optional<LocatedIdentifier> identifier = identifier_at(
         document->second, static_cast<std::uint32_t>(*line),
         static_cast<std::uint32_t>(*character));
+    std::vector<std::filesystem::path> search_paths = module_search_paths_;
+    search_paths.insert(search_paths.end(), workspace_search_paths_.begin(),
+                        workspace_search_paths_.end());
     const SemanticIndex semantic_index =
         build_semantic_index(uri->str(), document->second, documents_,
-                             module_search_paths_, index_cache_);
+                             workspace_uris_, search_paths, index_cache_);
     const std::vector<DocumentSymbol> &document_symbols =
         semantic_index.documents.front().index->symbols;
     const auto bind_symbol =
@@ -665,6 +1089,13 @@ std::vector<std::string> Server::handle(std::string_view message) {
       if (identifier) {
         llvm::json::Array references;
         const auto target = locate_symbol(*identifier);
+        bool include_declaration = true;
+        if (params != nullptr)
+          if (const llvm::json::Object *context =
+                  params->getObject("context"))
+            if (const std::optional<bool> requested =
+                    context->getBoolean("includeDeclaration"))
+              include_declaration = *requested;
         for (const IndexedDocument &indexed : semantic_index.documents) {
           for (const frontend::Token &token : tokens(indexed.index->source)) {
             if (token.kind == frontend::TokenKind::Identifier &&
@@ -675,6 +1106,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                     token.location});
               if (!target.has_value() || !bound.has_value() ||
                   bound->second.id != target->second.id)
+                continue;
+              if (!include_declaration && indexed.uri == target->first &&
+                  token.location.offset == target->second.location.offset)
                 continue;
               references.emplace_back(llvm::json::Object{
                   {"uri", indexed.uri},

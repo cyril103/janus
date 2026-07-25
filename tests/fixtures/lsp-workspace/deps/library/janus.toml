@@ -1,0 +1,4 @@
+[package]
+name = "library"
+version = "1.0.0"
+entry = "src/library.janus"

@@ -1,0 +1,4 @@
+module unopened
+
+val workspaceValue : int = 42
+private val hiddenWorkspaceValue : int = 7

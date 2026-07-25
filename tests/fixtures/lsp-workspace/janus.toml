@@ -1,0 +1,7 @@
+[package]
+name = "lsp-workspace"
+version = "0.1.0"
+entry = "src/main.janus"
+
+[dependencies]
+library = { path = "deps/library" }

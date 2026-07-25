@@ -1,0 +1,5 @@
+import library
+
+def main() : int {
+    return helper()
+}

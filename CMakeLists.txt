@@ -433,6 +433,22 @@ if(BUILD_TESTING)
             JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
     )
     add_test(NAME lsp.server COMMAND lsp_server_test)
+    add_executable(lsp_workspace_index_test
+        tests/lsp/workspace_index_test.cpp
+    )
+    target_link_libraries(lsp_workspace_index_test PRIVATE janus_lsp)
+    target_compile_definitions(lsp_workspace_index_test
+        PRIVATE
+            JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+            JANUS_LSP_WORKSPACE_FIXTURE="${PROJECT_SOURCE_DIR}/tests/fixtures/lsp-workspace"
+    )
+    target_compile_options(lsp_workspace_index_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME lsp.workspace_index COMMAND lsp_workspace_index_test)
     add_test(
         NAME cli.emit_llvm
         COMMAND janus build "${PROJECT_SOURCE_DIR}/examples/value.janus"

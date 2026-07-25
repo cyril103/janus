@@ -1,0 +1,6 @@
+module reference
+import library
+
+def dependencyReference() : int {
+    return helper()
+}
