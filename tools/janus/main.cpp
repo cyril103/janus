@@ -8,6 +8,7 @@
 #include "janus/driver/native_linker.hpp"
 #include "janus/driver/project.hpp"
 #include "janus/driver/registry.hpp"
+#include "janus/driver/temporary_directory.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
 
@@ -472,10 +473,13 @@ int build(const Options &options, const std::filesystem::path &output,
     return 0;
   }
 
-  const std::filesystem::path object =
-      options.emit_object ? output
-                          : std::filesystem::temp_directory_path() /
-                                ("janus-" + std::to_string(std::rand()) + ".o");
+  std::optional<janus::driver::TemporaryDirectory> temporary_directory;
+  std::filesystem::path object = output;
+  if (!options.emit_object) {
+    temporary_directory.emplace(
+        janus::driver::TemporaryDirectory::create("janus-build"));
+    object = temporary_directory->path() / "module.o";
+  }
   janus::backend::llvm::emit_object(*module, object, options.release);
   if (options.emit_object)
     return 0;
@@ -483,8 +487,6 @@ int build(const Options &options, const std::filesystem::path &output,
                                  janus::driver::LinkOptions{!options.release,
                                                             {toolchain.runtime},
                                                             toolchain.clang});
-  std::error_code ignored;
-  std::filesystem::remove(object, ignored);
   return 0;
 }
 
@@ -640,22 +642,23 @@ int main(int argc, char **argv) {
       return build(options, default_output(options), toolchain);
 
     const bool temporary = !options.manifest.has_value();
-    const std::filesystem::path executable =
-        temporary ? std::filesystem::temp_directory_path() /
-                        ("janus-run-" + std::to_string(std::rand())
+    std::optional<janus::driver::TemporaryDirectory> run_directory;
+    std::filesystem::path executable;
+    if (temporary) {
+      run_directory.emplace(
+          janus::driver::TemporaryDirectory::create("janus-run"));
+      executable = run_directory->path() / "program";
 #ifdef _WIN32
-                         + ".exe"
+      executable += ".exe";
 #endif
-                         )
-                  : default_output(options);
+    } else {
+      executable = default_output(options);
+    }
     const int build_status = build(options, executable, toolchain);
     if (build_status != 0)
       return build_status;
     const int run_status =
         command_status(std::system(shell_quote(executable).c_str()));
-    std::error_code ignored;
-    if (temporary)
-      std::filesystem::remove(executable, ignored);
     return run_status;
   } catch (const UsageError &error) {
     std::cerr << "janus";
