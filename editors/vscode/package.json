@@ -2,7 +2,7 @@
   "name": "janus-language",
   "displayName": "Janus Language",
   "description": "Language support powered by janus-lsp",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "janus-lang",
   "license": "Apache-2.0",
   "repository": {
@@ -15,7 +15,7 @@
     "url": "https://github.com/cyril103/janus/issues"
   },
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.91.0"
   },
   "categories": [
     "Programming Languages"
@@ -70,7 +70,7 @@
     "vscode:prepublish": "npm run build"
   },
   "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^10.1.0"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.0",

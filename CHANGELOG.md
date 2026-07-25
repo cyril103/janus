@@ -3,6 +3,36 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.5.0] - 2026-07-25
+
+Cette version enrichit la bibliothèque standard et le graphisme, étend
+l'analyse des projets complets dans les outils et prépare les garanties de
+compatibilité attendues pour Janus 1.0.
+
+### Langage et bibliothèque standard
+
+- ajout des chaînes `else if` au parseur et à l'analyse sémantique ;
+- ajout des modules `std.time`, `std.wall_time` et `std.random`, avec contrôles
+  d'erreur et primitives natives associées ;
+- ajout des conversions de texte sûres, du formatage des valeurs primitives et
+  d'une API de construction de texte.
+
+### Graphisme et exemples
+
+- ajout du temps de trame, de la limitation du nombre d'images par seconde et
+  des modes de fusion au module graphique ;
+- ajout d'un exemple complet de jeu Snake néon et de sa documentation.
+
+### Outils et fiabilité
+
+- indexation LSP de l'ensemble d'un projet, y compris les fichiers non ouverts,
+  les tests et les dépendances locales ;
+- création d'artefacts temporaires sûre en présence de compilations
+  concurrentes, avec nettoyage automatique ;
+- ajout d'un contrat de stabilité 1.0 et d'un harnais de compatibilité N/N+1 ;
+- mise à jour du client de langage VS Code et de ses dépendances afin de
+  corriger les alertes de sécurité connues.
+
 ## [0.4.0] - 2026-07-24
 
 Cette version renforce le modèle de propriété, consolide les symboles entre
@@ -162,6 +192,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.5.0]: https://github.com/cyril103/janus/releases/tag/v0.5.0
 [0.4.0]: https://github.com/cyril103/janus/releases/tag/v0.4.0
 [0.3.0]: https://github.com/cyril103/janus/releases/tag/v0.3.0
 [0.2.1]: https://github.com/cyril103/janus/releases/tag/v0.2.1
