@@ -1,0 +1,9 @@
+module library
+
+def helper() : int {
+    return 42
+}
+
+private def secretHelper() : int {
+    return 7
+}

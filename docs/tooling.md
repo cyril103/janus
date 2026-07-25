@@ -151,9 +151,31 @@ actuellement en charge :
 
 - diagnostics lors de l'ouverture et de la modification d'un fichier ;
 - survol d'un symbole ;
-- définition et références ;
+- définition et références à l'échelle du workspace ;
+- recherche de symboles dans le workspace ;
 - autocomplétion ;
 - formatage du document.
+
+À l'initialisation, le serveur lit `janus.toml` et indexe les fichiers `.janus`
+de `src/`, `tests/` et des dépendances résolues. Les dépendances par chemin sont
+suivies directement ; les dépendances git ou registre déjà verrouillées et
+présentes dans le cache sont chargées hors ligne. La navigation ne dépend donc
+pas des fichiers préalablement ouverts. Les déclarations privées restent
+visibles dans leur propre fichier, mais ne sont proposées ni résolues depuis un
+autre module.
+
+Le serveur demande au client de surveiller `**/*.janus` et `**/janus.toml`.
+Les créations, modifications, suppressions, sauvegardes et changements de
+dossiers de workspace actualisent l'index sans redémarrage. La méthode interne
+`janus/workspaceIndexStats` expose le nombre de fichiers et symboles, les octets
+source, une estimation de la mémoire de l'index et sa durée de démarrage.
+
+Le projet de référence
+[`tests/fixtures/lsp-workspace`](../tests/fixtures/lsp-workspace) protège un
+budget de démarrage de 2 secondes et un budget mémoire estimé de 1 Mio. Ces
+limites sont volontairement largement supérieures au coût actuel du petit
+fixture afin de détecter une régression importante sur toutes les plateformes
+de CI.
 
 L'extension VS Code se trouve dans
 [`editors/vscode`](../editors/vscode/README.md). Elle cherche le serveur dans
