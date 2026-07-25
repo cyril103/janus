@@ -6,7 +6,9 @@ les entrées clavier, une render texture et un fragment shader appliqué
 uniquement au serpent.
 
 Le score dynamique utilise le tampon réutilisable sûr de `std.text`; l'exemple
-n'importe pas `std.c`.
+n'importe pas `std.c`. Le temps du shader vient de l'horloge monotone et le
+placement de la nourriture utilise la source pseudo-aléatoire initialisée
+automatiquement de `std.random`.
 
 Depuis la racine du dépôt :
 

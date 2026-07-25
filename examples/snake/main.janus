@@ -1,5 +1,6 @@
 import std.array
 import std.graphics
+import std.random
 import std.text
 
 val screenWidth : int = 800
@@ -24,14 +25,13 @@ def contains(snake : Array[Cell], x : int, y : int) : bool {
     return false
 }
 
-def placeFood(snake : Array[Cell], seedValue : int) : Cell {
-    var seed : int = seedValue
+def placeFood(snake : Array[Cell], random : Random) : Cell {
     var x : int = 0
     var y : int = 0
     var occupied : bool = true
     var attempts : int = 0
-    seed = (seed * 73 + 41) % 1000003
-    val start : int = seed % (columns * rows)
+    val start : int =
+        int(random.nextBounded(usize(columns * rows)))
 
     while occupied && attempts < columns * rows {
         val candidate : int = (start + attempts) % (columns * rows)
@@ -217,16 +217,17 @@ def main() : int {
     var directionY : int = 0
     var nextX : int = 1
     var nextY : int = 0
-    var seed : int = 27183
-    var food : Cell = placeFood(snake, seed)
+    val random : Random = automaticRandom()
+    defer delete random
+    var food : Cell = placeFood(snake, random)
     var score : int = 0
     var frame : int = 0
     var paused : bool = false
     var gameOver : bool = false
-    var elapsed : float = float(0.0)
 
     while !windowShouldClose() && !isKeyPressed(Key.Escape) {
-        elapsed = elapsed + float(0.0166667)
+        val elapsedDuration : Duration = elapsedTime()
+        val elapsed : float = float(elapsedDuration.seconds())
         if isKeyPressed(Key.Space) && !gameOver {
             paused = !paused
         }
@@ -241,8 +242,7 @@ def main() : int {
             frame = 0
             paused = false
             gameOver = false
-            seed = (seed + 7919) % 1000003
-            food = placeFood(snake, seed)
+            food = placeFood(snake, random)
         }
 
         if !paused && !gameOver {
@@ -315,8 +315,7 @@ def main() : int {
 
                     if ate {
                         score = score + 1
-                        seed = (seed + newX * 97 + newY * 193 + score) % 1000003
-                        food = placeFood(snake, seed)
+                        food = placeFood(snake, random)
                     }
                 }
             }

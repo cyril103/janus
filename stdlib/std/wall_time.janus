@@ -1,0 +1,21 @@
+module std.wall_time
+
+private extern def janus_wall_nanoseconds() : usize
+
+struct WallTime(private val value : usize) {
+    def unixNanoseconds() : usize {
+        return value
+    }
+
+    def unixMilliseconds() : usize {
+        return value / usize(1000000)
+    }
+
+    def unixSeconds() : usize {
+        return value / usize(1000000000)
+    }
+}
+
+def wallNow() : WallTime {
+    return new WallTime(janus_wall_nanoseconds())
+}

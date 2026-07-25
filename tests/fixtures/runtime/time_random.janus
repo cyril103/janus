@@ -1,0 +1,46 @@
+import std.graphics
+import std.random
+import std.time
+import std.wall_time
+
+def main() : int {
+    val first : Instant = monotonicNow()
+    val second : Instant = monotonicNow()
+    val elapsed : Duration = second.durationSince(first)
+    val sinceSecond : Duration = second.elapsed()
+    val graphicsFrame : Duration = frameTime()
+    val graphicsElapsed : Duration = elapsedTime()
+
+    val wall : WallTime = wallNow()
+    if wall.unixSeconds() < usize(1700000000) {
+        return 2
+    }
+
+    val duration : Duration = seconds(usize(2))
+    if duration.seconds() != double(2.0) {
+        return 5
+    }
+    println(duration.nanoseconds())
+    println(duration.milliseconds())
+    println(duration.microseconds())
+
+    val generator : Random = new Random(usize(0))
+    println(generator.nextUSize())
+    println(generator.nextUSize())
+    println(generator.nextUSize())
+    delete generator
+
+    val bounded : Random = new Random(usize(0))
+    println(bounded.nextBounded(usize(10)))
+    delete bounded
+
+    if randomBounded(usize(7)) >= usize(7) {
+        return 3
+    }
+    val automatic : Random = automaticRandom()
+    if automatic.nextBounded(usize(1)) != usize(0) {
+        return 4
+    }
+    delete automatic
+    return 0
+}

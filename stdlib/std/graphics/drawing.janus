@@ -1,6 +1,7 @@
 module std.graphics.drawing
 import std.c
 import std.graphics.types
+import std.time
 
 private extern def janus_graphics_last_error() : Ptr[byte]
 private extern def janus_graphics_available() : bool
@@ -108,6 +109,10 @@ y : int,
 fontSize : int,
 color : uint
 ) : Unit
+
+private val graphicsStartTime : Instant = monotonicNow()
+private var graphicsPreviousFrameTime : Instant = graphicsStartTime
+
 class Camera2D(
 var offsetX : float,
 var offsetY : float,
@@ -203,6 +208,18 @@ def screenHeight() : int {
 
 def setTargetFps(framesPerSecond : int) : Unit {
     janus_graphics_set_target_fps(framesPerSecond)
+}
+
+def frameTime() : Duration {
+    val current : Instant = monotonicNow()
+    val duration : Duration =
+        current.durationSince(graphicsPreviousFrameTime)
+    graphicsPreviousFrameTime = current
+    return duration
+}
+
+def elapsedTime() : Duration {
+    return monotonicNow().durationSince(graphicsStartTime)
 }
 
 def beginDrawing() : Unit {
