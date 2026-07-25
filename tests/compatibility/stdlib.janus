@@ -1,0 +1,24 @@
+import std.array
+import std.math
+import std.text
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(3))
+    defer delete values
+    values.push(6)
+    values.push(7)
+    values.push(29)
+
+    val text : TextBuilder = new TextBuilder()
+    defer delete text
+    text.append("sum=")
+    text.appendInt(values.fold[int](
+        0,
+        (total : int, value : int) => total + value
+    ))
+    println(text.view())
+    println(gcd(usize(54), usize(24)))
+    println(is_prime(usize(29)))
+    return 0
+}
+

@@ -735,6 +735,18 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(
+        NAME compatibility.current
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DPREVIOUS_JANUS=$<TARGET_FILE:janus>"
+            "-DCURRENT_JANUS=$<TARGET_FILE:janus>"
+            "-DFIXTURE_DIR=${PROJECT_SOURCE_DIR}/tests/compatibility"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/compatibility-current"
+            "-DEXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+            -P
+            "${PROJECT_SOURCE_DIR}/tests/compatibility/run_compatibility.cmake"
+    )
+    add_test(
         NAME language.text_api_runtime
         COMMAND
             ${CMAKE_COMMAND}

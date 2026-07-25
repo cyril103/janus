@@ -83,4 +83,25 @@ foreach(REQUIRED_SYMBOL isGamepadAvailable setGamepadVibration)
     endif()
 endforeach()
 
+file(READ "${SOURCE_DIR}/docs/stability-contract.md" STABILITY_CONTRACT)
+foreach(REQUIRED_TEXT
+        "# Contrat de stabilité Janus 1.0"
+        "## API expérimentales"
+        "## Dépréciation et migration"
+        "## Suite de compatibilité N/N+1")
+    string(FIND "${STABILITY_CONTRACT}" "${REQUIRED_TEXT}" REQUIRED_POSITION)
+    if(REQUIRED_POSITION EQUAL -1)
+        message(FATAL_ERROR
+            "stability contract is missing required section: ${REQUIRED_TEXT}")
+    endif()
+endforeach()
+
+file(READ "${SOURCE_DIR}/docs/development.md" DEVELOPMENT_GUIDE)
+string(FIND "${DEVELOPMENT_GUIDE}" "stability-contract.md" CONTRACT_REFERENCE)
+string(FIND "${DEVELOPMENT_GUIDE}" "compatibility.current" SUITE_REFERENCE)
+if(CONTRACT_REFERENCE EQUAL -1 OR SUITE_REFERENCE EQUAL -1)
+    message(FATAL_ERROR
+        "release checklist does not reference the stability contract and suite")
+endif()
+
 message(STATUS "Janus ${PROJECT_VERSION} documentation consistency verified")

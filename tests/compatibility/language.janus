@@ -1,0 +1,32 @@
+enum Answer {
+    Value(int),
+    Missing
+}
+
+def classify(value : int) : string {
+    if value > 0 {
+        return "positive"
+    } else if value < 0 {
+        return "negative"
+    }
+    return "zero"
+}
+
+def main() : int {
+    val answer : Answer = Answer.Value(21)
+    println(match answer {
+        Value(value) => value * 2,
+        Missing => 0
+    })
+    println(classify(42))
+
+    var total : int = 0
+    var current : int = 1
+    while current <= 4 {
+        total = total + current
+        current = current + 1
+    }
+    println(total)
+    return 0
+}
+
