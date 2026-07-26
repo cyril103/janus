@@ -51,4 +51,4 @@ Déclarez un nombre de secondes immuable, calculez le nombre de minutes en `doub
     }
     ```
 
-<div class="lesson-nav"><a href="01-premiers-pas/">← Premiers pas</a><a href="03-controle-fonctions/">Contrôle et fonctions →</a></div>
+<div class="lesson-nav"><a href="../01-premiers-pas/">← Premiers pas</a><a href="../03-controle-fonctions/">Contrôle et fonctions →</a></div>

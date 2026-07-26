@@ -67,4 +67,4 @@ janus build --release
     }
     ```
 
-<div class="lesson-nav"><a href="06-collections-iterateurs/">← Collections et itérateurs</a><a href="08-projet-final/">Projet final →</a></div>
+<div class="lesson-nav"><a href="../06-collections-iterateurs/">← Collections et itérateurs</a><a href="../08-projet-final/">Projet final →</a></div>

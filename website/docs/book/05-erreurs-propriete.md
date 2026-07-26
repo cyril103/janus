@@ -63,4 +63,4 @@ def main() : int {
     }
     ```
 
-<div class="lesson-nav"><a href="04-modeliser-donnees/">← Modéliser les données</a><a href="06-collections-iterateurs/">Collections et itérateurs →</a></div>
+<div class="lesson-nav"><a href="../04-modeliser-donnees/">← Modéliser les données</a><a href="../06-collections-iterateurs/">Collections et itérateurs →</a></div>

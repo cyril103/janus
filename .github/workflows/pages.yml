@@ -45,6 +45,14 @@ jobs:
       - name: Build the static site
         run: mkdocs build --strict -f website/mkdocs.yml -d "$GITHUB_WORKSPACE/_site"
 
+      - name: Check generated internal links
+        run: |
+          python -m http.server 8000 --bind 127.0.0.1 --directory _site >/tmp/janus-site.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          sleep 1
+          python website/tests/check_public_links.py http://127.0.0.1:8000/
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

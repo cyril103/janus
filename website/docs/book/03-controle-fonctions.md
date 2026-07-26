@@ -71,4 +71,4 @@ def main() : int {
     }
     ```
 
-<div class="lesson-nav"><a href="02-valeurs-types/">← Valeurs et types</a><a href="04-modeliser-donnees/">Modéliser les données →</a></div>
+<div class="lesson-nav"><a href="../02-valeurs-types/">← Valeurs et types</a><a href="../04-modeliser-donnees/">Modéliser les données →</a></div>
