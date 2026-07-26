@@ -48,27 +48,34 @@ Ces sujets pourront être évalués après 0.8.0 sans bloquer la maturation du c
 | Release | Thème | Résultat attendu |
 | --- | --- | --- |
 | 0.5.1 | Documentation exacte | documentation et site alignés automatiquement sur la surface 0.5.x |
-| 0.5.2 | Diagnostics et paniques | erreurs structurées, actionnables et exploitables par les outils |
-| 0.6.0 | Collections propriétaires | valeurs non-`Copy` stockées, déplacées et détruites sans fuite ni double libération |
-| 0.6.1 | `Option` et `Result` | composition ergonomique des absences et erreurs, y compris avec propriété |
-| 0.6.2 | Dérivations | génération sûre et explicite de `Copy`, égalité, hachage et `Debug` |
-| 0.7.0 | Bibliothèque système | fichiers, chemins, flux, environnement et processus multiplateformes |
-| 0.7.1 | Documentation et éditeur | documentation d'API générée, doctests et expérience LSP publiable |
-| 0.7.2 | Construction mesurable | timings puis cache incrémental correct et invalidation reproductible |
-| 0.8.0 | Écosystème et gel | registre distant sécurisé, audit public et candidat stable pré-1.0 |
+| 0.5.2 | Diagnostics structurés | modèle commun, codes et rendus humain/JSON |
+| 0.5.3 | Paniques observables | origine et traces de développement sans casser les nettoyages |
+| 0.6.0 | `Array` propriétaire | contrat des conteneurs puis valeurs non-`Copy` dans `Array` |
+| 0.6.1 | Collections propriétaires | hachage, builders et itérateurs move-aware |
+| 0.6.2 | `Option` et `Result` | composition ergonomique des absences et erreurs avec propriété |
+| 0.6.3 | Dérivations | génération sûre et explicite de `Copy`, égalité, hachage et `Debug` |
+| 0.7.0 | Chemins et fichiers | erreur système portable, `std.path` et `std.fs` |
+| 0.7.1 | Flux et processus | `std.io`, environnement, arguments et processus |
+| 0.7.2 | Documentation d'API | commentaires publics et `janus doc` |
+| 0.7.3 | Doctests | exemples documentaires compilés par `janus test` |
+| 0.7.4 | Navigation LSP | renommage, signatures, jetons et navigation de traits |
+| 0.7.5 | Extension VS Code | code actions et publication reproductible |
+| 0.7.6 | Timings | phases de compilation mesurées et benchmarks suivis |
+| 0.7.7 | Build incrémental | cache correct et invalidation par interface |
+| 0.7.8 | Protocole du registre | format et modèle de sécurité versionnés |
+| 0.7.9 | Client de registre | recherche, téléchargement et publication distante |
+| 0.8.0 | Registre et gel | service de référence, provenance et audit pré-1.0 |
 
 ## Graphe de dépendances
 
 ```text
-0.5.1
-  └── 0.5.2
-        └── 0.6.0
-              └── 0.6.1
-                    └── 0.6.2
-                          └── 0.7.0
-                                └── 0.7.1
-                                      └── 0.7.2
-                                            └── 0.8.0
+0.5.1 → 0.5.2 → 0.5.3
+                    ↓
+0.6.0 → 0.6.1 → 0.6.2 → 0.6.3
+                              ↓
+0.7.0 → 0.7.1 → 0.7.2 → 0.7.3 → 0.7.4
+                                      ↓
+0.7.5 → 0.7.6 → 0.7.7 → 0.7.8 → 0.7.9 → 0.8.0
 ```
 
 Une release peut être préparée en parallèle, mais elle ne doit pas être publiée avant la réussite des critères de sortie de la release précédente.
@@ -115,7 +122,7 @@ Une release peut être préparée en parallèle, mais elle ne doit pas être pub
 ---
 
 <a id="release-0-5-2"></a>
-## Janus 0.5.2 — Diagnostics et paniques
+## Janus 0.5.2 — Diagnostics structurés
 
 **Objectif :** faire des diagnostics une interface structurée commune au CLI, au compilateur et au LSP.
 
@@ -147,7 +154,16 @@ Une release peut être préparée en parallèle, mais elle ne doit pas être pub
 - le rendu reste lisible sans couleur et sous Windows ;
 - les suggestions ne modifient jamais automatiquement les sources.
 
-### R052-3 — Ajouter contexte source et trace aux paniques de développement
+**Gate de release 0.5.2 :** diagnostics structurés utilisés par CLI et LSP, codes testés et rendus humain/JSON cohérents sur les plateformes supportées.
+
+---
+
+<a id="release-0-5-3"></a>
+## Janus 0.5.3 — Paniques observables
+
+**Objectif :** rendre les erreurs irrécupérables localisables sans modifier le contrat de nettoyage.
+
+### R053-1 — Ajouter contexte source et trace aux paniques de développement
 
 - transmettre fichier, ligne et fonction aux appels de panique générés ;
 - produire une pile symbolisée lorsque la plateforme le permet ;
@@ -161,12 +177,12 @@ Une release peut être préparée en parallèle, mais elle ne doit pas être pub
 - les trois plateformes terminent sans deadlock ni crash du mécanisme de trace ;
 - le format exact reste déclaré expérimental avant 1.0.
 
-**Gate de release 0.5.2 :** diagnostics structurés utilisés par CLI et LSP, fixtures JSON stables pour la série 0.5.x, paniques de debug localisables.
+**Gate de release 0.5.3 :** paniques de debug localisables, nettoyages garantis conservés et fixtures de trace portables validées.
 
 ---
 
 <a id="release-0-6-0"></a>
-## Janus 0.6.0 — Collections de valeurs propriétaires
+## Janus 0.6.0 — Contrat des conteneurs et `Array` propriétaire
 
 **Objectif :** permettre aux collections de stocker des valeurs non-`Copy` avec une sémantique explicite de déplacement et de destruction.
 
@@ -200,7 +216,16 @@ Cette release est le principal changement sémantique de la roadmap. Son contrat
 - les tests incluent succès, panique et sortie de portée ;
 - les types `Copy` ne subissent pas de régression fonctionnelle mesurable.
 
-### R060-3 — Étendre `HashSet`, `HashMap` et builders aux valeurs propriétaires
+**Gate de release 0.6.0 :** contrat documenté, `Array` move-aware, tests sanitizer et matrice multiplateforme verts, première partie du guide de migration 0.5 → 0.6 publiée.
+
+---
+
+<a id="release-0-6-1"></a>
+## Janus 0.6.1 — Collections propriétaires et itérateurs
+
+**Objectif :** appliquer le contrat 0.6.0 aux collections de hachage, builders et parcours.
+
+### R061-1 — Étendre `HashSet`, `HashMap` et builders aux valeurs propriétaires
 
 - appliquer le contrat aux clés et valeurs ;
 - traiter correctement remplacement, suppression, tombstones et rehash ;
@@ -214,7 +239,7 @@ Cette release est le principal changement sémantique de la roadmap. Son contrat
 - rehash et collisions possèdent des tests de stress déterministes ;
 - les collections passent sous ASan/UBSan sur les runners compatibles.
 
-### R060-4 — Ajouter itérateurs observants et consommateurs
+### R061-2 — Ajouter itérateurs observants et consommateurs
 
 - distinguer itération qui observe et itération qui transfère les éléments ;
 - adapter `map`, `filter`, `flatMap`, `take`, `fold` et builders ;
@@ -228,16 +253,16 @@ Cette release est le principal changement sémantique de la roadmap. Son contrat
 - les chaînes d'itérateurs fonctionnent avec types `Copy` et propriétaires ;
 - la suite de compatibilité contient les comportements 0.6.0 retenus.
 
-**Gate de release 0.6.0 :** contrat documenté, collections principales move-aware, tests sanitizer et matrice multiplateforme verts, guide de migration 0.5 → 0.6 publié.
+**Gate de release 0.6.1 :** collections principales move-aware, itérateurs consommateurs testés et guide de migration 0.5 → 0.6 finalisé.
 
 ---
 
-<a id="release-0-6-1"></a>
-## Janus 0.6.1 — Composition de `Option` et `Result`
+<a id="release-0-6-2"></a>
+## Janus 0.6.2 — Composition de `Option` et `Result`
 
 **Objectif :** réduire les `match` répétitifs sans masquer la propriété ni encourager les paniques.
 
-### R061-1 — Enrichir `Option[T]`
+### R062-1 — Enrichir `Option[T]`
 
 Ajouter une surface minimale cohérente, notamment `isSome`, `isNone`, `map`, `andThen`, `orElse`, `unwrapOr` et variantes consommantes nécessaires.
 
@@ -248,7 +273,7 @@ Ajouter une surface minimale cohérente, notamment `isSome`, `isNone`, `map`, `a
 - les méthodes non consommantes et consommantes sont distinguées ;
 - exemples, signatures et cas limites sont documentés et compilés.
 
-### R061-2 — Enrichir `Result[T, E]` et fiabiliser `?`
+### R062-2 — Enrichir `Result[T, E]` et fiabiliser `?`
 
 Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et conversions documentées entre `Option` et `Result`; valider `?` sur valeurs propriétaires.
 
@@ -259,16 +284,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - les API système futures peuvent retourner un `Result` sans allocation obligatoire ;
 - les tests couvrent fonctions, closures, boucles et `defer`.
 
-**Gate de release 0.6.1 :** API documentée, exemples compilés, propriété et propagation couvertes par la suite de compatibilité.
+**Gate de release 0.6.2 :** API documentée, exemples compilés, propriété et propagation couvertes par la suite de compatibilité.
 
 ---
 
-<a id="release-0-6-2"></a>
-## Janus 0.6.2 — Dérivations sûres
+<a id="release-0-6-3"></a>
+## Janus 0.6.3 — Dérivations sûres
 
 **Objectif :** réduire le code répétitif pour les capacités structurelles courantes sans introduire un système général de macros.
 
-### R062-1 — Définir syntaxe et règles de dérivation
+### R063-1 — Définir syntaxe et règles de dérivation
 
 - choisir une syntaxe explicite pour demander les dérivations ;
 - définir l'éligibilité champ par champ ;
@@ -282,7 +307,7 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - aucune capacité n'est dérivée implicitement sans demande ;
 - la syntaxe est protégée par parser, formatter et LSP.
 
-### R062-2 — Implémenter `Copy`, égalité, hachage et `Debug`
+### R063-2 — Implémenter `Copy`, égalité, hachage et `Debug`
 
 - générer les implémentations structurelles ;
 - intégrer égalité/hachage aux collections ;
@@ -296,12 +321,12 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - la sortie `Debug` est testée mais reste distincte du format utilisateur ;
 - la matrice CI et la suite de compatibilité couvrent les quatre capacités.
 
-**Gate de release 0.6.2 :** dérivations minimales stabilisées pour la série 0.6.x, formatter/LSP/doc alignés, aucune macro générale ajoutée.
+**Gate de release 0.6.3 :** dérivations minimales stabilisées pour la série 0.6.x, formatter/LSP/doc alignés, aucune macro générale ajoutée.
 
 ---
 
 <a id="release-0-7-0"></a>
-## Janus 0.7.0 — Bibliothèque système multiplateforme
+## Janus 0.7.0 — Chemins et fichiers multiplateformes
 
 **Objectif :** rendre possibles des outils CLI et applications de fichiers sans écrire directement une couche C.
 
@@ -333,7 +358,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - les tests utilisent des répertoires temporaires uniques et nettoyés ;
 - le comportement des liens symboliques est explicite.
 
-### R070-3 — Ajouter `std.io` et les flux tamponnés
+**Gate de release 0.7.0 :** chemins et fichiers utilisables sans FFI utilisateur, API `Result` cohérente et tests temporaires multiplateformes.
+
+---
+
+<a id="release-0-7-1"></a>
+## Janus 0.7.1 — Flux, environnement et processus
+
+**Objectif :** compléter la bibliothèque système pour les outils CLI et les pipelines de données.
+
+### R071-1 — Ajouter `std.io` et les flux tamponnés
 
 - lecture/écriture séquentielle ;
 - buffers, EOF, flush et fermeture ;
@@ -347,7 +381,7 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - les buffers propriétaires sont nettoyés sur tous les chemins ;
 - exemples de copie de fichier et traitement ligne par ligne compilent et s'exécutent.
 
-### R070-4 — Ajouter arguments, environnement et processus
+### R071-2 — Ajouter arguments, environnement et processus
 
 - arguments du programme et variables d'environnement ;
 - lancement de processus avec arguments séparés ;
@@ -361,16 +395,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - absence de commande et refus d'accès retournent `Result` ;
 - les tests n'abandonnent aucun processus enfant.
 
-**Gate de release 0.7.0 :** exemple CLI complet sans FFI utilisateur, API `Result` cohérente, tests multiplateformes et documentation de sécurité.
+**Gate de release 0.7.1 :** exemple CLI complet sans FFI utilisateur, flux et processus testés, documentation de sécurité publiée.
 
 ---
 
-<a id="release-0-7-1"></a>
-## Janus 0.7.1 — Documentation d'API et expérience éditeur
+<a id="release-0-7-2"></a>
+## Janus 0.7.2 — Documentation d'API
 
 **Objectif :** rendre une bibliothèque Janus découvrable depuis le terminal, le site et l'éditeur.
 
-### R071-1 — Ajouter les commentaires de documentation et `janus doc`
+### R072-1 — Ajouter les commentaires de documentation et `janus doc`
 
 - définir la syntaxe des commentaires publics ;
 - les conserver dans l'AST/index public ;
@@ -384,7 +418,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - les liens entre symboles sont résolus ou signalés ;
 - la génération est déterministe et fonctionne hors ligne.
 
-### R071-2 — Compiler les exemples de documentation comme doctests
+**Gate de release 0.7.2 :** documentation API déterministe, liens résolus et commande `janus doc` validée hors ligne.
+
+---
+
+<a id="release-0-7-3"></a>
+## Janus 0.7.3 — Doctests
+
+**Objectif :** rendre les exemples de documentation exécutables et vérifiables par la chaîne de test.
+
+### R073-1 — Compiler les exemples de documentation comme doctests
 
 - identifier les blocs Janus exécutables et ceux volontairement incomplets ;
 - compiler les exemples avec le contexte du paquet ;
@@ -398,7 +441,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - les tests sont filtrables et leurs échecs indiquent document/ligne ;
 - le site Janus utilise le même mécanisme pour ses extraits.
 
-### R071-3 — Compléter navigation et assistance LSP
+**Gate de release 0.7.3 :** doctests actifs dans `janus test` et le site, diagnostics compile-fail vérifiés par code.
+
+---
+
+<a id="release-0-7-4"></a>
+## Janus 0.7.4 — Navigation LSP
+
+**Objectif :** compléter les fonctions de compréhension et refactoring du workspace.
+
+### R074-1 — Compléter navigation et assistance LSP
 
 - renommage à l'échelle du workspace ;
 - aide à la signature ;
@@ -413,7 +465,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - les réponses restent sous les budgets documentés du workspace de référence ;
 - les capacités sont annoncées correctement au client LSP.
 
-### R071-4 — Ajouter code actions et publier l'extension VS Code
+**Gate de release 0.7.4 :** renommage et navigation sûrs, budgets LSP respectés et capacités correctement annoncées.
+
+---
+
+<a id="release-0-7-5"></a>
+## Janus 0.7.5 — Code actions et extension VS Code
+
+**Objectif :** transformer les diagnostics structurés en corrections sûres et distribuer l'intégration officielle.
+
+### R075-1 — Ajouter code actions et publier l'extension VS Code
 
 - actions pour imports manquants, branches `match` manquantes et corrections sûres ;
 - affichage riche des diagnostics structurés ;
@@ -427,16 +488,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - VSIX et version Marketplace proviennent du même commit/tag ;
 - installation, mise à jour et choix de `janus-lsp` sont testés.
 
-**Gate de release 0.7.1 :** docs API générées, doctests actifs, extension publiable et matrice LSP verte.
+**Gate de release 0.7.5 :** code actions testées, extension publiée depuis le tag et matrice extension/toolchain documentée.
 
 ---
 
-<a id="release-0-7-2"></a>
-## Janus 0.7.2 — Construction mesurable et incrémentale
+<a id="release-0-7-6"></a>
+## Janus 0.7.6 — Timings et benchmarks de compilation
 
 **Objectif :** réduire le temps de feedback sans compromettre la correction ni la reproductibilité.
 
-### R072-1 — Exposer des timings et benchmarks de compilation
+### R076-1 — Exposer des timings et benchmarks de compilation
 
 - mesurer chargement, parsing, analyse, génération LLVM, optimisation et lien ;
 - ajouter une sortie humaine et JSON ;
@@ -450,7 +511,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - le coût de la mesure est documenté ;
 - un dashboard permet de détecter les régressions majeures.
 
-### R072-2 — Ajouter cache incrémental et invalidation par interface
+**Gate de release 0.7.6 :** phases mesurées, sortie JSON exploitable et tendance de performance publiée sans gate bruitée.
+
+---
+
+<a id="release-0-7-7"></a>
+## Janus 0.7.7 — Construction incrémentale
+
+**Objectif :** réduire le temps de feedback en réutilisant uniquement des artefacts prouvés compatibles.
+
+### R077-1 — Ajouter cache incrémental et invalidation par interface
 
 - définir une empreinte incluant version, cible, options, source et interface des dépendances ;
 - réutiliser uniquement les artefacts dont les entrées sont identiques ;
@@ -465,16 +535,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - builds froid, chaud, `--offline`, concurrents et interrompus sont testés ;
 - la sortie binaire reste équivalente à un build propre.
 
-**Gate de release 0.7.2 :** métriques publiées, cache correct avant d'être rapide, corruption/collision couvertes et fallback build propre disponible.
+**Gate de release 0.7.7 :** cache correct avant d'être rapide, corruption/collision couvertes et fallback build propre disponible.
 
 ---
 
-<a id="release-0-8-0"></a>
-## Janus 0.8.0 — Écosystème et gel pré-1.0
+<a id="release-0-7-8"></a>
+## Janus 0.7.8 — Protocole du registre
 
-**Objectif :** livrer un écosystème de paquets distant minimal et transformer la surface publique en candidat crédible pour une future stabilisation.
+**Objectif :** figer un protocole distant minimal et son modèle de sécurité avant d'écrire les clients et le service public.
 
-### R080-1 — Versionner le protocole et le modèle de sécurité du registre
+### R078-1 — Versionner le protocole et le modèle de sécurité du registre
 
 - spécifier index, métadonnées, archive, checksums et négociation de version ;
 - définir noms, espaces de noms, immutabilité, yanking et résolution ;
@@ -488,7 +558,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - un paquet retiré reste reproductible via un lockfile existant selon politique ;
 - confusion de dépendance et traversée de chemin possèdent des tests négatifs.
 
-### R080-2 — Ajouter recherche, téléchargement et publication distante au CLI
+**Gate de release 0.7.8 :** protocole `v1`, schémas, fixtures et analyse de menaces publiés avant toute dépendance de production.
+
+---
+
+<a id="release-0-7-9"></a>
+## Janus 0.7.9 — Client de registre distant
+
+**Objectif :** implémenter les opérations réseau reproductibles du CLI contre le protocole versionné.
+
+### R079-1 — Ajouter recherche, téléchargement et publication distante au CLI
 
 - configurer un registre par défaut et des registres explicites ;
 - implémenter authentification, `search`, résolution, téléchargement et `publish` ;
@@ -502,7 +581,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - aucun secret n'apparaît dans logs, lockfiles ou diagnostics ;
 - interruption réseau ne laisse pas un cache considéré valide.
 
-### R080-3 — Déployer un registre de référence avec provenance
+**Gate de release 0.7.9 :** client distant testé contre un serveur de fixture, cache atomique et secrets absents des sorties/artefacts.
+
+---
+
+<a id="release-0-8-0"></a>
+## Janus 0.8.0 — Registre de référence et gel pré-1.0
+
+**Objectif :** déployer l'écosystème minimal puis auditer toute la surface publique comme candidat à une future stabilisation.
+
+### R080-1 — Déployer un registre de référence avec provenance
 
 - fournir un service de référence déployable et sauvegardable ;
 - intégrer attestations de provenance/signatures selon le modèle retenu ;
@@ -516,7 +604,7 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - publication non autorisée et remplacement de version sont refusés ;
 - disponibilité du registre n'est pas requise pour un build `--locked --offline` déjà mis en cache.
 
-### R080-4 — Auditer et geler le candidat de surface publique 0.8
+### R080-2 — Auditer et geler le candidat de surface publique 0.8
 
 - inventorier syntaxe, sémantique, CLI, manifestes, lockfiles, ABI C et modules de stdlib ;
 - étendre compatibilité N/N+1, fuzzing et sanitizers ;
