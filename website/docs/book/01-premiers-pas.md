@@ -58,4 +58,4 @@ Modifiez le programme pour afficher deux lignes, puis retourner le code de succ�
     }
     ```
 
-<div class="lesson-nav"><span></span><a href="02-valeurs-types/">Valeurs et types →</a></div>
+<div class="lesson-nav"><span></span><a href="../02-valeurs-types/">Valeurs et types →</a></div>

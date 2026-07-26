@@ -22,6 +22,15 @@ python3 website/scripts/sync_reference_docs.py
 website/.venv/bin/mkdocs build --strict -f website/mkdocs.yml
 ```
 
+Pour vérifier les routes du site généré :
+
+```bash
+python3 -m http.server 8000 --bind 127.0.0.1 --directory website/site &
+server_pid=$!
+python3 website/tests/check_public_links.py http://127.0.0.1:8000/
+kill "$server_pid"
+```
+
 ## Nginx avec Docker Compose
 
 Le contexte de build doit rester la racine du dépôt afin d’inclure les documents canoniques :

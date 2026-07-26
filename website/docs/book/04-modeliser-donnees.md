@@ -73,4 +73,4 @@ Créez un enum `Command` avec `Start`, `Stop` et `Move(int)`, puis une fonction 
     }
     ```
 
-<div class="lesson-nav"><a href="03-controle-fonctions/">← Contrôle et fonctions</a><a href="05-erreurs-propriete/">Erreurs et propriété →</a></div>
+<div class="lesson-nav"><a href="../03-controle-fonctions/">← Contrôle et fonctions</a><a href="../05-erreurs-propriete/">Erreurs et propriété →</a></div>

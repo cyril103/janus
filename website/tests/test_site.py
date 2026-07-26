@@ -91,6 +91,23 @@ class SiteStructureTests(unittest.TestCase):
                 self.assertIn("??? success \"Correction\"", text)
                 self.assertIn("```janus", text)
 
+    def test_lesson_navigation_uses_output_relative_urls(self):
+        chapters = sorted((WEBSITE / "docs" / "book").glob("[0-9][0-9]-*.md"))
+        for index, chapter in enumerate(chapters):
+            text = chapter.read_text(encoding="utf-8")
+            match = re.search(r'<div class="lesson-nav">(.*?)</div>', text, flags=re.DOTALL)
+            if match is None:
+                self.fail(f"Navigation absente dans {chapter.name}")
+            links = re.findall(r'href="([^"]+)"', match.group(1))
+            expected = []
+            if index > 0:
+                expected.append(f"../{chapters[index - 1].stem}/")
+            if index + 1 < len(chapters):
+                expected.append(f"../{chapters[index + 1].stem}/")
+            else:
+                expected.append("../../tutorials/")
+            self.assertEqual(expected, links, chapter.name)
+
     def test_all_local_markdown_links_resolve(self):
         broken = []
         pattern = re.compile(r"(?<!!)\[[^]]+\]\(([^)]+)\)")
