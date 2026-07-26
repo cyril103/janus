@@ -1,0 +1,145 @@
+from __future__ import annotations
+
+import importlib.util
+import re
+import tempfile
+import unittest
+from pathlib import Path
+
+
+WEBSITE = Path(__file__).resolve().parents[1]
+REPOSITORY = WEBSITE.parent
+EXPECTED_REFERENCE = {
+    "getting-started.md",
+    "language-guide.md",
+    "text.md",
+    "tooling.md",
+    "graphics.md",
+    "stability-contract.md",
+    "development.md",
+}
+BOOK = [f"{number:02d}-" for number in range(1, 9)]
+
+
+def load_sync_module():
+    path = WEBSITE / "scripts" / "sync_reference_docs.py"
+    spec = importlib.util.spec_from_file_location("sync_reference_docs", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Impossible de charger {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class SiteStructureTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        module = load_sync_module()
+        module.sync(REPOSITORY, WEBSITE / "docs" / "reference" / "generated")
+
+    def test_required_pages_and_assets_exist(self):
+        required = [
+            "mkdocs.yml",
+            "requirements.txt",
+            "Dockerfile",
+            "docker-compose.yml",
+            "nginx.conf",
+            "README.md",
+            "docs/index.md",
+            "docs/book/index.md",
+            "docs/tutorials/index.md",
+            "docs/tutorials/cli-compteur.md",
+            "docs/tutorials/collections.md",
+            "docs/tutorials/gestion-erreurs.md",
+            "docs/tutorials/snake-graphique.md",
+            "docs/reference/index.md",
+            "docs/assets/logo.svg",
+            "docs/assets/favicon.svg",
+            "docs/stylesheets/extra.css",
+            "docs/javascripts/extra.js",
+        ]
+        missing = [path for path in required if not (WEBSITE / path).is_file()]
+        self.assertEqual([], missing)
+
+        chapters = list((WEBSITE / "docs" / "book").glob("[0-9][0-9]-*.md"))
+        self.assertEqual(8, len(chapters))
+        names = [chapter.name for chapter in chapters]
+        for prefix in BOOK:
+            self.assertTrue(any(name.startswith(prefix) for name in names), prefix)
+
+    def test_public_content_states_version_and_experimental_status(self):
+        home = (WEBSITE / "docs" / "index.md").read_text(encoding="utf-8")
+        self.assertIn("0.5.0", home)
+        self.assertRegex(home.lower(), r"expérimental")
+        self.assertNotIn("0.5.1", home)
+
+    def test_every_lesson_has_learning_scaffolding(self):
+        for chapter in sorted((WEBSITE / "docs" / "book").glob("[0-9][0-9]-*.md")):
+            with self.subTest(chapter=chapter.name):
+                text = chapter.read_text(encoding="utf-8")
+                self.assertIn("## Objectifs", text)
+                self.assertIn("## Exercice", text)
+                self.assertIn("??? success \"Correction\"", text)
+                self.assertIn("```janus", text)
+
+    def test_all_local_markdown_links_resolve(self):
+        broken = []
+        pattern = re.compile(r"(?<!!)\[[^]]+\]\(([^)]+)\)")
+        for source in (WEBSITE / "docs").rglob("*.md"):
+            text = source.read_text(encoding="utf-8")
+            prose = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+            prose = re.sub(r"`[^`]*`", "", prose)
+            for raw_target in pattern.findall(prose):
+                target = raw_target.split("#", 1)[0]
+                if not target or target.startswith(("http://", "https://", "mailto:")):
+                    continue
+                candidate = (source.parent / target).resolve()
+                alternatives = [candidate]
+                if target.endswith("/"):
+                    alternatives.extend([candidate.with_suffix(".md"), candidate / "index.md"])
+                elif not candidate.suffix:
+                    alternatives.extend([candidate.with_suffix(".md"), candidate / "index.md"])
+                if not any(path.exists() for path in alternatives):
+                    broken.append(f"{source.relative_to(WEBSITE)} -> {raw_target}")
+        self.assertEqual([], broken)
+
+
+class ReferenceSyncTests(unittest.TestCase):
+    def test_sync_copies_exact_canonical_set_with_provenance(self):
+        module = load_sync_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            module.sync(REPOSITORY, destination)
+            generated = {path.name for path in destination.glob("*.md")}
+            self.assertEqual(EXPECTED_REFERENCE, generated)
+            for path in destination.glob("*.md"):
+                text = path.read_text(encoding="utf-8")
+                self.assertIn("Documentation canonique", text)
+                self.assertIn("Ne modifiez pas cette copie", text)
+
+    def test_sync_rewrites_links_outside_published_reference(self):
+        module = load_sync_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            module.sync(REPOSITORY, destination)
+            language = (destination / "language-guide.md").read_text(encoding="utf-8")
+            self.assertIn(
+                "https://github.com/cyril103/janus/tree/v0.5.0/stdlib/std",
+                language,
+            )
+            self.assertIn(
+                "https://github.com/cyril103/janus/tree/v0.5.0/examples",
+                language,
+            )
+            graphics = (destination / "graphics.md").read_text(encoding="utf-8")
+            self.assertIn(
+                "https://github.com/cyril103/janus/tree/v0.5.0/examples/snake",
+                graphics,
+            )
+            local_links = re.findall(r"\[[^]]+\]\((?!https?://|#|mailto:)([^)]+)\)", language)
+            for target in local_links:
+                self.assertFalse(target.startswith("../"), target)
+
+
+if __name__ == "__main__":
+    unittest.main()

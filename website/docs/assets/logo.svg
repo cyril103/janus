@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">Janus</title><desc id="desc">Deux profils géométriques regardent dans des directions opposées</desc>
+  <path fill="#111923" d="M10 13h76v70H10z" rx="12"/>
+  <path fill="#62e6a7" d="M47 20H25l-9 14 9 8-7 8 10 8v17h19V20Zm2 0h22l9 14-9 8 7 8-10 8v17H49V20Z"/>
+  <path fill="#111923" d="M31 34h9v5h-9zm25 0h9v5h-9zM33 56h8v4h-8zm22 0h8v4h-8z"/>
+</svg>
