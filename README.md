@@ -16,6 +16,8 @@ Janus combine plusieurs styles de programmation :
 > Janus reste expérimental. La syntaxe et la bibliothèque standard peuvent
 > encore évoluer avant la version 1.0.
 
+📘 **[Lire la documentation et le Book Janus](https://cyril103.github.io/janus/)**
+
 ## Installation
 
 Les paquets officiels contiennent le compilateur, LLVM, Clang, LLD, le runtime
@@ -233,6 +235,7 @@ Une extension VS Code est disponible dans
 - [Contrat de stabilité proposé pour Janus 1.0](docs/stability-contract.md)
 - [Dépannage du corpus Project Euler](docs/project-euler-troubleshooting.md)
 - [Compiler Janus depuis les sources](docs/development.md)
+- [Construire et servir le site d’apprentissage](website/README.md)
 - [Exemples complets](examples)
 - [Historique des versions](CHANGELOG.md)
 
