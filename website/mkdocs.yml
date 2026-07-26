@@ -1,6 +1,7 @@
 site_name: Janus
 site_description: Le langage natif fortement typé, sa documentation et son livre d’apprentissage
 site_author: Projet Janus
+site_url: https://cyril103.github.io/janus/
 repo_url: https://github.com/cyril103/janus
 repo_name: cyril103/janus
 edit_uri: edit/main/
@@ -53,12 +54,12 @@ theme:
     - search.highlight
   palette:
     - media: "(prefers-color-scheme: light)"
-      scheme: janus-light
+      scheme: default
       toggle:
         icon: material/weather-night
         name: Passer au thème sombre
     - media: "(prefers-color-scheme: dark)"
-      scheme: janus-dark
+      scheme: slate
       toggle:
         icon: material/weather-sunny
         name: Passer au thème clair

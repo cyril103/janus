@@ -16,6 +16,8 @@ Janus combine plusieurs styles de programmation :
 > Janus reste expérimental. La syntaxe et la bibliothèque standard peuvent
 > encore évoluer avant la version 1.0.
 
+📘 **[Lire la documentation et le Book Janus](https://cyril103.github.io/janus/)**
+
 ## Installation
 
 Les paquets officiels contiennent le compilateur, LLVM, Clang, LLD, le runtime

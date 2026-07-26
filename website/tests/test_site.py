@@ -73,6 +73,15 @@ class SiteStructureTests(unittest.TestCase):
         self.assertRegex(home.lower(), r"expérimental")
         self.assertNotIn("0.5.1", home)
 
+    def test_dark_palette_inherits_material_tokens(self):
+        config = (WEBSITE / "mkdocs.yml").read_text(encoding="utf-8")
+        css = (WEBSITE / "docs" / "stylesheets" / "extra.css").read_text(encoding="utf-8")
+        self.assertIn("scheme: default", config)
+        self.assertIn("scheme: slate", config)
+        self.assertIn('[data-md-color-scheme="slate"]', css)
+        self.assertIn("--md-typeset-color: #e8e5dc", css)
+        self.assertIn("--md-code-bg-color: #182531", css)
+
     def test_every_lesson_has_learning_scaffolding(self):
         for chapter in sorted((WEBSITE / "docs" / "book").glob("[0-9][0-9]-*.md")):
             with self.subTest(chapter=chapter.name):
