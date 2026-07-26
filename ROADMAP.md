@@ -52,21 +52,21 @@ Ces sujets pourront être évalués après 0.8.0 sans bloquer la maturation du c
 | 0.5.3 | Paniques observables | origine et traces de développement sans casser les nettoyages |
 | 0.6.0 | `Array` propriétaire | contrat des conteneurs puis valeurs non-`Copy` dans `Array` |
 | 0.6.1 | Collections propriétaires | hachage, builders et itérateurs move-aware |
-| 0.6.2 | `Option` et `Result` | composition ergonomique des absences et erreurs avec propriété |
+| 0.6.2 | Combinateurs `Option`/`Result` | enrichissement des enums existants et composition sûre avec propriété |
 | 0.6.3 | Dérivations | génération sûre et explicite de `Copy`, égalité, hachage et `Debug` |
 | 0.7.0 | Chemins et fichiers | erreur système portable, `std.path` et `std.fs` |
 | 0.7.1 | Flux et processus | `std.io`, environnement, arguments et processus |
 | 0.7.2 | Documentation d'API | commentaires publics et `janus doc` |
 | 0.7.3 | Doctests | exemples documentaires compilés par `janus test` |
 | 0.7.4 | Navigation LSP | renommage, signatures, jetons et navigation de traits |
-| 0.7.5 | Extension VS Code | code actions et publication reproductible |
+| 0.7.5 | Extension VS Code existante | code actions supplémentaires et publication Marketplace reproductible |
 | 0.7.6 | Timings | phases de compilation mesurées et benchmarks suivis |
 | 0.7.7 | Build incrémental | cache correct et invalidation par interface |
 | 0.7.8 | Protocole du registre | format et modèle de sécurité versionnés |
-| 0.7.9 | Client de registre | recherche, téléchargement et publication distante |
-| 0.8.0 | Registre et gel | service de référence, provenance et audit pré-1.0 |
+| 0.7.9 | Client et registre | recherche, publication distante et service de référence avec provenance |
+| 0.8.0 | Audit et gel | audit de la surface publique et rapport de préparation 1.0 |
 
-## Graphe de dépendances
+## Ordre de publication
 
 ```text
 0.5.1 → 0.5.2 → 0.5.3
@@ -98,7 +98,8 @@ Une release peut être préparée en parallèle, mais elle ne doit pas être pub
 
 **Critères d'acceptation :**
 
-- aucune contradiction connue entre `docs/`, `stdlib/std/`, `janus --help` et le changelog ;
+- l'inventaire versionné `docs/public-surface-0.5.json` couvre les symboles publics de `stdlib/std/`, les commandes/options de `janus --help` et leurs documents de référence ;
+- chaque entrée de cet inventaire indique sa source canonique et son statut stable proposé ou expérimental ;
 - tous les extraits autonomes du site compilent avec la version ciblée ;
 - tous les liens internes du site construit répondent sans 404 ;
 - le changelog 0.5.1 énumère les corrections documentaires notables.
@@ -138,7 +139,8 @@ Une release peut être préparée en parallèle, mais elle ne doit pas être pub
 - les diagnostics migrés possèdent un code unique testé ;
 - les chemins conservent la forme `fichier:ligne:colonne` ;
 - le LSP consomme le même modèle sans parser le texte humain ;
-- une entrée invalide ne provoque ni crash ni exception non interceptée.
+- le corpus versionné `tests/diagnostics/invalid/` passe sans crash ni exception non interceptée ;
+- les campagnes lexer/parseur nightly exécutent chacune au moins 15 minutes sans crash reproductible.
 
 ### R052-2 — Ajouter rendus humain/JSON, suggestions et récupération
 
@@ -149,9 +151,9 @@ Une release peut être préparée en parallèle, mais elle ne doit pas être pub
 
 **Critères d'acceptation :**
 
-- le JSON possède un schéma et des fixtures versionnées ;
+- le JSON possède un schéma et des fixtures versionnées, compatibles de 0.5.2 jusqu'à la prochaine version mineure ;
 - stdout/stderr et codes de sortie restent conformes au contrat CLI ;
-- le rendu reste lisible sans couleur et sous Windows ;
+- les snapshots sans couleur à 80 et 120 colonnes passent sur Linux et Windows ;
 - les suggestions ne modifient jamais automatiquement les sources.
 
 **Gate de release 0.5.2 :** diagnostics structurés utilisés par CLI et LSP, codes testés et rendus humain/JSON cohérents sur les plateformes supportées.
@@ -214,7 +216,7 @@ Cette release est le principal changement sémantique de la roadmap. Son contrat
 - un `Array[OwnedType]` fonctionne sans fuite ni double destruction ;
 - réallocation, `clear`, `remove` et destructeur sont couverts ;
 - les tests incluent succès, panique et sortie de portée ;
-- les types `Copy` ne subissent pas de régression fonctionnelle mesurable.
+- la suite de compatibilité `Array` 0.5.x reste entièrement verte pour les types `Copy`, signatures conservées incluses.
 
 **Gate de release 0.6.0 :** contrat documenté, `Array` move-aware, tests sanitizer et matrice multiplateforme verts, première partie du guide de migration 0.5 → 0.6 publiée.
 
@@ -258,7 +260,7 @@ Cette release est le principal changement sémantique de la roadmap. Son contrat
 ---
 
 <a id="release-0-6-2"></a>
-## Janus 0.6.2 — Composition de `Option` et `Result`
+## Janus 0.6.2 — Combinateurs et propriété pour `Option` et `Result`
 
 **Objectif :** réduire les `match` répétitifs sans masquer la propriété ni encourager les paniques.
 
@@ -273,14 +275,14 @@ Ajouter une surface minimale cohérente, notamment `isSome`, `isNone`, `map`, `a
 - les méthodes non consommantes et consommantes sont distinguées ;
 - exemples, signatures et cas limites sont documentés et compilés.
 
-### R062-2 — Enrichir `Result[T, E]` et fiabiliser `?`
+### R062-2 — Enrichir `Result[T, E]` et ses interactions avec `?`
 
-Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et conversions documentées entre `Option` et `Result`; valider `?` sur valeurs propriétaires.
+Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et conversions documentées entre `Option` et `Result`; documenter l'interaction des nouveaux combinateurs avec l'opérateur `?` déjà existant. La correction du nettoyage de contrôle de flux nécessaire aux itérateurs propriétaires reste un critère de R061-2 et ne dépend pas de cette release.
 
 **Critères d'acceptation :**
 
 - succès et erreur nettoient exactement les variantes actives ;
-- `?` transfère correctement `T` ou `E` sans réutilisation après move ;
+- chaîner les nouveaux combinateurs avant ou après `?` transfère correctement `T` ou `E` sans réutilisation après move ;
 - les API système futures peuvent retourner un `Result` sans allocation obligatoire ;
 - les tests couvrent fonctions, closures, boucles et `defer`.
 
@@ -470,11 +472,11 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 ---
 
 <a id="release-0-7-5"></a>
-## Janus 0.7.5 — Code actions et extension VS Code
+## Janus 0.7.5 — Enrichissement et publication de l'extension VS Code existante
 
 **Objectif :** transformer les diagnostics structurés en corrections sûres et distribuer l'intégration officielle.
 
-### R075-1 — Ajouter code actions et publier l'extension VS Code
+### R075-1 — Ajouter des code actions et publier l'extension VS Code existante
 
 - actions pour imports manquants, branches `match` manquantes et corrections sûres ;
 - affichage riche des diagnostics structurés ;
@@ -509,7 +511,7 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - `janus build --timings` explique la totalité du temps mesuré ;
 - le JSON est exploitable par CI ;
 - le coût de la mesure est documenté ;
-- un dashboard permet de détecter les régressions majeures.
+- le dashboard déclenche une alerte à partir d'une hausse de médiane de 15 % sur cinq exécutions, confirmée par deux jobs consécutifs.
 
 **Gate de release 0.7.6 :** phases mesurées, sortie JSON exploitable et tendance de performance publiée sans gate bruitée.
 
@@ -563,9 +565,9 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 ---
 
 <a id="release-0-7-9"></a>
-## Janus 0.7.9 — Client de registre distant
+## Janus 0.7.9 — Client et registre distant de référence
 
-**Objectif :** implémenter les opérations réseau reproductibles du CLI contre le protocole versionné.
+**Objectif :** implémenter les opérations réseau reproductibles du CLI puis déployer le service de référence contre le protocole versionné.
 
 ### R079-1 — Ajouter recherche, téléchargement et publication distante au CLI
 
@@ -581,16 +583,7 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - aucun secret n'apparaît dans logs, lockfiles ou diagnostics ;
 - interruption réseau ne laisse pas un cache considéré valide.
 
-**Gate de release 0.7.9 :** client distant testé contre un serveur de fixture, cache atomique et secrets absents des sorties/artefacts.
-
----
-
-<a id="release-0-8-0"></a>
-## Janus 0.8.0 — Registre de référence et gel pré-1.0
-
-**Objectif :** déployer l'écosystème minimal puis auditer toute la surface publique comme candidat à une future stabilisation.
-
-### R080-1 — Déployer un registre de référence avec provenance
+### R079-2 — Déployer un registre de référence avec provenance
 
 - fournir un service de référence déployable et sauvegardable ;
 - intégrer attestations de provenance/signatures selon le modèle retenu ;
@@ -604,7 +597,16 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - publication non autorisée et remplacement de version sont refusés ;
 - disponibilité du registre n'est pas requise pour un build `--locked --offline` déjà mis en cache.
 
-### R080-2 — Auditer et geler le candidat de surface publique 0.8
+**Gate de release 0.7.9 :** client distant et registre de référence interopèrent, le cache est atomique, sauvegarde/restauration et provenance sont testées, et aucun secret n'apparaît dans les sorties ou artefacts.
+
+---
+
+<a id="release-0-8-0"></a>
+## Janus 0.8.0 — Audit et gel pré-1.0
+
+**Objectif :** auditer toute la surface publique et publier un candidat documenté pour une future stabilisation, sans ajouter de nouveau sous-système.
+
+### R080-1 — Auditer et geler le candidat de surface publique 0.8
 
 - inventorier syntaxe, sémantique, CLI, manifestes, lockfiles, ABI C et modules de stdlib ;
 - étendre compatibilité N/N+1, fuzzing et sanitizers ;
@@ -614,13 +616,13 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 
 **Critères d'acceptation :**
 
-- aucun crash connu du compilateur sur les corpus/fuzzers retenus ;
+- les fuzzers lexer, parseur, manifeste et résolution exécutent chacun une session sanitizer d'au moins 60 minutes sur leurs corpus versionnés sans crash reproductible ;
 - matrice de niveau 1, archives, doctests, packages et compatibilité vertes ;
-- documentation publique complète et crawlée ;
+- l'inventaire versionné `docs/stability-inventory-0.8.md` attribue un statut à 100 % des surfaces publiques et tous ses liens passent le crawler ;
 - toute surface non prête est marquée expérimentale ou retirée avant la release ;
 - 0.8.0 n'est pas présentée comme 1.0 et ne promet pas encore sa compatibilité définitive.
 
-**Gate de release 0.8.0 :** registre minimal opérationnel, builds reproductibles, audit public terminé, zéro issue critique ouverte et rapport de préparation 1.0 publié.
+**Gate de release 0.8.0 :** builds reproductibles, audit public terminé, aucune issue ouverte portant le label `severity:critical` selon la politique de sévérité versionnée, et rapport de préparation 1.0 publié.
 
 ---
 
@@ -636,6 +638,8 @@ Sauf exception explicitement justifiée, une issue de cette roadmap est terminé
 - les erreurs et chemins de nettoyage sont testés ;
 - aucun secret, artefact généré ou dépendance non reproductible n'est ajouté ;
 - la PR référence l'issue avec `Closes #N`.
+
+Une issue est classée `severity:critical` lorsqu'elle démontre au moins un des cas suivants : corruption ou double libération de ressource, contournement de propriété menant à un comportement indéfini, exécution de code ou traversée de chemin via la chaîne de paquets, violation reproductible d'un lockfile, ou crash déterministe du compilateur sur une source Janus valide pour une plateforme de niveau 1. Cette définition est versionnée avec la roadmap afin que la gate 0.8.0 soit vérifiable.
 
 ## Politique de release
 
