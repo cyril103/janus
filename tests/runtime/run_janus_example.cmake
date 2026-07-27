@@ -15,6 +15,12 @@ endif()
 file(MAKE_DIRECTORY "${OUTPUT_DIR}")
 set(LLVM_IR "${OUTPUT_DIR}/program.ll")
 set(EXECUTABLE "${OUTPUT_DIR}/program_asan")
+set(SANITIZERS "address")
+if(DEFINED ENABLE_UNDEFINED_SANITIZER
+   AND ENABLE_UNDEFINED_SANITIZER
+   AND NOT WIN32)
+    set(SANITIZERS "address,undefined")
+endif()
 set(PROGRAM_OUTPUT_ARGS)
 if(DEFINED EXPECTED_OUTPUT)
     set(ACTUAL_OUTPUT "${OUTPUT_DIR}/stdout.txt")
@@ -34,7 +40,7 @@ endif()
 execute_process(
     COMMAND
         "${CLANG}"
-        -fsanitize=address
+        "-fsanitize=${SANITIZERS}"
         -fno-omit-frame-pointer
         "${LLVM_IR}"
         "${RUNTIME}"

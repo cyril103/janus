@@ -406,6 +406,19 @@ defer delete recovered
 
 `set` détruit l'élément remplacé ; `replace` le retourne à l'appelant.
 
+`HashSet`, `HashMap`, `ArrayBuilder`, `SetBuilder` et `MapBuilder` acceptent
+également les éléments propriétaires. `add`, `put` et `Builder.add` consomment
+ces éléments avec `move`. Un doublon de `HashSet` détruit la valeur entrante ;
+`HashMap.put` détruit l'ancienne clé équivalente et retourne l'ancienne valeur.
+`remove` détruit la clé stockée et transfère la valeur retirée.
+
+Les paramètres de `Hashing.hash` et `Hashing.equals` sont des observations :
+une implémentation ne doit ni les déplacer, ni les détruire, ni les retourner.
+Le hash et l'égalité doivent rester stables tant que la clé appartient à la
+collection. Les itérateurs et `HashMap.getOption` restent réservés aux types
+retournés qui satisfont `Copy` ; les itérateurs propriétaires arrivent dans
+l'étape suivante de la roadmap.
+
 Un pipeline paresseux est matérialisé avec `collectArray`, fourni par
 `std.array_builder` :
 

@@ -13,6 +13,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
 - prise en charge des classes, structs et enums propriétaires dans `Array[T]`,
   avec transferts explicites, destruction exacte lors de `set`, `clear` et de
   la destruction du tableau, et nouvelles opérations `replace` et `remove`.
+- extension de `HashSet`, `HashMap` et des builders aux éléments propriétaires,
+  avec rehash par déplacement, tombstones non propriétaires, remplacement et
+  suppression sans double destruction, et observation bornée pour le hachage.
 
 ## [0.5.2] - Non publiée
 

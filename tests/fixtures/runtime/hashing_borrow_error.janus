@@ -1,0 +1,18 @@
+import std.hashing
+
+class Resource() {}
+
+class InvalidHashing() extends Hashing[Resource] {
+    def hash(value : Resource) : usize {
+        delete value
+        return usize(0)
+    }
+
+    def equals(left : Resource, right : Resource) : bool {
+        return true
+    }
+}
+
+def main() : int {
+    return 0
+}
