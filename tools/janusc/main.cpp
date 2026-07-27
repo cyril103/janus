@@ -42,7 +42,12 @@ int main(int argc, char **argv) {
   } catch (const janus::CompileError &error) {
     const janus::SourceLocation location = error.location();
     std::cerr << path.string() << ':' << location.line << ':' << location.column
-              << ": error: " << error.what() << '\n';
+              << ": error: ";
+    if (error.diagnostic().code != janus::DiagnosticCode::Unclassified)
+      std::cerr << '['
+                << janus::diagnostic_code_name(error.diagnostic().code)
+                << "] ";
+    std::cerr << error.what() << '\n';
     return 1;
   } catch (const std::exception &error) {
     std::cerr << "janusc: error: " << error.what() << '\n';

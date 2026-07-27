@@ -1,0 +1,5 @@
+# source	code	message fragment
+lexer-unexpected-character.janus	JLEX0001	unexpected character
+parser-expected-expression.janus	JPAR0001	expected expression
+analyzer-unknown-value.janus	JANA0001	unknown value
+module-not-found.janus	JMOD0001	cannot resolve imported module

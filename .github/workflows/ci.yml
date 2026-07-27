@@ -312,10 +312,55 @@ jobs:
               --title "Janus $channel channel" --prerelease
           fi
 
+  diagnostic-fuzz:
+    name: Lexer and parser fuzz campaigns
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Check out Janus
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-18 lld-18 llvm-18-dev ninja-build
+
+      - name: Configure sanitizer build
+        run: >
+          cmake -S . -B build-fuzz -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_C_COMPILER=/usr/lib/llvm-18/bin/clang
+          -DCMAKE_CXX_COMPILER=/usr/lib/llvm-18/bin/clang++
+          -DCMAKE_C_FLAGS="-fsanitize=address,undefined"
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm
+
+      - name: Build compiler
+        run: cmake --build build-fuzz --target janus --parallel
+
+      - name: Fuzz lexer for 15 minutes
+        timeout-minutes: 17
+        run: >
+          python3 scripts/fuzz_frontend.py
+          --janus build-fuzz/janus
+          --mode lexer
+          --duration 900
+
+      - name: Fuzz parser for 15 minutes
+        timeout-minutes: 17
+        run: >
+          python3 scripts/fuzz_frontend.py
+          --janus build-fuzz/janus
+          --mode parser
+          --duration 900
+
   nightly:
     name: Publish nightly channel
     if: github.event_name == 'schedule'
-    needs: [toolchain, linux-compatibility]
+    needs: [toolchain, linux-compatibility, diagnostic-fuzz]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

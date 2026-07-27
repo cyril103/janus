@@ -1193,7 +1193,8 @@ ast::Expression Parser::parse_primary() {
     return ast::BooleanLiteralExpression{value, literal.location};
   }
 
-  throw CompileError{current_.location,
+  throw CompileError{DiagnosticCode::ParserExpectedExpression,
+                     current_.location,
                      "expected expression, found " +
                          std::string{token_name(current_.kind)}};
 }
