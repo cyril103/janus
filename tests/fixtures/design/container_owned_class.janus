@@ -1,0 +1,16 @@
+class Resource(val identifier : int) {
+    def inspect() : int {
+        return identifier
+    }
+}
+
+def dispose(resource : Resource) : Unit {
+    delete resource
+}
+
+def main() : int {
+    val resource : Resource = new Resource(7)
+    val observed : int = resource.inspect()
+    dispose(move resource)
+    return observed - 7
+}

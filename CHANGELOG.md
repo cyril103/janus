@@ -3,6 +3,14 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.6.0] - Non publiée
+
+### Langage et bibliothèque standard
+
+- définition du contrat de propriété des conteneurs : observation bornée,
+  transferts explicites, invalidation, réallocation et nettoyage des valeurs
+  propriétaires avant l'implémentation de `Array[T]` move-aware.
+
 ## [0.5.2] - Non publiée
 
 ### Diagnostics

@@ -1,0 +1,13 @@
+class Resource(val identifier : int) {}
+
+struct Box(val resource : Resource) {}
+
+def dispose(box : Box) : Unit {
+    delete box
+}
+
+def main() : int {
+    val box : Box = new Box(new Resource(1))
+    dispose(move box)
+    return 0
+}
