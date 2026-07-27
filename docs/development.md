@@ -52,6 +52,42 @@ Pour un test précis :
 ctest --test-dir build -R lsp.server --output-on-failure
 ```
 
+### Cohérence de la documentation publique
+
+`docs.public_surface` exécute
+[`scripts/check_public_surface.py`](../scripts/check_public_surface.py). Ce
+contrôle reste entièrement local et vérifie :
+
+- que les modules et symboles publics extraits de `stdlib/std/` correspondent
+  à `docs/public-surface-0.5.json` ;
+- que l'empreinte normalisée des signatures publiques correspond à
+  l'inventaire versionné et que chaque document associé existe ;
+- que les appels, types génériques et membres cités en prose dans ces guides
+  désignent une surface inventoriée ;
+- que les commandes et options observées dans `janus --help` sont
+  inventoriées.
+
+Le diagnostic nomme le guide associé et la surface divergente. La fixture
+`tests/fixtures/documentation/stale-public-surface.json` référence
+volontairement `Array.removed` ; le test
+`docs.public_surface_stale_fixture` prouve que cette dérive est rejetée avec
+un message ciblé.
+
+Pour auditer manuellement l'inventaire et afficher les empreintes calculées :
+
+```bash
+python3 scripts/check_public_surface.py \
+  --root . \
+  --janus build/janus \
+  --print-digests
+```
+
+Une empreinte ne doit être mise à jour qu'après vérification de la signature
+modifiée et de tous les guides associés. Le workflow Pages compile également
+les extraits Janus autonomes, construit MkDocs en mode strict, puis crawle
+l'artefact local servi sur `127.0.0.1` ; ces contrôles de l'artefact ne
+dépendent pas du réseau.
+
 ## Archive redistribuable
 
 ```bash

@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "target": "0.5.x",
+  "stdlib_modules": [
+    {
+      "name": "std.array",
+      "source": "stdlib/std/array.janus",
+      "documentation": [
+        "tests/fixtures/documentation/stale-guide.md"
+      ],
+      "status": "stable-proposed",
+      "signature_digest": "fixture-intentionally-stale",
+      "symbols": [
+        "Array",
+        "Array.removed"
+      ]
+    }
+  ],
+  "cli": {
+    "commands": []
+  }
+}

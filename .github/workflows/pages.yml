@@ -6,6 +6,24 @@ on:
     paths:
       - "website/**"
       - "docs/**"
+      - "stdlib/std/**"
+      - "tools/janus/**"
+      - "scripts/check_public_surface.py"
+      - "tests/fixtures/documentation/**"
+      - "tests/documentation/**"
+      - "CMakeLists.txt"
+      - "README.md"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths:
+      - "website/**"
+      - "docs/**"
+      - "stdlib/std/**"
+      - "tools/janus/**"
+      - "scripts/check_public_surface.py"
+      - "tests/fixtures/documentation/**"
+      - "tests/documentation/**"
+      - "CMakeLists.txt"
       - "README.md"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -21,12 +39,13 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Configure GitHub Pages
+        if: github.event_name == 'push'
         uses: actions/configure-pages@v5
 
       - name: Set up Python
@@ -38,6 +57,30 @@ jobs:
 
       - name: Install site dependencies
         run: python -m pip install -r website/requirements.txt
+
+      - name: Install Janus build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-18 lld-18 llvm-18-dev ninja-build
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+
+      - name: Build the documentation compiler
+        run: |
+          cmake -S . -B build-pages -G Ninja \
+            -DBUILD_TESTING=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
+            -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm
+          cmake --build build-pages --target janus --parallel
+
+      - name: Check public surface and snippets
+        run: |
+          python scripts/check_public_surface.py \
+            --root . \
+            --janus build-pages/janus
+          python website/tests/check_janus_snippets.py \
+            --compiler build-pages/janus
 
       - name: Test site structure and links
         run: python -m unittest discover -s website/tests -v
@@ -54,11 +97,13 @@ jobs:
           python website/tests/check_public_links.py http://127.0.0.1:8000/
 
       - name: Upload Pages artifact
+        if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
   deploy:
+    if: github.event_name == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

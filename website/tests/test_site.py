@@ -172,7 +172,7 @@ class SiteStructureTests(unittest.TestCase):
     def test_public_surface_inventory_is_complete_and_traceable(self):
         inventory_path = REPOSITORY / "docs" / "public-surface-0.5.json"
         inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
-        self.assertEqual(1, inventory["schema_version"])
+        self.assertEqual(2, inventory["schema_version"])
         self.assertEqual("0.5.x", inventory["target"])
 
         modules = inventory["stdlib_modules"]
@@ -184,6 +184,7 @@ class SiteStructureTests(unittest.TestCase):
                     {"stable-proposed", "experimental", "internal-detail"},
                 )
                 self.assertTrue(entry["documentation"])
+                self.assertRegex(entry["signature_digest"], r"^[0-9a-f]{64}$")
                 self.assertTrue(entry["symbols"] or entry.get("reexports"))
                 self.assertTrue((REPOSITORY / entry["source"]).is_file())
                 for document in entry["documentation"]:
