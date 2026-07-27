@@ -58,3 +58,17 @@ if(NOT PROGRAM_ERROR MATCHES "${EXPECTED_ERROR}")
     message(FATAL_ERROR
             "native trap fixture did not report expected panic\nexpected pattern:\n${EXPECTED_ERROR}\nstderr:\n${PROGRAM_ERROR}\nstdout:\n${PROGRAM_OUTPUT}\nresult:\n${PROGRAM_RESULT}")
 endif()
+if(NOT PROGRAM_ERROR MATCHES "at .+:[0-9]+ in [A-Za-z0-9_.]+")
+    message(FATAL_ERROR
+            "native trap fixture did not report a source origin:\n${PROGRAM_ERROR}")
+endif()
+if(NOT PROGRAM_ERROR MATCHES "stack trace \\(experimental\\):")
+    message(FATAL_ERROR
+            "native trap fixture did not report a stack trace:\n${PROGRAM_ERROR}")
+endif()
+if(DEFINED EXPECTED_OUTPUT)
+    include("${CMAKE_CURRENT_LIST_DIR}/compare_janus_output.cmake")
+    set(ACTUAL_OUTPUT "${OUTPUT_DIR}/stdout.txt")
+    file(WRITE "${ACTUAL_OUTPUT}" "${PROGRAM_OUTPUT}")
+    compare_janus_output("${EXPECTED_OUTPUT}" "${ACTUAL_OUTPUT}")
+endif()

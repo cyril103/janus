@@ -1,0 +1,16 @@
+class Resource(val value : int) {
+    destructor {
+        println(value)
+    }
+}
+
+def fail() : Unit {
+    val resource : Resource = new Resource(7)
+    defer delete resource
+    panic("explicit failure\n")
+}
+
+def main() : int {
+    fail()
+    return 0
+}

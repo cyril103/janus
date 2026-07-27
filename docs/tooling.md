@@ -25,6 +25,14 @@ janus build fichier.janus -o programme
 Les options `--emit llvm-ir` et `--emit object` arrêtent la compilation après
 la production de l'IR LLVM ou du fichier objet.
 
+`janus build`, `janus run` et `janus test` acceptent
+`--panic-trace full|short|off`. Le mode `full`, utilisé par défaut en
+développement, affiche l'origine source et une pile native symbolisée lorsque
+la plateforme le permet. Le mode `short`, utilisé par défaut avec `--release`,
+conserve uniquement l'origine source. Le mode `off` conserve seulement le
+message de panique. Le format précis de ces traces reste expérimental avant
+Janus 1.0.
+
 ### Aide, erreurs et codes de sortie
 
 `janus --help` affiche l'aide générale. Les commandes d'exécution disposent

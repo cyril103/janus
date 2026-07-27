@@ -71,9 +71,11 @@ const janus::Type *builtin_type(std::string_view name) {
 class Generator {
 public:
   Generator(::llvm::LLVMContext &context, const janus::ast::Program &program,
-            std::string_view module_name)
+            std::string_view module_name,
+            janus::backend::llvm::PanicTraceMode panic_trace)
       : context_{context}, module_{std::make_unique<::llvm::Module>(
-                               std::string{module_name}, context)} {
+                               std::string{module_name}, context)},
+        source_name_{module_name}, panic_trace_{panic_trace} {
 #if LLVM_VERSION_MAJOR >= 21
     module_->setTargetTriple(
         ::llvm::Triple{::llvm::sys::getDefaultTargetTriple()});
@@ -1003,8 +1005,12 @@ private:
       return llvm_function;
 
     const auto previous_active_module = active_module_;
+    const std::string previous_active_function = active_function_;
     active_module_ =
         owner == nullptr ? function.module_name : owner->module_name;
+    active_function_ =
+        owner == nullptr ? function.name
+                         : owner->name + "." + function.name;
     auto previous_cleanup_scopes = std::move(active_cleanup_scopes_);
     active_cleanup_scopes_.clear();
 
@@ -1382,6 +1388,7 @@ private:
     if (!emitted_return && return_type.kind() == janus::TypeKind::Unit)
       builder.CreateRetVoid();
     active_cleanup_scopes_ = std::move(previous_cleanup_scopes);
+    active_function_ = previous_active_function;
     active_module_ = previous_active_module;
     return llvm_function;
   }
@@ -1834,24 +1841,48 @@ private:
         expression.value);
   }
 
+  std::string active_source_name() const {
+    if (active_module_.has_value())
+      return *active_module_ + ".janus";
+    return source_name_;
+  }
+
+  ::llvm::CallInst *emit_panic_call(::llvm::Value *data,
+                                    ::llvm::Value *length,
+                                    janus::SourceLocation location,
+                                    ::llvm::IRBuilder<> &builder) {
+    emit_active_cleanups(builder);
+    ::llvm::Value *file =
+        builder.CreateGlobalString(active_source_name(), "panic.file");
+    ::llvm::Value *function =
+        builder.CreateGlobalString(active_function_, "panic.function");
+    ::llvm::FunctionCallee panic_function = module_->getOrInsertFunction(
+        "janus_panic_with_context",
+        ::llvm::FunctionType::get(
+            builder.getVoidTy(),
+            {builder.getPtrTy(), builder.getInt64Ty(), builder.getPtrTy(),
+             builder.getInt32Ty(), builder.getPtrTy(), builder.getInt32Ty()},
+            false));
+    return builder.CreateCall(
+        panic_function,
+        {data, length, file, builder.getInt32(location.line), function,
+         builder.getInt32(static_cast<unsigned>(panic_trace_))});
+  }
+
   void emit_integer_panic(std::string_view message,
+                          janus::SourceLocation location,
                           ::llvm::IRBuilder<> &builder) {
     ::llvm::Value *data =
-        builder.CreateGlobalStringPtr(message, "integer.panic.message");
-    ::llvm::FunctionCallee panic_function = module_->getOrInsertFunction(
-        "janus_panic",
-        ::llvm::FunctionType::get(builder.getVoidTy(),
-                                  {builder.getPtrTy(), builder.getInt64Ty()},
-                                  false));
-    builder.CreateCall(panic_function,
-                       {data, builder.getInt64(message.size())});
+        builder.CreateGlobalString(message, "integer.panic.message");
+    emit_panic_call(data, builder.getInt64(message.size()), location, builder);
     builder.CreateUnreachable();
   }
 
   ::llvm::Value *
   emit_integer_division(::llvm::Value *left, ::llvm::Value *right,
                         const janus::Type &operand_type, bool is_remainder,
-                        bool is_unsigned, ::llvm::IRBuilder<> &builder) {
+                        bool is_unsigned, janus::SourceLocation location,
+                        ::llvm::IRBuilder<> &builder) {
     ::llvm::Value *zero = ::llvm::ConstantInt::get(right->getType(), 0, false);
     ::llvm::Value *divides_by_zero =
         builder.CreateICmpEQ(right, zero, "integer.division.zero");
@@ -1886,11 +1917,11 @@ private:
       builder.CreateCondBr(overflows, overflow_trap_block, valid_block);
 
       builder.SetInsertPoint(overflow_trap_block);
-      emit_integer_panic("integer division overflow\n", builder);
+      emit_integer_panic("integer division overflow\n", location, builder);
     }
 
     builder.SetInsertPoint(zero_trap_block);
-    emit_integer_panic("integer division by zero\n", builder);
+    emit_integer_panic("integer division by zero\n", location, builder);
 
     function->insert(function->end(), valid_block);
     builder.SetInsertPoint(valid_block);
@@ -2236,13 +2267,7 @@ private:
                   builder.CreateExtractValue(message, 0, "panic.data");
               ::llvm::Value *length =
                   builder.CreateExtractValue(message, 1, "panic.length");
-              ::llvm::FunctionCallee panic_function =
-                  module_->getOrInsertFunction(
-                      "janus_panic",
-                      ::llvm::FunctionType::get(
-                          builder.getVoidTy(),
-                          {builder.getPtrTy(), builder.getInt64Ty()}, false));
-              return builder.CreateCall(panic_function, {data, length});
+              return emit_panic_call(data, length, node.location, builder);
             }
             if (node.callee == "alloc" || node.callee == "realloc" ||
                 node.callee == "null" || node.callee == "sizeof" ||
@@ -2957,10 +2982,11 @@ private:
                          ? builder.CreateFDiv(left, right, "div")
                          : emit_integer_division(left, right, operand_type,
                                                  false, is_unsigned_integer,
-                                                 builder);
+                                                 node.location, builder);
             case janus::ast::BinaryOperator::Remainder:
               return emit_integer_division(left, right, operand_type, true,
-                                           is_unsigned_integer, builder);
+                                           is_unsigned_integer, node.location,
+                                           builder);
             case janus::ast::BinaryOperator::Less:
               if (is_floating)
                 return builder.CreateFCmpOLT(left, right, "cmp");
@@ -3053,6 +3079,8 @@ private:
 
   ::llvm::LLVMContext &context_;
   std::unique_ptr<::llvm::Module> module_;
+  std::string source_name_;
+  janus::backend::llvm::PanicTraceMode panic_trace_;
   std::unordered_map<std::string, const janus::ast::FunctionDeclaration *>
       functions_;
   std::unordered_set<std::string> ambiguous_function_names_;
@@ -3088,6 +3116,7 @@ private:
   std::vector<CleanupScope> active_cleanup_scopes_;
   const janus::Type *active_return_type_{};
   std::optional<std::string> active_module_;
+  std::string active_function_;
   std::size_t string_literal_index_{};
   std::size_t lambda_index_{};
 };
@@ -3101,8 +3130,9 @@ IrGenerator::IrGenerator(::llvm::LLVMContext &context) noexcept
 
 std::unique_ptr<::llvm::Module>
 IrGenerator::generate(const ast::Program &program,
-                      std::string_view module_name) {
-  return Generator{context_, program, module_name}.generate();
+                      std::string_view module_name,
+                      PanicTraceMode panic_trace) {
+  return Generator{context_, program, module_name, panic_trace}.generate();
 }
 
 } // namespace janus::backend::llvm

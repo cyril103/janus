@@ -61,6 +61,9 @@ struct Options {
   bool format_check{};
   bool warn_high_growth_loops{};
   bool diagnostic_format_set{};
+  bool panic_trace_set{};
+  janus::backend::llvm::PanicTraceMode panic_trace{
+      janus::backend::llvm::PanicTraceMode::Full};
   janus::diagnostics::DiagnosticFormat diagnostic_format{
       janus::diagnostics::DiagnosticFormat::Human};
   std::optional<janus::driver::Manifest> manifest;
@@ -141,9 +144,12 @@ void print_usage(std::ostream &output) {
             << "  janus check [source.janus] "
                "[--diagnostic-format human|json]\n"
             << "  janus build [source.janus] [-o output] [--release] "
-               "[--emit llvm-ir|object] [--diagnostic-format human|json]\n"
-            << "  janus run [source.janus] [--release]\n"
-            << "  janus test [filter] [--release]\n"
+               "[--emit llvm-ir|object] [--panic-trace full|short|off] "
+               "[--diagnostic-format human|json]\n"
+            << "  janus run [source.janus] [--release] "
+               "[--panic-trace full|short|off]\n"
+            << "  janus test [filter] [--release] "
+               "[--panic-trace full|short|off]\n"
             << "  janus fmt [source.janus] [--check]\n"
             << "  diagnostics: --warn-high-growth-loops for check, build, "
                "run\n"
@@ -161,13 +167,15 @@ void print_command_usage(std::ostream &output, std::string_view command) {
   else if (command == "build")
     output << " [source.janus] [-o output] [--release] "
               "[--emit llvm-ir|object] [--locked] [--offline] "
+              "[--panic-trace full|short|off] "
               "[--warn-high-growth-loops] "
               "[--diagnostic-format human|json]\n";
   else if (command == "run")
     output << " [source.janus] [--release] [--locked] [--offline] "
-              "[--warn-high-growth-loops]\n";
+              "[--panic-trace full|short|off] [--warn-high-growth-loops]\n";
   else if (command == "test")
-    output << " [filter] [--release] [--locked] [--offline]\n";
+    output << " [filter] [--release] [--locked] [--offline] "
+              "[--panic-trace full|short|off]\n";
   else
     output << " [source.janus] [--check]\n";
 }
@@ -311,6 +319,26 @@ Options parse_options(int argc, char **argv) {
       options.format_check = true;
     } else if (argument == "--warn-high-growth-loops") {
       options.warn_high_growth_loops = true;
+    } else if (argument == "--panic-trace") {
+      if (options.panic_trace_set)
+        throw UsageError{options.command,
+                         "--panic-trace may be specified only once"};
+      if (++index == argc)
+        throw UsageError{
+            options.command,
+            "--panic-trace requires 'full', 'short', or 'off'"};
+      const std::string_view mode = argv[index];
+      if (mode == "full")
+        options.panic_trace = janus::backend::llvm::PanicTraceMode::Full;
+      else if (mode == "short")
+        options.panic_trace = janus::backend::llvm::PanicTraceMode::Short;
+      else if (mode == "off")
+        options.panic_trace = janus::backend::llvm::PanicTraceMode::Off;
+      else
+        throw UsageError{
+            options.command,
+            "--panic-trace accepts 'full', 'short', or 'off'"};
+      options.panic_trace_set = true;
     } else if (argument == "--diagnostic-format") {
       if (options.diagnostic_format_set)
         throw UsageError{options.command,
@@ -362,7 +390,7 @@ Options parse_options(int argc, char **argv) {
   }
   if (options.command == "check" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object ||
-       options.release))
+       options.release || options.panic_trace_set))
     throw UsageError{options.command, "check does not accept build options"};
   if (options.command == "run" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object))
@@ -373,7 +401,7 @@ Options parse_options(int argc, char **argv) {
   if (options.command == "fmt" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object ||
        options.release || options.locked || options.offline ||
-       options.warn_high_growth_loops))
+       options.warn_high_growth_loops || options.panic_trace_set))
     throw UsageError{options.command,
                      "fmt only accepts a source path and --check"};
   if ((options.command == "test") && options.warn_high_growth_loops)
@@ -384,6 +412,8 @@ Options parse_options(int argc, char **argv) {
     throw UsageError{
         options.command,
         "--diagnostic-format is only available for check and build"};
+  if (options.release && !options.panic_trace_set)
+    options.panic_trace = janus::backend::llvm::PanicTraceMode::Short;
   if (options.source.empty()) {
     options.manifest = janus::driver::load_manifest(
         janus::driver::find_manifest(std::filesystem::current_path()));
@@ -430,7 +460,8 @@ std::unique_ptr<llvm::Module>
 compile(const std::filesystem::path &source, llvm::LLVMContext &context,
         const Toolchain &toolchain,
         const std::vector<std::filesystem::path> &dependency_paths,
-        bool warn_high_growth_loops) {
+        bool warn_high_growth_loops,
+        janus::backend::llvm::PanicTraceMode panic_trace) {
   std::vector<std::filesystem::path> search_paths{toolchain.stdlib};
   search_paths.insert(search_paths.end(), dependency_paths.begin(),
                       dependency_paths.end());
@@ -450,7 +481,7 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
   }
   janus::backend::llvm::IrGenerator generator{context};
   std::unique_ptr<llvm::Module> module =
-      generator.generate(program, source.string());
+      generator.generate(program, source.string(), panic_trace);
   if (llvm::verifyModule(*module, &llvm::errs()))
     throw std::runtime_error{"generated invalid LLVM IR"};
   return module;
@@ -507,7 +538,7 @@ int build(const Options &options, const std::filesystem::path &output,
   llvm::LLVMContext context;
   std::unique_ptr<llvm::Module> module =
       compile(options.source, context, toolchain, options.dependency_paths,
-              options.warn_high_growth_loops);
+              options.warn_high_growth_loops, options.panic_trace);
   if (options.emit_llvm) {
     write_ir(*module, output);
     return 0;
@@ -677,7 +708,8 @@ int main(int argc, char **argv) {
       llvm::LLVMContext context;
       static_cast<void>(compile(options.source, context, toolchain,
                                 options.dependency_paths,
-                                options.warn_high_growth_loops));
+                                options.warn_high_growth_loops,
+                                options.panic_trace));
       std::cout << "checked " << options.source.string() << '\n';
       return 0;
     }
