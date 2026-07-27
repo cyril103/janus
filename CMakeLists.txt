@@ -455,6 +455,13 @@ if(BUILD_TESTING)
         COMMAND janus check
                 "${PROJECT_SOURCE_DIR}/tests/fixtures/parser/top_level_var.janus"
     )
+    foreach(ownership_kind class struct enum)
+        add_test(
+            NAME design.container_owned_${ownership_kind}
+            COMMAND janus check
+                    "${PROJECT_SOURCE_DIR}/tests/fixtures/design/container_owned_${ownership_kind}.janus"
+        )
+    endforeach()
     add_executable(lsp_server_test
         tests/lsp/server_test.cpp
     )

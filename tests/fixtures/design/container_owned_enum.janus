@@ -1,0 +1,22 @@
+class Resource(val identifier : int) {}
+
+struct Box(val resource : Resource) {}
+
+enum Slot {
+    Occupied(Box),
+    Empty
+}
+
+def dispose(box : Box) : int {
+    delete box
+    return 0
+}
+
+def main() : int {
+    val box : Box = new Box(new Resource(1))
+    val slot : Slot = Slot.Occupied(move box)
+    return match move slot {
+        Occupied(value) => dispose(move value),
+        Empty => 0
+    }
+}

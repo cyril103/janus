@@ -356,6 +356,9 @@ defer delete extracted
 Une contrainte générique `T <: Copy` garantit qu'un type peut être recopié
 sans dupliquer une ressource. Les tableaux, ensembles, tables de hachage,
 builders et itérateurs de la bibliothèque standard utilisent cette contrainte.
+Le [contrat de propriété des conteneurs](design/container-ownership.md) fixe la
+séparation prévue en 0.6.0 entre observation bornée et opérations consommantes
+pour lever cette restriction sans copie implicite.
 
 ## Collections et itérateurs
 
