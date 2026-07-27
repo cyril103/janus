@@ -34,6 +34,7 @@ nav:
       - Commandes et outils: reference/generated/tooling.md
       - Graphisme 2D: reference/generated/graphics.md
       - Contrat de stabilité 1.0: reference/generated/stability-contract.md
+      - Migration 0.5 vers 0.6: reference/generated/migration-0.5-to-0.6.md
       - Compiler depuis les sources: reference/generated/development.md
 theme:
   name: material

@@ -18,6 +18,7 @@ EXPECTED_REFERENCE = {
     "graphics.md",
     "stability-contract.md",
     "development.md",
+    "migration-0.5-to-0.6.md",
 }
 EXPECTED_MODULES = {
     "std.array",
@@ -109,9 +110,9 @@ class SiteStructureTests(unittest.TestCase):
 
     def test_public_content_states_version_and_experimental_status(self):
         home = (WEBSITE / "docs" / "index.md").read_text(encoding="utf-8")
-        self.assertIn("0.5.0", home)
+        self.assertIn("0.6.0", home)
         self.assertRegex(home.lower(), r"expérimental")
-        self.assertNotIn("0.5.1", home)
+        self.assertNotIn("0.6.1", home)
 
     def test_dark_palette_inherits_material_tokens(self):
         config = (WEBSITE / "mkdocs.yml").read_text(encoding="utf-8")
@@ -226,16 +227,16 @@ class ReferenceSyncTests(unittest.TestCase):
             module.sync(REPOSITORY, destination)
             language = (destination / "language-guide.md").read_text(encoding="utf-8")
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.5.0/stdlib/std",
+                "https://github.com/cyril103/janus/tree/v0.6.0/stdlib/std",
                 language,
             )
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.5.0/examples",
+                "https://github.com/cyril103/janus/tree/v0.6.0/examples",
                 language,
             )
             graphics = (destination / "graphics.md").read_text(encoding="utf-8")
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.5.0/examples/snake",
+                "https://github.com/cyril103/janus/tree/v0.6.0/examples/snake",
                 graphics,
             )
             local_links = re.findall(r"\[[^]]+\]\((?!https?://|#|mailto:)([^)]+)\)", language)

@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote
 
-VERSION = "v0.5.0"
+VERSION = "v0.6.0"
 REPOSITORY_URL = "https://github.com/cyril103/janus"
 DOCUMENTS = (
     "getting-started.md",
@@ -19,6 +19,7 @@ DOCUMENTS = (
     "graphics.md",
     "stability-contract.md",
     "development.md",
+    "migration-0.5-to-0.6.md",
 )
 ASSETS = ("public-surface-0.5.json",)
 LINK_RE = re.compile(r"(?P<image>!)?\[(?P<label>[^]]*)\]\((?P<target>[^)]+)\)")
