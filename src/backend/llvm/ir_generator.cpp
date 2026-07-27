@@ -1331,6 +1331,13 @@ private:
           static_cast<void>(emit_expression(expression_statement->expression,
                                             type, substitutions, block_locals,
                                             builder));
+          if (const auto *call = std::get_if<janus::ast::CallExpression>(
+                  &expression_statement->expression.value);
+              call != nullptr && call->callee == "panic") {
+            builder.CreateUnreachable();
+            active_cleanup_scopes_.pop_back();
+            return true;
+          }
           continue;
         }
 

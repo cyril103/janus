@@ -1,0 +1,57 @@
+import std.array
+
+class Resource(val id : int) {
+    destructor {
+        println(id)
+    }
+}
+
+struct Box(val resource : Resource) {}
+
+enum Slot {
+    Occupied(Box),
+    Empty
+}
+
+def exerciseClasses() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(1))
+    defer delete values
+
+    val first : Resource = new Resource(1)
+    values.push(move first)
+    val second : Resource = new Resource(2)
+    values.push(move second)
+
+    val replacement : Resource = new Resource(3)
+    val replaced : Resource = values.replace(usize(0), move replacement)
+    delete replaced
+
+    val removed : Resource = values.remove(usize(0))
+    delete removed
+    values.clear()
+
+    val scoped : Resource = new Resource(4)
+    values.push(move scoped)
+}
+
+def exerciseStructs() : Unit {
+    val values : Array[Box] = new Array[Box](usize(0))
+    defer delete values
+    val box : Box = new Box(new Resource(5))
+    values.push(move box)
+}
+
+def exerciseEnums() : Unit {
+    val values : Array[Slot] = new Array[Slot](usize(1))
+    defer delete values
+    val box : Box = new Box(new Resource(6))
+    val slot : Slot = Slot.Occupied(move box)
+    values.push(move slot)
+}
+
+def main() : int {
+    exerciseClasses()
+    exerciseStructs()
+    exerciseEnums()
+    return 0
+}

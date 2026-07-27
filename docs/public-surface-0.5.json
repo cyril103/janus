@@ -16,8 +16,8 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "35e5e037cafedb4ce91f4c722640d9a4d9b3b6df6507450a8fe7d720f90e2fb1",
-      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.get", "Array.getOption", "Array.set", "Array.push", "Array.pop", "Array.popOption", "Array.reserve", "Array.clear", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count"]
+      "signature_digest": "3a72180fcfc0a3cceccf1e7dcdd9176b2e7f55b1430c24517ec9da81aeb865ea",
+      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.get", "Array.getOption", "Array.set", "Array.replace", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count"]
     },
     {
       "name": "std.array_builder",

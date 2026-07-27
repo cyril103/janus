@@ -1,0 +1,13 @@
+import std.array
+
+class Resource() {}
+
+def main() : int {
+    val values : Array[Resource] = new Array[Resource](usize(1))
+    defer delete values
+    val resource : Resource = new Resource()
+    values.push(move resource)
+    val copied : Resource = values.get(usize(0))
+    delete copied
+    return 0
+}
