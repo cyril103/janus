@@ -3,7 +3,11 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
-## [0.6.0] - Non publiée
+## [0.6.0] - 2026-07-27
+
+Cette version établit le contrat de propriété des conteneurs et permet aux
+collections principales de stocker, déplacer et détruire correctement des
+valeurs propriétaires.
 
 ### Langage et bibliothèque standard
 
@@ -232,6 +236,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.6.0]: https://github.com/cyril103/janus/releases/tag/v0.6.0
 [0.5.0]: https://github.com/cyril103/janus/releases/tag/v0.5.0
 [0.4.0]: https://github.com/cyril103/janus/releases/tag/v0.4.0
 [0.3.0]: https://github.com/cyril103/janus/releases/tag/v0.3.0
