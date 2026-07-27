@@ -55,6 +55,17 @@ struct DiagnosticLocation {
   std::string label;
 };
 
+struct SourceRange {
+  SourceLocation start;
+  SourceLocation end;
+};
+
+struct DiagnosticSuggestion {
+  std::string message;
+  SourceRange range;
+  std::string replacement;
+};
+
 struct Diagnostic {
   DiagnosticSeverity severity{DiagnosticSeverity::Error};
   DiagnosticCode code{DiagnosticCode::Unclassified};
@@ -62,6 +73,7 @@ struct Diagnostic {
   SourceLocation primary_location;
   std::vector<std::string> notes;
   std::vector<DiagnosticLocation> secondary_locations;
+  std::vector<DiagnosticSuggestion> suggestions;
 };
 
 class CompileError final : public std::runtime_error {
@@ -72,6 +84,7 @@ public:
                                 std::move(message),
                                 location,
                                 {},
+                                {},
                                 {}}} {}
 
   CompileError(DiagnosticCode code, SourceLocation location,
@@ -81,22 +94,41 @@ public:
                                 std::move(message),
                                 location,
                                 {},
+                                {},
                                 {}}} {}
 
   explicit CompileError(Diagnostic diagnostic)
       : std::runtime_error{diagnostic.message},
-        diagnostic_{std::move(diagnostic)} {}
+        diagnostics_{std::move(diagnostic)} {}
+
+  explicit CompileError(std::vector<Diagnostic> diagnostics)
+      : std::runtime_error{diagnostics.empty() ? "compilation failed"
+                                               : diagnostics.front().message},
+        diagnostics_{std::move(diagnostics)} {
+    if (diagnostics_.empty())
+      diagnostics_.push_back(Diagnostic{DiagnosticSeverity::Error,
+                                        DiagnosticCode::Unclassified,
+                                        "compilation failed",
+                                        SourceLocation{},
+                                        {},
+                                        {},
+                                        {}});
+  }
 
   [[nodiscard]] SourceLocation location() const noexcept {
-    return diagnostic_.primary_location;
+    return diagnostic().primary_location;
   }
 
   [[nodiscard]] const Diagnostic &diagnostic() const noexcept {
-    return diagnostic_;
+    return diagnostics_.front();
+  }
+
+  [[nodiscard]] const std::vector<Diagnostic> &diagnostics() const noexcept {
+    return diagnostics_;
   }
 
 private:
-  Diagnostic diagnostic_;
+  std::vector<Diagnostic> diagnostics_;
 };
 
 } // namespace janus

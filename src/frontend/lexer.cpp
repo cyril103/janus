@@ -253,9 +253,18 @@ Token Lexer::next() {
   case '?':
     return Token{TokenKind::Question, source_.substr(start_position, 1), start};
   default:
-    throw CompileError{DiagnosticCode::LexerUnexpectedCharacter, start,
-                       "unexpected character '" + std::string(1, character) +
-                           "'"};
+    SourceLocation end = start;
+    ++end.offset;
+    ++end.column;
+    throw CompileError{Diagnostic{
+        DiagnosticSeverity::Error,
+        DiagnosticCode::LexerUnexpectedCharacter,
+        "unexpected character '" + std::string(1, character) + "'",
+        start,
+        {},
+        {},
+        {DiagnosticSuggestion{"remove the unexpected character",
+                              SourceRange{start, end}, ""}}}};
   }
 }
 

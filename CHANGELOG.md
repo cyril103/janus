@@ -3,6 +3,17 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.5.2] - Non publiée
+
+### Diagnostics
+
+- ajout des rendus terminal avec extraits et repères, et JSON conforme à un
+  schéma 0.5.2 versionné pour `janus check` et `janus build` ;
+- représentation structurée des suggestions sans modification automatique des
+  sources ;
+- récupération du parseur entre déclarations indépendantes afin de publier
+  plusieurs diagnostics sans cascade.
+
 ## [0.5.1] - Non publiée
 
 ### Documentation
