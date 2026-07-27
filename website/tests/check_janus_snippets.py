@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 import subprocess
 import tempfile
@@ -10,13 +11,35 @@ from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 DOCS = REPOSITORY / "website" / "docs"
-COMPILER = REPOSITORY / "build-make" / "janus"
 FENCE = re.compile(r"```janus(?:[^\n]*)\n(.*?)```", re.DOTALL)
 
 
 def main() -> int:
-    if not COMPILER.is_file():
-        raise SystemExit(f"Compilateur absent : {COMPILER} (exécutez cmake --build build-make)")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--compiler",
+        type=Path,
+        default=REPOSITORY / "build" / "janus",
+        help="binaire janus à utiliser (par défaut build/janus)",
+    )
+    args = parser.parse_args()
+    compiler = args.compiler.resolve()
+    if not compiler.is_file():
+        raise SystemExit(
+            f"Compilateur absent : {compiler} "
+            "(configurez et compilez Janus, ou utilisez --compiler)"
+        )
+
+    version = subprocess.run(
+        [str(compiler), "--version"],
+        cwd=REPOSITORY,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        timeout=30,
+        check=True,
+    ).stdout.strip()
 
     failures: list[str] = []
     checked = 0
@@ -35,7 +58,7 @@ def main() -> int:
                 source = temporary_path / f"{page.stem}-{index}.janus"
                 source.write_text(code.strip() + "\n", encoding="utf-8")
                 result = subprocess.run(
-                    [str(COMPILER), "check", str(source)],
+                    [str(compiler), "check", str(source)],
                     cwd=REPOSITORY,
                     text=True,
                     encoding="utf-8",
@@ -53,7 +76,7 @@ def main() -> int:
     if failures:
         print("\n".join(failures))
         return 1
-    print(f"{checked} blocs Janus autonomes compilés avec Janus 0.5.0")
+    print(f"{checked} blocs Janus autonomes compilés avec {version}")
     return 0
 
 

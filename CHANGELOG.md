@@ -13,7 +13,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 - classement explicite des API candidates à la stabilité, des API
   expérimentales et du module d'implémentation `std.hash_probe` ;
 - publication de l'inventaire avec la référence du site et vérification des
-  exemples Janus autonomes et des liens internes.
+  exemples Janus autonomes et des liens internes ;
+- détection automatique des dérives de symboles, signatures et options CLI,
+  avec fixture obsolète ciblée et exécution des extraits et du crawler dans la
+  CI Pages.
 
 ## [0.5.0] - 2026-07-25
 

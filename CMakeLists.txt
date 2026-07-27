@@ -326,6 +326,7 @@ target_compile_definitions(janus-lsp
 
 include(CTest)
 if(BUILD_TESTING)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     set(CLANG_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}")
 
     add_executable(graphics_runtime_test
@@ -721,6 +722,23 @@ if(BUILD_TESTING)
             ${CMAKE_COMMAND}
             "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
             -P "${PROJECT_SOURCE_DIR}/cmake/verify_documentation.cmake"
+    )
+    add_test(
+        NAME docs.public_surface
+        COMMAND
+            "${Python3_EXECUTABLE}"
+            "${PROJECT_SOURCE_DIR}/scripts/check_public_surface.py"
+            --root "${PROJECT_SOURCE_DIR}"
+            --janus $<TARGET_FILE:janus>
+    )
+    add_test(
+        NAME docs.public_surface_stale_fixture
+        COMMAND
+            "${CMAKE_COMMAND}"
+            "-DPYTHON=${Python3_EXECUTABLE}"
+            "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            -P
+            "${PROJECT_SOURCE_DIR}/tests/documentation/run_stale_public_surface.cmake"
     )
     add_test(
         NAME docs.canonical_output
