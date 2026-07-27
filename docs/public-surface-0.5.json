@@ -24,7 +24,7 @@
       "source": "stdlib/std/array_builder.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "5250cdf7fd8d5b2ecad4f1084418e1fa6ccfcc71cb9fe4aa61355d4fd659aaf3",
+      "signature_digest": "5af0fcd4e0dcc0da52042c4be690e7d6538657a7a68834864b70078618615cbf",
       "symbols": ["ArrayBuilder", "ArrayBuilder.add", "ArrayBuilder.addAll", "ArrayBuilder.size", "ArrayBuilder.clear", "ArrayBuilder.result", "collectArray"]
     },
     {
@@ -32,7 +32,7 @@
       "source": "stdlib/std/builder.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "4dbc05bb3c51b357fcbd815d1cd075666f615967f230819c70793cafdd5f0c8c",
+      "signature_digest": "5f74a23ffa6ac4bcc0f55e224145bd4027acc8f88bea5ca24c21e09c5f363e32",
       "symbols": ["Builder", "Builder.add", "Builder.result"]
     },
     {
@@ -113,7 +113,7 @@
       "source": "stdlib/std/hashmap.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "6f1ecbfe5cd0679ba080b2c57bb4b3aef2e135c2631759b0f19bc1097acd3813",
+      "signature_digest": "09f8b5869df3c827bdd82322b339e6cfe017be3beaabe035674654a8dedd006c",
       "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "HashMap", "HashMap.size", "HashMap.isEmpty", "HashMap.containsKey", "HashMap.getOption", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.entries", "HashMap.keys", "HashMap.values", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
     },
     {
@@ -121,7 +121,7 @@
       "source": "stdlib/std/hashset.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "fe591a09178da9cdc94e8f7535c8af6f1ea766fc4caf9b048245bcc1c4bc616d",
+      "signature_digest": "4181cffea6e4ebc459eeb1622d50517d1e61cb0c0c1cda41afa17db56987926c",
       "symbols": ["HashSet", "HashSet.size", "HashSet.isEmpty", "HashSet.contains", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.iterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
     },
     {

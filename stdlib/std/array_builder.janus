@@ -3,14 +3,14 @@ import std.array
 import std.builder
 import std.iterator
 
-class ArrayBuilder[T <: Copy](
+class ArrayBuilder[T](
 initialCapacity : usize
 ) extends Builder[T, Array[T]] {
     private var values : Array[T] =
     new Array[T](initialCapacity)
 
     def add(value : T) : Unit {
-        values.push(value)
+        values.push(move value)
     }
 
     def addAll[C <: Iterable[T]](source : C) : Unit {

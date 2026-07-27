@@ -1,0 +1,172 @@
+import std.array_builder
+import std.hashing
+import std.hashmap
+import std.hashset
+
+var releases : int = 0
+
+class Resource(val key : int) {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+class CollidingHashing() extends Hashing[Resource] {
+    def hash(value : Resource) : usize {
+        return usize(0)
+    }
+
+    def equals(left : Resource, right : Resource) : bool {
+        return left.key == right.key
+    }
+}
+
+struct OwnedKey(val id : int, val resource : Resource) {}
+
+class OwnedKeyHashing() extends Hashing[OwnedKey] {
+    def hash(value : OwnedKey) : usize {
+        return usize(0)
+    }
+
+    def equals(left : OwnedKey, right : OwnedKey) : bool {
+        return left.id == right.id
+    }
+}
+
+def addSetValue(
+set : HashSet[Resource, CollidingHashing],
+key : int
+) : Unit {
+    val value : Resource = new Resource(key)
+    set.add(move value)
+}
+
+def putMapValue(
+map : HashMap[Resource, Resource, CollidingHashing],
+key : int
+) : Unit {
+    val storedKey : Resource = new Resource(key)
+    val storedValue : Resource = new Resource(key + 100)
+    val previous : Option[Resource] =
+    map.put(move storedKey, move storedValue)
+    delete previous
+}
+
+def exerciseSet(hashing : CollidingHashing) : Unit {
+    val values : HashSet[Resource, CollidingHashing] =
+    new HashSet[Resource, CollidingHashing](usize(1), hashing)
+    defer delete values
+
+    var key : int = 1
+    while key <= 32 {
+        addSetValue(values, key)
+        key = key + 1
+    }
+    addSetValue(values, 1)
+
+    val query : Resource = new Resource(1)
+    values.remove(query)
+    delete query
+    values.clear()
+    addSetValue(values, 8)
+}
+
+def exerciseMap(hashing : CollidingHashing) : Unit {
+    val values : HashMap[Resource, Resource, CollidingHashing] =
+    new HashMap[Resource, Resource, CollidingHashing](usize(1), hashing)
+    defer delete values
+
+    var key : int = 1
+    while key <= 32 {
+        putMapValue(values, key)
+        key = key + 1
+    }
+
+    val replacementKey : Resource = new Resource(1)
+    val replacementValue : Resource = new Resource(201)
+    val replaced : Option[Resource] =
+    values.put(move replacementKey, move replacementValue)
+    delete replaced
+
+    val query : Resource = new Resource(2)
+    val removed : Option[Resource] = values.remove(query)
+    delete removed
+    delete query
+
+    values.clear()
+    putMapValue(values, 8)
+}
+
+def exerciseBuilders(hashing : CollidingHashing) : Unit {
+    val arrays : ArrayBuilder[Resource] =
+    new ArrayBuilder[Resource](usize(1))
+    defer delete arrays
+    val first : Resource = new Resource(1)
+    arrays.add(move first)
+    val second : Resource = new Resource(2)
+    arrays.add(move second)
+    arrays.clear()
+    val third : Resource = new Resource(3)
+    arrays.add(move third)
+    val completedArray : Array[Resource] = arrays.result()
+    delete completedArray
+
+    val sets : SetBuilder[Resource, CollidingHashing] =
+    new SetBuilder[Resource, CollidingHashing](usize(1), hashing)
+    defer delete sets
+    val setValue : Resource = new Resource(1)
+    sets.add(move setValue)
+    val duplicate : Resource = new Resource(1)
+    sets.add(move duplicate)
+    val completedSet : HashSet[Resource, CollidingHashing] =
+    sets.result()
+    delete completedSet
+
+    val maps : MapBuilder[Resource, Resource, CollidingHashing] =
+    new MapBuilder[Resource, Resource, CollidingHashing](
+    usize(1),
+    hashing
+    )
+    defer delete maps
+    maps.add(
+    new MapEntry[Resource, Resource](
+    new Resource(1),
+    new Resource(101)
+    )
+    )
+    val completedMap :
+    HashMap[Resource, Resource, CollidingHashing] =
+    maps.result()
+    delete completedMap
+}
+
+def exerciseStructKeys() : Unit {
+    val hashing : OwnedKeyHashing = new OwnedKeyHashing()
+    defer delete hashing
+    val values : HashSet[OwnedKey, OwnedKeyHashing] =
+    new HashSet[OwnedKey, OwnedKeyHashing](usize(1), hashing)
+    defer delete values
+
+    val stored : OwnedKey = new OwnedKey(1, new Resource(1))
+    values.add(move stored)
+    val query : OwnedKey = new OwnedKey(1, new Resource(2))
+    values.remove(query)
+    delete query
+
+    val tail : OwnedKey = new OwnedKey(2, new Resource(3))
+    values.add(move tail)
+}
+
+def main() : int {
+    val hashing : CollidingHashing = new CollidingHashing()
+    defer delete hashing
+    exerciseSet(hashing)
+    println(releases)
+    exerciseMap(hashing)
+    println(releases)
+    exerciseBuilders(hashing)
+    println(releases)
+    exerciseStructKeys()
+    println(releases)
+    return 0
+}

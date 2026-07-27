@@ -6,7 +6,15 @@ import std.hashing
 import std.iterator
 import std.option
 
-struct MapEntry[K <: Copy, V <: Copy](val key : K, val value : V) {}
+struct MapEntry[K, V](val key : K, val value : V) {
+    internal consume def insertInto[H <: Hashing[K]](
+    destination : HashMap[K, V, H]
+    ) : Unit {
+        val previous : Option[V] =
+        destination.put(move key, move value)
+        delete previous
+    }
+}
 
 private enum MapSlot[K, V] {
     Empty,
@@ -40,7 +48,7 @@ private var index : usize
     }
 }
 
-private class MapKeyIteratorState[K <: Copy, V <: Copy, H <: Hashing[K]](
+private class MapKeyIteratorState[K <: Copy, V, H <: Hashing[K]](
 private val source : HashMap[K, V, H],
 private var index : usize
 ) {
@@ -61,7 +69,7 @@ private var index : usize
     }
 }
 
-private class MapValueIteratorState[K <: Copy, V <: Copy, H <: Hashing[K]](
+private class MapValueIteratorState[K, V <: Copy, H <: Hashing[K]](
 private val source : HashMap[K, V, H],
 private var index : usize
 ) {
@@ -82,7 +90,7 @@ private var index : usize
     }
 }
 
-class HashMap[K <: Copy, V <: Copy, H <: Hashing[K]](
+class HashMap[K, V, H <: Hashing[K]](
 initialCapacity : usize,
 private val hashing : H
 ) {
@@ -99,46 +107,144 @@ private val hashing : H
         }
     }
 
-    private def matches(slot : MapSlot[K, V], key : K) : bool {
-        return match slot {
-            Occupied(existing, value) => hashing.equals(existing, key),
+    private def restoreOccupiedMatch(
+    index : usize,
+    existing : K,
+    value : V,
+    key : K
+    ) : bool {
+        val result : bool = hashing.equals(existing, key)
+        slots.set(
+        index,
+        MapSlot.Occupied[K, V](move existing, move value)
+        )
+        return result
+    }
+
+    private def restoreOccupiedFalse(
+    index : usize,
+    key : K,
+    value : V
+    ) : bool {
+        slots.set(
+        index,
+        MapSlot.Occupied[K, V](move key, move value)
+        )
+        return false
+    }
+
+    private def restoreDeleted(index : usize) : bool {
+        slots.set(index, MapSlot.Deleted[K, V]())
+        return false
+    }
+
+    private def matchesAt(index : usize, key : K) : bool {
+        val slot : MapSlot[K, V] =
+        slots.replace(index, MapSlot.Empty[K, V]())
+        return match move slot {
+            Occupied(existing, value) =>
+            this.restoreOccupiedMatch(
+            index,
+            move existing,
+            move value,
+            key
+            ),
             Empty => false,
-            Deleted => false
+            Deleted => this.restoreDeleted(index)
         }
     }
 
-    private def isEmptySlot(slot : MapSlot[K, V]) : bool {
-        return match slot {
+    private def isEmptyAt(index : usize) : bool {
+        val slot : MapSlot[K, V] =
+        slots.replace(index, MapSlot.Empty[K, V]())
+        return match move slot {
             Empty => true,
-            Occupied(key, value) => false,
-            Deleted => false
+            Occupied(key, value) =>
+            this.restoreOccupiedFalse(index, move key, move value),
+            Deleted => this.restoreDeleted(index)
         }
     }
 
-    private def isDeletedSlot(slot : MapSlot[K, V]) : bool {
-        return match slot {
-            Deleted => true,
+    private def isDeletedAt(index : usize) : bool {
+        val slot : MapSlot[K, V] =
+        slots.replace(index, MapSlot.Empty[K, V]())
+        return match move slot {
+            Deleted => this.restoreDeleted(index) || true,
             Empty => false,
-            Occupied(key, value) => false
+            Occupied(key, value) =>
+            this.restoreOccupiedFalse(index, move key, move value)
         }
     }
 
-    private def oldValue(slot : MapSlot[K, V]) : Option[V] {
-        return match slot {
-            Occupied(key, value) => Option.Some[V](value),
-            Empty => Option.None[V](),
-            Deleted => Option.None[V]()
-        }
+    private def restoreAndCopyEntry(
+    index : usize,
+    key : K,
+    value : V
+    ) : Option[MapEntry[K, V]] {
+        val result : Option[MapEntry[K, V]] =
+        Option.Some[MapEntry[K, V]](
+        new MapEntry[K, V](key, value)
+        )
+        slots.set(
+        index,
+        MapSlot.Occupied[K, V](move key, move value)
+        )
+        return result
+    }
+
+    private def restoreAndCopyKey(
+    index : usize,
+    key : K,
+    value : V
+    ) : Option[K] {
+        val result : Option[K] = Option.Some[K](key)
+        slots.set(
+        index,
+        MapSlot.Occupied[K, V](move key, move value)
+        )
+        return result
+    }
+
+    private def restoreAndCopyValue(
+    index : usize,
+    key : K,
+    value : V
+    ) : Option[V] {
+        val result : Option[V] = Option.Some[V](value)
+        slots.set(
+        index,
+        MapSlot.Occupied[K, V](move key, move value)
+        )
+        return result
+    }
+
+    private def restoreDeletedEntry(
+    index : usize
+    ) : Option[MapEntry[K, V]] {
+        slots.set(index, MapSlot.Deleted[K, V]())
+        return Option.None[MapEntry[K, V]]()
+    }
+
+    private def restoreDeletedKey(index : usize) : Option[K] {
+        slots.set(index, MapSlot.Deleted[K, V]())
+        return Option.None[K]()
+    }
+
+    private def restoreDeletedValue(index : usize) : Option[V] {
+        slots.set(index, MapSlot.Deleted[K, V]())
+        return Option.None[V]()
     }
 
     private def restoreValue(key : K, value : V) : bool {
-        this.put(key, value)
+        val previous : Option[V] = this.put(move key, move value)
+        delete previous
         return true
     }
 
     private def restore(slot : MapSlot[K, V]) : bool {
-        return match slot {
-            Occupied(key, value) => this.restoreValue(key, value),
+        return match move slot {
+            Occupied(key, value) =>
+            this.restoreValue(move key, move value),
             Empty => false,
             Deleted => false
         }
@@ -146,17 +252,15 @@ private val hashing : H
 
     private def resize(requested : usize) : Unit {
         val previous : Array[MapSlot[K, V]] = move slots
-        val previousSize : usize = previous.size()
         slotCapacity = normalizedHashCapacity(requested)
         slots = new Array[MapSlot[K, V]](slotCapacity)
         length = usize(0)
         deletedCount = usize(0)
         this.initializeSlots()
 
-        var index : usize = usize(0)
-        while index < previousSize {
-            this.restore(previous.get(index))
-            index = index + usize(1)
+        while !previous.isEmpty() {
+            val slot : MapSlot[K, V] = previous.pop()
+            this.restore(move slot)
         }
         delete previous
     }
@@ -179,13 +283,17 @@ private val hashing : H
         if index >= slotCapacity {
             return Option.None[MapEntry[K, V]]()
         }
-        return match slots.get(index) {
+        val slot : MapSlot[K, V] =
+        slots.replace(index, MapSlot.Empty[K, V]())
+        return match move slot {
             Occupied(key, value) =>
-            Option.Some[MapEntry[K, V]](
-            new MapEntry[K, V](key, value)
+            this.restoreAndCopyEntry(
+            index,
+            move key,
+            move value
             ),
             Empty => Option.None[MapEntry[K, V]](),
-            Deleted => Option.None[MapEntry[K, V]]()
+            Deleted => this.restoreDeletedEntry(index)
         }
     }
 
@@ -194,10 +302,13 @@ private val hashing : H
         if index >= slotCapacity {
             return Option.None[K]()
         }
-        return match slots.get(index) {
-            Occupied(key, value) => Option.Some[K](key),
+        val slot : MapSlot[K, V] =
+        slots.replace(index, MapSlot.Empty[K, V]())
+        return match move slot {
+            Occupied(key, value) =>
+            this.restoreAndCopyKey(index, move key, move value),
             Empty => Option.None[K](),
-            Deleted => Option.None[K]()
+            Deleted => this.restoreDeletedKey(index)
         }
     }
 
@@ -206,10 +317,13 @@ private val hashing : H
         if index >= slotCapacity {
             return Option.None[V]()
         }
-        return match slots.get(index) {
-            Occupied(key, value) => Option.Some[V](value),
+        val slot : MapSlot[K, V] =
+        slots.replace(index, MapSlot.Empty[K, V]())
+        return match move slot {
+            Occupied(key, value) =>
+            this.restoreAndCopyValue(index, move key, move value),
             Empty => Option.None[V](),
-            Deleted => Option.None[V]()
+            Deleted => this.restoreDeletedValue(index)
         }
     }
 
@@ -218,11 +332,10 @@ private val hashing : H
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
         while probe.hasNext() {
             val index : usize = probe.next()
-            val slot : MapSlot[K, V] = slots.get(index)
-            if this.matches(slot, key) {
+            if this.matchesAt(index, key) {
                 return true
             }
-            if this.isEmptySlot(slot) {
+            if this.isEmptyAt(index) {
                 return false
             }
         }
@@ -234,15 +347,46 @@ private val hashing : H
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
         while probe.hasNext() {
             val index : usize = probe.next()
-            val slot : MapSlot[K, V] = slots.get(index)
-            if this.matches(slot, key) {
-                return this.oldValue(slot)
+            if this.matchesAt(index, key) {
+                return this.copyValueAt(index)
             }
-            if this.isEmptySlot(slot) {
+            if this.isEmptyAt(index) {
                 return Option.None[V]()
             }
         }
         return Option.None[V]()
+    }
+
+    private def copyValueAt(index : usize) : Option[V] {
+        val slot : MapSlot[K, V] =
+        slots.replace(index, MapSlot.Empty[K, V]())
+        return match move slot {
+            Occupied(key, value) =>
+            this.restoreAndCopyValue(index, move key, move value),
+            Empty => Option.None[V](),
+            Deleted => this.restoreDeletedValue(index)
+        }
+    }
+
+    private def replaceAt(
+    index : usize,
+    key : K,
+    value : V
+    ) : Option[V] {
+        val slot : MapSlot[K, V] =
+        slots.replace(
+        index,
+        MapSlot.Occupied[K, V](move key, move value)
+        )
+        return match move slot {
+            Occupied(previousKey, previousValue) =>
+            this.releaseKey(
+            move previousKey,
+            move previousValue
+            ),
+            Empty => Option.None[V](),
+            Deleted => Option.None[V]()
+        }
     }
 
     def put(key : K, value : V) : Option[V] {
@@ -254,47 +398,58 @@ private val hashing : H
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
         var firstDeleted : usize = usize(0)
         var hasDeleted : bool = false
+        var destination : usize = slotCapacity
+        var replacing : bool = false
         while probe.hasNext() {
             val index : usize = probe.next()
-            val slot : MapSlot[K, V] = slots.get(index)
-            if this.matches(slot, key) {
-                val previous : Option[V] = this.oldValue(slot)
-                slots.set(index, MapSlot.Occupied[K, V](key, value))
-                return previous
+            if this.matchesAt(index, key) {
+                destination = index
+                replacing = true
+                break
             }
-            if this.isDeletedSlot(slot) && !hasDeleted {
+            if this.isDeletedAt(index) && !hasDeleted {
                 firstDeleted = index
                 hasDeleted = true
             }
-            if this.isEmptySlot(slot) {
-                val destination : usize = if hasDeleted {
+            if this.isEmptyAt(index) {
+                destination = if hasDeleted {
                     firstDeleted
                 } else {
                     index
                 }
-                slots.set(
-                destination,
-                MapSlot.Occupied[K, V](key, value)
-                )
-                length = length + usize(1)
-                if hasDeleted {
-                    deletedCount = deletedCount - usize(1)
-                }
-                return Option.None[V]()
+                break
             }
         }
 
+        if replacing {
+            return this.replaceAt(
+            destination,
+            move key,
+            move value
+            )
+        }
+        if destination < slotCapacity {
+            slots.set(
+            destination,
+            MapSlot.Occupied[K, V](move key, move value)
+            )
+            length = length + usize(1)
+            if hasDeleted {
+                deletedCount = deletedCount - usize(1)
+            }
+            return Option.None[V]()
+        }
         if hasDeleted {
             slots.set(
             firstDeleted,
-            MapSlot.Occupied[K, V](key, value)
+            MapSlot.Occupied[K, V](move key, move value)
             )
             length = length + usize(1)
             deletedCount = deletedCount - usize(1)
             return Option.None[V]()
         }
         this.resize(slotCapacity * usize(2))
-        return this.put(key, value)
+        return this.put(move key, move value)
     }
 
     def remove(key : K) : Option[V] {
@@ -302,19 +457,31 @@ private val hashing : H
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
         while probe.hasNext() {
             val index : usize = probe.next()
-            val slot : MapSlot[K, V] = slots.get(index)
-            if this.matches(slot, key) {
-                val removed : Option[V] = this.oldValue(slot)
-                slots.set(index, MapSlot.Deleted[K, V]())
+            if this.matchesAt(index, key) {
+                val removed : MapSlot[K, V] =
+                slots.replace(index, MapSlot.Deleted[K, V]())
                 length = length - usize(1)
                 deletedCount = deletedCount + usize(1)
-                return removed
+                return match move removed {
+                    Occupied(storedKey, storedValue) =>
+                    this.releaseKey(
+                    move storedKey,
+                    move storedValue
+                    ),
+                    Empty => Option.None[V](),
+                    Deleted => Option.None[V]()
+                }
             }
-            if this.isEmptySlot(slot) {
+            if this.isEmptyAt(index) {
                 return Option.None[V]()
             }
         }
         return Option.None[V]()
+    }
+
+    private def releaseKey(key : K, value : V) : Option[V] {
+        delete key
+        return Option.Some[V](move value)
     }
 
     def clear() : Unit {
@@ -360,20 +527,15 @@ private val hashing : H
     }
 }
 
-class MapBuilder[K <: Copy, V <: Copy, H <: Hashing[K]](
+class MapBuilder[K, V, H <: Hashing[K]](
 initialCapacity : usize,
 private val hashing : H
 ) extends Builder[MapEntry[K, V], HashMap[K, V, H]] {
     private var values : HashMap[K, V, H] =
     new HashMap[K, V, H](initialCapacity, hashing)
 
-    private def insert(key : K, value : V) : bool {
-        values.put(key, value)
-        return true
-    }
-
     def add(entry : MapEntry[K, V]) : Unit {
-        val inserted : bool = this.insert(entry.key, entry.value)
+        entry.insertInto[H](values)
     }
 
     def size() : usize {

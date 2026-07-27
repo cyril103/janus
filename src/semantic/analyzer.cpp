@@ -1405,6 +1405,33 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         owner->module_name == std::optional<std::string>{"std.array"} &&
         is_copy_only_array_method(context.function->name))
       active_copy_constraints.insert("T");
+    if (!is_destructor && owner != nullptr &&
+        owner->module_name == std::optional<std::string>{"std.hashset"} &&
+        ((owner->name == "HashSet" &&
+          (context.function->name == "iterator" ||
+           context.function->name == "valueAt")) ||
+         (owner->name == "SetBuilder" &&
+          context.function->name == "addAll")))
+      active_copy_constraints.insert("T");
+    if (!is_destructor && owner != nullptr && owner->name == "HashMap" &&
+        owner->module_name == std::optional<std::string>{"std.hashmap"}) {
+      if (context.function->name == "entryAt" ||
+          context.function->name == "entries") {
+        active_copy_constraints.insert("K");
+        active_copy_constraints.insert("V");
+      }
+      if (context.function->name == "keyAt" ||
+          context.function->name == "keys")
+        active_copy_constraints.insert("K");
+      if (context.function->name == "valueAt" ||
+          context.function->name == "getOption" ||
+          context.function->name == "values")
+        active_copy_constraints.insert("V");
+    }
+    if (!is_destructor && owner != nullptr && owner->name == "ArrayBuilder" &&
+        owner->module_name == std::optional<std::string>{"std.array_builder"} &&
+        context.function->name == "addAll")
+      active_copy_constraints.insert("T");
     const auto satisfies_active_trait = [&](const SemanticType &candidate,
                                             const TraitInstance &requirement) {
       if (satisfies_trait(candidate, requirement))
@@ -1508,6 +1535,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::size_t loop_depth = 0;
     std::unordered_set<std::string> transfer_protected_values;
     std::unordered_set<std::string> deferred_values;
+    std::unordered_set<std::string> borrowed_values;
+    if (!is_destructor && owner != nullptr &&
+        (context.function->name == "hash" ||
+         context.function->name == "equals") &&
+        std::any_of(owner->implemented_traits.begin(),
+                    owner->implemented_traits.end(),
+                    [](const ast::TypeReference &trait) {
+                      return trait.name == "Hashing";
+                    })) {
+      for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
+        borrowed_values.insert(parameter.name);
+        transfer_protected_values.insert(parameter.name);
+      }
+    }
 
     std::function<SemanticType(const ast::Expression &)> expression_type;
     std::function<void(const ast::Expression &, const SemanticType &,
@@ -2548,6 +2589,32 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     expression_location(*node.arguments.back()),
                     "transferring an owned Array element requires an "
                     "explicit move"};
+              if (class_declaration != nullptr &&
+                  class_declaration->name == "HashSet" &&
+                  class_declaration->module_name ==
+                      std::optional<std::string>{"std.hashset"} &&
+                  node.method == "iterator" &&
+                  !satisfies_copy(substitutions.at("T")))
+                throw CompileError{
+                    node.location,
+                    "HashSet.iterator requires a Copy element type"};
+              if (class_declaration != nullptr &&
+                  class_declaration->name == "HashMap" &&
+                  class_declaration->module_name ==
+                      std::optional<std::string>{"std.hashmap"}) {
+                const bool key_copy = satisfies_copy(substitutions.at("K"));
+                const bool value_copy = satisfies_copy(substitutions.at("V"));
+                if ((node.method == "entries" &&
+                     (!key_copy || !value_copy)) ||
+                    (node.method == "keys" && !key_copy) ||
+                    ((node.method == "values" ||
+                      node.method == "getOption") &&
+                     !value_copy))
+                  throw CompileError{
+                      node.location,
+                      "HashMap." + node.method +
+                          " requires Copy for every returned element type"};
+              }
               for (std::size_t index = 0;
                    index < method->type_parameters.size(); ++index) {
                 method_parameters.insert(method->type_parameters[index]);
@@ -2598,9 +2665,69 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 const SemanticType expected =
                     resolve_type(method->parameters[index].type,
                                  method_parameters, &class_arities);
-                validate_expression(
-                    *node.arguments[index], substitute(expected, substitutions),
-                    expression_location(*node.arguments[index]));
+                const SemanticType substituted_expected =
+                    substitute(expected, substitutions);
+                const bool transfers_collection_value =
+                    class_declaration != nullptr &&
+                    ((class_declaration->name == "HashSet" &&
+                      class_declaration->module_name ==
+                          std::optional<std::string>{"std.hashset"} &&
+                      node.method == "add") ||
+                     (class_declaration->name == "HashMap" &&
+                      class_declaration->module_name ==
+                          std::optional<std::string>{"std.hashmap"} &&
+                      node.method == "put") ||
+                     (class_declaration->name == "ArrayBuilder" &&
+                      class_declaration->module_name ==
+                          std::optional<std::string>{"std.array_builder"} &&
+                      node.method == "add") ||
+                     (class_declaration->name == "SetBuilder" &&
+                      class_declaration->module_name ==
+                          std::optional<std::string>{"std.hashset"} &&
+                      node.method == "add") ||
+                     (class_declaration->name == "MapBuilder" &&
+                      class_declaration->module_name ==
+                          std::optional<std::string>{"std.hashmap"} &&
+                      node.method == "add"));
+                if (transfers_collection_value &&
+                    potentially_owns_value(substituted_expected) &&
+                    std::holds_alternative<ast::IdentifierExpression>(
+                        node.arguments[index]->value))
+                  throw CompileError{
+                      expression_location(*node.arguments[index]),
+                      "transferring an owned collection element requires an "
+                      "explicit move"};
+                const bool observes_hash_value =
+                    (trait_declaration != nullptr &&
+                     trait_declaration->name == "Hashing") ||
+                    (class_declaration != nullptr &&
+                     class_declaration->name == "HashSet" &&
+                     class_declaration->module_name ==
+                         std::optional<std::string>{"std.hashset"} &&
+                     (node.method == "contains" ||
+                      node.method == "remove")) ||
+                    (class_declaration != nullptr &&
+                     class_declaration->name == "HashMap" &&
+                     class_declaration->module_name ==
+                         std::optional<std::string>{"std.hashmap"} &&
+                     index == 0 &&
+                     (node.method == "containsKey" ||
+                      node.method == "getOption" ||
+                      node.method == "remove"));
+                if (observes_hash_value) {
+                  const SemanticType actual =
+                      expression_type(*node.arguments[index]);
+                  if (!same_type(actual, substituted_expected))
+                    throw CompileError{
+                        expression_location(*node.arguments[index]),
+                        "cannot use expression of type '" + actual.name() +
+                            "' where type '" + substituted_expected.name() +
+                            "' is required"};
+                  continue;
+                }
+                validate_expression(*node.arguments[index],
+                                    substituted_expected,
+                                    expression_location(*node.arguments[index]));
               }
               if (method->is_consuming) {
                 if (const auto *identifier =
@@ -2795,6 +2922,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               if (identifier == nullptr)
                 throw CompileError{node.location,
                                    "move requires a local value identifier"};
+              if (borrowed_values.contains(identifier->name))
+                throw CompileError{
+                    node.location,
+                    "borrowed hashing value '" + identifier->name +
+                        "' cannot be moved"};
               if (transfer_protected_values.contains(identifier->name))
                 throw CompileError{
                     node.location,
@@ -2813,15 +2945,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "owning global value '" + identifier->name +
                         "' cannot be moved"};
               const SemanticType moved_type = expression_type(*node.operand);
+              const bool has_generic_argument = std::any_of(
+                  moved_type.type_arguments.begin(),
+                  moved_type.type_arguments.end(),
+                  [&](const SemanticType &argument) {
+                    return !argument.is_concrete() && !argument.is_class() &&
+                           !argument.is_enum() && !argument.is_pointer() &&
+                           !argument.is_function();
+                  });
               const bool is_value_struct =
                   moved_type.is_class() &&
                   classes.at(moved_type.parameter)->is_value_type;
-              if (is_value_struct && !aggregate_owns_value(moved_type))
+              if (is_value_struct && !has_generic_argument &&
+                  !potentially_owns_value(moved_type))
                 throw CompileError{
                     node.location,
                     "non-owning struct values are copied and cannot be moved"};
-              if (moved_type.is_enum() &&
-                  !aggregate_owns_value(moved_type))
+              if (moved_type.is_enum() && !has_generic_argument &&
+                  !potentially_owns_value(moved_type))
                 throw CompileError{
                     node.location,
                     "non-owning enum values are copied and cannot be moved"};
@@ -3260,6 +3401,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "' is scheduled for deferred cleanup"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value);
+              identifier != nullptr &&
+              borrowed_values.contains(identifier->name))
+            throw CompileError{
+                deletion->location,
+                "borrowed hashing value '" + identifier->name +
+                    "' cannot be deleted"};
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &deletion->expression.value);
               identifier != nullptr && !block_symbols.contains(identifier->name) &&
               visible_global(identifier->name) != nullptr)
             throw CompileError{
@@ -3406,6 +3555,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 return_statement.location,
                 "owning value '" + identifier->name +
                     "' is scheduled for deferred cleanup"};
+          if (const auto *identifier =
+                  std::get_if<ast::IdentifierExpression>(
+                      &return_statement.expression->value);
+              identifier != nullptr &&
+              borrowed_values.contains(identifier->name) &&
+              potentially_owns_value(return_type))
+            throw CompileError{
+                return_statement.location,
+                "borrowed hashing value '" + identifier->name +
+                    "' cannot escape by return"};
           validate_return_expression(return_statement);
         }
         has_terminator = true;

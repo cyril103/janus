@@ -33,7 +33,7 @@ private var index : usize
     }
 }
 
-class HashSet[T <: Copy, H <: Hashing[T]](
+class HashSet[T, H <: Hashing[T]](
 initialCapacity : usize,
 private val hashing : H
 ) extends Iterable[T] {
@@ -50,41 +50,73 @@ private val hashing : H
         }
     }
 
-    private def isOccupied(slot : SetSlot[T]) : bool {
-        return match slot {
-            Occupied(value) => true,
+    private def restoreOccupied(
+    index : usize,
+    existing : T,
+    value : T
+    ) : bool {
+        val result : bool = hashing.equals(existing, value)
+        slots.set(index, SetSlot.Occupied[T](move existing))
+        return result
+    }
+
+    private def restoreDeleted(index : usize) : bool {
+        slots.set(index, SetSlot.Deleted[T]())
+        return false
+    }
+
+    private def restoreOccupiedAsNotEmpty(
+    index : usize,
+    existing : T
+    ) : bool {
+        slots.set(index, SetSlot.Occupied[T](move existing))
+        return false
+    }
+
+    private def restoreOccupiedAsNotDeleted(
+    index : usize,
+    existing : T
+    ) : bool {
+        slots.set(index, SetSlot.Occupied[T](move existing))
+        return false
+    }
+
+    private def matchesAt(index : usize, value : T) : bool {
+        val slot : SetSlot[T] =
+        slots.replace(index, SetSlot.Empty[T]())
+        return match move slot {
+            Occupied(existing) =>
+            this.restoreOccupied(index, move existing, value),
             Empty => false,
-            Deleted => false
+            Deleted => this.restoreDeleted(index)
         }
     }
 
-    private def matches(slot : SetSlot[T], value : T) : bool {
-        return match slot {
-            Occupied(existing) => hashing.equals(existing, value),
-            Empty => false,
-            Deleted => false
-        }
-    }
-
-    private def isEmptySlot(slot : SetSlot[T]) : bool {
-        return match slot {
+    private def isEmptyAt(index : usize) : bool {
+        val slot : SetSlot[T] =
+        slots.replace(index, SetSlot.Empty[T]())
+        return match move slot {
             Empty => true,
-            Occupied(value) => false,
-            Deleted => false
+            Occupied(existing) =>
+            this.restoreOccupiedAsNotEmpty(index, move existing),
+            Deleted => this.restoreDeleted(index)
         }
     }
 
-    private def isDeletedSlot(slot : SetSlot[T]) : bool {
-        return match slot {
-            Deleted => true,
+    private def isDeletedAt(index : usize) : bool {
+        val slot : SetSlot[T] =
+        slots.replace(index, SetSlot.Empty[T]())
+        return match move slot {
+            Deleted => this.restoreDeleted(index) || true,
             Empty => false,
-            Occupied(value) => false
+            Occupied(existing) =>
+            this.restoreOccupiedAsNotDeleted(index, move existing)
         }
     }
 
     private def restore(slot : SetSlot[T]) : bool {
-        return match slot {
-            Occupied(value) => this.add(value),
+        return match move slot {
+            Occupied(value) => this.add(move value),
             Empty => false,
             Deleted => false
         }
@@ -92,17 +124,15 @@ private val hashing : H
 
     private def resize(requested : usize) : Unit {
         val previous : Array[SetSlot[T]] = move slots
-        val previousSize : usize = previous.size()
         slotCapacity = normalizedHashCapacity(requested)
         slots = new Array[SetSlot[T]](slotCapacity)
         length = usize(0)
         deletedCount = usize(0)
         this.initializeSlots()
 
-        var index : usize = usize(0)
-        while index < previousSize {
-            this.restore(previous.get(index))
-            index = index + usize(1)
+        while !previous.isEmpty() {
+            val slot : SetSlot[T] = previous.pop()
+            this.restore(move slot)
         }
         delete previous
     }
@@ -125,11 +155,28 @@ private val hashing : H
         if index >= slotCapacity {
             return Option.None[T]()
         }
-        return match slots.get(index) {
-            Occupied(value) => Option.Some[T](value),
+        val slot : SetSlot[T] =
+        slots.replace(index, SetSlot.Empty[T]())
+        return match move slot {
+            Occupied(value) =>
+            this.restoreAndCopyValue(index, move value),
             Empty => Option.None[T](),
-            Deleted => Option.None[T]()
+            Deleted => this.restoreDeletedValue(index)
         }
+    }
+
+    private def restoreAndCopyValue(
+    index : usize,
+    value : T
+    ) : Option[T] {
+        val result : Option[T] = Option.Some[T](value)
+        slots.set(index, SetSlot.Occupied[T](move value))
+        return result
+    }
+
+    private def restoreDeletedValue(index : usize) : Option[T] {
+        slots.set(index, SetSlot.Deleted[T]())
+        return Option.None[T]()
     }
 
     def contains(value : T) : bool {
@@ -137,11 +184,10 @@ private val hashing : H
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
         while probe.hasNext() {
             val index : usize = probe.next()
-            val slot : SetSlot[T] = slots.get(index)
-            if this.matches(slot, value) {
+            if this.matchesAt(index, value) {
                 return true
             }
-            if this.isEmptySlot(slot) {
+            if this.isEmptyAt(index) {
                 return false
             }
         }
@@ -157,39 +203,48 @@ private val hashing : H
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
         var firstDeleted : usize = usize(0)
         var hasDeleted : bool = false
+        var destination : usize = slotCapacity
+        var duplicate : bool = false
         while probe.hasNext() {
             val index : usize = probe.next()
-            val slot : SetSlot[T] = slots.get(index)
-            if this.matches(slot, value) {
-                return false
+            if this.matchesAt(index, value) {
+                duplicate = true
+                break
             }
-            if this.isDeletedSlot(slot) && !hasDeleted {
+            if this.isDeletedAt(index) && !hasDeleted {
                 firstDeleted = index
                 hasDeleted = true
             }
-            if this.isEmptySlot(slot) {
-                val destination : usize = if hasDeleted {
+            if this.isEmptyAt(index) {
+                destination = if hasDeleted {
                     firstDeleted
                 } else {
                     index
                 }
-                slots.set(destination, SetSlot.Occupied[T](value))
-                length = length + usize(1)
-                if hasDeleted {
-                    deletedCount = deletedCount - usize(1)
-                }
-                return true
+                break
             }
         }
 
+        if duplicate {
+            delete value
+            return false
+        }
+        if destination < slotCapacity {
+            slots.set(destination, SetSlot.Occupied[T](move value))
+            length = length + usize(1)
+            if hasDeleted {
+                deletedCount = deletedCount - usize(1)
+            }
+            return true
+        }
         if hasDeleted {
-            slots.set(firstDeleted, SetSlot.Occupied[T](value))
+            slots.set(firstDeleted, SetSlot.Occupied[T](move value))
             length = length + usize(1)
             deletedCount = deletedCount - usize(1)
             return true
         }
         this.resize(slotCapacity * usize(2))
-        return this.add(value)
+        return this.add(move value)
     }
 
     def remove(value : T) : bool {
@@ -197,14 +252,15 @@ private val hashing : H
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
         while probe.hasNext() {
             val index : usize = probe.next()
-            val slot : SetSlot[T] = slots.get(index)
-            if this.matches(slot, value) {
-                slots.set(index, SetSlot.Deleted[T]())
+            if this.matchesAt(index, value) {
+                val removed : SetSlot[T] =
+                slots.replace(index, SetSlot.Deleted[T]())
+                delete removed
                 length = length - usize(1)
                 deletedCount = deletedCount + usize(1)
                 return true
             }
-            if this.isEmptySlot(slot) {
+            if this.isEmptyAt(index) {
                 return false
             }
         }
@@ -236,7 +292,7 @@ private val hashing : H
     }
 }
 
-class SetBuilder[T <: Copy, H <: Hashing[T]](
+class SetBuilder[T, H <: Hashing[T]](
 initialCapacity : usize,
 private val hashing : H
 ) extends Builder[T, HashSet[T, H]] {
@@ -244,7 +300,7 @@ private val hashing : H
     new HashSet[T, H](initialCapacity, hashing)
 
     def add(value : T) : Unit {
-        values.add(value)
+        values.add(move value)
     }
 
     def addAll[C <: Iterable[T]](source : C) : Unit {

@@ -1,0 +1,25 @@
+import std.hashing
+import std.hashset
+
+class Resource(val key : int) {}
+
+class ResourceHashing() extends Hashing[Resource] {
+    def hash(value : Resource) : usize {
+        return usize(value.key)
+    }
+
+    def equals(left : Resource, right : Resource) : bool {
+        return left.key == right.key
+    }
+}
+
+def main() : int {
+    val hashing : ResourceHashing = new ResourceHashing()
+    defer delete hashing
+    val values : HashSet[Resource, ResourceHashing] =
+    new HashSet[Resource, ResourceHashing](usize(1), hashing)
+    defer delete values
+    val resource : Resource = new Resource(1)
+    values.add(resource)
+    return 0
+}
