@@ -22,6 +22,19 @@ int main() {
          std::string::npos);
   assert(invalid.front().find("\"severity\":1") != std::string::npos);
 
+  const std::vector<std::string> recovered = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///recovery.janus","text":"def first() : int {\n val x : int = }\ndef second() : int {\n val y : int = }\n"}}})");
+  assert(recovered.size() == 1);
+  std::size_t parser_diagnostic_count = 0;
+  std::size_t parser_diagnostic_position = 0;
+  while ((parser_diagnostic_position = recovered.front().find(
+              "\"code\":\"JPAR0001\"", parser_diagnostic_position)) !=
+         std::string::npos) {
+    ++parser_diagnostic_count;
+    parser_diagnostic_position += 20;
+  }
+  assert(parser_diagnostic_count == 2);
+
   const std::vector<std::string> missing_import = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///a/deliberately/long/path/used/to/expose/dangling/diagnostic/messages.janus","text":"import module_that_does_not_exist_anywhere\n\ndef main() : int { return 0 }"}}})");
   assert(missing_import.size() == 1);

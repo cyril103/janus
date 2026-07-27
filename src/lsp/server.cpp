@@ -627,25 +627,26 @@ std::string Server::diagnostics(std::string_view uri,
     static_cast<void>(semantic::Analyzer{}.analyze(
         program, semantic::AnalysisOptions{!is_module}));
   } catch (const CompileError &error) {
-    const Diagnostic &diagnostic = error.diagnostic();
-    const SourceLocation location = diagnostic.primary_location;
-    const std::uint32_t line = location.line > 0 ? location.line - 1 : 0;
-    const std::uint32_t column = location.column > 0 ? location.column - 1 : 0;
-    const int severity =
-        diagnostic.severity == DiagnosticSeverity::Error
-            ? 1
-            : diagnostic.severity == DiagnosticSeverity::Warning ? 2 : 3;
-    items.emplace_back(llvm::json::Object{
-        {"range",
-         llvm::json::Object{
-             {"start", position(line, column)},
-             {"end", position(line, column + 1)},
-         }},
-        {"severity", severity},
-        {"code", std::string{diagnostic_code_name(diagnostic.code)}},
-        {"source", "janus"},
-        {"message", diagnostic.message},
-    });
+    for (const Diagnostic &diagnostic : error.diagnostics()) {
+      const SourceLocation location = diagnostic.primary_location;
+      const std::uint32_t line = location.line > 0 ? location.line - 1 : 0;
+      const std::uint32_t column = location.column > 0 ? location.column - 1 : 0;
+      const int severity =
+          diagnostic.severity == DiagnosticSeverity::Error
+              ? 1
+              : diagnostic.severity == DiagnosticSeverity::Warning ? 2 : 3;
+      items.emplace_back(llvm::json::Object{
+          {"range",
+           llvm::json::Object{
+               {"start", position(line, column)},
+               {"end", position(line, column + 1)},
+           }},
+          {"severity", severity},
+          {"code", std::string{diagnostic_code_name(diagnostic.code)}},
+          {"source", "janus"},
+          {"message", diagnostic.message},
+      });
+    }
   } catch (const std::exception &error) {
     items.emplace_back(llvm::json::Object{
         {"range",

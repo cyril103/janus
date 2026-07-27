@@ -133,6 +133,7 @@ target_compile_options(janus_semantic
 
 add_library(janus_diagnostics
     src/diagnostics/high_growth_loop_linter.cpp
+    src/diagnostics/renderer.cpp
 )
 target_include_directories(janus_diagnostics
     PUBLIC
@@ -433,6 +434,16 @@ if(BUILD_TESTING)
                 --janus "$<TARGET_FILE:janus>"
                 --corpus
                 "${PROJECT_SOURCE_DIR}/tests/diagnostics/invalid"
+    )
+    add_test(
+        NAME diagnostics.rendering
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/diagnostics/run_rendering_snapshots.py"
+                --janus "$<TARGET_FILE:janus>"
+                --fixtures
+                "${PROJECT_SOURCE_DIR}/tests/diagnostics/rendering"
+                --schema
+                "${PROJECT_SOURCE_DIR}/docs/schemas/diagnostic-0.5.2.schema.json"
     )
     add_test(
         NAME cli.check_top_level_val

@@ -2,6 +2,7 @@
 #include "janus/backend/llvm/object_emitter.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/diagnostics/high_growth_loop_linter.hpp"
+#include "janus/diagnostics/renderer.hpp"
 #include "janus/driver/dependency.hpp"
 #include "janus/driver/formatter.hpp"
 #include "janus/driver/manifest.hpp"
@@ -59,6 +60,9 @@ struct Options {
   bool offline{};
   bool format_check{};
   bool warn_high_growth_loops{};
+  bool diagnostic_format_set{};
+  janus::diagnostics::DiagnosticFormat diagnostic_format{
+      janus::diagnostics::DiagnosticFormat::Human};
   std::optional<janus::driver::Manifest> manifest;
   std::vector<std::filesystem::path> dependency_paths;
   std::string test_filter;
@@ -134,9 +138,10 @@ void print_usage(std::ostream &output) {
                "--git <url> --rev <commit>]\n"
             << "  janus remove <name>\n"
             << "  janus publish\n"
-            << "  janus check [source.janus]\n"
+            << "  janus check [source.janus] "
+               "[--diagnostic-format human|json]\n"
             << "  janus build [source.janus] [-o output] [--release] "
-               "[--emit llvm-ir|object]\n"
+               "[--emit llvm-ir|object] [--diagnostic-format human|json]\n"
             << "  janus run [source.janus] [--release]\n"
             << "  janus test [filter] [--release]\n"
             << "  janus fmt [source.janus] [--check]\n"
@@ -151,11 +156,13 @@ void print_command_usage(std::ostream &output, std::string_view command) {
   output << "usage: janus " << command;
   if (command == "check")
     output << " [source.janus] [--locked] [--offline] "
-              "[--warn-high-growth-loops]\n";
+              "[--warn-high-growth-loops] "
+              "[--diagnostic-format human|json]\n";
   else if (command == "build")
     output << " [source.janus] [-o output] [--release] "
               "[--emit llvm-ir|object] [--locked] [--offline] "
-              "[--warn-high-growth-loops]\n";
+              "[--warn-high-growth-loops] "
+              "[--diagnostic-format human|json]\n";
   else if (command == "run")
     output << " [source.janus] [--release] [--locked] [--offline] "
               "[--warn-high-growth-loops]\n";
@@ -170,15 +177,21 @@ bool is_execution_command(std::string_view command) {
          command == "test";
 }
 
-void print_compile_error(const std::filesystem::path &path,
-                         const janus::CompileError &error) {
-  const janus::SourceLocation location = error.location();
-  std::cerr << path.string() << ':' << location.line << ':' << location.column
-            << ": error: ";
-  if (error.diagnostic().code != janus::DiagnosticCode::Unclassified)
-    std::cerr << '[' << janus::diagnostic_code_name(error.diagnostic().code)
-              << "] ";
-  std::cerr << error.what() << '\n';
+void print_compile_error(
+    const std::filesystem::path &path, const janus::CompileError &error,
+    janus::diagnostics::DiagnosticFormat format =
+        janus::diagnostics::DiagnosticFormat::Human) {
+  std::ifstream input{path, std::ios::binary};
+  const std::string source{std::istreambuf_iterator<char>{input},
+                           std::istreambuf_iterator<char>{}};
+  std::size_t width = 80;
+  if (const char *columns = std::getenv("COLUMNS")) {
+    const unsigned long parsed = std::strtoul(columns, nullptr, 10);
+    if (parsed >= 20)
+      width = parsed;
+  }
+  std::cerr << janus::diagnostics::render_diagnostics(
+      path, source, error.diagnostics(), format, {width});
 }
 
 int manage_package(int argc, char **argv) {
@@ -298,6 +311,24 @@ Options parse_options(int argc, char **argv) {
       options.format_check = true;
     } else if (argument == "--warn-high-growth-loops") {
       options.warn_high_growth_loops = true;
+    } else if (argument == "--diagnostic-format") {
+      if (options.diagnostic_format_set)
+        throw UsageError{options.command,
+                         "--diagnostic-format may be specified only once"};
+      if (++index == argc)
+        throw UsageError{
+            options.command,
+            "--diagnostic-format requires 'human' or 'json'"};
+      const std::string_view format = argv[index];
+      if (format == "human")
+        options.diagnostic_format =
+            janus::diagnostics::DiagnosticFormat::Human;
+      else if (format == "json")
+        options.diagnostic_format = janus::diagnostics::DiagnosticFormat::Json;
+      else
+        throw UsageError{options.command,
+                         "--diagnostic-format accepts 'human' or 'json'"};
+      options.diagnostic_format_set = true;
     } else if (argument == "--emit") {
       if (options.emit_llvm || options.emit_object)
         throw UsageError{options.command,
@@ -348,6 +379,11 @@ Options parse_options(int argc, char **argv) {
   if ((options.command == "test") && options.warn_high_growth_loops)
     throw UsageError{options.command,
                      "test does not accept --warn-high-growth-loops"};
+  if (options.diagnostic_format_set && options.command != "check" &&
+      options.command != "build")
+    throw UsageError{
+        options.command,
+        "--diagnostic-format is only available for check and build"};
   if (options.source.empty()) {
     options.manifest = janus::driver::load_manifest(
         janus::driver::find_manifest(std::filesystem::current_path()));
@@ -614,6 +650,8 @@ int main(int argc, char **argv) {
   }
 
   std::filesystem::path diagnostic_path;
+  janus::diagnostics::DiagnosticFormat diagnostic_format =
+      janus::diagnostics::DiagnosticFormat::Human;
   try {
     if (argc >= 2 && (std::string_view{argv[1]} == "new" ||
                       std::string_view{argv[1]} == "init"))
@@ -623,6 +661,7 @@ int main(int argc, char **argv) {
                       std::string_view{argv[1]} == "publish"))
       return manage_package(argc, argv);
     Options options = parse_options(argc, argv);
+    diagnostic_format = options.diagnostic_format;
     if (options.command == "fmt")
       return format_sources(options);
     const Toolchain toolchain = locate_toolchain(argv[0]);
@@ -675,7 +714,7 @@ int main(int argc, char **argv) {
       print_command_usage(std::cerr, error.command());
     return 2;
   } catch (const janus::CompileError &error) {
-    print_compile_error(diagnostic_path, error);
+    print_compile_error(diagnostic_path, error, diagnostic_format);
   } catch (const std::exception &error) {
     std::cerr << "janus: error: " << error.what() << '\n';
   }

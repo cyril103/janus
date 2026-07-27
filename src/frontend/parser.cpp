@@ -166,6 +166,7 @@ Parser::Parser(std::string_view source)
 
 ast::Program Parser::parse_program() {
   ast::Program program;
+  std::vector<Diagnostic> diagnostics;
 
   if (current_.kind == TokenKind::Module) {
     advance();
@@ -181,60 +182,93 @@ ast::Program Parser::parse_program() {
   }
 
   while (current_.kind != TokenKind::End) {
-    if (current_.kind == TokenKind::Internal)
-      throw CompileError{
-          current_.location,
-          "'internal' can only modify class fields and methods"};
-    bool is_private = false;
-    if (current_.kind == TokenKind::Private) {
-      is_private = true;
-      advance();
-    }
-    if (is_private && current_.kind != TokenKind::Val &&
-        current_.kind != TokenKind::Var && current_.kind != TokenKind::Def &&
-        current_.kind != TokenKind::Extern &&
-        current_.kind != TokenKind::Class &&
-        current_.kind != TokenKind::Struct &&
-        current_.kind != TokenKind::Trait &&
-        current_.kind != TokenKind::Enum)
-      throw CompileError{
-          current_.location,
-          "expected a top-level declaration after 'private', found " +
-              std::string{token_name(current_.kind)}};
+    try {
+      if (current_.kind == TokenKind::Internal)
+        throw CompileError{
+            current_.location,
+            "'internal' can only modify class fields and methods"};
+      bool is_private = false;
+      if (current_.kind == TokenKind::Private) {
+        is_private = true;
+        advance();
+      }
+      if (is_private && current_.kind != TokenKind::Val &&
+          current_.kind != TokenKind::Var && current_.kind != TokenKind::Def &&
+          current_.kind != TokenKind::Extern &&
+          current_.kind != TokenKind::Class &&
+          current_.kind != TokenKind::Struct &&
+          current_.kind != TokenKind::Trait &&
+          current_.kind != TokenKind::Enum)
+        throw CompileError{
+            current_.location,
+            "expected a top-level declaration after 'private', found " +
+                std::string{token_name(current_.kind)}};
 
-    if (current_.kind == TokenKind::Trait) {
-      ast::TraitDeclaration declaration = parse_trait_declaration();
-      declaration.is_private = is_private;
-      declaration.module_name = program.module_name;
-      program.traits.push_back(std::move(declaration));
-    } else if (current_.kind == TokenKind::Enum) {
-      ast::EnumDeclaration declaration = parse_enum_declaration();
-      declaration.is_private = is_private;
-      declaration.module_name = program.module_name;
-      program.enums.push_back(std::move(declaration));
-    }
-    else if (current_.kind == TokenKind::Class ||
-             current_.kind == TokenKind::Struct) {
-      ast::ClassDeclaration declaration = parse_class_declaration();
-      declaration.is_private = is_private;
-      declaration.module_name = program.module_name;
-      program.classes.push_back(std::move(declaration));
-    }
-    else if (current_.kind == TokenKind::Val ||
-             current_.kind == TokenKind::Var) {
-      ast::ValueDeclaration declaration = parse_variable_declaration();
-      declaration.is_private = is_private;
-      program.globals.push_back(
-          ast::GlobalDeclaration{std::move(declaration), program.module_name});
-    } else {
-      ast::FunctionDeclaration declaration = parse_function_declaration();
-      declaration.is_private = is_private;
-      declaration.module_name = program.module_name;
-      program.functions.push_back(std::move(declaration));
+      if (current_.kind == TokenKind::Trait) {
+        ast::TraitDeclaration declaration = parse_trait_declaration();
+        declaration.is_private = is_private;
+        declaration.module_name = program.module_name;
+        program.traits.push_back(std::move(declaration));
+      } else if (current_.kind == TokenKind::Enum) {
+        ast::EnumDeclaration declaration = parse_enum_declaration();
+        declaration.is_private = is_private;
+        declaration.module_name = program.module_name;
+        program.enums.push_back(std::move(declaration));
+      } else if (current_.kind == TokenKind::Class ||
+                 current_.kind == TokenKind::Struct) {
+        ast::ClassDeclaration declaration = parse_class_declaration();
+        declaration.is_private = is_private;
+        declaration.module_name = program.module_name;
+        program.classes.push_back(std::move(declaration));
+      } else if (current_.kind == TokenKind::Val ||
+                 current_.kind == TokenKind::Var) {
+        ast::ValueDeclaration declaration = parse_variable_declaration();
+        declaration.is_private = is_private;
+        program.globals.push_back(ast::GlobalDeclaration{
+            std::move(declaration), program.module_name});
+      } else {
+        ast::FunctionDeclaration declaration = parse_function_declaration();
+        declaration.is_private = is_private;
+        declaration.module_name = program.module_name;
+        program.functions.push_back(std::move(declaration));
+      }
+    } catch (const CompileError &error) {
+      diagnostics.insert(diagnostics.end(), error.diagnostics().begin(),
+                         error.diagnostics().end());
+      synchronize_top_level();
     }
   }
 
+  if (!diagnostics.empty())
+    throw CompileError{std::move(diagnostics)};
   return program;
+}
+
+void Parser::synchronize_top_level() {
+  std::size_t brace_depth = 0;
+  while (current_.kind != TokenKind::End) {
+    if (current_.kind == TokenKind::RightBrace) {
+      if (brace_depth == 0) {
+        advance();
+        return;
+      }
+      --brace_depth;
+    } else if (current_.kind == TokenKind::LeftBrace) {
+      ++brace_depth;
+    } else if (brace_depth == 0 &&
+               (current_.kind == TokenKind::Private ||
+                current_.kind == TokenKind::Trait ||
+                current_.kind == TokenKind::Enum ||
+                current_.kind == TokenKind::Class ||
+                current_.kind == TokenKind::Struct ||
+                current_.kind == TokenKind::Val ||
+                current_.kind == TokenKind::Var ||
+                current_.kind == TokenKind::Def ||
+                current_.kind == TokenKind::Extern)) {
+      return;
+    }
+    advance();
+  }
 }
 
 ast::TraitDeclaration Parser::parse_trait_declaration() {

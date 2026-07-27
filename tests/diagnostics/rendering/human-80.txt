@@ -1,0 +1,5 @@
+render-invalid.janus:2:106: error: [JLEX0001] unexpected character '@'
+  |
+2 | ..._keeps_the_diagnostic_marker_visible_across_terminal_widths : int = 0 @
+  |                                                                          ^
+  = help: remove the unexpected character

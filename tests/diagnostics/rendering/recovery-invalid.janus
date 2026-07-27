@@ -1,0 +1,5 @@
+def first() : int {
+    val first_value : int = }
+
+def second() : int {
+    val second_value : int = }

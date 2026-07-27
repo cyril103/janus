@@ -48,6 +48,7 @@ private:
   [[nodiscard]] std::string parse_qualified_name();
   [[nodiscard]] Token expect(TokenKind kind);
   [[nodiscard]] bool starts_assignment() const;
+  void synchronize_top_level();
   void advance();
 
   Lexer lexer_;

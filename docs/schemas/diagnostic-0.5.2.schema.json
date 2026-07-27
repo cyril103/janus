@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://janus-lang.org/schemas/diagnostic-0.5.2.schema.json",
+  "title": "Janus diagnostic output 0.5.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "diagnostics"],
+  "properties": {
+    "schemaVersion": {"const": "0.5.2"},
+    "diagnostics": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/diagnostic"}
+    }
+  },
+  "$defs": {
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset", "line", "column"],
+      "properties": {
+        "offset": {"type": "integer", "minimum": 0},
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "integer", "minimum": 1}
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"$ref": "#/$defs/position"},
+        "end": {"$ref": "#/$defs/position"}
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "severity",
+        "code",
+        "message",
+        "primaryLocation",
+        "notes",
+        "secondaryLocations",
+        "suggestions"
+      ],
+      "properties": {
+        "severity": {"enum": ["note", "warning", "error"]},
+        "code": {"type": "string", "pattern": "^J[A-Z0-9]+$"},
+        "message": {"type": "string"},
+        "primaryLocation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["file", "position"],
+          "properties": {
+            "file": {"type": "string"},
+            "position": {"$ref": "#/$defs/position"}
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "secondaryLocations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "position"],
+            "properties": {
+              "label": {"type": "string"},
+              "position": {"$ref": "#/$defs/position"}
+            }
+          }
+        },
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["message", "replacement", "range"],
+            "properties": {
+              "message": {"type": "string"},
+              "replacement": {"type": "string"},
+              "range": {"$ref": "#/$defs/range"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

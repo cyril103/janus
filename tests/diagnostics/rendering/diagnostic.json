@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "0.5.2",
+  "diagnostics": [
+    {
+      "severity": "error",
+      "code": "JLEX0001",
+      "message": "unexpected character '@'",
+      "primaryLocation": {
+        "file": "render-invalid.janus",
+        "position": {
+          "offset": 124,
+          "line": 2,
+          "column": 106
+        }
+      },
+      "notes": [],
+      "secondaryLocations": [],
+      "suggestions": [
+        {
+          "message": "remove the unexpected character",
+          "replacement": "",
+          "range": {
+            "start": {
+              "offset": 124,
+              "line": 2,
+              "column": 106
+            },
+            "end": {
+              "offset": 125,
+              "line": 2,
+              "column": 107
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

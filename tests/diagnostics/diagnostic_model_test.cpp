@@ -31,6 +31,10 @@ int main() {
       std::vector<std::string>{"declare the value before using it"},
       std::vector<janus::DiagnosticLocation>{
           {janus::SourceLocation{2, 1, 3}, "related declaration"}},
+      std::vector<janus::DiagnosticSuggestion>{
+          {"replace the name",
+           {janus::SourceLocation{12, 3, 7}, janus::SourceLocation{18, 3, 13}},
+           "value"}},
   };
   const janus::CompileError error{std::move(diagnostic)};
 
@@ -44,4 +48,6 @@ int main() {
   assert(error.diagnostic().secondary_locations.front().location.line == 1);
   assert(error.diagnostic().secondary_locations.front().label ==
          "related declaration");
+  assert(error.diagnostic().suggestions.size() == 1);
+  assert(error.diagnostic().suggestions.front().replacement == "value");
 }

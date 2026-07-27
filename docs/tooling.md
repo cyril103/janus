@@ -39,7 +39,14 @@ uniquement son usage. Une erreur opérationnelle
 (compilation, manifeste, dépendance ou édition de liens) renvoie le code `1`
 sans ajouter d'usage. `janus run` transmet le code de sortie du programme
 exécuté. Les diagnostics de compilation utilisent la forme
-`chemin:ligne:colonne: error: message`, y compris pour `janus test`.
+`chemin:ligne:colonne: error: [code] message`, y compris pour `janus test`.
+
+`janus check` et `janus build` acceptent
+`--diagnostic-format human|json`. Le format humain est la valeur par défaut et
+ajoute un extrait de source avec repère. Le format JSON est destiné aux outils,
+reste écrit sur stderr et ne change ni stdout ni le code de sortie. Son schéma
+versionné et le contrat des suggestions sont décrits dans la page
+[Diagnostics structurés](diagnostics.md).
 
 ## Diagnostics optionnels
 
