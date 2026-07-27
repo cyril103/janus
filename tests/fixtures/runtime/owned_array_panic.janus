@@ -1,0 +1,14 @@
+import std.array
+
+class Resource(val id : int) {
+    destructor {
+        println(id)
+    }
+}
+
+def main() : int {
+    val values : Array[Resource] = new Array[Resource](usize(0))
+    val resource : Resource = new Resource(9)
+    values.set(usize(0), move resource)
+    return 0
+}

@@ -354,11 +354,14 @@ defer delete extracted
 ```
 
 Une contrainte générique `T <: Copy` garantit qu'un type peut être recopié
-sans dupliquer une ressource. Les tableaux, ensembles, tables de hachage,
-builders et itérateurs de la bibliothèque standard utilisent cette contrainte.
-Le [contrat de propriété des conteneurs](design/container-ownership.md) fixe la
-séparation prévue en 0.6.0 entre observation bornée et opérations consommantes
-pour lever cette restriction sans copie implicite.
+sans dupliquer une ressource. Les ensembles, tables de hachage, builders et
+itérateurs de la bibliothèque standard utilisent cette contrainte. Depuis
+0.6.0, `Array[T]` accepte aussi les types propriétaires : `push`, `set`,
+`replace`, `remove` et `pop` transfèrent alors leurs valeurs avec `move`, tandis
+que `clear` et le destructeur détruisent les éléments restants. Les opérations
+qui copient un élément (`get`, `iterator`, `map`, etc.) restent réservées à
+`T: Copy`. Le [contrat de propriété des
+conteneurs](design/container-ownership.md) détaille cette séparation.
 
 ## Collections et itérateurs
 
@@ -387,7 +390,21 @@ defer delete doubled
 ```
 
 Les opérations `map`, `filter`, `fold`, `foreach`, `find`, `any`, `all` et
-`count` acceptent des closures.
+`count` acceptent des closures pour les éléments `Copy`.
+
+Un tableau propriétaire reçoit et rend ses éléments par transfert explicite :
+
+```janus
+val resources : Array[Resource] = new Array[Resource](usize(1))
+defer delete resources
+
+val resource : Resource = new Resource()
+resources.push(move resource)
+val recovered : Resource = resources.remove(usize(0))
+defer delete recovered
+```
+
+`set` détruit l'élément remplacé ; `replace` le retourne à l'appelant.
 
 Un pipeline paresseux est matérialisé avec `collectArray`, fourni par
 `std.array_builder` :

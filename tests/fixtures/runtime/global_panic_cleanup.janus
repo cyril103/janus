@@ -9,7 +9,6 @@ val failed : Resource = fail()
 
 def fail() : Resource {
     panic("global initialization failed\n")
-    return new Resource(2)
 }
 
 def main() : int {

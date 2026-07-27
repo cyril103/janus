@@ -9,7 +9,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 - définition du contrat de propriété des conteneurs : observation bornée,
   transferts explicites, invalidation, réallocation et nettoyage des valeurs
-  propriétaires avant l'implémentation de `Array[T]` move-aware.
+  propriétaires ;
+- prise en charge des classes, structs et enums propriétaires dans `Array[T]`,
+  avec transferts explicites, destruction exacte lors de `set`, `clear` et de
+  la destruction du tableau, et nouvelles opérations `replace` et `remove`.
 
 ## [0.5.2] - Non publiée
 

@@ -344,6 +344,12 @@ bool block_guarantees_return(const std::vector<janus::ast::Statement> &block);
 bool statement_guarantees_return(const janus::ast::Statement &statement) {
   if (std::holds_alternative<janus::ast::ReturnStatement>(statement))
     return true;
+  if (const auto *expression =
+          std::get_if<janus::ast::ExpressionStatement>(&statement)) {
+    if (const auto *call = std::get_if<janus::ast::CallExpression>(
+            &expression->expression.value))
+      return call->callee == "panic";
+  }
 
   if (const auto *conditional =
           std::get_if<std::shared_ptr<janus::ast::IfStatement>>(&statement)) {
@@ -1389,6 +1395,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       add_active_constraints(owner->type_constraints);
     if (!is_destructor)
       add_active_constraints(context.function->type_constraints);
+    const auto is_copy_only_array_method = [](std::string_view name) {
+      return name == "iterator" || name == "get" || name == "getOption" ||
+             name == "foreach" || name == "map" || name == "filter" ||
+             name == "find" || name == "fold" || name == "any" ||
+             name == "all" || name == "count";
+    };
+    if (!is_destructor && owner != nullptr && owner->name == "Array" &&
+        owner->module_name == std::optional<std::string>{"std.array"} &&
+        is_copy_only_array_method(context.function->name))
+      active_copy_constraints.insert("T");
     const auto satisfies_active_trait = [&](const SemanticType &candidate,
                                             const TraitInstance &requirement) {
       if (satisfies_trait(candidate, requirement))
@@ -2507,6 +2523,31 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         std::to_string(method->type_parameters.size()) +
                         " type argument(s), got " +
                         std::to_string(node.type_arguments.size())};
+              if (class_declaration != nullptr &&
+                  class_declaration->name == "Array" &&
+                  class_declaration->module_name ==
+                      std::optional<std::string>{"std.array"} &&
+                  is_copy_only_array_method(node.method) &&
+                  !satisfies_copy(substitutions.at("T")))
+                throw CompileError{
+                    node.location,
+                    "Array." + node.method +
+                        " requires a Copy element type; use remove, pop, or "
+                        "replace to transfer an owned element"};
+              if (class_declaration != nullptr &&
+                  class_declaration->name == "Array" &&
+                  class_declaration->module_name ==
+                      std::optional<std::string>{"std.array"} &&
+                  (node.method == "push" || node.method == "set" ||
+                   node.method == "replace") &&
+                  potentially_owns_value(substitutions.at("T")) &&
+                  !node.arguments.empty() &&
+                  std::holds_alternative<ast::IdentifierExpression>(
+                      node.arguments.back()->value))
+                throw CompileError{
+                    expression_location(*node.arguments.back()),
+                    "transferring an owned Array element requires an "
+                    "explicit move"};
               for (std::size_t index = 0;
                    index < method->type_parameters.size(); ++index) {
                 method_parameters.insert(method->type_parameters[index]);
@@ -2978,8 +3019,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               validate_block((*conditional)->else_body, else_symbols);
           active_symbols = &block_symbols;
           for (auto &[name, symbol] : block_symbols) {
-            symbol.is_initialized = then_symbols.at(name).is_initialized &&
-                                    else_symbols.at(name).is_initialized;
+            if (then_returns && !else_returns)
+              symbol.is_initialized = else_symbols.at(name).is_initialized;
+            else if (else_returns && !then_returns)
+              symbol.is_initialized = then_symbols.at(name).is_initialized;
+            else
+              symbol.is_initialized = then_symbols.at(name).is_initialized &&
+                                      else_symbols.at(name).is_initialized;
           }
           has_terminator = then_returns && else_returns;
           continue;
@@ -3229,6 +3275,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{deletion->location,
                                "struct values do not require delete"};
           if (!deleted_type.is_class() && !deleted_type.is_function() &&
+              !potentially_owns_value(deleted_type) &&
               !(deleted_type.is_enum() &&
                 aggregate_owns_value(deleted_type)))
             throw CompileError{deletion->location,
@@ -3272,6 +3319,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{deletion->location,
                                  "struct values do not require delete"};
             if (!deleted_type.is_class() && !deleted_type.is_function() &&
+                !potentially_owns_value(deleted_type) &&
                 !(deleted_type.is_enum() &&
                   aggregate_owns_value(deleted_type)))
               throw CompileError{
@@ -3330,6 +3378,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 expression_statement->location,
                 "only function and method calls can be used as statements"};
           static_cast<void>(expression_type(expression_statement->expression));
+          if (const auto *call = std::get_if<ast::CallExpression>(
+                  &expression_statement->expression.value);
+              call != nullptr && call->callee == "panic")
+            has_terminator = true;
           continue;
         }
 
