@@ -231,6 +231,7 @@ Une extension VS Code est disponible dans
 - [Guide du langage](docs/language-guide.md)
 - [Conversion, formatage et parsing de texte](docs/text.md)
 - [Commandes, projets, dépendances et outils](docs/tooling.md)
+- [Diagnostics structurés et codes](docs/diagnostics.md)
 - [Graphisme 2D](docs/graphics.md)
 - [Inventaire de la surface publique 0.5.x](docs/public-surface-0.5.json)
 - [Roadmap détaillée de Janus 0.5.1 à 0.8.0](ROADMAP.md)

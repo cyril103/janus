@@ -112,8 +112,9 @@ ModuleLoader::resolve_import(std::string_view module,
     if (std::filesystem::is_regular_file(candidate))
       return candidate;
   }
-  throw std::runtime_error{"cannot resolve imported module '" +
-                           std::string{module} + "'"};
+  throw CompileError{DiagnosticCode::ModuleNotFound, SourceLocation{},
+                     "cannot resolve imported module '" + std::string{module} +
+                         "'"};
 }
 
 } // namespace janus::frontend

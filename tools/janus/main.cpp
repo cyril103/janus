@@ -174,7 +174,11 @@ void print_compile_error(const std::filesystem::path &path,
                          const janus::CompileError &error) {
   const janus::SourceLocation location = error.location();
   std::cerr << path.string() << ':' << location.line << ':' << location.column
-            << ": error: " << error.what() << '\n';
+            << ": error: ";
+  if (error.diagnostic().code != janus::DiagnosticCode::Unclassified)
+    std::cerr << '[' << janus::diagnostic_code_name(error.diagnostic().code)
+              << "] ";
+  std::cerr << error.what() << '\n';
 }
 
 int manage_package(int argc, char **argv) {

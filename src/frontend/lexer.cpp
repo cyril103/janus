@@ -253,8 +253,9 @@ Token Lexer::next() {
   case '?':
     return Token{TokenKind::Question, source_.substr(start_position, 1), start};
   default:
-    throw CompileError{start, "unexpected character '" +
-                                  std::string(1, character) + "'"};
+    throw CompileError{DiagnosticCode::LexerUnexpectedCharacter, start,
+                       "unexpected character '" + std::string(1, character) +
+                           "'"};
   }
 }
 

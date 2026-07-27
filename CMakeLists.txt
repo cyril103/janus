@@ -415,6 +415,25 @@ if(BUILD_TESTING)
         NAME parser.top_level_declaration
         COMMAND parser_top_level_declaration_test
     )
+    add_executable(diagnostic_model_test
+        tests/diagnostics/diagnostic_model_test.cpp
+    )
+    target_link_libraries(diagnostic_model_test PRIVATE janus_frontend)
+    target_compile_options(diagnostic_model_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME diagnostics.model COMMAND diagnostic_model_test)
+    add_test(
+        NAME diagnostics.invalid_corpus
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/diagnostics/run_invalid_corpus.py"
+                --janus "$<TARGET_FILE:janus>"
+                --corpus
+                "${PROJECT_SOURCE_DIR}/tests/diagnostics/invalid"
+    )
     add_test(
         NAME cli.check_top_level_val
         COMMAND janus check

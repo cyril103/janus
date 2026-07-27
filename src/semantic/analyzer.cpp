@@ -1701,7 +1701,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               if (iterator == active_symbols->end()) {
                 if (const Symbol *global = visible_global(node.name))
                   return global->type;
-                throw CompileError{node.location,
+                throw CompileError{DiagnosticCode::AnalyzerUnknownValue,
+                                   node.location,
                                    "unknown value '" + node.name + "'"};
               }
               if (!iterator->second.is_initialized) {
@@ -3175,7 +3176,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (iterator == block_symbols.end()) {
             const Symbol *global = visible_global(assignment->name);
             if (global == nullptr)
-              throw CompileError{assignment->location,
+              throw CompileError{DiagnosticCode::AnalyzerUnknownValue,
+                                 assignment->location,
                                  "unknown value '" + assignment->name + "'"};
             if (!global->is_mutable)
               throw CompileError{assignment->location,

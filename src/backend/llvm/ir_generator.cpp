@@ -280,6 +280,7 @@ private:
     const int state = constant_states_[key];
     if (state == 1)
       throw janus::CompileError{
+          janus::DiagnosticCode::BackendCyclicGlobalConstant,
           global.declaration.location,
           "cyclic global constant dependency involving '" + key + "'"};
     if (state == 2)
