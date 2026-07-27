@@ -3,6 +3,18 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.5.1] - Non publiée
+
+### Documentation
+
+- ajout d'un inventaire JSON versionné de la surface publique 0.5.x couvrant
+  les modules et symboles de la bibliothèque standard ainsi que les commandes
+  et options affichées par `janus --help` ;
+- classement explicite des API candidates à la stabilité, des API
+  expérimentales et du module d'implémentation `std.hash_probe` ;
+- publication de l'inventaire avec la référence du site et vérification des
+  exemples Janus autonomes et des liens internes.
+
 ## [0.5.0] - 2026-07-25
 
 Cette version enrichit la bibliothèque standard et le graphisme, étend

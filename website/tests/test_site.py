@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 import tempfile
 import unittest
@@ -17,6 +18,45 @@ EXPECTED_REFERENCE = {
     "graphics.md",
     "stability-contract.md",
     "development.md",
+}
+EXPECTED_MODULES = {
+    "std.array",
+    "std.array_builder",
+    "std.builder",
+    "std.c",
+    "std.graphics",
+    "std.graphics.audio",
+    "std.graphics.drawing",
+    "std.graphics.input",
+    "std.graphics.resources",
+    "std.graphics.types",
+    "std.hash_probe",
+    "std.hashing",
+    "std.hashmap",
+    "std.hashset",
+    "std.iterator",
+    "std.math",
+    "std.option",
+    "std.random",
+    "std.range",
+    "std.result",
+    "std.text",
+    "std.time",
+    "std.wall_time",
+}
+EXPECTED_COMMANDS = {
+    "--help",
+    "--version",
+    "add",
+    "build",
+    "check",
+    "fmt",
+    "init",
+    "new",
+    "publish",
+    "remove",
+    "run",
+    "test",
 }
 BOOK = [f"{number:02d}-" for number in range(1, 9)]
 
@@ -129,6 +169,37 @@ class SiteStructureTests(unittest.TestCase):
                     broken.append(f"{source.relative_to(WEBSITE)} -> {raw_target}")
         self.assertEqual([], broken)
 
+    def test_public_surface_inventory_is_complete_and_traceable(self):
+        inventory_path = REPOSITORY / "docs" / "public-surface-0.5.json"
+        inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
+        self.assertEqual(1, inventory["schema_version"])
+        self.assertEqual("0.5.x", inventory["target"])
+
+        modules = inventory["stdlib_modules"]
+        self.assertEqual(EXPECTED_MODULES, {entry["name"] for entry in modules})
+        for entry in modules:
+            with self.subTest(module=entry["name"]):
+                self.assertIn(
+                    entry["status"],
+                    {"stable-proposed", "experimental", "internal-detail"},
+                )
+                self.assertTrue(entry["documentation"])
+                self.assertTrue(entry["symbols"] or entry.get("reexports"))
+                self.assertTrue((REPOSITORY / entry["source"]).is_file())
+                for document in entry["documentation"]:
+                    self.assertTrue((REPOSITORY / document).is_file(), document)
+
+        commands = inventory["cli"]["commands"]
+        self.assertEqual(EXPECTED_COMMANDS, {entry["name"] for entry in commands})
+        for entry in commands:
+            with self.subTest(command=entry["name"]):
+                self.assertIn(entry["status"], {"stable-proposed", "experimental"})
+                self.assertTrue(entry["documentation"])
+                self.assertTrue(entry["source"])
+                self.assertTrue((REPOSITORY / entry["source"]).is_file())
+                for document in entry["documentation"]:
+                    self.assertTrue((REPOSITORY / document).is_file(), document)
+
 
 class ReferenceSyncTests(unittest.TestCase):
     def test_sync_copies_exact_canonical_set_with_provenance(self):
@@ -138,6 +209,10 @@ class ReferenceSyncTests(unittest.TestCase):
             module.sync(REPOSITORY, destination)
             generated = {path.name for path in destination.glob("*.md")}
             self.assertEqual(EXPECTED_REFERENCE, generated)
+            self.assertEqual(
+                (REPOSITORY / "docs" / "public-surface-0.5.json").read_bytes(),
+                (destination / "public-surface-0.5.json").read_bytes(),
+            )
             for path in destination.glob("*.md"):
                 text = path.read_text(encoding="utf-8")
                 self.assertIn("Documentation canonique", text)

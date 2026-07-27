@@ -16,6 +16,10 @@ Cette section publie les guides canoniques du dépôt. Ils sont copiés à chaqu
 
 :   [CLI, projets, dépendances et LSP](generated/tooling.md) · [Compiler depuis les sources](generated/development.md)
 
+**Auditer**
+
+:   [Surface publique 0.5.x au format JSON](generated/public-surface-0.5.json) — modules, symboles, commandes, options, sources et statut de stabilité.
+
 **Explorer**
 
 :   [Graphisme 2D avec raylib 6](generated/graphics.md) · [Contrat de stabilité proposé pour 1.0](generated/stability-contract.md)
