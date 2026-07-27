@@ -1,0 +1,7 @@
+import std.array
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(1))
+    values.get(usize(0))
+    return 0
+}

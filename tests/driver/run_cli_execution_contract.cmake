@@ -15,9 +15,9 @@ set(TOP_LEVEL_USAGE
   janus remove <name>
   janus publish
   janus check [source.janus] [--diagnostic-format human|json]
-  janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--diagnostic-format human|json]
-  janus run [source.janus] [--release]
-  janus test [filter] [--release]
+  janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json]
+  janus run [source.janus] [--release] [--panic-trace full|short|off]
+  janus test [filter] [--release] [--panic-trace full|short|off]
   janus fmt [source.janus] [--check]
   diagnostics: --warn-high-growth-loops for check, build, run
   dependency options: --locked --offline
@@ -28,13 +28,13 @@ set(CHECK_USAGE
 "usage: janus check [source.janus] [--locked] [--offline] [--warn-high-growth-loops] [--diagnostic-format human|json]
 ")
 set(BUILD_USAGE
-"usage: janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--locked] [--offline] [--warn-high-growth-loops] [--diagnostic-format human|json]
+"usage: janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops] [--diagnostic-format human|json]
 ")
 set(RUN_USAGE
-"usage: janus run [source.janus] [--release] [--locked] [--offline] [--warn-high-growth-loops]
+"usage: janus run [source.janus] [--release] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops]
 ")
 set(TEST_USAGE
-"usage: janus test [filter] [--release] [--locked] [--offline]
+"usage: janus test [filter] [--release] [--locked] [--offline] [--panic-trace full|short|off]
 ")
 
 function(assert_result NAME EXPECTED_STATUS EXPECTED_OUT EXPECTED_ERR)
@@ -113,6 +113,11 @@ assert_result(
     "invalid diagnostic format" 2 ""
     "janus check: error: --diagnostic-format accepts 'human' or 'json'\n${CHECK_USAGE}"
     check --diagnostic-format xml
+)
+assert_result(
+    "invalid panic trace" 2 ""
+    "janus build: error: --panic-trace accepts 'full', 'short', or 'off'\n${BUILD_USAGE}"
+    build --panic-trace verbose
 )
 
 # Operational failures use status 1 and never append usage.

@@ -19,6 +19,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__)
+#include <execinfo.h>
+#define JANUS_HAS_NATIVE_BACKTRACE 1
+#else
+#define JANUS_HAS_NATIVE_BACKTRACE 0
+#endif
+
 typedef struct {
   const char *data;
   uint64_t length;
@@ -519,14 +526,48 @@ void janus_set_panic_cleanup(void (*cleanup)(void)) {
   janus_panic_cleanup = cleanup;
 }
 
-_Noreturn void janus_panic(const char *data, uint64_t size) {
+static void janus_write_panic_trace(void) {
+#if JANUS_HAS_NATIVE_BACKTRACE
+  void *frames[32];
+  int count = backtrace(frames, (int)(sizeof(frames) / sizeof(frames[0])));
+  char **symbols = backtrace_symbols(frames, count);
+  (void)fputs("stack trace (experimental):\n", stderr);
+  if (symbols == NULL) {
+    (void)fputs("  <unavailable>\n", stderr);
+    return;
+  }
+  for (int index = 2; index < count; ++index)
+    (void)fprintf(stderr, "  %s\n", symbols[index]);
+  free(symbols);
+#else
+  (void)fputs("stack trace (experimental): unavailable\n", stderr);
+#endif
+}
+
+_Noreturn void janus_panic_with_context(const char *data, uint64_t size,
+                                        const char *file, uint32_t line,
+                                        const char *function,
+                                        uint32_t trace_mode) {
   (void)fwrite(data, 1, (size_t)size, stderr);
-  (void)fflush(stderr);
+  if (trace_mode != 0) {
+    if (size == 0 || data[size - 1] != '\n')
+      (void)fputc('\n', stderr);
+    (void)fprintf(stderr, "at %s:%" PRIu32 " in %s\n",
+                  file == NULL ? "<unknown>" : file, line,
+                  function == NULL ? "<unknown>" : function);
+    if (trace_mode >= 2)
+      janus_write_panic_trace();
+  }
   if (janus_panic_cleanup != NULL) {
     void (*cleanup)(void) = janus_panic_cleanup;
     janus_panic_cleanup = NULL;
     cleanup();
   }
+  (void)fflush(stderr);
   (void)fflush(stdout);
   abort();
+}
+
+_Noreturn void janus_panic(const char *data, uint64_t size) {
+  janus_panic_with_context(data, size, NULL, 0, NULL, 0);
 }
