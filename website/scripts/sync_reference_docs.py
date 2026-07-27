@@ -20,6 +20,7 @@ DOCUMENTS = (
     "stability-contract.md",
     "development.md",
 )
+ASSETS = ("public-surface-0.5.json",)
 LINK_RE = re.compile(r"(?P<image>!)?\[(?P<label>[^]]*)\]\((?P<target>[^)]+)\)")
 NOTICE = """> **Documentation canonique** — Cette page est générée depuis
 > [`docs/{name}`]({url}/blob/{version}/docs/{name}).
@@ -37,7 +38,7 @@ def _rewrite_target(target: str, source: Path, repository: Path, image: bool) ->
     candidate = (source.parent / decoded).resolve()
     docs_root = (repository / "docs").resolve()
 
-    if candidate.parent == docs_root and candidate.name in DOCUMENTS:
+    if candidate.parent == docs_root and candidate.name in (*DOCUMENTS, *ASSETS):
         rewritten = candidate.name
     else:
         try:
@@ -79,6 +80,12 @@ def sync(repository: Path, destination: Path) -> None:
         content = rewrite_links(source.read_text(encoding="utf-8"), source, repository)
         notice = NOTICE.format(name=name, url=REPOSITORY_URL, version=VERSION)
         (destination / name).write_text(notice + content, encoding="utf-8")
+
+    for name in ASSETS:
+        source = repository / "docs" / name
+        if not source.is_file():
+            raise FileNotFoundError(f"Ressource canonique introuvable : {source}")
+        shutil.copyfile(source, destination / name)
 
 
 def main() -> None:

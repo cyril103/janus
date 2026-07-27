@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "target": "0.5.x",
+  "audited_version": "0.5.0",
+  "generated_at": "2026-07-27",
+  "status_definitions": {
+    "stable-proposed": "Surface candidate au contrat 1.0. Elle reste modifiable avant 1.0 avec annonce dans le changelog.",
+    "experimental": "Surface publique utilisable mais exclue du contrat de stabilité proposé.",
+    "internal-detail": "Déclaration techniquement visible en 0.5.x mais réservée à l'implémentation et non destinée aux utilisateurs."
+  },
+  "inheritance": "Chaque symbole et réexport hérite de la source, de la documentation et du statut de son entrée de module.",
+  "stdlib_modules": [
+    {
+      "name": "std.array",
+      "source": "stdlib/std/array.janus",
+      "documentation": ["docs/language-guide.md"],
+      "status": "stable-proposed",
+      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.get", "Array.getOption", "Array.set", "Array.push", "Array.pop", "Array.popOption", "Array.reserve", "Array.clear", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count"]
+    },
+    {
+      "name": "std.array_builder",
+      "source": "stdlib/std/array_builder.janus",
+      "documentation": ["docs/language-guide.md"],
+      "status": "stable-proposed",
+      "symbols": ["ArrayBuilder", "ArrayBuilder.add", "ArrayBuilder.addAll", "ArrayBuilder.size", "ArrayBuilder.clear", "ArrayBuilder.result", "collectArray"]
+    },
+    {
+      "name": "std.builder",
+      "source": "stdlib/std/builder.janus",
+      "documentation": ["docs/language-guide.md"],
+      "status": "stable-proposed",
+      "symbols": ["Builder", "Builder.add", "Builder.result"]
+    },
+    {
+      "name": "std.c",
+      "source": "stdlib/std/c.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["puts", "strlen", "memcmp", "exit", "printf"]
+    },
+    {
+      "name": "std.graphics",
+      "source": "stdlib/std/graphics.janus",
+      "documentation": ["docs/graphics.md", "docs/stability-contract.md"],
+      "status": "experimental",
+      "symbols": [],
+      "reexports": ["std.graphics.audio", "std.graphics.drawing", "std.graphics.input", "std.graphics.resources", "std.graphics.types"]
+    },
+    {
+      "name": "std.graphics.audio",
+      "source": "stdlib/std/graphics/audio.janus",
+      "documentation": ["docs/graphics.md"],
+      "status": "experimental",
+      "symbols": ["Sound", "Sound.isValid", "Sound.play", "Sound.stop", "Sound.isPlaying", "Sound.setVolume", "Sound.setPitch", "Sound.setPan", "Music", "Music.isValid", "Music.play", "Music.stop", "Music.update", "Music.isPlaying", "Music.setVolume", "Music.setPitch", "Music.setPan", "initAudio", "closeAudio", "setMasterVolume", "loadSound", "loadMusic"]
+    },
+    {
+      "name": "std.graphics.drawing",
+      "source": "stdlib/std/graphics/drawing.janus",
+      "documentation": ["docs/graphics.md"],
+      "status": "experimental",
+      "symbols": ["Camera2D", "Camera2D.offsetX", "Camera2D.offsetY", "Camera2D.targetX", "Camera2D.targetY", "Camera2D.rotation", "Camera2D.zoom", "graphicsAvailable", "graphicsLastError", "initWindow", "windowShouldClose", "closeWindow", "isWindowFullscreen", "isWindowHidden", "isWindowMinimized", "isWindowMaximized", "isWindowFocused", "isWindowResized", "toggleFullscreen", "maximizeWindow", "minimizeWindow", "restoreWindow", "setWindowTitle", "setWindowPosition", "setWindowSize", "setWindowOpacity", "screenWidth", "screenHeight", "setTargetFps", "beginBlend", "endBlend", "frameTime", "elapsedTime", "beginDrawing", "endDrawing", "beginCamera", "endCamera", "screenToWorld", "worldToScreen", "clearBackground", "clearColor", "drawPixel", "drawPixelAt", "drawLine", "drawLineBetween", "drawCircle", "drawCircleAt", "drawRectangle", "drawRectangleArea", "drawText", "drawTextAt"]
+    },
+    {
+      "name": "std.graphics.input",
+      "source": "stdlib/std/graphics/input.janus",
+      "documentation": ["docs/graphics.md"],
+      "status": "experimental",
+      "symbols": ["isKeyDown", "isKeyPressed", "keyPressed", "mouseX", "mouseY", "setMousePosition", "mouseWheelMove", "isMouseButtonDown", "isMouseButtonPressed", "showCursor", "hideCursor", "isCursorHidden", "enableCursor", "disableCursor", "isGamepadAvailable", "gamepadName", "isGamepadButtonDown", "isGamepadButtonPressed", "isGamepadButtonReleased", "gamepadButtonPressed", "gamepadAxisCount", "gamepadAxis", "setGamepadVibration"]
+    },
+    {
+      "name": "std.graphics.resources",
+      "source": "stdlib/std/graphics/resources.janus",
+      "documentation": ["docs/graphics.md"],
+      "status": "experimental",
+      "symbols": ["Texture", "Texture.isValid", "Texture.width", "Texture.height", "Texture.draw", "Texture.drawAt", "Texture.drawPro", "Texture.drawFrame", "Texture.setFilter", "Font", "Font.isValid", "Font.draw", "Font.measure", "RenderTexture", "RenderTexture.isValid", "RenderTexture.width", "RenderTexture.height", "RenderTexture.begin", "RenderTexture.drawPro", "Shader", "Shader.isValid", "Shader.begin", "Shader.location", "Shader.setFloat", "Shader.setVector2", "Shader.setColor", "Shader.setInt", "SpriteAnimation", "SpriteAnimation.texture", "SpriteAnimation.frameWidth", "SpriteAnimation.frameHeight", "SpriteAnimation.columns", "SpriteAnimation.frameCount", "SpriteAnimation.currentFrame", "SpriteAnimation.advance", "SpriteAnimation.reset", "SpriteAnimation.draw", "loadTexture", "loadFont", "loadFontUtf8", "loadRenderTexture", "endRenderTexture", "loadFragmentShader", "loadShader", "endShader"]
+    },
+    {
+      "name": "std.graphics.types",
+      "source": "stdlib/std/graphics/types.janus",
+      "documentation": ["docs/graphics.md"],
+      "status": "experimental",
+      "symbols": ["Key", "Key.Space", "Key.Apostrophe", "Key.Comma", "Key.Minus", "Key.Period", "Key.Slash", "Key.Digit0", "Key.Digit1", "Key.Digit2", "Key.Digit3", "Key.Digit4", "Key.Digit5", "Key.Digit6", "Key.Digit7", "Key.Digit8", "Key.Digit9", "Key.Semicolon", "Key.Equal", "Key.A", "Key.B", "Key.C", "Key.D", "Key.E", "Key.F", "Key.G", "Key.H", "Key.I", "Key.J", "Key.K", "Key.L", "Key.M", "Key.N", "Key.O", "Key.P", "Key.Q", "Key.R", "Key.S", "Key.T", "Key.U", "Key.V", "Key.W", "Key.X", "Key.Y", "Key.Z", "Key.LeftBracket", "Key.Backslash", "Key.RightBracket", "Key.Grave", "Key.Escape", "Key.Enter", "Key.Tab", "Key.Backspace", "Key.Insert", "Key.Delete", "Key.Right", "Key.Left", "Key.Down", "Key.Up", "Key.PageUp", "Key.PageDown", "Key.Home", "Key.End", "Key.CapsLock", "Key.ScrollLock", "Key.NumLock", "Key.PrintScreen", "Key.Pause", "Key.F1", "Key.F2", "Key.F3", "Key.F4", "Key.F5", "Key.F6", "Key.F7", "Key.F8", "Key.F9", "Key.F10", "Key.F11", "Key.F12", "Key.Keypad0", "Key.Keypad1", "Key.Keypad2", "Key.Keypad3", "Key.Keypad4", "Key.Keypad5", "Key.Keypad6", "Key.Keypad7", "Key.Keypad8", "Key.Keypad9", "Key.KeypadDecimal", "Key.KeypadDivide", "Key.KeypadMultiply", "Key.KeypadSubtract", "Key.KeypadAdd", "Key.KeypadEnter", "Key.KeypadEqual", "Key.LeftShift", "Key.LeftControl", "Key.LeftAlt", "Key.LeftSuper", "Key.RightShift", "Key.RightControl", "Key.RightAlt", "Key.RightSuper", "Key.Menu", "MouseButton", "MouseButton.Left", "MouseButton.Right", "MouseButton.Middle", "MouseButton.Side", "MouseButton.Extra", "MouseButton.Forward", "MouseButton.Back", "TextureFilter", "TextureFilter.Point", "TextureFilter.Bilinear", "TextureFilter.Trilinear", "TextureFilter.Anisotropic4x", "TextureFilter.Anisotropic8x", "TextureFilter.Anisotropic16x", "BlendMode", "BlendMode.Alpha", "BlendMode.Additive", "GamepadButton", "GamepadButton.Unknown", "GamepadButton.LeftFaceUp", "GamepadButton.LeftFaceRight", "GamepadButton.LeftFaceDown", "GamepadButton.LeftFaceLeft", "GamepadButton.RightFaceUp", "GamepadButton.RightFaceRight", "GamepadButton.RightFaceDown", "GamepadButton.RightFaceLeft", "GamepadButton.LeftTrigger1", "GamepadButton.LeftTrigger2", "GamepadButton.RightTrigger1", "GamepadButton.RightTrigger2", "GamepadButton.MiddleLeft", "GamepadButton.Middle", "GamepadButton.MiddleRight", "GamepadButton.LeftThumb", "GamepadButton.RightThumb", "GamepadAxis", "GamepadAxis.LeftX", "GamepadAxis.LeftY", "GamepadAxis.RightX", "GamepadAxis.RightY", "GamepadAxis.LeftTrigger", "GamepadAxis.RightTrigger", "Vector2", "Vector2.x", "Vector2.y", "Rectangle", "Rectangle.x", "Rectangle.y", "Rectangle.width", "Rectangle.height", "Color", "Color.packed", "rgba", "vector2", "rectangle", "colorRgba", "colorRgb", "rgb", "Black", "White", "Red", "Green", "Blue", "black", "white", "red", "green", "blue"]
+    },
+    {
+      "name": "std.hash_probe",
+      "source": "stdlib/std/hash_probe.janus",
+      "documentation": ["docs/public-surface-0.5.json"],
+      "status": "internal-detail",
+      "symbols": ["HashProbe", "HashProbe.hasNext", "HashProbe.next", "normalizedHashCapacity", "hashTableShouldGrow", "hashProbe"]
+    },
+    {
+      "name": "std.hashing",
+      "source": "stdlib/std/hashing.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["Hashing", "Hashing.hash", "Hashing.equals", "IntHashing", "IntHashing.hash", "IntHashing.equals", "USizeHashing", "USizeHashing.hash", "USizeHashing.equals", "ByteHashing", "ByteHashing.hash", "ByteHashing.equals", "CharHashing", "CharHashing.hash", "CharHashing.equals", "BoolHashing", "BoolHashing.hash", "BoolHashing.equals"]
+    },
+    {
+      "name": "std.hashmap",
+      "source": "stdlib/std/hashmap.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "HashMap", "HashMap.size", "HashMap.isEmpty", "HashMap.containsKey", "HashMap.getOption", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.entries", "HashMap.keys", "HashMap.values", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
+    },
+    {
+      "name": "std.hashset",
+      "source": "stdlib/std/hashset.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["HashSet", "HashSet.size", "HashSet.isEmpty", "HashSet.contains", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.iterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
+    },
+    {
+      "name": "std.iterator",
+      "source": "stdlib/std/iterator.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["Iterable", "Iterable.iterator", "ZipItem", "ZipItem.left", "ZipItem.right", "Indexed", "Indexed.index", "Indexed.value", "Iterator", "Iterator.next", "Iterator.map", "Iterator.filter", "Iterator.take", "Iterator.zip", "Iterator.enumerate", "Iterator.flatMap", "Iterator.collectWith"]
+    },
+    {
+      "name": "std.math",
+      "source": "stdlib/std/math.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["gcd", "lcm", "is_prime", "prime_factors"]
+    },
+    {
+      "name": "std.option",
+      "source": "stdlib/std/option.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["Option", "Option.Some", "Option.None"]
+    },
+    {
+      "name": "std.random",
+      "source": "stdlib/std/random.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["Random", "Random.nextUSize", "Random.nextBounded", "randomUSize", "randomBounded", "automaticRandom"]
+    },
+    {
+      "name": "std.range",
+      "source": "stdlib/std/range.janus",
+      "documentation": ["docs/language-guide.md"],
+      "status": "stable-proposed",
+      "symbols": ["range"]
+    },
+    {
+      "name": "std.result",
+      "source": "stdlib/std/result.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["Result", "Result.Ok", "Result.Error"]
+    },
+    {
+      "name": "std.text",
+      "source": "stdlib/std/text.janus",
+      "documentation": ["docs/text.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["ParseError", "ParseError.Empty", "ParseError.Invalid", "ParseError.Sign", "ParseError.Overflow", "ParseError.Underflow", "ParseError.NonFinite", "TextBuilder", "TextBuilder.clear", "TextBuilder.size", "TextBuilder.view", "TextBuilder.append", "TextBuilder.appendInt", "TextBuilder.appendUInt", "TextBuilder.appendLong", "TextBuilder.appendULong", "TextBuilder.appendByte", "TextBuilder.appendUByte", "TextBuilder.appendShort", "TextBuilder.appendUShort", "TextBuilder.appendISize", "TextBuilder.appendUSize", "TextBuilder.appendFloat", "TextBuilder.appendDouble", "TextBuilder.appendBool", "TextBuilder.appendChar", "TextBuilder.appendHex", "TextBuilder.appendFixed", "parseInt", "parseUInt", "parseLong", "parseULong", "parseByte", "parseUByte", "parseShort", "parseUShort", "parseISize", "parseUSize", "parseFloat", "parseDouble", "parseBool", "parseChar"]
+    },
+    {
+      "name": "std.time",
+      "source": "stdlib/std/time.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["Duration", "Duration.nanoseconds", "Duration.microseconds", "Duration.milliseconds", "Duration.seconds", "Instant", "Instant.durationSince", "Instant.elapsed", "nanoseconds", "microseconds", "milliseconds", "seconds", "monotonicNow"]
+    },
+    {
+      "name": "std.wall_time",
+      "source": "stdlib/std/wall_time.janus",
+      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "symbols": ["WallTime", "WallTime.unixNanoseconds", "WallTime.unixMilliseconds", "WallTime.unixSeconds", "wallNow"]
+    }
+  ],
+  "cli": {
+    "source": "tools/janus/main.cpp",
+    "documentation": ["docs/tooling.md"],
+    "commands": [
+      {"name": "new", "usage": "janus new <directory> [--name <name>]", "options": ["--name"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "init", "usage": "janus init [directory] [--name <name>]", "options": ["--name"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "add", "usage": "janus add <name>[@<version>] [--path <path> | --git <url> --rev <commit>]", "options": ["--path", "--git", "--rev"], "experimental_parts": ["résolution depuis le registre"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "remove", "usage": "janus remove <name>", "options": [], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "publish", "usage": "janus publish", "options": [], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md", "docs/stability-contract.md"], "status": "experimental"},
+      {"name": "check", "usage": "janus check [source.janus] [--locked] [--offline] [--warn-high-growth-loops]", "options": ["--locked", "--offline", "--warn-high-growth-loops"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "build", "usage": "janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--locked] [--offline] [--warn-high-growth-loops]", "options": ["-o", "--release", "--emit", "--locked", "--offline", "--warn-high-growth-loops"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "run", "usage": "janus run [source.janus] [--release] [--locked] [--offline] [--warn-high-growth-loops]", "options": ["--release", "--locked", "--offline", "--warn-high-growth-loops"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "test", "usage": "janus test [filter] [--release] [--locked] [--offline]", "options": ["--release", "--locked", "--offline"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "fmt", "usage": "janus fmt [source.janus] [--check]", "options": ["--check"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "--help", "usage": "janus --help", "options": [], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "--version", "usage": "janus --version", "options": [], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"}
+    ]
+  }
+}

@@ -1,5 +1,11 @@
 # Guide du langage Janus
 
+> **Statut des API 0.5.x.** La syntaxe et la bibliothèque restent
+> pré-1.0. L'[inventaire versionné de la surface publique
+> 0.5.x](public-surface-0.5.json) indique, pour chaque module, sa source
+> canonique, sa documentation et son statut : candidat à la stabilité,
+> expérimental ou détail d'implémentation.
+
 Janus est fortement typé : chaque variable, paramètre et retour possède un
 type connu à la compilation. Les conversions entre types sont explicites.
 
