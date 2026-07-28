@@ -11,10 +11,10 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **28 modules**, **5659 lignes** et **637 symboles publics** inventoriés ;
+- **28 modules**, **5661 lignes** et **637 symboles publics** inventoriés ;
 - **0 blocs `///` publics pour 637 symboles** (le lot #115 porte l'objectif de couverture à 100 %) ;
 - **123 sites d'allocation**, **189 marqueurs de nettoyage**, **177/14/35** occurrences `move`/`consume`/destructeur ;
-- **21/28 modules** importés directement par au moins une fixture ou un test, soit **92 couples module-fichier de test** ;
+- **21/28 modules** importés directement par au moins une fixture ou un test, soit **94 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
 Ces métriques sont des indicateurs de risque et non des objectifs d'optimisation isolés. Un marqueur de nettoyage peut apparaître dans un nom d'API ; les tests sanitizers restent l'autorité sur les fuites et doubles destructions.
@@ -48,12 +48,12 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.array_builder` | `stable-proposed` | `conservation` | [#111 / R0710-2](https://github.com/cyril103/janus/issues/111) | 7 | 46 | 0 | 2/0/1 | 0/0/0 | 3 | 4 | `std.array`, `std.builder`, `std.iterator` | 4 | `docs/language-guide.md` |
 | `std.builder` | `stable-proposed` | `conservation` | [#111 / R0710-2](https://github.com/cyril103/janus/issues/111) | 3 | 6 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | — | 0 | `docs/language-guide.md` |
 | `std.c` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 5 | 11 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
-| `std.graphics` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 0 | 7 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.audio`, `std.graphics.drawing`, `std.graphics.input`, `std.graphics.resources`, `std.graphics.types` | 2 | `docs/graphics.md`, `docs/stability-contract.md` |
+| `std.graphics` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 0 | 7 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.audio`, `std.graphics.drawing`, `std.graphics.input`, `std.graphics.resources`, `std.graphics.types` | 4 | `docs/graphics.md`, `docs/stability-contract.md` |
 | `std.graphics.audio` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 22 | 135 | 0 | 0/0/2 | 0/0/0 | 2 | 2 | `std.c` | 0 | `docs/graphics.md` |
 | `std.graphics.drawing` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 51 | 400 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | `std.c`, `std.graphics.types`, `std.time` | 0 | `docs/graphics.md` |
 | `std.graphics.input` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 23 | 141 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.types` | 0 | `docs/graphics.md` |
 | `std.graphics.resources` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 45 | 446 | 0 | 0/0/4 | 0/0/0 | 6 | 4 | `std.c`, `std.graphics.types` | 0 | `docs/graphics.md` |
-| `std.graphics.types` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 176 | 237 | 0 | 0/0/0 | 0/0/0 | 8 | 1 | — | 0 | `docs/graphics.md` |
+| `std.graphics.types` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 176 | 239 | 0 | 0/0/0 | 0/0/0 | 8 | 1 | — | 0 | `docs/graphics.md` |
 | `std.fs` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 24 | 355 | 0 | 0/0/2 | 11/5/3 | 10 | 21 | `std.option`, `std.path`, `std.result`, `std.system` | 3 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
 | `std.hash_probe` | `internal-detail` | `refonte-interne` | [#112 / R0710-3](https://github.com/cyril103/janus/issues/112) | 6 | 39 | 0 | 0/0/0 | 0/0/0 | 1 | 0 | — | 0 | `docs/public-surface-0.5.json` |
 | `std.hashing` | `stable-proposed` | `conservation` | [#112 / R0710-3](https://github.com/cyril103/janus/issues/112) | 21 | 70 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | — | 8 | `docs/language-guide.md`, `docs/stability-contract.md` |
@@ -95,7 +95,7 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 | `std.array_builder` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/owned_hash_collections.janus`, `tests/fixtures/runtime/owned_iterators.janus` |
 | `std.builder` | aucune |
 | `std.c` | `tests/fixtures/runtime/text_api.janus`, `tests/interop/c_abi.janus` |
-| `std.graphics` | `tests/fixtures/runtime/time_random.janus`, `tests/language/graphics_module_test.cpp` |
+| `std.graphics` | `tests/fixtures/runtime/graphics_resource_move_error.janus`, `tests/fixtures/runtime/graphics_resource_ownership.janus`, `tests/fixtures/runtime/time_random.janus`, `tests/language/graphics_module_test.cpp` |
 | `std.graphics.audio` | aucune |
 | `std.graphics.drawing` | aucune |
 | `std.graphics.input` | aucune |

@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef _WIN32
 #define RAYLIB_EXPORT __declspec(dllexport)
@@ -88,7 +89,17 @@ static bool audio_ready;
 static bool window_fullscreen;
 static bool window_maximized;
 static bool cursor_hidden;
-static int blend_test_step;
+static bool blend_active;
+static bool drawing_active;
+static bool camera_active;
+static bool render_texture_active;
+static bool shader_active;
+static int font_unloads;
+static int texture_unloads;
+static int render_texture_unloads;
+static int shader_unloads;
+static int sound_unloads;
+static int music_unloads;
 
 RAYLIB_EXPORT void InitWindow(int width, int height, const char *title) {
   window_ready = width > 0 && height > 0 && title != 0;
@@ -106,7 +117,10 @@ RAYLIB_EXPORT bool IsWindowFocused(void) { return true; }
 RAYLIB_EXPORT bool IsWindowResized(void) { return true; }
 
 RAYLIB_EXPORT void CloseWindow(void) {
-  if (blend_test_step != 5)
+  if (blend_active || drawing_active || camera_active ||
+      render_texture_active || shader_active || font_unloads != 2 ||
+      texture_unloads != 1 || render_texture_unloads != 1 ||
+      shader_unloads != 1)
     abort();
   window_ready = false;
 }
@@ -136,34 +150,41 @@ RAYLIB_EXPORT void SetTargetFPS(int frames_per_second) {
 }
 
 RAYLIB_EXPORT void BeginBlendMode(int mode) {
-  if (blend_test_step == 0 && mode == 1) {
-    blend_test_step = 1;
-  } else if (blend_test_step == 1 && mode == 0) {
-    blend_test_step = 2;
-  } else if (blend_test_step == 3 && mode == 1) {
-    blend_test_step = 4;
-  } else {
+  if (mode < 0 || mode > 1)
     abort();
-  }
+  blend_active = true;
 }
 
 RAYLIB_EXPORT void EndBlendMode(void) {
-  if (blend_test_step == 2) {
-    blend_test_step = 3;
-  } else if (blend_test_step == 4) {
-    blend_test_step = 5;
-  } else {
+  if (!blend_active)
     abort();
-  }
+  blend_active = false;
 }
 
-RAYLIB_EXPORT void BeginDrawing(void) {}
+RAYLIB_EXPORT void BeginDrawing(void) {
+  if (drawing_active)
+    abort();
+  drawing_active = true;
+}
 
-RAYLIB_EXPORT void EndDrawing(void) {}
+RAYLIB_EXPORT void EndDrawing(void) {
+  if (!drawing_active || camera_active)
+    abort();
+  drawing_active = false;
+}
 
-RAYLIB_EXPORT void BeginMode2D(Camera2D camera) { (void)camera; }
+RAYLIB_EXPORT void BeginMode2D(Camera2D camera) {
+  if (!drawing_active || camera_active)
+    abort();
+  (void)camera;
+  camera_active = true;
+}
 
-RAYLIB_EXPORT void EndMode2D(void) {}
+RAYLIB_EXPORT void EndMode2D(void) {
+  if (!camera_active)
+    abort();
+  camera_active = false;
+}
 
 RAYLIB_EXPORT Vector2 GetScreenToWorld2D(Vector2 position, Camera2D camera) {
   Vector2 result = {
@@ -227,7 +248,7 @@ RAYLIB_EXPORT Font LoadFontEx(const char *file_name, int font_size,
   (void)codepoints;
   (void)codepoint_count;
   Font font = {font_size, 95, 0, {2, 256, 256, 1, 7}, 0, 0};
-  if (file_name == 0)
+  if (file_name == 0 || strcmp(file_name, "missing-font.ttf") == 0)
     font.texture.id = 0;
   return font;
 }
@@ -249,7 +270,11 @@ RAYLIB_EXPORT void UnloadCodepoints(int *codepoints) { free(codepoints); }
 
 RAYLIB_EXPORT bool IsFontValid(Font font) { return font.texture.id != 0; }
 
-RAYLIB_EXPORT void UnloadFont(Font font) { (void)font; }
+RAYLIB_EXPORT void UnloadFont(Font font) {
+  if (!IsFontValid(font))
+    abort();
+  ++font_unloads;
+}
 
 RAYLIB_EXPORT void DrawTextEx(Font font, const char *text, Vector2 position,
                               float font_size, float spacing, Color tint) {
@@ -271,7 +296,7 @@ RAYLIB_EXPORT Vector2 MeasureTextEx(Font font, const char *text,
 
 RAYLIB_EXPORT Texture2D LoadTexture(const char *file_name) {
   Texture2D texture = {1, 64, 32, 1, 7};
-  if (file_name == 0)
+  if (file_name == 0 || strcmp(file_name, "missing-texture.png") == 0)
     texture.id = 0;
   return texture;
 }
@@ -280,7 +305,11 @@ RAYLIB_EXPORT bool IsTextureValid(Texture2D texture) {
   return texture.id != 0;
 }
 
-RAYLIB_EXPORT void UnloadTexture(Texture2D texture) { (void)texture; }
+RAYLIB_EXPORT void UnloadTexture(Texture2D texture) {
+  if (!IsTextureValid(texture))
+    abort();
+  ++texture_unloads;
+}
 
 RAYLIB_EXPORT void DrawTexture(Texture2D texture, int x, int y, Color tint) {
   (void)texture;
@@ -316,26 +345,52 @@ RAYLIB_EXPORT bool IsRenderTextureValid(RenderTexture2D target) {
 }
 
 RAYLIB_EXPORT void UnloadRenderTexture(RenderTexture2D target) {
-  (void)target;
+  if (!IsRenderTextureValid(target))
+    abort();
+  ++render_texture_unloads;
 }
 
-RAYLIB_EXPORT void BeginTextureMode(RenderTexture2D target) { (void)target; }
+RAYLIB_EXPORT void BeginTextureMode(RenderTexture2D target) {
+  if (!IsRenderTextureValid(target) || render_texture_active)
+    abort();
+  render_texture_active = true;
+}
 
-RAYLIB_EXPORT void EndTextureMode(void) {}
+RAYLIB_EXPORT void EndTextureMode(void) {
+  if (!render_texture_active)
+    abort();
+  render_texture_active = false;
+}
 
 RAYLIB_EXPORT Shader LoadShader(const char *vertex_file,
                                 const char *fragment_file) {
   (void)vertex_file;
-  return (Shader){fragment_file == 0 ? 0u : 6u, 0};
+  return (Shader){fragment_file == 0 ||
+                          strcmp(fragment_file, "missing-shader.fs") == 0
+                      ? 0u
+                      : 6u,
+                  0};
 }
 
 RAYLIB_EXPORT bool IsShaderValid(Shader shader) { return shader.id != 0; }
 
-RAYLIB_EXPORT void UnloadShader(Shader shader) { (void)shader; }
+RAYLIB_EXPORT void UnloadShader(Shader shader) {
+  if (!IsShaderValid(shader))
+    abort();
+  ++shader_unloads;
+}
 
-RAYLIB_EXPORT void BeginShaderMode(Shader shader) { (void)shader; }
+RAYLIB_EXPORT void BeginShaderMode(Shader shader) {
+  if (!IsShaderValid(shader) || shader_active)
+    abort();
+  shader_active = true;
+}
 
-RAYLIB_EXPORT void EndShaderMode(void) {}
+RAYLIB_EXPORT void EndShaderMode(void) {
+  if (!shader_active)
+    abort();
+  shader_active = false;
+}
 
 RAYLIB_EXPORT int GetShaderLocation(Shader shader, const char *name) {
   return shader.id != 0 && name != 0 ? 7 : -1;
@@ -351,7 +406,11 @@ RAYLIB_EXPORT void SetShaderValue(Shader shader, int location,
 
 RAYLIB_EXPORT void InitAudioDevice(void) { audio_ready = true; }
 
-RAYLIB_EXPORT void CloseAudioDevice(void) { audio_ready = false; }
+RAYLIB_EXPORT void CloseAudioDevice(void) {
+  if (sound_unloads != 1 || music_unloads != 1)
+    abort();
+  audio_ready = false;
+}
 
 RAYLIB_EXPORT bool IsAudioDeviceReady(void) { return audio_ready; }
 
@@ -359,7 +418,7 @@ RAYLIB_EXPORT void SetMasterVolume(float volume) { (void)volume; }
 
 RAYLIB_EXPORT Sound LoadSound(const char *file_name) {
   Sound sound = {{(void *)1, 0, 44100, 16, 2}, 128};
-  if (file_name == 0)
+  if (file_name == 0 || strcmp(file_name, "missing-sound.wav") == 0)
     sound.stream.buffer = 0;
   return sound;
 }
@@ -368,7 +427,11 @@ RAYLIB_EXPORT bool IsSoundValid(Sound sound) {
   return sound.stream.buffer != 0;
 }
 
-RAYLIB_EXPORT void UnloadSound(Sound sound) { (void)sound; }
+RAYLIB_EXPORT void UnloadSound(Sound sound) {
+  if (!IsSoundValid(sound))
+    abort();
+  ++sound_unloads;
+}
 
 RAYLIB_EXPORT void PlaySound(Sound sound) { (void)sound; }
 
@@ -395,7 +458,7 @@ RAYLIB_EXPORT void SetSoundPan(Sound sound, float pan) {
 
 RAYLIB_EXPORT Music LoadMusicStream(const char *file_name) {
   Music music = {{(void *)1, 0, 44100, 16, 2}, 1024, true, 0, (void *)1};
-  if (file_name == 0)
+  if (file_name == 0 || strcmp(file_name, "missing-music.ogg") == 0)
     music.context_data = 0;
   return music;
 }
@@ -404,7 +467,11 @@ RAYLIB_EXPORT bool IsMusicValid(Music music) {
   return music.context_data != 0;
 }
 
-RAYLIB_EXPORT void UnloadMusicStream(Music music) { (void)music; }
+RAYLIB_EXPORT void UnloadMusicStream(Music music) {
+  if (!IsMusicValid(music))
+    abort();
+  ++music_unloads;
+}
 
 RAYLIB_EXPORT void PlayMusicStream(Music music) { (void)music; }
 

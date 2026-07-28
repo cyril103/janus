@@ -1,0 +1,150 @@
+import std.graphics
+
+def releaseTexture(texture : Texture) : bool {
+    val valid : bool = texture.isValid()
+    delete texture
+    return valid
+}
+
+def releaseFont(font : Font) : bool {
+    val valid : bool = font.isValid()
+    delete font
+    return valid
+}
+
+def releaseShader(shader : Shader) : bool {
+    val valid : bool = shader.isValid()
+    delete shader
+    return valid
+}
+
+def releaseSound(sound : Sound) : bool {
+    val valid : bool = sound.isValid()
+    delete sound
+    return valid
+}
+
+def scopedFont() : bool {
+    val font : Font = loadFont("font.ttf", 16)
+    defer delete font
+    return font.isValid()
+}
+
+def scopedRenderTexture() : bool {
+    val target : RenderTexture = loadRenderTexture(160, 90)
+    defer delete target
+    target.begin()
+    target.begin()
+    endRenderTexture()
+    endRenderTexture()
+    return target.isValid()
+}
+
+def scopedMusic() : bool {
+    val music : Music = loadMusic("music.ogg")
+    defer delete music
+    return music.isValid()
+}
+
+def main() : int {
+    if !initWindow(320, 180, "resource ownership") {
+        return 1
+    }
+
+    val point : Vector2 = vector2(float(4.0), float(8.0))
+    val pointCopy : Vector2 = point
+    val area : Rectangle =
+    rectangle(float(1.0), float(2.0), float(3.0), float(4.0))
+    val areaCopy : Rectangle = area
+    val tint : Color = rgba(10, 20, 30, 40)
+    val tintCopy : Color = tint
+    if !(
+        point == pointCopy &&
+        area == areaCopy &&
+        tint == tintCopy &&
+        BlendMode.Additive == BlendMode.Additive
+    ) {
+        return 4
+    }
+
+    endBlend()
+    endDrawing()
+    endCamera()
+    endRenderTexture()
+    endShader()
+
+    beginDrawing()
+    beginDrawing()
+    val camera : Camera2D =
+    new Camera2D(
+    float(0.0),
+    float(0.0),
+    float(0.0),
+    float(0.0),
+    float(0.0),
+    float(1.0)
+    )
+    beginCamera(camera)
+    beginCamera(camera)
+    endCamera()
+    endCamera()
+    delete camera
+    endDrawing()
+    endDrawing()
+
+    val missingTexture : Texture = loadTexture("missing-texture.png")
+    val missingFont : Font = loadFont("missing-font.ttf", 16)
+    val missingTarget : RenderTexture = loadRenderTexture(0, 0)
+    val missingShader : Shader =
+    loadFragmentShader("missing-shader.fs")
+    if !(
+        !missingTexture.isValid() &&
+        !missingFont.isValid() &&
+        !missingTarget.isValid() &&
+        !missingShader.isValid()
+    ) {
+        return 5
+    }
+    delete missingTexture
+    delete missingFont
+    delete missingTarget
+    delete missingShader
+
+    val texture : Texture = loadTexture("sprite.png")
+    val secondFont : Font = loadFontUtf8("font.ttf", 16, "Hé 世界")
+    val shader : Shader = loadFragmentShader("post.fs")
+    shader.begin()
+    shader.begin()
+    endShader()
+    endShader()
+    if !(
+        releaseTexture(move texture) &&
+        scopedFont() &&
+        releaseFont(move secondFont) &&
+        scopedRenderTexture() &&
+        releaseShader(move shader)
+    ) {
+        return 6
+    }
+
+    if !initAudio() {
+        closeWindow()
+        return 2
+    }
+    val missingSound : Sound = loadSound("missing-sound.wav")
+    val missingMusic : Music = loadMusic("missing-music.ogg")
+    if missingSound.isValid() || missingMusic.isValid() {
+        return 7
+    }
+    delete missingSound
+    delete missingMusic
+    val sound : Sound = loadSound("effect.wav")
+    if !releaseSound(move sound) || !scopedMusic() {
+        closeAudio()
+        closeWindow()
+        return 3
+    }
+    closeAudio()
+    closeWindow()
+    return 0
+}

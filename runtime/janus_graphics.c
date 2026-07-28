@@ -212,6 +212,12 @@ enum {
 static int graphics_blend_mode = JANUS_GRAPHICS_BLEND_ALPHA;
 static int graphics_blend_stack[JANUS_GRAPHICS_BLEND_STACK_CAPACITY];
 static size_t graphics_blend_depth;
+static bool graphics_drawing_active;
+static bool graphics_camera_active;
+static bool graphics_render_texture_active;
+static bool graphics_shader_active;
+
+void janus_graphics_end_blend(void);
 
 #ifdef _WIN32
 static HMODULE graphics_library;
@@ -447,7 +453,27 @@ bool janus_graphics_window_should_close(void) {
 }
 
 void janus_graphics_close_window(void) {
-  if (graphics_loaded && graphics_api.IsWindowReady())
+  if (!graphics_loaded)
+    return;
+  if (graphics_shader_active) {
+    graphics_api.EndShaderMode();
+    graphics_shader_active = false;
+  }
+  if (graphics_render_texture_active) {
+    graphics_api.EndTextureMode();
+    graphics_render_texture_active = false;
+  }
+  if (graphics_camera_active) {
+    graphics_api.EndMode2D();
+    graphics_camera_active = false;
+  }
+  if (graphics_drawing_active) {
+    graphics_api.EndDrawing();
+    graphics_drawing_active = false;
+  }
+  while (graphics_blend_depth != 0)
+    janus_graphics_end_blend();
+  if (graphics_api.IsWindowReady())
     graphics_api.CloseWindow();
   graphics_blend_depth = 0;
   graphics_blend_mode = JANUS_GRAPHICS_BLEND_ALPHA;
@@ -554,13 +580,18 @@ void janus_graphics_end_blend(void) {
 }
 
 void janus_graphics_begin_drawing(void) {
-  if (graphics_loaded)
-    graphics_api.BeginDrawing();
+  if (!graphics_loaded || graphics_drawing_active)
+    return;
+  graphics_api.BeginDrawing();
+  graphics_drawing_active = true;
 }
 
 void janus_graphics_end_drawing(void) {
-  if (graphics_loaded)
-    graphics_api.EndDrawing();
+  if (!graphics_loaded || !graphics_drawing_active ||
+      graphics_camera_active)
+    return;
+  graphics_api.EndDrawing();
+  graphics_drawing_active = false;
 }
 
 static JanusRaylibCamera2D make_camera(float offset_x, float offset_y,
@@ -575,14 +606,19 @@ static JanusRaylibCamera2D make_camera(float offset_x, float offset_y,
 
 void janus_graphics_begin_camera(float offset_x, float offset_y, float target_x,
                                  float target_y, float rotation, float zoom) {
-  if (graphics_loaded)
-    graphics_api.BeginMode2D(make_camera(offset_x, offset_y, target_x, target_y,
-                                         rotation, zoom));
+  if (!graphics_loaded || !graphics_drawing_active ||
+      graphics_camera_active)
+    return;
+  graphics_api.BeginMode2D(make_camera(offset_x, offset_y, target_x, target_y,
+                                       rotation, zoom));
+  graphics_camera_active = true;
 }
 
 void janus_graphics_end_camera(void) {
-  if (graphics_loaded)
-    graphics_api.EndMode2D();
+  if (!graphics_loaded || !graphics_camera_active)
+    return;
+  graphics_api.EndMode2D();
+  graphics_camera_active = false;
 }
 
 float janus_graphics_screen_to_world_x(float x, float y, float offset_x,
@@ -763,6 +799,10 @@ void *janus_graphics_load_texture(const void *file_name) {
   if (texture == NULL)
     return NULL;
   *texture = graphics_api.LoadTexture((const char *)file_name);
+  if (!graphics_api.IsTextureValid(*texture)) {
+    free(texture);
+    return NULL;
+  }
   return texture;
 }
 
@@ -859,13 +899,18 @@ void janus_graphics_unload_render_texture(void *handle) {
 }
 
 void janus_graphics_begin_render_texture(const void *handle) {
-  if (janus_graphics_render_texture_is_valid(handle))
-    graphics_api.BeginTextureMode(*(const JanusRaylibRenderTexture *)handle);
+  if (!janus_graphics_render_texture_is_valid(handle) ||
+      graphics_render_texture_active)
+    return;
+  graphics_api.BeginTextureMode(*(const JanusRaylibRenderTexture *)handle);
+  graphics_render_texture_active = true;
 }
 
 void janus_graphics_end_render_texture(void) {
-  if (graphics_loaded)
-    graphics_api.EndTextureMode();
+  if (!graphics_loaded || !graphics_render_texture_active)
+    return;
+  graphics_api.EndTextureMode();
+  graphics_render_texture_active = false;
 }
 
 void janus_graphics_draw_render_texture_pro(
@@ -926,13 +971,17 @@ void janus_graphics_unload_shader(void *handle) {
 }
 
 void janus_graphics_begin_shader(const void *handle) {
-  if (janus_graphics_shader_is_valid(handle))
-    graphics_api.BeginShaderMode(*(const JanusRaylibShader *)handle);
+  if (!janus_graphics_shader_is_valid(handle) || graphics_shader_active)
+    return;
+  graphics_api.BeginShaderMode(*(const JanusRaylibShader *)handle);
+  graphics_shader_active = true;
 }
 
 void janus_graphics_end_shader(void) {
-  if (graphics_loaded)
-    graphics_api.EndShaderMode();
+  if (!graphics_loaded || !graphics_shader_active)
+    return;
+  graphics_api.EndShaderMode();
+  graphics_shader_active = false;
 }
 
 int janus_graphics_shader_location(const void *handle, const void *name) {
@@ -1003,6 +1052,10 @@ void *janus_graphics_load_sound(const void *file_name) {
   if (sound == NULL)
     return NULL;
   *sound = graphics_api.LoadSound((const char *)file_name);
+  if (!graphics_api.IsSoundValid(*sound)) {
+    free(sound);
+    return NULL;
+  }
   return sound;
 }
 
@@ -1058,6 +1111,10 @@ void *janus_graphics_load_music(const void *file_name) {
   if (music == NULL)
     return NULL;
   *music = graphics_api.LoadMusicStream((const char *)file_name);
+  if (!graphics_api.IsMusicValid(*music)) {
+    free(music);
+    return NULL;
+  }
   return music;
 }
 

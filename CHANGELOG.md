@@ -5,6 +5,20 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [0.7.10] - Non publiée
 
+### Graphisme et audio
+
+- dérivation explicite de `Copy`, `Equality` et `Debug` pour les enums,
+  vecteurs, rectangles et couleurs graphiques structurels ;
+- unification des chargements invalides autour d'un handle nul et conservation
+  des destructeurs propriétaires pour textures, fontes, render targets,
+  shaders, sons et musiques ;
+- suivi natif des portées drawing, caméra, render target et shader : les fins
+  sans ouverture et les ouvertures répétées sont ignorées, tandis que
+  `closeWindow` termine les portées encore actives ;
+- ajout d'une fixture Janus ASan/UBSan avec backend raylib factice couvrant
+  chargements invalides, déplacement, sortie anticipée, destruction exacte et
+  déséquilibres `begin`/`end`.
+
 ### Système, texte, flux et ressources
 
 - unification de l'état ouvert/fermé de `SystemFile`, `DirectoryIterator`,
