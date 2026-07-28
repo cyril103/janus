@@ -1,6 +1,6 @@
 module std.graphics.types
 
-enum Key {
+enum Key derives Copy, Equality, Debug {
     Space = 32,
     Apostrophe = 39,
     Comma = 44,
@@ -108,7 +108,7 @@ enum Key {
     Menu = 348
 }
 
-enum MouseButton {
+enum MouseButton derives Copy, Equality, Debug {
     Left,
     Right,
     Middle,
@@ -118,7 +118,7 @@ enum MouseButton {
     Back
 }
 
-enum TextureFilter {
+enum TextureFilter derives Copy, Equality, Debug {
     Point,
     Bilinear,
     Trilinear,
@@ -127,12 +127,12 @@ enum TextureFilter {
     Anisotropic16x
 }
 
-enum BlendMode {
+enum BlendMode derives Copy, Equality, Debug {
     Alpha,
     Additive
 }
 
-enum GamepadButton {
+enum GamepadButton derives Copy, Equality, Debug {
     Unknown,
     LeftFaceUp,
     LeftFaceRight,
@@ -153,7 +153,7 @@ enum GamepadButton {
     RightThumb
 }
 
-enum GamepadAxis {
+enum GamepadAxis derives Copy, Equality, Debug {
     LeftX,
     LeftY,
     RightX,
@@ -167,16 +167,18 @@ green : ubyte,
 blue : ubyte,
 alpha : ubyte
 ) : uint
-struct Vector2(val x : float, val y : float) {}
+struct Vector2(val x : float, val y : float)
+derives Copy, Equality, Debug {}
 
 struct Rectangle(
 val x : float,
 val y : float,
 val width : float,
 val height : float
-) {}
+) derives Copy, Equality, Debug {}
 
-struct Color(private val packedValue : uint) {
+struct Color(private val packedValue : uint)
+derives Copy, Equality, Debug {
     def packed() : uint {
         return packedValue
     }

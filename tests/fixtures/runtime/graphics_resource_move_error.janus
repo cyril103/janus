@@ -1,0 +1,11 @@
+import std.graphics
+
+def releaseTexture(texture : Texture) : Unit {
+    delete texture
+}
+
+def main() : int {
+    val texture : Texture = loadTexture("sprite.png")
+    releaseTexture(move texture)
+    return texture.width()
+}

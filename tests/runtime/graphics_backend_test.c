@@ -169,11 +169,18 @@ int main(void) {
   janus_graphics_restore_window();
 
   janus_graphics_set_target_fps(60);
+  janus_graphics_end_blend();
+  janus_graphics_end_drawing();
+  janus_graphics_end_camera();
+  janus_graphics_end_render_texture();
+  janus_graphics_end_shader();
   janus_graphics_begin_blend(1);
   janus_graphics_begin_blend(0);
   janus_graphics_end_blend();
   janus_graphics_end_blend();
   janus_graphics_begin_drawing();
+  janus_graphics_begin_drawing();
+  janus_graphics_begin_camera(400.0f, 225.0f, 100.0f, 50.0f, 0.0f, 2.0f);
   janus_graphics_begin_camera(400.0f, 225.0f, 100.0f, 50.0f, 0.0f, 2.0f);
   if (janus_graphics_screen_to_world_x(420.0f, 245.0f, 400.0f, 225.0f,
                                        100.0f, 50.0f, 0.0f, 2.0f) != 110.0f ||
@@ -211,6 +218,12 @@ int main(void) {
     return 1;
   }
   janus_graphics_unload_font(unicode_font);
+  void *missing_font = janus_graphics_load_font("missing-font.ttf", 24);
+  if (janus_graphics_font_is_valid(missing_font)) {
+    fputs("graphics backend accepted an invalid font\n", stderr);
+    return 1;
+  }
+  janus_graphics_unload_font(missing_font);
   void *texture = janus_graphics_load_texture("sprite.png");
   if (!janus_graphics_texture_is_valid(texture) ||
       janus_graphics_texture_width(texture) != 64 ||
@@ -224,6 +237,13 @@ int main(void) {
       16.0f, 16.0f, 45.0f, UINT32_C(0xffffffff));
   janus_graphics_set_texture_filter(texture, 1);
   janus_graphics_unload_texture(texture);
+  void *missing_texture =
+      janus_graphics_load_texture("missing-texture.png");
+  if (janus_graphics_texture_is_valid(missing_texture)) {
+    fputs("graphics backend accepted an invalid texture\n", stderr);
+    return 1;
+  }
+  janus_graphics_unload_texture(missing_texture);
   void *target = janus_graphics_load_render_texture(320, 180);
   void *shader = janus_graphics_load_fragment_shader("post.fs");
   if (!janus_graphics_render_texture_is_valid(target) ||
@@ -234,6 +254,7 @@ int main(void) {
     return 1;
   }
   janus_graphics_begin_render_texture(target);
+  janus_graphics_begin_render_texture(target);
   janus_graphics_end_render_texture();
   int location = janus_graphics_shader_location(shader, "time");
   janus_graphics_set_shader_float(shader, location, 1.0f);
@@ -241,12 +262,20 @@ int main(void) {
   janus_graphics_set_shader_color(shader, location, UINT32_C(0xffffffff));
   janus_graphics_set_shader_int(shader, location, 2);
   janus_graphics_begin_shader(shader);
+  janus_graphics_begin_shader(shader);
   janus_graphics_draw_render_texture_pro(
       target, 0.0f, 0.0f, 320.0f, -180.0f, 0.0f, 0.0f, 640.0f, 360.0f,
       0.0f, 0.0f, 0.0f, UINT32_C(0xffffffff));
   janus_graphics_end_shader();
   janus_graphics_unload_shader(shader);
   janus_graphics_unload_render_texture(target);
+  void *missing_shader =
+      janus_graphics_load_fragment_shader("missing-shader.fs");
+  if (janus_graphics_shader_is_valid(missing_shader)) {
+    fputs("graphics backend accepted an invalid shader\n", stderr);
+    return 1;
+  }
+  janus_graphics_unload_shader(missing_shader);
   janus_graphics_end_camera();
   janus_graphics_end_drawing();
 
@@ -272,6 +301,15 @@ int main(void) {
   }
   janus_graphics_unload_sound(sound);
   janus_graphics_unload_music(music);
+  void *missing_sound = janus_graphics_load_sound("missing-sound.wav");
+  void *missing_music = janus_graphics_load_music("missing-music.ogg");
+  if (janus_graphics_sound_is_valid(missing_sound) ||
+      janus_graphics_music_is_valid(missing_music)) {
+    fputs("graphics backend accepted invalid audio resources\n", stderr);
+    return 1;
+  }
+  janus_graphics_unload_sound(missing_sound);
+  janus_graphics_unload_music(missing_music);
   janus_graphics_close_audio();
 
   if (!janus_graphics_is_key_down(263) ||
@@ -310,6 +348,9 @@ int main(void) {
   }
   janus_graphics_set_gamepad_vibration(0, 0.5f, 0.75f, 0.2f);
 
+  janus_graphics_begin_drawing();
+  janus_graphics_begin_camera(400.0f, 225.0f, 100.0f, 50.0f, 0.0f, 2.0f);
+  janus_graphics_begin_blend(1);
   janus_graphics_close_window();
   return 0;
 }

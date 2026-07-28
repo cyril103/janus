@@ -5,6 +5,9 @@ raylib 6. Le backend est chargé dynamiquement : un programme qui n'utilise pas
 le graphisme ne dépend pas de raylib, et l'absence de la bibliothèque peut être
 traitée avec `initWindow`.
 
+Le contrat détaillé de propriété et de portée est consigné dans
+[Propriété des ressources graphiques et audio](design/graphics-resources.md).
+
 `std.graphics` est une façade qui regroupe les sous-modules `types`, `drawing`,
 `resources`, `audio` et `input`. Les symboles natifs restent privés dans le
 sous-module qui les utilise.
@@ -83,6 +86,13 @@ def main() : int {
 `beginDrawing()` et `endDrawing()` doivent encadrer les commandes de rendu de
 chaque image. `defer closeWindow()` garantit la fermeture de la fenêtre lors
 d'un `return`.
+
+Les transitions restent explicites. Une fin sans ouverture correspondante est
+ignorée, comme une seconde ouverture d'une portée drawing, caméra, render
+target ou shader déjà active. `closeWindow()` termine les portées encore
+actives avant de fermer la fenêtre. Ces garde-fous protègent le backend, mais
+ne remplacent pas l'association locale d'un `begin` avec son `end` ou un
+`defer`.
 
 ## Modes de fusion
 
@@ -351,7 +361,8 @@ Les helpers `drawPixelAt`, `drawLineBetween`, `drawCircleAt`,
 ces types. Les fonctions à coordonnées et couleurs brutes restent disponibles
 pour préserver la compatibilité. Ces primitives sont des `struct` copiés par
 valeur : elles ne font aucune allocation et ne doivent pas être libérées avec
-`delete`.
+`delete`. Depuis 0.7.10, `Vector2`, `Rectangle`, `Color` et les enums
+graphiques dérivent explicitement `Copy`, `Equality` et `Debug`.
 
 ## Caméra 2D
 
@@ -393,14 +404,36 @@ janus run examples/snake/main.janus
 ## État expérimental
 
 Le module couvre le graphisme 2D immédiat, notamment les polices personnalisées
-UTF-8 et les manettes. Il ne fournit pas encore :
+UTF-8, les manettes, les durées de frame et les modes de fusion. Il ne fournit
+pas encore :
 
 - d'API 3D ;
-- de temps par image ou de temps écoulé ;
-- de modes de fusion configurables, de capture d'écran ou de contrôle explicite
-  du wrapping des textures ;
+- de capture d'écran ou de contrôle explicite du wrapping des textures ;
 - de diagnostic distinct entre un shader invalide et le shader de repli ;
 - d'installation automatique de raylib par le gestionnaire de paquets.
 
 L'API publique reste indépendante du backend afin que ces capacités puissent
 être ajoutées sans exposer directement les structures natives de raylib.
+
+## Audit et migration 0.7.10
+
+Les six modules `std.graphics.*` restent expérimentaux. Les structures raylib,
+les fonctions `janus_graphics_*` et le chargeur dynamique demeurent des détails
+privés du runtime. Aucun symbole public n'est supprimé ou renommé.
+
+Les alias historiques sont conservés :
+
+| Alias conservé | Forme canonique | Statut |
+| --- | --- | --- |
+| `colorRgba` | `rgba` | compatible, non déprécié |
+| `colorRgb` | `rgb` | compatible, non déprécié |
+| `black()`, `white()`, `red()`, `green()`, `blue()` | constantes `Black`, `White`, `Red`, `Green`, `Blue` | compatibles |
+| `clearColor` | `clearBackground` | compatible |
+| helpers `*At`, `*Between` et `*Area` | primitives scalaires correspondantes | compatibles et recommandés pour les types structurés |
+
+`Texture`, `Font`, `RenderTexture`, `Shader`, `Sound` et `Music` restent des
+classes propriétaires non copiables. Un `move` transfère leur unique handle ;
+le destructeur libère le handle une fois, et un chargement invalide produit un
+objet dont `isValid()` vaut `false` et dont la destruction est sans effet
+natif. Les ressources graphiques doivent être détruites avant `closeWindow`,
+et les ressources audio avant `closeAudio`.
