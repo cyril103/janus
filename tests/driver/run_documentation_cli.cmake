@@ -4,7 +4,7 @@ foreach(required JANUS BUILD_DIR)
     endif()
 endforeach()
 
-set(PROJECT_DIR "${BUILD_DIR}/documentation cli fixture")
+set(PROJECT_DIR "${BUILD_DIR}/documentation-cli-fixture")
 set(OUTPUT_DIR "${PROJECT_DIR}/generated docs")
 file(REMOVE_RECURSE "${PROJECT_DIR}")
 file(MAKE_DIRECTORY "${PROJECT_DIR}/src")
