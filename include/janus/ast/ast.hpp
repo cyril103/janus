@@ -294,6 +294,18 @@ struct DestructorDeclaration {
   SourceLocation location;
 };
 
+enum class DerivationKind {
+  Copy,
+  Equality,
+  Hashing,
+  Debug,
+};
+
+struct Derivation {
+  DerivationKind kind;
+  SourceLocation location;
+};
+
 struct EnumDeclaration {
   struct Case {
     std::string name;
@@ -308,6 +320,7 @@ struct EnumDeclaration {
   SourceLocation location;
   bool is_private{};
   std::optional<std::string> module_name;
+  std::vector<Derivation> derivations;
 };
 
 struct TraitDeclaration {
@@ -334,6 +347,7 @@ struct ClassDeclaration {
   bool is_value_type{};
   bool is_private{};
   std::optional<std::string> module_name;
+  std::vector<Derivation> derivations;
 };
 
 struct Program {

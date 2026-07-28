@@ -63,6 +63,18 @@ int main() {
     std::cerr << "else-if formatting is not canonical and idempotent\n";
     return 1;
   }
+  const std::string derivations =
+      "struct Point(val x : int, val y : int)\n"
+      "derives Copy, Equality, Hashing, Debug {\n"
+      "}\n";
+  const std::string formatted_derivations =
+      janus::driver::format_source(derivations);
+  if (formatted_derivations != derivations ||
+      janus::driver::format_source(formatted_derivations) !=
+          formatted_derivations) {
+    std::cerr << "derivation clauses are not preserved idempotently\n";
+    return 1;
+  }
   std::cout << "Janus formatting is deterministic\n";
   return 0;
 }

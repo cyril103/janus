@@ -3,6 +3,19 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.6.3] - Non publiée
+
+### Langage et outillage
+
+- réservation de la clause explicite `derives` pour `Copy`, `Equality`,
+  `Hashing` et `Debug` sur les structs, enums et classes pertinents, sans
+  système général de macros ;
+- représentation typée des demandes dans l'AST, diagnostics des capacités
+  inconnues ou répétées, préservation par le formatter et complétion LSP ;
+- spécification normative de l'éligibilité champ par champ, des génériques,
+  de la visibilité, des diagnostics et des contraintes de propriété avant la
+  génération des opérations.
+
 ## [0.6.2] - Non publiée
 
 ### Bibliothèque standard
@@ -265,6 +278,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.6.3]: https://github.com/cyril103/janus/compare/v0.6.2...HEAD
 [0.6.2]: https://github.com/cyril103/janus/compare/v0.6.1...HEAD
 [0.6.1]: https://github.com/cyril103/janus/compare/v0.6.0...HEAD
 [0.6.0]: https://github.com/cyril103/janus/releases/tag/v0.6.0

@@ -451,6 +451,26 @@ opérations d'insertion et d'extraction transfèrent alors les valeurs avec
 restants. Le [contrat de propriété des
 conteneurs](design/container-ownership.md) détaille cette séparation.
 
+### Dérivations explicites
+
+Janus 0.6.3 réserve la clause `derives` pour demander les capacités
+structurelles `Copy`, `Equality`, `Hashing` et `Debug` :
+
+```janus
+struct Point(val x : int, val y : int)
+derives Copy, Equality, Hashing, Debug {}
+```
+
+La demande est toujours explicite ; les capacités inconnues ou répétées sont
+rejetées. La clause est également disponible sur les enums et, sauf pour
+`Copy`, sur les classes. La génération effective des opérations est introduite
+séparément afin que la syntaxe et les règles de propriété puissent être
+stabilisées avant leur implémentation.
+
+Le [design des dérivations structurelles](https://github.com/cyril103/janus/blob/main/docs/design/derivations.md)
+définit l'éligibilité champ par champ, les génériques, la visibilité, les
+diagnostics et les interdictions liées aux valeurs propriétaires.
+
 ## Collections et itérateurs
 
 La bibliothèque standard comprend notamment :

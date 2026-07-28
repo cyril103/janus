@@ -18,6 +18,7 @@ private:
   [[nodiscard]] ast::FunctionDeclaration parse_trait_method();
   [[nodiscard]] ast::EnumDeclaration parse_enum_declaration();
   [[nodiscard]] ast::ClassDeclaration parse_class_declaration();
+  [[nodiscard]] std::vector<ast::Derivation> parse_derivations();
   [[nodiscard]] ast::DestructorDeclaration parse_destructor_declaration();
   [[nodiscard]] std::vector<ast::Statement> parse_block();
   [[nodiscard]] ast::FunctionDeclaration parse_function_declaration();

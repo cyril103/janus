@@ -16,6 +16,7 @@ enum class TokenKind {
   Enum,
   Class,
   Struct,
+  Derives,
   New,
   Move,
   Consume,
@@ -100,6 +101,8 @@ struct Token {
     return "'class'";
   case TokenKind::Struct:
     return "'struct'";
+  case TokenKind::Derives:
+    return "'derives'";
   case TokenKind::New:
     return "'new'";
   case TokenKind::Move:

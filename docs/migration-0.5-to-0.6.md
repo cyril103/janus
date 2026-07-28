@@ -150,3 +150,16 @@ val resource : Resource = (move pending)?
 
 Après cette expression, `pending` ne peut plus être utilisé. Les `Result` dont
 les paramètres sont `Copy` conservent la syntaxe `pending?`.
+
+## Mot-clé `derives`
+
+Janus 0.6.3 réserve `derives` pour les demandes de capacités structurelles.
+Un ancien identifiant portant exactement ce nom doit être renommé avant la
+mise à niveau :
+
+```janus
+val derivedValues : int = 1
+```
+
+La clause ne déclenche aucune macro générale et n'ajoute jamais une capacité
+absente de la liste explicite.

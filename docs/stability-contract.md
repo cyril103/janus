@@ -63,6 +63,7 @@ La grammaire et les comportements présentés dans le
 
 - déclarations `val` et `var`, fonctions, classes, structs, enums et traits ;
 - génériques, contrainte intrinsèque `Copy` et fonctions de première classe ;
+- demandes structurelles explicites avec la clause fermée `derives` ;
 - modules, imports et visibilités `private` et `internal` ;
 - `if`, `else if`, `while`, `for`, `break`, `continue` et `match` ;
 - `Option`, `Result`, l'opérateur `?`, `defer`, `move` et `delete` ;
@@ -284,4 +285,3 @@ La matrice de release complète ajoute :
 Une modification d'une sortie attendue exige soit une correction démontrant
 que l'ancien comportement violait déjà le contrat, soit une dépréciation et
 une version majeure.
-
