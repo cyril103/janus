@@ -26,11 +26,13 @@ int main() {
 val fragment : int = 1
 ```
 
-```janus doctest name=working-example
+```janus
+// doctest: doctest name=working-example
 def main() : int { return 0 }
 ```
 
-```janus compile_fail=JANA0001 name=unknown-value
+```janus
+// doctest: compile_fail=JANA0001 name=unknown-value
 def main() : int { return missing }
 ```
 
@@ -44,14 +46,14 @@ def main() : int { return 0 }
   expect(parsed.size() == 2, "only explicit doctests are executable");
   expect(parsed[0].name == "working-example",
          "an explicit doctest name is retained");
-  expect(parsed[0].line == 8, "the source line is retained");
+  expect(parsed[0].line == 9, "the source line is retained");
   expect(parsed[0].expectation ==
              janus::driver::DoctestExpectation::CompilePass,
          "ordinary doctests expect successful compilation");
   expect(parsed[1].expected_diagnostic == "JANA0001",
          "compile-fail expectations retain the diagnostic code");
-  expect(parsed[1].line == 12, "compile-fail source line is retained");
-  expect(parsed[1].display_name() == "docs/examples.md:12 (unknown-value)",
+  expect(parsed[1].line == 14, "compile-fail source line is retained");
+  expect(parsed[1].display_name() == "docs/examples.md:14 (unknown-value)",
          "display names contain document, line, and optional name");
 
   const std::filesystem::path root =
@@ -60,13 +62,15 @@ def main() : int { return 0 }
   std::filesystem::create_directories(root / "docs" / "nested");
   {
     std::ofstream output{root / "README.md"};
-    output << "```janus doctest name=readme\n"
+    output << "```janus\n"
+              "// doctest: doctest name=readme\n"
               "def main() : int { return 0 }\n"
               "```\n";
   }
   {
     std::ofstream output{root / "docs" / "nested" / "z.md"};
-    output << "```janus doctest name=nested\n"
+    output << "```janus\n"
+              "// doctest: doctest name=nested\n"
               "def main() : int { return 0 }\n"
               "```\n";
   }
@@ -79,7 +83,7 @@ def main() : int { return 0 }
          "discovery is deterministic and paths are package-relative");
   expect(janus::driver::matches_doctest_filter(discovered[1], "nested"),
          "named doctests are filterable");
-  expect(janus::driver::matches_doctest_filter(discovered[1], "z.md:2"),
+  expect(janus::driver::matches_doctest_filter(discovered[1], "z.md:3"),
          "document and line are filterable");
   expect(!janus::driver::matches_doctest_filter(discovered[0], "nested"),
          "filters reject unrelated doctests");
@@ -87,12 +91,13 @@ def main() : int { return 0 }
   bool invalid_code_rejected = false;
   try {
     static_cast<void>(janus::driver::parse_doctests(
-        "docs/invalid.md", "```janus compile_fail=unknown\n"
+        "docs/invalid.md", "```janus\n"
+                           "// doctest: compile_fail=unknown\n"
                            "def main() : int { return 0 }\n"
                            "```\n"));
   } catch (const std::runtime_error &error) {
     invalid_code_rejected = std::string{error.what()}.find(
-                                "docs/invalid.md:1") != std::string::npos;
+                                "docs/invalid.md:2") != std::string::npos;
   }
   expect(invalid_code_rejected,
          "invalid directives report the document and fence line");

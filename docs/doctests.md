@@ -5,10 +5,12 @@ Statut : contrat proposé pour Janus 0.7.3.
 ## Blocs exécutables et exemples incomplets
 
 `janus test` découvre les fichiers Markdown de `README.md` et `docs/` dans le
-paquet. Un bloc est compilé lorsqu’il porte la directive `doctest` :
+paquet. Un bloc est compilé lorsque sa première ligne porte le commentaire
+`// doctest: doctest` :
 
 ````markdown
-```janus doctest name=addition
+```janus
+// doctest: doctest name=addition
 def add(left : int, right : int) : int {
     return left + right
 }
@@ -19,12 +21,13 @@ def main() : int {
 ```
 ````
 
-Le nom est facultatif et doit rester unique dans le document. Un bloc
-`janus` sans directive est illustratif et n’est pas exécuté. La directive
+Le nom est facultatif et doit rester unique dans le document. Un bloc `janus`
+sans commentaire doctest est illustratif et n’est pas exécuté. La directive
 `incomplete` (ou `ignore`) rend cette intention explicite :
 
 ````markdown
-```janus incomplete
+```janus
+// doctest: incomplete
 val fragment : int = construireLaSuite(...)
 ```
 ````
@@ -38,7 +41,8 @@ Ainsi, renommer une API importée casse son exemple documentaire.
 Une erreur attendue indique son code de diagnostic stable :
 
 ````markdown
-```janus compile_fail=JANA0001 name=valeur-absente
+```janus
+// doctest: compile_fail=JANA0001 name=valeur-absente
 def main() : int {
     return valeurAbsente
 }

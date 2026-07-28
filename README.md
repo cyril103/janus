@@ -129,8 +129,8 @@ janus doc            # générer la documentation d'API dans target/doc/
 janus doc --open     # générer puis ouvrir la documentation
 ```
 
-Les blocs Markdown marqués `janus doctest` sont compilés avec le contexte du
-paquet. Consultez le [contrat des doctests](docs/doctests.md) pour les
+Les blocs Markdown marqués `// doctest: doctest` sont compilés avec le contexte
+du paquet. Consultez le [contrat des doctests](docs/doctests.md) pour les
 exemples incomplets, les attentes `compile_fail` et le filtrage.
 
 ## Aperçu du langage

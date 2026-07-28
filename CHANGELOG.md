@@ -7,8 +7,8 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Doctests
 
-- ajout des blocs `janus doctest`, `janus incomplete` et des attentes
-  `compile_fail=CODE` indépendantes du texte des diagnostics ;
+- ajout des directives `// doctest: doctest`, `incomplete` et
+  `compile_fail=CODE`, indépendantes du texte des diagnostics ;
 - intégration des exemples Markdown à `janus test`, avec filtre commun,
   contexte du paquet, chemins `--doc-path` et mode `--doc` ;
 - migration des extraits autonomes du site vers le même moteur, avec

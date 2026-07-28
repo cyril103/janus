@@ -26,7 +26,8 @@ janus run
 
 Le point d’entrée est `src/main.janus` :
 
-```janus doctest name=hello-world
+```janus
+// doctest: doctest name=hello-world
 def main() : int {
     println("Bonjour depuis Janus !")
     return 0

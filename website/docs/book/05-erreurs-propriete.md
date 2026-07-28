@@ -23,7 +23,8 @@ def convert(input : Option[int]) : Option[double] {
 
 ## Ressources possédées
 
-```janus doctest name=ownership
+```janus
+// doctest: doctest name=ownership
 class Resource(val identifier : int) {
     destructor {
         println(identifier)

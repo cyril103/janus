@@ -9,7 +9,8 @@
 
 ## Un tableau dynamique
 
-```janus doctest name=arrays
+```janus
+// doctest: doctest name=arrays
 import std.array
 
 def main() : int {

@@ -11,7 +11,8 @@
 
 Nous allons produire un petit rapport natif à partir de scores connus. Créez un projet avec `janus new rapport`, puis remplacez `src/main.janus` :
 
-```janus doctest name=final-project
+```janus
+// doctest: doctest name=final-project
 import std.array
 
 struct Summary(val count : int, val total : int, val best : int) {}

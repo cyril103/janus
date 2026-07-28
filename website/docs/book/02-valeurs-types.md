@@ -11,7 +11,8 @@
 
 `val` crée une liaison non réassignable ; `var` autorise une nouvelle valeur.
 
-```janus doctest name=values-and-types
+```janus
+// doctest: doctest name=values-and-types
 def main() : int {
     val depart : int = 40
     var resultat : int = depart

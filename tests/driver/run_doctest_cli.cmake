@@ -17,12 +17,14 @@ file(WRITE "${PROJECT_DIR}/tests/unit.janus"
 file(WRITE "${PROJECT_DIR}/README.md"
 "# Package examples
 
-```janus doctest name=package-api
+```janus
+// doctest: doctest name=package-api
 import api
 def main() : int { return package_value() - 42 }
 ```
 
-```janus compile_fail=JANA0001 name=unknown-value
+```janus
+// doctest: compile_fail=JANA0001 name=unknown-value
 def main() : int { return missing }
 ```
 
@@ -31,12 +33,14 @@ def main() : int { return definitely_not_compilable }
 ```
 ")
 file(WRITE "${PROJECT_DIR}/docs/incomplete.md"
-"```janus incomplete
+"```janus
+// doctest: incomplete
 def main() : int { return deliberately_incomplete }
 ```
 ")
 file(WRITE "${PROJECT_DIR}/site/example.md"
-"```janus doctest name=site-example
+"```janus
+// doctest: doctest name=site-example
 def main() : int { return 0 }
 ```
 ")
@@ -50,8 +54,8 @@ execute_process(
 )
 if(NOT DEFAULT_STATUS EQUAL 0
    OR NOT DEFAULT_OUT MATCHES "3 passed; 0 failed"
-   OR NOT DEFAULT_OUT MATCHES "README.md:4 \\(package-api\\)"
-   OR NOT DEFAULT_OUT MATCHES "README.md:9 \\(unknown-value\\)"
+   OR NOT DEFAULT_OUT MATCHES "README.md:5 \\(package-api\\)"
+   OR NOT DEFAULT_OUT MATCHES "README.md:11 \\(unknown-value\\)"
    OR DEFAULT_OUT MATCHES "legacy-illustration|deliberately-incomplete")
     message(FATAL_ERROR
         "default doctest contract failed: status=${DEFAULT_STATUS}\nstdout=[${DEFAULT_OUT}]\nstderr=[${DEFAULT_ERR}]")
@@ -77,7 +81,7 @@ execute_process(
     OUTPUT_VARIABLE SITE_OUT
     ERROR_VARIABLE SITE_ERR
 )
-if(NOT SITE_STATUS EQUAL 0 OR NOT SITE_OUT MATCHES "site/example.md:2"
+if(NOT SITE_STATUS EQUAL 0 OR NOT SITE_OUT MATCHES "site/example.md:3"
    OR NOT SITE_OUT MATCHES "1 passed; 0 failed"
    OR SITE_OUT MATCHES "package-api|test unit")
     message(FATAL_ERROR
@@ -96,14 +100,15 @@ execute_process(
 )
 string(REPLACE "\\" "/" RENAME_ERR "${RENAME_ERR}")
 if(NOT RENAME_STATUS EQUAL 1
-   OR NOT RENAME_ERR MATCHES "README.md:4: error: doctest compilation failed")
+   OR NOT RENAME_ERR MATCHES "README.md:5: error: doctest compilation failed")
     message(FATAL_ERROR
         "API rename did not break its doctest: status=${RENAME_STATUS}\nstdout=[${RENAME_OUT}]\nstderr=[${RENAME_ERR}]")
 endif()
 
 # Compile-fail examples compare stable codes, not diagnostic wording.
 file(WRITE "${PROJECT_DIR}/docs/wrong-code.md"
-"```janus compile_fail=JPAR0001 name=wrong-code
+"```janus
+// doctest: compile_fail=JPAR0001 name=wrong-code
 def main() : int { return missing }
 ```
 ")
@@ -117,7 +122,7 @@ execute_process(
 string(REPLACE "\\" "/" CODE_ERR "${CODE_ERR}")
 if(NOT CODE_STATUS EQUAL 1
    OR NOT CODE_ERR MATCHES
-      "docs/wrong-code.md:2: error: expected diagnostic JPAR0001, got JANA0001")
+      "docs/wrong-code.md:3: error: expected diagnostic JPAR0001, got JANA0001")
     message(FATAL_ERROR
         "compile-fail code contract failed: status=${CODE_STATUS}\nstdout=[${CODE_OUT}]\nstderr=[${CODE_ERR}]")
 endif()

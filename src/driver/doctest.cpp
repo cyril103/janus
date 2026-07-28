@@ -92,16 +92,33 @@ std::vector<Doctest> parse_doctests(const std::filesystem::path &document,
     if (!line.starts_with("```janus"))
       continue;
     const std::size_t fence_line = line_number;
-    const FenceDirectives directives =
+    FenceDirectives directives =
         parse_directives(document, fence_line, line.substr(3));
     std::string source;
     bool closed = false;
+    bool first_source_line = true;
+    std::size_t source_line = fence_line + 1;
     while (std::getline(input, line)) {
       ++line_number;
       if (starts_with_fence(line)) {
         closed = true;
         break;
       }
+      if (first_source_line && line.starts_with("// doctest:")) {
+        if (directives.executable || directives.incomplete ||
+            !directives.name.empty())
+          throw std::runtime_error{
+              location(document, line_number) +
+              ": doctest directives must use either the fence or the first "
+              "source line"};
+        directives = parse_directives(
+            document, line_number,
+            "janus " + line.substr(std::string{"// doctest:"}.size()));
+        source_line = line_number + 1;
+        first_source_line = false;
+        continue;
+      }
+      first_source_line = false;
       source += line;
       source += '\n';
     }
@@ -110,8 +127,7 @@ std::vector<Doctest> parse_doctests(const std::filesystem::path &document,
                                ": unterminated Janus code block"};
     if (!directives.executable)
       continue;
-    tests.push_back({document, fence_line + 1, directives.name,
-                     std::move(source),
+    tests.push_back({document, source_line, directives.name, std::move(source),
                      directives.expected_diagnostic.empty()
                          ? DoctestExpectation::CompilePass
                          : DoctestExpectation::CompileFail,
