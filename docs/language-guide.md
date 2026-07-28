@@ -814,6 +814,26 @@ ou `asText` avant d’être traité comme du texte. Le
 [contrat des flux](design/io-streams.md) précise les lectures partielles, les
 fins de ligne, la durée de vie des vues et le flush selon le type de handle.
 
+### Arguments, environnement et processus
+
+`std.process` donne accès aux arguments complets du programme et aux variables
+d’environnement :
+
+```janus
+import std.process
+
+val count : usize = programArgumentCount()
+val home : Result[Option[EnvironmentValue], SystemError] =
+environmentVariable("HOME")
+```
+
+`runProcess` reçoit l’exécutable et chaque argument séparément. Il ne passe
+jamais par un shell. L’appel attend l’enfant, expose son code de sortie et peut
+capturer stdout et stderr comme octets. Une chaîne vide conserve le répertoire
+de travail courant ; une autre valeur sélectionne celui de l’enfant. Le
+[contrat des processus](design/process-runtime.md) documente l’Unicode, la
+durée de vie des vues, les erreurs et le nettoyage.
+
 Des programmes complets sont disponibles dans [`examples`](../examples).
 
 ## Structures copiées par valeur

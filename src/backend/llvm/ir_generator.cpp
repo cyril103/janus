@@ -973,8 +973,14 @@ private:
     std::vector<::llvm::Type *> parameter_types;
     parameter_types.reserve(function.parameters.size() +
                             (owner == nullptr ? 0 : 1));
-    if (owner != nullptr)
+    const bool native_entry =
+        owner == nullptr && function.name == "main" && !function.is_external;
+    if (native_entry) {
+      parameter_types.push_back(::llvm::Type::getInt32Ty(context_));
       parameter_types.push_back(::llvm::PointerType::getUnqual(context_));
+    } else if (owner != nullptr) {
+      parameter_types.push_back(::llvm::PointerType::getUnqual(context_));
+    }
     for (const auto &parameter : function.parameters)
       parameter_types.push_back(
           lower_type(resolve(parameter.type, substitutions), context_));
@@ -1006,7 +1012,7 @@ private:
     auto *entry = ::llvm::BasicBlock::Create(context_, "entry", llvm_function);
     ::llvm::IRBuilder<> builder{entry};
     std::unordered_map<std::string, Local> locals;
-    if (owner == nullptr && function.name == "main" &&
+    if (native_entry &&
         global_finalizer_ != nullptr) {
       ::llvm::FunctionCallee register_cleanup = module_->getOrInsertFunction(
           "janus_set_panic_cleanup",
@@ -1014,11 +1020,22 @@ private:
                                     false));
       builder.CreateCall(register_cleanup, {global_finalizer_});
     }
-    if (owner == nullptr && function.name == "main" &&
-        global_initializer_ != nullptr)
+    auto argument_iterator = llvm_function->arg_begin();
+    if (native_entry) {
+      ::llvm::Argument &argc = *argument_iterator++;
+      ::llvm::Argument &argv = *argument_iterator++;
+      argc.setName("argc");
+      argv.setName("argv");
+      ::llvm::FunctionCallee initialize = module_->getOrInsertFunction(
+          "janus_process_initialize",
+          ::llvm::FunctionType::get(builder.getVoidTy(),
+                                    {builder.getInt32Ty(), builder.getPtrTy()},
+                                    false));
+      builder.CreateCall(initialize, {&argc, &argv});
+    }
+    if (native_entry && global_initializer_ != nullptr)
       builder.CreateCall(global_initializer_);
 
-    auto argument_iterator = llvm_function->arg_begin();
     if (owner != nullptr) {
       ::llvm::Argument &this_argument = *argument_iterator++;
       this_argument.setName("this");

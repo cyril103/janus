@@ -1,0 +1,249 @@
+import std.array
+import std.fs
+import std.io
+import std.option
+import std.process
+import std.system
+
+def argumentEquals(index : usize, expected : string) : bool {
+    return match programArgument(index) {
+        Some(value) => value == expected,
+        None => false
+    }
+}
+
+def environmentEquals(
+result : Result[Option[EnvironmentValue], SystemError],
+expected : string
+) : bool {
+    return match move result {
+        Ok(option) => match move option {
+            Some(value) => environmentValueEquals(move value, expected),
+            None => false
+        },
+        Error(error) => false
+    }
+}
+
+def environmentValueEquals(
+value : EnvironmentValue,
+expected : string
+) : bool {
+    val matches : bool = value.view() == expected
+    delete value
+    return matches
+}
+
+def environmentMissing(
+result : Result[Option[EnvironmentValue], SystemError]
+) : bool {
+    return match move result {
+        Ok(option) => match move option {
+            Some(value) => rejectEnvironment(move value),
+            None => true
+        },
+        Error(error) => false
+    }
+}
+
+def rejectEnvironment(value : EnvironmentValue) : bool {
+    delete value
+    return false
+}
+
+def boolResult(result : Result[bool, SystemError]) : bool {
+    return match result {
+        Ok(value) => value,
+        Error(error) => false
+    }
+}
+
+def childMain() : int {
+    val argumentsValid : bool =
+    programArgumentCount() == usize(4) &&
+    argumentEquals(usize(1), "--child") &&
+    argumentEquals(usize(2), "argument avec espaces") &&
+    argumentEquals(usize(3), "béta")
+    val environmentValid : bool = environmentEquals(
+    environmentVariable("JANUS_PROCESS_TEST"),
+    "valeur-béta"
+    )
+    val marker : bool = boolResult(
+    writeTextFileAtomic("child-marker.txt", "ok")
+    )
+    println("child-out")
+    val standardErrorResult : Result[OutputStream, SystemError] =
+    standardError()
+    val errorWritten : bool = match move standardErrorResult {
+        Ok(stream) => writeChildError(move stream),
+        Error(error) => false
+    }
+    return if argumentsValid && environmentValid &&
+    marker && errorWritten { 23 } else { 24 }
+}
+
+def writeChildError(stream : OutputStream) : bool {
+    val written : bool = match stream.writeText("child-err\n") {
+        Ok(count) => count == usize(10),
+        Error(error) => false
+    }
+    val closed : bool = boolResult(stream.close())
+    delete stream
+    return written && closed
+}
+
+def outputMatches(result : ProcessResult) : bool {
+    return result.exitCode() == 23 &&
+    stringView(result.stdoutData(), result.stdoutSize()) ==
+    "child-out\n" &&
+    stringView(result.stderrData(), result.stderrSize()) ==
+    "child-err\n"
+}
+
+def markerMatches(
+result : Result[FileData, SystemError]
+) : bool {
+    return match move result {
+        Ok(data) => markerDataMatches(move data),
+        Error(error) => false
+    }
+}
+
+def markerDataMatches(data : FileData) : bool {
+    val matches : bool = data.view() == "ok"
+    delete data
+    return matches
+}
+
+def inspectChild(result : ProcessResult, root : string) : bool {
+    val output : bool = outputMatches(result)
+    delete result
+    val markerPath : Result[Path, SystemError] = joinPath(
+    root,
+    "child-marker.txt"
+    )
+    val marker : bool = match move markerPath {
+        Ok(path) => markerPathMatches(move path),
+        Error(error) => false
+    }
+    return output && marker
+}
+
+def markerPathMatches(path : Path) : bool {
+    val matches : bool = markerMatches(readFile(path.view()))
+    delete path
+    return matches
+}
+
+def processResult(
+result : Result[ProcessResult, SystemError],
+root : string
+) : bool {
+    return match move result {
+        Ok(process) => inspectChild(move process, root),
+        Error(error) => false
+    }
+}
+
+def missingProcess(
+result : Result[ProcessResult, SystemError]
+) : bool {
+    return match move result {
+        Ok(process) => rejectProcess(move process),
+        Error(error) => error.category == SystemErrorCategory.NotFound
+    }
+}
+
+def refusedProcess(
+result : Result[ProcessResult, SystemError]
+) : bool {
+    return match move result {
+        Ok(process) => rejectProcess(move process),
+        Error(error) => true
+    }
+}
+
+def rejectProcess(process : ProcessResult) : bool {
+    delete process
+    return false
+}
+
+def runParent(root : Path, executable : string) : int {
+    val arguments : Array[string] = new Array[string](usize(3))
+    arguments.push("--child")
+    arguments.push("argument avec espaces")
+    arguments.push("béta")
+    println(processResult(
+    runProcess(executable, arguments, root.view(), true, true),
+    root.view()
+    ))
+    delete arguments
+    val missingArguments : Array[string] =
+    new Array[string](usize(0))
+    println(missingProcess(runProcess(
+    "janus-process-definitely-missing-6d52b",
+    missingArguments,
+    "",
+    true,
+    true
+    )))
+    delete missingArguments
+    val refusedArguments : Array[string] =
+    new Array[string](usize(0))
+    println(refusedProcess(runProcess(
+    root.view(),
+    refusedArguments,
+    "",
+    true,
+    true
+    )))
+    delete refusedArguments
+    val markerPath : Result[Path, SystemError] =
+    joinPath(root.view(), "child-marker.txt")
+    val removedMarker : bool = match move markerPath {
+        Ok(path) => removeMarker(move path),
+        Error(error) => false
+    }
+    println(removedMarker)
+    println(boolResult(removeDirectory(root.view())))
+    delete root
+    return 0
+}
+
+def removeMarker(path : Path) : bool {
+    val removed : bool = boolResult(removeFile(path.view()))
+    delete path
+    return removed
+}
+
+def parentTemporary(
+result : Result[Path, SystemError],
+executable : string
+) : int {
+    return match move result {
+        Ok(root) => runParent(move root, executable),
+        Error(error) => 1
+    }
+}
+
+def main() : int {
+    if programArgumentCount() > usize(1) &&
+    argumentEquals(usize(1), "--child") {
+        return childMain()
+    }
+    println(programArgumentCount() >= usize(1))
+    println(environmentEquals(
+    environmentVariable("JANUS_PROCESS_TEST"),
+    "valeur-béta"
+    ))
+    println(environmentMissing(
+    environmentVariable("JANUS_PROCESS_MISSING_6D52B")
+    ))
+    return match programArgument(usize(0)) {
+        Some(executable) => parentTemporary(
+        createTemporaryDirectory("janus-process"),
+        executable
+        ),
+        None => 1
+    }
+}

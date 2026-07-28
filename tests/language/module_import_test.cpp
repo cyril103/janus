@@ -221,7 +221,8 @@ int main() {
          "for obtains an iterator directly from Iterable Array values");
   expect(ir.find("call void %action.code") != std::string::npos,
          "Array.foreach invokes Unit closures indirectly");
-  expect(ir.find("define i32 @main()") != std::string::npos,
+  expect(ir.find("define i32 @main(i32 %argc, ptr %argv)") !=
+             std::string::npos,
          "the merged program produces its entry point");
 
   const janus::ast::Program algebraic_program =
