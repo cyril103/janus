@@ -904,6 +904,16 @@ if(BUILD_TESTING)
             "${PROJECT_SOURCE_DIR}/tests/documentation/run_stale_public_surface.cmake"
     )
     add_test(
+        NAME docs.stdlib_audit
+        COMMAND
+            "${Python3_EXECUTABLE}"
+            -m unittest
+            discover
+            -s "${PROJECT_SOURCE_DIR}/tests/documentation"
+            -p "test_stdlib_audit.py"
+            -v
+    )
+    add_test(
         NAME docs.canonical_output
         COMMAND
             ${CMAKE_COMMAND}
