@@ -217,3 +217,34 @@ implémentation.
 - Les collections et itérateurs 0.6.1 reprennent ces mêmes invariants.
 - Un futur système général de références pourra remplacer l'emprunt contextuel
   sans autoriser davantage de copies implicites.
+
+## Complexité et nettoyage des séquences en 0.7.10
+
+Le parcours produit par `Array.intoIterator()` transfère désormais chaque
+emplacement une seule fois, dans l'ordre d'insertion. `Iterator.next()` reste
+O(1), le parcours complet est O(n) et la destruction anticipée est O(r), où
+`r` est le nombre d'éléments non visités. Les emplacements déjà transférés sont
+marqués logiquement hors du tableau avant sa destruction et ne sont jamais
+nettoyés une seconde fois.
+
+`Iterator.filter` ignore les séries de valeurs refusées avec une boucle, et
+`flatMap` saute de la même manière les sous-itérateurs vides. Leur utilisation
+de pile est donc bornée indépendamment du nombre de rejets ou de séquences
+vides. Chaque valeur refusée, chaque sous-itérateur terminé et chaque source
+abandonnée reste détruit exactement une fois.
+
+Les callbacks synchrones remis à `Array.withValue`, `foreach`, `map`, `filter`,
+`find`, `fold`, `any`, `all`, `count` et `Iterator.fold` restent empruntés :
+l'appelant conserve une closure nommée et doit la libérer. Les adaptateurs
+`Iterator.map`, `filter` et `flatMap`, au contraire, stockent leur closure et
+la détruisent avec leur état. Les fallbacks d'`Option` et `Result` conservent
+leur état armé jusqu'à ce que la branche active ait explicitement transféré ou
+détruit la valeur, car une méthode `consume` appelée depuis une branche ne peut
+pas garantir aujourd'hui la fusion sûre des états de propriété.
+
+`Builder.result()` reste volontairement non consommant : `ArrayBuilder` se
+réinitialise avec un tableau vide après transfert du résultat et peut être
+réutilisé sans changement de surface publique.
+
+La mesure avant/après et sa commande de reproduction sont versionnées dans le
+[rapport de benchmark 0.7.10](../benchmarks/stdlib-core-0.7.10.md).

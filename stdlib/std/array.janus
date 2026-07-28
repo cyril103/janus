@@ -21,13 +21,18 @@ private var index : usize
 }
 
 private class ArrayIntoIteratorState[T](
-private val source : Array[T]
+private val source : Array[T],
+private var index : usize
 ) {
     def next() : Option[T] {
-        if source.isEmpty() {
+        if index >= source.size() {
             return Option.None[T]()
         }
-        return Option.Some[T](source.remove(usize(0)))
+        val current : usize = index
+        index = index + usize(1)
+        return Option.Some[T](
+        source.takeForConsumingIterator(current)
+        )
     }
 
     def dispose() : Unit {
@@ -35,6 +40,7 @@ private val source : Array[T]
     }
 
     destructor {
+        source.releaseConsumingIteratorFrom(index)
         delete source
     }
 }
@@ -89,11 +95,26 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
 
     consume def intoIterator() : Iterator[T] {
         val state : ArrayIntoIteratorState[T] =
-        new ArrayIntoIteratorState[T](move this)
+        new ArrayIntoIteratorState[T](move this, usize(0))
         return new Iterator[T](
         () => state.next(),
         () => state.dispose()
         )
+    }
+
+    internal def takeForConsumingIterator(index : usize) : T {
+        val value : T = data.load(index)
+        return move value
+    }
+
+    internal def releaseConsumingIteratorFrom(first : usize) : Unit {
+        var cursor : usize = length
+        while cursor > first {
+            cursor = cursor - usize(1)
+            val value : T = data.load(cursor)
+            delete value
+        }
+        length = usize(0)
     }
 
     def get(index : usize) : T {

@@ -37,19 +37,15 @@ private val source : Iterator[T],
 private val predicate : (T) => bool
 ) {
     def next() : Option[T] {
-        val value : Option[T] = source.next()
-        return match move value {
-            Some(item) => this.select(move item),
-            None => Option.None[T]()
+        var candidate : Option[T] = source.next()
+        while match candidate {
+            Some(item) => !predicate(item),
+            None => false
+        } {
+            delete candidate
+            candidate = source.next()
         }
-    }
-
-    private def select(item : T) : Option[T] {
-        if predicate(item) {
-            return Option.Some[T](move item)
-        }
-        delete item
-        return this.next()
+        return move candidate
     }
 
     def dispose() : Unit {
@@ -157,31 +153,40 @@ private var current : Iterator[B]
 ) {
     private var hasCurrent : bool = false
 
-    private def start(nextIterator : Iterator[B]) : Option[B] {
+    private def start(nextIterator : Iterator[B]) : bool {
         current = move nextIterator
         hasCurrent = true
-        return this.next()
+        return true
+    }
+
+    private def startOuter(value : Option[A]) : bool {
+        return match move value {
+            Some(item) => this.start(transform(move item)),
+            None => false
+        }
     }
 
     def next() : Option[B] {
-        if hasCurrent {
-            val value : Option[B] = current.next()
-            val available : bool = match value {
-                Some(item) => true,
-                None => false
+        while true {
+            if hasCurrent {
+                val value : Option[B] = current.next()
+                val available : bool = match value {
+                    Some(item) => true,
+                    None => false
+                }
+                if available {
+                    return move value
+                }
+                delete current
+                hasCurrent = false
             }
-            if available {
-                return value
-            }
-            delete current
-            hasCurrent = false
-        }
 
-        val outer : Option[A] = source.next()
-        return match move outer {
-            Some(item) => this.start(transform(move item)),
-            None => Option.None[B]()
+            val outer : Option[A] = source.next()
+            if !this.startOuter(move outer) {
+                return Option.None[B]()
+            }
         }
+        return Option.None[B]()
     }
 
     def dispose() : Unit {

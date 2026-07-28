@@ -1,0 +1,79 @@
+import std.array
+import std.iterator
+
+var releases : int = 0
+
+class Resource(val id : int) {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+def emptyIterator(value : int) : Iterator[int] {
+    val empty : Array[int] = new Array[int](usize(0))
+    return empty.intoIterator()
+}
+
+def rejectCopyValues() : int {
+    val values : Array[int] = new Array[int](usize(20000))
+    var value : int = 0
+    while value < 20000 {
+        values.push(value)
+        value = value + 1
+    }
+    return values.intoIterator()
+    .filter((item : int) => item < 0)
+    .fold[int](0, (total : int, item : int) => total + item)
+}
+
+def skipEmptyInnerIterators() : int {
+    val values : Array[int] = new Array[int](usize(10000))
+    var value : int = 0
+    while value < 10000 {
+        values.push(value)
+        value = value + 1
+    }
+    return values.intoIterator()
+    .flatMap[int]((item : int) => emptyIterator(item))
+    .fold[int](0, (total : int, item : int) => total + item)
+}
+
+def rejectOwnedValues() : Unit {
+    val values : Array[Resource] =
+    new Array[Resource](usize(2048))
+    var id : int = 0
+    while id < 2048 {
+        val value : Resource = new Resource(id)
+        values.push(move value)
+        id = id + 1
+    }
+    val total : int = values.intoIterator()
+    .filter((item : Resource) => item.id < 0)
+    .fold[int](0, (sum : int, item : Resource) => sum + item.id)
+    println(total)
+}
+
+def stopBeforeFirstOwnedValue() : Unit {
+    val values : Array[Resource] =
+    new Array[Resource](usize(16))
+    var id : int = 0
+    while id < 16 {
+        val value : Resource = new Resource(id)
+        values.push(move value)
+        id = id + 1
+    }
+    val total : int = values.intoIterator()
+    .take(usize(0))
+    .fold[int](0, (sum : int, item : Resource) => sum + item.id)
+    println(total)
+}
+
+def main() : int {
+    println(rejectCopyValues())
+    println(skipEmptyInnerIterators())
+    rejectOwnedValues()
+    println(releases)
+    stopBeforeFirstOwnedValue()
+    println(releases)
+    return 0
+}
