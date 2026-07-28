@@ -5,6 +5,17 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [0.7.10] - Non publiée
 
+### Collections hachées et dérivations
+
+- sondage des doublons et remplacements avant toute croissance afin d'éviter
+  les rehashs sans nouvelle entrée ;
+- compaction à capacité constante lorsque les tombstones, plutôt que les
+  entrées vivantes, franchissent le seuil de charge de 75 % ;
+- calcul du seuil partagé sans multiplication susceptible de déborder et
+  égalité primitive alignée sur la dérivation structurelle ;
+- ajout d'une suite commune map/set, de chemins propriétaires sous ASan,
+  d'un test de panique et d'un benchmark versionné.
+
 ### Cœur fonctionnel et séquences
 
 - passage de `Array.intoIterator()` à un parcours linéaire qui transfère les

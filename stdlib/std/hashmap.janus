@@ -462,10 +462,6 @@ private val hashing : H
 
     def put(key : K, value : V) : Option[V] {
         this.initializeSlots()
-        if hashTableShouldGrow(length, deletedCount, slotCapacity) {
-            this.resize(slotCapacity * usize(2))
-        }
-
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
         var firstDeleted : usize = usize(0)
         var hasDeleted : bool = false
@@ -498,6 +494,20 @@ private val hashing : H
             move key,
             move value
             )
+        }
+        if hashTableShouldGrow(length, deletedCount, slotCapacity) {
+            val requested : usize =
+            if hashTableShouldGrow(
+            length,
+            usize(0),
+            slotCapacity
+            ) {
+                slotCapacity * usize(2)
+            } else {
+                slotCapacity
+            }
+            this.resize(requested)
+            return this.put(move key, move value)
         }
         if destination < slotCapacity {
             slots.set(

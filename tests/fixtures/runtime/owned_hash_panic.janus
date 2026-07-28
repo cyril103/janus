@@ -1,0 +1,37 @@
+import std.hashing
+import std.hashmap
+
+class Resource(val id : int) {
+    destructor {
+        println(id)
+    }
+}
+
+class CollidingHashing() extends Hashing[Resource] {
+    def hash(value : Resource) : usize {
+        return usize(0)
+    }
+
+    def equals(left : Resource, right : Resource) : bool {
+        return left.id == right.id
+    }
+}
+
+def main() : int {
+    val hashing : CollidingHashing = new CollidingHashing()
+    defer delete hashing
+    val values : HashMap[Resource, Resource, CollidingHashing] =
+    new HashMap[Resource, Resource, CollidingHashing](usize(8), hashing)
+    defer delete values
+
+    var id : int = 1
+    while id <= 3 {
+        val key : Resource = new Resource(id)
+        val value : Resource = new Resource(id + 100)
+        val previous : Option[Resource] =
+        values.put(move key, move value)
+        delete previous
+        id = id + 1
+    }
+    panic("owned hash failure\n")
+}

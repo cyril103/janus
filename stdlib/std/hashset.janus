@@ -90,15 +90,7 @@ private val hashing : H
         return false
     }
 
-    private def restoreOccupiedAsNotEmpty(
-    index : usize,
-    existing : T
-    ) : bool {
-        slots.set(index, SetSlot.Occupied[T](move existing))
-        return false
-    }
-
-    private def restoreOccupiedAsNotDeleted(
+    private def restoreOccupiedFalse(
     index : usize,
     existing : T
     ) : bool {
@@ -123,7 +115,7 @@ private val hashing : H
         return match move slot {
             Empty => true,
             Occupied(existing) =>
-            this.restoreOccupiedAsNotEmpty(index, move existing),
+            this.restoreOccupiedFalse(index, move existing),
             Deleted => this.restoreDeleted(index)
         }
     }
@@ -135,7 +127,7 @@ private val hashing : H
             Deleted => this.restoreDeleted(index) || true,
             Empty => false,
             Occupied(existing) =>
-            this.restoreOccupiedAsNotDeleted(index, move existing)
+            this.restoreOccupiedFalse(index, move existing)
         }
     }
 
@@ -246,10 +238,6 @@ private val hashing : H
 
     def add(value : T) : bool {
         this.initializeSlots()
-        if hashTableShouldGrow(length, deletedCount, slotCapacity) {
-            this.resize(slotCapacity * usize(2))
-        }
-
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
         var firstDeleted : usize = usize(0)
         var hasDeleted : bool = false
@@ -278,6 +266,20 @@ private val hashing : H
         if duplicate {
             delete value
             return false
+        }
+        if hashTableShouldGrow(length, deletedCount, slotCapacity) {
+            val requested : usize =
+            if hashTableShouldGrow(
+            length,
+            usize(0),
+            slotCapacity
+            ) {
+                slotCapacity * usize(2)
+            } else {
+                slotCapacity
+            }
+            this.resize(requested)
+            return this.add(move value)
         }
         if destination < slotCapacity {
             slots.set(destination, SetSlot.Occupied[T](move value))

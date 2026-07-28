@@ -25,7 +25,7 @@ class IntHashing() extends Hashing[int] {
     }
 
     def equals(left : int, right : int) : bool {
-        return left == right
+        return __derivedEquals[int](left, right)
     }
 }
 
@@ -35,7 +35,7 @@ class USizeHashing() extends Hashing[usize] {
     }
 
     def equals(left : usize, right : usize) : bool {
-        return left == right
+        return __derivedEquals[usize](left, right)
     }
 }
 
@@ -45,7 +45,7 @@ class ByteHashing() extends Hashing[byte] {
     }
 
     def equals(left : byte, right : byte) : bool {
-        return left == right
+        return __derivedEquals[byte](left, right)
     }
 }
 
@@ -55,7 +55,7 @@ class CharHashing() extends Hashing[char] {
     }
 
     def equals(left : char, right : char) : bool {
-        return left == right
+        return __derivedEquals[char](left, right)
     }
 }
 
@@ -65,6 +65,6 @@ class BoolHashing() extends Hashing[bool] {
     }
 
     def equals(left : bool, right : bool) : bool {
-        return left == right
+        return __derivedEquals[bool](left, right)
     }
 }

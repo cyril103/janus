@@ -1,0 +1,180 @@
+import std.hashing
+import std.hashmap
+import std.hashset
+
+class CountingHashing(
+private var hashes : int,
+private var equalities : int
+) extends Hashing[int] {
+    def hash(value : int) : usize {
+        hashes = hashes + 1
+        return usize(0)
+    }
+
+    def equals(left : int, right : int) : bool {
+        equalities = equalities + 1
+        return left == right
+    }
+
+    def reset() : Unit {
+        hashes = 0
+        equalities = 0
+    }
+
+    def hashCount() : int {
+        return hashes
+    }
+}
+
+class ExplicitIntHashing() extends Hashing[int] {
+    def hash(value : int) : usize {
+        return usize(value)
+    }
+
+    def equals(left : int, right : int) : bool {
+        return left == right
+    }
+}
+
+struct DerivedKey(val value : int)
+derives Copy, Equality, Hashing, Debug {}
+
+def fillSet(
+values : HashSet[int, CountingHashing],
+first : int,
+count : int
+) : Unit {
+    var offset : int = 0
+    while offset < count {
+        values.add(first + offset)
+        offset = offset + 1
+    }
+}
+
+def fillMap(
+values : HashMap[int, int, CountingHashing],
+first : int,
+count : int
+) : Unit {
+    var offset : int = 0
+    while offset < count {
+        val key : int = first + offset
+        values.put(key, key * 10)
+        offset = offset + 1
+    }
+}
+
+def exerciseDuplicateAndReplacement() : Unit {
+    val hashing : CountingHashing = new CountingHashing(0, 0)
+    defer delete hashing
+
+    val set : HashSet[int, CountingHashing] =
+    new HashSet[int, CountingHashing](usize(8), hashing)
+    defer delete set
+    fillSet(set, 0, 5)
+    hashing.reset()
+    println(set.add(2))
+    println(hashing.hashCount())
+
+    val map : HashMap[int, int, CountingHashing] =
+    new HashMap[int, int, CountingHashing](usize(8), hashing)
+    defer delete map
+    fillMap(map, 0, 5)
+    hashing.reset()
+    val previous : Option[int] = map.put(2, 200)
+    println(match previous {
+        Some(value) => value,
+        None => -1
+    })
+    println(hashing.hashCount())
+}
+
+def exerciseTombstoneCompaction() : Unit {
+    val hashing : CountingHashing = new CountingHashing(0, 0)
+    defer delete hashing
+
+    val set : HashSet[int, CountingHashing] =
+    new HashSet[int, CountingHashing](usize(8), hashing)
+    defer delete set
+    fillSet(set, 0, 5)
+    var key : int = 0
+    while key < 5 {
+        set.remove(key)
+        key = key + 1
+    }
+    set.add(10)
+    fillSet(set, 11, 4)
+    hashing.reset()
+    println(set.add(15))
+    println(hashing.hashCount())
+
+    val map : HashMap[int, int, CountingHashing] =
+    new HashMap[int, int, CountingHashing](usize(8), hashing)
+    defer delete map
+    fillMap(map, 0, 5)
+    key = 0
+    while key < 5 {
+        map.remove(key)
+        key = key + 1
+    }
+    fillMap(map, 10, 5)
+    hashing.reset()
+    map.put(15, 150)
+    println(hashing.hashCount())
+}
+
+def exerciseDerivedParity() : Unit {
+    val explicit : ExplicitIntHashing = new ExplicitIntHashing()
+    defer delete explicit
+    val derived : DerivedHashing[DerivedKey] =
+    new DerivedHashing[DerivedKey]()
+    defer delete derived
+
+    val explicitSet : HashSet[int, ExplicitIntHashing] =
+    new HashSet[int, ExplicitIntHashing](usize(8), explicit)
+    defer delete explicitSet
+    val derivedSet : HashSet[DerivedKey, DerivedHashing[DerivedKey]] =
+    new HashSet[DerivedKey, DerivedHashing[DerivedKey]](usize(8), derived)
+    defer delete derivedSet
+
+    var value : int = 0
+    while value < 32 {
+        explicitSet.add(value % 11)
+        derivedSet.add(new DerivedKey(value % 11))
+        value = value + 1
+    }
+    println(explicitSet.size() == derivedSet.size())
+    println(
+    explicitSet.contains(7) &&
+    derivedSet.contains(new DerivedKey(7))
+    )
+
+    val explicitMap : HashMap[int, int, ExplicitIntHashing] =
+    new HashMap[int, int, ExplicitIntHashing](usize(8), explicit)
+    defer delete explicitMap
+    val derivedMap :
+    HashMap[DerivedKey, int, DerivedHashing[DerivedKey]] =
+    new HashMap[DerivedKey, int, DerivedHashing[DerivedKey]](
+    usize(8),
+    derived
+    )
+    defer delete derivedMap
+    value = 0
+    while value < 32 {
+        explicitMap.put(value % 11, value)
+        derivedMap.put(new DerivedKey(value % 11), value)
+        value = value + 1
+    }
+    println(explicitMap.size() == derivedMap.size())
+    println(
+    explicitMap.containsKey(9) &&
+    derivedMap.containsKey(new DerivedKey(9))
+    )
+}
+
+def main() : int {
+    exerciseDuplicateAndReplacement()
+    exerciseTombstoneCompaction()
+    exerciseDerivedParity()
+    return 0
+}

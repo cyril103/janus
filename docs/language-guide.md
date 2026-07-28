@@ -543,6 +543,14 @@ collection. `HashMap.getOption` et les itérateurs observants `iterator()`,
 `entries()`, `keys()` et `values()` restent réservés aux types retournés qui
 satisfont `Copy`.
 
+Les deux collections utilisent le même sondage linéaire et le même seuil de
+charge de 75 %. Une insertion inspecte d'abord la table : un doublon de set ou
+un remplacement de map ne redimensionne donc jamais la table. Lorsque le seuil
+est franchi uniquement à cause des tombstones, la table est compactée à
+capacité constante ; elle double seulement si les entrées vivantes imposent la
+croissance. Les invariants, la complexité et les transferts propriétaires sont
+détaillés dans le [design des collections hachées](design/hash-collections.md).
+
 ### Observer ou consommer un parcours
 
 `iterator()` observe le conteneur et produit des copies ; il est donc
