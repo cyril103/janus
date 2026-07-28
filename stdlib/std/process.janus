@@ -1,3 +1,4 @@
+/// Expose les arguments, l’environnement et l’exécution de processus.
 module std.process
 
 import std.array
@@ -66,10 +67,12 @@ context : string
     )
 }
 
+/// Exécute l’opération publique `programArgumentCount`.
 def programArgumentCount() : usize {
     return janus_process_argument_count()
 }
 
+/// Exécute l’opération publique `programArgument`.
 def programArgument(index : usize) : Option[string] {
     val data : Ptr[byte] = janus_process_argument_data(index)
     if data == null[byte]() {
@@ -80,7 +83,9 @@ def programArgument(index : usize) : Option[string] {
     )
 }
 
+/// Représente le type public `EnvironmentValue`.
 class EnvironmentValue(private var nativeText : isize) {
+    /// Exécute l’opération publique `view`.
     def view() : string {
         return stringView(
         janus_process_text_data(nativeText),
@@ -88,6 +93,7 @@ class EnvironmentValue(private var nativeText : isize) {
         )
     }
 
+    /// Retourne la longueur de la valeur d’environnement.
     def size() : usize {
         return janus_process_text_size(nativeText)
     }
@@ -98,6 +104,7 @@ class EnvironmentValue(private var nativeText : isize) {
     }
 }
 
+/// Exécute l’opération publique `environmentVariable`.
 def environmentVariable(
 name : string
 ) : Result[Option[EnvironmentValue], SystemError] {
@@ -120,23 +127,29 @@ name : string
     )
 }
 
+/// Représente le type public `ProcessResult`.
 class ProcessResult(private var nativeResult : isize) {
+    /// Exécute l’opération publique `exitCode`.
     def exitCode() : int {
         return janus_process_result_exit_code(nativeResult)
     }
 
+    /// Exécute l’opération publique `stdoutData`.
     def stdoutData() : Ptr[byte] {
         return janus_process_result_stdout_data(nativeResult)
     }
 
+    /// Exécute l’opération publique `stdoutSize`.
     def stdoutSize() : usize {
         return janus_process_result_stdout_size(nativeResult)
     }
 
+    /// Exécute l’opération publique `stderrData`.
     def stderrData() : Ptr[byte] {
         return janus_process_result_stderr_data(nativeResult)
     }
 
+    /// Exécute l’opération publique `stderrSize`.
     def stderrSize() : usize {
         return janus_process_result_stderr_size(nativeResult)
     }
@@ -147,6 +160,7 @@ class ProcessResult(private var nativeResult : isize) {
     }
 }
 
+/// Exécute l’opération publique `runProcess`.
 def runProcess(
 executable : string,
 arguments : Array[string],

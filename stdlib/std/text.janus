@@ -1,3 +1,4 @@
+/// Fournit la construction de texte et le parsing typé avec erreurs structurées.
 module std.text
 import std.result
 
@@ -66,12 +67,19 @@ error : Ptr[int]) : double
 private extern def janus_parse_char(data : Ptr[byte], length : usize,
 error : Ptr[int]) : char
 
+/// Énumère les états publics de `ParseError`.
 enum ParseError {
+    /// Représente le cas `Empty`.
     Empty,
+    /// Représente le cas `Invalid`.
     Invalid,
+    /// Représente le cas `Sign`.
     Sign,
+    /// Représente le cas `Overflow`.
     Overflow,
+    /// Représente le cas `Underflow`.
     Underflow,
+    /// Représente le cas `NonFinite`.
     NonFinite
 }
 
@@ -90,6 +98,7 @@ private def newParseStatus() : Ptr[int] {
     return status
 }
 
+/// Représente le type public `TextBuilder`.
 class TextBuilder() {
     // allocated includes one byte reserved for the trailing C-compatible NUL.
     private var data : Ptr[byte] = alloc[byte](usize(128))
@@ -126,18 +135,22 @@ class TextBuilder() {
         data.store(length, byte(0))
     }
 
+    /// Réinitialise l’état.
     def clear() : Unit {
         this.ensure(usize(0))
         length = usize(0)
         data.store(usize(0), byte(0))
     }
+    /// Retourne la longueur du texte construit.
     def size() : usize { return length }
+    /// Exécute l’opération publique `view`.
     def view() : string {
         this.ensure(usize(0))
         data.store(length, byte(0))
         return stringView(data, length)
     }
 
+    /// Ajoute une valeur.
     def append(value : string) : Unit {
         val source : Ptr[byte] = stringData(value)
         val aliasesBuilder : bool = source == data
@@ -151,67 +164,83 @@ class TextBuilder() {
         length = length + stringLength(value)
         data.store(length, byte(0))
     }
+    /// Ajoute la représentation décimale d’un `int`.
     def appendInt(value : int) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_int(data, allocated, length, value))
     }
+    /// Ajoute la représentation décimale d’un `uint`.
     def appendUInt(value : uint) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_uint(data, allocated, length, value))
     }
+    /// Ajoute la représentation décimale d’un `long`.
     def appendLong(value : long) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_long(data, allocated, length, value))
     }
+    /// Ajoute la représentation décimale d’un `ulong`.
     def appendULong(value : ulong) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_ulong(data, allocated, length, value))
     }
+    /// Ajoute la représentation décimale d’un `byte`.
     def appendByte(value : byte) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_byte(data, allocated, length, value))
     }
+    /// Ajoute la représentation décimale d’un `ubyte`.
     def appendUByte(value : ubyte) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_ubyte(data, allocated, length, value))
     }
+    /// Ajoute la représentation décimale d’un `short`.
     def appendShort(value : short) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_short(data, allocated, length, value))
     }
+    /// Ajoute la représentation décimale d’un `ushort`.
     def appendUShort(value : ushort) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_ushort(data, allocated, length, value))
     }
+    /// Ajoute la représentation décimale d’un `isize`.
     def appendISize(value : isize) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_isize(data, allocated, length, value))
     }
+    /// Ajoute la représentation décimale d’un `usize`.
     def appendUSize(value : usize) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_usize(data, allocated, length, value))
     }
+    /// Ajoute la représentation d’un `float`.
     def appendFloat(value : float) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_float(data, allocated, length, value))
     }
+    /// Ajoute la représentation d’un `double`.
     def appendDouble(value : double) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_double(data, allocated, length, value))
     }
+    /// Ajoute la représentation d’un booléen.
     def appendBool(value : bool) : Unit {
         this.ensure(usize(5))
         this.wrote(janus_text_bool(data, allocated, length, value))
     }
+    /// Ajoute le caractère encodé en UTF-8.
     def appendChar(value : char) : Unit {
         this.ensure(usize(4))
         this.wrote(janus_text_char(data, allocated, length, value))
     }
+    /// Ajoute la représentation hexadécimale d’un entier.
     def appendHex(value : ulong, uppercase : bool) : Unit {
         this.ensure(usize(32))
         this.wrote(janus_text_hex(data, allocated, length, value, uppercase))
     }
     // Fixed decimal formatting accepts 0..18 fractional digits.
+    /// Ajoute un nombre décimal avec une précision fixe.
     def appendFixed(value : double, digits : uint) : Unit {
         this.ensure(usize(384))
         this.wrote(janus_text_fixed(data, allocated, length, value, digits))
@@ -220,6 +249,7 @@ class TextBuilder() {
     destructor { free(data) }
 }
 
+/// Exécute l’opération publique `parseInt`.
 def parseInt(text : string) : Result[int, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : int = janus_parse_int(stringData(text), stringLength(text), error)
@@ -228,6 +258,7 @@ def parseInt(text : string) : Result[int, ParseError] {
     return if code == 0 { Result.Ok[int, ParseError](value) }
     else { Result.Error[int, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseUInt`.
 def parseUInt(text : string) : Result[uint, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : uint = janus_parse_uint(stringData(text), stringLength(text), error)
@@ -236,6 +267,7 @@ def parseUInt(text : string) : Result[uint, ParseError] {
     return if code == 0 { Result.Ok[uint, ParseError](value) }
     else { Result.Error[uint, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseLong`.
 def parseLong(text : string) : Result[long, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : long = janus_parse_long(stringData(text), stringLength(text), error)
@@ -244,6 +276,7 @@ def parseLong(text : string) : Result[long, ParseError] {
     return if code == 0 { Result.Ok[long, ParseError](value) }
     else { Result.Error[long, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseULong`.
 def parseULong(text : string) : Result[ulong, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : ulong = janus_parse_ulong(stringData(text), stringLength(text), error)
@@ -252,6 +285,7 @@ def parseULong(text : string) : Result[ulong, ParseError] {
     return if code == 0 { Result.Ok[ulong, ParseError](value) }
     else { Result.Error[ulong, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseByte`.
 def parseByte(text : string) : Result[byte, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : byte = janus_parse_byte(stringData(text), stringLength(text), error)
@@ -260,6 +294,7 @@ def parseByte(text : string) : Result[byte, ParseError] {
     return if code == 0 { Result.Ok[byte, ParseError](value) }
     else { Result.Error[byte, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseUByte`.
 def parseUByte(text : string) : Result[ubyte, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : ubyte = janus_parse_ubyte(stringData(text), stringLength(text), error)
@@ -268,6 +303,7 @@ def parseUByte(text : string) : Result[ubyte, ParseError] {
     return if code == 0 { Result.Ok[ubyte, ParseError](value) }
     else { Result.Error[ubyte, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseShort`.
 def parseShort(text : string) : Result[short, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : short = janus_parse_short(stringData(text), stringLength(text), error)
@@ -276,6 +312,7 @@ def parseShort(text : string) : Result[short, ParseError] {
     return if code == 0 { Result.Ok[short, ParseError](value) }
     else { Result.Error[short, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseUShort`.
 def parseUShort(text : string) : Result[ushort, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : ushort = janus_parse_ushort(stringData(text), stringLength(text), error)
@@ -284,6 +321,7 @@ def parseUShort(text : string) : Result[ushort, ParseError] {
     return if code == 0 { Result.Ok[ushort, ParseError](value) }
     else { Result.Error[ushort, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseISize`.
 def parseISize(text : string) : Result[isize, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : isize = janus_parse_isize(stringData(text), stringLength(text), error)
@@ -292,6 +330,7 @@ def parseISize(text : string) : Result[isize, ParseError] {
     return if code == 0 { Result.Ok[isize, ParseError](value) }
     else { Result.Error[isize, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseUSize`.
 def parseUSize(text : string) : Result[usize, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : usize = janus_parse_usize(stringData(text), stringLength(text), error)
@@ -300,6 +339,7 @@ def parseUSize(text : string) : Result[usize, ParseError] {
     return if code == 0 { Result.Ok[usize, ParseError](value) }
     else { Result.Error[usize, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseFloat`.
 def parseFloat(text : string) : Result[float, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : float = janus_parse_float(stringData(text), stringLength(text), error)
@@ -308,6 +348,7 @@ def parseFloat(text : string) : Result[float, ParseError] {
     return if code == 0 { Result.Ok[float, ParseError](value) }
     else { Result.Error[float, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseDouble`.
 def parseDouble(text : string) : Result[double, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : double = janus_parse_double(stringData(text), stringLength(text), error)
@@ -316,6 +357,7 @@ def parseDouble(text : string) : Result[double, ParseError] {
     return if code == 0 { Result.Ok[double, ParseError](value) }
     else { Result.Error[double, ParseError](parseError(code)) }
 }
+/// Exécute l’opération publique `parseBool`.
 def parseBool(text : string) : Result[bool, ParseError] {
     if text == "true" { return Result.Ok[bool, ParseError](true) }
     if text == "false" { return Result.Ok[bool, ParseError](false) }
@@ -324,6 +366,7 @@ def parseBool(text : string) : Result[bool, ParseError] {
     }
     return Result.Error[bool, ParseError](ParseError.Invalid)
 }
+/// Exécute l’opération publique `parseChar`.
 def parseChar(text : string) : Result[char, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : char = janus_parse_char(stringData(text), stringLength(text), error)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -12,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "audit_stdlib.py"
 REPORT = ROOT / "docs" / "audits" / "stdlib-0.7.10.md"
 PUBLIC_SURFACE = ROOT / "docs" / "public-surface-0.5.json"
+STDLIB_REFERENCE = ROOT / "docs" / "stdlib-reference.md"
 
 
 def load_audit_module():
@@ -59,6 +61,39 @@ class StdlibAuditTests(unittest.TestCase):
             stale = Path(directory) / "stdlib-audit.md"
             stale.write_text(expected + "\n<!-- stale -->\n", encoding="utf-8")
             self.assertFalse(self.audit.report_is_current(stale, expected))
+
+    def test_every_module_has_success_and_structured_error_doctests(self):
+        text = STDLIB_REFERENCE.read_text(encoding="utf-8")
+        sections = {}
+        for match in re.finditer(
+            r"^### `(?P<module>std(?:\.[a-z_]+)+)`\n"
+            r"(?P<body>.*?)(?=^### `std|\Z)",
+            text,
+            flags=re.MULTILINE | re.DOTALL,
+        ):
+            sections[match.group("module")] = match.group("body")
+
+        expected_modules = {
+            entry["name"] for entry in self.inventory["stdlib_modules"]
+        }
+        self.assertEqual(expected_modules, set(sections))
+        for module, body in sections.items():
+            with self.subTest(module=module):
+                self.assertIn("// doctest: doctest", body)
+
+        structured_errors = {
+            "std.option",
+            "std.result",
+            "std.system",
+            "std.path",
+            "std.fs",
+            "std.io",
+            "std.process",
+            "std.text",
+        }
+        for module in structured_errors:
+            with self.subTest(structured_error_module=module):
+                self.assertIn("// doctest: compile_fail=", sections[module])
 
 
 if __name__ == "__main__":

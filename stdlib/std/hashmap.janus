@@ -1,3 +1,4 @@
+/// Fournit une table associative propriétaire et ses vues d’itération.
 module std.hashmap
 import std.array
 import std.builder
@@ -6,7 +7,13 @@ import std.hashing
 import std.iterator
 import std.option
 
-struct MapEntry[K, V](val key : K, val value : V) {
+/// Représente le type public `MapEntry`.
+struct MapEntry[K, V](
+/// Expose le membre public `key`.
+val key : K,
+/// Expose le membre public `value`.
+val value : V
+) {
     internal consume def insertInto[H <: Hashing[K]](
     destination : HashMap[K, V, H]
     ) : Unit {
@@ -15,11 +22,13 @@ struct MapEntry[K, V](val key : K, val value : V) {
         delete previous
     }
 
+    /// Exécute l’opération publique `intoKey`.
     consume def intoKey() : K {
         delete value
         return move key
     }
 
+    /// Exécute l’opération publique `intoValue`.
     consume def intoValue() : V {
         delete key
         return move value
@@ -126,6 +135,7 @@ private var index : usize
     }
 }
 
+/// Représente le type public `HashMap`.
 class HashMap[K, V, H <: Hashing[K]](
 initialCapacity : usize,
 private val hashing : H
@@ -336,10 +346,12 @@ private val hashing : H
         delete previous
     }
 
+    /// Retourne le nombre d’associations stockées.
     def size() : usize {
         return length
     }
 
+    /// Indique si la table ne contient aucune association.
     def isEmpty() : bool {
         return length == usize(0)
     }
@@ -398,6 +410,7 @@ private val hashing : H
         }
     }
 
+    /// Exécute l’opération publique `containsKey`.
     def containsKey(key : K) : bool {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
@@ -413,6 +426,7 @@ private val hashing : H
         return false
     }
 
+    /// Retourne la valeur associée à la clé, si elle existe.
     def getOption(key : K) : Option[V] {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
@@ -460,6 +474,7 @@ private val hashing : H
         }
     }
 
+    /// Exécute l’opération publique `put`.
     def put(key : K, value : V) : Option[V] {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
@@ -533,6 +548,7 @@ private val hashing : H
         return this.put(move key, move value)
     }
 
+    /// Retire l’association et retourne son ancienne valeur.
     def remove(key : K) : Option[V] {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
@@ -565,6 +581,7 @@ private val hashing : H
         return Option.Some[V](move value)
     }
 
+    /// Réinitialise l’état.
     def clear() : Unit {
         this.initializeSlots()
         var index : usize = usize(0)
@@ -576,6 +593,7 @@ private val hashing : H
         deletedCount = usize(0)
     }
 
+    /// Exécute l’opération publique `entries`.
     def entries() : Iterator[MapEntry[K, V]] {
         val state : MapEntryIteratorState[K, V, H] =
         new MapEntryIteratorState[K, V, H](this, usize(0))
@@ -585,6 +603,7 @@ private val hashing : H
         )
     }
 
+    /// Exécute l’opération publique `keys`.
     def keys() : Iterator[K] {
         val state : MapKeyIteratorState[K, V, H] =
         new MapKeyIteratorState[K, V, H](this, usize(0))
@@ -594,6 +613,7 @@ private val hashing : H
         )
     }
 
+    /// Exécute l’opération publique `values`.
     def values() : Iterator[V] {
         val state : MapValueIteratorState[K, V, H] =
         new MapValueIteratorState[K, V, H](this, usize(0))
@@ -603,6 +623,7 @@ private val hashing : H
         )
     }
 
+    /// Exécute l’opération publique `intoEntries`.
     consume def intoEntries() : Iterator[MapEntry[K, V]] {
         val state : MapEntryIntoIteratorState[K, V, H] =
         new MapEntryIntoIteratorState[K, V, H](move this, usize(0))
@@ -617,6 +638,7 @@ private val hashing : H
     }
 }
 
+/// Représente le type public `MapBuilder`.
 class MapBuilder[K, V, H <: Hashing[K]](
 initialCapacity : usize,
 private val hashing : H
@@ -624,18 +646,22 @@ private val hashing : H
     private var values : HashMap[K, V, H] =
     new HashMap[K, V, H](initialCapacity, hashing)
 
+    /// Ajoute une valeur.
     def add(entry : MapEntry[K, V]) : Unit {
         entry.insertInto[H](values)
     }
 
+    /// Retourne le nombre d’associations accumulées.
     def size() : usize {
         return values.size()
     }
 
+    /// Réinitialise l’état.
     def clear() : Unit {
         values.clear()
     }
 
+    /// Produit la table associative construite.
     def result() : HashMap[K, V, H] {
         val completed : HashMap[K, V, H] = move values
         values = new HashMap[K, V, H](usize(8), hashing)

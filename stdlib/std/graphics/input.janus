@@ -1,3 +1,4 @@
+/// Expose les entrées clavier, souris, curseur et manette.
 module std.graphics.input
 import std.graphics.types
 
@@ -38,94 +39,117 @@ leftMotor : float,
 rightMotor : float,
 duration : float
 ) : Unit
+/// Indique si la touche est maintenue.
 def isKeyDown(key : Key) : bool {
     return janus_graphics_is_key_down(int(key))
 }
 
+/// Indique si la touche vient d’être pressée.
 def isKeyPressed(key : Key) : bool {
     return janus_graphics_is_key_pressed(int(key))
 }
 
+/// Exécute l’opération publique `keyPressed`.
 def keyPressed() : int {
     return janus_graphics_key_pressed()
 }
 
+/// Exécute l’opération publique `mouseX`.
 def mouseX() : int {
     return janus_graphics_mouse_x()
 }
 
+/// Exécute l’opération publique `mouseY`.
 def mouseY() : int {
     return janus_graphics_mouse_y()
 }
 
+/// Déplace le pointeur de souris.
 def setMousePosition(x : int, y : int) : Unit {
     janus_graphics_set_mouse_position(x, y)
 }
 
+/// Exécute l’opération publique `mouseWheelMove`.
 def mouseWheelMove() : float {
     return janus_graphics_mouse_wheel_move()
 }
 
+/// Indique si le bouton de souris est maintenu.
 def isMouseButtonDown(button : MouseButton) : bool {
     return janus_graphics_is_mouse_button_down(int(button))
 }
 
+/// Indique si le bouton de souris vient d’être pressé.
 def isMouseButtonPressed(button : MouseButton) : bool {
     return janus_graphics_is_mouse_button_pressed(int(button))
 }
 
+/// Exécute l’opération publique `showCursor`.
 def showCursor() : Unit {
     janus_graphics_show_cursor()
 }
 
+/// Exécute l’opération publique `hideCursor`.
 def hideCursor() : Unit {
     janus_graphics_hide_cursor()
 }
 
+/// Indique si le curseur est masqué.
 def isCursorHidden() : bool {
     return janus_graphics_is_cursor_hidden()
 }
 
+/// Exécute l’opération publique `enableCursor`.
 def enableCursor() : Unit {
     janus_graphics_enable_cursor()
 }
 
+/// Exécute l’opération publique `disableCursor`.
 def disableCursor() : Unit {
     janus_graphics_disable_cursor()
 }
 
+/// Indique si la manette demandée est disponible.
 def isGamepadAvailable(gamepad : int) : bool {
     return janus_graphics_is_gamepad_available(gamepad)
 }
 
+/// Exécute l’opération publique `gamepadName`.
 def gamepadName(gamepad : int) : Ptr[byte] {
     return janus_graphics_gamepad_name(gamepad)
 }
 
+/// Indique si le bouton de manette est maintenu.
 def isGamepadButtonDown(gamepad : int, button : GamepadButton) : bool {
     return janus_graphics_is_gamepad_button_down(gamepad, int(button))
 }
 
+/// Indique si le bouton de manette vient d’être pressé.
 def isGamepadButtonPressed(gamepad : int, button : GamepadButton) : bool {
     return janus_graphics_is_gamepad_button_pressed(gamepad, int(button))
 }
 
+/// Indique si le bouton de manette vient d’être relâché.
 def isGamepadButtonReleased(gamepad : int, button : GamepadButton) : bool {
     return janus_graphics_is_gamepad_button_released(gamepad, int(button))
 }
 
+/// Exécute l’opération publique `gamepadButtonPressed`.
 def gamepadButtonPressed() : int {
     return janus_graphics_gamepad_button_pressed()
 }
 
+/// Exécute l’opération publique `gamepadAxisCount`.
 def gamepadAxisCount(gamepad : int) : int {
     return janus_graphics_gamepad_axis_count(gamepad)
 }
 
+/// Exécute l’opération publique `gamepadAxis`.
 def gamepadAxis(gamepad : int, axis : GamepadAxis) : float {
     return janus_graphics_gamepad_axis(gamepad, int(axis))
 }
 
+/// Règle les moteurs de vibration de la manette.
 def setGamepadVibration(
 gamepad : int,
 leftMotor : float,

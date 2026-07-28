@@ -1,3 +1,4 @@
+/// Fournit les tampons d’octets et flux d’entrée-sortie propriétaires.
 module std.io
 
 import std.option
@@ -30,7 +31,9 @@ size : usize
 private extern def janus_io_last_error_code() : uint
 private extern def janus_io_last_error_category() : int
 
+/// Énumère les états publics de `TextDecodeError`.
 enum TextDecodeError derives Copy, Equality, Debug {
+    /// Représente le cas `InvalidUtf8`.
     InvalidUtf8
 }
 
@@ -70,6 +73,7 @@ context : string
     )
 }
 
+/// Représente le type public `ByteBuffer`.
 class ByteBuffer(initialCapacity : usize) {
     private var nativeData : Ptr[byte] =
     alloc[byte](initialCapacity)
@@ -105,26 +109,32 @@ class ByteBuffer(initialCapacity : usize) {
         return true
     }
 
+    /// Exécute l’opération publique `data`.
     def data() : Ptr[byte] {
         return nativeData
     }
 
+    /// Retourne le nombre d’octets stockés.
     def size() : usize {
         return nativeSize
     }
 
+    /// Retourne la capacité actuellement réservée.
     def capacity() : usize {
         return allocated
     }
 
+    /// Indique si le tampon est vide.
     def isEmpty() : bool {
         return nativeSize == usize(0)
     }
 
+    /// Réinitialise l’état.
     def clear() : Unit {
         nativeSize = usize(0)
     }
 
+    /// Ajoute une valeur.
     def append(
     source : Ptr[byte],
     count : usize
@@ -150,6 +160,7 @@ class ByteBuffer(initialCapacity : usize) {
         return true
     }
 
+    /// Ajoute un octet au tampon.
     def appendByte(value : byte) : bool {
         if !this.ensure(usize(1)) {
             return false
@@ -159,6 +170,7 @@ class ByteBuffer(initialCapacity : usize) {
         return true
     }
 
+    /// Encode et ajoute le texte au tampon.
     def appendText(value : string) : bool {
         return this.append(
         stringData(value),
@@ -166,6 +178,7 @@ class ByteBuffer(initialCapacity : usize) {
         )
     }
 
+    /// Indique si le contenu forme une séquence UTF-8 valide.
     def isUtf8() : bool {
         return janus_io_valid_utf8(
         nativeData,
@@ -173,6 +186,7 @@ class ByteBuffer(initialCapacity : usize) {
         ) == 1
     }
 
+    /// Exécute l’opération publique `asText`.
     def asText(
     ) : Result[string, TextDecodeError] {
         if !this.isUtf8() {
@@ -240,6 +254,7 @@ private class LineBufferState() {
     }
 }
 
+/// Représente le type public `InputStream`.
 class InputStream(
 private var nativeHandle : isize,
 private val ownsHandle : bool,
@@ -258,10 +273,12 @@ private val requestedCapacity : usize
     private var bufferSize : usize = usize(0)
     private var bufferOffset : usize = usize(0)
 
+    /// Indique si le flux d’entrée est ouvert.
     def isOpen() : bool {
         return nativeHandle >= isize(0)
     }
 
+    /// Indique si la fin du flux a été atteinte.
     def isEof() : bool {
         return ended && bufferOffset >= bufferSize
     }
@@ -282,6 +299,7 @@ private val requestedCapacity : usize
         return count
     }
 
+    /// Lit des octets dans le tampon fourni.
     def read(
     target : Ptr[byte],
     capacity : usize
@@ -330,6 +348,7 @@ private val requestedCapacity : usize
         return Result.Ok[usize, SystemError](count)
     }
 
+    /// Lit une ligne de texte depuis le flux.
     def readLine(
     ) : Result[Option[ByteBuffer], SystemError] {
         if nativeHandle < isize(0) {
@@ -376,6 +395,7 @@ private val requestedCapacity : usize
         )
     }
 
+    /// Ferme le flux d’entrée.
     def close() : Result[bool, SystemError] {
         if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
@@ -405,6 +425,7 @@ private val requestedCapacity : usize
     }
 }
 
+/// Représente le type public `OutputStream`.
 class OutputStream(
 private var nativeHandle : isize,
 private val ownsHandle : bool,
@@ -421,6 +442,7 @@ private val requestedCapacity : usize
     alloc[byte](bufferCapacity)
     private var bufferSize : usize = usize(0)
 
+    /// Indique si le flux de sortie est ouvert.
     def isOpen() : bool {
         return nativeHandle >= isize(0)
     }
@@ -443,6 +465,7 @@ private val requestedCapacity : usize
         return 0
     }
 
+    /// Écrit les octets fournis dans le flux.
     def write(
     source : Ptr[byte],
     size : usize
@@ -493,6 +516,7 @@ private val requestedCapacity : usize
         return Result.Ok[usize, SystemError](size)
     }
 
+    /// Encode et écrit le texte fourni dans le flux.
     def writeText(
     value : string
     ) : Result[usize, SystemError] {
@@ -502,6 +526,7 @@ private val requestedCapacity : usize
         )
     }
 
+    /// Exécute l’opération publique `flush`.
     def flush() : Result[bool, SystemError] {
         if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
@@ -517,6 +542,7 @@ private val requestedCapacity : usize
         return Result.Ok[bool, SystemError](true)
     }
 
+    /// Ferme le flux de sortie.
     def close() : Result[bool, SystemError] {
         if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
@@ -561,6 +587,7 @@ private val requestedCapacity : usize
     }
 }
 
+/// Ouvre un flux d’entrée avec la capacité de tampon demandée.
 def openInputStreamBuffered(
 path : string,
 bufferCapacity : usize
@@ -585,12 +612,14 @@ bufferCapacity : usize
     )
 }
 
+/// Ouvre un flux d’entrée avec le tampon par défaut.
 def openInputStream(
 path : string
 ) : Result[InputStream, SystemError] {
     return openInputStreamBuffered(path, usize(4096))
 }
 
+/// Ouvre un flux de sortie avec la capacité de tampon demandée.
 def openOutputStreamBuffered(
 path : string,
 append : bool,
@@ -622,6 +651,7 @@ bufferCapacity : usize
     )
 }
 
+/// Ouvre un flux de sortie avec le tampon par défaut.
 def openOutputStream(
 path : string,
 append : bool
@@ -633,6 +663,7 @@ append : bool
     )
 }
 
+/// Exécute l’opération publique `standardInput`.
 def standardInput(
 ) : Result[InputStream, SystemError] {
     val handle : isize = janus_io_standard_handle(0)
@@ -661,11 +692,13 @@ context : string
     )
 }
 
+/// Exécute l’opération publique `standardOutput`.
 def standardOutput(
 ) : Result[OutputStream, SystemError] {
     return standardOutputFor(1, "stdout")
 }
 
+/// Exécute l’opération publique `standardError`.
 def standardError(
 ) : Result[OutputStream, SystemError] {
     return standardOutputFor(2, "stderr")
@@ -694,6 +727,7 @@ result : Result[usize, SystemError]
     }
 }
 
+/// Exécute l’opération publique `copyStream`.
 def copyStream(
 input : InputStream,
 output : OutputStream

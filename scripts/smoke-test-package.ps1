@@ -37,6 +37,21 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "smoke test: janus --version failed" }
     & $JanusLsp --version
     if ($LASTEXITCODE -ne 0) { throw "smoke test: janus-lsp --version failed" }
+    $GeneratedReference = Join-Path $Work "stdlib-reference"
+    & $Janus doc --stdlib --offline -o $GeneratedReference
+    if ($LASTEXITCODE -ne 0) {
+        throw "smoke test: stdlib documentation generation failed"
+    }
+    foreach ($ReferenceFile in @("api-index.json", "index.html")) {
+        $GeneratedHash = (Get-FileHash -Algorithm SHA256 `
+            (Join-Path $GeneratedReference $ReferenceFile)).Hash
+        $PackagedHash = (Get-FileHash -Algorithm SHA256 `
+            (Join-Path $PackageRoot.FullName `
+                "share\\doc\\janus\\stdlib-reference\\$ReferenceFile")).Hash
+        if ($GeneratedHash -ne $PackagedHash) {
+            throw "smoke test: stdlib reference drift in $ReferenceFile"
+        }
+    }
 
     $Project = Join-Path $Work "hello"
     & $Janus new $Project

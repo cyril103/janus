@@ -1,26 +1,34 @@
+/// Mesure les durées et le temps monotone.
 module std.time
 
 private extern def janus_monotonic_nanoseconds() : usize
 
+/// Représente le type public `Duration`.
 struct Duration(private val value : usize) {
+    /// Exécute l’opération publique `nanoseconds`.
     def nanoseconds() : usize {
         return value
     }
 
+    /// Exécute l’opération publique `microseconds`.
     def microseconds() : usize {
         return value / usize(1000)
     }
 
+    /// Exécute l’opération publique `milliseconds`.
     def milliseconds() : usize {
         return value / usize(1000000)
     }
 
+    /// Exécute l’opération publique `seconds`.
     def seconds() : double {
         return double(value) / double(1000000000.0)
     }
 }
 
+/// Représente le type public `Instant`.
 struct Instant(private val value : usize) {
+    /// Exécute l’opération publique `durationSince`.
     def durationSince(earlier : Instant) : Duration {
         if value < earlier.value {
             panic("instant precedes earlier instant\n")
@@ -28,12 +36,14 @@ struct Instant(private val value : usize) {
         return new Duration(value - earlier.value)
     }
 
+    /// Exécute l’opération publique `elapsed`.
     def elapsed() : Duration {
         val current : Instant = monotonicNow()
         return new Duration(current.value - value)
     }
 }
 
+/// Exécute l’opération publique `nanoseconds`.
 def nanoseconds(value : usize) : Duration {
     return new Duration(value)
 }
@@ -49,18 +59,22 @@ scale : usize
     return new Duration(value * scale)
 }
 
+/// Exécute l’opération publique `microseconds`.
 def microseconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000))
 }
 
+/// Exécute l’opération publique `milliseconds`.
 def milliseconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000000))
 }
 
+/// Exécute l’opération publique `seconds`.
 def seconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000000000))
 }
 
+/// Exécute l’opération publique `monotonicNow`.
 def monotonicNow() : Instant {
     return new Instant(janus_monotonic_nanoseconds())
 }

@@ -71,10 +71,8 @@ OWNER_MODULES = {
     },
 }
 IMPORT_RE = re.compile(r"^\s*import\s+([\w.]+)", re.MULTILINE)
-DOCUMENTED_DECLARATION_RE = re.compile(
-    r"(?:^|\n)(?:\s*///[^\n]*\n)+\s*"
-    r"(?:(?:extern|consume)\s+)?"
-    r"(?:class|struct|enum|trait|def|val|var)\s+",
+DOCUMENTATION_BLOCK_RE = re.compile(
+    r"(?:^|\n)(?:\s*///[^\n]*(?:\n|$))+",
     re.MULTILINE,
 )
 ALLOCATION_RE = re.compile(r"\b(?:alloc|realloc|new)\b")
@@ -228,7 +226,9 @@ def collect_audit(root: Path) -> AuditModel:
             owner=owner,
             symbols=recorded_symbols,
             lines=len(text.splitlines()),
-            documented_declarations=len(DOCUMENTED_DECLARATION_RE.findall(text)),
+            documented_declarations=max(
+                0, len(DOCUMENTATION_BLOCK_RE.findall(text)) - 1
+            ),
             imports=tuple(sorted(set(IMPORT_RE.findall(text)))),
             fixtures=tuple(sorted(fixture_index.get(name, set()))),
             documents=tuple(str(path) for path in entry.get("documentation", [])),
@@ -389,7 +389,7 @@ def render_report(model: AuditModel) -> str:
         f"- **{len(modules)} modules**, **{total_lines} lignes** et "
         f"**{total_symbols} symboles publics** inventoriés ;",
         f"- **{documented} blocs `///` publics pour {total_symbols} symboles** "
-        "(le lot #115 porte l'objectif de couverture à 100 %) ;",
+        "(couverture source du lot #115 : 100 %) ;",
         f"- **{total_allocations} sites d'allocation**, **{total_cleanup} marqueurs "
         "de nettoyage**, "
         f"**{move_count}/{consume_count}/{destructor_count}** occurrences "

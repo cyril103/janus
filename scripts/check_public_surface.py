@@ -153,6 +153,8 @@ def parse_module(path: Path) -> ParsedModule:
         stripped = raw_line.strip()
 
         if pending is not None:
+            if stripped.startswith("///"):
+                continue
             pending.lines.append(stripped)
             if declaration_complete(pending):
                 finish(pending)

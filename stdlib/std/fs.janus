@@ -1,3 +1,4 @@
+/// Fournit les opérations de fichiers, répertoires et métadonnées structurées.
 module std.fs
 
 import std.option
@@ -54,15 +55,23 @@ private extern def janus_fs_last_error_code() : uint
 private extern def janus_fs_last_error_category() : int
 private extern def janus_file_free(data : Ptr[byte]) : Unit
 
+/// Énumère les états publics de `FileType`.
 enum FileType derives Copy, Equality, Debug {
+    /// Représente le cas `File`.
     File,
+    /// Représente le cas `Directory`.
     Directory,
+    /// Représente le cas `SymbolicLink`.
     SymbolicLink,
+    /// Représente le cas `Other`.
     Other
 }
 
+/// Représente le type public `FileMetadata`.
 struct FileMetadata(
+/// Expose le membre public `kind`.
 val kind : FileType,
+/// Expose le membre public `size`.
 val size : usize
 ) derives Copy, Equality, Debug {}
 
@@ -107,18 +116,22 @@ private def sizeOutput() : Ptr[usize] {
     return output
 }
 
+/// Représente le type public `FileData`.
 class FileData(
 private var nativeData : Ptr[byte],
 private val nativeSize : usize
 ) {
+    /// Exécute l’opération publique `data`.
     def data() : Ptr[byte] {
         return nativeData
     }
 
+    /// Retourne la taille du fichier en octets.
     def size() : usize {
         return nativeSize
     }
 
+    /// Exécute l’opération publique `view`.
     def view() : string {
         return stringView(nativeData, nativeSize)
     }
@@ -129,10 +142,12 @@ private val nativeSize : usize
     }
 }
 
+/// Représente le type public `DirectoryIterator`.
 class DirectoryIterator(
 private var nativeHandle : isize,
 private val directoryContext : string
 ) {
+    /// Avance le parcours et retourne la prochaine valeur disponible.
     def next(
     ) : Result[Option[Path], SystemError] {
         if nativeHandle < isize(0) {
@@ -169,6 +184,7 @@ private val directoryContext : string
         )
     }
 
+    /// Ferme le parcours de répertoire.
     def close() : Result[bool, SystemError] {
         if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
@@ -194,6 +210,7 @@ private val directoryContext : string
     }
 }
 
+/// Lit intégralement un fichier dans un tampon propriétaire.
 def readFile(
 path : string
 ) : Result[FileData, SystemError] {
@@ -219,6 +236,7 @@ path : string
     )
 }
 
+/// Écrit un tampon dans un fichier par remplacement atomique.
 def writeFileAtomic(
 path : string,
 data : Ptr[byte],
@@ -237,6 +255,7 @@ size : usize
     return Result.Ok[bool, SystemError](true)
 }
 
+/// Écrit un texte dans un fichier par remplacement atomique.
 def writeTextFileAtomic(
 path : string,
 content : string
@@ -248,6 +267,7 @@ content : string
     )
 }
 
+/// Crée le répertoire demandé.
 def createDirectory(
 path : string,
 recursive : bool
@@ -264,6 +284,7 @@ recursive : bool
     return Result.Ok[bool, SystemError](true)
 }
 
+/// Crée un répertoire temporaire unique.
 def createTemporaryDirectory(
 prefix : string
 ) : Result[Path, SystemError] {
@@ -289,6 +310,7 @@ prefix : string
     )
 }
 
+/// Supprime le répertoire demandé.
 def removeDirectory(
 path : string
 ) : Result[bool, SystemError] {
@@ -303,12 +325,14 @@ path : string
     return Result.Ok[bool, SystemError](true)
 }
 
+/// Supprime le fichier demandé.
 def removeFile(
 path : string
 ) : Result[bool, SystemError] {
     return removeSystemFile(path)
 }
 
+/// Exécute l’opération publique `metadata`.
 def metadata(
 path : string
 ) : Result[FileMetadata, SystemError] {
@@ -337,6 +361,7 @@ path : string
     )
 }
 
+/// Ouvre un parcours sur les entrées du répertoire.
 def readDirectory(
 path : string
 ) : Result[DirectoryIterator, SystemError] {

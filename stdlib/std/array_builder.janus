@@ -1,32 +1,39 @@
+/// Construit des tableaux propriétaires à partir de valeurs ou d’itérateurs.
 module std.array_builder
 import std.array
 import std.builder
 import std.iterator
 
+/// Représente le type public `ArrayBuilder`.
 class ArrayBuilder[T](
 initialCapacity : usize
 ) extends Builder[T, Array[T]] {
     private var values : Array[T] =
     new Array[T](initialCapacity)
 
+    /// Ajoute une valeur.
     def add(value : T) : Unit {
         values.push(move value)
     }
 
+    /// Ajoute tous les éléments de la source.
     def addAll[C <: Iterable[T]](source : C) : Unit {
         for value in source {
             this.add(value)
         }
     }
 
+    /// Retourne le nombre d’éléments accumulés.
     def size() : usize {
         return values.size()
     }
 
+    /// Réinitialise l’état.
     def clear() : Unit {
         values.clear()
     }
 
+    /// Transfère les éléments accumulés dans un nouveau tableau.
     def result() : Array[T] {
         val completed : Array[T] = move values
         values = new Array[T](usize(0))
@@ -38,6 +45,7 @@ initialCapacity : usize
     }
 }
 
+/// Exécute l’opération publique `collectArray`.
 def collectArray[T](source : Iterator[T]) : Array[T] {
     val builder : ArrayBuilder[T] =
     new ArrayBuilder[T](usize(0))

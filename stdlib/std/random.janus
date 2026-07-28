@@ -1,3 +1,4 @@
+/// Fournit un générateur pseudo-aléatoire déterministe et une source automatique.
 module std.random
 
 private extern def janus_random_mix(value : usize) : usize
@@ -6,14 +7,17 @@ private extern def janus_random_seed() : usize
 
 private var automaticState : usize = janus_random_seed()
 
+/// Représente le type public `Random`.
 class Random(seed : usize) {
     private var state : usize = seed
 
+    /// Avance le parcours et retourne la prochaine valeur disponible.
     def nextUSize() : usize {
         state = janus_random_advance(state)
         return janus_random_mix(state)
     }
 
+    /// Avance le parcours et retourne la prochaine valeur disponible.
     def nextBounded(upperExclusive : usize) : usize {
         if upperExclusive == usize(0) {
             panic("random upper bound must be positive\n")
@@ -28,11 +32,13 @@ class Random(seed : usize) {
     }
 }
 
+/// Exécute l’opération publique `randomUSize`.
 def randomUSize() : usize {
     automaticState = janus_random_advance(automaticState)
     return janus_random_mix(automaticState)
 }
 
+/// Exécute l’opération publique `randomBounded`.
 def randomBounded(upperExclusive : usize) : usize {
     if upperExclusive == usize(0) {
         panic("random upper bound must be positive\n")
@@ -46,6 +52,7 @@ def randomBounded(upperExclusive : usize) : usize {
     return value % upperExclusive
 }
 
+/// Exécute l’opération publique `automaticRandom`.
 def automaticRandom() : Random {
     return new Random(janus_random_seed())
 }

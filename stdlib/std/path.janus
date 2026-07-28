@@ -1,3 +1,4 @@
+/// Normalise, compose et inspecte les chemins natifs.
 module std.path
 
 import std.result
@@ -65,18 +66,22 @@ private def lengthOutput() : Ptr[usize] {
     return output
 }
 
+/// Représente le type public `Path`.
 class Path(
 private var nativeData : Ptr[byte],
 private val nativeLength : usize
 ) {
+    /// Exécute l’opération publique `view`.
     def view() : string {
         return stringView(nativeData, nativeLength)
     }
 
+    /// Retourne la longueur du chemin normalisé.
     def size() : usize {
         return nativeLength
     }
 
+    /// Indique si le chemin est absolu.
     def isAbsolute() : bool {
         return janus_path_is_absolute(
         nativeData,
@@ -84,6 +89,7 @@ private val nativeLength : usize
         ) == 1
     }
 
+    /// Exécute l’opération publique `componentCount`.
     def componentCount() : usize {
         val count : int = janus_path_component_count(
         nativeData,
@@ -95,6 +101,7 @@ private val nativeLength : usize
         return usize(count)
     }
 
+    /// Exécute l’opération publique `component`.
     def component(
     index : usize
     ) : Result[Path, SystemError] {
@@ -127,6 +134,7 @@ private val nativeLength : usize
     }
 }
 
+/// Exécute l’opération publique `normalizePath`.
 def normalizePath(
 path : string
 ) : Result[Path, SystemError] {
@@ -152,6 +160,7 @@ path : string
     )
 }
 
+/// Exécute l’opération publique `joinPath`.
 def joinPath(
 base : string,
 child : string

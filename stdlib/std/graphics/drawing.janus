@@ -1,3 +1,4 @@
+/// Gère les fenêtres, cadres, caméras et primitives de dessin 2D.
 module std.graphics.drawing
 import std.c
 import std.graphics.types
@@ -115,111 +116,143 @@ color : uint
 private val graphicsStartTime : Instant = monotonicNow()
 private var graphicsPreviousFrameTime : Instant = graphicsStartTime
 
+/// Représente le type public `Camera2D`.
 class Camera2D(
+/// Expose le membre public `offsetX`.
 var offsetX : float,
+/// Expose le membre public `offsetY`.
 var offsetY : float,
+/// Expose le membre public `targetX`.
 var targetX : float,
+/// Expose le membre public `targetY`.
 var targetY : float,
+/// Expose le membre public `rotation`.
 var rotation : float,
+/// Expose le membre public `zoom`.
 var zoom : float
 ) {}
 
+/// Exécute l’opération publique `graphicsAvailable`.
 def graphicsAvailable() : bool {
     return janus_graphics_available()
 }
 
+/// Exécute l’opération publique `graphicsLastError`.
 def graphicsLastError() : Ptr[byte] {
     return janus_graphics_last_error()
 }
 
+/// Exécute l’opération publique `initWindow`.
 def initWindow(width : int, height : int, title : string) : bool {
     return janus_graphics_init_window(width, height, cstr(title))
 }
 
+/// Exécute l’opération publique `windowShouldClose`.
 def windowShouldClose() : bool {
     return janus_graphics_window_should_close()
 }
 
+/// Ferme la fenêtre et libère le backend graphique.
 def closeWindow() : Unit {
     janus_graphics_close_window()
 }
 
+/// Indique si la fenêtre occupe tout l’écran.
 def isWindowFullscreen() : bool {
     return janus_graphics_is_window_fullscreen()
 }
 
+/// Indique si la fenêtre est masquée.
 def isWindowHidden() : bool {
     return janus_graphics_is_window_hidden()
 }
 
+/// Indique si la fenêtre est réduite.
 def isWindowMinimized() : bool {
     return janus_graphics_is_window_minimized()
 }
 
+/// Indique si la fenêtre est agrandie.
 def isWindowMaximized() : bool {
     return janus_graphics_is_window_maximized()
 }
 
+/// Indique si la fenêtre possède le focus.
 def isWindowFocused() : bool {
     return janus_graphics_is_window_focused()
 }
 
+/// Indique si la fenêtre a été redimensionnée.
 def isWindowResized() : bool {
     return janus_graphics_is_window_resized()
 }
 
+/// Exécute l’opération publique `toggleFullscreen`.
 def toggleFullscreen() : Unit {
     janus_graphics_toggle_fullscreen()
 }
 
+/// Exécute l’opération publique `maximizeWindow`.
 def maximizeWindow() : Unit {
     janus_graphics_maximize_window()
 }
 
+/// Exécute l’opération publique `minimizeWindow`.
 def minimizeWindow() : Unit {
     janus_graphics_minimize_window()
 }
 
+/// Exécute l’opération publique `restoreWindow`.
 def restoreWindow() : Unit {
     janus_graphics_restore_window()
 }
 
+/// Modifie le titre de la fenêtre.
 def setWindowTitle(title : string) : Unit {
     janus_graphics_set_window_title(cstr(title))
 }
 
+/// Déplace la fenêtre aux coordonnées demandées.
 def setWindowPosition(x : int, y : int) : Unit {
     janus_graphics_set_window_position(x, y)
 }
 
+/// Redimensionne la fenêtre.
 def setWindowSize(width : int, height : int) : Unit {
     janus_graphics_set_window_size(width, height)
 }
 
+/// Règle l’opacité de la fenêtre.
 def setWindowOpacity(opacity : float) : Unit {
     janus_graphics_set_window_opacity(opacity)
 }
 
+/// Exécute l’opération publique `screenWidth`.
 def screenWidth() : int {
     return janus_graphics_screen_width()
 }
 
+/// Exécute l’opération publique `screenHeight`.
 def screenHeight() : int {
     return janus_graphics_screen_height()
 }
 
+/// Règle la fréquence d’images cible.
 def setTargetFps(framesPerSecond : int) : Unit {
     janus_graphics_set_target_fps(framesPerSecond)
 }
 
+/// Exécute l’opération publique `beginBlend`.
 def beginBlend(mode : BlendMode) : Unit {
     janus_graphics_begin_blend(int(mode))
 }
 
+/// Exécute l’opération publique `endBlend`.
 def endBlend() : Unit {
     janus_graphics_end_blend()
 }
 
+/// Exécute l’opération publique `frameTime`.
 def frameTime() : Duration {
     val current : Instant = monotonicNow()
     val duration : Duration =
@@ -228,18 +261,22 @@ def frameTime() : Duration {
     return duration
 }
 
+/// Exécute l’opération publique `elapsedTime`.
 def elapsedTime() : Duration {
     return monotonicNow().durationSince(graphicsStartTime)
 }
 
+/// Exécute l’opération publique `beginDrawing`.
 def beginDrawing() : Unit {
     janus_graphics_begin_drawing()
 }
 
+/// Exécute l’opération publique `endDrawing`.
 def endDrawing() : Unit {
     janus_graphics_end_drawing()
 }
 
+/// Exécute l’opération publique `beginCamera`.
 def beginCamera(camera : Camera2D) : Unit {
     janus_graphics_begin_camera(
     camera.offsetX,
@@ -251,10 +288,12 @@ def beginCamera(camera : Camera2D) : Unit {
     )
 }
 
+/// Exécute l’opération publique `endCamera`.
 def endCamera() : Unit {
     janus_graphics_end_camera()
 }
 
+/// Exécute l’opération publique `screenToWorld`.
 def screenToWorld(position : Vector2, camera : Camera2D) : Vector2 {
     return vector2(
     janus_graphics_screen_to_world_x(
@@ -280,6 +319,7 @@ def screenToWorld(position : Vector2, camera : Camera2D) : Vector2 {
     )
 }
 
+/// Exécute l’opération publique `worldToScreen`.
 def worldToScreen(position : Vector2, camera : Camera2D) : Vector2 {
     return vector2(
     janus_graphics_world_to_screen_x(
@@ -305,22 +345,27 @@ def worldToScreen(position : Vector2, camera : Camera2D) : Vector2 {
     )
 }
 
+/// Efface le rendu avec la couleur d’arrière-plan.
 def clearBackground(color : Color) : Unit {
     janus_graphics_clear_background(color.packed())
 }
 
+/// Efface le rendu avec la couleur fournie.
 def clearColor(color : Color) : Unit {
     clearBackground(color)
 }
 
+/// Exécute l’opération publique `drawPixel`.
 def drawPixel(x : int, y : int, color : Color) : Unit {
     janus_graphics_draw_pixel(x, y, color.packed())
 }
 
+/// Exécute l’opération publique `drawPixelAt`.
 def drawPixelAt(position : Vector2, color : Color) : Unit {
     drawPixel(int(position.x), int(position.y), color)
 }
 
+/// Exécute l’opération publique `drawLine`.
 def drawLine(
 startX : int,
 startY : int,
@@ -331,6 +376,7 @@ color : Color
     janus_graphics_draw_line(startX, startY, endX, endY, color.packed())
 }
 
+/// Exécute l’opération publique `drawLineBetween`.
 def drawLineBetween(start : Vector2, end : Vector2, color : Color) : Unit {
     drawLine(
     int(start.x),
@@ -341,6 +387,7 @@ def drawLineBetween(start : Vector2, end : Vector2, color : Color) : Unit {
     )
 }
 
+/// Exécute l’opération publique `drawCircle`.
 def drawCircle(
 centerX : int,
 centerY : int,
@@ -350,10 +397,12 @@ color : Color
     janus_graphics_draw_circle(centerX, centerY, radius, color.packed())
 }
 
+/// Exécute l’opération publique `drawCircleAt`.
 def drawCircleAt(center : Vector2, radius : float, color : Color) : Unit {
     drawCircle(int(center.x), int(center.y), radius, color)
 }
 
+/// Exécute l’opération publique `drawRectangle`.
 def drawRectangle(
 x : int,
 y : int,
@@ -364,6 +413,7 @@ color : Color
     janus_graphics_draw_rectangle(x, y, width, height, color.packed())
 }
 
+/// Exécute l’opération publique `drawRectangleArea`.
 def drawRectangleArea(area : Rectangle, color : Color) : Unit {
     drawRectangle(
     int(area.x),
@@ -374,6 +424,7 @@ def drawRectangleArea(area : Rectangle, color : Color) : Unit {
     )
 }
 
+/// Exécute l’opération publique `drawText`.
 def drawText(
 text : string,
 x : int,
@@ -384,6 +435,7 @@ color : Color
     janus_graphics_draw_text(cstr(text), x, y, fontSize, color.packed())
 }
 
+/// Exécute l’opération publique `drawTextAt`.
 def drawTextAt(
 text : string,
 position : Vector2,

@@ -28,6 +28,15 @@ else
   exit 1
 fi
 
+sha256_digest() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    digest_output="$(sha256sum "$1")"
+  else
+    digest_output="$(shasum -a 256 "$1")"
+  fi
+  printf '%s\n' "${digest_output%% *}"
+}
+
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT HUP INT TERM
 mkdir -p "$WORK/package" "$WORK/home" "$WORK/cache" "$WORK/registry"
@@ -48,6 +57,21 @@ fi
 
 JANUS="$PACKAGE_ROOT/bin/janus"
 "$PACKAGE_ROOT/bin/janus-lsp" --version
+mkdir -p "$WORK/stdlib-reference"
+"$JANUS" doc --stdlib --offline -o "$WORK/stdlib-reference"
+for reference_file in api-index.json index.html; do
+  generated_digest="$(
+    sha256_digest "$WORK/stdlib-reference/$reference_file"
+  )"
+  packaged_digest="$(
+    sha256_digest \
+      "$PACKAGE_ROOT/share/doc/janus/stdlib-reference/$reference_file"
+  )"
+  if [ "$generated_digest" != "$packaged_digest" ]; then
+    echo "smoke test: stdlib reference drift in $reference_file" >&2
+    exit 1
+  fi
+done
 export HOME="$WORK/home"
 export JANUS_CACHE="$WORK/cache"
 export JANUS_REGISTRY="$WORK/registry"

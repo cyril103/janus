@@ -25,6 +25,8 @@ struct DocumentationReport {
   std::filesystem::path index_path;
   std::filesystem::path api_index_path;
   std::vector<UnresolvedDocumentationLink> unresolved_links;
+  std::vector<std::string> undocumented_modules;
+  std::vector<std::string> undocumented_symbols;
   std::size_t module_count{};
   std::size_t symbol_count{};
 };
@@ -36,6 +38,11 @@ generate_documentation(const std::vector<ast::Program> &programs,
 [[nodiscard]] DocumentationReport
 generate_package_documentation(const Manifest &manifest,
                                const std::filesystem::path &output_directory);
+
+[[nodiscard]] DocumentationReport generate_stdlib_documentation(
+    const std::filesystem::path &stdlib_directory,
+    const std::filesystem::path &output_directory,
+    std::string package_version);
 
 void open_documentation(const std::filesystem::path &index_path);
 

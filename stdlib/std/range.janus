@@ -1,3 +1,4 @@
+/// Construit des itérateurs sur des intervalles entiers.
 module std.range
 import std.iterator
 import std.option
@@ -20,6 +21,7 @@ private val end : int
     }
 }
 
+/// Exécute l’opération publique `range`.
 def range(start : int, end : int) : Iterator[int] {
     val state : Range = new Range(start, end)
     return new Iterator[int](

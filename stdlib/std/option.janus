@@ -1,7 +1,11 @@
+/// Représente une valeur éventuellement absente et ses combinateurs.
 module std.option
 
+/// Énumère les états publics de `Option`.
 enum Option[T] {
+    /// Représente le cas `Some`.
     Some(T),
+    /// Représente le cas `None`.
     None
 }
 
@@ -27,6 +31,7 @@ private class OptionFallback[T](private var value : T) {
     }
 }
 
+/// Indique si l’option contient une valeur.
 def isSome[T](value : Option[T]) : bool {
     return match value {
         Some(item) => true,
@@ -34,6 +39,7 @@ def isSome[T](value : Option[T]) : bool {
     }
 }
 
+/// Indique si l’option est vide.
 def isNone[T](value : Option[T]) : bool {
     return match value {
         Some(item) => false,
@@ -41,6 +47,7 @@ def isNone[T](value : Option[T]) : bool {
     }
 }
 
+/// Transforme la valeur ou la séquence avec la fonction fournie.
 def map[T, U](
 value : Option[T],
 transform : (T) => U
@@ -52,6 +59,7 @@ transform : (T) => U
     }
 }
 
+/// Exécute l’opération publique `andThen`.
 def andThen[T, U](
 value : Option[T],
 transform : (T) => Option[U]
@@ -63,6 +71,7 @@ transform : (T) => Option[U]
     }
 }
 
+/// Exécute l’opération publique `orElse`.
 def orElse[T](
 value : Option[T],
 fallback : Option[T]
@@ -78,6 +87,7 @@ fallback : Option[T]
     }
 }
 
+/// Exécute l’opération publique `unwrapOr`.
 def unwrapOr[T](value : Option[T], fallback : T) : T {
     val state : OptionFallback[T] =
     new OptionFallback[T](move fallback)

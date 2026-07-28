@@ -106,6 +106,20 @@ python3 scripts/audit_stdlib.py --check
 Le test `docs.stdlib_audit` vérifie que le rapport reste déterministe et couvre
 exactement la surface extraite de `stdlib/std/`.
 
+### Référence générée de la stdlib
+
+La référence complète est produite par le compilateur livré :
+
+```bash
+build/janus doc --stdlib --offline -o build/stdlib-reference
+```
+
+`docs.stdlib_reference` exige 28 modules et 637 symboles documentés, vérifie
+l’absence de surface privée ou interne, puis compare le HTML et l’index JSON
+avec les fichiers publiés sous `website/docs/reference/stdlib/`. Le workflow
+Pages et les smoke tests des archives relancent la même commande hors ligne et
+comparent les fichiers octet par octet.
+
 ## Archive redistribuable
 
 ```bash

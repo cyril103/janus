@@ -62,6 +62,7 @@ struct Options {
   bool offline{};
   bool format_check{};
   bool doc_open{};
+  bool doc_stdlib{};
   bool doctests_only{};
   bool warn_high_growth_loops{};
   bool diagnostic_format_set{};
@@ -157,7 +158,7 @@ void print_usage(std::ostream &output) {
             "[--release] "
             "[--panic-trace full|short|off]\n"
          << "  janus fmt [source.janus] [--check]\n"
-         << "  janus doc [-o directory] [--open] [--offline]\n"
+         << "  janus doc [--stdlib] [-o directory] [--open] [--offline]\n"
          << "  diagnostics: --warn-high-growth-loops for check, build, "
             "run\n"
          << "  dependency options: --locked --offline\n"
@@ -185,7 +186,7 @@ void print_command_usage(std::ostream &output, std::string_view command) {
               "[--locked] [--offline] "
               "[--panic-trace full|short|off]\n";
   else if (command == "doc")
-    output << " [-o directory] [--open] [--offline]\n";
+    output << " [--stdlib] [-o directory] [--open] [--offline]\n";
   else
     output << " [source.janus] [--check]\n";
 }
@@ -329,6 +330,8 @@ Options parse_options(int argc, char **argv) {
       options.format_check = true;
     } else if (argument == "--open" && options.command == "doc") {
       options.doc_open = true;
+    } else if (argument == "--stdlib" && options.command == "doc") {
+      options.doc_stdlib = true;
     } else if (argument == "--doc" && options.command == "test") {
       options.doctests_only = true;
     } else if (argument == "--doc-path" && options.command == "test") {
@@ -425,7 +428,7 @@ Options parse_options(int argc, char **argv) {
        options.warn_high_growth_loops || options.panic_trace_set ||
        options.diagnostic_format_set))
     throw UsageError{options.command,
-                     "doc only accepts -o, --open, and --offline"};
+                     "doc only accepts --stdlib, -o, --open, and --offline"};
   if ((options.command == "test") && options.warn_high_growth_loops)
     throw UsageError{options.command,
                      "test does not accept --warn-high-growth-loops"};
@@ -436,7 +439,7 @@ Options parse_options(int argc, char **argv) {
         "--diagnostic-format is only available for check and build"};
   if (options.release && !options.panic_trace_set)
     options.panic_trace = janus::backend::llvm::PanicTraceMode::Short;
-  if (options.source.empty()) {
+  if (options.source.empty() && !options.doc_stdlib) {
     options.manifest = janus::driver::load_manifest(
         janus::driver::find_manifest(std::filesystem::current_path()));
     options.source = options.manifest->entry_path();
@@ -794,15 +797,32 @@ int main(int argc, char **argv) {
     if (options.command == "doc") {
       const std::filesystem::path output =
           options.output.empty()
-              ? options.manifest->root() / "target" / "doc"
+              ? options.doc_stdlib
+                    ? std::filesystem::current_path() / "target" / "doc" /
+                          "stdlib"
+                    : options.manifest->root() / "target" / "doc"
               : std::filesystem::absolute(options.output).lexically_normal();
-      const janus::driver::DocumentationReport report =
-          janus::driver::generate_package_documentation(*options.manifest,
-                                                        output);
+      const janus::driver::DocumentationReport report = options.doc_stdlib
+          ? janus::driver::generate_stdlib_documentation(
+                locate_toolchain(argv[0]).stdlib, output, JANUS_VERSION)
+          : janus::driver::generate_package_documentation(*options.manifest,
+                                                          output);
       for (const janus::driver::UnresolvedDocumentationLink &link :
            report.unresolved_links)
         std::cerr << "warning: unresolved documentation link '[[" << link.symbol
                   << "]]' in " << link.context << '\n';
+      if (options.doc_stdlib) {
+        for (const std::string &module : report.undocumented_modules)
+          std::cerr << "error: undocumented standard-library module "
+                    << module << '\n';
+        for (const std::string &symbol : report.undocumented_symbols)
+          std::cerr << "error: undocumented standard-library symbol "
+                    << symbol << '\n';
+        if (!report.unresolved_links.empty() ||
+            !report.undocumented_modules.empty() ||
+            !report.undocumented_symbols.empty())
+          return 1;
+      }
       std::cout << "generated " << report.symbol_count << " public symbols in "
                 << report.index_path.string() << '\n';
       if (options.doc_open)

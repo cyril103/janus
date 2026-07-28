@@ -1,1 +1,3 @@
 tests/diagnostics/rendering/*.janus text eol=lf
+website/docs/reference/stdlib/*.html text eol=lf
+website/docs/reference/stdlib/*.json text eol=lf

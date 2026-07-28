@@ -35,6 +35,7 @@ Depuis la racine d’un paquet :
 janus doc
 janus doc --open
 janus doc --offline -o target/reference
+janus doc --stdlib --offline -o target/stdlib-reference
 ```
 
 La sortie par défaut est `target/doc/index.html`. `api-index.json`, placé dans
@@ -42,6 +43,12 @@ le même dossier, fournit l’index public trié utilisé par les outils. Les
 modules, types, variantes, traits, fonctions, globales et membres publics y
 sont recensés ; les déclarations `private` et les membres `internal` sont
 exclus.
+
+`--stdlib` documente directement les sources de la bibliothèque standard
+livrée avec la chaîne d’outils. Ce mode exige une documentation source pour
+chaque module et chaque symbole public, refuse les liens `[[...]]` non résolus
+et échoue si la couverture n’est pas complète. Il ne recherche pas de
+manifeste de projet.
 
 Le HTML contient sa feuille de style et ne charge aucune ressource réseau.
 À sources, manifeste et version de Janus identiques, `index.html` et

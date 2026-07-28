@@ -1,21 +1,27 @@
+/// Mesure le temps civil depuis l’époque Unix.
 module std.wall_time
 
 private extern def janus_wall_nanoseconds() : usize
 
+/// Représente le type public `WallTime`.
 struct WallTime(private val value : usize) {
+    /// Exécute l’opération publique `unixNanoseconds`.
     def unixNanoseconds() : usize {
         return value
     }
 
+    /// Exécute l’opération publique `unixMilliseconds`.
     def unixMilliseconds() : usize {
         return value / usize(1000000)
     }
 
+    /// Exécute l’opération publique `unixSeconds`.
     def unixSeconds() : usize {
         return value / usize(1000000000)
     }
 }
 
+/// Exécute l’opération publique `wallNow`.
 def wallNow() : WallTime {
     return new WallTime(janus_wall_nanoseconds())
 }

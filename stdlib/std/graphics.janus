@@ -1,3 +1,4 @@
+/// Regroupe la surface graphique et audio expérimentale de Janus.
 module std.graphics
 
 import std.graphics.audio

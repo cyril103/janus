@@ -17,6 +17,7 @@ EXPECTED_REFERENCE = {
     "tooling.md",
     "api-documentation.md",
     "doctests.md",
+    "stdlib-reference.md",
     "graphics.md",
     "stability-contract.md",
     "development.md",
@@ -105,6 +106,8 @@ class SiteStructureTests(unittest.TestCase):
             "docs/tutorials/gestion-erreurs.md",
             "docs/tutorials/snake-graphique.md",
             "docs/reference/index.md",
+            "docs/reference/stdlib/api-index.json",
+            "docs/reference/stdlib/index.html",
             "docs/assets/logo.svg",
             "docs/assets/favicon.svg",
             "docs/stylesheets/extra.css",
@@ -201,6 +204,42 @@ class SiteStructureTests(unittest.TestCase):
                 self.assertTrue((REPOSITORY / entry["source"]).is_file())
                 for document in entry["documentation"]:
                     self.assertTrue((REPOSITORY / document).is_file(), document)
+
+    def test_generated_stdlib_reference_matches_the_public_inventory(self):
+        inventory = json.loads(
+            (REPOSITORY / "docs" / "public-surface-0.5.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        reference = json.loads(
+            (
+                WEBSITE
+                / "docs"
+                / "reference"
+                / "stdlib"
+                / "api-index.json"
+            ).read_text(encoding="utf-8")
+        )
+        expected_modules = {
+            entry["name"] for entry in inventory["stdlib_modules"]
+        }
+        expected_symbols = {
+            f"{entry['name']}.{symbol}"
+            for entry in inventory["stdlib_modules"]
+            for symbol in entry["symbols"]
+        }
+        self.assertEqual(
+            expected_modules, {entry["name"] for entry in reference["modules"]}
+        )
+        self.assertEqual(
+            expected_symbols, {entry["name"] for entry in reference["symbols"]}
+        )
+        self.assertTrue(
+            all(entry["documentation"] for entry in reference["modules"])
+        )
+        self.assertTrue(
+            all(entry["documentation"] for entry in reference["symbols"])
+        )
 
         commands = inventory["cli"]["commands"]
         self.assertEqual(EXPECTED_COMMANDS, {entry["name"] for entry in commands})

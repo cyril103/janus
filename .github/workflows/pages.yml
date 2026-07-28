@@ -76,6 +76,12 @@ jobs:
 
       - name: Check public surface and snippets
         run: |
+          build-pages/janus doc --stdlib --offline \
+            -o build-pages/stdlib-reference
+          cmp build-pages/stdlib-reference/api-index.json \
+            website/docs/reference/stdlib/api-index.json
+          cmp build-pages/stdlib-reference/index.html \
+            website/docs/reference/stdlib/index.html
           python scripts/check_public_surface.py \
             --root . \
             --janus build-pages/janus

@@ -5,6 +5,17 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [0.7.10] - Non publiée
 
+### Documentation de la bibliothèque standard
+
+- documentation `///` des 28 modules et des 637 symboles publics de la
+  bibliothèque standard, y compris types, variantes, traits et membres ;
+- ajout de `janus doc --stdlib`, avec génération hors ligne déterministe,
+  couverture stricte et rejet des liens non résolus ;
+- publication de l’index HTML/JSON sur le site et dans les archives, avec
+  comparaison octet par octet lors des builds ;
+- ajout d’un doctest de succès par module et de `compile_fail` pour les
+  familles d’absence et d’erreur structurée.
+
 ### Graphisme et audio
 
 - dérivation explicite de `Copy`, `Equality` et `Debug` pour les enums,
