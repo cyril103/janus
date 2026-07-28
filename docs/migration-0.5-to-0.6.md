@@ -105,3 +105,24 @@ Le parcours consommant d'un `Array` préserve l'ordre mais coûte `O(n)` par
 `HashSet` ou `HashMap` coûte `O(capacity)` au total. À la destruction de
 l'itérateur, le stockage et toutes les valeurs restantes sont libérés ; le
 conteneur d'origine demeure consommé et ne peut pas être réutilisé.
+
+## Combinateurs `Option`
+
+Janus 0.6.2 ajoute `isSome`, `isNone`, `map`, `andThen`, `orElse` et
+`unwrapOr` au module `std.option`. Les anciens `match` restent valides et leur
+comportement ne change pas.
+
+Pour une `Option[T]` propriétaire, `isSome` et `isNone` observent une variable
+locale sans la consommer. Les autres combinateurs transfèrent leur entrée :
+
+```janus
+val normalized : Option[Resource] = map[Resource, Resource](
+    move pending,
+    (resource : Resource) => normalize(resource)
+)
+```
+
+Après ce `move`, `pending` est inutilisable. `orElse` et `unwrapOr` prennent
+également possession du repli et le détruisent si la variante `Some` le rend
+inutile. Le résultat devient la responsabilité de l'appelant. Avec un type
+`Copy`, aucun `move` n'est requis.

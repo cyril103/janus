@@ -1,0 +1,14 @@
+import std.option
+
+class Resource() {}
+
+def main() : int {
+    val value : Option[Resource] =
+    Option.Some[Resource](new Resource())
+    val mapped : Option[Resource] = map[Resource, Resource](
+    value,
+    (item : Resource) => item
+    )
+    delete mapped
+    return 0
+}

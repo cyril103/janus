@@ -1,0 +1,50 @@
+import std.option
+
+var calls : int = 0
+
+def increment(value : int) : int {
+    calls = calls + 1
+    return value + 1
+}
+
+def keepEven(value : int) : Option[int] {
+    return if value % 2 == 0 {
+        Option.Some[int](value * 2)
+    } else {
+        Option.None[int]()
+    }
+}
+
+def printOption(value : Option[int]) : Unit {
+    val rendered : int = match value {
+        Some(item) => item,
+        None => -1
+    }
+    println(rendered)
+}
+
+def main() : int {
+    val present : Option[int] = Option.Some[int](2)
+    val absent : Option[int] = Option.None[int]()
+    println(std.option.isSome[int](present))
+    println(isNone[int](present))
+    println(isSome[int](absent))
+    println(isNone[int](absent))
+
+    printOption(map[int, int](present, (value : int) => increment(value)))
+    printOption(map[int, int](absent, (value : int) => increment(value)))
+    println(calls)
+
+    printOption(
+    andThen[int, int](present, (value : int) => keepEven(value))
+    )
+    printOption(
+    andThen[int, int](Option.Some[int](3), (value : int) => keepEven(value))
+    )
+
+    printOption(orElse[int](present, Option.Some[int](9)))
+    printOption(orElse[int](absent, Option.Some[int](9)))
+    println(unwrapOr[int](present, 9))
+    println(unwrapOr[int](absent, 9))
+    return 0
+}

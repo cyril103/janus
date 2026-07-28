@@ -1533,6 +1533,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     bool inside_lambda = false;
     bool inside_defer = false;
     bool contextual_borrow_lambda_parameters = false;
+    bool contextual_borrow_expression = false;
     std::size_t loop_depth = 0;
     std::unordered_set<std::string> transfer_protected_values;
     std::unordered_set<std::string> deferred_values;
@@ -1549,6 +1550,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         borrowed_values.insert(parameter.name);
         transfer_protected_values.insert(parameter.name);
       }
+    }
+    if (!is_destructor && owner == nullptr &&
+        context_module == std::optional<std::string>{"std.option"} &&
+        (function_name == "isSome" || function_name == "isNone")) {
+      borrowed_values.insert(parameters.front().name);
+      transfer_protected_values.insert(parameters.front().name);
     }
 
     std::function<SemanticType(const ast::Expression &)> expression_type;
@@ -1627,8 +1634,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 resolve_type(callee.parameters[index].type, callee_parameters,
                              &class_arities);
             expected = substitute(std::move(expected), substitutions);
+            const bool observes_owned_option =
+                index == 0 &&
+                callee.module_name ==
+                    std::optional<std::string>{"std.option"} &&
+                (callee.name == "isSome" || callee.name == "isNone");
+            const bool previous_contextual_borrow_expression =
+                contextual_borrow_expression;
+            contextual_borrow_expression = observes_owned_option;
             validate_expression(*arguments[index], expected,
                                 expression_location(*arguments[index]));
+            contextual_borrow_expression =
+                previous_contextual_borrow_expression;
           }
           return substitute(resolve_type(callee.return_type, callee_parameters,
                                          &class_arities),
@@ -1663,6 +1680,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
       const SemanticType actual = expression_type(expression);
       if (same_type(actual, expected)) {
+        if (contextual_borrow_expression && aggregate_owns_value(actual) &&
+            !std::holds_alternative<ast::IdentifierExpression>(
+                expression.value))
+          throw CompileError{
+              location, "observing an owning Option requires a local value"};
         if (const auto *identifier =
                 std::get_if<ast::IdentifierExpression>(&expression.value);
             identifier != nullptr &&
@@ -1676,7 +1698,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               classes.at(actual.parameter)->is_value_type)) &&
             aggregate_owns_value(actual)) {
           if (std::holds_alternative<ast::IdentifierExpression>(
-                  expression.value))
+                  expression.value) &&
+              !contextual_borrow_expression)
             throw CompileError{
                 location,
                 "transferring owning aggregate '" + actual.name() +
@@ -2146,9 +2169,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     resolve_type(callee.parameters[index].type,
                                  callee_parameters, &class_arities);
                 expected = substitute(std::move(expected), substitutions);
+                const bool observes_owned_option =
+                    index == 0 &&
+                    callee.module_name ==
+                        std::optional<std::string>{"std.option"} &&
+                    (callee.name == "isSome" || callee.name == "isNone");
+                const bool previous_contextual_borrow_expression =
+                    contextual_borrow_expression;
+                contextual_borrow_expression = observes_owned_option;
                 validate_expression(
                     *node.arguments[index], expected,
                     expression_location(*node.arguments[index]));
+                contextual_borrow_expression =
+                    previous_contextual_borrow_expression;
               }
               return substitute(resolve_type(callee.return_type,
                                              callee_parameters, &class_arities),
@@ -2844,10 +2877,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             } else if constexpr (std::is_same_v<Node, ast::MatchExpression>) {
               const SemanticType scrutinee_type =
                   expression_type(*node.scrutinee);
+              const auto *scrutinee_identifier =
+                  std::get_if<ast::IdentifierExpression>(
+                      &node.scrutinee->value);
+              const bool borrows_scrutinee =
+                  scrutinee_identifier != nullptr &&
+                  borrowed_values.contains(scrutinee_identifier->name);
               if (scrutinee_type.is_enum() &&
                   aggregate_owns_value(scrutinee_type) &&
                   std::holds_alternative<ast::IdentifierExpression>(
-                      node.scrutinee->value))
+                      node.scrutinee->value) &&
+                  !borrows_scrutinee)
                 throw CompileError{
                     node.location,
                     "matching an owning enum requires an explicit move"};
@@ -2923,10 +2963,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 SymbolTable *previous_symbols = active_symbols;
                 active_symbols = &arm_symbols;
                 const auto arm_transfer_protected = transfer_protected_values;
+                const auto arm_borrowed_values = borrowed_values;
                 for (const std::string &binding : arm.bindings)
                   transfer_protected_values.erase(binding);
+                if (borrows_scrutinee)
+                  for (const std::string &binding : arm.bindings)
+                    borrowed_values.insert(binding);
                 const SemanticType arm_type = expression_type(*arm.expression);
                 transfer_protected_values = arm_transfer_protected;
+                borrowed_values = arm_borrowed_values;
                 active_symbols = previous_symbols;
                 if (arm_type.is_concrete() &&
                     arm_type.concrete->kind() == TypeKind::Unit)

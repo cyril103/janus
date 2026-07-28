@@ -1,0 +1,10 @@
+import std.option
+
+class Resource() {}
+
+def main() : int {
+    println(isSome[Resource](
+    Option.Some[Resource](new Resource())
+    ))
+    return 0
+}

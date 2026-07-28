@@ -3,6 +3,16 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.6.2] - Non publiée
+
+### Bibliothèque standard
+
+- ajout des combinateurs `isSome`, `isNone`, `map`, `andThen`, `orElse` et
+  `unwrapOr` dans `std.option`, avec observation bornée et variantes
+  consommantes pour les valeurs propriétaires ;
+- destruction exacte des valeurs de repli et closures inutilisées, sans
+  extraction ni copie implicite d'une ressource.
+
 ## [0.6.1] - Non publiée
 
 ### Langage et bibliothèque standard
@@ -249,6 +259,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.6.2]: https://github.com/cyril103/janus/compare/v0.6.1...HEAD
 [0.6.1]: https://github.com/cyril103/janus/compare/v0.6.0...HEAD
 [0.6.0]: https://github.com/cyril103/janus/releases/tag/v0.6.0
 [0.5.0]: https://github.com/cyril103/janus/releases/tag/v0.5.0

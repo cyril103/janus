@@ -1,6 +1,7 @@
 import std.array
 import std.array_builder
 import std.math
+import std.option
 import std.text
 
 def main() : int {
@@ -28,5 +29,11 @@ def main() : int {
         0,
         (total : int, value : int) => total + value
     ))
+    val retainedOption : Option[int] = Option.Some[int](42)
+    val retainedValue : int = match retainedOption {
+        Some(value) => value,
+        None => 0
+    }
+    println(retainedValue)
     return 0
 }
