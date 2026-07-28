@@ -43,6 +43,16 @@ int32_t janus_memcmp(const void *left, const void *right, uint64_t size) {
   return (int32_t)memcmp(left, right, (size_t)size);
 }
 
+uint64_t janus_hash_bytes(const void *data, uint64_t size, uint64_t seed) {
+  const unsigned char *bytes = (const unsigned char *)data;
+  uint64_t hash = seed;
+  for (uint64_t index = 0; index < size; ++index) {
+    hash ^= (uint64_t)bytes[index];
+    hash *= UINT64_C(1099511628211);
+  }
+  return hash;
+}
+
 void janus_write_stdout(const char *data, uint64_t size) {
   (void)fwrite(data, 1, (size_t)size, stdout);
 }

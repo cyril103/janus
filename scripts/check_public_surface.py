@@ -53,6 +53,7 @@ BUILTIN_TYPES = {
 BUILTIN_FUNCTIONS = {
     "alloc",
     "cstr",
+    "debug",
     "extern",
     "free",
     "null",

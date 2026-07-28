@@ -1771,6 +1771,35 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.struct_value COMMAND struct_value_test)
+
+    add_executable(derivation_semantics_test
+        tests/language/derivation_semantics_test.cpp
+    )
+    target_link_libraries(derivation_semantics_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(derivation_semantics_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.derivation_semantics COMMAND derivation_semantics_test)
+
+    add_test(
+        NAME compatibility.derivations
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/derived_capabilities.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/derived_capabilities_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/derived_capabilities.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
 endif()
 
 add_executable(janus_bundled_clang IMPORTED GLOBAL)

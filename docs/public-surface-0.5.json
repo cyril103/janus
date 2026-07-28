@@ -105,8 +105,8 @@
       "source": "stdlib/std/hashing.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "388f4c740ceedbefa5f33623b3fa46fb6827b06bd3db49a0350c437343c5a1d1",
-      "symbols": ["Hashing", "Hashing.hash", "Hashing.equals", "IntHashing", "IntHashing.hash", "IntHashing.equals", "USizeHashing", "USizeHashing.hash", "USizeHashing.equals", "ByteHashing", "ByteHashing.hash", "ByteHashing.equals", "CharHashing", "CharHashing.hash", "CharHashing.equals", "BoolHashing", "BoolHashing.hash", "BoolHashing.equals"]
+      "signature_digest": "9c9a25a5aca83bf9afd19f0340d891a41aa562f7c4116ca73c781b2939156415",
+      "symbols": ["Hashing", "Hashing.hash", "Hashing.equals", "DerivedHashing", "DerivedHashing.hash", "DerivedHashing.equals", "IntHashing", "IntHashing.hash", "IntHashing.equals", "USizeHashing", "USizeHashing.hash", "USizeHashing.equals", "ByteHashing", "ByteHashing.hash", "ByteHashing.equals", "CharHashing", "CharHashing.hash", "CharHashing.equals", "BoolHashing", "BoolHashing.hash", "BoolHashing.equals"]
     },
     {
       "name": "std.hashmap",

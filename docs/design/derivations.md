@@ -1,7 +1,6 @@
 # Dérivations structurelles sûres
 
-Statut : design retenu pour Janus 0.6.3. La syntaxe est réservée par R063-1 ;
-la génération des capacités est réalisée séparément par R063-2.
+Statut : implémenté dans Janus 0.6.3.
 
 ## Objectifs et limites
 
@@ -173,9 +172,26 @@ dupliquée. Les fonctions synthétisées suivent les règles ordinaires de
 visibilité, de monomorphisation et de résolution de traits. Leur détail ABI et
 leurs noms internes ne font pas partie de la surface source.
 
-R063-1 réserve et transporte la demande dans l'AST. Tant que R063-2 n'a pas
-généré les opérations, cette métadonnée ne confère à elle seule aucune
-capacité au type.
+R063-1 réserve et transporte la demande dans l'AST ; R063-2 valide cette
+métadonnée et génère les opérations correspondantes.
+
+## Surface d'utilisation
+
+`Equality` fournit les opérateurs `==` et `!=`. `Hashing` fournit la stratégie
+standard `DerivedHashing[T]` du module `std.hashing`, utilisable directement
+comme paramètre de `HashSet` ou `HashMap` :
+
+```janus
+val hashing : DerivedHashing[Point] = new DerivedHashing[Point]()
+val points : HashSet[Point, DerivedHashing[Point]] =
+new HashSet[Point, DerivedHashing[Point]](usize(8), hashing)
+```
+
+L'intrinsèque `debug(value)` écrit une ligne déterministe sur la sortie
+standard. Il s'agit volontairement d'une représentation de diagnostic :
+`print` et `println` n'acceptent pas automatiquement les agrégats dérivés.
+Les opérations de hachage internes empruntent leur valeur ; leur nom et leur
+ABI ne font pas partie de la surface stable.
 
 ## Contrat d'outillage
 
