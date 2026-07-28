@@ -1,14 +1,18 @@
+/// Fournit les invariants internes de sondage des tables de hachage.
 module std.hash_probe
 
+/// Représente le type public `HashProbe`.
 struct HashProbe(
 private var index : usize,
 private val capacity : usize,
 private var checked : usize
 ) {
+    /// Indique si la sonde peut encore visiter une case.
     def hasNext() : bool {
         return checked < capacity
     }
 
+    /// Avance le parcours et retourne la prochaine valeur disponible.
     def next() : usize {
         val current : usize = index
         index = (index + usize(1)) % capacity
@@ -17,6 +21,7 @@ private var checked : usize
     }
 }
 
+/// Exécute l’opération publique `normalizedHashCapacity`.
 def normalizedHashCapacity(requested : usize) : usize {
     return if requested < usize(8) {
         usize(8)
@@ -25,6 +30,7 @@ def normalizedHashCapacity(requested : usize) : usize {
     }
 }
 
+/// Indique si la table doit être agrandie avant une insertion.
 def hashTableShouldGrow(
 length : usize,
 deletedCount : usize,
@@ -34,6 +40,7 @@ capacity : usize
     return length + deletedCount + usize(1) >= threshold
 }
 
+/// Crée une sonde circulaire à partir du hachage.
 def hashProbe(hash : usize, capacity : usize) : HashProbe {
     return new HashProbe(hash % capacity, capacity, usize(0))
 }

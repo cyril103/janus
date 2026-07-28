@@ -1,14 +1,29 @@
+/// Définit les itérateurs propriétaires et leurs combinateurs paresseux.
 module std.iterator
 import std.option
 import std.builder
 
+/// Définit le contrat public `Iterable`.
 trait Iterable[T <: Copy] {
+    /// Exécute l’opération publique `iterator`.
     def iterator() : Iterator[T]
 }
 
-struct ZipItem[A, B](val left : A, val right : B) {}
+/// Représente le type public `ZipItem`.
+struct ZipItem[A, B](
+/// Expose le membre public `left`.
+val left : A,
+/// Expose le membre public `right`.
+val right : B
+) {}
 
-struct Indexed[T](val index : usize, val value : T) {}
+/// Représente le type public `Indexed`.
+struct Indexed[T](
+/// Expose le membre public `index`.
+val index : usize,
+/// Expose le membre public `value`.
+val value : T
+) {}
 
 private class MapIteratorState[A, B](
 private val source : Iterator[A],
@@ -202,14 +217,17 @@ private var current : Iterator[B]
     }
 }
 
+/// Représente le type public `Iterator`.
 class Iterator[T](
 private val advance : () => Option[T],
 private val release : () => Unit
 ) {
+    /// Avance le parcours et retourne la prochaine valeur disponible.
     def next() : Option[T] {
         return advance()
     }
 
+    /// Transforme la valeur ou la séquence avec la fonction fournie.
     consume def map[U](transform : (T) => U) : Iterator[U] {
         val state : MapIteratorState[T, U] =
         new MapIteratorState[T, U](move this, move transform)
@@ -219,6 +237,7 @@ private val release : () => Unit
         )
     }
 
+    /// Conserve les valeurs qui satisfont le prédicat.
     consume def filter(predicate : (T) => bool) : Iterator[T] {
         val state : FilterIteratorState[T] =
         new FilterIteratorState[T](move this, move predicate)
@@ -228,6 +247,7 @@ private val release : () => Unit
         )
     }
 
+    /// Exécute l’opération publique `take`.
     consume def take(count : usize) : Iterator[T] {
         val state : TakeIteratorState[T] =
         new TakeIteratorState[T](move this, count)
@@ -237,6 +257,7 @@ private val release : () => Unit
         )
     }
 
+    /// Exécute l’opération publique `zip`.
     consume def zip[U](
     other : Iterator[U]
     ) : Iterator[ZipItem[T, U]] {
@@ -248,6 +269,7 @@ private val release : () => Unit
         )
     }
 
+    /// Exécute l’opération publique `enumerate`.
     consume def enumerate() : Iterator[Indexed[T]] {
         val state : EnumerateIteratorState[T] =
         new EnumerateIteratorState[T](move this, usize(0))
@@ -257,6 +279,7 @@ private val release : () => Unit
         )
     }
 
+    /// Exécute l’opération publique `flatMap`.
     consume def flatMap[U](
     transform : (T) => Iterator[U]
     ) : Iterator[U] {
@@ -272,6 +295,7 @@ private val release : () => Unit
         )
     }
 
+    /// Exécute l’opération publique `collectWith`.
     consume def collectWith[C, B <: Builder[T, C]](builder : B) : C {
         for value in move this {
             builder.add(move value)
@@ -279,6 +303,7 @@ private val release : () => Unit
         return builder.result()
     }
 
+    /// Réduit les valeurs avec un accumulateur.
     consume def fold[U](initial : U, combine : (U, T) => U) : U {
         var accumulator : U = initial
         for value in move this {

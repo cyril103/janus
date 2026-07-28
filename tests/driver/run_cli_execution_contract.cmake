@@ -19,7 +19,7 @@ set(TOP_LEVEL_USAGE
   janus run [source.janus] [--release] [--panic-trace full|short|off]
   janus test [filter] [--doc] [--doc-path <path>] [--release] [--panic-trace full|short|off]
   janus fmt [source.janus] [--check]
-  janus doc [-o directory] [--open] [--offline]
+  janus doc [--stdlib] [-o directory] [--open] [--offline]
   diagnostics: --warn-high-growth-loops for check, build, run
   dependency options: --locked --offline
   janus --help
@@ -38,7 +38,7 @@ set(TEST_USAGE
 "usage: janus test [filter] [--doc] [--doc-path <path>] [--release] [--locked] [--offline] [--panic-trace full|short|off]
 ")
 set(DOC_USAGE
-"usage: janus doc [-o directory] [--open] [--offline]
+"usage: janus doc [--stdlib] [-o directory] [--open] [--offline]
 ")
 
 function(assert_result NAME EXPECTED_STATUS EXPECTED_OUT EXPECTED_ERR)

@@ -1,3 +1,4 @@
+/// Expose les fichiers natifs et les erreurs système structurées.
 module std.system
 
 import std.result
@@ -25,31 +26,52 @@ length : usize
 private extern def janus_system_error_code() : uint
 private extern def janus_system_error_category() : int
 
+/// Énumère les états publics de `SystemErrorCategory`.
 enum SystemErrorCategory
 derives Copy, Equality, Debug {
+    /// Représente le cas `NotFound`.
     NotFound,
+    /// Représente le cas `PermissionDenied`.
     PermissionDenied,
+    /// Représente le cas `AlreadyExists`.
     AlreadyExists,
+    /// Représente le cas `InvalidInput`.
     InvalidInput,
+    /// Représente le cas `Interrupted`.
     Interrupted,
+    /// Représente le cas `WouldBlock`.
     WouldBlock,
+    /// Représente le cas `OutOfSpace`.
     OutOfSpace,
+    /// Représente le cas `TooLarge`.
     TooLarge,
+    /// Représente le cas `Unsupported`.
     Unsupported,
+    /// Représente le cas `ResourceExhausted`.
     ResourceExhausted,
+    /// Représente le cas `Other`.
     Other
 }
 
+/// Énumère les états publics de `SystemOpenMode`.
 enum SystemOpenMode derives Copy, Equality, Debug {
+    /// Représente le cas `Read`.
     Read,
+    /// Représente le cas `Write`.
     Write,
+    /// Représente le cas `Append`.
     Append
 }
 
+/// Représente le type public `SystemError`.
 struct SystemError(
+/// Expose le membre public `operation`.
 val operation : string,
+/// Expose le membre public `category`.
 val category : SystemErrorCategory,
+/// Expose le membre public `nativeCode`.
 val nativeCode : uint,
+/// Expose le membre public `context`.
 val context : string
 ) derives Copy, Equality, Debug {}
 
@@ -77,14 +99,17 @@ context : string
     )
 }
 
+/// Représente le type public `SystemFile`.
 class SystemFile(
 private var nativeHandle : isize,
 private val fileContext : string
 ) {
+    /// Indique si le fichier natif est ouvert.
     def isOpen() : bool {
         return nativeHandle >= isize(0)
     }
 
+    /// Lit des octets depuis le fichier natif.
     def read(
     data : Ptr[byte],
     capacity : usize
@@ -104,6 +129,7 @@ private val fileContext : string
         return Result.Ok[usize, SystemError](usize(count))
     }
 
+    /// Écrit des octets dans le fichier natif.
     def write(
     data : Ptr[byte],
     size : usize
@@ -123,6 +149,7 @@ private val fileContext : string
         return Result.Ok[usize, SystemError](usize(count))
     }
 
+    /// Ferme le fichier natif.
     def close() : Result[bool, SystemError] {
         if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
@@ -148,6 +175,7 @@ private val fileContext : string
     }
 }
 
+/// Ouvre un fichier natif dans le mode demandé.
 def openSystemFile(
 path : string,
 mode : SystemOpenMode
@@ -167,6 +195,7 @@ mode : SystemOpenMode
     )
 }
 
+/// Supprime un fichier natif.
 def removeSystemFile(
 path : string
 ) : Result[bool, SystemError] {

@@ -1,7 +1,11 @@
+/// Définit les stratégies d’égalité et de hachage des clés.
 module std.hashing
 
+/// Définit le contrat public `Hashing`.
 trait Hashing[T] {
+    /// Calcule le hachage de la valeur.
     def hash(value : T) : usize
+    /// Exécute l’opération publique `equals`.
     def equals(left : T, right : T) : bool
 }
 
@@ -9,61 +13,79 @@ private def mixHash(value : usize) : usize {
     return value * usize(16777619) + usize(216613626)
 }
 
+/// Représente le type public `DerivedHashing`.
 class DerivedHashing[T]() extends Hashing[T] {
+    /// Calcule le hachage de la valeur.
     def hash(value : T) : usize {
         return __derivedHash[T](value)
     }
 
+    /// Exécute l’opération publique `equals`.
     def equals(left : T, right : T) : bool {
         return __derivedEquals[T](left, right)
     }
 }
 
+/// Représente le type public `IntHashing`.
 class IntHashing() extends Hashing[int] {
+    /// Calcule le hachage de la valeur.
     def hash(value : int) : usize {
         return mixHash(usize(value))
     }
 
+    /// Exécute l’opération publique `equals`.
     def equals(left : int, right : int) : bool {
         return __derivedEquals[int](left, right)
     }
 }
 
+/// Représente le type public `USizeHashing`.
 class USizeHashing() extends Hashing[usize] {
+    /// Calcule le hachage de la valeur.
     def hash(value : usize) : usize {
         return mixHash(value)
     }
 
+    /// Exécute l’opération publique `equals`.
     def equals(left : usize, right : usize) : bool {
         return __derivedEquals[usize](left, right)
     }
 }
 
+/// Représente le type public `ByteHashing`.
 class ByteHashing() extends Hashing[byte] {
+    /// Calcule le hachage de la valeur.
     def hash(value : byte) : usize {
         return mixHash(usize(value))
     }
 
+    /// Exécute l’opération publique `equals`.
     def equals(left : byte, right : byte) : bool {
         return __derivedEquals[byte](left, right)
     }
 }
 
+/// Représente le type public `CharHashing`.
 class CharHashing() extends Hashing[char] {
+    /// Calcule le hachage de la valeur.
     def hash(value : char) : usize {
         return mixHash(usize(value))
     }
 
+    /// Exécute l’opération publique `equals`.
     def equals(left : char, right : char) : bool {
         return __derivedEquals[char](left, right)
     }
 }
 
+/// Représente le type public `BoolHashing`.
 class BoolHashing() extends Hashing[bool] {
+    /// Calcule le hachage de la valeur.
     def hash(value : bool) : usize {
         return mixHash(usize(value))
     }
 
+    /// Exécute l’opération publique `equals`.
     def equals(left : bool, right : bool) : bool {
         return __derivedEquals[bool](left, right)
     }

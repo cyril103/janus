@@ -1,164 +1,315 @@
+/// Définit les valeurs, couleurs et énumérations copiables du graphisme.
 module std.graphics.types
 
+/// Énumère les états publics de `Key`.
 enum Key derives Copy, Equality, Debug {
+    /// Représente le cas `Space`.
     Space = 32,
+    /// Représente le cas `Apostrophe`.
     Apostrophe = 39,
+    /// Représente le cas `Comma`.
     Comma = 44,
+    /// Représente le cas `Minus`.
     Minus = 45,
+    /// Représente le cas `Period`.
     Period = 46,
+    /// Représente le cas `Slash`.
     Slash = 47,
+    /// Représente le cas `Digit0`.
     Digit0 = 48,
+    /// Représente le cas `Digit1`.
     Digit1 = 49,
+    /// Représente le cas `Digit2`.
     Digit2 = 50,
+    /// Représente le cas `Digit3`.
     Digit3 = 51,
+    /// Représente le cas `Digit4`.
     Digit4 = 52,
+    /// Représente le cas `Digit5`.
     Digit5 = 53,
+    /// Représente le cas `Digit6`.
     Digit6 = 54,
+    /// Représente le cas `Digit7`.
     Digit7 = 55,
+    /// Représente le cas `Digit8`.
     Digit8 = 56,
+    /// Représente le cas `Digit9`.
     Digit9 = 57,
+    /// Représente le cas `Semicolon`.
     Semicolon = 59,
+    /// Représente le cas `Equal`.
     Equal = 61,
+    /// Représente le cas `A`.
     A = 65,
+    /// Représente le cas `B`.
     B = 66,
+    /// Représente le cas `C`.
     C = 67,
+    /// Représente le cas `D`.
     D = 68,
+    /// Représente le cas `E`.
     E = 69,
+    /// Représente le cas `F`.
     F = 70,
+    /// Représente le cas `G`.
     G = 71,
+    /// Représente le cas `H`.
     H = 72,
+    /// Représente le cas `I`.
     I = 73,
+    /// Représente le cas `J`.
     J = 74,
+    /// Représente le cas `K`.
     K = 75,
+    /// Représente le cas `L`.
     L = 76,
+    /// Représente le cas `M`.
     M = 77,
+    /// Représente le cas `N`.
     N = 78,
+    /// Représente le cas `O`.
     O = 79,
+    /// Représente le cas `P`.
     P = 80,
+    /// Représente le cas `Q`.
     Q = 81,
+    /// Représente le cas `R`.
     R = 82,
+    /// Représente le cas `S`.
     S = 83,
+    /// Représente le cas `T`.
     T = 84,
+    /// Représente le cas `U`.
     U = 85,
+    /// Représente le cas `V`.
     V = 86,
+    /// Représente le cas `W`.
     W = 87,
+    /// Représente le cas `X`.
     X = 88,
+    /// Représente le cas `Y`.
     Y = 89,
+    /// Représente le cas `Z`.
     Z = 90,
+    /// Représente le cas `LeftBracket`.
     LeftBracket = 91,
+    /// Représente le cas `Backslash`.
     Backslash = 92,
+    /// Représente le cas `RightBracket`.
     RightBracket = 93,
+    /// Représente le cas `Grave`.
     Grave = 96,
+    /// Représente le cas `Escape`.
     Escape = 256,
+    /// Représente le cas `Enter`.
     Enter = 257,
+    /// Représente le cas `Tab`.
     Tab = 258,
+    /// Représente le cas `Backspace`.
     Backspace = 259,
+    /// Représente le cas `Insert`.
     Insert = 260,
+    /// Représente le cas `Delete`.
     Delete = 261,
+    /// Représente le cas `Right`.
     Right = 262,
+    /// Représente le cas `Left`.
     Left = 263,
+    /// Représente le cas `Down`.
     Down = 264,
+    /// Représente le cas `Up`.
     Up = 265,
+    /// Représente le cas `PageUp`.
     PageUp = 266,
+    /// Représente le cas `PageDown`.
     PageDown = 267,
+    /// Représente le cas `Home`.
     Home = 268,
+    /// Représente le cas `End`.
     End = 269,
+    /// Représente le cas `CapsLock`.
     CapsLock = 280,
+    /// Représente le cas `ScrollLock`.
     ScrollLock = 281,
+    /// Représente le cas `NumLock`.
     NumLock = 282,
+    /// Représente le cas `PrintScreen`.
     PrintScreen = 283,
+    /// Représente le cas `Pause`.
     Pause = 284,
+    /// Représente le cas `F1`.
     F1 = 290,
+    /// Représente le cas `F2`.
     F2 = 291,
+    /// Représente le cas `F3`.
     F3 = 292,
+    /// Représente le cas `F4`.
     F4 = 293,
+    /// Représente le cas `F5`.
     F5 = 294,
+    /// Représente le cas `F6`.
     F6 = 295,
+    /// Représente le cas `F7`.
     F7 = 296,
+    /// Représente le cas `F8`.
     F8 = 297,
+    /// Représente le cas `F9`.
     F9 = 298,
+    /// Représente le cas `F10`.
     F10 = 299,
+    /// Représente le cas `F11`.
     F11 = 300,
+    /// Représente le cas `F12`.
     F12 = 301,
+    /// Représente le cas `Keypad0`.
     Keypad0 = 320,
+    /// Représente le cas `Keypad1`.
     Keypad1 = 321,
+    /// Représente le cas `Keypad2`.
     Keypad2 = 322,
+    /// Représente le cas `Keypad3`.
     Keypad3 = 323,
+    /// Représente le cas `Keypad4`.
     Keypad4 = 324,
+    /// Représente le cas `Keypad5`.
     Keypad5 = 325,
+    /// Représente le cas `Keypad6`.
     Keypad6 = 326,
+    /// Représente le cas `Keypad7`.
     Keypad7 = 327,
+    /// Représente le cas `Keypad8`.
     Keypad8 = 328,
+    /// Représente le cas `Keypad9`.
     Keypad9 = 329,
+    /// Représente le cas `KeypadDecimal`.
     KeypadDecimal = 330,
+    /// Représente le cas `KeypadDivide`.
     KeypadDivide = 331,
+    /// Représente le cas `KeypadMultiply`.
     KeypadMultiply = 332,
+    /// Représente le cas `KeypadSubtract`.
     KeypadSubtract = 333,
+    /// Représente le cas `KeypadAdd`.
     KeypadAdd = 334,
+    /// Représente le cas `KeypadEnter`.
     KeypadEnter = 335,
+    /// Représente le cas `KeypadEqual`.
     KeypadEqual = 336,
+    /// Représente le cas `LeftShift`.
     LeftShift = 340,
+    /// Représente le cas `LeftControl`.
     LeftControl = 341,
+    /// Représente le cas `LeftAlt`.
     LeftAlt = 342,
+    /// Représente le cas `LeftSuper`.
     LeftSuper = 343,
+    /// Représente le cas `RightShift`.
     RightShift = 344,
+    /// Représente le cas `RightControl`.
     RightControl = 345,
+    /// Représente le cas `RightAlt`.
     RightAlt = 346,
+    /// Représente le cas `RightSuper`.
     RightSuper = 347,
+    /// Représente le cas `Menu`.
     Menu = 348
 }
 
+/// Énumère les états publics de `MouseButton`.
 enum MouseButton derives Copy, Equality, Debug {
+    /// Représente le cas `Left`.
     Left,
+    /// Représente le cas `Right`.
     Right,
+    /// Représente le cas `Middle`.
     Middle,
+    /// Représente le cas `Side`.
     Side,
+    /// Représente le cas `Extra`.
     Extra,
+    /// Représente le cas `Forward`.
     Forward,
+    /// Représente le cas `Back`.
     Back
 }
 
+/// Énumère les états publics de `TextureFilter`.
 enum TextureFilter derives Copy, Equality, Debug {
+    /// Représente le cas `Point`.
     Point,
+    /// Représente le cas `Bilinear`.
     Bilinear,
+    /// Représente le cas `Trilinear`.
     Trilinear,
+    /// Représente le cas `Anisotropic4x`.
     Anisotropic4x,
+    /// Représente le cas `Anisotropic8x`.
     Anisotropic8x,
+    /// Représente le cas `Anisotropic16x`.
     Anisotropic16x
 }
 
+/// Énumère les états publics de `BlendMode`.
 enum BlendMode derives Copy, Equality, Debug {
+    /// Représente le cas `Alpha`.
     Alpha,
+    /// Représente le cas `Additive`.
     Additive
 }
 
+/// Énumère les états publics de `GamepadButton`.
 enum GamepadButton derives Copy, Equality, Debug {
+    /// Représente le cas `Unknown`.
     Unknown,
+    /// Représente le cas `LeftFaceUp`.
     LeftFaceUp,
+    /// Représente le cas `LeftFaceRight`.
     LeftFaceRight,
+    /// Représente le cas `LeftFaceDown`.
     LeftFaceDown,
+    /// Représente le cas `LeftFaceLeft`.
     LeftFaceLeft,
+    /// Représente le cas `RightFaceUp`.
     RightFaceUp,
+    /// Représente le cas `RightFaceRight`.
     RightFaceRight,
+    /// Représente le cas `RightFaceDown`.
     RightFaceDown,
+    /// Représente le cas `RightFaceLeft`.
     RightFaceLeft,
+    /// Représente le cas `LeftTrigger1`.
     LeftTrigger1,
+    /// Représente le cas `LeftTrigger2`.
     LeftTrigger2,
+    /// Représente le cas `RightTrigger1`.
     RightTrigger1,
+    /// Représente le cas `RightTrigger2`.
     RightTrigger2,
+    /// Représente le cas `MiddleLeft`.
     MiddleLeft,
+    /// Représente le cas `Middle`.
     Middle,
+    /// Représente le cas `MiddleRight`.
     MiddleRight,
+    /// Représente le cas `LeftThumb`.
     LeftThumb,
+    /// Représente le cas `RightThumb`.
     RightThumb
 }
 
+/// Énumère les états publics de `GamepadAxis`.
 enum GamepadAxis derives Copy, Equality, Debug {
+    /// Représente le cas `LeftX`.
     LeftX,
+    /// Représente le cas `LeftY`.
     LeftY,
+    /// Représente le cas `RightX`.
     RightX,
+    /// Représente le cas `RightY`.
     RightY,
+    /// Représente le cas `LeftTrigger`.
     LeftTrigger,
+    /// Représente le cas `RightTrigger`.
     RightTrigger
 }
 private extern def janus_graphics_rgba(
@@ -167,34 +318,51 @@ green : ubyte,
 blue : ubyte,
 alpha : ubyte
 ) : uint
-struct Vector2(val x : float, val y : float)
+/// Représente le type public `Vector2`.
+struct Vector2(
+/// Expose le membre public `x`.
+val x : float,
+/// Expose le membre public `y`.
+val y : float
+)
 derives Copy, Equality, Debug {}
 
+/// Représente le type public `Rectangle`.
 struct Rectangle(
+/// Expose le membre public `x`.
 val x : float,
+/// Expose le membre public `y`.
 val y : float,
+/// Expose le membre public `width`.
 val width : float,
+/// Expose le membre public `height`.
 val height : float
 ) derives Copy, Equality, Debug {}
 
+/// Représente le type public `Color`.
 struct Color(private val packedValue : uint)
 derives Copy, Equality, Debug {
+    /// Exécute l’opération publique `packed`.
     def packed() : uint {
         return packedValue
     }
 }
+/// Exécute l’opération publique `rgba`.
 def rgba(red : ubyte, green : ubyte, blue : ubyte, alpha : ubyte) : Color {
     return new Color(janus_graphics_rgba(red, green, blue, alpha))
 }
 
+/// Exécute l’opération publique `vector2`.
 def vector2(x : float, y : float) : Vector2 {
     return new Vector2(x, y)
 }
 
+/// Exécute l’opération publique `rectangle`.
 def rectangle(x : float, y : float, width : float, height : float) : Rectangle {
     return new Rectangle(x, y, width, height)
 }
 
+/// Exécute l’opération publique `colorRgba`.
 def colorRgba(
 red : ubyte,
 green : ubyte,
@@ -204,36 +372,48 @@ alpha : ubyte
     return rgba(red, green, blue, alpha)
 }
 
+/// Exécute l’opération publique `colorRgb`.
 def colorRgb(red : ubyte, green : ubyte, blue : ubyte) : Color {
     return rgb(red, green, blue)
 }
 
+/// Exécute l’opération publique `rgb`.
 def rgb(red : ubyte, green : ubyte, blue : ubyte) : Color {
     return rgba(red, green, blue, 255)
 }
 
+/// Expose la valeur publique `Black`.
 val Black : Color = new Color(255)
+/// Expose la valeur publique `White`.
 val White : Color = new Color(4294967295)
+/// Expose la valeur publique `Red`.
 val Red : Color = new Color(3861460991)
+/// Expose la valeur publique `Green`.
 val Green : Color = new Color(14954751)
+/// Expose la valeur publique `Blue`.
 val Blue : Color = new Color(7991807)
 
+/// Exécute l’opération publique `black`.
 def black() : Color {
     return Black
 }
 
+/// Exécute l’opération publique `white`.
 def white() : Color {
     return White
 }
 
+/// Exécute l’opération publique `red`.
 def red() : Color {
     return Red
 }
 
+/// Exécute l’opération publique `green`.
 def green() : Color {
     return Green
 }
 
+/// Exécute l’opération publique `blue`.
 def blue() : Color {
     return Blue
 }

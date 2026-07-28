@@ -789,6 +789,14 @@ if(BUILD_TESTING)
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_documentation_cli.cmake"
     )
     add_test(
+        NAME docs.stdlib_reference
+        COMMAND "${CMAKE_COMMAND}"
+                -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+                -DJANUS=$<TARGET_FILE:janus>
+                -P "${PROJECT_SOURCE_DIR}/tests/documentation/run_stdlib_documentation_cli.cmake"
+    )
+    add_test(
         NAME cli.doctest
         COMMAND "${CMAKE_COMMAND}"
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}
@@ -2232,6 +2240,10 @@ endif()
 install(
     DIRECTORY stdlib/
     DESTINATION ${CMAKE_INSTALL_DATADIR}/janus/stdlib
+)
+install(
+    DIRECTORY website/docs/reference/stdlib/
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}/stdlib-reference
 )
 install(
     FILES README.md CHANGELOG.md LICENSE NOTICE

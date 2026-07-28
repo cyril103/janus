@@ -68,6 +68,10 @@ aussi d'une aide ciblée : `janus check --help`, `janus build --help`,
 `janus run --help`, `janus test --help` et `janus doc --help`. L'aide est écrite sur la sortie
 standard, renvoie le code `0` et ne recherche ni projet ni chaîne d'outils.
 
+`janus doc --stdlib --offline -o <répertoire>` génère la référence complète de
+la bibliothèque standard installée sans rechercher de manifeste ni accéder au
+réseau.
+
 Pour `check`, `build`, `run` et `test`, une erreur d'invocation (option
 inconnue, argument manquant ou combinaison incompatible) renvoie le code `2`,
 affiche sur la sortie d'erreur un diagnostic qualifié par la commande puis

@@ -48,6 +48,12 @@ fi
 
 JANUS="$PACKAGE_ROOT/bin/janus"
 "$PACKAGE_ROOT/bin/janus-lsp" --version
+mkdir -p "$WORK/stdlib-reference"
+"$JANUS" doc --stdlib --offline -o "$WORK/stdlib-reference"
+cmp "$WORK/stdlib-reference/api-index.json" \
+  "$PACKAGE_ROOT/share/doc/janus/stdlib-reference/api-index.json"
+cmp "$WORK/stdlib-reference/index.html" \
+  "$PACKAGE_ROOT/share/doc/janus/stdlib-reference/index.html"
 export HOME="$WORK/home"
 export JANUS_CACHE="$WORK/cache"
 export JANUS_REGISTRY="$WORK/registry"

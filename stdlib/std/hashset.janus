@@ -1,3 +1,4 @@
+/// Fournit un ensemble haché propriétaire et ses parcours.
 module std.hashset
 import std.array
 import std.builder
@@ -58,6 +59,7 @@ private var index : usize
     }
 }
 
+/// Représente le type public `HashSet`.
 class HashSet[T, H <: Hashing[T]](
 initialCapacity : usize,
 private val hashing : H
@@ -154,10 +156,12 @@ private val hashing : H
         delete previous
     }
 
+    /// Retourne le nombre de valeurs stockées.
     def size() : usize {
         return length
     }
 
+    /// Indique si l’ensemble est vide.
     def isEmpty() : bool {
         return length == usize(0)
     }
@@ -221,6 +225,7 @@ private val hashing : H
         }
     }
 
+    /// Indique si la valeur appartient à l’ensemble.
     def contains(value : T) : bool {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
@@ -236,6 +241,7 @@ private val hashing : H
         return false
     }
 
+    /// Ajoute une valeur.
     def add(value : T) : bool {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
@@ -299,6 +305,7 @@ private val hashing : H
         return this.add(move value)
     }
 
+    /// Retire la valeur et indique si elle était présente.
     def remove(value : T) : bool {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
@@ -319,6 +326,7 @@ private val hashing : H
         return false
     }
 
+    /// Réinitialise l’état.
     def clear() : Unit {
         this.initializeSlots()
         var index : usize = usize(0)
@@ -330,6 +338,7 @@ private val hashing : H
         deletedCount = usize(0)
     }
 
+    /// Exécute l’opération publique `iterator`.
     def iterator() : Iterator[T] {
         val state : HashSetIteratorState[T, H] =
         new HashSetIteratorState[T, H](this, usize(0))
@@ -339,6 +348,7 @@ private val hashing : H
         )
     }
 
+    /// Exécute l’opération publique `intoIterator`.
     consume def intoIterator() : Iterator[T] {
         val state : HashSetIntoIteratorState[T, H] =
         new HashSetIntoIteratorState[T, H](move this, usize(0))
@@ -353,6 +363,7 @@ private val hashing : H
     }
 }
 
+/// Représente le type public `SetBuilder`.
 class SetBuilder[T, H <: Hashing[T]](
 initialCapacity : usize,
 private val hashing : H
@@ -360,24 +371,29 @@ private val hashing : H
     private var values : HashSet[T, H] =
     new HashSet[T, H](initialCapacity, hashing)
 
+    /// Ajoute une valeur.
     def add(value : T) : Unit {
         values.add(move value)
     }
 
+    /// Ajoute tous les éléments de la source.
     def addAll[C <: Iterable[T]](source : C) : Unit {
         for value in source {
             this.add(value)
         }
     }
 
+    /// Retourne le nombre de valeurs accumulées.
     def size() : usize {
         return values.size()
     }
 
+    /// Réinitialise l’état.
     def clear() : Unit {
         values.clear()
     }
 
+    /// Produit l’ensemble construit.
     def result() : HashSet[T, H] {
         val completed : HashSet[T, H] = move values
         values = new HashSet[T, H](usize(8), hashing)

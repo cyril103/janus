@@ -1,0 +1,2011 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Janus standard library 0.6.0 API</title>
+<style>body{font:16px/1.55 system-ui,sans-serif;max-width:72rem;margin:auto;padding:2rem;color:#17202a}nav a{margin-right:1rem}section{border-top:1px solid #d8dee4;margin-top:2rem}article{margin:1.5rem 0;padding-left:1rem;border-left:3px solid #d8dee4}code{background:#f3f4f6;padding:.1rem .3rem;border-radius:.2rem}.kind{color:#57606a;text-transform:uppercase;font-size:.75rem}.unresolved{color:#b42318}</style>
+</head>
+<body>
+<header><h1>Janus standard library API</h1><p>Version 0.6.0</p></header>
+<nav aria-label="Modules"><a href="#module-std-array">std.array</a><a href="#module-std-array-builder">std.array_builder</a><a href="#module-std-builder">std.builder</a><a href="#module-std-c">std.c</a><a href="#module-std-fs">std.fs</a><a href="#module-std-graphics">std.graphics</a><a href="#module-std-graphics-audio">std.graphics.audio</a><a href="#module-std-graphics-drawing">std.graphics.drawing</a><a href="#module-std-graphics-input">std.graphics.input</a><a href="#module-std-graphics-resources">std.graphics.resources</a><a href="#module-std-graphics-types">std.graphics.types</a><a href="#module-std-hash-probe">std.hash_probe</a><a href="#module-std-hashing">std.hashing</a><a href="#module-std-hashmap">std.hashmap</a><a href="#module-std-hashset">std.hashset</a><a href="#module-std-io">std.io</a><a href="#module-std-iterator">std.iterator</a><a href="#module-std-math">std.math</a><a href="#module-std-option">std.option</a><a href="#module-std-path">std.path</a><a href="#module-std-process">std.process</a><a href="#module-std-random">std.random</a><a href="#module-std-range">std.range</a><a href="#module-std-result">std.result</a><a href="#module-std-system">std.system</a><a href="#module-std-text">std.text</a><a href="#module-std-time">std.time</a><a href="#module-std-wall-time">std.wall_time</a></nav>
+<main>
+<section id="module-std-array"><h2>Module std.array</h2>
+<p>Fournit les tableaux propriétaires et leurs parcours observants ou consommateurs.</p>
+<article id="std-array-array"><span class="kind">class</span><h3><code>class Array[T]</code></h3>
+<p>Représente le type public `Array`.</p>
+</article>
+<article id="std-array-array-all"><span class="kind">method</span><h3><code>def all(predicate : Function[T, bool]) : bool</code></h3>
+<p>Exécute l’opération publique `all`.</p>
+</article>
+<article id="std-array-array-any"><span class="kind">method</span><h3><code>def any(predicate : Function[T, bool]) : bool</code></h3>
+<p>Exécute l’opération publique `any`.</p>
+</article>
+<article id="std-array-array-capacity"><span class="kind">method</span><h3><code>def capacity() : usize</code></h3>
+<p>Retourne la capacité actuellement réservée.</p>
+</article>
+<article id="std-array-array-clear"><span class="kind">method</span><h3><code>def clear() : Unit</code></h3>
+<p>Réinitialise l’état.</p>
+</article>
+<article id="std-array-array-count"><span class="kind">method</span><h3><code>def count(predicate : Function[T, bool]) : usize</code></h3>
+<p>Compte les éléments qui satisfont le prédicat.</p>
+</article>
+<article id="std-array-array-filter"><span class="kind">method</span><h3><code>def filter(predicate : Function[T, bool]) : Array[T]</code></h3>
+<p>Conserve les valeurs qui satisfont le prédicat.</p>
+</article>
+<article id="std-array-array-find"><span class="kind">method</span><h3><code>def find(predicate : Function[T, bool]) : Option[T]</code></h3>
+<p>Exécute l’opération publique `find`.</p>
+</article>
+<article id="std-array-array-fold"><span class="kind">method</span><h3><code>def fold[U](initial : U, combine : Function[U, T, U]) : U</code></h3>
+<p>Réduit les valeurs avec un accumulateur.</p>
+</article>
+<article id="std-array-array-foreach"><span class="kind">method</span><h3><code>def foreach(action : Function[T, Unit]) : Unit</code></h3>
+<p>Exécute l’opération publique `foreach`.</p>
+</article>
+<article id="std-array-array-get"><span class="kind">method</span><h3><code>def get(index : usize) : T</code></h3>
+<p>Retourne l’élément situé à l’index demandé.</p>
+</article>
+<article id="std-array-array-getoption"><span class="kind">method</span><h3><code>def getOption(index : usize) : Option[T]</code></h3>
+<p>Retourne l’élément demandé, ou `None` si l’index est hors limites.</p>
+</article>
+<article id="std-array-array-intoiterator"><span class="kind">method</span><h3><code>consume def intoIterator() : Iterator[T]</code></h3>
+<p>Exécute l’opération publique `intoIterator`.</p>
+</article>
+<article id="std-array-array-isempty"><span class="kind">method</span><h3><code>def isEmpty() : bool</code></h3>
+<p>Indique si le tableau est vide.</p>
+</article>
+<article id="std-array-array-iterator"><span class="kind">method</span><h3><code>def iterator() : Iterator[T]</code></h3>
+<p>Exécute l’opération publique `iterator`.</p>
+</article>
+<article id="std-array-array-map"><span class="kind">method</span><h3><code>def map[U](transform : Function[T, U]) : Array[U]</code></h3>
+<p>Transforme la valeur ou la séquence avec la fonction fournie.</p>
+</article>
+<article id="std-array-array-pop"><span class="kind">method</span><h3><code>def pop() : T</code></h3>
+<p>Retire et retourne le dernier élément.</p>
+</article>
+<article id="std-array-array-popoption"><span class="kind">method</span><h3><code>def popOption() : Option[T]</code></h3>
+<p>Exécute l’opération publique `popOption`.</p>
+</article>
+<article id="std-array-array-push"><span class="kind">method</span><h3><code>def push(value : T) : usize</code></h3>
+<p>Ajoute une valeur.</p>
+</article>
+<article id="std-array-array-remove"><span class="kind">method</span><h3><code>def remove(index : usize) : T</code></h3>
+<p>Retire et retourne l’élément situé à l’index demandé.</p>
+</article>
+<article id="std-array-array-replace"><span class="kind">method</span><h3><code>def replace(index : usize, value : T) : T</code></h3>
+<p>Exécute l’opération publique `replace`.</p>
+</article>
+<article id="std-array-array-reserve"><span class="kind">method</span><h3><code>def reserve(requested : usize) : Unit</code></h3>
+<p>Exécute l’opération publique `reserve`.</p>
+</article>
+<article id="std-array-array-set"><span class="kind">method</span><h3><code>def set(index : usize, value : T) : Unit</code></h3>
+<p>Remplace l’élément situé à l’index demandé.</p>
+</article>
+<article id="std-array-array-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne le nombre d’éléments stockés.</p>
+</article>
+<article id="std-array-array-withvalue"><span class="kind">method</span><h3><code>def withValue(index : usize, action : Function[T, Unit]) : Unit</code></h3>
+<p>Exécute l’opération publique `withValue`.</p>
+</article>
+</section>
+<section id="module-std-array-builder"><h2>Module std.array_builder</h2>
+<p>Construit des tableaux propriétaires à partir de valeurs ou d’itérateurs.</p>
+<article id="std-array-builder-arraybuilder"><span class="kind">class</span><h3><code>class ArrayBuilder[T]</code></h3>
+<p>Représente le type public `ArrayBuilder`.</p>
+</article>
+<article id="std-array-builder-arraybuilder-add"><span class="kind">method</span><h3><code>def add(value : T) : Unit</code></h3>
+<p>Ajoute une valeur.</p>
+</article>
+<article id="std-array-builder-arraybuilder-addall"><span class="kind">method</span><h3><code>def addAll[C](source : C) : Unit</code></h3>
+<p>Ajoute tous les éléments de la source.</p>
+</article>
+<article id="std-array-builder-arraybuilder-clear"><span class="kind">method</span><h3><code>def clear() : Unit</code></h3>
+<p>Réinitialise l’état.</p>
+</article>
+<article id="std-array-builder-arraybuilder-result"><span class="kind">method</span><h3><code>def result() : Array[T]</code></h3>
+<p>Transfère les éléments accumulés dans un nouveau tableau.</p>
+</article>
+<article id="std-array-builder-arraybuilder-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne le nombre d’éléments accumulés.</p>
+</article>
+<article id="std-array-builder-collectarray"><span class="kind">function</span><h3><code>def collectArray[T](source : Iterator[T]) : Array[T]</code></h3>
+<p>Exécute l’opération publique `collectArray`.</p>
+</article>
+</section>
+<section id="module-std-builder"><h2>Module std.builder</h2>
+<p>Définit le contrat commun des constructeurs de collections.</p>
+<article id="std-builder-builder"><span class="kind">trait</span><h3><code>trait Builder[T, C]</code></h3>
+<p>Définit le contrat public `Builder`.</p>
+</article>
+<article id="std-builder-builder-add"><span class="kind">method</span><h3><code>def add(value : T) : Unit</code></h3>
+<p>Ajoute une valeur.</p>
+</article>
+<article id="std-builder-builder-result"><span class="kind">method</span><h3><code>def result() : C</code></h3>
+<p>Produit la collection construite.</p>
+</article>
+</section>
+<section id="module-std-c"><h2>Module std.c</h2>
+<p>Expose les primitives minimales d’interopérabilité avec la bibliothèque C.</p>
+<article id="std-c-exit"><span class="kind">function</span><h3><code>def exit(status : int) : Unit</code></h3>
+<p>Exécute l’opération publique `exit`.</p>
+</article>
+<article id="std-c-memcmp"><span class="kind">function</span><h3><code>def memcmp(left : Ptr[byte], right : Ptr[byte], size : usize) : int</code></h3>
+<p>Exécute l’opération publique `memcmp`.</p>
+</article>
+<article id="std-c-printf"><span class="kind">function</span><h3><code>def printf(format : Ptr[byte], ...) : int</code></h3>
+<p>Exécute l’opération publique `printf`.</p>
+</article>
+<article id="std-c-puts"><span class="kind">function</span><h3><code>def puts(text : Ptr[byte]) : int</code></h3>
+<p>Exécute l’opération publique `puts`.</p>
+</article>
+<article id="std-c-strlen"><span class="kind">function</span><h3><code>def strlen(text : Ptr[byte]) : usize</code></h3>
+<p>Exécute l’opération publique `strlen`.</p>
+</article>
+</section>
+<section id="module-std-fs"><h2>Module std.fs</h2>
+<p>Fournit les opérations de fichiers, répertoires et métadonnées structurées.</p>
+<article id="std-fs-directoryiterator"><span class="kind">class</span><h3><code>class DirectoryIterator</code></h3>
+<p>Représente le type public `DirectoryIterator`.</p>
+</article>
+<article id="std-fs-directoryiterator-close"><span class="kind">method</span><h3><code>def close() : Result[bool, SystemError]</code></h3>
+<p>Ferme le parcours de répertoire.</p>
+</article>
+<article id="std-fs-directoryiterator-next"><span class="kind">method</span><h3><code>def next() : Result[Option[Path], SystemError]</code></h3>
+<p>Avance le parcours et retourne la prochaine valeur disponible.</p>
+</article>
+<article id="std-fs-filedata"><span class="kind">class</span><h3><code>class FileData</code></h3>
+<p>Représente le type public `FileData`.</p>
+</article>
+<article id="std-fs-filedata-data"><span class="kind">method</span><h3><code>def data() : Ptr[byte]</code></h3>
+<p>Exécute l’opération publique `data`.</p>
+</article>
+<article id="std-fs-filedata-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne la taille du fichier en octets.</p>
+</article>
+<article id="std-fs-filedata-view"><span class="kind">method</span><h3><code>def view() : string</code></h3>
+<p>Exécute l’opération publique `view`.</p>
+</article>
+<article id="std-fs-filemetadata"><span class="kind">struct</span><h3><code>struct FileMetadata</code></h3>
+<p>Représente le type public `FileMetadata`.</p>
+</article>
+<article id="std-fs-filemetadata-kind"><span class="kind">field</span><h3><code>val kind : FileType</code></h3>
+<p>Expose le membre public `kind`.</p>
+</article>
+<article id="std-fs-filemetadata-size"><span class="kind">field</span><h3><code>val size : usize</code></h3>
+<p>Expose le membre public `size`.</p>
+</article>
+<article id="std-fs-filetype"><span class="kind">enum</span><h3><code>enum FileType</code></h3>
+<p>Énumère les états publics de `FileType`.</p>
+</article>
+<article id="std-fs-filetype-directory"><span class="kind">variant</span><h3><code>Directory</code></h3>
+<p>Représente le cas `Directory`.</p>
+</article>
+<article id="std-fs-filetype-file"><span class="kind">variant</span><h3><code>File</code></h3>
+<p>Représente le cas `File`.</p>
+</article>
+<article id="std-fs-filetype-other"><span class="kind">variant</span><h3><code>Other</code></h3>
+<p>Représente le cas `Other`.</p>
+</article>
+<article id="std-fs-filetype-symboliclink"><span class="kind">variant</span><h3><code>SymbolicLink</code></h3>
+<p>Représente le cas `SymbolicLink`.</p>
+</article>
+<article id="std-fs-createdirectory"><span class="kind">function</span><h3><code>def createDirectory(path : string, recursive : bool) : Result[bool, SystemError]</code></h3>
+<p>Crée le répertoire demandé.</p>
+</article>
+<article id="std-fs-createtemporarydirectory"><span class="kind">function</span><h3><code>def createTemporaryDirectory(prefix : string) : Result[Path, SystemError]</code></h3>
+<p>Crée un répertoire temporaire unique.</p>
+</article>
+<article id="std-fs-metadata"><span class="kind">function</span><h3><code>def metadata(path : string) : Result[FileMetadata, SystemError]</code></h3>
+<p>Exécute l’opération publique `metadata`.</p>
+</article>
+<article id="std-fs-readdirectory"><span class="kind">function</span><h3><code>def readDirectory(path : string) : Result[DirectoryIterator, SystemError]</code></h3>
+<p>Ouvre un parcours sur les entrées du répertoire.</p>
+</article>
+<article id="std-fs-readfile"><span class="kind">function</span><h3><code>def readFile(path : string) : Result[FileData, SystemError]</code></h3>
+<p>Lit intégralement un fichier dans un tampon propriétaire.</p>
+</article>
+<article id="std-fs-removedirectory"><span class="kind">function</span><h3><code>def removeDirectory(path : string) : Result[bool, SystemError]</code></h3>
+<p>Supprime le répertoire demandé.</p>
+</article>
+<article id="std-fs-removefile"><span class="kind">function</span><h3><code>def removeFile(path : string) : Result[bool, SystemError]</code></h3>
+<p>Supprime le fichier demandé.</p>
+</article>
+<article id="std-fs-writefileatomic"><span class="kind">function</span><h3><code>def writeFileAtomic(path : string, data : Ptr[byte], size : usize) : Result[bool, SystemError]</code></h3>
+<p>Écrit un tampon dans un fichier par remplacement atomique.</p>
+</article>
+<article id="std-fs-writetextfileatomic"><span class="kind">function</span><h3><code>def writeTextFileAtomic(path : string, content : string) : Result[bool, SystemError]</code></h3>
+<p>Écrit un texte dans un fichier par remplacement atomique.</p>
+</article>
+</section>
+<section id="module-std-graphics"><h2>Module std.graphics</h2>
+<p>Regroupe la surface graphique et audio expérimentale de Janus.</p>
+</section>
+<section id="module-std-graphics-audio"><h2>Module std.graphics.audio</h2>
+<p>Gère les périphériques, sons et flux musicaux du backend graphique.</p>
+<article id="std-graphics-audio-music"><span class="kind">class</span><h3><code>class Music</code></h3>
+<p>Représente le type public `Music`.</p>
+</article>
+<article id="std-graphics-audio-music-isplaying"><span class="kind">method</span><h3><code>def isPlaying() : bool</code></h3>
+<p>Indique si la musique est en cours de lecture.</p>
+</article>
+<article id="std-graphics-audio-music-isvalid"><span class="kind">method</span><h3><code>def isValid() : bool</code></h3>
+<p>Indique si la ressource musicale est valide.</p>
+</article>
+<article id="std-graphics-audio-music-play"><span class="kind">method</span><h3><code>def play() : Unit</code></h3>
+<p>Exécute l’opération publique `play`.</p>
+</article>
+<article id="std-graphics-audio-music-setpan"><span class="kind">method</span><h3><code>def setPan(pan : float) : Unit</code></h3>
+<p>Règle la panoramique de la musique.</p>
+</article>
+<article id="std-graphics-audio-music-setpitch"><span class="kind">method</span><h3><code>def setPitch(pitch : float) : Unit</code></h3>
+<p>Règle la hauteur de la musique.</p>
+</article>
+<article id="std-graphics-audio-music-setvolume"><span class="kind">method</span><h3><code>def setVolume(volume : float) : Unit</code></h3>
+<p>Règle le volume de la musique.</p>
+</article>
+<article id="std-graphics-audio-music-stop"><span class="kind">method</span><h3><code>def stop() : Unit</code></h3>
+<p>Exécute l’opération publique `stop`.</p>
+</article>
+<article id="std-graphics-audio-music-update"><span class="kind">method</span><h3><code>def update() : Unit</code></h3>
+<p>Met à jour le flux musical.</p>
+</article>
+<article id="std-graphics-audio-sound"><span class="kind">class</span><h3><code>class Sound</code></h3>
+<p>Représente le type public `Sound`.</p>
+</article>
+<article id="std-graphics-audio-sound-isplaying"><span class="kind">method</span><h3><code>def isPlaying() : bool</code></h3>
+<p>Indique si le son est en cours de lecture.</p>
+</article>
+<article id="std-graphics-audio-sound-isvalid"><span class="kind">method</span><h3><code>def isValid() : bool</code></h3>
+<p>Indique si la ressource sonore est valide.</p>
+</article>
+<article id="std-graphics-audio-sound-play"><span class="kind">method</span><h3><code>def play() : Unit</code></h3>
+<p>Exécute l’opération publique `play`.</p>
+</article>
+<article id="std-graphics-audio-sound-setpan"><span class="kind">method</span><h3><code>def setPan(pan : float) : Unit</code></h3>
+<p>Règle la panoramique du son.</p>
+</article>
+<article id="std-graphics-audio-sound-setpitch"><span class="kind">method</span><h3><code>def setPitch(pitch : float) : Unit</code></h3>
+<p>Règle la hauteur du son.</p>
+</article>
+<article id="std-graphics-audio-sound-setvolume"><span class="kind">method</span><h3><code>def setVolume(volume : float) : Unit</code></h3>
+<p>Règle le volume du son.</p>
+</article>
+<article id="std-graphics-audio-sound-stop"><span class="kind">method</span><h3><code>def stop() : Unit</code></h3>
+<p>Exécute l’opération publique `stop`.</p>
+</article>
+<article id="std-graphics-audio-closeaudio"><span class="kind">function</span><h3><code>def closeAudio() : Unit</code></h3>
+<p>Ferme le périphérique audio.</p>
+</article>
+<article id="std-graphics-audio-initaudio"><span class="kind">function</span><h3><code>def initAudio() : bool</code></h3>
+<p>Exécute l’opération publique `initAudio`.</p>
+</article>
+<article id="std-graphics-audio-loadmusic"><span class="kind">function</span><h3><code>def loadMusic(fileName : string) : Music</code></h3>
+<p>Charge un flux musical depuis un fichier.</p>
+</article>
+<article id="std-graphics-audio-loadsound"><span class="kind">function</span><h3><code>def loadSound(fileName : string) : Sound</code></h3>
+<p>Charge un son depuis un fichier.</p>
+</article>
+<article id="std-graphics-audio-setmastervolume"><span class="kind">function</span><h3><code>def setMasterVolume(volume : float) : Unit</code></h3>
+<p>Règle le volume audio principal.</p>
+</article>
+</section>
+<section id="module-std-graphics-drawing"><h2>Module std.graphics.drawing</h2>
+<p>Gère les fenêtres, cadres, caméras et primitives de dessin 2D.</p>
+<article id="std-graphics-drawing-camera2d"><span class="kind">class</span><h3><code>class Camera2D</code></h3>
+<p>Représente le type public `Camera2D`.</p>
+</article>
+<article id="std-graphics-drawing-camera2d-offsetx"><span class="kind">field</span><h3><code>var offsetX : float</code></h3>
+<p>Expose le membre public `offsetX`.</p>
+</article>
+<article id="std-graphics-drawing-camera2d-offsety"><span class="kind">field</span><h3><code>var offsetY : float</code></h3>
+<p>Expose le membre public `offsetY`.</p>
+</article>
+<article id="std-graphics-drawing-camera2d-rotation"><span class="kind">field</span><h3><code>var rotation : float</code></h3>
+<p>Expose le membre public `rotation`.</p>
+</article>
+<article id="std-graphics-drawing-camera2d-targetx"><span class="kind">field</span><h3><code>var targetX : float</code></h3>
+<p>Expose le membre public `targetX`.</p>
+</article>
+<article id="std-graphics-drawing-camera2d-targety"><span class="kind">field</span><h3><code>var targetY : float</code></h3>
+<p>Expose le membre public `targetY`.</p>
+</article>
+<article id="std-graphics-drawing-camera2d-zoom"><span class="kind">field</span><h3><code>var zoom : float</code></h3>
+<p>Expose le membre public `zoom`.</p>
+</article>
+<article id="std-graphics-drawing-beginblend"><span class="kind">function</span><h3><code>def beginBlend(mode : BlendMode) : Unit</code></h3>
+<p>Exécute l’opération publique `beginBlend`.</p>
+</article>
+<article id="std-graphics-drawing-begincamera"><span class="kind">function</span><h3><code>def beginCamera(camera : Camera2D) : Unit</code></h3>
+<p>Exécute l’opération publique `beginCamera`.</p>
+</article>
+<article id="std-graphics-drawing-begindrawing"><span class="kind">function</span><h3><code>def beginDrawing() : Unit</code></h3>
+<p>Exécute l’opération publique `beginDrawing`.</p>
+</article>
+<article id="std-graphics-drawing-clearbackground"><span class="kind">function</span><h3><code>def clearBackground(color : Color) : Unit</code></h3>
+<p>Efface le rendu avec la couleur d’arrière-plan.</p>
+</article>
+<article id="std-graphics-drawing-clearcolor"><span class="kind">function</span><h3><code>def clearColor(color : Color) : Unit</code></h3>
+<p>Efface le rendu avec la couleur fournie.</p>
+</article>
+<article id="std-graphics-drawing-closewindow"><span class="kind">function</span><h3><code>def closeWindow() : Unit</code></h3>
+<p>Ferme la fenêtre et libère le backend graphique.</p>
+</article>
+<article id="std-graphics-drawing-drawcircle"><span class="kind">function</span><h3><code>def drawCircle(centerX : int, centerY : int, radius : float, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawCircle`.</p>
+</article>
+<article id="std-graphics-drawing-drawcircleat"><span class="kind">function</span><h3><code>def drawCircleAt(center : Vector2, radius : float, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawCircleAt`.</p>
+</article>
+<article id="std-graphics-drawing-drawline"><span class="kind">function</span><h3><code>def drawLine(startX : int, startY : int, endX : int, endY : int, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawLine`.</p>
+</article>
+<article id="std-graphics-drawing-drawlinebetween"><span class="kind">function</span><h3><code>def drawLineBetween(start : Vector2, end : Vector2, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawLineBetween`.</p>
+</article>
+<article id="std-graphics-drawing-drawpixel"><span class="kind">function</span><h3><code>def drawPixel(x : int, y : int, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawPixel`.</p>
+</article>
+<article id="std-graphics-drawing-drawpixelat"><span class="kind">function</span><h3><code>def drawPixelAt(position : Vector2, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawPixelAt`.</p>
+</article>
+<article id="std-graphics-drawing-drawrectangle"><span class="kind">function</span><h3><code>def drawRectangle(x : int, y : int, width : int, height : int, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawRectangle`.</p>
+</article>
+<article id="std-graphics-drawing-drawrectanglearea"><span class="kind">function</span><h3><code>def drawRectangleArea(area : Rectangle, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawRectangleArea`.</p>
+</article>
+<article id="std-graphics-drawing-drawtext"><span class="kind">function</span><h3><code>def drawText(text : string, x : int, y : int, fontSize : int, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawText`.</p>
+</article>
+<article id="std-graphics-drawing-drawtextat"><span class="kind">function</span><h3><code>def drawTextAt(text : string, position : Vector2, fontSize : int, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawTextAt`.</p>
+</article>
+<article id="std-graphics-drawing-elapsedtime"><span class="kind">function</span><h3><code>def elapsedTime() : Duration</code></h3>
+<p>Exécute l’opération publique `elapsedTime`.</p>
+</article>
+<article id="std-graphics-drawing-endblend"><span class="kind">function</span><h3><code>def endBlend() : Unit</code></h3>
+<p>Exécute l’opération publique `endBlend`.</p>
+</article>
+<article id="std-graphics-drawing-endcamera"><span class="kind">function</span><h3><code>def endCamera() : Unit</code></h3>
+<p>Exécute l’opération publique `endCamera`.</p>
+</article>
+<article id="std-graphics-drawing-enddrawing"><span class="kind">function</span><h3><code>def endDrawing() : Unit</code></h3>
+<p>Exécute l’opération publique `endDrawing`.</p>
+</article>
+<article id="std-graphics-drawing-frametime"><span class="kind">function</span><h3><code>def frameTime() : Duration</code></h3>
+<p>Exécute l’opération publique `frameTime`.</p>
+</article>
+<article id="std-graphics-drawing-graphicsavailable"><span class="kind">function</span><h3><code>def graphicsAvailable() : bool</code></h3>
+<p>Exécute l’opération publique `graphicsAvailable`.</p>
+</article>
+<article id="std-graphics-drawing-graphicslasterror"><span class="kind">function</span><h3><code>def graphicsLastError() : Ptr[byte]</code></h3>
+<p>Exécute l’opération publique `graphicsLastError`.</p>
+</article>
+<article id="std-graphics-drawing-initwindow"><span class="kind">function</span><h3><code>def initWindow(width : int, height : int, title : string) : bool</code></h3>
+<p>Exécute l’opération publique `initWindow`.</p>
+</article>
+<article id="std-graphics-drawing-iswindowfocused"><span class="kind">function</span><h3><code>def isWindowFocused() : bool</code></h3>
+<p>Indique si la fenêtre possède le focus.</p>
+</article>
+<article id="std-graphics-drawing-iswindowfullscreen"><span class="kind">function</span><h3><code>def isWindowFullscreen() : bool</code></h3>
+<p>Indique si la fenêtre occupe tout l’écran.</p>
+</article>
+<article id="std-graphics-drawing-iswindowhidden"><span class="kind">function</span><h3><code>def isWindowHidden() : bool</code></h3>
+<p>Indique si la fenêtre est masquée.</p>
+</article>
+<article id="std-graphics-drawing-iswindowmaximized"><span class="kind">function</span><h3><code>def isWindowMaximized() : bool</code></h3>
+<p>Indique si la fenêtre est agrandie.</p>
+</article>
+<article id="std-graphics-drawing-iswindowminimized"><span class="kind">function</span><h3><code>def isWindowMinimized() : bool</code></h3>
+<p>Indique si la fenêtre est réduite.</p>
+</article>
+<article id="std-graphics-drawing-iswindowresized"><span class="kind">function</span><h3><code>def isWindowResized() : bool</code></h3>
+<p>Indique si la fenêtre a été redimensionnée.</p>
+</article>
+<article id="std-graphics-drawing-maximizewindow"><span class="kind">function</span><h3><code>def maximizeWindow() : Unit</code></h3>
+<p>Exécute l’opération publique `maximizeWindow`.</p>
+</article>
+<article id="std-graphics-drawing-minimizewindow"><span class="kind">function</span><h3><code>def minimizeWindow() : Unit</code></h3>
+<p>Exécute l’opération publique `minimizeWindow`.</p>
+</article>
+<article id="std-graphics-drawing-restorewindow"><span class="kind">function</span><h3><code>def restoreWindow() : Unit</code></h3>
+<p>Exécute l’opération publique `restoreWindow`.</p>
+</article>
+<article id="std-graphics-drawing-screenheight"><span class="kind">function</span><h3><code>def screenHeight() : int</code></h3>
+<p>Exécute l’opération publique `screenHeight`.</p>
+</article>
+<article id="std-graphics-drawing-screentoworld"><span class="kind">function</span><h3><code>def screenToWorld(position : Vector2, camera : Camera2D) : Vector2</code></h3>
+<p>Exécute l’opération publique `screenToWorld`.</p>
+</article>
+<article id="std-graphics-drawing-screenwidth"><span class="kind">function</span><h3><code>def screenWidth() : int</code></h3>
+<p>Exécute l’opération publique `screenWidth`.</p>
+</article>
+<article id="std-graphics-drawing-settargetfps"><span class="kind">function</span><h3><code>def setTargetFps(framesPerSecond : int) : Unit</code></h3>
+<p>Règle la fréquence d’images cible.</p>
+</article>
+<article id="std-graphics-drawing-setwindowopacity"><span class="kind">function</span><h3><code>def setWindowOpacity(opacity : float) : Unit</code></h3>
+<p>Règle l’opacité de la fenêtre.</p>
+</article>
+<article id="std-graphics-drawing-setwindowposition"><span class="kind">function</span><h3><code>def setWindowPosition(x : int, y : int) : Unit</code></h3>
+<p>Déplace la fenêtre aux coordonnées demandées.</p>
+</article>
+<article id="std-graphics-drawing-setwindowsize"><span class="kind">function</span><h3><code>def setWindowSize(width : int, height : int) : Unit</code></h3>
+<p>Redimensionne la fenêtre.</p>
+</article>
+<article id="std-graphics-drawing-setwindowtitle"><span class="kind">function</span><h3><code>def setWindowTitle(title : string) : Unit</code></h3>
+<p>Modifie le titre de la fenêtre.</p>
+</article>
+<article id="std-graphics-drawing-togglefullscreen"><span class="kind">function</span><h3><code>def toggleFullscreen() : Unit</code></h3>
+<p>Exécute l’opération publique `toggleFullscreen`.</p>
+</article>
+<article id="std-graphics-drawing-windowshouldclose"><span class="kind">function</span><h3><code>def windowShouldClose() : bool</code></h3>
+<p>Exécute l’opération publique `windowShouldClose`.</p>
+</article>
+<article id="std-graphics-drawing-worldtoscreen"><span class="kind">function</span><h3><code>def worldToScreen(position : Vector2, camera : Camera2D) : Vector2</code></h3>
+<p>Exécute l’opération publique `worldToScreen`.</p>
+</article>
+</section>
+<section id="module-std-graphics-input"><h2>Module std.graphics.input</h2>
+<p>Expose les entrées clavier, souris, curseur et manette.</p>
+<article id="std-graphics-input-disablecursor"><span class="kind">function</span><h3><code>def disableCursor() : Unit</code></h3>
+<p>Exécute l’opération publique `disableCursor`.</p>
+</article>
+<article id="std-graphics-input-enablecursor"><span class="kind">function</span><h3><code>def enableCursor() : Unit</code></h3>
+<p>Exécute l’opération publique `enableCursor`.</p>
+</article>
+<article id="std-graphics-input-gamepadaxis"><span class="kind">function</span><h3><code>def gamepadAxis(gamepad : int, axis : GamepadAxis) : float</code></h3>
+<p>Exécute l’opération publique `gamepadAxis`.</p>
+</article>
+<article id="std-graphics-input-gamepadaxiscount"><span class="kind">function</span><h3><code>def gamepadAxisCount(gamepad : int) : int</code></h3>
+<p>Exécute l’opération publique `gamepadAxisCount`.</p>
+</article>
+<article id="std-graphics-input-gamepadbuttonpressed"><span class="kind">function</span><h3><code>def gamepadButtonPressed() : int</code></h3>
+<p>Exécute l’opération publique `gamepadButtonPressed`.</p>
+</article>
+<article id="std-graphics-input-gamepadname"><span class="kind">function</span><h3><code>def gamepadName(gamepad : int) : Ptr[byte]</code></h3>
+<p>Exécute l’opération publique `gamepadName`.</p>
+</article>
+<article id="std-graphics-input-hidecursor"><span class="kind">function</span><h3><code>def hideCursor() : Unit</code></h3>
+<p>Exécute l’opération publique `hideCursor`.</p>
+</article>
+<article id="std-graphics-input-iscursorhidden"><span class="kind">function</span><h3><code>def isCursorHidden() : bool</code></h3>
+<p>Indique si le curseur est masqué.</p>
+</article>
+<article id="std-graphics-input-isgamepadavailable"><span class="kind">function</span><h3><code>def isGamepadAvailable(gamepad : int) : bool</code></h3>
+<p>Indique si la manette demandée est disponible.</p>
+</article>
+<article id="std-graphics-input-isgamepadbuttondown"><span class="kind">function</span><h3><code>def isGamepadButtonDown(gamepad : int, button : GamepadButton) : bool</code></h3>
+<p>Indique si le bouton de manette est maintenu.</p>
+</article>
+<article id="std-graphics-input-isgamepadbuttonpressed"><span class="kind">function</span><h3><code>def isGamepadButtonPressed(gamepad : int, button : GamepadButton) : bool</code></h3>
+<p>Indique si le bouton de manette vient d’être pressé.</p>
+</article>
+<article id="std-graphics-input-isgamepadbuttonreleased"><span class="kind">function</span><h3><code>def isGamepadButtonReleased(gamepad : int, button : GamepadButton) : bool</code></h3>
+<p>Indique si le bouton de manette vient d’être relâché.</p>
+</article>
+<article id="std-graphics-input-iskeydown"><span class="kind">function</span><h3><code>def isKeyDown(key : Key) : bool</code></h3>
+<p>Indique si la touche est maintenue.</p>
+</article>
+<article id="std-graphics-input-iskeypressed"><span class="kind">function</span><h3><code>def isKeyPressed(key : Key) : bool</code></h3>
+<p>Indique si la touche vient d’être pressée.</p>
+</article>
+<article id="std-graphics-input-ismousebuttondown"><span class="kind">function</span><h3><code>def isMouseButtonDown(button : MouseButton) : bool</code></h3>
+<p>Indique si le bouton de souris est maintenu.</p>
+</article>
+<article id="std-graphics-input-ismousebuttonpressed"><span class="kind">function</span><h3><code>def isMouseButtonPressed(button : MouseButton) : bool</code></h3>
+<p>Indique si le bouton de souris vient d’être pressé.</p>
+</article>
+<article id="std-graphics-input-keypressed"><span class="kind">function</span><h3><code>def keyPressed() : int</code></h3>
+<p>Exécute l’opération publique `keyPressed`.</p>
+</article>
+<article id="std-graphics-input-mousewheelmove"><span class="kind">function</span><h3><code>def mouseWheelMove() : float</code></h3>
+<p>Exécute l’opération publique `mouseWheelMove`.</p>
+</article>
+<article id="std-graphics-input-mousex"><span class="kind">function</span><h3><code>def mouseX() : int</code></h3>
+<p>Exécute l’opération publique `mouseX`.</p>
+</article>
+<article id="std-graphics-input-mousey"><span class="kind">function</span><h3><code>def mouseY() : int</code></h3>
+<p>Exécute l’opération publique `mouseY`.</p>
+</article>
+<article id="std-graphics-input-setgamepadvibration"><span class="kind">function</span><h3><code>def setGamepadVibration(gamepad : int, leftMotor : float, rightMotor : float, duration : float) : Unit</code></h3>
+<p>Règle les moteurs de vibration de la manette.</p>
+</article>
+<article id="std-graphics-input-setmouseposition"><span class="kind">function</span><h3><code>def setMousePosition(x : int, y : int) : Unit</code></h3>
+<p>Déplace le pointeur de souris.</p>
+</article>
+<article id="std-graphics-input-showcursor"><span class="kind">function</span><h3><code>def showCursor() : Unit</code></h3>
+<p>Exécute l’opération publique `showCursor`.</p>
+</article>
+</section>
+<section id="module-std-graphics-resources"><h2>Module std.graphics.resources</h2>
+<p>Gère les textures, fontes, rendus, shaders et animations propriétaires.</p>
+<article id="std-graphics-resources-font"><span class="kind">class</span><h3><code>class Font</code></h3>
+<p>Représente le type public `Font`.</p>
+</article>
+<article id="std-graphics-resources-font-draw"><span class="kind">method</span><h3><code>def draw(text : string, position : Vector2, fontSize : float, spacing : float, color : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `draw`.</p>
+</article>
+<article id="std-graphics-resources-font-isvalid"><span class="kind">method</span><h3><code>def isValid() : bool</code></h3>
+<p>Indique si la fonte est valide.</p>
+</article>
+<article id="std-graphics-resources-font-measure"><span class="kind">method</span><h3><code>def measure(text : string, fontSize : float, spacing : float) : Vector2</code></h3>
+<p>Exécute l’opération publique `measure`.</p>
+</article>
+<article id="std-graphics-resources-rendertexture"><span class="kind">class</span><h3><code>class RenderTexture</code></h3>
+<p>Représente le type public `RenderTexture`.</p>
+</article>
+<article id="std-graphics-resources-rendertexture-begin"><span class="kind">method</span><h3><code>def begin() : Unit</code></h3>
+<p>Exécute l’opération publique `begin`.</p>
+</article>
+<article id="std-graphics-resources-rendertexture-drawpro"><span class="kind">method</span><h3><code>def drawPro(source : Rectangle, destination : Rectangle, origin : Vector2, rotation : float, tint : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawPro`.</p>
+</article>
+<article id="std-graphics-resources-rendertexture-height"><span class="kind">method</span><h3><code>def height() : int</code></h3>
+<p>Retourne la hauteur de la texture de rendu.</p>
+</article>
+<article id="std-graphics-resources-rendertexture-isvalid"><span class="kind">method</span><h3><code>def isValid() : bool</code></h3>
+<p>Indique si la texture de rendu est valide.</p>
+</article>
+<article id="std-graphics-resources-rendertexture-width"><span class="kind">method</span><h3><code>def width() : int</code></h3>
+<p>Retourne la largeur de la texture de rendu.</p>
+</article>
+<article id="std-graphics-resources-shader"><span class="kind">class</span><h3><code>class Shader</code></h3>
+<p>Représente le type public `Shader`.</p>
+</article>
+<article id="std-graphics-resources-shader-begin"><span class="kind">method</span><h3><code>def begin() : Unit</code></h3>
+<p>Exécute l’opération publique `begin`.</p>
+</article>
+<article id="std-graphics-resources-shader-isvalid"><span class="kind">method</span><h3><code>def isValid() : bool</code></h3>
+<p>Indique si le shader est valide.</p>
+</article>
+<article id="std-graphics-resources-shader-location"><span class="kind">method</span><h3><code>def location(name : string) : int</code></h3>
+<p>Exécute l’opération publique `location`.</p>
+</article>
+<article id="std-graphics-resources-shader-setcolor"><span class="kind">method</span><h3><code>def setColor(location : int, value : Color) : Unit</code></h3>
+<p>Affecte une couleur à l’uniforme.</p>
+</article>
+<article id="std-graphics-resources-shader-setfloat"><span class="kind">method</span><h3><code>def setFloat(location : int, value : float) : Unit</code></h3>
+<p>Affecte une valeur flottante à l’uniforme.</p>
+</article>
+<article id="std-graphics-resources-shader-setint"><span class="kind">method</span><h3><code>def setInt(location : int, value : int) : Unit</code></h3>
+<p>Affecte une valeur entière à l’uniforme.</p>
+</article>
+<article id="std-graphics-resources-shader-setvector2"><span class="kind">method</span><h3><code>def setVector2(location : int, value : Vector2) : Unit</code></h3>
+<p>Affecte un vecteur 2D à l’uniforme.</p>
+</article>
+<article id="std-graphics-resources-spriteanimation"><span class="kind">class</span><h3><code>class SpriteAnimation</code></h3>
+<p>Représente le type public `SpriteAnimation`.</p>
+</article>
+<article id="std-graphics-resources-spriteanimation-advance"><span class="kind">method</span><h3><code>def advance() : int</code></h3>
+<p>Exécute l’opération publique `advance`.</p>
+</article>
+<article id="std-graphics-resources-spriteanimation-columns"><span class="kind">field</span><h3><code>val columns : int</code></h3>
+<p>Expose le membre public `columns`.</p>
+</article>
+<article id="std-graphics-resources-spriteanimation-currentframe"><span class="kind">field</span><h3><code>var currentFrame : int</code></h3>
+<p>Expose le membre public `currentFrame`.</p>
+</article>
+<article id="std-graphics-resources-spriteanimation-draw"><span class="kind">method</span><h3><code>def draw(position : Vector2, scale : float, rotation : float, flipX : bool, flipY : bool, tint : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `draw`.</p>
+</article>
+<article id="std-graphics-resources-spriteanimation-framecount"><span class="kind">field</span><h3><code>val frameCount : int</code></h3>
+<p>Expose le membre public `frameCount`.</p>
+</article>
+<article id="std-graphics-resources-spriteanimation-frameheight"><span class="kind">field</span><h3><code>val frameHeight : int</code></h3>
+<p>Expose le membre public `frameHeight`.</p>
+</article>
+<article id="std-graphics-resources-spriteanimation-framewidth"><span class="kind">field</span><h3><code>val frameWidth : int</code></h3>
+<p>Expose le membre public `frameWidth`.</p>
+</article>
+<article id="std-graphics-resources-spriteanimation-reset"><span class="kind">method</span><h3><code>def reset() : Unit</code></h3>
+<p>Réinitialise l’état.</p>
+</article>
+<article id="std-graphics-resources-spriteanimation-texture"><span class="kind">field</span><h3><code>val texture : Texture</code></h3>
+<p>Expose le membre public `texture`.</p>
+</article>
+<article id="std-graphics-resources-texture"><span class="kind">class</span><h3><code>class Texture</code></h3>
+<p>Représente le type public `Texture`.</p>
+</article>
+<article id="std-graphics-resources-texture-draw"><span class="kind">method</span><h3><code>def draw(x : int, y : int, tint : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `draw`.</p>
+</article>
+<article id="std-graphics-resources-texture-drawat"><span class="kind">method</span><h3><code>def drawAt(position : Vector2, tint : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawAt`.</p>
+</article>
+<article id="std-graphics-resources-texture-drawframe"><span class="kind">method</span><h3><code>def drawFrame(frame : int, frameWidth : int, frameHeight : int, columns : int, position : Vector2, scale : float, rotation : float, flipX : bool, flipY : bool, tint : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawFrame`.</p>
+</article>
+<article id="std-graphics-resources-texture-drawpro"><span class="kind">method</span><h3><code>def drawPro(source : Rectangle, destination : Rectangle, origin : Vector2, rotation : float, tint : Color) : Unit</code></h3>
+<p>Exécute l’opération publique `drawPro`.</p>
+</article>
+<article id="std-graphics-resources-texture-height"><span class="kind">method</span><h3><code>def height() : int</code></h3>
+<p>Retourne la hauteur de la texture.</p>
+</article>
+<article id="std-graphics-resources-texture-isvalid"><span class="kind">method</span><h3><code>def isValid() : bool</code></h3>
+<p>Indique si la texture est valide.</p>
+</article>
+<article id="std-graphics-resources-texture-setfilter"><span class="kind">method</span><h3><code>def setFilter(filter : TextureFilter) : Unit</code></h3>
+<p>Règle le filtre d’échantillonnage de la texture.</p>
+</article>
+<article id="std-graphics-resources-texture-width"><span class="kind">method</span><h3><code>def width() : int</code></h3>
+<p>Retourne la largeur de la texture.</p>
+</article>
+<article id="std-graphics-resources-endrendertexture"><span class="kind">function</span><h3><code>def endRenderTexture() : Unit</code></h3>
+<p>Exécute l’opération publique `endRenderTexture`.</p>
+</article>
+<article id="std-graphics-resources-endshader"><span class="kind">function</span><h3><code>def endShader() : Unit</code></h3>
+<p>Exécute l’opération publique `endShader`.</p>
+</article>
+<article id="std-graphics-resources-loadfont"><span class="kind">function</span><h3><code>def loadFont(fileName : string, fontSize : int) : Font</code></h3>
+<p>Charge une fonte à la taille demandée.</p>
+</article>
+<article id="std-graphics-resources-loadfontutf8"><span class="kind">function</span><h3><code>def loadFontUtf8(fileName : string, fontSize : int, characters : string) : Font</code></h3>
+<p>Charge une fonte limitée aux caractères UTF-8 fournis.</p>
+</article>
+<article id="std-graphics-resources-loadfragmentshader"><span class="kind">function</span><h3><code>def loadFragmentShader(fragmentFile : string) : Shader</code></h3>
+<p>Charge un shader de fragment depuis un fichier.</p>
+</article>
+<article id="std-graphics-resources-loadrendertexture"><span class="kind">function</span><h3><code>def loadRenderTexture(width : int, height : int) : RenderTexture</code></h3>
+<p>Crée une texture de rendu aux dimensions demandées.</p>
+</article>
+<article id="std-graphics-resources-loadshader"><span class="kind">function</span><h3><code>def loadShader(vertexFile : string, fragmentFile : string) : Shader</code></h3>
+<p>Charge un shader de sommet et de fragment.</p>
+</article>
+<article id="std-graphics-resources-loadtexture"><span class="kind">function</span><h3><code>def loadTexture(fileName : string) : Texture</code></h3>
+<p>Charge une texture depuis un fichier.</p>
+</article>
+</section>
+<section id="module-std-graphics-types"><h2>Module std.graphics.types</h2>
+<p>Définit les valeurs, couleurs et énumérations copiables du graphisme.</p>
+<article id="std-graphics-types-black"><span class="kind">global</span><h3><code>val Black : Color</code></h3>
+<p>Expose la valeur publique `Black`.</p>
+</article>
+<article id="std-graphics-types-blendmode"><span class="kind">enum</span><h3><code>enum BlendMode</code></h3>
+<p>Énumère les états publics de `BlendMode`.</p>
+</article>
+<article id="std-graphics-types-blendmode-additive"><span class="kind">variant</span><h3><code>Additive</code></h3>
+<p>Représente le cas `Additive`.</p>
+</article>
+<article id="std-graphics-types-blendmode-alpha"><span class="kind">variant</span><h3><code>Alpha</code></h3>
+<p>Représente le cas `Alpha`.</p>
+</article>
+<article id="std-graphics-types-blue"><span class="kind">global</span><h3><code>val Blue : Color</code></h3>
+<p>Expose la valeur publique `Blue`.</p>
+</article>
+<article id="std-graphics-types-color"><span class="kind">struct</span><h3><code>struct Color</code></h3>
+<p>Représente le type public `Color`.</p>
+</article>
+<article id="std-graphics-types-color-packed"><span class="kind">method</span><h3><code>def packed() : uint</code></h3>
+<p>Exécute l’opération publique `packed`.</p>
+</article>
+<article id="std-graphics-types-gamepadaxis"><span class="kind">enum</span><h3><code>enum GamepadAxis</code></h3>
+<p>Énumère les états publics de `GamepadAxis`.</p>
+</article>
+<article id="std-graphics-types-gamepadaxis-lefttrigger"><span class="kind">variant</span><h3><code>LeftTrigger</code></h3>
+<p>Représente le cas `LeftTrigger`.</p>
+</article>
+<article id="std-graphics-types-gamepadaxis-leftx"><span class="kind">variant</span><h3><code>LeftX</code></h3>
+<p>Représente le cas `LeftX`.</p>
+</article>
+<article id="std-graphics-types-gamepadaxis-lefty"><span class="kind">variant</span><h3><code>LeftY</code></h3>
+<p>Représente le cas `LeftY`.</p>
+</article>
+<article id="std-graphics-types-gamepadaxis-righttrigger"><span class="kind">variant</span><h3><code>RightTrigger</code></h3>
+<p>Représente le cas `RightTrigger`.</p>
+</article>
+<article id="std-graphics-types-gamepadaxis-rightx"><span class="kind">variant</span><h3><code>RightX</code></h3>
+<p>Représente le cas `RightX`.</p>
+</article>
+<article id="std-graphics-types-gamepadaxis-righty"><span class="kind">variant</span><h3><code>RightY</code></h3>
+<p>Représente le cas `RightY`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton"><span class="kind">enum</span><h3><code>enum GamepadButton</code></h3>
+<p>Énumère les états publics de `GamepadButton`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-leftfacedown"><span class="kind">variant</span><h3><code>LeftFaceDown</code></h3>
+<p>Représente le cas `LeftFaceDown`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-leftfaceleft"><span class="kind">variant</span><h3><code>LeftFaceLeft</code></h3>
+<p>Représente le cas `LeftFaceLeft`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-leftfaceright"><span class="kind">variant</span><h3><code>LeftFaceRight</code></h3>
+<p>Représente le cas `LeftFaceRight`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-leftfaceup"><span class="kind">variant</span><h3><code>LeftFaceUp</code></h3>
+<p>Représente le cas `LeftFaceUp`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-leftthumb"><span class="kind">variant</span><h3><code>LeftThumb</code></h3>
+<p>Représente le cas `LeftThumb`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-lefttrigger1"><span class="kind">variant</span><h3><code>LeftTrigger1</code></h3>
+<p>Représente le cas `LeftTrigger1`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-lefttrigger2"><span class="kind">variant</span><h3><code>LeftTrigger2</code></h3>
+<p>Représente le cas `LeftTrigger2`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-middle"><span class="kind">variant</span><h3><code>Middle</code></h3>
+<p>Représente le cas `Middle`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-middleleft"><span class="kind">variant</span><h3><code>MiddleLeft</code></h3>
+<p>Représente le cas `MiddleLeft`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-middleright"><span class="kind">variant</span><h3><code>MiddleRight</code></h3>
+<p>Représente le cas `MiddleRight`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-rightfacedown"><span class="kind">variant</span><h3><code>RightFaceDown</code></h3>
+<p>Représente le cas `RightFaceDown`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-rightfaceleft"><span class="kind">variant</span><h3><code>RightFaceLeft</code></h3>
+<p>Représente le cas `RightFaceLeft`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-rightfaceright"><span class="kind">variant</span><h3><code>RightFaceRight</code></h3>
+<p>Représente le cas `RightFaceRight`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-rightfaceup"><span class="kind">variant</span><h3><code>RightFaceUp</code></h3>
+<p>Représente le cas `RightFaceUp`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-rightthumb"><span class="kind">variant</span><h3><code>RightThumb</code></h3>
+<p>Représente le cas `RightThumb`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-righttrigger1"><span class="kind">variant</span><h3><code>RightTrigger1</code></h3>
+<p>Représente le cas `RightTrigger1`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-righttrigger2"><span class="kind">variant</span><h3><code>RightTrigger2</code></h3>
+<p>Représente le cas `RightTrigger2`.</p>
+</article>
+<article id="std-graphics-types-gamepadbutton-unknown"><span class="kind">variant</span><h3><code>Unknown</code></h3>
+<p>Représente le cas `Unknown`.</p>
+</article>
+<article id="std-graphics-types-green"><span class="kind">global</span><h3><code>val Green : Color</code></h3>
+<p>Expose la valeur publique `Green`.</p>
+</article>
+<article id="std-graphics-types-key"><span class="kind">enum</span><h3><code>enum Key</code></h3>
+<p>Énumère les états publics de `Key`.</p>
+</article>
+<article id="std-graphics-types-key-a"><span class="kind">variant</span><h3><code>A</code></h3>
+<p>Représente le cas `A`.</p>
+</article>
+<article id="std-graphics-types-key-apostrophe"><span class="kind">variant</span><h3><code>Apostrophe</code></h3>
+<p>Représente le cas `Apostrophe`.</p>
+</article>
+<article id="std-graphics-types-key-b"><span class="kind">variant</span><h3><code>B</code></h3>
+<p>Représente le cas `B`.</p>
+</article>
+<article id="std-graphics-types-key-backslash"><span class="kind">variant</span><h3><code>Backslash</code></h3>
+<p>Représente le cas `Backslash`.</p>
+</article>
+<article id="std-graphics-types-key-backspace"><span class="kind">variant</span><h3><code>Backspace</code></h3>
+<p>Représente le cas `Backspace`.</p>
+</article>
+<article id="std-graphics-types-key-c"><span class="kind">variant</span><h3><code>C</code></h3>
+<p>Représente le cas `C`.</p>
+</article>
+<article id="std-graphics-types-key-capslock"><span class="kind">variant</span><h3><code>CapsLock</code></h3>
+<p>Représente le cas `CapsLock`.</p>
+</article>
+<article id="std-graphics-types-key-comma"><span class="kind">variant</span><h3><code>Comma</code></h3>
+<p>Représente le cas `Comma`.</p>
+</article>
+<article id="std-graphics-types-key-d"><span class="kind">variant</span><h3><code>D</code></h3>
+<p>Représente le cas `D`.</p>
+</article>
+<article id="std-graphics-types-key-delete"><span class="kind">variant</span><h3><code>Delete</code></h3>
+<p>Représente le cas `Delete`.</p>
+</article>
+<article id="std-graphics-types-key-digit0"><span class="kind">variant</span><h3><code>Digit0</code></h3>
+<p>Représente le cas `Digit0`.</p>
+</article>
+<article id="std-graphics-types-key-digit1"><span class="kind">variant</span><h3><code>Digit1</code></h3>
+<p>Représente le cas `Digit1`.</p>
+</article>
+<article id="std-graphics-types-key-digit2"><span class="kind">variant</span><h3><code>Digit2</code></h3>
+<p>Représente le cas `Digit2`.</p>
+</article>
+<article id="std-graphics-types-key-digit3"><span class="kind">variant</span><h3><code>Digit3</code></h3>
+<p>Représente le cas `Digit3`.</p>
+</article>
+<article id="std-graphics-types-key-digit4"><span class="kind">variant</span><h3><code>Digit4</code></h3>
+<p>Représente le cas `Digit4`.</p>
+</article>
+<article id="std-graphics-types-key-digit5"><span class="kind">variant</span><h3><code>Digit5</code></h3>
+<p>Représente le cas `Digit5`.</p>
+</article>
+<article id="std-graphics-types-key-digit6"><span class="kind">variant</span><h3><code>Digit6</code></h3>
+<p>Représente le cas `Digit6`.</p>
+</article>
+<article id="std-graphics-types-key-digit7"><span class="kind">variant</span><h3><code>Digit7</code></h3>
+<p>Représente le cas `Digit7`.</p>
+</article>
+<article id="std-graphics-types-key-digit8"><span class="kind">variant</span><h3><code>Digit8</code></h3>
+<p>Représente le cas `Digit8`.</p>
+</article>
+<article id="std-graphics-types-key-digit9"><span class="kind">variant</span><h3><code>Digit9</code></h3>
+<p>Représente le cas `Digit9`.</p>
+</article>
+<article id="std-graphics-types-key-down"><span class="kind">variant</span><h3><code>Down</code></h3>
+<p>Représente le cas `Down`.</p>
+</article>
+<article id="std-graphics-types-key-e"><span class="kind">variant</span><h3><code>E</code></h3>
+<p>Représente le cas `E`.</p>
+</article>
+<article id="std-graphics-types-key-end"><span class="kind">variant</span><h3><code>End</code></h3>
+<p>Représente le cas `End`.</p>
+</article>
+<article id="std-graphics-types-key-enter"><span class="kind">variant</span><h3><code>Enter</code></h3>
+<p>Représente le cas `Enter`.</p>
+</article>
+<article id="std-graphics-types-key-equal"><span class="kind">variant</span><h3><code>Equal</code></h3>
+<p>Représente le cas `Equal`.</p>
+</article>
+<article id="std-graphics-types-key-escape"><span class="kind">variant</span><h3><code>Escape</code></h3>
+<p>Représente le cas `Escape`.</p>
+</article>
+<article id="std-graphics-types-key-f"><span class="kind">variant</span><h3><code>F</code></h3>
+<p>Représente le cas `F`.</p>
+</article>
+<article id="std-graphics-types-key-f1"><span class="kind">variant</span><h3><code>F1</code></h3>
+<p>Représente le cas `F1`.</p>
+</article>
+<article id="std-graphics-types-key-f10"><span class="kind">variant</span><h3><code>F10</code></h3>
+<p>Représente le cas `F10`.</p>
+</article>
+<article id="std-graphics-types-key-f11"><span class="kind">variant</span><h3><code>F11</code></h3>
+<p>Représente le cas `F11`.</p>
+</article>
+<article id="std-graphics-types-key-f12"><span class="kind">variant</span><h3><code>F12</code></h3>
+<p>Représente le cas `F12`.</p>
+</article>
+<article id="std-graphics-types-key-f2"><span class="kind">variant</span><h3><code>F2</code></h3>
+<p>Représente le cas `F2`.</p>
+</article>
+<article id="std-graphics-types-key-f3"><span class="kind">variant</span><h3><code>F3</code></h3>
+<p>Représente le cas `F3`.</p>
+</article>
+<article id="std-graphics-types-key-f4"><span class="kind">variant</span><h3><code>F4</code></h3>
+<p>Représente le cas `F4`.</p>
+</article>
+<article id="std-graphics-types-key-f5"><span class="kind">variant</span><h3><code>F5</code></h3>
+<p>Représente le cas `F5`.</p>
+</article>
+<article id="std-graphics-types-key-f6"><span class="kind">variant</span><h3><code>F6</code></h3>
+<p>Représente le cas `F6`.</p>
+</article>
+<article id="std-graphics-types-key-f7"><span class="kind">variant</span><h3><code>F7</code></h3>
+<p>Représente le cas `F7`.</p>
+</article>
+<article id="std-graphics-types-key-f8"><span class="kind">variant</span><h3><code>F8</code></h3>
+<p>Représente le cas `F8`.</p>
+</article>
+<article id="std-graphics-types-key-f9"><span class="kind">variant</span><h3><code>F9</code></h3>
+<p>Représente le cas `F9`.</p>
+</article>
+<article id="std-graphics-types-key-g"><span class="kind">variant</span><h3><code>G</code></h3>
+<p>Représente le cas `G`.</p>
+</article>
+<article id="std-graphics-types-key-grave"><span class="kind">variant</span><h3><code>Grave</code></h3>
+<p>Représente le cas `Grave`.</p>
+</article>
+<article id="std-graphics-types-key-h"><span class="kind">variant</span><h3><code>H</code></h3>
+<p>Représente le cas `H`.</p>
+</article>
+<article id="std-graphics-types-key-home"><span class="kind">variant</span><h3><code>Home</code></h3>
+<p>Représente le cas `Home`.</p>
+</article>
+<article id="std-graphics-types-key-i"><span class="kind">variant</span><h3><code>I</code></h3>
+<p>Représente le cas `I`.</p>
+</article>
+<article id="std-graphics-types-key-insert"><span class="kind">variant</span><h3><code>Insert</code></h3>
+<p>Représente le cas `Insert`.</p>
+</article>
+<article id="std-graphics-types-key-j"><span class="kind">variant</span><h3><code>J</code></h3>
+<p>Représente le cas `J`.</p>
+</article>
+<article id="std-graphics-types-key-k"><span class="kind">variant</span><h3><code>K</code></h3>
+<p>Représente le cas `K`.</p>
+</article>
+<article id="std-graphics-types-key-keypad0"><span class="kind">variant</span><h3><code>Keypad0</code></h3>
+<p>Représente le cas `Keypad0`.</p>
+</article>
+<article id="std-graphics-types-key-keypad1"><span class="kind">variant</span><h3><code>Keypad1</code></h3>
+<p>Représente le cas `Keypad1`.</p>
+</article>
+<article id="std-graphics-types-key-keypad2"><span class="kind">variant</span><h3><code>Keypad2</code></h3>
+<p>Représente le cas `Keypad2`.</p>
+</article>
+<article id="std-graphics-types-key-keypad3"><span class="kind">variant</span><h3><code>Keypad3</code></h3>
+<p>Représente le cas `Keypad3`.</p>
+</article>
+<article id="std-graphics-types-key-keypad4"><span class="kind">variant</span><h3><code>Keypad4</code></h3>
+<p>Représente le cas `Keypad4`.</p>
+</article>
+<article id="std-graphics-types-key-keypad5"><span class="kind">variant</span><h3><code>Keypad5</code></h3>
+<p>Représente le cas `Keypad5`.</p>
+</article>
+<article id="std-graphics-types-key-keypad6"><span class="kind">variant</span><h3><code>Keypad6</code></h3>
+<p>Représente le cas `Keypad6`.</p>
+</article>
+<article id="std-graphics-types-key-keypad7"><span class="kind">variant</span><h3><code>Keypad7</code></h3>
+<p>Représente le cas `Keypad7`.</p>
+</article>
+<article id="std-graphics-types-key-keypad8"><span class="kind">variant</span><h3><code>Keypad8</code></h3>
+<p>Représente le cas `Keypad8`.</p>
+</article>
+<article id="std-graphics-types-key-keypad9"><span class="kind">variant</span><h3><code>Keypad9</code></h3>
+<p>Représente le cas `Keypad9`.</p>
+</article>
+<article id="std-graphics-types-key-keypadadd"><span class="kind">variant</span><h3><code>KeypadAdd</code></h3>
+<p>Représente le cas `KeypadAdd`.</p>
+</article>
+<article id="std-graphics-types-key-keypaddecimal"><span class="kind">variant</span><h3><code>KeypadDecimal</code></h3>
+<p>Représente le cas `KeypadDecimal`.</p>
+</article>
+<article id="std-graphics-types-key-keypaddivide"><span class="kind">variant</span><h3><code>KeypadDivide</code></h3>
+<p>Représente le cas `KeypadDivide`.</p>
+</article>
+<article id="std-graphics-types-key-keypadenter"><span class="kind">variant</span><h3><code>KeypadEnter</code></h3>
+<p>Représente le cas `KeypadEnter`.</p>
+</article>
+<article id="std-graphics-types-key-keypadequal"><span class="kind">variant</span><h3><code>KeypadEqual</code></h3>
+<p>Représente le cas `KeypadEqual`.</p>
+</article>
+<article id="std-graphics-types-key-keypadmultiply"><span class="kind">variant</span><h3><code>KeypadMultiply</code></h3>
+<p>Représente le cas `KeypadMultiply`.</p>
+</article>
+<article id="std-graphics-types-key-keypadsubtract"><span class="kind">variant</span><h3><code>KeypadSubtract</code></h3>
+<p>Représente le cas `KeypadSubtract`.</p>
+</article>
+<article id="std-graphics-types-key-l"><span class="kind">variant</span><h3><code>L</code></h3>
+<p>Représente le cas `L`.</p>
+</article>
+<article id="std-graphics-types-key-left"><span class="kind">variant</span><h3><code>Left</code></h3>
+<p>Représente le cas `Left`.</p>
+</article>
+<article id="std-graphics-types-key-leftalt"><span class="kind">variant</span><h3><code>LeftAlt</code></h3>
+<p>Représente le cas `LeftAlt`.</p>
+</article>
+<article id="std-graphics-types-key-leftbracket"><span class="kind">variant</span><h3><code>LeftBracket</code></h3>
+<p>Représente le cas `LeftBracket`.</p>
+</article>
+<article id="std-graphics-types-key-leftcontrol"><span class="kind">variant</span><h3><code>LeftControl</code></h3>
+<p>Représente le cas `LeftControl`.</p>
+</article>
+<article id="std-graphics-types-key-leftshift"><span class="kind">variant</span><h3><code>LeftShift</code></h3>
+<p>Représente le cas `LeftShift`.</p>
+</article>
+<article id="std-graphics-types-key-leftsuper"><span class="kind">variant</span><h3><code>LeftSuper</code></h3>
+<p>Représente le cas `LeftSuper`.</p>
+</article>
+<article id="std-graphics-types-key-m"><span class="kind">variant</span><h3><code>M</code></h3>
+<p>Représente le cas `M`.</p>
+</article>
+<article id="std-graphics-types-key-menu"><span class="kind">variant</span><h3><code>Menu</code></h3>
+<p>Représente le cas `Menu`.</p>
+</article>
+<article id="std-graphics-types-key-minus"><span class="kind">variant</span><h3><code>Minus</code></h3>
+<p>Représente le cas `Minus`.</p>
+</article>
+<article id="std-graphics-types-key-n"><span class="kind">variant</span><h3><code>N</code></h3>
+<p>Représente le cas `N`.</p>
+</article>
+<article id="std-graphics-types-key-numlock"><span class="kind">variant</span><h3><code>NumLock</code></h3>
+<p>Représente le cas `NumLock`.</p>
+</article>
+<article id="std-graphics-types-key-o"><span class="kind">variant</span><h3><code>O</code></h3>
+<p>Représente le cas `O`.</p>
+</article>
+<article id="std-graphics-types-key-p"><span class="kind">variant</span><h3><code>P</code></h3>
+<p>Représente le cas `P`.</p>
+</article>
+<article id="std-graphics-types-key-pagedown"><span class="kind">variant</span><h3><code>PageDown</code></h3>
+<p>Représente le cas `PageDown`.</p>
+</article>
+<article id="std-graphics-types-key-pageup"><span class="kind">variant</span><h3><code>PageUp</code></h3>
+<p>Représente le cas `PageUp`.</p>
+</article>
+<article id="std-graphics-types-key-pause"><span class="kind">variant</span><h3><code>Pause</code></h3>
+<p>Représente le cas `Pause`.</p>
+</article>
+<article id="std-graphics-types-key-period"><span class="kind">variant</span><h3><code>Period</code></h3>
+<p>Représente le cas `Period`.</p>
+</article>
+<article id="std-graphics-types-key-printscreen"><span class="kind">variant</span><h3><code>PrintScreen</code></h3>
+<p>Représente le cas `PrintScreen`.</p>
+</article>
+<article id="std-graphics-types-key-q"><span class="kind">variant</span><h3><code>Q</code></h3>
+<p>Représente le cas `Q`.</p>
+</article>
+<article id="std-graphics-types-key-r"><span class="kind">variant</span><h3><code>R</code></h3>
+<p>Représente le cas `R`.</p>
+</article>
+<article id="std-graphics-types-key-right"><span class="kind">variant</span><h3><code>Right</code></h3>
+<p>Représente le cas `Right`.</p>
+</article>
+<article id="std-graphics-types-key-rightalt"><span class="kind">variant</span><h3><code>RightAlt</code></h3>
+<p>Représente le cas `RightAlt`.</p>
+</article>
+<article id="std-graphics-types-key-rightbracket"><span class="kind">variant</span><h3><code>RightBracket</code></h3>
+<p>Représente le cas `RightBracket`.</p>
+</article>
+<article id="std-graphics-types-key-rightcontrol"><span class="kind">variant</span><h3><code>RightControl</code></h3>
+<p>Représente le cas `RightControl`.</p>
+</article>
+<article id="std-graphics-types-key-rightshift"><span class="kind">variant</span><h3><code>RightShift</code></h3>
+<p>Représente le cas `RightShift`.</p>
+</article>
+<article id="std-graphics-types-key-rightsuper"><span class="kind">variant</span><h3><code>RightSuper</code></h3>
+<p>Représente le cas `RightSuper`.</p>
+</article>
+<article id="std-graphics-types-key-s"><span class="kind">variant</span><h3><code>S</code></h3>
+<p>Représente le cas `S`.</p>
+</article>
+<article id="std-graphics-types-key-scrolllock"><span class="kind">variant</span><h3><code>ScrollLock</code></h3>
+<p>Représente le cas `ScrollLock`.</p>
+</article>
+<article id="std-graphics-types-key-semicolon"><span class="kind">variant</span><h3><code>Semicolon</code></h3>
+<p>Représente le cas `Semicolon`.</p>
+</article>
+<article id="std-graphics-types-key-slash"><span class="kind">variant</span><h3><code>Slash</code></h3>
+<p>Représente le cas `Slash`.</p>
+</article>
+<article id="std-graphics-types-key-space"><span class="kind">variant</span><h3><code>Space</code></h3>
+<p>Représente le cas `Space`.</p>
+</article>
+<article id="std-graphics-types-key-t"><span class="kind">variant</span><h3><code>T</code></h3>
+<p>Représente le cas `T`.</p>
+</article>
+<article id="std-graphics-types-key-tab"><span class="kind">variant</span><h3><code>Tab</code></h3>
+<p>Représente le cas `Tab`.</p>
+</article>
+<article id="std-graphics-types-key-u"><span class="kind">variant</span><h3><code>U</code></h3>
+<p>Représente le cas `U`.</p>
+</article>
+<article id="std-graphics-types-key-up"><span class="kind">variant</span><h3><code>Up</code></h3>
+<p>Représente le cas `Up`.</p>
+</article>
+<article id="std-graphics-types-key-v"><span class="kind">variant</span><h3><code>V</code></h3>
+<p>Représente le cas `V`.</p>
+</article>
+<article id="std-graphics-types-key-w"><span class="kind">variant</span><h3><code>W</code></h3>
+<p>Représente le cas `W`.</p>
+</article>
+<article id="std-graphics-types-key-x"><span class="kind">variant</span><h3><code>X</code></h3>
+<p>Représente le cas `X`.</p>
+</article>
+<article id="std-graphics-types-key-y"><span class="kind">variant</span><h3><code>Y</code></h3>
+<p>Représente le cas `Y`.</p>
+</article>
+<article id="std-graphics-types-key-z"><span class="kind">variant</span><h3><code>Z</code></h3>
+<p>Représente le cas `Z`.</p>
+</article>
+<article id="std-graphics-types-mousebutton"><span class="kind">enum</span><h3><code>enum MouseButton</code></h3>
+<p>Énumère les états publics de `MouseButton`.</p>
+</article>
+<article id="std-graphics-types-mousebutton-back"><span class="kind">variant</span><h3><code>Back</code></h3>
+<p>Représente le cas `Back`.</p>
+</article>
+<article id="std-graphics-types-mousebutton-extra"><span class="kind">variant</span><h3><code>Extra</code></h3>
+<p>Représente le cas `Extra`.</p>
+</article>
+<article id="std-graphics-types-mousebutton-forward"><span class="kind">variant</span><h3><code>Forward</code></h3>
+<p>Représente le cas `Forward`.</p>
+</article>
+<article id="std-graphics-types-mousebutton-left"><span class="kind">variant</span><h3><code>Left</code></h3>
+<p>Représente le cas `Left`.</p>
+</article>
+<article id="std-graphics-types-mousebutton-middle"><span class="kind">variant</span><h3><code>Middle</code></h3>
+<p>Représente le cas `Middle`.</p>
+</article>
+<article id="std-graphics-types-mousebutton-right"><span class="kind">variant</span><h3><code>Right</code></h3>
+<p>Représente le cas `Right`.</p>
+</article>
+<article id="std-graphics-types-mousebutton-side"><span class="kind">variant</span><h3><code>Side</code></h3>
+<p>Représente le cas `Side`.</p>
+</article>
+<article id="std-graphics-types-rectangle"><span class="kind">struct</span><h3><code>struct Rectangle</code></h3>
+<p>Représente le type public `Rectangle`.</p>
+</article>
+<article id="std-graphics-types-rectangle-height"><span class="kind">field</span><h3><code>val height : float</code></h3>
+<p>Expose le membre public `height`.</p>
+</article>
+<article id="std-graphics-types-rectangle-width"><span class="kind">field</span><h3><code>val width : float</code></h3>
+<p>Expose le membre public `width`.</p>
+</article>
+<article id="std-graphics-types-rectangle-x"><span class="kind">field</span><h3><code>val x : float</code></h3>
+<p>Expose le membre public `x`.</p>
+</article>
+<article id="std-graphics-types-rectangle-y"><span class="kind">field</span><h3><code>val y : float</code></h3>
+<p>Expose le membre public `y`.</p>
+</article>
+<article id="std-graphics-types-red"><span class="kind">global</span><h3><code>val Red : Color</code></h3>
+<p>Expose la valeur publique `Red`.</p>
+</article>
+<article id="std-graphics-types-texturefilter"><span class="kind">enum</span><h3><code>enum TextureFilter</code></h3>
+<p>Énumère les états publics de `TextureFilter`.</p>
+</article>
+<article id="std-graphics-types-texturefilter-anisotropic16x"><span class="kind">variant</span><h3><code>Anisotropic16x</code></h3>
+<p>Représente le cas `Anisotropic16x`.</p>
+</article>
+<article id="std-graphics-types-texturefilter-anisotropic4x"><span class="kind">variant</span><h3><code>Anisotropic4x</code></h3>
+<p>Représente le cas `Anisotropic4x`.</p>
+</article>
+<article id="std-graphics-types-texturefilter-anisotropic8x"><span class="kind">variant</span><h3><code>Anisotropic8x</code></h3>
+<p>Représente le cas `Anisotropic8x`.</p>
+</article>
+<article id="std-graphics-types-texturefilter-bilinear"><span class="kind">variant</span><h3><code>Bilinear</code></h3>
+<p>Représente le cas `Bilinear`.</p>
+</article>
+<article id="std-graphics-types-texturefilter-point"><span class="kind">variant</span><h3><code>Point</code></h3>
+<p>Représente le cas `Point`.</p>
+</article>
+<article id="std-graphics-types-texturefilter-trilinear"><span class="kind">variant</span><h3><code>Trilinear</code></h3>
+<p>Représente le cas `Trilinear`.</p>
+</article>
+<article id="std-graphics-types-vector2"><span class="kind">struct</span><h3><code>struct Vector2</code></h3>
+<p>Représente le type public `Vector2`.</p>
+</article>
+<article id="std-graphics-types-vector2-x"><span class="kind">field</span><h3><code>val x : float</code></h3>
+<p>Expose le membre public `x`.</p>
+</article>
+<article id="std-graphics-types-vector2-y"><span class="kind">field</span><h3><code>val y : float</code></h3>
+<p>Expose le membre public `y`.</p>
+</article>
+<article id="std-graphics-types-white"><span class="kind">global</span><h3><code>val White : Color</code></h3>
+<p>Expose la valeur publique `White`.</p>
+</article>
+<article id="std-graphics-types-black"><span class="kind">function</span><h3><code>def black() : Color</code></h3>
+<p>Exécute l’opération publique `black`.</p>
+</article>
+<article id="std-graphics-types-blue"><span class="kind">function</span><h3><code>def blue() : Color</code></h3>
+<p>Exécute l’opération publique `blue`.</p>
+</article>
+<article id="std-graphics-types-colorrgb"><span class="kind">function</span><h3><code>def colorRgb(red : ubyte, green : ubyte, blue : ubyte) : Color</code></h3>
+<p>Exécute l’opération publique `colorRgb`.</p>
+</article>
+<article id="std-graphics-types-colorrgba"><span class="kind">function</span><h3><code>def colorRgba(red : ubyte, green : ubyte, blue : ubyte, alpha : ubyte) : Color</code></h3>
+<p>Exécute l’opération publique `colorRgba`.</p>
+</article>
+<article id="std-graphics-types-green"><span class="kind">function</span><h3><code>def green() : Color</code></h3>
+<p>Exécute l’opération publique `green`.</p>
+</article>
+<article id="std-graphics-types-rectangle"><span class="kind">function</span><h3><code>def rectangle(x : float, y : float, width : float, height : float) : Rectangle</code></h3>
+<p>Exécute l’opération publique `rectangle`.</p>
+</article>
+<article id="std-graphics-types-red"><span class="kind">function</span><h3><code>def red() : Color</code></h3>
+<p>Exécute l’opération publique `red`.</p>
+</article>
+<article id="std-graphics-types-rgb"><span class="kind">function</span><h3><code>def rgb(red : ubyte, green : ubyte, blue : ubyte) : Color</code></h3>
+<p>Exécute l’opération publique `rgb`.</p>
+</article>
+<article id="std-graphics-types-rgba"><span class="kind">function</span><h3><code>def rgba(red : ubyte, green : ubyte, blue : ubyte, alpha : ubyte) : Color</code></h3>
+<p>Exécute l’opération publique `rgba`.</p>
+</article>
+<article id="std-graphics-types-vector2"><span class="kind">function</span><h3><code>def vector2(x : float, y : float) : Vector2</code></h3>
+<p>Exécute l’opération publique `vector2`.</p>
+</article>
+<article id="std-graphics-types-white"><span class="kind">function</span><h3><code>def white() : Color</code></h3>
+<p>Exécute l’opération publique `white`.</p>
+</article>
+</section>
+<section id="module-std-hash-probe"><h2>Module std.hash_probe</h2>
+<p>Fournit les invariants internes de sondage des tables de hachage.</p>
+<article id="std-hash-probe-hashprobe"><span class="kind">struct</span><h3><code>struct HashProbe</code></h3>
+<p>Représente le type public `HashProbe`.</p>
+</article>
+<article id="std-hash-probe-hashprobe-hasnext"><span class="kind">method</span><h3><code>def hasNext() : bool</code></h3>
+<p>Indique si la sonde peut encore visiter une case.</p>
+</article>
+<article id="std-hash-probe-hashprobe-next"><span class="kind">method</span><h3><code>def next() : usize</code></h3>
+<p>Avance le parcours et retourne la prochaine valeur disponible.</p>
+</article>
+<article id="std-hash-probe-hashprobe"><span class="kind">function</span><h3><code>def hashProbe(hash : usize, capacity : usize) : HashProbe</code></h3>
+<p>Crée une sonde circulaire à partir du hachage.</p>
+</article>
+<article id="std-hash-probe-hashtableshouldgrow"><span class="kind">function</span><h3><code>def hashTableShouldGrow(length : usize, deletedCount : usize, capacity : usize) : bool</code></h3>
+<p>Indique si la table doit être agrandie avant une insertion.</p>
+</article>
+<article id="std-hash-probe-normalizedhashcapacity"><span class="kind">function</span><h3><code>def normalizedHashCapacity(requested : usize) : usize</code></h3>
+<p>Exécute l’opération publique `normalizedHashCapacity`.</p>
+</article>
+</section>
+<section id="module-std-hashing"><h2>Module std.hashing</h2>
+<p>Définit les stratégies d’égalité et de hachage des clés.</p>
+<article id="std-hashing-boolhashing"><span class="kind">class</span><h3><code>class BoolHashing</code></h3>
+<p>Représente le type public `BoolHashing`.</p>
+</article>
+<article id="std-hashing-boolhashing-equals"><span class="kind">method</span><h3><code>def equals(left : bool, right : bool) : bool</code></h3>
+<p>Exécute l’opération publique `equals`.</p>
+</article>
+<article id="std-hashing-boolhashing-hash"><span class="kind">method</span><h3><code>def hash(value : bool) : usize</code></h3>
+<p>Calcule le hachage de la valeur.</p>
+</article>
+<article id="std-hashing-bytehashing"><span class="kind">class</span><h3><code>class ByteHashing</code></h3>
+<p>Représente le type public `ByteHashing`.</p>
+</article>
+<article id="std-hashing-bytehashing-equals"><span class="kind">method</span><h3><code>def equals(left : byte, right : byte) : bool</code></h3>
+<p>Exécute l’opération publique `equals`.</p>
+</article>
+<article id="std-hashing-bytehashing-hash"><span class="kind">method</span><h3><code>def hash(value : byte) : usize</code></h3>
+<p>Calcule le hachage de la valeur.</p>
+</article>
+<article id="std-hashing-charhashing"><span class="kind">class</span><h3><code>class CharHashing</code></h3>
+<p>Représente le type public `CharHashing`.</p>
+</article>
+<article id="std-hashing-charhashing-equals"><span class="kind">method</span><h3><code>def equals(left : char, right : char) : bool</code></h3>
+<p>Exécute l’opération publique `equals`.</p>
+</article>
+<article id="std-hashing-charhashing-hash"><span class="kind">method</span><h3><code>def hash(value : char) : usize</code></h3>
+<p>Calcule le hachage de la valeur.</p>
+</article>
+<article id="std-hashing-derivedhashing"><span class="kind">class</span><h3><code>class DerivedHashing[T]</code></h3>
+<p>Représente le type public `DerivedHashing`.</p>
+</article>
+<article id="std-hashing-derivedhashing-equals"><span class="kind">method</span><h3><code>def equals(left : T, right : T) : bool</code></h3>
+<p>Exécute l’opération publique `equals`.</p>
+</article>
+<article id="std-hashing-derivedhashing-hash"><span class="kind">method</span><h3><code>def hash(value : T) : usize</code></h3>
+<p>Calcule le hachage de la valeur.</p>
+</article>
+<article id="std-hashing-hashing"><span class="kind">trait</span><h3><code>trait Hashing[T]</code></h3>
+<p>Définit le contrat public `Hashing`.</p>
+</article>
+<article id="std-hashing-hashing-equals"><span class="kind">method</span><h3><code>def equals(left : T, right : T) : bool</code></h3>
+<p>Exécute l’opération publique `equals`.</p>
+</article>
+<article id="std-hashing-hashing-hash"><span class="kind">method</span><h3><code>def hash(value : T) : usize</code></h3>
+<p>Calcule le hachage de la valeur.</p>
+</article>
+<article id="std-hashing-inthashing"><span class="kind">class</span><h3><code>class IntHashing</code></h3>
+<p>Représente le type public `IntHashing`.</p>
+</article>
+<article id="std-hashing-inthashing-equals"><span class="kind">method</span><h3><code>def equals(left : int, right : int) : bool</code></h3>
+<p>Exécute l’opération publique `equals`.</p>
+</article>
+<article id="std-hashing-inthashing-hash"><span class="kind">method</span><h3><code>def hash(value : int) : usize</code></h3>
+<p>Calcule le hachage de la valeur.</p>
+</article>
+<article id="std-hashing-usizehashing"><span class="kind">class</span><h3><code>class USizeHashing</code></h3>
+<p>Représente le type public `USizeHashing`.</p>
+</article>
+<article id="std-hashing-usizehashing-equals"><span class="kind">method</span><h3><code>def equals(left : usize, right : usize) : bool</code></h3>
+<p>Exécute l’opération publique `equals`.</p>
+</article>
+<article id="std-hashing-usizehashing-hash"><span class="kind">method</span><h3><code>def hash(value : usize) : usize</code></h3>
+<p>Calcule le hachage de la valeur.</p>
+</article>
+</section>
+<section id="module-std-hashmap"><h2>Module std.hashmap</h2>
+<p>Fournit une table associative propriétaire et ses vues d’itération.</p>
+<article id="std-hashmap-hashmap"><span class="kind">class</span><h3><code>class HashMap[K, V, H]</code></h3>
+<p>Représente le type public `HashMap`.</p>
+</article>
+<article id="std-hashmap-hashmap-clear"><span class="kind">method</span><h3><code>def clear() : Unit</code></h3>
+<p>Réinitialise l’état.</p>
+</article>
+<article id="std-hashmap-hashmap-containskey"><span class="kind">method</span><h3><code>def containsKey(key : K) : bool</code></h3>
+<p>Exécute l’opération publique `containsKey`.</p>
+</article>
+<article id="std-hashmap-hashmap-entries"><span class="kind">method</span><h3><code>def entries() : Iterator[MapEntry[K, V]]</code></h3>
+<p>Exécute l’opération publique `entries`.</p>
+</article>
+<article id="std-hashmap-hashmap-getoption"><span class="kind">method</span><h3><code>def getOption(key : K) : Option[V]</code></h3>
+<p>Retourne la valeur associée à la clé, si elle existe.</p>
+</article>
+<article id="std-hashmap-hashmap-intoentries"><span class="kind">method</span><h3><code>consume def intoEntries() : Iterator[MapEntry[K, V]]</code></h3>
+<p>Exécute l’opération publique `intoEntries`.</p>
+</article>
+<article id="std-hashmap-hashmap-isempty"><span class="kind">method</span><h3><code>def isEmpty() : bool</code></h3>
+<p>Indique si la table ne contient aucune association.</p>
+</article>
+<article id="std-hashmap-hashmap-keys"><span class="kind">method</span><h3><code>def keys() : Iterator[K]</code></h3>
+<p>Exécute l’opération publique `keys`.</p>
+</article>
+<article id="std-hashmap-hashmap-put"><span class="kind">method</span><h3><code>def put(key : K, value : V) : Option[V]</code></h3>
+<p>Exécute l’opération publique `put`.</p>
+</article>
+<article id="std-hashmap-hashmap-remove"><span class="kind">method</span><h3><code>def remove(key : K) : Option[V]</code></h3>
+<p>Retire l’association et retourne son ancienne valeur.</p>
+</article>
+<article id="std-hashmap-hashmap-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne le nombre d’associations stockées.</p>
+</article>
+<article id="std-hashmap-hashmap-values"><span class="kind">method</span><h3><code>def values() : Iterator[V]</code></h3>
+<p>Exécute l’opération publique `values`.</p>
+</article>
+<article id="std-hashmap-mapbuilder"><span class="kind">class</span><h3><code>class MapBuilder[K, V, H]</code></h3>
+<p>Représente le type public `MapBuilder`.</p>
+</article>
+<article id="std-hashmap-mapbuilder-add"><span class="kind">method</span><h3><code>def add(entry : MapEntry[K, V]) : Unit</code></h3>
+<p>Ajoute une valeur.</p>
+</article>
+<article id="std-hashmap-mapbuilder-clear"><span class="kind">method</span><h3><code>def clear() : Unit</code></h3>
+<p>Réinitialise l’état.</p>
+</article>
+<article id="std-hashmap-mapbuilder-result"><span class="kind">method</span><h3><code>def result() : HashMap[K, V, H]</code></h3>
+<p>Produit la table associative construite.</p>
+</article>
+<article id="std-hashmap-mapbuilder-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne le nombre d’associations accumulées.</p>
+</article>
+<article id="std-hashmap-mapentry"><span class="kind">struct</span><h3><code>struct MapEntry[K, V]</code></h3>
+<p>Représente le type public `MapEntry`.</p>
+</article>
+<article id="std-hashmap-mapentry-intokey"><span class="kind">method</span><h3><code>consume def intoKey() : K</code></h3>
+<p>Exécute l’opération publique `intoKey`.</p>
+</article>
+<article id="std-hashmap-mapentry-intovalue"><span class="kind">method</span><h3><code>consume def intoValue() : V</code></h3>
+<p>Exécute l’opération publique `intoValue`.</p>
+</article>
+<article id="std-hashmap-mapentry-key"><span class="kind">field</span><h3><code>val key : K</code></h3>
+<p>Expose le membre public `key`.</p>
+</article>
+<article id="std-hashmap-mapentry-value"><span class="kind">field</span><h3><code>val value : V</code></h3>
+<p>Expose le membre public `value`.</p>
+</article>
+</section>
+<section id="module-std-hashset"><h2>Module std.hashset</h2>
+<p>Fournit un ensemble haché propriétaire et ses parcours.</p>
+<article id="std-hashset-hashset"><span class="kind">class</span><h3><code>class HashSet[T, H]</code></h3>
+<p>Représente le type public `HashSet`.</p>
+</article>
+<article id="std-hashset-hashset-add"><span class="kind">method</span><h3><code>def add(value : T) : bool</code></h3>
+<p>Ajoute une valeur.</p>
+</article>
+<article id="std-hashset-hashset-clear"><span class="kind">method</span><h3><code>def clear() : Unit</code></h3>
+<p>Réinitialise l’état.</p>
+</article>
+<article id="std-hashset-hashset-contains"><span class="kind">method</span><h3><code>def contains(value : T) : bool</code></h3>
+<p>Indique si la valeur appartient à l’ensemble.</p>
+</article>
+<article id="std-hashset-hashset-intoiterator"><span class="kind">method</span><h3><code>consume def intoIterator() : Iterator[T]</code></h3>
+<p>Exécute l’opération publique `intoIterator`.</p>
+</article>
+<article id="std-hashset-hashset-isempty"><span class="kind">method</span><h3><code>def isEmpty() : bool</code></h3>
+<p>Indique si l’ensemble est vide.</p>
+</article>
+<article id="std-hashset-hashset-iterator"><span class="kind">method</span><h3><code>def iterator() : Iterator[T]</code></h3>
+<p>Exécute l’opération publique `iterator`.</p>
+</article>
+<article id="std-hashset-hashset-remove"><span class="kind">method</span><h3><code>def remove(value : T) : bool</code></h3>
+<p>Retire la valeur et indique si elle était présente.</p>
+</article>
+<article id="std-hashset-hashset-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne le nombre de valeurs stockées.</p>
+</article>
+<article id="std-hashset-setbuilder"><span class="kind">class</span><h3><code>class SetBuilder[T, H]</code></h3>
+<p>Représente le type public `SetBuilder`.</p>
+</article>
+<article id="std-hashset-setbuilder-add"><span class="kind">method</span><h3><code>def add(value : T) : Unit</code></h3>
+<p>Ajoute une valeur.</p>
+</article>
+<article id="std-hashset-setbuilder-addall"><span class="kind">method</span><h3><code>def addAll[C](source : C) : Unit</code></h3>
+<p>Ajoute tous les éléments de la source.</p>
+</article>
+<article id="std-hashset-setbuilder-clear"><span class="kind">method</span><h3><code>def clear() : Unit</code></h3>
+<p>Réinitialise l’état.</p>
+</article>
+<article id="std-hashset-setbuilder-result"><span class="kind">method</span><h3><code>def result() : HashSet[T, H]</code></h3>
+<p>Produit l’ensemble construit.</p>
+</article>
+<article id="std-hashset-setbuilder-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne le nombre de valeurs accumulées.</p>
+</article>
+</section>
+<section id="module-std-io"><h2>Module std.io</h2>
+<p>Fournit les tampons d’octets et flux d’entrée-sortie propriétaires.</p>
+<article id="std-io-bytebuffer"><span class="kind">class</span><h3><code>class ByteBuffer</code></h3>
+<p>Représente le type public `ByteBuffer`.</p>
+</article>
+<article id="std-io-bytebuffer-append"><span class="kind">method</span><h3><code>def append(source : Ptr[byte], count : usize) : bool</code></h3>
+<p>Ajoute une valeur.</p>
+</article>
+<article id="std-io-bytebuffer-appendbyte"><span class="kind">method</span><h3><code>def appendByte(value : byte) : bool</code></h3>
+<p>Ajoute un octet au tampon.</p>
+</article>
+<article id="std-io-bytebuffer-appendtext"><span class="kind">method</span><h3><code>def appendText(value : string) : bool</code></h3>
+<p>Encode et ajoute le texte au tampon.</p>
+</article>
+<article id="std-io-bytebuffer-astext"><span class="kind">method</span><h3><code>def asText() : Result[string, TextDecodeError]</code></h3>
+<p>Exécute l’opération publique `asText`.</p>
+</article>
+<article id="std-io-bytebuffer-capacity"><span class="kind">method</span><h3><code>def capacity() : usize</code></h3>
+<p>Retourne la capacité actuellement réservée.</p>
+</article>
+<article id="std-io-bytebuffer-clear"><span class="kind">method</span><h3><code>def clear() : Unit</code></h3>
+<p>Réinitialise l’état.</p>
+</article>
+<article id="std-io-bytebuffer-data"><span class="kind">method</span><h3><code>def data() : Ptr[byte]</code></h3>
+<p>Exécute l’opération publique `data`.</p>
+</article>
+<article id="std-io-bytebuffer-isempty"><span class="kind">method</span><h3><code>def isEmpty() : bool</code></h3>
+<p>Indique si le tampon est vide.</p>
+</article>
+<article id="std-io-bytebuffer-isutf8"><span class="kind">method</span><h3><code>def isUtf8() : bool</code></h3>
+<p>Indique si le contenu forme une séquence UTF-8 valide.</p>
+</article>
+<article id="std-io-bytebuffer-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne le nombre d’octets stockés.</p>
+</article>
+<article id="std-io-inputstream"><span class="kind">class</span><h3><code>class InputStream</code></h3>
+<p>Représente le type public `InputStream`.</p>
+</article>
+<article id="std-io-inputstream-close"><span class="kind">method</span><h3><code>def close() : Result[bool, SystemError]</code></h3>
+<p>Ferme le flux d’entrée.</p>
+</article>
+<article id="std-io-inputstream-iseof"><span class="kind">method</span><h3><code>def isEof() : bool</code></h3>
+<p>Indique si la fin du flux a été atteinte.</p>
+</article>
+<article id="std-io-inputstream-isopen"><span class="kind">method</span><h3><code>def isOpen() : bool</code></h3>
+<p>Indique si le flux d’entrée est ouvert.</p>
+</article>
+<article id="std-io-inputstream-read"><span class="kind">method</span><h3><code>def read(target : Ptr[byte], capacity : usize) : Result[usize, SystemError]</code></h3>
+<p>Lit des octets dans le tampon fourni.</p>
+</article>
+<article id="std-io-inputstream-readline"><span class="kind">method</span><h3><code>def readLine() : Result[Option[ByteBuffer], SystemError]</code></h3>
+<p>Lit une ligne de texte depuis le flux.</p>
+</article>
+<article id="std-io-outputstream"><span class="kind">class</span><h3><code>class OutputStream</code></h3>
+<p>Représente le type public `OutputStream`.</p>
+</article>
+<article id="std-io-outputstream-close"><span class="kind">method</span><h3><code>def close() : Result[bool, SystemError]</code></h3>
+<p>Ferme le flux de sortie.</p>
+</article>
+<article id="std-io-outputstream-flush"><span class="kind">method</span><h3><code>def flush() : Result[bool, SystemError]</code></h3>
+<p>Exécute l’opération publique `flush`.</p>
+</article>
+<article id="std-io-outputstream-isopen"><span class="kind">method</span><h3><code>def isOpen() : bool</code></h3>
+<p>Indique si le flux de sortie est ouvert.</p>
+</article>
+<article id="std-io-outputstream-write"><span class="kind">method</span><h3><code>def write(source : Ptr[byte], size : usize) : Result[usize, SystemError]</code></h3>
+<p>Écrit les octets fournis dans le flux.</p>
+</article>
+<article id="std-io-outputstream-writetext"><span class="kind">method</span><h3><code>def writeText(value : string) : Result[usize, SystemError]</code></h3>
+<p>Encode et écrit le texte fourni dans le flux.</p>
+</article>
+<article id="std-io-textdecodeerror"><span class="kind">enum</span><h3><code>enum TextDecodeError</code></h3>
+<p>Énumère les états publics de `TextDecodeError`.</p>
+</article>
+<article id="std-io-textdecodeerror-invalidutf8"><span class="kind">variant</span><h3><code>InvalidUtf8</code></h3>
+<p>Représente le cas `InvalidUtf8`.</p>
+</article>
+<article id="std-io-copystream"><span class="kind">function</span><h3><code>def copyStream(input : InputStream, output : OutputStream) : Result[usize, SystemError]</code></h3>
+<p>Exécute l’opération publique `copyStream`.</p>
+</article>
+<article id="std-io-openinputstream"><span class="kind">function</span><h3><code>def openInputStream(path : string) : Result[InputStream, SystemError]</code></h3>
+<p>Ouvre un flux d’entrée avec le tampon par défaut.</p>
+</article>
+<article id="std-io-openinputstreambuffered"><span class="kind">function</span><h3><code>def openInputStreamBuffered(path : string, bufferCapacity : usize) : Result[InputStream, SystemError]</code></h3>
+<p>Ouvre un flux d’entrée avec la capacité de tampon demandée.</p>
+</article>
+<article id="std-io-openoutputstream"><span class="kind">function</span><h3><code>def openOutputStream(path : string, append : bool) : Result[OutputStream, SystemError]</code></h3>
+<p>Ouvre un flux de sortie avec le tampon par défaut.</p>
+</article>
+<article id="std-io-openoutputstreambuffered"><span class="kind">function</span><h3><code>def openOutputStreamBuffered(path : string, append : bool, bufferCapacity : usize) : Result[OutputStream, SystemError]</code></h3>
+<p>Ouvre un flux de sortie avec la capacité de tampon demandée.</p>
+</article>
+<article id="std-io-standarderror"><span class="kind">function</span><h3><code>def standardError() : Result[OutputStream, SystemError]</code></h3>
+<p>Exécute l’opération publique `standardError`.</p>
+</article>
+<article id="std-io-standardinput"><span class="kind">function</span><h3><code>def standardInput() : Result[InputStream, SystemError]</code></h3>
+<p>Exécute l’opération publique `standardInput`.</p>
+</article>
+<article id="std-io-standardoutput"><span class="kind">function</span><h3><code>def standardOutput() : Result[OutputStream, SystemError]</code></h3>
+<p>Exécute l’opération publique `standardOutput`.</p>
+</article>
+</section>
+<section id="module-std-iterator"><h2>Module std.iterator</h2>
+<p>Définit les itérateurs propriétaires et leurs combinateurs paresseux.</p>
+<article id="std-iterator-indexed"><span class="kind">struct</span><h3><code>struct Indexed[T]</code></h3>
+<p>Représente le type public `Indexed`.</p>
+</article>
+<article id="std-iterator-indexed-index"><span class="kind">field</span><h3><code>val index : usize</code></h3>
+<p>Expose le membre public `index`.</p>
+</article>
+<article id="std-iterator-indexed-value"><span class="kind">field</span><h3><code>val value : T</code></h3>
+<p>Expose le membre public `value`.</p>
+</article>
+<article id="std-iterator-iterable"><span class="kind">trait</span><h3><code>trait Iterable[T]</code></h3>
+<p>Définit le contrat public `Iterable`.</p>
+</article>
+<article id="std-iterator-iterable-iterator"><span class="kind">method</span><h3><code>def iterator() : Iterator[T]</code></h3>
+<p>Exécute l’opération publique `iterator`.</p>
+</article>
+<article id="std-iterator-iterator"><span class="kind">class</span><h3><code>class Iterator[T]</code></h3>
+<p>Représente le type public `Iterator`.</p>
+</article>
+<article id="std-iterator-iterator-collectwith"><span class="kind">method</span><h3><code>consume def collectWith[C, B](builder : B) : C</code></h3>
+<p>Exécute l’opération publique `collectWith`.</p>
+</article>
+<article id="std-iterator-iterator-enumerate"><span class="kind">method</span><h3><code>consume def enumerate() : Iterator[Indexed[T]]</code></h3>
+<p>Exécute l’opération publique `enumerate`.</p>
+</article>
+<article id="std-iterator-iterator-filter"><span class="kind">method</span><h3><code>consume def filter(predicate : Function[T, bool]) : Iterator[T]</code></h3>
+<p>Conserve les valeurs qui satisfont le prédicat.</p>
+</article>
+<article id="std-iterator-iterator-flatmap"><span class="kind">method</span><h3><code>consume def flatMap[U](transform : Function[T, Iterator[U]]) : Iterator[U]</code></h3>
+<p>Exécute l’opération publique `flatMap`.</p>
+</article>
+<article id="std-iterator-iterator-fold"><span class="kind">method</span><h3><code>consume def fold[U](initial : U, combine : Function[U, T, U]) : U</code></h3>
+<p>Réduit les valeurs avec un accumulateur.</p>
+</article>
+<article id="std-iterator-iterator-map"><span class="kind">method</span><h3><code>consume def map[U](transform : Function[T, U]) : Iterator[U]</code></h3>
+<p>Transforme la valeur ou la séquence avec la fonction fournie.</p>
+</article>
+<article id="std-iterator-iterator-next"><span class="kind">method</span><h3><code>def next() : Option[T]</code></h3>
+<p>Avance le parcours et retourne la prochaine valeur disponible.</p>
+</article>
+<article id="std-iterator-iterator-take"><span class="kind">method</span><h3><code>consume def take(count : usize) : Iterator[T]</code></h3>
+<p>Exécute l’opération publique `take`.</p>
+</article>
+<article id="std-iterator-iterator-zip"><span class="kind">method</span><h3><code>consume def zip[U](other : Iterator[U]) : Iterator[ZipItem[T, U]]</code></h3>
+<p>Exécute l’opération publique `zip`.</p>
+</article>
+<article id="std-iterator-zipitem"><span class="kind">struct</span><h3><code>struct ZipItem[A, B]</code></h3>
+<p>Représente le type public `ZipItem`.</p>
+</article>
+<article id="std-iterator-zipitem-left"><span class="kind">field</span><h3><code>val left : A</code></h3>
+<p>Expose le membre public `left`.</p>
+</article>
+<article id="std-iterator-zipitem-right"><span class="kind">field</span><h3><code>val right : B</code></h3>
+<p>Expose le membre public `right`.</p>
+</article>
+</section>
+<section id="module-std-math"><h2>Module std.math</h2>
+<p>Fournit les opérations arithmétiques et outils sur les nombres premiers.</p>
+<article id="std-math-gcd"><span class="kind">function</span><h3><code>def gcd(left : usize, right : usize) : usize</code></h3>
+<p>Exécute l’opération publique `gcd`.</p>
+</article>
+<article id="std-math-is-prime"><span class="kind">function</span><h3><code>def is_prime(value : usize) : bool</code></h3>
+<p>Indique si la valeur est un nombre premier.</p>
+</article>
+<article id="std-math-lcm"><span class="kind">function</span><h3><code>def lcm(left : usize, right : usize) : usize</code></h3>
+<p>Exécute l’opération publique `lcm`.</p>
+</article>
+<article id="std-math-prime-factors"><span class="kind">function</span><h3><code>def prime_factors(value : usize) : Array[usize]</code></h3>
+<p>Exécute l’opération publique `prime_factors`.</p>
+</article>
+</section>
+<section id="module-std-option"><h2>Module std.option</h2>
+<p>Représente une valeur éventuellement absente et ses combinateurs.</p>
+<article id="std-option-option"><span class="kind">enum</span><h3><code>enum Option[T]</code></h3>
+<p>Énumère les états publics de `Option`.</p>
+</article>
+<article id="std-option-option-none"><span class="kind">variant</span><h3><code>None</code></h3>
+<p>Représente le cas `None`.</p>
+</article>
+<article id="std-option-option-some"><span class="kind">variant</span><h3><code>Some(T)</code></h3>
+<p>Représente le cas `Some`.</p>
+</article>
+<article id="std-option-andthen"><span class="kind">function</span><h3><code>def andThen[T, U](value : Option[T], transform : Function[T, Option[U]]) : Option[U]</code></h3>
+<p>Exécute l’opération publique `andThen`.</p>
+</article>
+<article id="std-option-isnone"><span class="kind">function</span><h3><code>def isNone[T](value : Option[T]) : bool</code></h3>
+<p>Indique si l’option est vide.</p>
+</article>
+<article id="std-option-issome"><span class="kind">function</span><h3><code>def isSome[T](value : Option[T]) : bool</code></h3>
+<p>Indique si l’option contient une valeur.</p>
+</article>
+<article id="std-option-map"><span class="kind">function</span><h3><code>def map[T, U](value : Option[T], transform : Function[T, U]) : Option[U]</code></h3>
+<p>Transforme la valeur ou la séquence avec la fonction fournie.</p>
+</article>
+<article id="std-option-orelse"><span class="kind">function</span><h3><code>def orElse[T](value : Option[T], fallback : Option[T]) : Option[T]</code></h3>
+<p>Exécute l’opération publique `orElse`.</p>
+</article>
+<article id="std-option-unwrapor"><span class="kind">function</span><h3><code>def unwrapOr[T](value : Option[T], fallback : T) : T</code></h3>
+<p>Exécute l’opération publique `unwrapOr`.</p>
+</article>
+</section>
+<section id="module-std-path"><h2>Module std.path</h2>
+<p>Normalise, compose et inspecte les chemins natifs.</p>
+<article id="std-path-path"><span class="kind">class</span><h3><code>class Path</code></h3>
+<p>Représente le type public `Path`.</p>
+</article>
+<article id="std-path-path-component"><span class="kind">method</span><h3><code>def component(index : usize) : Result[Path, SystemError]</code></h3>
+<p>Exécute l’opération publique `component`.</p>
+</article>
+<article id="std-path-path-componentcount"><span class="kind">method</span><h3><code>def componentCount() : usize</code></h3>
+<p>Exécute l’opération publique `componentCount`.</p>
+</article>
+<article id="std-path-path-isabsolute"><span class="kind">method</span><h3><code>def isAbsolute() : bool</code></h3>
+<p>Indique si le chemin est absolu.</p>
+</article>
+<article id="std-path-path-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne la longueur du chemin normalisé.</p>
+</article>
+<article id="std-path-path-view"><span class="kind">method</span><h3><code>def view() : string</code></h3>
+<p>Exécute l’opération publique `view`.</p>
+</article>
+<article id="std-path-joinpath"><span class="kind">function</span><h3><code>def joinPath(base : string, child : string) : Result[Path, SystemError]</code></h3>
+<p>Exécute l’opération publique `joinPath`.</p>
+</article>
+<article id="std-path-normalizepath"><span class="kind">function</span><h3><code>def normalizePath(path : string) : Result[Path, SystemError]</code></h3>
+<p>Exécute l’opération publique `normalizePath`.</p>
+</article>
+</section>
+<section id="module-std-process"><h2>Module std.process</h2>
+<p>Expose les arguments, l’environnement et l’exécution de processus.</p>
+<article id="std-process-environmentvalue"><span class="kind">class</span><h3><code>class EnvironmentValue</code></h3>
+<p>Représente le type public `EnvironmentValue`.</p>
+</article>
+<article id="std-process-environmentvalue-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne la longueur de la valeur d’environnement.</p>
+</article>
+<article id="std-process-environmentvalue-view"><span class="kind">method</span><h3><code>def view() : string</code></h3>
+<p>Exécute l’opération publique `view`.</p>
+</article>
+<article id="std-process-processresult"><span class="kind">class</span><h3><code>class ProcessResult</code></h3>
+<p>Représente le type public `ProcessResult`.</p>
+</article>
+<article id="std-process-processresult-exitcode"><span class="kind">method</span><h3><code>def exitCode() : int</code></h3>
+<p>Exécute l’opération publique `exitCode`.</p>
+</article>
+<article id="std-process-processresult-stderrdata"><span class="kind">method</span><h3><code>def stderrData() : Ptr[byte]</code></h3>
+<p>Exécute l’opération publique `stderrData`.</p>
+</article>
+<article id="std-process-processresult-stderrsize"><span class="kind">method</span><h3><code>def stderrSize() : usize</code></h3>
+<p>Exécute l’opération publique `stderrSize`.</p>
+</article>
+<article id="std-process-processresult-stdoutdata"><span class="kind">method</span><h3><code>def stdoutData() : Ptr[byte]</code></h3>
+<p>Exécute l’opération publique `stdoutData`.</p>
+</article>
+<article id="std-process-processresult-stdoutsize"><span class="kind">method</span><h3><code>def stdoutSize() : usize</code></h3>
+<p>Exécute l’opération publique `stdoutSize`.</p>
+</article>
+<article id="std-process-environmentvariable"><span class="kind">function</span><h3><code>def environmentVariable(name : string) : Result[Option[EnvironmentValue], SystemError]</code></h3>
+<p>Exécute l’opération publique `environmentVariable`.</p>
+</article>
+<article id="std-process-programargument"><span class="kind">function</span><h3><code>def programArgument(index : usize) : Option[string]</code></h3>
+<p>Exécute l’opération publique `programArgument`.</p>
+</article>
+<article id="std-process-programargumentcount"><span class="kind">function</span><h3><code>def programArgumentCount() : usize</code></h3>
+<p>Exécute l’opération publique `programArgumentCount`.</p>
+</article>
+<article id="std-process-runprocess"><span class="kind">function</span><h3><code>def runProcess(executable : string, arguments : Array[string], workingDirectory : string, captureStdout : bool, captureStderr : bool) : Result[ProcessResult, SystemError]</code></h3>
+<p>Exécute l’opération publique `runProcess`.</p>
+</article>
+</section>
+<section id="module-std-random"><h2>Module std.random</h2>
+<p>Fournit un générateur pseudo-aléatoire déterministe et une source automatique.</p>
+<article id="std-random-random"><span class="kind">class</span><h3><code>class Random</code></h3>
+<p>Représente le type public `Random`.</p>
+</article>
+<article id="std-random-random-nextbounded"><span class="kind">method</span><h3><code>def nextBounded(upperExclusive : usize) : usize</code></h3>
+<p>Avance le parcours et retourne la prochaine valeur disponible.</p>
+</article>
+<article id="std-random-random-nextusize"><span class="kind">method</span><h3><code>def nextUSize() : usize</code></h3>
+<p>Avance le parcours et retourne la prochaine valeur disponible.</p>
+</article>
+<article id="std-random-automaticrandom"><span class="kind">function</span><h3><code>def automaticRandom() : Random</code></h3>
+<p>Exécute l’opération publique `automaticRandom`.</p>
+</article>
+<article id="std-random-randombounded"><span class="kind">function</span><h3><code>def randomBounded(upperExclusive : usize) : usize</code></h3>
+<p>Exécute l’opération publique `randomBounded`.</p>
+</article>
+<article id="std-random-randomusize"><span class="kind">function</span><h3><code>def randomUSize() : usize</code></h3>
+<p>Exécute l’opération publique `randomUSize`.</p>
+</article>
+</section>
+<section id="module-std-range"><h2>Module std.range</h2>
+<p>Construit des itérateurs sur des intervalles entiers.</p>
+<article id="std-range-range"><span class="kind">function</span><h3><code>def range(start : int, end : int) : Iterator[int]</code></h3>
+<p>Exécute l’opération publique `range`.</p>
+</article>
+</section>
+<section id="module-std-result"><h2>Module std.result</h2>
+<p>Représente un succès ou une erreur structurée et leurs combinateurs.</p>
+<article id="std-result-result"><span class="kind">enum</span><h3><code>enum Result[T, E]</code></h3>
+<p>Énumère les états publics de `Result`.</p>
+</article>
+<article id="std-result-result-error"><span class="kind">variant</span><h3><code>Error(E)</code></h3>
+<p>Représente le cas `Error`.</p>
+</article>
+<article id="std-result-result-ok"><span class="kind">variant</span><h3><code>Ok(T)</code></h3>
+<p>Représente le cas `Ok`.</p>
+</article>
+<article id="std-result-andthen"><span class="kind">function</span><h3><code>def andThen[T, U, E](value : Result[T, E], transform : Function[T, Result[U, E]]) : Result[U, E]</code></h3>
+<p>Exécute l’opération publique `andThen`.</p>
+</article>
+<article id="std-result-fromoption"><span class="kind">function</span><h3><code>def fromOption[T, E](value : Option[T], error : E) : Result[T, E]</code></h3>
+<p>Exécute l’opération publique `fromOption`.</p>
+</article>
+<article id="std-result-iserror"><span class="kind">function</span><h3><code>def isError[T, E](value : Result[T, E]) : bool</code></h3>
+<p>Indique si le résultat contient une erreur.</p>
+</article>
+<article id="std-result-isok"><span class="kind">function</span><h3><code>def isOk[T, E](value : Result[T, E]) : bool</code></h3>
+<p>Indique si le résultat contient une valeur de succès.</p>
+</article>
+<article id="std-result-map"><span class="kind">function</span><h3><code>def map[T, U, E](value : Result[T, E], transform : Function[T, U]) : Result[U, E]</code></h3>
+<p>Transforme la valeur ou la séquence avec la fonction fournie.</p>
+</article>
+<article id="std-result-maperror"><span class="kind">function</span><h3><code>def mapError[T, E, F](value : Result[T, E], transform : Function[E, F]) : Result[T, F]</code></h3>
+<p>Transforme la valeur ou la séquence avec la fonction fournie.</p>
+</article>
+<article id="std-result-orelse"><span class="kind">function</span><h3><code>def orElse[T, E, F](value : Result[T, E], transform : Function[E, Result[T, F]]) : Result[T, F]</code></h3>
+<p>Exécute l’opération publique `orElse`.</p>
+</article>
+<article id="std-result-tooption"><span class="kind">function</span><h3><code>def toOption[T, E](value : Result[T, E]) : Option[T]</code></h3>
+<p>Exécute l’opération publique `toOption`.</p>
+</article>
+<article id="std-result-unwrapor"><span class="kind">function</span><h3><code>def unwrapOr[T, E](value : Result[T, E], fallback : T) : T</code></h3>
+<p>Exécute l’opération publique `unwrapOr`.</p>
+</article>
+</section>
+<section id="module-std-system"><h2>Module std.system</h2>
+<p>Expose les fichiers natifs et les erreurs système structurées.</p>
+<article id="std-system-systemerror"><span class="kind">struct</span><h3><code>struct SystemError</code></h3>
+<p>Représente le type public `SystemError`.</p>
+</article>
+<article id="std-system-systemerror-category"><span class="kind">field</span><h3><code>val category : SystemErrorCategory</code></h3>
+<p>Expose le membre public `category`.</p>
+</article>
+<article id="std-system-systemerror-context"><span class="kind">field</span><h3><code>val context : string</code></h3>
+<p>Expose le membre public `context`.</p>
+</article>
+<article id="std-system-systemerror-nativecode"><span class="kind">field</span><h3><code>val nativeCode : uint</code></h3>
+<p>Expose le membre public `nativeCode`.</p>
+</article>
+<article id="std-system-systemerror-operation"><span class="kind">field</span><h3><code>val operation : string</code></h3>
+<p>Expose le membre public `operation`.</p>
+</article>
+<article id="std-system-systemerrorcategory"><span class="kind">enum</span><h3><code>enum SystemErrorCategory</code></h3>
+<p>Énumère les états publics de `SystemErrorCategory`.</p>
+</article>
+<article id="std-system-systemerrorcategory-alreadyexists"><span class="kind">variant</span><h3><code>AlreadyExists</code></h3>
+<p>Représente le cas `AlreadyExists`.</p>
+</article>
+<article id="std-system-systemerrorcategory-interrupted"><span class="kind">variant</span><h3><code>Interrupted</code></h3>
+<p>Représente le cas `Interrupted`.</p>
+</article>
+<article id="std-system-systemerrorcategory-invalidinput"><span class="kind">variant</span><h3><code>InvalidInput</code></h3>
+<p>Représente le cas `InvalidInput`.</p>
+</article>
+<article id="std-system-systemerrorcategory-notfound"><span class="kind">variant</span><h3><code>NotFound</code></h3>
+<p>Représente le cas `NotFound`.</p>
+</article>
+<article id="std-system-systemerrorcategory-other"><span class="kind">variant</span><h3><code>Other</code></h3>
+<p>Représente le cas `Other`.</p>
+</article>
+<article id="std-system-systemerrorcategory-outofspace"><span class="kind">variant</span><h3><code>OutOfSpace</code></h3>
+<p>Représente le cas `OutOfSpace`.</p>
+</article>
+<article id="std-system-systemerrorcategory-permissiondenied"><span class="kind">variant</span><h3><code>PermissionDenied</code></h3>
+<p>Représente le cas `PermissionDenied`.</p>
+</article>
+<article id="std-system-systemerrorcategory-resourceexhausted"><span class="kind">variant</span><h3><code>ResourceExhausted</code></h3>
+<p>Représente le cas `ResourceExhausted`.</p>
+</article>
+<article id="std-system-systemerrorcategory-toolarge"><span class="kind">variant</span><h3><code>TooLarge</code></h3>
+<p>Représente le cas `TooLarge`.</p>
+</article>
+<article id="std-system-systemerrorcategory-unsupported"><span class="kind">variant</span><h3><code>Unsupported</code></h3>
+<p>Représente le cas `Unsupported`.</p>
+</article>
+<article id="std-system-systemerrorcategory-wouldblock"><span class="kind">variant</span><h3><code>WouldBlock</code></h3>
+<p>Représente le cas `WouldBlock`.</p>
+</article>
+<article id="std-system-systemfile"><span class="kind">class</span><h3><code>class SystemFile</code></h3>
+<p>Représente le type public `SystemFile`.</p>
+</article>
+<article id="std-system-systemfile-close"><span class="kind">method</span><h3><code>def close() : Result[bool, SystemError]</code></h3>
+<p>Ferme le fichier natif.</p>
+</article>
+<article id="std-system-systemfile-isopen"><span class="kind">method</span><h3><code>def isOpen() : bool</code></h3>
+<p>Indique si le fichier natif est ouvert.</p>
+</article>
+<article id="std-system-systemfile-read"><span class="kind">method</span><h3><code>def read(data : Ptr[byte], capacity : usize) : Result[usize, SystemError]</code></h3>
+<p>Lit des octets depuis le fichier natif.</p>
+</article>
+<article id="std-system-systemfile-write"><span class="kind">method</span><h3><code>def write(data : Ptr[byte], size : usize) : Result[usize, SystemError]</code></h3>
+<p>Écrit des octets dans le fichier natif.</p>
+</article>
+<article id="std-system-systemopenmode"><span class="kind">enum</span><h3><code>enum SystemOpenMode</code></h3>
+<p>Énumère les états publics de `SystemOpenMode`.</p>
+</article>
+<article id="std-system-systemopenmode-append"><span class="kind">variant</span><h3><code>Append</code></h3>
+<p>Représente le cas `Append`.</p>
+</article>
+<article id="std-system-systemopenmode-read"><span class="kind">variant</span><h3><code>Read</code></h3>
+<p>Représente le cas `Read`.</p>
+</article>
+<article id="std-system-systemopenmode-write"><span class="kind">variant</span><h3><code>Write</code></h3>
+<p>Représente le cas `Write`.</p>
+</article>
+<article id="std-system-opensystemfile"><span class="kind">function</span><h3><code>def openSystemFile(path : string, mode : SystemOpenMode) : Result[SystemFile, SystemError]</code></h3>
+<p>Ouvre un fichier natif dans le mode demandé.</p>
+</article>
+<article id="std-system-removesystemfile"><span class="kind">function</span><h3><code>def removeSystemFile(path : string) : Result[bool, SystemError]</code></h3>
+<p>Supprime un fichier natif.</p>
+</article>
+</section>
+<section id="module-std-text"><h2>Module std.text</h2>
+<p>Fournit la construction de texte et le parsing typé avec erreurs structurées.</p>
+<article id="std-text-parseerror"><span class="kind">enum</span><h3><code>enum ParseError</code></h3>
+<p>Énumère les états publics de `ParseError`.</p>
+</article>
+<article id="std-text-parseerror-empty"><span class="kind">variant</span><h3><code>Empty</code></h3>
+<p>Représente le cas `Empty`.</p>
+</article>
+<article id="std-text-parseerror-invalid"><span class="kind">variant</span><h3><code>Invalid</code></h3>
+<p>Représente le cas `Invalid`.</p>
+</article>
+<article id="std-text-parseerror-nonfinite"><span class="kind">variant</span><h3><code>NonFinite</code></h3>
+<p>Représente le cas `NonFinite`.</p>
+</article>
+<article id="std-text-parseerror-overflow"><span class="kind">variant</span><h3><code>Overflow</code></h3>
+<p>Représente le cas `Overflow`.</p>
+</article>
+<article id="std-text-parseerror-sign"><span class="kind">variant</span><h3><code>Sign</code></h3>
+<p>Représente le cas `Sign`.</p>
+</article>
+<article id="std-text-parseerror-underflow"><span class="kind">variant</span><h3><code>Underflow</code></h3>
+<p>Représente le cas `Underflow`.</p>
+</article>
+<article id="std-text-textbuilder"><span class="kind">class</span><h3><code>class TextBuilder</code></h3>
+<p>Représente le type public `TextBuilder`.</p>
+</article>
+<article id="std-text-textbuilder-append"><span class="kind">method</span><h3><code>def append(value : string) : Unit</code></h3>
+<p>Ajoute une valeur.</p>
+</article>
+<article id="std-text-textbuilder-appendbool"><span class="kind">method</span><h3><code>def appendBool(value : bool) : Unit</code></h3>
+<p>Ajoute la représentation d’un booléen.</p>
+</article>
+<article id="std-text-textbuilder-appendbyte"><span class="kind">method</span><h3><code>def appendByte(value : byte) : Unit</code></h3>
+<p>Ajoute la représentation décimale d’un `byte`.</p>
+</article>
+<article id="std-text-textbuilder-appendchar"><span class="kind">method</span><h3><code>def appendChar(value : char) : Unit</code></h3>
+<p>Ajoute le caractère encodé en UTF-8.</p>
+</article>
+<article id="std-text-textbuilder-appenddouble"><span class="kind">method</span><h3><code>def appendDouble(value : double) : Unit</code></h3>
+<p>Ajoute la représentation d’un `double`.</p>
+</article>
+<article id="std-text-textbuilder-appendfixed"><span class="kind">method</span><h3><code>def appendFixed(value : double, digits : uint) : Unit</code></h3>
+<p>Ajoute un nombre décimal avec une précision fixe.</p>
+</article>
+<article id="std-text-textbuilder-appendfloat"><span class="kind">method</span><h3><code>def appendFloat(value : float) : Unit</code></h3>
+<p>Ajoute la représentation d’un `float`.</p>
+</article>
+<article id="std-text-textbuilder-appendhex"><span class="kind">method</span><h3><code>def appendHex(value : ulong, uppercase : bool) : Unit</code></h3>
+<p>Ajoute la représentation hexadécimale d’un entier.</p>
+</article>
+<article id="std-text-textbuilder-appendisize"><span class="kind">method</span><h3><code>def appendISize(value : isize) : Unit</code></h3>
+<p>Ajoute la représentation décimale d’un `isize`.</p>
+</article>
+<article id="std-text-textbuilder-appendint"><span class="kind">method</span><h3><code>def appendInt(value : int) : Unit</code></h3>
+<p>Ajoute la représentation décimale d’un `int`.</p>
+</article>
+<article id="std-text-textbuilder-appendlong"><span class="kind">method</span><h3><code>def appendLong(value : long) : Unit</code></h3>
+<p>Ajoute la représentation décimale d’un `long`.</p>
+</article>
+<article id="std-text-textbuilder-appendshort"><span class="kind">method</span><h3><code>def appendShort(value : short) : Unit</code></h3>
+<p>Ajoute la représentation décimale d’un `short`.</p>
+</article>
+<article id="std-text-textbuilder-appendubyte"><span class="kind">method</span><h3><code>def appendUByte(value : ubyte) : Unit</code></h3>
+<p>Ajoute la représentation décimale d’un `ubyte`.</p>
+</article>
+<article id="std-text-textbuilder-appenduint"><span class="kind">method</span><h3><code>def appendUInt(value : uint) : Unit</code></h3>
+<p>Ajoute la représentation décimale d’un `uint`.</p>
+</article>
+<article id="std-text-textbuilder-appendulong"><span class="kind">method</span><h3><code>def appendULong(value : ulong) : Unit</code></h3>
+<p>Ajoute la représentation décimale d’un `ulong`.</p>
+</article>
+<article id="std-text-textbuilder-appendushort"><span class="kind">method</span><h3><code>def appendUShort(value : ushort) : Unit</code></h3>
+<p>Ajoute la représentation décimale d’un `ushort`.</p>
+</article>
+<article id="std-text-textbuilder-appendusize"><span class="kind">method</span><h3><code>def appendUSize(value : usize) : Unit</code></h3>
+<p>Ajoute la représentation décimale d’un `usize`.</p>
+</article>
+<article id="std-text-textbuilder-clear"><span class="kind">method</span><h3><code>def clear() : Unit</code></h3>
+<p>Réinitialise l’état.</p>
+</article>
+<article id="std-text-textbuilder-size"><span class="kind">method</span><h3><code>def size() : usize</code></h3>
+<p>Retourne la longueur du texte construit.</p>
+</article>
+<article id="std-text-textbuilder-view"><span class="kind">method</span><h3><code>def view() : string</code></h3>
+<p>Exécute l’opération publique `view`.</p>
+</article>
+<article id="std-text-parsebool"><span class="kind">function</span><h3><code>def parseBool(text : string) : Result[bool, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseBool`.</p>
+</article>
+<article id="std-text-parsebyte"><span class="kind">function</span><h3><code>def parseByte(text : string) : Result[byte, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseByte`.</p>
+</article>
+<article id="std-text-parsechar"><span class="kind">function</span><h3><code>def parseChar(text : string) : Result[char, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseChar`.</p>
+</article>
+<article id="std-text-parsedouble"><span class="kind">function</span><h3><code>def parseDouble(text : string) : Result[double, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseDouble`.</p>
+</article>
+<article id="std-text-parsefloat"><span class="kind">function</span><h3><code>def parseFloat(text : string) : Result[float, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseFloat`.</p>
+</article>
+<article id="std-text-parseisize"><span class="kind">function</span><h3><code>def parseISize(text : string) : Result[isize, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseISize`.</p>
+</article>
+<article id="std-text-parseint"><span class="kind">function</span><h3><code>def parseInt(text : string) : Result[int, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseInt`.</p>
+</article>
+<article id="std-text-parselong"><span class="kind">function</span><h3><code>def parseLong(text : string) : Result[long, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseLong`.</p>
+</article>
+<article id="std-text-parseshort"><span class="kind">function</span><h3><code>def parseShort(text : string) : Result[short, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseShort`.</p>
+</article>
+<article id="std-text-parseubyte"><span class="kind">function</span><h3><code>def parseUByte(text : string) : Result[ubyte, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseUByte`.</p>
+</article>
+<article id="std-text-parseuint"><span class="kind">function</span><h3><code>def parseUInt(text : string) : Result[uint, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseUInt`.</p>
+</article>
+<article id="std-text-parseulong"><span class="kind">function</span><h3><code>def parseULong(text : string) : Result[ulong, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseULong`.</p>
+</article>
+<article id="std-text-parseushort"><span class="kind">function</span><h3><code>def parseUShort(text : string) : Result[ushort, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseUShort`.</p>
+</article>
+<article id="std-text-parseusize"><span class="kind">function</span><h3><code>def parseUSize(text : string) : Result[usize, ParseError]</code></h3>
+<p>Exécute l’opération publique `parseUSize`.</p>
+</article>
+</section>
+<section id="module-std-time"><h2>Module std.time</h2>
+<p>Mesure les durées et le temps monotone.</p>
+<article id="std-time-duration"><span class="kind">struct</span><h3><code>struct Duration</code></h3>
+<p>Représente le type public `Duration`.</p>
+</article>
+<article id="std-time-duration-microseconds"><span class="kind">method</span><h3><code>def microseconds() : usize</code></h3>
+<p>Exécute l’opération publique `microseconds`.</p>
+</article>
+<article id="std-time-duration-milliseconds"><span class="kind">method</span><h3><code>def milliseconds() : usize</code></h3>
+<p>Exécute l’opération publique `milliseconds`.</p>
+</article>
+<article id="std-time-duration-nanoseconds"><span class="kind">method</span><h3><code>def nanoseconds() : usize</code></h3>
+<p>Exécute l’opération publique `nanoseconds`.</p>
+</article>
+<article id="std-time-duration-seconds"><span class="kind">method</span><h3><code>def seconds() : double</code></h3>
+<p>Exécute l’opération publique `seconds`.</p>
+</article>
+<article id="std-time-instant"><span class="kind">struct</span><h3><code>struct Instant</code></h3>
+<p>Représente le type public `Instant`.</p>
+</article>
+<article id="std-time-instant-durationsince"><span class="kind">method</span><h3><code>def durationSince(earlier : Instant) : Duration</code></h3>
+<p>Exécute l’opération publique `durationSince`.</p>
+</article>
+<article id="std-time-instant-elapsed"><span class="kind">method</span><h3><code>def elapsed() : Duration</code></h3>
+<p>Exécute l’opération publique `elapsed`.</p>
+</article>
+<article id="std-time-microseconds"><span class="kind">function</span><h3><code>def microseconds(value : usize) : Duration</code></h3>
+<p>Exécute l’opération publique `microseconds`.</p>
+</article>
+<article id="std-time-milliseconds"><span class="kind">function</span><h3><code>def milliseconds(value : usize) : Duration</code></h3>
+<p>Exécute l’opération publique `milliseconds`.</p>
+</article>
+<article id="std-time-monotonicnow"><span class="kind">function</span><h3><code>def monotonicNow() : Instant</code></h3>
+<p>Exécute l’opération publique `monotonicNow`.</p>
+</article>
+<article id="std-time-nanoseconds"><span class="kind">function</span><h3><code>def nanoseconds(value : usize) : Duration</code></h3>
+<p>Exécute l’opération publique `nanoseconds`.</p>
+</article>
+<article id="std-time-seconds"><span class="kind">function</span><h3><code>def seconds(value : usize) : Duration</code></h3>
+<p>Exécute l’opération publique `seconds`.</p>
+</article>
+</section>
+<section id="module-std-wall-time"><h2>Module std.wall_time</h2>
+<p>Mesure le temps civil depuis l’époque Unix.</p>
+<article id="std-wall-time-walltime"><span class="kind">struct</span><h3><code>struct WallTime</code></h3>
+<p>Représente le type public `WallTime`.</p>
+</article>
+<article id="std-wall-time-walltime-unixmilliseconds"><span class="kind">method</span><h3><code>def unixMilliseconds() : usize</code></h3>
+<p>Exécute l’opération publique `unixMilliseconds`.</p>
+</article>
+<article id="std-wall-time-walltime-unixnanoseconds"><span class="kind">method</span><h3><code>def unixNanoseconds() : usize</code></h3>
+<p>Exécute l’opération publique `unixNanoseconds`.</p>
+</article>
+<article id="std-wall-time-walltime-unixseconds"><span class="kind">method</span><h3><code>def unixSeconds() : usize</code></h3>
+<p>Exécute l’opération publique `unixSeconds`.</p>
+</article>
+<article id="std-wall-time-wallnow"><span class="kind">function</span><h3><code>def wallNow() : WallTime</code></h3>
+<p>Exécute l’opération publique `wallNow`.</p>
+</article>
+</section>
+</main>
+<footer><p>Generated by Janus. No network resources are required.</p></footer>
+</body>
+</html>

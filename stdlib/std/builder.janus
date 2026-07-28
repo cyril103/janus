@@ -1,6 +1,10 @@
+/// Définit le contrat commun des constructeurs de collections.
 module std.builder
 
+/// Définit le contrat public `Builder`.
 trait Builder[T, C] {
+    /// Ajoute une valeur.
     def add(value : T) : Unit
+    /// Produit la collection construite.
     def result() : C
 }

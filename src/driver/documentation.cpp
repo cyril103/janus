@@ -375,6 +375,26 @@ package_sources(const janus::driver::Manifest &manifest) {
   return {unique.begin(), unique.end()};
 }
 
+std::vector<janus::ast::Program>
+parse_sources(const std::vector<std::filesystem::path> &sources,
+              std::string_view fallback_module = {}) {
+  std::vector<janus::ast::Program> programs;
+  for (const std::filesystem::path &source : sources) {
+    std::ifstream input{source, std::ios::binary};
+    if (!input)
+      throw std::runtime_error{"cannot read documentation source '" +
+                               source.string() + "'"};
+    const std::string contents{std::istreambuf_iterator<char>{input},
+                               std::istreambuf_iterator<char>{}};
+    janus::frontend::Parser parser{contents};
+    janus::ast::Program program = parser.parse_program();
+    if (!program.module_name.has_value() && !fallback_module.empty())
+      program.module_name = fallback_module;
+    programs.push_back(std::move(program));
+  }
+  return programs;
+}
+
 } // namespace
 
 namespace janus::driver {
@@ -414,6 +434,14 @@ generate_documentation(const std::vector<ast::Program> &programs,
   report.api_index_path = options.output_directory / "api-index.json";
   report.module_count = module_documentation.size();
   report.symbol_count = symbols.size();
+  for (const auto &[module, documentation] : module_documentation) {
+    if (documentation.empty())
+      report.undocumented_modules.push_back(module);
+  }
+  for (const Symbol &symbol : symbols) {
+    if (symbol.documentation.empty())
+      report.undocumented_symbols.push_back(symbol.qualified_name);
+  }
 
   std::ostringstream html;
   html
@@ -521,24 +549,41 @@ generate_documentation(const std::vector<ast::Program> &programs,
 DocumentationReport
 generate_package_documentation(const Manifest &manifest,
                                const std::filesystem::path &output_directory) {
-  std::vector<ast::Program> programs;
-  for (const std::filesystem::path &source : package_sources(manifest)) {
-    std::ifstream input{source, std::ios::binary};
-    if (!input)
-      throw std::runtime_error{"cannot read package source '" +
-                               source.string() + "'"};
-    const std::string contents{std::istreambuf_iterator<char>{input},
-                               std::istreambuf_iterator<char>{}};
-    frontend::Parser parser{contents};
-    ast::Program program = parser.parse_program();
-    if (!program.module_name.has_value())
-      program.module_name = manifest.name;
-    programs.push_back(std::move(program));
-  }
+  std::vector<ast::Program> programs =
+      parse_sources(package_sources(manifest), manifest.name);
   if (programs.empty())
     throw std::runtime_error{"package contains no Janus source files"};
   return generate_documentation(
       programs, {manifest.name, manifest.version, output_directory});
+}
+
+DocumentationReport generate_stdlib_documentation(
+    const std::filesystem::path &stdlib_directory,
+    const std::filesystem::path &output_directory,
+    std::string package_version) {
+  const std::filesystem::path source_root = stdlib_directory / "std";
+  if (!std::filesystem::is_directory(source_root))
+    throw std::runtime_error{"standard library source directory not found: " +
+                             source_root.string()};
+  std::vector<std::filesystem::path> sources;
+  for (const auto &entry :
+       std::filesystem::recursive_directory_iterator(source_root)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".janus")
+      sources.push_back(
+          std::filesystem::absolute(entry.path()).lexically_normal());
+  }
+  std::sort(sources.begin(), sources.end());
+  std::vector<ast::Program> programs = parse_sources(sources);
+  if (programs.empty())
+    throw std::runtime_error{"standard library contains no Janus source files"};
+  for (const ast::Program &program : programs) {
+    if (!program.module_name.has_value())
+      throw std::runtime_error{
+          "every standard-library source must declare its module"};
+  }
+  return generate_documentation(
+      programs, {"Janus standard library", std::move(package_version),
+                 output_directory});
 }
 
 void open_documentation(const std::filesystem::path &index_path) {

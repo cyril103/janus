@@ -1,3 +1,4 @@
+/// Gère les textures, fontes, rendus, shaders et animations propriétaires.
 module std.graphics.resources
 import std.c
 import std.graphics.types
@@ -127,23 +128,29 @@ handle : Ptr[byte],
 location : int,
 value : int
 ) : Unit
+/// Représente le type public `Texture`.
 class Texture(private val handle : Ptr[byte]) {
+    /// Indique si la texture est valide.
     def isValid() : bool {
         return janus_graphics_texture_is_valid(handle)
     }
 
+    /// Retourne la largeur de la texture.
     def width() : int {
         return janus_graphics_texture_width(handle)
     }
 
+    /// Retourne la hauteur de la texture.
     def height() : int {
         return janus_graphics_texture_height(handle)
     }
 
+    /// Exécute l’opération publique `draw`.
     def draw(x : int, y : int, tint : Color) : Unit {
         janus_graphics_draw_texture(handle, x, y, tint.packed())
     }
 
+    /// Exécute l’opération publique `drawAt`.
     def drawAt(position : Vector2, tint : Color) : Unit {
         janus_graphics_draw_texture(
         handle,
@@ -153,6 +160,7 @@ class Texture(private val handle : Ptr[byte]) {
         )
     }
 
+    /// Exécute l’opération publique `drawPro`.
     def drawPro(
     source : Rectangle,
     destination : Rectangle,
@@ -177,6 +185,7 @@ class Texture(private val handle : Ptr[byte]) {
         )
     }
 
+    /// Exécute l’opération publique `drawFrame`.
     def drawFrame(
     frame : int,
     frameWidth : int,
@@ -216,6 +225,7 @@ class Texture(private val handle : Ptr[byte]) {
         )
     }
 
+    /// Règle le filtre d’échantillonnage de la texture.
     def setFilter(filter : TextureFilter) : Unit {
         janus_graphics_set_texture_filter(handle, int(filter))
     }
@@ -225,11 +235,14 @@ class Texture(private val handle : Ptr[byte]) {
     }
 }
 
+/// Représente le type public `Font`.
 class Font(private val handle : Ptr[byte]) {
+    /// Indique si la fonte est valide.
     def isValid() : bool {
         return janus_graphics_font_is_valid(handle)
     }
 
+    /// Exécute l’opération publique `draw`.
     def draw(
     text : string,
     position : Vector2,
@@ -248,6 +261,7 @@ class Font(private val handle : Ptr[byte]) {
         )
     }
 
+    /// Exécute l’opération publique `measure`.
     def measure(
     text : string,
     fontSize : float,
@@ -274,23 +288,29 @@ class Font(private val handle : Ptr[byte]) {
     }
 }
 
+/// Représente le type public `RenderTexture`.
 class RenderTexture(private val handle : Ptr[byte]) {
+    /// Indique si la texture de rendu est valide.
     def isValid() : bool {
         return janus_graphics_render_texture_is_valid(handle)
     }
 
+    /// Retourne la largeur de la texture de rendu.
     def width() : int {
         return janus_graphics_render_texture_width(handle)
     }
 
+    /// Retourne la hauteur de la texture de rendu.
     def height() : int {
         return janus_graphics_render_texture_height(handle)
     }
 
+    /// Exécute l’opération publique `begin`.
     def begin() : Unit {
         janus_graphics_begin_render_texture(handle)
     }
 
+    /// Exécute l’opération publique `drawPro`.
     def drawPro(
     source : Rectangle,
     destination : Rectangle,
@@ -320,23 +340,29 @@ class RenderTexture(private val handle : Ptr[byte]) {
     }
 }
 
+/// Représente le type public `Shader`.
 class Shader(private val handle : Ptr[byte]) {
+    /// Indique si le shader est valide.
     def isValid() : bool {
         return janus_graphics_shader_is_valid(handle)
     }
 
+    /// Exécute l’opération publique `begin`.
     def begin() : Unit {
         janus_graphics_begin_shader(handle)
     }
 
+    /// Exécute l’opération publique `location`.
     def location(name : string) : int {
         return janus_graphics_shader_location(handle, cstr(name))
     }
 
+    /// Affecte une valeur flottante à l’uniforme.
     def setFloat(location : int, value : float) : Unit {
         janus_graphics_set_shader_float(handle, location, value)
     }
 
+    /// Affecte un vecteur 2D à l’uniforme.
     def setVector2(location : int, value : Vector2) : Unit {
         janus_graphics_set_shader_vector2(
         handle,
@@ -346,10 +372,12 @@ class Shader(private val handle : Ptr[byte]) {
         )
     }
 
+    /// Affecte une couleur à l’uniforme.
     def setColor(location : int, value : Color) : Unit {
         janus_graphics_set_shader_color(handle, location, value.packed())
     }
 
+    /// Affecte une valeur entière à l’uniforme.
     def setInt(location : int, value : int) : Unit {
         janus_graphics_set_shader_int(handle, location, value)
     }
@@ -359,23 +387,33 @@ class Shader(private val handle : Ptr[byte]) {
     }
 }
 
+/// Représente le type public `SpriteAnimation`.
 class SpriteAnimation(
+/// Expose le membre public `texture`.
 val texture : Texture,
+/// Expose le membre public `frameWidth`.
 val frameWidth : int,
+/// Expose le membre public `frameHeight`.
 val frameHeight : int,
+/// Expose le membre public `columns`.
 val columns : int,
+/// Expose le membre public `frameCount`.
 val frameCount : int,
+/// Expose le membre public `currentFrame`.
 var currentFrame : int
 ) {
+    /// Exécute l’opération publique `advance`.
     def advance() : int {
         currentFrame = (currentFrame + 1) % frameCount
         return currentFrame
     }
 
+    /// Réinitialise l’état.
     def reset() : Unit {
         currentFrame = 0
     }
 
+    /// Exécute l’opération publique `draw`.
     def draw(
     position : Vector2,
     scale : float,
@@ -399,14 +437,17 @@ var currentFrame : int
     }
 }
 
+/// Charge une texture depuis un fichier.
 def loadTexture(fileName : string) : Texture {
     return new Texture(janus_graphics_load_texture(cstr(fileName)))
 }
 
+/// Charge une fonte à la taille demandée.
 def loadFont(fileName : string, fontSize : int) : Font {
     return new Font(janus_graphics_load_font(cstr(fileName), fontSize))
 }
 
+/// Charge une fonte limitée aux caractères UTF-8 fournis.
 def loadFontUtf8(
 fileName : string,
 fontSize : int,
@@ -421,26 +462,31 @@ characters : string
     )
 }
 
+/// Crée une texture de rendu aux dimensions demandées.
 def loadRenderTexture(width : int, height : int) : RenderTexture {
     return new RenderTexture(janus_graphics_load_render_texture(width, height))
 }
 
+/// Exécute l’opération publique `endRenderTexture`.
 def endRenderTexture() : Unit {
     janus_graphics_end_render_texture()
 }
 
+/// Charge un shader de fragment depuis un fichier.
 def loadFragmentShader(fragmentFile : string) : Shader {
     return new Shader(
     janus_graphics_load_fragment_shader(cstr(fragmentFile))
     )
 }
 
+/// Charge un shader de sommet et de fragment.
 def loadShader(vertexFile : string, fragmentFile : string) : Shader {
     return new Shader(
     janus_graphics_load_shader(cstr(vertexFile), cstr(fragmentFile))
     )
 }
 
+/// Exécute l’opération publique `endShader`.
 def endShader() : Unit {
     janus_graphics_end_shader()
 }

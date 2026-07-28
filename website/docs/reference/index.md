@@ -16,6 +16,10 @@ Cette section publie les guides canoniques du dépôt. Ils sont copiés à chaqu
 
 :   [CLI, projets, dépendances et LSP](generated/tooling.md) · [Documentation d’API](generated/api-documentation.md) · [Doctests](generated/doctests.md) · [Compiler depuis les sources](generated/development.md)
 
+**Bibliothèque standard**
+
+:   [Guide et doctests par module](generated/stdlib-reference.md) · [Index API généré](stdlib/index.html)
+
 **Auditer**
 
 :   [Surface publique 0.5.x au format JSON](generated/public-surface-0.5.json) — modules, symboles, commandes, options, sources et statut de stabilité.

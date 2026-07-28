@@ -1,3 +1,4 @@
+/// Fournit les tableaux propriétaires et leurs parcours observants ou consommateurs.
 module std.array
 import std.option
 import std.iterator
@@ -45,6 +46,7 @@ private var index : usize
     }
 }
 
+/// Représente le type public `Array`.
 class Array[T](initialCapacity : usize) extends Iterable[T] {
     private var data : Ptr[T] = alloc[T](initialCapacity)
     private var length : usize = usize(0)
@@ -72,18 +74,22 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
     }
 
+    /// Retourne le nombre d’éléments stockés.
     def size() : usize {
         return length
     }
 
+    /// Retourne la capacité actuellement réservée.
     def capacity() : usize {
         return allocated
     }
 
+    /// Indique si le tableau est vide.
     def isEmpty() : bool {
         return length == usize(0)
     }
 
+    /// Exécute l’opération publique `iterator`.
     def iterator() : Iterator[T] {
         val state : ArrayIteratorState[T] =
         new ArrayIteratorState[T](this, usize(0))
@@ -93,6 +99,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         )
     }
 
+    /// Exécute l’opération publique `intoIterator`.
     consume def intoIterator() : Iterator[T] {
         val state : ArrayIntoIteratorState[T] =
         new ArrayIntoIteratorState[T](move this, usize(0))
@@ -117,6 +124,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         length = usize(0)
     }
 
+    /// Retourne l’élément situé à l’index demandé.
     def get(index : usize) : T {
         if index >= length {
             panic("Array index out of bounds\n")
@@ -124,6 +132,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return data.load(index)
     }
 
+    /// Retourne l’élément demandé, ou `None` si l’index est hors limites.
     def getOption(index : usize) : Option[T] {
         return if index < length {
             Option.Some[T](data.load(index))
@@ -132,6 +141,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
     }
 
+    /// Remplace l’élément situé à l’index demandé.
     def set(index : usize, value : T) : Unit {
         if index < length {
             val previous : T = data.load(index)
@@ -143,6 +153,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         panic("Array index out of bounds\n")
     }
 
+    /// Exécute l’opération publique `replace`.
     def replace(index : usize, value : T) : T {
         if index < length {
             val previous : T = data.load(index)
@@ -169,6 +180,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         panic("Array allocation failed or capacity overflow\n")
     }
 
+    /// Ajoute une valeur.
     def push(value : T) : usize {
         if data != null[T]() {
             return this.pushAllocated(move value)
@@ -180,6 +192,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         panic("Array allocation failed\n")
     }
 
+    /// Retire et retourne le dernier élément.
     def pop() : T {
         if length == usize(0) {
             panic("cannot pop an empty Array\n")
@@ -189,6 +202,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return move value
     }
 
+    /// Exécute l’opération publique `popOption`.
     def popOption() : Option[T] {
         if length == usize(0) {
             return Option.None[T]()
@@ -198,6 +212,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return Option.Some[T](move value)
     }
 
+    /// Retire et retourne l’élément situé à l’index demandé.
     def remove(index : usize) : T {
         if index >= length {
             panic("Array index out of bounds\n")
@@ -213,6 +228,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return move removed
     }
 
+    /// Exécute l’opération publique `reserve`.
     def reserve(requested : usize) : Unit {
         if data == null[T]() {
             this.resize(allocated)
@@ -222,6 +238,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
     }
 
+    /// Réinitialise l’état.
     def clear() : Unit {
         while length > usize(0) {
             length = length - usize(1)
@@ -230,6 +247,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
     }
 
+    /// Exécute l’opération publique `withValue`.
     def withValue(index : usize, action : (T) => Unit) : Unit {
         if index >= length {
             panic("Array index out of bounds\n")
@@ -237,6 +255,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         action(data.load(index))
     }
 
+    /// Exécute l’opération publique `foreach`.
     def foreach(action : (T) => Unit) : Unit {
         var index : usize = usize(0)
         while index < length {
@@ -245,6 +264,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
     }
 
+    /// Transforme la valeur ou la séquence avec la fonction fournie.
     def map[U <: Copy](transform : (T) => U) : Array[U] {
         val result : Array[U] = new Array[U](length)
         var index : usize = usize(0)
@@ -255,6 +275,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return result
     }
 
+    /// Conserve les valeurs qui satisfont le prédicat.
     def filter(predicate : (T) => bool) : Array[T] {
         val result : Array[T] = new Array[T](length)
         var index : usize = usize(0)
@@ -268,6 +289,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return result
     }
 
+    /// Exécute l’opération publique `find`.
     def find(predicate : (T) => bool) : Option[T] {
         var index : usize = usize(0)
         while index < length {
@@ -280,6 +302,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return Option.None[T]()
     }
 
+    /// Réduit les valeurs avec un accumulateur.
     def fold[U](initial : U, combine : (U, T) => U) : U {
         var accumulator : U = initial
         var index : usize = usize(0)
@@ -290,6 +313,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return accumulator
     }
 
+    /// Exécute l’opération publique `any`.
     def any(predicate : (T) => bool) : bool {
         var index : usize = usize(0)
         while index < length {
@@ -301,6 +325,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return false
     }
 
+    /// Exécute l’opération publique `all`.
     def all(predicate : (T) => bool) : bool {
         var index : usize = usize(0)
         while index < length {
@@ -312,6 +337,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return true
     }
 
+    /// Compte les éléments qui satisfont le prédicat.
     def count(predicate : (T) => bool) : usize {
         var matches : usize = usize(0)
         var index : usize = usize(0)

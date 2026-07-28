@@ -102,7 +102,7 @@ execute_process(
     OUTPUT_VARIABLE HELP_OUTPUT
 )
 if(NOT HELP_RESULT EQUAL 0 OR
-   NOT HELP_OUTPUT MATCHES "janus doc \\[-o directory\\] \\[--open\\]")
+   NOT HELP_OUTPUT MATCHES "janus doc \\[--stdlib\\] \\[-o directory\\] \\[--open\\]")
     message(FATAL_ERROR "janus doc --help is not available")
 endif()
 

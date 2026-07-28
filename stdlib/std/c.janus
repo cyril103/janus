@@ -1,11 +1,17 @@
+/// Expose les primitives minimales d’interopérabilité avec la bibliothèque C.
 module std.c
 
+/// Exécute l’opération publique `puts`.
 extern def puts(text : Ptr[byte]) : int
+/// Exécute l’opération publique `strlen`.
 extern def strlen(text : Ptr[byte]) : usize
+/// Exécute l’opération publique `memcmp`.
 extern def memcmp(
 left : Ptr[byte],
 right : Ptr[byte],
 size : usize
 ) : int
+/// Exécute l’opération publique `exit`.
 extern def exit(status : int) : Unit
+/// Exécute l’opération publique `printf`.
 extern def printf(format : Ptr[byte], ...) : int
