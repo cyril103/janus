@@ -1534,6 +1534,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     bool inside_defer = false;
     bool contextual_borrow_lambda_parameters = false;
     bool contextual_borrow_expression = false;
+    std::string_view contextual_borrow_enum_name;
     std::size_t loop_depth = 0;
     std::unordered_set<std::string> transfer_protected_values;
     std::unordered_set<std::string> deferred_values;
@@ -1551,9 +1552,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         transfer_protected_values.insert(parameter.name);
       }
     }
-    if (!is_destructor && owner == nullptr &&
-        context_module == std::optional<std::string>{"std.option"} &&
-        (function_name == "isSome" || function_name == "isNone")) {
+    const bool is_borrowing_enum_observer =
+        owner == nullptr &&
+        ((context_module == std::optional<std::string>{"std.option"} &&
+          (function_name == "isSome" || function_name == "isNone")) ||
+         (context_module == std::optional<std::string>{"std.result"} &&
+          (function_name == "isOk" || function_name == "isError")));
+    if (!is_destructor && is_borrowing_enum_observer) {
       borrowed_values.insert(parameters.front().name);
       transfer_protected_values.insert(parameters.front().name);
     }
@@ -1634,18 +1639,30 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 resolve_type(callee.parameters[index].type, callee_parameters,
                              &class_arities);
             expected = substitute(std::move(expected), substitutions);
-            const bool observes_owned_option =
+            const bool observes_owned_enum =
                 index == 0 &&
-                callee.module_name ==
-                    std::optional<std::string>{"std.option"} &&
-                (callee.name == "isSome" || callee.name == "isNone");
+                ((callee.module_name ==
+                      std::optional<std::string>{"std.option"} &&
+                  (callee.name == "isSome" || callee.name == "isNone")) ||
+                 (callee.module_name ==
+                      std::optional<std::string>{"std.result"} &&
+                  (callee.name == "isOk" || callee.name == "isError")));
             const bool previous_contextual_borrow_expression =
                 contextual_borrow_expression;
-            contextual_borrow_expression = observes_owned_option;
+            const std::string_view previous_contextual_borrow_enum_name =
+                contextual_borrow_enum_name;
+            contextual_borrow_expression = observes_owned_enum;
+            contextual_borrow_enum_name =
+                callee.module_name ==
+                        std::optional<std::string>{"std.option"}
+                    ? "Option"
+                    : "Result";
             validate_expression(*arguments[index], expected,
                                 expression_location(*arguments[index]));
             contextual_borrow_expression =
                 previous_contextual_borrow_expression;
+            contextual_borrow_enum_name =
+                previous_contextual_borrow_enum_name;
           }
           return substitute(resolve_type(callee.return_type, callee_parameters,
                                          &class_arities),
@@ -1684,7 +1701,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             !std::holds_alternative<ast::IdentifierExpression>(
                 expression.value))
           throw CompileError{
-              location, "observing an owning Option requires a local value"};
+              location, "observing an owning " +
+                            std::string{contextual_borrow_enum_name} +
+                            " requires a local value"};
         if (const auto *identifier =
                 std::get_if<ast::IdentifierExpression>(&expression.value);
             identifier != nullptr &&
@@ -2169,19 +2188,33 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     resolve_type(callee.parameters[index].type,
                                  callee_parameters, &class_arities);
                 expected = substitute(std::move(expected), substitutions);
-                const bool observes_owned_option =
+                const bool observes_owned_enum =
                     index == 0 &&
-                    callee.module_name ==
-                        std::optional<std::string>{"std.option"} &&
-                    (callee.name == "isSome" || callee.name == "isNone");
+                    ((callee.module_name ==
+                          std::optional<std::string>{"std.option"} &&
+                      (callee.name == "isSome" ||
+                       callee.name == "isNone")) ||
+                     (callee.module_name ==
+                          std::optional<std::string>{"std.result"} &&
+                      (callee.name == "isOk" ||
+                       callee.name == "isError")));
                 const bool previous_contextual_borrow_expression =
                     contextual_borrow_expression;
-                contextual_borrow_expression = observes_owned_option;
+                const std::string_view previous_contextual_borrow_enum_name =
+                    contextual_borrow_enum_name;
+                contextual_borrow_expression = observes_owned_enum;
+                contextual_borrow_enum_name =
+                    callee.module_name ==
+                            std::optional<std::string>{"std.option"}
+                        ? "Option"
+                        : "Result";
                 validate_expression(
                     *node.arguments[index], expected,
                     expression_location(*node.arguments[index]));
                 contextual_borrow_expression =
                     previous_contextual_borrow_expression;
+                contextual_borrow_enum_name =
+                    previous_contextual_borrow_enum_name;
               }
               return substitute(resolve_type(callee.return_type,
                                              callee_parameters, &class_arities),
@@ -3091,6 +3124,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         operand_type.type_arguments[1].name() +
                         "' from a function returning error type '" +
                         return_type.type_arguments[1].name() + "'"};
+              if (aggregate_owns_value(operand_type) &&
+                  !std::holds_alternative<ast::MoveExpression>(
+                      node.operand->value))
+                throw CompileError{
+                    node.location,
+                    "propagating owning aggregate '" + operand_type.name() +
+                        "' requires an explicit move"};
               return operand_type.type_arguments.front();
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);

@@ -1,6 +1,128 @@
 module std.result
 
+import std.option
+
 enum Result[T, E] {
     Ok(T),
     Error(E)
+}
+
+private class ResultFallback[T](private var value : T) {
+    private var available : bool = true
+
+    def discardAndReturn[U](result : U) : U {
+        val discarded : T = move value
+        available = false
+        delete discarded
+        return move result
+    }
+
+    def discardAndTake[U](discarded : U) : T {
+        delete discarded
+        available = false
+        return move value
+    }
+
+    def take() : T {
+        available = false
+        return move value
+    }
+
+    destructor {
+        if available {
+            delete value
+        }
+    }
+}
+
+private def discardAndNone[T, E](error : E) : Option[T] {
+    delete error
+    return Option.None[T]()
+}
+
+def isOk[T, E](value : Result[T, E]) : bool {
+    return match value {
+        Ok(item) => true,
+        Error(error) => false
+    }
+}
+
+def isError[T, E](value : Result[T, E]) : bool {
+    return match value {
+        Ok(item) => false,
+        Error(error) => true
+    }
+}
+
+def map[T, U, E](
+value : Result[T, E],
+transform : (T) => U
+) : Result[U, E] {
+    defer delete transform
+    return match move value {
+        Ok(item) => Result.Ok[U, E](transform(move item)),
+        Error(error) => Result.Error[U, E](move error)
+    }
+}
+
+def mapError[T, E, F](
+value : Result[T, E],
+transform : (E) => F
+) : Result[T, F] {
+    defer delete transform
+    return match move value {
+        Ok(item) => Result.Ok[T, F](move item),
+        Error(error) => Result.Error[T, F](transform(move error))
+    }
+}
+
+def andThen[T, U, E](
+value : Result[T, E],
+transform : (T) => Result[U, E]
+) : Result[U, E] {
+    defer delete transform
+    return match move value {
+        Ok(item) => transform(move item),
+        Error(error) => Result.Error[U, E](move error)
+    }
+}
+
+def orElse[T, E, F](
+value : Result[T, E],
+transform : (E) => Result[T, F]
+) : Result[T, F] {
+    defer delete transform
+    return match move value {
+        Ok(item) => Result.Ok[T, F](move item),
+        Error(error) => transform(move error)
+    }
+}
+
+def unwrapOr[T, E](value : Result[T, E], fallback : T) : T {
+    val state : ResultFallback[T] =
+    new ResultFallback[T](move fallback)
+    defer delete state
+    return match move value {
+        Ok(item) => state.discardAndReturn[T](move item),
+        Error(error) => state.discardAndTake[E](move error)
+    }
+}
+
+def toOption[T, E](value : Result[T, E]) : Option[T] {
+    return match move value {
+        Ok(item) => Option.Some[T](move item),
+        Error(error) => discardAndNone[T, E](move error)
+    }
+}
+
+def fromOption[T, E](value : Option[T], error : E) : Result[T, E] {
+    val state : ResultFallback[E] =
+    new ResultFallback[E](move error)
+    defer delete state
+    return match move value {
+        Some(item) => state.discardAndReturn[Result[T, E]](
+        Result.Ok[T, E](move item)
+        ),
+        None => Result.Error[T, E](state.take())
+    }
 }

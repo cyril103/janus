@@ -6,14 +6,18 @@ def main() : int {
     val result : Result[int, string] = Result.Ok[int, string](2)
 
     println(isSome[int](option))
+    println(std.result.isOk[int, string](result))
     val incremented : Option[int] = std.option.map[int, int](
     option,
     (value : int) => value + 1
     )
     val left : int = std.option.unwrapOr[int](incremented, 0)
-    val right : int = match result {
-        Ok(value) => value,
-        Error(message) => 0
-    }
+    val incrementedResult : Result[int, string] =
+    std.result.map[int, int, string](
+    result,
+    (value : int) => value + 1
+    )
+    val right : int =
+    std.result.unwrapOr[int, string](incrementedResult, 0)
     return left + right
 }

@@ -169,8 +169,8 @@
       "source": "stdlib/std/result.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "44ae4aa777e483c61891937c26f8ae91f0733d0188e3dbbf00bab4662a6cd0a1",
-      "symbols": ["Result", "Result.Ok", "Result.Error"]
+      "signature_digest": "9e339ef3a416122a0d19070d69715097a53f6c1751814f10390f1b97599fbe66",
+      "symbols": ["Result", "Result.Ok", "Result.Error", "isOk", "isError", "map", "mapError", "andThen", "orElse", "unwrapOr", "toOption", "fromOption"]
     },
     {
       "name": "std.text",

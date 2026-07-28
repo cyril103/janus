@@ -1,0 +1,70 @@
+import std.result
+
+var releases : int = 0
+
+class Resource(val id : int) {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+def transform(value : Resource) : Resource {
+    val result : Resource = new Resource(value.id + 10)
+    delete value
+    return result
+}
+
+def mapBeforeTry(
+input : Result[Resource, Resource]
+) : Result[Resource, Resource] {
+    val guard : Resource = new Resource(100)
+    defer delete guard
+    val mapped : Result[Resource, Resource] =
+    std.result.map[Resource, Resource, Resource](
+    move input,
+    (value : Resource) => transform(value)
+    )
+    val item : Resource = (move mapped)?
+    defer delete item
+    return Result.Ok[Resource, Resource](
+    new Resource(item.id + 1000)
+    )
+}
+
+def mapAfterTry(
+input : Result[Resource, Resource]
+) : Result[Resource, Resource] {
+    val item : Resource = (move input)?
+    return std.result.map[Resource, Resource, Resource](
+    Result.Ok[Resource, Resource](move item),
+    (value : Resource) => transform(value)
+    )
+}
+
+def main() : int {
+    var index : int = 0
+    while index < 2 {
+        val input : Result[Resource, Resource] =
+        if index == 0 {
+            Result.Ok[Resource, Resource](new Resource(1))
+        } else {
+            Result.Error[Resource, Resource](new Resource(2))
+        }
+        val output : Result[Resource, Resource] =
+        mapBeforeTry(move input)
+        delete output
+        println(releases)
+        index = index + 1
+    }
+
+    val afterOk : Result[Resource, Resource] =
+    mapAfterTry(Result.Ok[Resource, Resource](new Resource(3)))
+    delete afterOk
+    println(releases)
+
+    val afterError : Result[Resource, Resource] =
+    mapAfterTry(Result.Error[Resource, Resource](new Resource(4)))
+    delete afterError
+    println(releases)
+    return 0
+}

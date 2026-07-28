@@ -336,6 +336,50 @@ Les fonctions sont aussi accessibles avec leur nom qualifié, par exemple
 `std.option.map`, ce qui évite toute ambiguïté avec les combinateurs similaires
 de `std.result`.
 
+Le module `std.result` propose les opérations correspondantes sur les deux
+variantes :
+
+| Fonction | Effet |
+| --- | --- |
+| `isOk[T, E](value)` | observe si la variante est `Ok` |
+| `isError[T, E](value)` | observe si la variante est `Error` |
+| `map[T, U, E](value, transform)` | transforme la valeur de `Ok` |
+| `mapError[T, E, F](value, transform)` | transforme l'erreur |
+| `andThen[T, U, E](value, transform)` | chaîne une opération qui peut échouer |
+| `orElse[T, E, F](value, transform)` | récupère une erreur avec une autre opération |
+| `unwrapOr[T, E](value, fallback)` | extrait la valeur ou retourne le repli |
+| `toOption[T, E](value)` | conserve `Ok` comme `Some` et élimine l'erreur |
+| `fromOption[T, E](value, error)` | convertit `Some` en `Ok` et `None` en `Error` |
+
+`isOk` et `isError` observent une variable locale propriétaire sans la
+consommer. Les autres opérations sont consommantes : la closure n'est appelée
+que pour sa variante active, et la valeur inactive, le repli et la closure
+sont détruits exactement une fois. Les noms qualifiés, comme
+`std.result.map`, évitent les collisions avec `std.option`.
+
+Les combinateurs peuvent précéder ou suivre `?` tant que les types d'erreur
+restent compatibles :
+
+```janus
+def normalize(
+input : Result[int, string]
+) : Result[int, string] {
+    val mapped : Result[int, string] =
+    std.result.map[int, int, string](
+    input,
+    (value : int) => value + 1
+    )
+    val value : int = mapped?
+    return Result.Ok[int, string](value * 2)
+}
+```
+
+Pour un `Result` propriétaire, `?` consomme l'agrégat et exige un transfert
+explicite : `val resource : Resource = (move pending)?`. `pending` devient
+ensuite inutilisable. Une propagation d'erreur exécute les nettoyages actifs
+avant de transférer l'erreur à l'appelant. Les conversions `toOption` et
+`fromOption` transfèrent uniquement la variante active.
+
 ## Classes, traits et visibilité
 
 Les paramètres `val` et `var` du constructeur deviennent des champs :

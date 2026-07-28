@@ -7,8 +7,16 @@ def convertOption(input : Option[int]) : Option[double] {
 }
 
 def convertResult(input : Result[int, string]) : Result[double, string] {
-    val value : int = input?
-    return Result.Ok[double, string](double(value) * 2.0)
+    val normalized : Result[int, string] =
+    std.result.map[int, int, string](
+    input,
+    (value : int) => value + 1
+    )
+    val value : int = normalized?
+    return std.result.map[double, double, string](
+    Result.Ok[double, string](double(value)),
+    (item : double) => item * 2.0
+    )
 }
 
 def main() : int {

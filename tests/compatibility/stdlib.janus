@@ -2,7 +2,15 @@ import std.array
 import std.array_builder
 import std.math
 import std.option
+import std.result
 import std.text
+
+def retainedPropagation(
+value : Result[int, int]
+) : Result[int, int] {
+    val item : int = value?
+    return Result.Ok[int, int](item + 1)
+}
 
 def main() : int {
     val values : Array[int] = new Array[int](usize(3))
@@ -35,5 +43,11 @@ def main() : int {
         None => 0
     }
     println(retainedValue)
+    val retainedResult : Result[int, int] =
+    retainedPropagation(Result.Ok[int, int](41))
+    println(match retainedResult {
+        Ok(value) => value,
+        Error(error) => -error
+    })
     return 0
 }

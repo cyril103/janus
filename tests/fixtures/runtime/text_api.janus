@@ -9,7 +9,10 @@ def intValue(result : Result[int, ParseError]) : int {
     }
 }
 
-def isError(result : Result[int, ParseError], expected : ParseError) : bool {
+def hasParseError(
+result : Result[int, ParseError],
+expected : ParseError
+) : bool {
     return match result {
         Ok(_) => false
         Error(error) => error == expected
@@ -81,10 +84,10 @@ def main() : int {
     println(strlen(cstr(text.view())) == text.size())
 
     println(intValue(parseInt("-2147483648")))
-    println(isError(parseInt(""), ParseError.Empty))
-    println(isError(parseInt("12x"), ParseError.Invalid))
-    println(isError(parseInt("2147483648"), ParseError.Overflow))
-    println(isError(parseInt("-2147483649"), ParseError.Underflow))
+    println(hasParseError(parseInt(""), ParseError.Empty))
+    println(hasParseError(parseInt("12x"), ParseError.Invalid))
+    println(hasParseError(parseInt("2147483648"), ParseError.Overflow))
+    println(hasParseError(parseInt("-2147483649"), ParseError.Underflow))
     println(match parseUInt("-1") {
         Ok(_) => false
         Error(error) => error == ParseError.Sign

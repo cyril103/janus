@@ -1,0 +1,105 @@
+import std.result
+
+var releases : int = 0
+
+class Resource(val id : int) {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+def transform(value : Resource) : Resource {
+    val result : Resource = new Resource(value.id + 10)
+    delete value
+    return result
+}
+
+def continueWith(value : Resource) : Result[Resource, Resource] {
+    return Result.Ok[Resource, Resource](transform(value))
+}
+
+def recover(error : Resource) : Result[Resource, Resource] {
+    return Result.Ok[Resource, Resource](transform(error))
+}
+
+def main() : int {
+    val observed : Result[Resource, Resource] =
+    Result.Ok[Resource, Resource](new Resource(1))
+    println(std.result.isOk[Resource, Resource](observed))
+    println(std.result.isError[Resource, Resource](observed))
+    println(releases)
+    delete observed
+    println(releases)
+
+    val mapped : Result[Resource, Resource] =
+    std.result.map[Resource, Resource, Resource](
+    Result.Ok[Resource, Resource](new Resource(2)),
+    (value : Resource) => transform(value)
+    )
+    delete mapped
+    println(releases)
+
+    val mappedError : Result[Resource, Resource] =
+    std.result.mapError[Resource, Resource, Resource](
+    Result.Error[Resource, Resource](new Resource(3)),
+    (value : Resource) => transform(value)
+    )
+    delete mappedError
+    println(releases)
+
+    val chained : Result[Resource, Resource] =
+    std.result.andThen[Resource, Resource, Resource](
+    Result.Ok[Resource, Resource](new Resource(4)),
+    (value : Resource) => continueWith(value)
+    )
+    delete chained
+    println(releases)
+
+    val recovered : Result[Resource, Resource] =
+    std.result.orElse[Resource, Resource, Resource](
+    Result.Error[Resource, Resource](new Resource(5)),
+    (value : Resource) => recover(value)
+    )
+    delete recovered
+    println(releases)
+
+    val unwrapped : Resource =
+    std.result.unwrapOr[Resource, Resource](
+    Result.Ok[Resource, Resource](new Resource(6)),
+    new Resource(60)
+    )
+    delete unwrapped
+    println(releases)
+
+    val defaulted : Resource =
+    std.result.unwrapOr[Resource, Resource](
+    Result.Error[Resource, Resource](new Resource(7)),
+    new Resource(70)
+    )
+    delete defaulted
+    println(releases)
+
+    val option : Option[Resource] =
+    std.result.toOption[Resource, Resource](
+    Result.Error[Resource, Resource](new Resource(8))
+    )
+    delete option
+    println(releases)
+
+    val fromSome : Result[Resource, Resource] =
+    std.result.fromOption[Resource, Resource](
+    Option.Some[Resource](new Resource(9)),
+    new Resource(90)
+    )
+    delete fromSome
+    println(releases)
+
+    val fromNone : Result[Resource, Resource] =
+    std.result.fromOption[Resource, Resource](
+    Option.None[Resource](),
+    new Resource(10)
+    )
+    delete fromNone
+    println(releases)
+    return 0
+}

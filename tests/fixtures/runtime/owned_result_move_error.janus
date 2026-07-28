@@ -1,0 +1,15 @@
+import std.result
+
+class Resource() {}
+
+def main() : int {
+    val value : Result[Resource, Resource] =
+    Result.Ok[Resource, Resource](new Resource())
+    val mapped : Result[Resource, Resource] =
+    std.result.map[Resource, Resource, Resource](
+    value,
+    (item : Resource) => item
+    )
+    delete mapped
+    return 0
+}
