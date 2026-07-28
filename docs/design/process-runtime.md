@@ -46,7 +46,7 @@ invalide ou un échec de création retournent `Error(SystemError)`. Après le
 retour, succès ou échec, tous les handles sont fermés et aucun enfant ne
 subsiste.
 
-La révision 0.7.10 mutualise la construction des erreurs d'épuisement mémoire
+La révision 0.7.4 mutualise la construction des erreurs d'épuisement mémoire
 sans réduire leur diagnostic : l'opération reste « process.run », la catégorie
 `ResourceExhausted`, le code synthétique zéro et le contexte est
 l'exécutable. Les erreurs natives conservent leur code non nul et le contexte
@@ -63,5 +63,5 @@ car deux runtimes LeakSanitizer parent/enfant avec flux capturés peuvent
 attendre la fermeture mutuelle des descripteurs. Les allocations, handles et
 attentes d’enfant sont aussi exercés par le test runtime natif.
 
-La fixture 0.7.10 compare les quatre champs de `SystemError` pour une commande
+La fixture 0.7.4 compare les quatre champs de `SystemError` pour une commande
 absente et un exécutable refusé, en plus des chemins succès et Unicode.

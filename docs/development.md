@@ -88,10 +88,10 @@ les extraits Janus autonomes, construit MkDocs en mode strict, puis crawle
 l'artefact local servi sur `127.0.0.1` ; ces contrôles de l'artefact ne
 dépendent pas du réseau.
 
-### Audit de la bibliothèque standard 0.7.10
+### Audit de la bibliothèque standard 0.7.4
 
 Le rapport exhaustif
-[`docs/audits/stdlib-0.7.10.md`](https://github.com/cyril103/janus/blob/main/docs/audits/stdlib-0.7.10.md)
+[`docs/audits/stdlib-0.7.4.md`](https://github.com/cyril103/janus/blob/main/docs/audits/stdlib-0.7.4.md)
 attribue une décision et un propriétaire de migration à chaque module et
 symbole public. Il mesure aussi propriété, erreurs, allocations, nettoyages,
 dépendances, imports de tests et documentation source.

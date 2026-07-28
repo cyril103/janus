@@ -1,6 +1,6 @@
-# Benchmark du cœur stdlib 0.7.10
+# Benchmark du cœur stdlib 0.7.4
 
-Ce relevé compare le commit de base `2fdb08f` et la refonte R0710-2 avec le
+Ce relevé compare le commit de base `2fdb08f` et la refonte R074-2 avec le
 même programme [`benchmarks/sequence_pipeline.janus`](../../benchmarks/sequence_pipeline.janus).
 Le pipeline transfère 20 000 entiers depuis un `Array`, filtre un élément sur
 trois, le transforme puis calcule la somme.
@@ -19,7 +19,7 @@ trois, le transforme puis calcule la somme.
 | Variante | Médiane | Minimum | Maximum |
 | --- | ---: | ---: | ---: |
 | base `2fdb08f` | 439,321 ms | 431,905 ms | 447,718 ms |
-| parcours linéaire R0710-2 | 7,387 ms | 7,201 ms | 8,175 ms |
+| parcours linéaire R074-2 | 7,387 ms | 7,201 ms | 8,175 ms |
 
 La médiane baisse de **98,32 %** (facteur 59,47). Le budget de #110 autorise
 au plus 5 % de régression ; cette refonte le respecte largement. Le gain vient

@@ -1,5 +1,5 @@
 param(
-    [string]$Version = $(if ($env:JANUS_VERSION) { $env:JANUS_VERSION } else { "0.6.0" })
+    [string]$Version = $(if ($env:JANUS_VERSION) { $env:JANUS_VERSION } else { "0.7.4" })
 )
 
 $ErrorActionPreference = "Stop"

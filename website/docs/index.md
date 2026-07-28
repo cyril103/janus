@@ -6,7 +6,7 @@ hide:
 
 <div class="home-shell">
   <section class="home-hero">
-    <div class="eyebrow">JANUS / VERSION 0.6.0 / EXPÉRIMENTAL</div>
+    <div class="eyebrow">JANUS / VERSION 0.7.4 / EXPÉRIMENTAL</div>
     <h1>Décider si Janus vous convient.<br><em>Puis apprendre en construisant.</em></h1>
     <p class="hero-lede">Un langage compilé, fortement typé et natif, où les abstractions de haut niveau côtoient la propriété explicite, LLVM et l’interopérabilité C.</p>
     <div class="hero-actions">
@@ -105,15 +105,17 @@ Huit chapitres vont des valeurs et fonctions à un projet CLI structuré, avec e
 [Consulter le livre →](book/index.md)
 
 ### 03 — Approfondir sans intermédiaire
-La documentation canonique décrit précisément le langage 0.6.0, les outils, le texte et le graphisme.
+La documentation canonique décrit précisément le langage 0.7.4, les outils, le texte et le graphisme.
 
 [Entrer dans la référence →](reference/index.md)
 
 </div>
 
 <div class="release-note" markdown>
-**Ce que 0.6.0 apporte.** `Array`, `HashSet`, `HashMap` et les builders savent
-désormais posséder, déplacer et détruire des valeurs non-`Copy`, selon un
-contrat documenté et testé. [Lire le changelog](https://github.com/cyril103/janus/blob/v0.6.0/CHANGELOG.md)
-ou [le guide de migration](reference/generated/migration-0.5-to-0.6.md).
+**Ce que 0.7.4 apporte.** La bibliothèque standard entière est auditée,
+modernisée avec les contrats de propriété récents et documentée dans une
+référence API déterministe. Cette version cumulative inclut aussi chemins,
+fichiers, flux, processus, dérivations et doctests.
+[Lire le changelog](https://github.com/cyril103/janus/blob/v0.7.4/CHANGELOG.md)
+ou [la référence de la stdlib](reference/stdlib/).
 </div>

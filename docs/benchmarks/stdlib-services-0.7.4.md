@@ -1,6 +1,6 @@
-# Benchmark des services de la stdlib 0.7.10
+# Benchmark des services de la stdlib 0.7.4
 
-Ce relevé compare le commit de base `6cb6fb6` et la refonte R0710-4 avec le
+Ce relevé compare le commit de base `6cb6fb6` et la refonte R074-4 avec le
 même programme
 [`benchmarks/stdlib_services.janus`](../../benchmarks/stdlib_services.janus).
 Le corpus exécute 20 000 conversions de texte, calculs mathématiques et tirages
@@ -20,7 +20,7 @@ ouverture/écriture/fermeture/suppression de fichier.
 | Variante | Médiane | Moyenne | Minimum | Maximum |
 | --- | ---: | ---: | ---: | ---: |
 | base `6cb6fb6` | 27,062 ms | 27,368 ms | 25,116 ms | 33,027 ms |
-| refonte R0710-4 | 28,310 ms | 29,631 ms | 26,561 ms | 47,594 ms |
+| refonte R074-4 | 28,310 ms | 29,631 ms | 26,561 ms | 47,594 ms |
 
 La médiane augmente de **4,61 %**, sous le budget maximal de 5 %. Le maximum de
 la refonte contient un écart ponctuel ; l'alternance de l'ordre et la médiane

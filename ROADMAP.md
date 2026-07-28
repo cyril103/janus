@@ -58,13 +58,13 @@ Ces sujets pourront être évalués après 0.8.0 sans bloquer la maturation du c
 | 0.7.1 | Flux et processus | `std.io`, environnement, arguments et processus |
 | 0.7.2 | Documentation d'API | commentaires publics et `janus doc` |
 | 0.7.3 | Doctests | exemples documentaires compilés par `janus test` |
-| 0.7.4 | Navigation LSP | renommage, signatures, jetons et navigation de traits |
-| 0.7.5 | Extension VS Code existante | code actions supplémentaires et publication Marketplace reproductible |
-| 0.7.6 | Timings | phases de compilation mesurées et benchmarks suivis |
-| 0.7.7 | Build incrémental | cache correct et invalidation par interface |
-| 0.7.8 | Protocole du registre | format et modèle de sécurité versionnés |
-| 0.7.9 | Client et registre | recherche, publication distante et service de référence avec provenance |
-| 0.7.10 | Modernisation de la stdlib | surface auditée, implémentation réécrite avec les idiomes récents et documentation générée |
+| 0.7.4 | Modernisation de la stdlib | surface auditée, implémentation réécrite avec les idiomes récents et documentation générée |
+| 0.7.5 | Navigation LSP | renommage, signatures, jetons et navigation de traits |
+| 0.7.6 | Extension VS Code existante | code actions supplémentaires et publication Marketplace reproductible |
+| 0.7.7 | Timings | phases de compilation mesurées et benchmarks suivis |
+| 0.7.8 | Build incrémental | cache correct et invalidation par interface |
+| 0.7.9 | Protocole du registre | format et modèle de sécurité versionnés |
+| 0.7.10 | Client et registre | recherche, publication distante et service de référence avec provenance |
 | 0.8.0 | Audit et gel | audit de la surface publique et rapport de préparation 1.0 |
 
 ## Ordre de publication
@@ -80,6 +80,11 @@ Ces sujets pourront être évalués après 0.8.0 sans bloquer la maturation du c
 ```
 
 Une release peut être préparée en parallèle, mais elle ne doit pas être publiée avant la réussite des critères de sortie de la release précédente.
+
+Les gates 0.6.1 à 0.7.3 ont été validées sur `main` sans publication
+intermédiaire. Leurs changements sont distribués cumulativement avec 0.7.4 ;
+leurs sections restent dans cette roadmap pour préserver la traçabilité des
+lots, sans prétendre qu'un tag public a existé pour chacune.
 
 ---
 
@@ -449,161 +454,7 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 ---
 
 <a id="release-0-7-4"></a>
-## Janus 0.7.4 — Navigation LSP
-
-**Objectif :** compléter les fonctions de compréhension et refactoring du workspace.
-
-### R074-1 — Compléter navigation et assistance LSP
-
-- renommage à l'échelle du workspace ;
-- aide à la signature ;
-- jetons sémantiques ;
-- types déduits/inlay hints configurables ;
-- navigation vers les implémentations de traits.
-
-**Critères d'acceptation :**
-
-- le renommage respecte modules et visibilités ;
-- aucune modification n'est appliquée en cas de collision ;
-- les réponses restent sous les budgets documentés du workspace de référence ;
-- les capacités sont annoncées correctement au client LSP.
-
-**Gate de release 0.7.4 :** renommage et navigation sûrs, budgets LSP respectés et capacités correctement annoncées.
-
----
-
-<a id="release-0-7-5"></a>
-## Janus 0.7.5 — Enrichissement et publication de l'extension VS Code existante
-
-**Objectif :** transformer les diagnostics structurés en corrections sûres et distribuer l'intégration officielle.
-
-### R075-1 — Ajouter des code actions et publier l'extension VS Code existante
-
-- actions pour imports manquants, branches `match` manquantes et corrections sûres ;
-- affichage riche des diagnostics structurés ;
-- matrice de compatibilité extension/toolchain ;
-- publication documentée sur la Marketplace.
-
-**Critères d'acceptation :**
-
-- chaque action propose un `WorkspaceEdit` testé ;
-- aucune action ambiguë ne s'applique automatiquement ;
-- VSIX et version Marketplace proviennent du même commit/tag ;
-- installation, mise à jour et choix de `janus-lsp` sont testés.
-
-**Gate de release 0.7.5 :** code actions testées, extension publiée depuis le tag et matrice extension/toolchain documentée.
-
----
-
-<a id="release-0-7-6"></a>
-## Janus 0.7.6 — Timings et benchmarks de compilation
-
-**Objectif :** réduire le temps de feedback sans compromettre la correction ni la reproductibilité.
-
-### R076-1 — Exposer des timings et benchmarks de compilation
-
-- mesurer chargement, parsing, analyse, génération LLVM, optimisation et lien ;
-- ajouter une sortie humaine et JSON ;
-- versionner plusieurs projets de benchmark petits/moyens ;
-- publier une tendance sans transformer chaque variation en échec CI.
-
-**Critères d'acceptation :**
-
-- `janus build --timings` explique la totalité du temps mesuré ;
-- le JSON est exploitable par CI ;
-- le coût de la mesure est documenté ;
-- le dashboard déclenche une alerte à partir d'une hausse de médiane de 15 % sur cinq exécutions, confirmée par deux jobs consécutifs.
-
-**Gate de release 0.7.6 :** phases mesurées, sortie JSON exploitable et tendance de performance publiée sans gate bruitée.
-
----
-
-<a id="release-0-7-7"></a>
-## Janus 0.7.7 — Construction incrémentale
-
-**Objectif :** réduire le temps de feedback en réutilisant uniquement des artefacts prouvés compatibles.
-
-### R077-1 — Ajouter cache incrémental et invalidation par interface
-
-- définir une empreinte incluant version, cible, options, source et interface des dépendances ;
-- réutiliser uniquement les artefacts dont les entrées sont identiques ;
-- invalider les dépendants lorsque l'interface publique change ;
-- fournir une commande/option de nettoyage et un mode sans cache.
-
-**Critères d'acceptation :**
-
-- modification privée évite la recompilation inutile des consommateurs ;
-- modification publique recompile tous les dépendants nécessaires ;
-- aucun artefact n'est partagé entre cibles/options incompatibles ;
-- builds froid, chaud, `--offline`, concurrents et interrompus sont testés ;
-- la sortie binaire reste équivalente à un build propre.
-
-**Gate de release 0.7.7 :** cache correct avant d'être rapide, corruption/collision couvertes et fallback build propre disponible.
-
----
-
-<a id="release-0-7-8"></a>
-## Janus 0.7.8 — Protocole du registre
-
-**Objectif :** figer un protocole distant minimal et son modèle de sécurité avant d'écrire les clients et le service public.
-
-### R078-1 — Versionner le protocole et le modèle de sécurité du registre
-
-- spécifier index, métadonnées, archive, checksums et négociation de version ;
-- définir noms, espaces de noms, immutabilité, yanking et résolution ;
-- documenter authentification, autorisation, menaces et récupération ;
-- garantir que le lockfile reste la source reproductible.
-
-**Critères d'acceptation :**
-
-- protocole `v1` documenté avec schémas et fixtures ;
-- une version publiée ne peut pas être remplacée ;
-- un paquet retiré reste reproductible via un lockfile existant selon politique ;
-- confusion de dépendance et traversée de chemin possèdent des tests négatifs.
-
-**Gate de release 0.7.8 :** protocole `v1`, schémas, fixtures et analyse de menaces publiés avant toute dépendance de production.
-
----
-
-<a id="release-0-7-9"></a>
-## Janus 0.7.9 — Client et registre distant de référence
-
-**Objectif :** implémenter les opérations réseau reproductibles du CLI puis déployer le service de référence contre le protocole versionné.
-
-### R079-1 — Ajouter recherche, téléchargement et publication distante au CLI
-
-- configurer un registre par défaut et des registres explicites ;
-- implémenter authentification, `search`, résolution, téléchargement et `publish` ;
-- préserver `--locked` et `--offline` ;
-- utiliser cache et téléchargements atomiques vérifiés.
-
-**Critères d'acceptation :**
-
-- une publication puis installation fonctionne sur les trois plateformes ;
-- archive ou checksum invalide est rejeté avant extraction ;
-- aucun secret n'apparaît dans logs, lockfiles ou diagnostics ;
-- interruption réseau ne laisse pas un cache considéré valide.
-
-### R079-2 — Déployer un registre de référence avec provenance
-
-- fournir un service de référence déployable et sauvegardable ;
-- intégrer attestations de provenance/signatures selon le modèle retenu ;
-- exposer yank, métadonnées et audit ;
-- publier procédures d'administration et de réponse à incident.
-
-**Critères d'acceptation :**
-
-- déploiement de référence reproductible ;
-- sauvegarde/restauration testée ;
-- publication non autorisée et remplacement de version sont refusés ;
-- disponibilité du registre n'est pas requise pour un build `--locked --offline` déjà mis en cache.
-
-**Gate de release 0.7.9 :** client distant et registre de référence interopèrent, le cache est atomique, sauvegarde/restauration et provenance sont testées, et aucun secret n'apparaît dans les sorties ou artefacts.
-
----
-
-<a id="release-0-7-10"></a>
-## Janus 0.7.10 — Modernisation de la bibliothèque standard
+## Janus 0.7.4 — Modernisation de la bibliothèque standard
 
 **Objectif :** auditer puis réécrire la stdlib avec les idiomes de propriété,
 traits, dérivations, combinateurs, itérateurs et doctests disponibles après
@@ -616,7 +467,7 @@ pas servir de contrat autonome. Les changements de surface doivent rester
 intentionnels : les helpers de déplacement et de destruction ne sont supprimés
 que lorsqu'un test démontre une sémantique de propriété équivalente.
 
-### R0710-1 — Auditer la stdlib et figer les contrats de migration
+### R074-1 — Auditer la stdlib et figer les contrats de migration
 
 - produire un inventaire versionné par module : symboles, propriété, erreurs,
   allocations, dépendances, tests et documentation ;
@@ -630,7 +481,7 @@ que lorsqu'un test démontre une sémantique de propriété équivalente.
 **Critères d'acceptation :**
 
 - 100 % des modules et symboles publics possèdent un statut et un propriétaire
-  de migration dans `docs/audits/stdlib-0.7.10.md` ;
+  de migration dans `docs/audits/stdlib-0.7.4.md` ;
 - chaque rupture proposée possède une justification, une migration et une
   fixture N/N+1 avant implémentation ;
 - les invariants de déplacement, consommation et destruction des types
@@ -638,7 +489,7 @@ que lorsqu'un test démontre une sémantique de propriété équivalente.
 - un rapport reproductible donne lignes, surface publique, couverture `///`,
   imports de fixtures et principaux motifs dupliqués.
 
-### R0710-2 — Réécrire le cœur fonctionnel et les séquences
+### R074-2 — Réécrire le cœur fonctionnel et les séquences
 
 - moderniser `std.option`, `std.result`, `std.builder`, `std.iterator`,
   `std.array` et `std.array_builder` ;
@@ -657,9 +508,9 @@ que lorsqu'un test démontre une sémantique de propriété équivalente.
 - les anciens appels conservés restent compatibles, et tout remplacement
   public possède une migration compilée ;
 - les benchmarks de pipelines ne régressent pas au-delà du budget fixé par
-  R0710-1.
+  R074-1.
 
-### R0710-3 — Mutualiser collections, hachage et dérivations
+### R074-3 — Mutualiser collections, hachage et dérivations
 
 - réécrire `std.hash_probe`, `std.hashing`, `std.hashmap` et `std.hashset`
   autour d'invariants partagés ;
@@ -679,7 +530,7 @@ que lorsqu'un test démontre une sémantique de propriété équivalente.
 - complexité asymptotique et seuils de croissance restent documentés et
   benchmarkés.
 
-### R0710-4 — Unifier système, texte, flux et ressources natives
+### R074-4 — Unifier système, texte, flux et ressources natives
 
 - moderniser `std.system`, `std.path`, `std.fs`, `std.io`, `std.process`,
   `std.text`, `std.time`, `std.wall_time`, `std.random` et `std.math` ;
@@ -699,7 +550,7 @@ que lorsqu'un test démontre une sémantique de propriété équivalente.
   code natif et contexte ;
 - les API modifiées possèdent fixtures de compatibilité et migrations.
 
-### R0710-5 — Réécrire les wrappers graphiques et audio
+### R074-5 — Réécrire les wrappers graphiques et audio
 
 - auditer `std.graphics.*`, ses données copiables, handles propriétaires,
   alias historiques et appels runtime ;
@@ -718,7 +569,7 @@ que lorsqu'un test démontre une sémantique de propriété équivalente.
   destruction et begin/end déséquilibré ;
 - les alias conservés ou retirés sont recensés dans la migration.
 
-### R0710-6 — Documenter et publier toute la stdlib
+### R074-6 — Documenter et publier toute la stdlib
 
 - ajouter `///` aux modules, types, variantes, traits, fonctions et membres
   publics ;
@@ -738,10 +589,164 @@ que lorsqu'un test démontre une sémantique de propriété équivalente.
   n'apparaît dans la référence ;
 - CI, site et archives génèrent la même référence hors ligne.
 
-**Gate de release 0.7.10 :** inventaire et migrations complets, cinq lots de
+**Gate de release 0.7.4 :** inventaire et migrations complets, cinq lots de
 modernisation validés sous compatibilité et sanitizers, référence stdlib
 déterministe publiée, couverture `///` de 100 % de la surface
 non expérimentale et tous les doctests verts.
+
+---
+
+<a id="release-0-7-5"></a>
+## Janus 0.7.5 — Navigation LSP
+
+**Objectif :** compléter les fonctions de compréhension et refactoring du workspace.
+
+### R075-1 — Compléter navigation et assistance LSP
+
+- renommage à l'échelle du workspace ;
+- aide à la signature ;
+- jetons sémantiques ;
+- types déduits/inlay hints configurables ;
+- navigation vers les implémentations de traits.
+
+**Critères d'acceptation :**
+
+- le renommage respecte modules et visibilités ;
+- aucune modification n'est appliquée en cas de collision ;
+- les réponses restent sous les budgets documentés du workspace de référence ;
+- les capacités sont annoncées correctement au client LSP.
+
+**Gate de release 0.7.5 :** renommage et navigation sûrs, budgets LSP respectés et capacités correctement annoncées.
+
+---
+
+<a id="release-0-7-6"></a>
+## Janus 0.7.6 — Enrichissement et publication de l'extension VS Code existante
+
+**Objectif :** transformer les diagnostics structurés en corrections sûres et distribuer l'intégration officielle.
+
+### R076-1 — Ajouter des code actions et publier l'extension VS Code existante
+
+- actions pour imports manquants, branches `match` manquantes et corrections sûres ;
+- affichage riche des diagnostics structurés ;
+- matrice de compatibilité extension/toolchain ;
+- publication documentée sur la Marketplace.
+
+**Critères d'acceptation :**
+
+- chaque action propose un `WorkspaceEdit` testé ;
+- aucune action ambiguë ne s'applique automatiquement ;
+- VSIX et version Marketplace proviennent du même commit/tag ;
+- installation, mise à jour et choix de `janus-lsp` sont testés.
+
+**Gate de release 0.7.6 :** code actions testées, extension publiée depuis le tag et matrice extension/toolchain documentée.
+
+---
+
+<a id="release-0-7-7"></a>
+## Janus 0.7.7 — Timings et benchmarks de compilation
+
+**Objectif :** réduire le temps de feedback sans compromettre la correction ni la reproductibilité.
+
+### R077-1 — Exposer des timings et benchmarks de compilation
+
+- mesurer chargement, parsing, analyse, génération LLVM, optimisation et lien ;
+- ajouter une sortie humaine et JSON ;
+- versionner plusieurs projets de benchmark petits/moyens ;
+- publier une tendance sans transformer chaque variation en échec CI.
+
+**Critères d'acceptation :**
+
+- `janus build --timings` explique la totalité du temps mesuré ;
+- le JSON est exploitable par CI ;
+- le coût de la mesure est documenté ;
+- le dashboard déclenche une alerte à partir d'une hausse de médiane de 15 % sur cinq exécutions, confirmée par deux jobs consécutifs.
+
+**Gate de release 0.7.7 :** phases mesurées, sortie JSON exploitable et tendance de performance publiée sans gate bruitée.
+
+---
+
+<a id="release-0-7-8"></a>
+## Janus 0.7.8 — Construction incrémentale
+
+**Objectif :** réduire le temps de feedback en réutilisant uniquement des artefacts prouvés compatibles.
+
+### R078-1 — Ajouter cache incrémental et invalidation par interface
+
+- définir une empreinte incluant version, cible, options, source et interface des dépendances ;
+- réutiliser uniquement les artefacts dont les entrées sont identiques ;
+- invalider les dépendants lorsque l'interface publique change ;
+- fournir une commande/option de nettoyage et un mode sans cache.
+
+**Critères d'acceptation :**
+
+- modification privée évite la recompilation inutile des consommateurs ;
+- modification publique recompile tous les dépendants nécessaires ;
+- aucun artefact n'est partagé entre cibles/options incompatibles ;
+- builds froid, chaud, `--offline`, concurrents et interrompus sont testés ;
+- la sortie binaire reste équivalente à un build propre.
+
+**Gate de release 0.7.8 :** cache correct avant d'être rapide, corruption/collision couvertes et fallback build propre disponible.
+
+---
+
+<a id="release-0-7-9"></a>
+## Janus 0.7.9 — Protocole du registre
+
+**Objectif :** figer un protocole distant minimal et son modèle de sécurité avant d'écrire les clients et le service public.
+
+### R079-1 — Versionner le protocole et le modèle de sécurité du registre
+
+- spécifier index, métadonnées, archive, checksums et négociation de version ;
+- définir noms, espaces de noms, immutabilité, yanking et résolution ;
+- documenter authentification, autorisation, menaces et récupération ;
+- garantir que le lockfile reste la source reproductible.
+
+**Critères d'acceptation :**
+
+- protocole `v1` documenté avec schémas et fixtures ;
+- une version publiée ne peut pas être remplacée ;
+- un paquet retiré reste reproductible via un lockfile existant selon politique ;
+- confusion de dépendance et traversée de chemin possèdent des tests négatifs.
+
+**Gate de release 0.7.9 :** protocole `v1`, schémas, fixtures et analyse de menaces publiés avant toute dépendance de production.
+
+---
+
+<a id="release-0-7-10"></a>
+## Janus 0.7.10 — Client et registre distant de référence
+
+**Objectif :** implémenter les opérations réseau reproductibles du CLI puis déployer le service de référence contre le protocole versionné.
+
+### R0710-1 — Ajouter recherche, téléchargement et publication distante au CLI
+
+- configurer un registre par défaut et des registres explicites ;
+- implémenter authentification, `search`, résolution, téléchargement et `publish` ;
+- préserver `--locked` et `--offline` ;
+- utiliser cache et téléchargements atomiques vérifiés.
+
+**Critères d'acceptation :**
+
+- une publication puis installation fonctionne sur les trois plateformes ;
+- archive ou checksum invalide est rejeté avant extraction ;
+- aucun secret n'apparaît dans logs, lockfiles ou diagnostics ;
+- interruption réseau ne laisse pas un cache considéré valide.
+
+### R0710-2 — Déployer un registre de référence avec provenance
+
+- fournir un service de référence déployable et sauvegardable ;
+- intégrer attestations de provenance/signatures selon le modèle retenu ;
+- exposer yank, métadonnées et audit ;
+- publier procédures d'administration et de réponse à incident.
+
+**Critères d'acceptation :**
+
+- déploiement de référence reproductible ;
+- sauvegarde/restauration testée ;
+- publication non autorisée et remplacement de version sont refusés ;
+- disponibilité du registre n'est pas requise pour un build `--locked --offline` déjà mis en cache.
+
+**Gate de release 0.7.10 :** client distant et registre de référence interopèrent, le cache est atomique, sauvegarde/restauration et provenance sont testées, et aucun secret n'apparaît dans les sorties ou artefacts.
 
 ---
 

@@ -3,7 +3,7 @@
 ## Prérequis
 
 - connaître fonctions et `match` ;
-- Janus 0.6.0 ;
+- Janus 0.7.4 ;
 - les modules standard `std.option` et `std.result`.
 
 ## Résultat
@@ -24,7 +24,7 @@ Le type encode à la fois la réussite `int` et l’erreur `string`.
 
 ## 2. Propager avec `?`
 
-Extrait de l’exemple réel [`examples/try_operator.janus`](https://github.com/cyril103/janus/blob/v0.6.0/examples/try_operator.janus) :
+Extrait de l’exemple réel [`examples/try_operator.janus`](https://github.com/cyril103/janus/blob/v0.7.4/examples/try_operator.janus) :
 
 ```janus
 def convertResult(input : Result[int, string]) : Result[double, string] {

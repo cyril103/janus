@@ -218,7 +218,7 @@ implémentation.
 - Un futur système général de références pourra remplacer l'emprunt contextuel
   sans autoriser davantage de copies implicites.
 
-## Complexité et nettoyage des séquences en 0.7.10
+## Complexité et nettoyage des séquences en 0.7.4
 
 Le parcours produit par `Array.intoIterator()` transfère désormais chaque
 emplacement une seule fois, dans l'ordre d'insertion. `Iterator.next()` reste
@@ -247,7 +247,7 @@ réinitialise avec un tableau vide après transfert du résultat et peut être
 réutilisé sans changement de surface publique.
 
 La mesure avant/après et sa commande de reproduction sont versionnées dans le
-[rapport de benchmark 0.7.10](../benchmarks/stdlib-core-0.7.10.md).
+[rapport de benchmark 0.7.4](../benchmarks/stdlib-core-0.7.4.md).
 
 Les invariants spécifiques aux clés, valeurs, tombstones et redimensionnements
 de `HashSet` et `HashMap` sont définis dans le

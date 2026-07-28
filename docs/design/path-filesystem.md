@@ -59,7 +59,7 @@ les noms immédiats, sans `.` ni `..`, dans l’ordre natif non garanti. `close`
 invalide le handle avant la fermeture ; le destructeur ne ferme qu’un handle
 encore ouvert. `removeDirectory` ne supprime qu’un répertoire vide.
 
-Depuis la révision 0.7.10, le handle invalidé est l'unique état de fermeture de
+Depuis la révision 0.7.4, le handle invalidé est l'unique état de fermeture de
 `DirectoryIterator`. Une seconde fermeture retourne précisément l'opération
 « directory.close », la catégorie `InvalidInput`, le code natif zéro et le
 contexte du répertoire ; un appel à `next` après fermeture emploie
@@ -85,6 +85,6 @@ ressources. La matrice CI exécute ces contrats sur Linux x86_64, macOS ARM64 et
 Windows x86_64. Le cas de lien symbolique est exercé sur POSIX, où sa création
 ne requiert pas de privilège supplémentaire.
 
-Les fixtures 0.7.10 vérifient en plus les quatre champs des erreurs de fichier
+Les fixtures 0.7.4 vérifient en plus les quatre champs des erreurs de fichier
 absent et de fermeture répétée. La surface publique est inchangée et ne
 requiert donc aucune migration.

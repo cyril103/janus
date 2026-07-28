@@ -1,6 +1,6 @@
-# Benchmark des collections hachées 0.7.10
+# Benchmark des collections hachées 0.7.4
 
-Ce relevé compare le commit de base `57b47a1` et la refonte R0710-3 avec le
+Ce relevé compare le commit de base `57b47a1` et la refonte R074-3 avec le
 même programme
 [`benchmarks/hash_collections.janus`](../../benchmarks/hash_collections.janus).
 Chaque série construit 5 000 sets et 5 000 maps à leur seuil de charge, puis
@@ -19,7 +19,7 @@ exécute respectivement un doublon et un remplacement.
 | Variante | Médiane | Minimum | Maximum |
 | --- | ---: | ---: | ---: |
 | base `57b47a1` | 29,779 ms | 27,997 ms | 36,569 ms |
-| refonte R0710-3 | 20,861 ms | 19,376 ms | 34,811 ms |
+| refonte R074-3 | 20,861 ms | 19,376 ms | 34,811 ms |
 
 La médiane baisse de **29,95 %** (facteur **1,43**). Le sondage effectué avant
 la décision de croissance supprime cinq rehashs inutiles par set et par map
