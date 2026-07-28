@@ -12,6 +12,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
   consommantes pour les valeurs propriétaires ;
 - destruction exacte des valeurs de repli et closures inutilisées, sans
   extraction ni copie implicite d'une ressource.
+- ajout de `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`,
+  `unwrapOr`, `toOption` et `fromOption` dans `std.result`, avec transfert
+  exact de la variante active et conversions vers `std.option` ;
+- propagation `?` explicite des `Result` propriétaires via `(move value)?`,
+  sans réutilisation possible après transfert et avec exécution des
+  nettoyages actifs.
 
 ## [0.6.1] - Non publiée
 

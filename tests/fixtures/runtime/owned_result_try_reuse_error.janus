@@ -1,0 +1,15 @@
+import std.result
+
+class Resource() {}
+
+def propagate(
+value : Result[Resource, Resource]
+) : Result[Resource, Resource] {
+    val item : Resource = (move value)?
+    delete value
+    return Result.Ok[Resource, Resource](move item)
+}
+
+def main() : int {
+    return 0
+}

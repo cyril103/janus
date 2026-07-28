@@ -1,0 +1,108 @@
+import std.result
+
+var successCalls : int = 0
+var errorCalls : int = 0
+
+def increment(value : int) : int {
+    successCalls = successCalls + 1
+    return value + 1
+}
+
+def describe(error : int) : string {
+    errorCalls = errorCalls + 1
+    return "error"
+}
+
+def continueWith(value : int) : Result[int, int] {
+    successCalls = successCalls + 1
+    return Result.Ok[int, int](value * 2)
+}
+
+def recover(error : int) : Result[int, string] {
+    errorCalls = errorCalls + 1
+    return Result.Ok[int, string](error + 10)
+}
+
+def printIntResult(value : Result[int, int]) : Unit {
+    println(match value {
+        Ok(item) => item,
+        Error(error) => -error
+    })
+}
+
+def printStringError(value : Result[int, string]) : Unit {
+    println(match value {
+        Ok(item) => item,
+        Error(error) => -1
+    })
+}
+
+def printOption(value : Option[int]) : Unit {
+    println(match value {
+        Some(item) => item,
+        None => -1
+    })
+}
+
+def main() : int {
+    val ok : Result[int, int] = Result.Ok[int, int](2)
+    val error : Result[int, int] = Result.Error[int, int](3)
+    println(std.result.isOk[int, int](ok))
+    println(std.result.isError[int, int](ok))
+    println(std.result.isOk[int, int](error))
+    println(std.result.isError[int, int](error))
+
+    printIntResult(std.result.map[int, int, int](
+    ok,
+    (value : int) => increment(value)
+    ))
+    printIntResult(std.result.map[int, int, int](
+    error,
+    (value : int) => increment(value)
+    ))
+    println(successCalls)
+
+    printStringError(std.result.mapError[int, int, string](
+    ok,
+    (value : int) => describe(value)
+    ))
+    printStringError(std.result.mapError[int, int, string](
+    error,
+    (value : int) => describe(value)
+    ))
+    println(errorCalls)
+
+    printIntResult(std.result.andThen[int, int, int](
+    ok,
+    (value : int) => continueWith(value)
+    ))
+    printIntResult(std.result.andThen[int, int, int](
+    error,
+    (value : int) => continueWith(value)
+    ))
+    println(successCalls)
+
+    printStringError(std.result.orElse[int, int, string](
+    ok,
+    (value : int) => recover(value)
+    ))
+    printStringError(std.result.orElse[int, int, string](
+    error,
+    (value : int) => recover(value)
+    ))
+    println(errorCalls)
+
+    println(std.result.unwrapOr[int, int](ok, 9))
+    println(std.result.unwrapOr[int, int](error, 9))
+    printOption(std.result.toOption[int, int](ok))
+    printOption(std.result.toOption[int, int](error))
+    printIntResult(std.result.fromOption[int, int](
+    Option.Some[int](7),
+    8
+    ))
+    printIntResult(std.result.fromOption[int, int](
+    Option.None[int](),
+    8
+    ))
+    return 0
+}

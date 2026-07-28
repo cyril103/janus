@@ -1,0 +1,10 @@
+import std.result
+
+class Resource() {}
+
+def main() : int {
+    println(std.result.isOk[Resource, Resource](
+    Result.Ok[Resource, Resource](new Resource())
+    ))
+    return 0
+}

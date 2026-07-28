@@ -126,3 +126,27 @@ Après ce `move`, `pending` est inutilisable. `orElse` et `unwrapOr` prennent
 également possession du repli et le détruisent si la variante `Some` le rend
 inutile. Le résultat devient la responsabilité de l'appelant. Avec un type
 `Copy`, aucun `move` n'est requis.
+
+## Combinateurs `Result`
+
+Janus 0.6.2 ajoute `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`,
+`unwrapOr`, `toOption` et `fromOption` dans `std.result`. Les observations
+`isOk` et `isError` empruntent une variable locale propriétaire ; toutes les
+autres fonctions consomment leur entrée et transfèrent uniquement la variante
+active.
+
+Une closure de succès n'est jamais appelée pour `Error`, et une closure
+d'erreur n'est jamais appelée pour `Ok`. `unwrapOr`, `toOption` et
+`fromOption` détruisent exactement une fois la ressource qui n'est pas
+retenue. Utilisez les noms qualifiés `std.result.map` et `std.option.map`
+lorsque les deux modules sont importés.
+
+`?` reste compatible avec les chaînes de combinateurs. Pour les types
+propriétaires, l'opérande doit désormais exprimer son transfert :
+
+```janus
+val resource : Resource = (move pending)?
+```
+
+Après cette expression, `pending` ne peut plus être utilisé. Les `Result` dont
+les paramètres sont `Copy` conservent la syntaxe `pending?`.
