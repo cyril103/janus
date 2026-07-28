@@ -251,6 +251,7 @@
       {"name": "run", "usage": "janus run [source.janus] [--release] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops]", "options": ["--release", "--locked", "--offline", "--panic-trace", "--warn-high-growth-loops"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
       {"name": "test", "usage": "janus test [filter] [--release] [--locked] [--offline] [--panic-trace full|short|off]", "options": ["--release", "--locked", "--offline", "--panic-trace"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
       {"name": "fmt", "usage": "janus fmt [source.janus] [--check]", "options": ["--check"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
+      {"name": "doc", "usage": "janus doc [-o directory] [--open] [--offline]", "options": ["-o", "--open", "--offline"], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md", "docs/api-documentation.md"], "status": "stable-proposed"},
       {"name": "--help", "usage": "janus --help", "options": [], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"},
       {"name": "--version", "usage": "janus --version", "options": [], "source": "tools/janus/main.cpp", "documentation": ["docs/tooling.md"], "status": "stable-proposed"}
     ]

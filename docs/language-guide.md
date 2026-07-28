@@ -720,6 +720,30 @@ automatique. Ces sources ne sont pas cryptographiques ; une seed explicite doit
 
 ## Modules
 
+### Commentaires de documentation
+
+`///` documente la déclaration publique qui suit. Plusieurs lignes
+consécutives forment un seul texte. Placé avant `module`, le commentaire décrit
+le module ; il peut aussi documenter les types, variantes, traits, fonctions,
+globales, champs et méthodes.
+
+```janus
+/// Outils de présentation pour [[Message]].
+module presentation
+
+/// Un message affichable.
+struct Message(val text : string) {
+    /// Retourne le texte du message.
+    def view() : string { return text }
+}
+```
+
+Les liens `[[Message]]` ou `[[presentation.Message]]` sont résolus par
+`janus doc`. Les liens inconnus ou ambigus sont signalés. Les commentaires
+ordinaires `//` ne sont pas inclus dans la documentation. Le format complet et
+la génération hors ligne sont définis dans le
+[contrat de documentation d’API](api-documentation.md).
+
 Les fonctionnalités de la bibliothèque standard sont importées explicitement :
 
 ```janus

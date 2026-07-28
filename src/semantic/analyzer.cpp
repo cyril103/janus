@@ -1328,7 +1328,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         false,
         std::nullopt,
         false,
-        global.module_name});
+        global.module_name,
+        false,
+        {}});
     contexts.push_back(FunctionContext{&global_initializer_functions.back(),
                                        nullptr, nullptr, &global});
   }

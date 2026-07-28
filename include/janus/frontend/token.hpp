@@ -38,6 +38,7 @@ enum class TokenKind {
   Var,
   True,
   False,
+  DocumentationComment,
   Identifier,
   IntegerLiteral,
   DoubleLiteral,
@@ -145,6 +146,8 @@ struct Token {
     return "'true'";
   case TokenKind::False:
     return "'false'";
+  case TokenKind::DocumentationComment:
+    return "documentation comment";
   case TokenKind::Identifier:
     return "identifier";
   case TokenKind::IntegerLiteral:

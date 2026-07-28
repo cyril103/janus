@@ -86,6 +86,7 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
   for (ast::FunctionDeclaration &function : parsed.functions)
     result.functions.push_back(std::move(function));
   result.module_name = std::move(parsed.module_name);
+  result.documentation = std::move(parsed.documentation);
   return result;
 }
 

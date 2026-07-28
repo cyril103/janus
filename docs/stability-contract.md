@@ -64,6 +64,7 @@ La grammaire et les comportements présentés dans le
 - déclarations `val` et `var`, fonctions, classes, structs, enums et traits ;
 - génériques, contrainte intrinsèque `Copy` et fonctions de première classe ;
 - demandes structurelles explicites avec la clause fermée `derives` ;
+- commentaires de documentation `///` et références `[[Symbole]]` ;
 - modules, imports et visibilités `private` et `internal` ;
 - `if`, `else if`, `while`, `for`, `break`, `continue` et `match` ;
 - `Option`, `Result`, l'opérateur `?`, `defer`, `move` et `delete` ;
@@ -77,6 +78,11 @@ cas de collision avec un identifiant existant.
 Les noms publics d'un module, les signatures et les règles de visibilité font
 partie de la compatibilité source. Les noms privés et l'organisation interne
 d'un module peuvent changer.
+
+La commande documentée `janus doc` produit hors ligne un index des modules et
+symboles publics. Les déclarations `private` et membres `internal` en sont
+exclus. L’organisation visuelle exacte du HTML reste modifiable avant 1.0,
+mais une référence documentaire non résolue doit être signalée.
 
 ## Propriété, déplacement et destruction
 

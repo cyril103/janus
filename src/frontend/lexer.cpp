@@ -20,6 +20,19 @@ Token Lexer::next() {
   const std::size_t start_position = position_;
   const char character = current();
 
+  if (character == '/' && position_ + 2 < source_.size() &&
+      source_[position_ + 1] == '/' && source_[position_ + 2] == '/') {
+    advance();
+    advance();
+    advance();
+    const std::size_t content_start = position_;
+    while (!at_end() && current() != '\n')
+      advance();
+    return Token{TokenKind::DocumentationComment,
+                 source_.substr(content_start, position_ - content_start),
+                 start};
+  }
+
   if (std::isalpha(static_cast<unsigned char>(character)) != 0 ||
       character == '_') {
     do {
@@ -300,7 +313,8 @@ void Lexer::skip_whitespace() noexcept {
     }
 
     if (current() == '/' && position_ + 1 < source_.size() &&
-        source_[position_ + 1] == '/') {
+        source_[position_ + 1] == '/' &&
+        (position_ + 2 >= source_.size() || source_[position_ + 2] != '/')) {
       while (!at_end() && current() != '\n') {
         advance();
       }
