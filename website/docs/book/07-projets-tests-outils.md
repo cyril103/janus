@@ -26,6 +26,7 @@ Ajoutez `janus.lock` au contrôle de version ; ignorez `target/`. Une dépendanc
 Créez `tests/basic.janus` :
 
 ```janus
+// doctest: doctest name=project-test
 def main() : int {
     val result : int = 40 + 2
     if result == 42 {

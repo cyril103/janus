@@ -121,12 +121,17 @@ janus check          # vérifier le programme sans produire d'exécutable
 janus run            # compiler puis exécuter
 janus build          # construire un exécutable dans target/
 janus build --release
-janus test           # compiler et exécuter les tests
+janus test           # exécuter les tests et les doctests documentaires
+janus test --doc     # exécuter uniquement les doctests
 janus fmt            # formater les fichiers Janus
 janus fmt --check    # vérifier le formatage sans modifier les fichiers
 janus doc            # générer la documentation d'API dans target/doc/
 janus doc --open     # générer puis ouvrir la documentation
 ```
+
+Les blocs Markdown marqués `// doctest: doctest` sont compilés avec le contexte
+du paquet. Consultez le [contrat des doctests](docs/doctests.md) pour les
+exemples incomplets, les attentes `compile_fail` et le filtrage.
 
 ## Aperçu du langage
 

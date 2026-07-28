@@ -43,6 +43,7 @@ Un programme Janus rend visibles ses contrats : types, mutabilité et code de so
 </div>
 
 ```janus title="src/main.janus"
+// doctest: doctest name=homepage
 def add(left : int, right : int) : int {
     return left + right
 }

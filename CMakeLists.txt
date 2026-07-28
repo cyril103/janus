@@ -208,6 +208,7 @@ target_compile_definitions(janusc
 
 add_library(janus_driver
     src/driver/documentation.cpp
+    src/driver/doctest.cpp
     src/driver/formatter.cpp
     src/driver/native_linker.cpp
     src/driver/manifest.cpp
@@ -707,6 +708,17 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME driver.documentation COMMAND documentation_test)
+    add_executable(doctest_test
+        tests/driver/doctest_test.cpp
+    )
+    target_link_libraries(doctest_test PRIVATE janus_driver)
+    target_compile_options(doctest_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME driver.doctest COMMAND doctest_test)
     find_package(Threads REQUIRED)
     add_executable(temporary_directory_test
         tests/driver/temporary_directory_test.cpp
@@ -753,6 +765,13 @@ if(BUILD_TESTING)
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}
                 -DJANUS=$<TARGET_FILE:janus>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_documentation_cli.cmake"
+    )
+    add_test(
+        NAME cli.doctest
+        COMMAND "${CMAKE_COMMAND}"
+                -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                -DJANUS=$<TARGET_FILE:janus>
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_doctest_cli.cmake"
     )
     add_test(
         NAME cli.execution_contract

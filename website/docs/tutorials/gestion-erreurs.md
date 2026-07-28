@@ -38,6 +38,7 @@ Si `input` est `Error`, `?` quitte immédiatement `convertResult` avec cette err
 ## 3. Traiter toutes les variantes
 
 ```janus
+// doctest: doctest name=result-pipeline
 import std.result
 
 def convertResult(input : Result[int, string]) : Result[double, string] {
