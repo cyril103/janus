@@ -42,7 +42,7 @@ defer delete collected
 
 ## 3. Programme complet
 
-```janus
+```janus doctest name=collection-pipeline
 import std.array
 import std.array_builder
 

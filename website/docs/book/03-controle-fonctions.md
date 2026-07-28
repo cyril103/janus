@@ -9,7 +9,7 @@
 
 ## Des fonctions aux contrats explicites
 
-```janus
+```janus doctest name=maximum
 def maximum(left : int, right : int) : int {
     if left > right {
         return left
@@ -27,7 +27,7 @@ Les paramètres et le retour portent un type. Une fonction sans valeur utile ret
 
 ## Branches et boucles
 
-```janus
+```janus doctest name=control-flow
 def signe(value : int) : int {
     if value > 0 {
         return 1

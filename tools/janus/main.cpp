@@ -4,6 +4,7 @@
 #include "janus/diagnostics/high_growth_loop_linter.hpp"
 #include "janus/diagnostics/renderer.hpp"
 #include "janus/driver/dependency.hpp"
+#include "janus/driver/doctest.hpp"
 #include "janus/driver/documentation.hpp"
 #include "janus/driver/formatter.hpp"
 #include "janus/driver/manifest.hpp"
@@ -61,6 +62,7 @@ struct Options {
   bool offline{};
   bool format_check{};
   bool doc_open{};
+  bool doctests_only{};
   bool warn_high_growth_loops{};
   bool diagnostic_format_set{};
   bool panic_trace_set{};
@@ -70,6 +72,7 @@ struct Options {
       janus::diagnostics::DiagnosticFormat::Human};
   std::optional<janus::driver::Manifest> manifest;
   std::vector<std::filesystem::path> dependency_paths;
+  std::vector<std::filesystem::path> documentation_paths;
   std::string test_filter;
 };
 
@@ -137,28 +140,29 @@ Toolchain locate_toolchain(const char *argv0) {
 
 void print_usage(std::ostream &output) {
   output << "usage:\n"
-            << "  janus new <directory> [--name <name>]\n"
-            << "  janus init [directory] [--name <name>]\n"
-            << "  janus add <name>[@<version>] [--path <path> | "
-               "--git <url> --rev <commit>]\n"
-            << "  janus remove <name>\n"
-            << "  janus publish\n"
-            << "  janus check [source.janus] "
-               "[--diagnostic-format human|json]\n"
-            << "  janus build [source.janus] [-o output] [--release] "
-               "[--emit llvm-ir|object] [--panic-trace full|short|off] "
-               "[--diagnostic-format human|json]\n"
-            << "  janus run [source.janus] [--release] "
-               "[--panic-trace full|short|off]\n"
-            << "  janus test [filter] [--release] "
-               "[--panic-trace full|short|off]\n"
-            << "  janus fmt [source.janus] [--check]\n"
-            << "  janus doc [-o directory] [--open] [--offline]\n"
-            << "  diagnostics: --warn-high-growth-loops for check, build, "
-               "run\n"
-            << "  dependency options: --locked --offline\n"
-            << "  janus --help\n"
-            << "  janus --version\n";
+         << "  janus new <directory> [--name <name>]\n"
+         << "  janus init [directory] [--name <name>]\n"
+         << "  janus add <name>[@<version>] [--path <path> | "
+            "--git <url> --rev <commit>]\n"
+         << "  janus remove <name>\n"
+         << "  janus publish\n"
+         << "  janus check [source.janus] "
+            "[--diagnostic-format human|json]\n"
+         << "  janus build [source.janus] [-o output] [--release] "
+            "[--emit llvm-ir|object] [--panic-trace full|short|off] "
+            "[--diagnostic-format human|json]\n"
+         << "  janus run [source.janus] [--release] "
+            "[--panic-trace full|short|off]\n"
+         << "  janus test [filter] [--doc] [--doc-path <path>] "
+            "[--release] "
+            "[--panic-trace full|short|off]\n"
+         << "  janus fmt [source.janus] [--check]\n"
+         << "  janus doc [-o directory] [--open] [--offline]\n"
+         << "  diagnostics: --warn-high-growth-loops for check, build, "
+            "run\n"
+         << "  dependency options: --locked --offline\n"
+         << "  janus --help\n"
+         << "  janus --version\n";
 }
 
 void print_command_usage(std::ostream &output, std::string_view command) {
@@ -177,7 +181,8 @@ void print_command_usage(std::ostream &output, std::string_view command) {
     output << " [source.janus] [--release] [--locked] [--offline] "
               "[--panic-trace full|short|off] [--warn-high-growth-loops]\n";
   else if (command == "test")
-    output << " [filter] [--release] [--locked] [--offline] "
+    output << " [filter] [--doc] [--doc-path <path>] [--release] "
+              "[--locked] [--offline] "
               "[--panic-trace full|short|off]\n";
   else if (command == "doc")
     output << " [-o directory] [--open] [--offline]\n";
@@ -190,10 +195,10 @@ bool is_execution_command(std::string_view command) {
          command == "test" || command == "doc";
 }
 
-void print_compile_error(
-    const std::filesystem::path &path, const janus::CompileError &error,
-    janus::diagnostics::DiagnosticFormat format =
-        janus::diagnostics::DiagnosticFormat::Human) {
+void print_compile_error(const std::filesystem::path &path,
+                         const janus::CompileError &error,
+                         janus::diagnostics::DiagnosticFormat format =
+                             janus::diagnostics::DiagnosticFormat::Human) {
   std::ifstream input{path, std::ios::binary};
   const std::string source{std::istreambuf_iterator<char>{input},
                            std::istreambuf_iterator<char>{}};
@@ -324,6 +329,13 @@ Options parse_options(int argc, char **argv) {
       options.format_check = true;
     } else if (argument == "--open" && options.command == "doc") {
       options.doc_open = true;
+    } else if (argument == "--doc" && options.command == "test") {
+      options.doctests_only = true;
+    } else if (argument == "--doc-path" && options.command == "test") {
+      if (++index == argc)
+        throw UsageError{options.command,
+                         "--doc-path requires a relative path"};
+      options.documentation_paths.emplace_back(argv[index]);
     } else if (argument == "--warn-high-growth-loops") {
       options.warn_high_growth_loops = true;
     } else if (argument == "--panic-trace") {
@@ -331,9 +343,8 @@ Options parse_options(int argc, char **argv) {
         throw UsageError{options.command,
                          "--panic-trace may be specified only once"};
       if (++index == argc)
-        throw UsageError{
-            options.command,
-            "--panic-trace requires 'full', 'short', or 'off'"};
+        throw UsageError{options.command,
+                         "--panic-trace requires 'full', 'short', or 'off'"};
       const std::string_view mode = argv[index];
       if (mode == "full")
         options.panic_trace = janus::backend::llvm::PanicTraceMode::Full;
@@ -342,22 +353,19 @@ Options parse_options(int argc, char **argv) {
       else if (mode == "off")
         options.panic_trace = janus::backend::llvm::PanicTraceMode::Off;
       else
-        throw UsageError{
-            options.command,
-            "--panic-trace accepts 'full', 'short', or 'off'"};
+        throw UsageError{options.command,
+                         "--panic-trace accepts 'full', 'short', or 'off'"};
       options.panic_trace_set = true;
     } else if (argument == "--diagnostic-format") {
       if (options.diagnostic_format_set)
         throw UsageError{options.command,
                          "--diagnostic-format may be specified only once"};
       if (++index == argc)
-        throw UsageError{
-            options.command,
-            "--diagnostic-format requires 'human' or 'json'"};
+        throw UsageError{options.command,
+                         "--diagnostic-format requires 'human' or 'json'"};
       const std::string_view format = argv[index];
       if (format == "human")
-        options.diagnostic_format =
-            janus::diagnostics::DiagnosticFormat::Human;
+        options.diagnostic_format = janus::diagnostics::DiagnosticFormat::Human;
       else if (format == "json")
         options.diagnostic_format = janus::diagnostics::DiagnosticFormat::Json;
       else
@@ -366,8 +374,7 @@ Options parse_options(int argc, char **argv) {
       options.diagnostic_format_set = true;
     } else if (argument == "--emit") {
       if (options.emit_llvm || options.emit_object)
-        throw UsageError{options.command,
-                         "--emit may be specified only once"};
+        throw UsageError{options.command, "--emit may be specified only once"};
       if (++index == argc)
         throw UsageError{options.command,
                          "--emit requires 'llvm-ir' or 'object'"};
@@ -382,12 +389,10 @@ Options parse_options(int argc, char **argv) {
     } else if (!argument.starts_with('-')) {
       if (options.command == "test") {
         if (!options.test_filter.empty())
-          throw UsageError{options.command,
-                           "test accepts at most one filter"};
+          throw UsageError{options.command, "test accepts at most one filter"};
         options.test_filter = argv[index];
       } else if (options.command == "doc") {
-        throw UsageError{options.command,
-                         "doc does not accept a source path"};
+        throw UsageError{options.command, "doc does not accept a source path"};
       } else {
         if (!options.source.empty())
           throw UsageError{options.command, "multiple source paths provided"};
@@ -419,9 +424,8 @@ Options parse_options(int argc, char **argv) {
        options.emit_llvm || options.emit_object ||
        options.warn_high_growth_loops || options.panic_trace_set ||
        options.diagnostic_format_set))
-    throw UsageError{
-        options.command,
-        "doc only accepts -o, --open, and --offline"};
+    throw UsageError{options.command,
+                     "doc only accepts -o, --open, and --offline"};
   if ((options.command == "test") && options.warn_high_growth_loops)
     throw UsageError{options.command,
                      "test does not accept --warn-high-growth-loops"};
@@ -582,7 +586,7 @@ int build(const Options &options, const std::filesystem::path &output,
 int run_tests(const Options &options, const Toolchain &toolchain) {
   const std::filesystem::path tests_root = options.manifest->root() / "tests";
   std::vector<std::filesystem::path> tests;
-  if (std::filesystem::is_directory(tests_root)) {
+  if (!options.doctests_only && std::filesystem::is_directory(tests_root)) {
     for (const auto &entry :
          std::filesystem::recursive_directory_iterator(tests_root)) {
       if (entry.is_regular_file() && entry.path().extension() == ".janus" &&
@@ -593,6 +597,17 @@ int run_tests(const Options &options, const Toolchain &toolchain) {
     }
   }
   std::sort(tests.begin(), tests.end());
+
+  std::vector<std::filesystem::path> documentation_paths =
+      options.documentation_paths;
+  if (documentation_paths.empty())
+    documentation_paths = {"README.md", "docs"};
+  std::vector<janus::driver::Doctest> doctests =
+      janus::driver::discover_doctests(options.manifest->root(),
+                                       documentation_paths);
+  std::erase_if(doctests, [&options](const janus::driver::Doctest &test) {
+    return !janus::driver::matches_doctest_filter(test, options.test_filter);
+  });
 
   std::size_t passed = 0;
   for (const std::filesystem::path &test : tests) {
@@ -627,10 +642,74 @@ int run_tests(const Options &options, const Toolchain &toolchain) {
       std::cerr << test.string() << ": " << error.what() << '\n';
     }
   }
-  std::cout << "\ntest result: " << (passed == tests.size() ? "ok" : "FAILED")
-            << ". " << passed << " passed; " << tests.size() - passed
-            << " failed\n";
-  return passed == tests.size() ? 0 : 1;
+
+  janus::driver::TemporaryDirectory doctest_directory =
+      janus::driver::TemporaryDirectory::create("janus-doctest");
+  for (std::size_t index = 0; index < doctests.size(); ++index) {
+    const janus::driver::Doctest &test = doctests[index];
+    const std::filesystem::path source =
+        doctest_directory.path() /
+        ("doctest-" + std::to_string(index) + ".janus");
+    {
+      std::ofstream output{source, std::ios::binary};
+      if (!output)
+        throw std::runtime_error{"cannot create doctest source"};
+      output << test.source;
+    }
+    std::cout << "doctest " << test.display_name() << " ... " << std::flush;
+    try {
+      llvm::LLVMContext context;
+      static_cast<void>(compile(source, context, toolchain,
+                                options.dependency_paths, false,
+                                options.panic_trace));
+      if (test.expectation == janus::driver::DoctestExpectation::CompilePass) {
+        ++passed;
+        std::cout << "ok\n";
+      } else {
+        std::cout << "FAILED (expected diagnostic " << test.expected_diagnostic
+                  << ")\n";
+        std::cerr << test.document.generic_string() << ':' << test.line
+                  << ": error: doctest compiled successfully, expected "
+                  << test.expected_diagnostic << '\n';
+      }
+    } catch (const janus::CompileError &error) {
+      const auto expected = [&test, &error] {
+        if (test.expectation != janus::driver::DoctestExpectation::CompileFail)
+          return false;
+        return std::any_of(
+            error.diagnostics().begin(), error.diagnostics().end(),
+            [&test](const janus::Diagnostic &diagnostic) {
+              return janus::diagnostic_code_name(diagnostic.code) ==
+                     test.expected_diagnostic;
+            });
+      }();
+      if (expected) {
+        ++passed;
+        std::cout << "ok\n";
+      } else {
+        std::cout << "FAILED\n";
+        std::cerr << test.document.generic_string() << ':' << test.line
+                  << ": error: ";
+        if (test.expectation == janus::driver::DoctestExpectation::CompileFail)
+          std::cerr << "expected diagnostic " << test.expected_diagnostic
+                    << ", got "
+                    << janus::diagnostic_code_name(error.diagnostic().code);
+        else
+          std::cerr << "doctest compilation failed with "
+                    << janus::diagnostic_code_name(error.diagnostic().code)
+                    << ": " << error.what();
+        std::cerr << '\n';
+      }
+    } catch (const std::exception &error) {
+      std::cout << "FAILED\n";
+      std::cerr << test.document.generic_string() << ':' << test.line
+                << ": error: " << error.what() << '\n';
+    }
+  }
+  const std::size_t total = tests.size() + doctests.size();
+  std::cout << "\ntest result: " << (passed == total ? "ok" : "FAILED") << ". "
+            << passed << " passed; " << total - passed << " failed\n";
+  return passed == total ? 0 : 1;
 }
 
 int format_sources(const Options &options) {
@@ -651,9 +730,8 @@ int format_sources(const Options &options) {
   }
   std::sort(sources.begin(), sources.end());
   const std::filesystem::path configuration =
-      options.manifest.has_value()
-          ? options.manifest->root() / ".janusfmt"
-          : options.source.parent_path() / ".janusfmt";
+      options.manifest.has_value() ? options.manifest->root() / ".janusfmt"
+                                   : options.source.parent_path() / ".janusfmt";
   const janus::driver::FormatOptions format_options =
       janus::driver::load_format_options(configuration);
   bool changed = false;
@@ -742,10 +820,9 @@ int main(int argc, char **argv) {
     diagnostic_path = options.source;
     if (options.command == "check") {
       llvm::LLVMContext context;
-      static_cast<void>(compile(options.source, context, toolchain,
-                                options.dependency_paths,
-                                options.warn_high_growth_loops,
-                                options.panic_trace));
+      static_cast<void>(
+          compile(options.source, context, toolchain, options.dependency_paths,
+                  options.warn_high_growth_loops, options.panic_trace));
       std::cout << "checked " << options.source.string() << '\n';
       return 0;
     }

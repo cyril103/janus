@@ -9,7 +9,7 @@
 
 ## Structs copiés par valeur
 
-```janus
+```janus doctest name=structs
 struct Point(var x : int, var y : int) {
     def translate(dx : int, dy : int) : Unit {
         x = x + dx

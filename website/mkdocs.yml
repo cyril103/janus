@@ -33,6 +33,7 @@ nav:
       - Texte et parsing: reference/generated/text.md
       - Commandes et outils: reference/generated/tooling.md
       - Documentation d’API: reference/generated/api-documentation.md
+      - Doctests: reference/generated/doctests.md
       - Graphisme 2D: reference/generated/graphics.md
       - Contrat de stabilité 1.0: reference/generated/stability-contract.md
       - Migration 0.5 vers 0.6: reference/generated/migration-0.5-to-0.6.md

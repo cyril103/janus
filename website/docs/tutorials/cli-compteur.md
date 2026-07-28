@@ -21,7 +21,7 @@ cd compteur
 
 Remplacez `src/main.janus` :
 
-```janus
+```janus doctest name=counter-output
 def printStep(step : int) : Unit {
     print("étape: ")
     println(step)
@@ -63,7 +63,7 @@ L’exécutable optimisé est écrit sous `target/release`.
 
 Créez `tests/count.janus` :
 
-```janus
+```janus doctest name=counter-test
 def countSteps(limit : int) : int {
     var step : int = 0
     while step < limit {

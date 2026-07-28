@@ -3,6 +3,17 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.7.3] - Non publiée
+
+### Doctests
+
+- ajout des blocs `janus doctest`, `janus incomplete` et des attentes
+  `compile_fail=CODE` indépendantes du texte des diagnostics ;
+- intégration des exemples Markdown à `janus test`, avec filtre commun,
+  contexte du paquet, chemins `--doc-path` et mode `--doc` ;
+- migration des extraits autonomes du site vers le même moteur, avec
+  signalement des échecs par document et ligne.
+
 ## [0.7.2] - Non publiée
 
 ### Documentation d’API

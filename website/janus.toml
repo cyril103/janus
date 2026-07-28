@@ -1,0 +1,4 @@
+[package]
+name = "janus-website-doctests"
+version = "0.7.3"
+entry = "doctest-context.janus"

@@ -42,7 +42,7 @@ hide:
 Un programme Janus rend visibles ses contrats : types, mutabilité et code de sortie. `val` ne se réassigne pas ; `var` oui. Aucune conversion numérique implicite ne masque l’intention.
 </div>
 
-```janus title="src/main.janus"
+```janus doctest name=homepage title="src/main.janus"
 def add(left : int, right : int) : int {
     return left + right
 }

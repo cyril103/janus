@@ -10,7 +10,8 @@
 | `janus run` | compiler et exécuter |
 | `janus build` | construire en mode développement |
 | `janus build --release` | construire avec optimisations |
-| `janus test [filtre]` | exécuter les tests |
+| `janus test [filtre]` | exécuter les tests et doctests |
+| `janus test --doc` | exécuter uniquement les doctests |
 | `janus fmt` | formater `src/` et `tests/` |
 | `janus fmt --check` | vérifier le formatage |
 | `janus doc` | générer la documentation d’API hors ligne |
@@ -46,6 +47,19 @@ La syntaxe `///` et les liens `[[Symbole]]` sont décrits dans le
 [contrat de documentation d’API](api-documentation.md). Les symboles
 publics sont également écrits dans `api-index.json`. Une référence absente ou
 ambiguë produit un avertissement ; elle n’empêche pas la génération.
+
+### Doctests
+
+`janus test` compile aussi les blocs Markdown marqués `janus doctest` dans
+`README.md` et `docs/`. Un filtre sélectionne indifféremment un test `.janus`,
+un chemin documentaire, une ligne ou un nom de doctest. `--doc` exclut les
+tests `.janus` et `--doc-path <chemin>` sélectionne une autre racine relative
+au paquet.
+
+Les blocs volontairement partiels utilisent `janus incomplete`. Les exemples
+d’erreur utilisent `janus compile_fail=CODE` et comparent le code structuré,
+pas le texte du diagnostic. Le contrat complet et les exemples figurent dans
+[Doctests Janus](doctests.md).
 
 ### Aide, erreurs et codes de sortie
 
