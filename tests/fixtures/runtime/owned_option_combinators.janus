@@ -1,0 +1,72 @@
+import std.option
+
+var releases : int = 0
+
+class Resource(val id : int) {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+def transform(value : Resource) : Resource {
+    val result : Resource = new Resource(value.id + 10)
+    delete value
+    return result
+}
+
+def continueWith(value : Resource) : Option[Resource] {
+    return Option.Some[Resource](transform(value))
+}
+
+def main() : int {
+    val observed : Option[Resource] =
+    Option.Some[Resource](new Resource(1))
+    println(isSome[Resource](observed))
+    println(isNone[Resource](observed))
+    println(releases)
+    delete observed
+    println(releases)
+
+    val mapped : Option[Resource] = map[Resource, Resource](
+    Option.Some[Resource](new Resource(2)),
+    (value : Resource) => transform(value)
+    )
+    delete mapped
+    println(releases)
+
+    val chained : Option[Resource] = andThen[Resource, Resource](
+    Option.Some[Resource](new Resource(3)),
+    (value : Resource) => continueWith(value)
+    )
+    delete chained
+    println(releases)
+
+    val kept : Option[Resource] = orElse[Resource](
+    Option.Some[Resource](new Resource(4)),
+    Option.Some[Resource](new Resource(40))
+    )
+    delete kept
+    println(releases)
+
+    val recovered : Option[Resource] = orElse[Resource](
+    Option.None[Resource](),
+    Option.Some[Resource](new Resource(5))
+    )
+    delete recovered
+    println(releases)
+
+    val unwrapped : Resource = unwrapOr[Resource](
+    Option.Some[Resource](new Resource(6)),
+    new Resource(60)
+    )
+    delete unwrapped
+    println(releases)
+
+    val defaulted : Resource = unwrapOr[Resource](
+    Option.None[Resource](),
+    new Resource(7)
+    )
+    delete defaulted
+    println(releases)
+    return 0
+}

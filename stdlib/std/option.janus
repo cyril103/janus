@@ -4,3 +4,86 @@ enum Option[T] {
     Some(T),
     None
 }
+
+private class OptionFallback[T](private var value : T) {
+    private var available : bool = true
+
+    def discardAndReturn[U](result : U) : U {
+        val discarded : T = move value
+        available = false
+        delete discarded
+        return move result
+    }
+
+    def take() : T {
+        available = false
+        return move value
+    }
+
+    destructor {
+        if available {
+            delete value
+        }
+    }
+}
+
+def isSome[T](value : Option[T]) : bool {
+    return match value {
+        Some(item) => true,
+        None => false
+    }
+}
+
+def isNone[T](value : Option[T]) : bool {
+    return match value {
+        Some(item) => false,
+        None => true
+    }
+}
+
+def map[T, U](
+value : Option[T],
+transform : (T) => U
+) : Option[U] {
+    defer delete transform
+    return match move value {
+        Some(item) => Option.Some[U](transform(move item)),
+        None => Option.None[U]()
+    }
+}
+
+def andThen[T, U](
+value : Option[T],
+transform : (T) => Option[U]
+) : Option[U] {
+    defer delete transform
+    return match move value {
+        Some(item) => transform(move item),
+        None => Option.None[U]()
+    }
+}
+
+def orElse[T](
+value : Option[T],
+fallback : Option[T]
+) : Option[T] {
+    val state : OptionFallback[Option[T]] =
+    new OptionFallback[Option[T]](move fallback)
+    defer delete state
+    return match move value {
+        Some(item) => state.discardAndReturn[Option[T]](
+        Option.Some[T](move item)
+        ),
+        None => state.take()
+    }
+}
+
+def unwrapOr[T](value : Option[T], fallback : T) : T {
+    val state : OptionFallback[T] =
+    new OptionFallback[T](move fallback)
+    defer delete state
+    return match move value {
+        Some(item) => state.discardAndReturn[T](move item),
+        None => state.take()
+    }
+}

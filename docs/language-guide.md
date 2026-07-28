@@ -291,6 +291,51 @@ absente et `Result[T, E]` pour une opération qui peut échouer. L'opérateur `?
 propage automatiquement une absence ou une erreur depuis une fonction
 compatible.
 
+Le module `std.option` fournit six combinateurs génériques :
+
+| Fonction | Effet |
+| --- | --- |
+| `isSome[T](value)` | observe si la variante est `Some` |
+| `isNone[T](value)` | observe si la variante est `None` |
+| `map[T, U](value, transform)` | transforme le contenu de `Some` |
+| `andThen[T, U](value, transform)` | chaîne une fonction qui retourne une `Option[U]` |
+| `orElse[T](value, fallback)` | conserve `value` si présente, sinon retourne `fallback` |
+| `unwrapOr[T](value, fallback)` | extrait la valeur présente, sinon retourne `fallback` |
+
+Pour un type `Copy`, ces fonctions s'utilisent directement :
+
+```janus
+val value : Option[int] = Option.Some[int](40)
+val incremented : Option[int] =
+    map[int, int](value, (item : int) => item + 1)
+val result : int = unwrapOr[int](incremented, 0)
+```
+
+`isSome` et `isNone` sont des observations bornées. Une `Option` propriétaire
+doit être stockée dans une variable locale pendant l'observation et reste
+ensuite utilisable :
+
+```janus
+val resource : Option[Resource] =
+    Option.Some[Resource](new Resource())
+if isSome[Resource](resource) {
+    println("présente")
+}
+delete resource
+```
+
+Les quatre autres fonctions sont consommantes. Une variable `Option[Resource]`
+doit leur être passée avec `move`; le résultat possède alors la valeur
+transférée. `map` et `andThen` n'appellent leur closure que pour `Some`.
+`orElse` détruit la valeur de repli lorsque la première option est présente ;
+`unwrapOr` détruit de même le repli inutilisé. Pour `None`, le repli est
+transféré au résultat. Une closure reçue par `map` ou `andThen` est détruite
+après l'appel, y compris lorsque l'option est vide.
+
+Les fonctions sont aussi accessibles avec leur nom qualifié, par exemple
+`std.option.map`, ce qui évite toute ambiguïté avec les combinateurs similaires
+de `std.result`.
+
 ## Classes, traits et visibilité
 
 Les paramètres `val` et `var` du constructeur deviennent des champs :

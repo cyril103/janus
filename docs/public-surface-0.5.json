@@ -145,8 +145,8 @@
       "source": "stdlib/std/option.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "f6479bfaac69f978187031fce372737d0ea2100de07e7a9f51ba3c4423ce9198",
-      "symbols": ["Option", "Option.Some", "Option.None"]
+      "signature_digest": "de9529710e8cd80f3baaf23639eadaf2f75154e67df51d7b612605a44fb92fe0",
+      "symbols": ["Option", "Option.Some", "Option.None", "isSome", "isNone", "map", "andThen", "orElse", "unwrapOr"]
     },
     {
       "name": "std.random",
