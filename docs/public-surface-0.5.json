@@ -93,6 +93,14 @@
       "symbols": ["Key", "Key.Space", "Key.Apostrophe", "Key.Comma", "Key.Minus", "Key.Period", "Key.Slash", "Key.Digit0", "Key.Digit1", "Key.Digit2", "Key.Digit3", "Key.Digit4", "Key.Digit5", "Key.Digit6", "Key.Digit7", "Key.Digit8", "Key.Digit9", "Key.Semicolon", "Key.Equal", "Key.A", "Key.B", "Key.C", "Key.D", "Key.E", "Key.F", "Key.G", "Key.H", "Key.I", "Key.J", "Key.K", "Key.L", "Key.M", "Key.N", "Key.O", "Key.P", "Key.Q", "Key.R", "Key.S", "Key.T", "Key.U", "Key.V", "Key.W", "Key.X", "Key.Y", "Key.Z", "Key.LeftBracket", "Key.Backslash", "Key.RightBracket", "Key.Grave", "Key.Escape", "Key.Enter", "Key.Tab", "Key.Backspace", "Key.Insert", "Key.Delete", "Key.Right", "Key.Left", "Key.Down", "Key.Up", "Key.PageUp", "Key.PageDown", "Key.Home", "Key.End", "Key.CapsLock", "Key.ScrollLock", "Key.NumLock", "Key.PrintScreen", "Key.Pause", "Key.F1", "Key.F2", "Key.F3", "Key.F4", "Key.F5", "Key.F6", "Key.F7", "Key.F8", "Key.F9", "Key.F10", "Key.F11", "Key.F12", "Key.Keypad0", "Key.Keypad1", "Key.Keypad2", "Key.Keypad3", "Key.Keypad4", "Key.Keypad5", "Key.Keypad6", "Key.Keypad7", "Key.Keypad8", "Key.Keypad9", "Key.KeypadDecimal", "Key.KeypadDivide", "Key.KeypadMultiply", "Key.KeypadSubtract", "Key.KeypadAdd", "Key.KeypadEnter", "Key.KeypadEqual", "Key.LeftShift", "Key.LeftControl", "Key.LeftAlt", "Key.LeftSuper", "Key.RightShift", "Key.RightControl", "Key.RightAlt", "Key.RightSuper", "Key.Menu", "MouseButton", "MouseButton.Left", "MouseButton.Right", "MouseButton.Middle", "MouseButton.Side", "MouseButton.Extra", "MouseButton.Forward", "MouseButton.Back", "TextureFilter", "TextureFilter.Point", "TextureFilter.Bilinear", "TextureFilter.Trilinear", "TextureFilter.Anisotropic4x", "TextureFilter.Anisotropic8x", "TextureFilter.Anisotropic16x", "BlendMode", "BlendMode.Alpha", "BlendMode.Additive", "GamepadButton", "GamepadButton.Unknown", "GamepadButton.LeftFaceUp", "GamepadButton.LeftFaceRight", "GamepadButton.LeftFaceDown", "GamepadButton.LeftFaceLeft", "GamepadButton.RightFaceUp", "GamepadButton.RightFaceRight", "GamepadButton.RightFaceDown", "GamepadButton.RightFaceLeft", "GamepadButton.LeftTrigger1", "GamepadButton.LeftTrigger2", "GamepadButton.RightTrigger1", "GamepadButton.RightTrigger2", "GamepadButton.MiddleLeft", "GamepadButton.Middle", "GamepadButton.MiddleRight", "GamepadButton.LeftThumb", "GamepadButton.RightThumb", "GamepadAxis", "GamepadAxis.LeftX", "GamepadAxis.LeftY", "GamepadAxis.RightX", "GamepadAxis.RightY", "GamepadAxis.LeftTrigger", "GamepadAxis.RightTrigger", "Vector2", "Vector2.x", "Vector2.y", "Rectangle", "Rectangle.x", "Rectangle.y", "Rectangle.width", "Rectangle.height", "Color", "Color.packed", "rgba", "vector2", "rectangle", "colorRgba", "colorRgb", "rgb", "Black", "White", "Red", "Green", "Blue", "black", "white", "red", "green", "blue"]
     },
     {
+      "name": "std.fs",
+      "source": "stdlib/std/fs.janus",
+      "documentation": ["docs/language-guide.md", "docs/design/path-filesystem.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "signature_digest": "040328b63e248111a915d0936fd0f63d5caa92f9209ab8aedb427f701ddba44d",
+      "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.view", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeFile", "metadata", "readDirectory"]
+    },
+    {
       "name": "std.hash_probe",
       "source": "stdlib/std/hash_probe.janus",
       "documentation": ["docs/public-surface-0.5.json"],
@@ -147,6 +155,14 @@
       "status": "stable-proposed",
       "signature_digest": "de9529710e8cd80f3baaf23639eadaf2f75154e67df51d7b612605a44fb92fe0",
       "symbols": ["Option", "Option.Some", "Option.None", "isSome", "isNone", "map", "andThen", "orElse", "unwrapOr"]
+    },
+    {
+      "name": "std.path",
+      "source": "stdlib/std/path.janus",
+      "documentation": ["docs/language-guide.md", "docs/design/path-filesystem.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "signature_digest": "085f2910a2d894488880851b9634ff1f0d91f998ef220f59b90dc0837deb22f2",
+      "symbols": ["Path", "Path.view", "Path.size", "Path.isAbsolute", "Path.componentCount", "Path.component", "normalizePath", "joinPath"]
     },
     {
       "name": "std.random",

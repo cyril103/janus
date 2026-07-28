@@ -1,0 +1,252 @@
+import std.fs
+import std.path
+
+def boolResult(
+result : Result[bool, SystemError]
+) : bool {
+    return match result {
+        Ok(value) => value,
+        Error(error) => false
+    }
+}
+
+def rejectFileData(data : FileData) : bool {
+    delete data
+    return false
+}
+
+def missingReadRejected(
+result : Result[FileData, SystemError]
+) : bool {
+    return match move result {
+        Ok(data) => rejectFileData(move data),
+        Error(error) =>
+        error.operation == "file.read" &&
+        error.category == SystemErrorCategory.NotFound
+    }
+}
+
+def componentMatches(component : Path) : bool {
+    val matches : bool = component.view() == "gamma"
+    delete component
+    return matches
+}
+
+def pathComponentOk(
+result : Result[Path, SystemError]
+) : bool {
+    return match move result {
+        Ok(component) => componentMatches(move component),
+        Error(error) => false
+    }
+}
+
+def normalizedMatches(path : Path) : bool {
+    val count : usize = path.componentCount()
+    val component : bool =
+    pathComponentOk(path.component(usize(1)))
+    delete path
+    return count == usize(2) && component
+}
+
+def normalizedOk(
+result : Result[Path, SystemError]
+) : bool {
+    return match move result {
+        Ok(path) => normalizedMatches(move path),
+        Error(error) => false
+    }
+}
+
+def fileDataMatches(data : FileData) : bool {
+    val matches : bool =
+    data.size() == usize(8) &&
+    data.view() == "portable"
+    delete data
+    return matches
+}
+
+def fileDataOk(
+result : Result[FileData, SystemError]
+) : bool {
+    return match move result {
+        Ok(data) => fileDataMatches(move data),
+        Error(error) => false
+    }
+}
+
+def metadataOk(
+result : Result[FileMetadata, SystemError],
+expected : FileType,
+expectedSize : usize
+) : bool {
+    return match result {
+        Ok(value) =>
+        value.kind == expected &&
+        value.size == expectedSize,
+        Error(error) => false
+    }
+}
+
+def metadataKindOk(
+result : Result[FileMetadata, SystemError],
+expected : FileType
+) : bool {
+    return match result {
+        Ok(value) => value.kind == expected,
+        Error(error) => false
+    }
+}
+
+def entryMatches(path : Path) : bool {
+    val matches : bool = path.view() == "données.txt"
+    delete path
+    return matches
+}
+
+def entryOk(
+result : Result[Option[Path], SystemError]
+) : bool {
+    return match move result {
+        Ok(entry) => match move entry {
+            Some(path) => entryMatches(move path),
+            None => false
+        },
+        Error(error) => false
+    }
+}
+
+def rejectEntry(path : Path) : bool {
+    delete path
+    return false
+}
+
+def scanDirectory(
+iterator : DirectoryIterator
+) : bool {
+    val found : bool = entryOk(iterator.next())
+    val second : Result[Option[Path], SystemError] =
+    iterator.next()
+    val ended : bool = match move second {
+        Ok(entry) => match move entry {
+            Some(path) => rejectEntry(move path),
+            None => true
+        },
+        Error(error) => false
+    }
+    val closed : bool = boolResult(iterator.close())
+    val secondRejected : bool = match iterator.close() {
+        Ok(value) => false,
+        Error(error) =>
+        error.category == SystemErrorCategory.InvalidInput &&
+        error.nativeCode == uint(0)
+    }
+    delete iterator
+    return found && ended && closed && secondRejected
+}
+
+def directoryOk(
+result : Result[DirectoryIterator, SystemError]
+) : bool {
+    return match move result {
+        Ok(iterator) => scanDirectory(move iterator),
+        Error(error) => false
+    }
+}
+
+def useFile(
+root : Path,
+nested : Path,
+file : Path
+) : int {
+    println(boolResult(
+    writeTextFileAtomic(file.view(), "old")
+    ))
+    println(boolResult(
+    writeTextFileAtomic(file.view(), "portable")
+    ))
+    println(fileDataOk(readFile(file.view())))
+    println(metadataOk(
+    metadata(file.view()),
+    FileType.File,
+    usize(8)
+    ))
+    println(metadataKindOk(
+    metadata(nested.view()),
+    FileType.Directory
+    ))
+    println(directoryOk(readDirectory(nested.view())))
+    println(boolResult(removeFile(file.view())))
+    println(boolResult(removeDirectory(nested.view())))
+    println(boolResult(removeDirectory(root.view())))
+    delete file
+    return 0
+}
+
+def useFileResult(
+root : Path,
+nested : Path,
+result : Result[Path, SystemError]
+) : int {
+    return match move result {
+        Ok(file) => useFile(root, nested, move file),
+        Error(error) => 1
+    }
+}
+
+def useNested(
+root : Path,
+nested : Path
+) : int {
+    println(boolResult(
+    createDirectory(nested.view(), true)
+    ))
+    val status : int = useFileResult(
+    root,
+    nested,
+    joinPath(nested.view(), "données.txt")
+    )
+    delete nested
+    return status
+}
+
+def useNestedResult(
+root : Path,
+result : Result[Path, SystemError]
+) : int {
+    return match move result {
+        Ok(nested) => useNested(root, move nested),
+        Error(error) => 1
+    }
+}
+
+def useTemporary(root : Path) : int {
+    println(root.isAbsolute())
+    val status : int = useNestedResult(
+    root,
+    joinPath(root.view(), "unicodé/../répertoire")
+    )
+    delete root
+    return status
+}
+
+def temporaryResult(
+result : Result[Path, SystemError]
+) : int {
+    return match move result {
+        Ok(root) => useTemporary(move root),
+        Error(error) => 1
+    }
+}
+
+def main() : int {
+    println(normalizedOk(
+    normalizePath("alpha/./beta/../gamma")
+    ))
+    println(missingReadRejected(
+    readFile("janus-fs-definitely-missing.file")
+    ))
+    return temporaryResult(
+    createTemporaryDirectory("janus-é")
+    )
+}

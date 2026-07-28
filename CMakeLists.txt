@@ -49,6 +49,7 @@ execute_process(
 )
 
 add_library(janus_runtime STATIC
+    runtime/janus_fs.c
     runtime/janus_graphics.c
     runtime/janus_runtime.c
     runtime/janus_system.c
@@ -381,6 +382,18 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME runtime.system_native COMMAND system_runtime_test)
+
+    add_executable(path_fs_runtime_test
+        tests/runtime/path_fs_runtime_test.c
+    )
+    target_link_libraries(path_fs_runtime_test PRIVATE janus_runtime)
+    target_compile_options(path_fs_runtime_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME runtime.path_fs_native COMMAND path_fs_runtime_test)
 
     add_library(fake_raylib SHARED tests/runtime/fake_raylib.c)
     target_compile_options(fake_raylib
@@ -847,6 +860,18 @@ if(BUILD_TESTING)
             "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/system_result_runtime"
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/system_result.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME compatibility.path_fs_result
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/path_fs_result.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/path_fs_result_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/path_fs_result.expected.txt"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(

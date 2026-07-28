@@ -770,6 +770,28 @@ sont du UTF-8 strict sans NUL embarqué. Consultez le
 [contrat du runtime système](design/system-runtime.md) pour les catégories,
 limites de taille et règles POSIX/Windows.
 
+### Chemins et fichiers
+
+`std.path` fournit des chemins UTF-8 propriétaires. La normalisation est
+lexicale et respecte les séparateurs natifs ; elle ne consulte pas le système
+de fichiers. `std.fs` lit des fichiers dans un `FileData` propriétaire, écrit
+par remplacement atomique, crée et parcourt des répertoires et retourne des
+métadonnées typées.
+
+```janus
+import std.fs
+
+val written : Result[bool, SystemError] =
+writeTextFileAtomic("notes.txt", "Janus")
+val data : Result[FileData, SystemError] =
+readFile("notes.txt")
+```
+
+Les itérateurs de répertoire et les buffers lus possèdent leurs ressources et
+les libèrent à la destruction. Les métadonnées ne suivent pas le dernier lien
+symbolique. Le [contrat chemins et fichiers](design/path-filesystem.md)
+documente l’écriture atomique, les liens et les différences POSIX/Windows.
+
 Des programmes complets sont disponibles dans [`examples`](../examples).
 
 ## Structures copiées par valeur
