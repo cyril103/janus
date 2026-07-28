@@ -132,14 +132,6 @@ def writeChildError(stream : OutputStream) : bool {
     return written && closed
 }
 
-def outputMatches(result : ProcessResult) : bool {
-    return result.exitCode() == 23 &&
-    stringView(result.stdoutData(), result.stdoutSize()) ==
-    "child-out\n" &&
-    stringView(result.stderrData(), result.stderrSize()) ==
-    "child-err\n"
-}
-
 def markerMatches(
 result : Result[FileData, SystemError]
 ) : bool {
@@ -156,7 +148,16 @@ def markerDataMatches(data : FileData) : bool {
 }
 
 def inspectChild(result : ProcessResult, root : string) : bool {
-    val output : bool = outputMatches(result)
+    println(true)
+    println(result.exitCode() == 23)
+    println(
+    stringView(result.stdoutData(), result.stdoutSize()) ==
+    "child-out\n"
+    )
+    println(
+    stringView(result.stderrData(), result.stderrSize()) ==
+    "child-err\n"
+    )
     delete result
     val markerPath : Result[Path, SystemError] = joinPath(
     root,
@@ -166,7 +167,7 @@ def inspectChild(result : ProcessResult, root : string) : bool {
         Ok(path) => markerPathMatches(move path),
         Error(error) => false
     }
-    return output && marker
+    return marker
 }
 
 def markerPathMatches(path : Path) : bool {
@@ -181,8 +182,17 @@ root : string
 ) : bool {
     return match move result {
         Ok(process) => inspectChild(move process, root),
-        Error(error) => false
+        Error(error) => reportProcessStartFailure(error)
     }
+}
+
+def reportProcessStartFailure(error : SystemError) : bool {
+    println(false)
+    println(false)
+    println(false)
+    println(false)
+    println(error.nativeCode)
+    return false
 }
 
 def missingProcess(
