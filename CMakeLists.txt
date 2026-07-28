@@ -1576,6 +1576,18 @@ if(BUILD_TESTING)
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/benchmarks/hash_collections.expected.txt"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
+    add_test(
+        NAME benchmarks.stdlib_services_smoke
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/benchmarks/stdlib_services.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/stdlib_services_benchmark_smoke"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/benchmarks/stdlib_services.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
     foreach(trap_case lcm_overflow lcm_overflow_reversed)
         add_test(
             NAME runtime.${trap_case}

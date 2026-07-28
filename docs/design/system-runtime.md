@@ -61,6 +61,18 @@ existante en lecture, création/troncature en écriture et création/ajout en
 écriture. `removeSystemFile` ne supprime que des fichiers ; la gestion des
 répertoires et liens appartient à std.fs.
 
+### Révision 0.7.10
+
+Le handle natif est désormais l'unique état de disponibilité : toute valeur
+négative signifie « fermé ». Il n'existe plus de booléen parallèle susceptible
+de diverger du handle. `close` capture le handle, l'invalide avant l'appel
+natif, puis le destructeur n'agit que si le handle est encore valide. Ce même
+protocole est appliqué aux fichiers, répertoires et flux.
+
+Cette révision ne modifie aucune signature publique. Elle conserve les buffers
+et leurs longueurs explicites à la frontière native, ainsi que les quatre
+champs de `SystemError`.
+
 ## Portabilité et validation
 
 Le test natif exerce directement la même ABI sous Linux, macOS et Windows :
@@ -69,3 +81,7 @@ partielle possible, EOF, fermeture répétée et suppression. Un fixture Janus
 vérifie le transport dans `Result`, les quatre champs de l’erreur et
 l’invalidation exacte de `SystemFile`. Ces tests font partie de la matrice CI
 multiplateforme.
+
+Le [benchmark des services 0.7.10](../benchmarks/stdlib-services-0.7.10.md)
+mesure aussi les cycles ouverture/écriture/fermeture/suppression de
+`SystemFile`.

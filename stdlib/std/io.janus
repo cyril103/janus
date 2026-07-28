@@ -246,7 +246,6 @@ private val ownsHandle : bool,
 private val streamContext : string,
 private val requestedCapacity : usize
 ) {
-    private var available : bool = true
     private var ended : bool = false
     private val bufferCapacity : usize =
     if requestedCapacity == usize(0) {
@@ -260,7 +259,7 @@ private val requestedCapacity : usize
     private var bufferOffset : usize = usize(0)
 
     def isOpen() : bool {
-        return available
+        return nativeHandle >= isize(0)
     }
 
     def isEof() : bool {
@@ -287,7 +286,7 @@ private val requestedCapacity : usize
     target : Ptr[byte],
     capacity : usize
     ) : Result[usize, SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[usize, SystemError](
             closedIoError("io.read", streamContext)
             )
@@ -333,7 +332,7 @@ private val requestedCapacity : usize
 
     def readLine(
     ) : Result[Option[ByteBuffer], SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[Option[ByteBuffer], SystemError](
             closedIoError("io.readLine", streamContext)
             )
@@ -378,14 +377,13 @@ private val requestedCapacity : usize
     }
 
     def close() : Result[bool, SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
             closedIoError("io.close", streamContext)
             )
         }
         val handle : isize = nativeHandle
         nativeHandle = isize(-1)
-        available = false
         if ownsHandle && janus_io_close(handle) != 0 {
             return Result.Error[bool, SystemError](
             ioError("io.close", streamContext)
@@ -395,8 +393,7 @@ private val requestedCapacity : usize
     }
 
     destructor {
-        if available {
-            available = false
+        if nativeHandle >= isize(0) {
             val handle : isize = nativeHandle
             nativeHandle = isize(-1)
             if ownsHandle {
@@ -414,7 +411,6 @@ private val ownsHandle : bool,
 private val streamContext : string,
 private val requestedCapacity : usize
 ) {
-    private var available : bool = true
     private val bufferCapacity : usize =
     if requestedCapacity == usize(0) {
         usize(1)
@@ -426,7 +422,7 @@ private val requestedCapacity : usize
     private var bufferSize : usize = usize(0)
 
     def isOpen() : bool {
-        return available
+        return nativeHandle >= isize(0)
     }
 
     private def drain() : int {
@@ -451,7 +447,7 @@ private val requestedCapacity : usize
     source : Ptr[byte],
     size : usize
     ) : Result[usize, SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[usize, SystemError](
             closedIoError("io.write", streamContext)
             )
@@ -507,7 +503,7 @@ private val requestedCapacity : usize
     }
 
     def flush() : Result[bool, SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
             closedIoError("io.flush", streamContext)
             )
@@ -522,13 +518,12 @@ private val requestedCapacity : usize
     }
 
     def close() : Result[bool, SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
             closedIoError("io.close", streamContext)
             )
         }
         val handle : isize = nativeHandle
-        available = false
         var failed : bool = false
         var saved : SystemError =
         closedIoError("io.close", streamContext)
@@ -552,8 +547,7 @@ private val requestedCapacity : usize
     }
 
     destructor {
-        if available {
-            available = false
+        if nativeHandle >= isize(0) {
             val handle : isize = nativeHandle
             this.drain()
             nativeHandle = isize(-1)

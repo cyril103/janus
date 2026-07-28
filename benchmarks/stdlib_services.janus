@@ -1,0 +1,82 @@
+import std.math
+import std.random
+import std.system
+import std.text
+
+def parsedValue(
+result : Result[int, ParseError]
+) : int {
+    return match result {
+        Ok(value) => value,
+        Error(error) => 0
+    }
+}
+
+def usedFile(
+file : SystemFile
+) : int {
+    val written : bool = match file.write(
+    stringData("x"),
+    usize(1)
+    ) {
+        Ok(count) => count == usize(1),
+        Error(error) => false
+    }
+    val closed : bool = match file.close() {
+        Ok(value) => value,
+        Error(error) => false
+    }
+    delete file
+    return if written && closed { 1 } else { 0 }
+}
+
+def openedFile(
+result : Result[SystemFile, SystemError]
+) : int {
+    return match move result {
+        Ok(file) => usedFile(move file),
+        Error(error) => 0
+    }
+}
+
+def removedFile(
+result : Result[bool, SystemError]
+) : int {
+    return match result {
+        Ok(value) => if value { 1 } else { 0 },
+        Error(error) => 0
+    }
+}
+
+def main() : int {
+    val text : TextBuilder = new TextBuilder()
+    defer delete text
+    val random : Random = new Random(usize(1234567))
+    defer delete random
+    var checksum : int = 0
+    var iteration : int = 0
+    while iteration < 20000 {
+        text.clear()
+        text.appendInt(iteration)
+        text.append("-")
+        text.appendHex(ulong(iteration), false)
+        checksum = checksum + parsedValue(parseInt("12345"))
+        checksum = checksum + int(gcd(
+        usize(iteration + 1),
+        usize(360)
+        ))
+        checksum = checksum + int(random.nextBounded(usize(97)))
+        iteration = iteration + 1
+    }
+    iteration = 0
+    while iteration < 1000 {
+        val path : string = "janus-stdlib-services-benchmark.tmp"
+        checksum = checksum + openedFile(
+        openSystemFile(path, SystemOpenMode.Write)
+        )
+        checksum = checksum + removedFile(removeSystemFile(path))
+        iteration = iteration + 1
+    }
+    println(checksum)
+    return 0
+}

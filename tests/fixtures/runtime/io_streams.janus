@@ -17,8 +17,10 @@ result : Result[bool, SystemError]
     return match result {
         Ok(value) => false,
         Error(error) =>
+        error.operation == "io.close" &&
         error.category == SystemErrorCategory.InvalidInput &&
-        error.nativeCode == uint(0)
+        error.nativeCode == uint(0) &&
+        stringLength(error.context) > usize(0)
     }
 }
 
@@ -119,7 +121,10 @@ output : OutputStream
     ) {
         Ok(count) => false,
         Error(error) =>
-        error.category == SystemErrorCategory.InvalidInput
+        error.operation == "io.read" &&
+        error.category == SystemErrorCategory.InvalidInput &&
+        error.nativeCode == uint(0) &&
+        stringLength(error.context) > usize(0)
     }
     val outputRejected : bool = closedResult(output.close())
     delete input

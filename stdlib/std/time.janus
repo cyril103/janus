@@ -38,28 +38,27 @@ def nanoseconds(value : usize) : Duration {
     return new Duration(value)
 }
 
-def microseconds(value : usize) : Duration {
+private def scaledDuration(
+value : usize,
+scale : usize
+) : Duration {
     val max : usize = usize(0) - usize(1)
-    if value > max / usize(1000) {
+    if value > max / scale {
         panic("duration overflow\n")
     }
-    return new Duration(value * usize(1000))
+    return new Duration(value * scale)
+}
+
+def microseconds(value : usize) : Duration {
+    return scaledDuration(value, usize(1000))
 }
 
 def milliseconds(value : usize) : Duration {
-    val max : usize = usize(0) - usize(1)
-    if value > max / usize(1000000) {
-        panic("duration overflow\n")
-    }
-    return new Duration(value * usize(1000000))
+    return scaledDuration(value, usize(1000000))
 }
 
 def seconds(value : usize) : Duration {
-    val max : usize = usize(0) - usize(1)
-    if value > max / usize(1000000000) {
-        panic("duration overflow\n")
-    }
-    return new Duration(value * usize(1000000000))
+    return scaledDuration(value, usize(1000000000))
 }
 
 def monotonicNow() : Instant {

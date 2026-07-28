@@ -55,6 +55,17 @@ context : string
     )
 }
 
+private def processMemoryError(
+context : string
+) : SystemError {
+    return new SystemError(
+    "process.run",
+    SystemErrorCategory.ResourceExhausted,
+    uint(0),
+    context
+    )
+}
+
 def programArgumentCount() : usize {
     return janus_process_argument_count()
 }
@@ -148,24 +159,14 @@ captureStderr : bool
     alloc[Ptr[byte]](count)
     if argumentData == null[Ptr[byte]]() && count != usize(0) {
         return Result.Error[ProcessResult, SystemError](
-        new SystemError(
-        "process.run",
-        SystemErrorCategory.ResourceExhausted,
-        uint(0),
-        executable
-        )
+        processMemoryError(executable)
         )
     }
     defer free(argumentData)
     val argumentLengths : Ptr[usize] = alloc[usize](count)
     if argumentLengths == null[usize]() && count != usize(0) {
         return Result.Error[ProcessResult, SystemError](
-        new SystemError(
-        "process.run",
-        SystemErrorCategory.ResourceExhausted,
-        uint(0),
-        executable
-        )
+        processMemoryError(executable)
         )
     }
     defer free(argumentLengths)

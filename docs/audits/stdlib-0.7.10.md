@@ -11,9 +11,9 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **28 modules**, **5672 lignes** et **637 symboles publics** inventoriés ;
+- **28 modules**, **5659 lignes** et **637 symboles publics** inventoriés ;
 - **0 blocs `///` publics pour 637 symboles** (le lot #115 porte l'objectif de couverture à 100 %) ;
-- **126 sites d'allocation**, **188 marqueurs de nettoyage**, **177/14/35** occurrences `move`/`consume`/destructeur ;
+- **123 sites d'allocation**, **189 marqueurs de nettoyage**, **177/14/35** occurrences `move`/`consume`/destructeur ;
 - **21/28 modules** importés directement par au moins une fixture ou un test, soit **92 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
@@ -54,23 +54,23 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.graphics.input` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 23 | 141 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.types` | 0 | `docs/graphics.md` |
 | `std.graphics.resources` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 45 | 446 | 0 | 0/0/4 | 0/0/0 | 6 | 4 | `std.c`, `std.graphics.types` | 0 | `docs/graphics.md` |
 | `std.graphics.types` | `experimental` | `conservation` | [#114 / R0710-5](https://github.com/cyril103/janus/issues/114) | 176 | 237 | 0 | 0/0/0 | 0/0/0 | 8 | 1 | — | 0 | `docs/graphics.md` |
-| `std.fs` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 24 | 358 | 0 | 0/0/2 | 11/5/3 | 10 | 20 | `std.option`, `std.path`, `std.result`, `std.system` | 3 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
+| `std.fs` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 24 | 355 | 0 | 0/0/2 | 11/5/3 | 10 | 21 | `std.option`, `std.path`, `std.result`, `std.system` | 3 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
 | `std.hash_probe` | `internal-detail` | `refonte-interne` | [#112 / R0710-3](https://github.com/cyril103/janus/issues/112) | 6 | 39 | 0 | 0/0/0 | 0/0/0 | 1 | 0 | — | 0 | `docs/public-surface-0.5.json` |
 | `std.hashing` | `stable-proposed` | `conservation` | [#112 / R0710-3](https://github.com/cyril103/janus/issues/112) | 21 | 70 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | — | 8 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.hashmap` | `stable-proposed` | `conservation` | [#112 / R0710-3](https://github.com/cyril103/janus/issues/112) | 22 | 648 | 0 | 68/4/3 | 0/31/0 | 14 | 16 | `std.array`, `std.builder`, `std.hash_probe`, `std.hashing`, `std.iterator`, `std.option` | 6 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.hashset` | `stable-proposed` | `conservation` | [#112 / R0710-3](https://github.com/cyril103/janus/issues/112) | 15 | 390 | 0 | 25/1/3 | 0/11/0 | 8 | 11 | `std.array`, `std.builder`, `std.hash_probe`, `std.hashing`, `std.iterator`, `std.option` | 5 | `docs/language-guide.md`, `docs/stability-contract.md` |
-| `std.io` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 33 | 749 | 0 | 1/0/4 | 21/9/0 | 17 | 21 | `std.option`, `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/io-streams.md`, `docs/stability-contract.md` |
+| `std.io` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 33 | 743 | 0 | 1/0/4 | 21/9/0 | 17 | 21 | `std.option`, `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/io-streams.md`, `docs/stability-contract.md` |
 | `std.iterator` | `stable-proposed` | `conservation` | [#111 / R0710-2](https://github.com/cyril103/janus/issues/111) | 18 | 295 | 0 | 29/8/7 | 0/19/0 | 14 | 29 | `std.builder`, `std.option` | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.math` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 4 | 79 | 0 | 0/0/0 | 0/0/1 | 1 | 0 | `std.array` | 5 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.option` | `stable-proposed` | `conservation` | [#111 / R0710-2](https://github.com/cyril103/janus/issues/111) | 9 | 89 | 0 | 13/0/1 | 0/15/0 | 2 | 11 | — | 8 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.path` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 8 | 181 | 0 | 0/0/1 | 3/0/2 | 6 | 13 | `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
 | `std.random` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 6 | 51 | 0 | 0/0/0 | 0/0/2 | 1 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
-| `std.process` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 13 | 198 | 0 | 0/0/2 | 2/5/0 | 7 | 6 | `std.array`, `std.option`, `std.result`, `std.system` | 1 | `docs/language-guide.md`, `docs/design/process-runtime.md`, `docs/stability-contract.md` |
+| `std.process` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 13 | 199 | 0 | 0/0/2 | 2/5/0 | 6 | 6 | `std.array`, `std.option`, `std.result`, `std.system` | 1 | `docs/language-guide.md`, `docs/design/process-runtime.md`, `docs/stability-contract.md` |
 | `std.range` | `stable-proposed` | `conservation` | [#111 / R0710-2](https://github.com/cyril103/janus/issues/111) | 1 | 29 | 0 | 0/0/0 | 0/1/0 | 2 | 1 | `std.iterator`, `std.option` | 2 | `docs/language-guide.md` |
 | `std.result` | `stable-proposed` | `conservation` | [#111 / R0710-2](https://github.com/cyril103/janus/issues/111) | 12 | 128 | 0 | 26/0/1 | 17/3/0 | 2 | 17 | `std.option` | 10 | `docs/language-guide.md`, `docs/stability-contract.md` |
-| `std.system` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 28 | 186 | 0 | 0/0/1 | 5/0/0 | 3 | 4 | `std.result` | 2 | `docs/language-guide.md`, `docs/design/system-runtime.md`, `docs/stability-contract.md` |
+| `std.system` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 28 | 182 | 0 | 0/0/1 | 5/0/0 | 3 | 4 | `std.result` | 2 | `docs/language-guide.md`, `docs/design/system-runtime.md`, `docs/stability-contract.md` |
 | `std.text` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 42 | 334 | 0 | 0/0/1 | 14/0/5 | 3 | 15 | `std.result` | 2 | `docs/text.md`, `docs/stability-contract.md` |
-| `std.time` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 13 | 67 | 0 | 0/0/0 | 0/0/4 | 7 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
+| `std.time` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 13 | 66 | 0 | 0/0/0 | 0/0/2 | 5 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.wall_time` | `stable-proposed` | `conservation` | [#113 / R0710-4](https://github.com/cyril103/janus/issues/113) | 5 | 21 | 0 | 0/0/0 | 0/0/0 | 1 | 0 | — | 1 | `docs/language-guide.md`, `docs/stability-contract.md` |
 
 ## Invariants de propriété recensés
@@ -126,11 +126,11 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 | --- | --- | ---: |
 | `index = index + usize(1)` | `std.array`, `std.hashmap`, `std.hashset`, `std.io`, `std.iterator`, `std.process`, `std.text` | 24 |
 | `var index : usize = usize(0)` | `std.array`, `std.hashmap`, `std.hashset`, `std.io`, `std.process`, `std.text` | 15 |
-| `private var available : bool = true` | `std.fs`, `std.io`, `std.option`, `std.result`, `std.system` | 7 |
 | `private var index : usize` | `std.array`, `std.hashmap`, `std.hashset`, `std.iterator` | 9 |
 | `private var length : usize = usize(0)` | `std.array`, `std.hashmap`, `std.hashset`, `std.text` | 4 |
 | `return match move value {` | `std.iterator`, `std.option`, `std.result` | 14 |
 | `return Result.Error[bool, SystemError](` | `std.fs`, `std.io`, `std.system` | 13 |
+| `if nativeHandle < isize(0) {` | `std.fs`, `std.io`, `std.system` | 11 |
 | `return Result.Ok[bool, SystemError](true)` | `std.fs`, `std.io`, `std.system` | 9 |
 | `length = length - usize(1)` | `std.array`, `std.hashmap`, `std.hashset` | 8 |
 | `nativeHandle = isize(-1)` | `std.fs`, `std.io`, `std.system` | 8 |

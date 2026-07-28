@@ -61,6 +61,11 @@ fermeture ou une utilisation ultérieure produit une erreur synthétique
 `InvalidInput` de code natif zéro. Le destructeur vide au mieux une sortie
 encore ouverte, puis ferme son handle exactement une fois.
 
+Depuis la révision 0.7.10, le handle invalidé est l'unique état ouvert/fermé
+des deux flux. L'opération de l'erreur reste celle qui a réellement échoué
+(« io.read », « io.write », « io.flush », « io.readLine » ou « io.close ») et
+le contexte du flux est conservé. Aucune signature publique n'a changé.
+
 `standardInput`, `standardOutput` et `standardError` créent des wrappers qui
 possèdent leurs buffers, mais pas les handles du processus. Fermer ou détruire
 un de ces wrappers ne ferme donc pas le descripteur standard sous-jacent.
@@ -79,3 +84,6 @@ fermeture, la fermeture répétée et le nettoyage d’un répertoire temporaire
 unique. Le test natif valide les handles et le flush sous Linux, macOS et
 Windows. Les exécutables de compatibilité tournent sous ASan sur les runners
 compatibles.
+
+Le [benchmark des services 0.7.10](../benchmarks/stdlib-services-0.7.10.md)
+verrouille le coût de la refonte avec AddressSanitizer.

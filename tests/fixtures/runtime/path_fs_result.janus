@@ -22,7 +22,9 @@ result : Result[FileData, SystemError]
         Ok(data) => rejectFileData(move data),
         Error(error) =>
         error.operation == "file.read" &&
-        error.category == SystemErrorCategory.NotFound
+        error.category == SystemErrorCategory.NotFound &&
+        error.nativeCode > uint(0) &&
+        error.context == "janus-fs-definitely-missing.file"
     }
 }
 
@@ -138,8 +140,10 @@ iterator : DirectoryIterator
     val secondRejected : bool = match iterator.close() {
         Ok(value) => false,
         Error(error) =>
+        error.operation == "directory.close" &&
         error.category == SystemErrorCategory.InvalidInput &&
-        error.nativeCode == uint(0)
+        error.nativeCode == uint(0) &&
+        stringLength(error.context) > usize(0)
     }
     delete iterator
     return found && ended && closed && secondRejected

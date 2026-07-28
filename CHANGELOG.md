@@ -5,6 +5,20 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [0.7.10] - Non publiée
 
+### Système, texte, flux et ressources
+
+- unification de l'état ouvert/fermé de `SystemFile`, `DirectoryIterator`,
+  `InputStream` et `OutputStream` autour du handle natif, sans booléen
+  redondant et avec fermeture exactement une fois ;
+- conservation systématique de l'opération, de la catégorie, du code natif et
+  du contexte dans les erreurs de fichiers, flux et processus, y compris après
+  fermeture ;
+- factorisation des erreurs d'allocation de processus et des conversions
+  vérifiées de durées, sans modification de la surface publique ;
+- renforcement des fixtures ASan/UBSan pour les erreurs natives, fermetures
+  répétées, entrées/sorties partielles et chemins Unicode, avec benchmark
+  versionné des services de la bibliothèque standard.
+
 ### Collections hachées et dérivations
 
 - sondage des doublons et remplacements avant toute croissance afin d'éviter
