@@ -14,6 +14,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
   fois ;
 - isolation des appels POSIX et Windows dans le runtime et couverture de leur
   contrat dans la matrice CI Linux, macOS et Windows.
+- ajout de `std.path` avec chemins UTF-8 propriétaires, jointure,
+  normalisation lexicale et composants selon les séparateurs natifs ;
+- ajout de `std.fs` avec lecture propriétaire, écriture atomique, répertoires
+  temporaires, parcours, suppression et métadonnées sans suivi du dernier
+  lien.
 
 ## [0.6.3] - Non publiée
 

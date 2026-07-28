@@ -187,7 +187,8 @@ publiques documentées de :
 
 - `std.array`, `std.array_builder`, `std.iterator`, `std.option` et
   `std.result` ;
-- `std.hashing`, `std.hashset`, `std.hashmap`, `std.system` et `std.builder` ;
+- `std.hashing`, `std.hashset`, `std.hashmap`, `std.path`, `std.fs`,
+  `std.system` et `std.builder` ;
 - `std.math`, `std.text`, `std.time`, `std.wall_time` et `std.random` ;
 - `std.c` pour les primitives C documentées.
 

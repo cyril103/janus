@@ -30,13 +30,13 @@ enum {
 static _Thread_local uint32_t janus_system_native_error;
 static _Thread_local int32_t janus_system_portable_error = JANUS_SYSTEM_OTHER;
 
-static void janus_system_clear_error(void) {
+void janus_system_clear_error(void) {
   janus_system_native_error = 0;
   janus_system_portable_error = JANUS_SYSTEM_OTHER;
 }
 
-static void janus_system_set_error(uint32_t native_code,
-                                   int32_t portable_category) {
+void janus_system_set_error(uint32_t native_code,
+                            int32_t portable_category) {
   janus_system_native_error = native_code;
   janus_system_portable_error = portable_category;
 }
@@ -47,7 +47,7 @@ int32_t janus_system_error_category(void) {
   return janus_system_portable_error;
 }
 
-static int janus_system_valid_utf8(const unsigned char *data, uint64_t size) {
+int janus_system_valid_utf8(const unsigned char *data, uint64_t size) {
   uint64_t index = 0;
   while (index < size) {
     const unsigned char first = data[index++];
@@ -126,13 +126,13 @@ static int32_t janus_system_windows_category(DWORD code) {
   }
 }
 
-static void janus_system_capture_windows_error(void) {
+void janus_system_capture_windows_error(void) {
   const DWORD code = GetLastError();
   janus_system_set_error((uint32_t)code,
                          janus_system_windows_category(code));
 }
 
-static wchar_t *janus_system_windows_path(const char *path, uint64_t length) {
+wchar_t *janus_system_windows_path(const char *path, uint64_t length) {
   if (path == NULL || length == 0 || length > INT_MAX ||
       !janus_system_valid_utf8((const unsigned char *)path, length)) {
     janus_system_set_error(ERROR_INVALID_NAME, JANUS_SYSTEM_INVALID_INPUT);
@@ -295,12 +295,12 @@ static int32_t janus_system_posix_category(int code) {
   }
 }
 
-static void janus_system_capture_posix_error(void) {
+void janus_system_capture_posix_error(void) {
   const int code = errno;
   janus_system_set_error((uint32_t)code, janus_system_posix_category(code));
 }
 
-static char *janus_system_posix_path(const char *path, uint64_t length) {
+char *janus_system_posix_path(const char *path, uint64_t length) {
   if (path == NULL || length == 0 || length > SIZE_MAX - 1 ||
       !janus_system_valid_utf8((const unsigned char *)path, length)) {
     janus_system_set_error((uint32_t)EINVAL, JANUS_SYSTEM_INVALID_INPUT);
