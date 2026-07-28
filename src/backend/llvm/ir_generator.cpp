@@ -191,6 +191,15 @@ private:
     const Substitutions *substitutions;
   };
 
+  static ::llvm::AllocaInst *
+  create_entry_alloca(::llvm::IRBuilder<> &builder, ::llvm::Type *type,
+                      const ::llvm::Twine &name) {
+    ::llvm::Function *function = builder.GetInsertBlock()->getParent();
+    ::llvm::IRBuilder<> entry_builder{&function->getEntryBlock(),
+                                      function->getEntryBlock().begin()};
+    return entry_builder.CreateAlloca(type, nullptr, name);
+  }
+
   const janus::Type &resolve(const janus::ast::TypeReference &reference,
                              const Substitutions &substitutions) {
     if (const janus::Type *type = builtin_type(reference.name))
@@ -1041,7 +1050,7 @@ private:
       this_argument.setName("this");
       const janus::Type &owner_type = class_types_.at(std::string{owner_key});
       ::llvm::Value *this_storage =
-          builder.CreateAlloca(builder.getPtrTy(), nullptr, "this.addr");
+          create_entry_alloca(builder, builder.getPtrTy(), "this.addr");
       builder.CreateStore(&this_argument, this_storage);
       locals.emplace("this", Local{this_storage, &owner_type});
 
@@ -1075,8 +1084,9 @@ private:
       const auto &parameter = function.parameters[parameter_index++];
       const janus::Type &type = resolve(parameter.type, substitutions);
       argument.setName(parameter.name);
-      ::llvm::Value *storage = builder.CreateAlloca(lower_type(type, context_),
-                                                    nullptr, parameter.name);
+      ::llvm::Value *storage =
+          create_entry_alloca(builder, lower_type(type, context_),
+                              parameter.name);
       builder.CreateStore(&argument, storage);
       locals.emplace(parameter.name, Local{storage, &type});
     }
@@ -1251,8 +1261,9 @@ private:
           ::llvm::Value *item = builder.CreateExtractValue(
               next, enum_case_payload_start(option_type.name(), "Some"),
               (*loop)->binding + ".item");
-          ::llvm::Value *storage = builder.CreateAlloca(
-              lower_type(element_type, context_), nullptr, (*loop)->binding);
+          ::llvm::Value *storage =
+              create_entry_alloca(builder, lower_type(element_type, context_),
+                                  (*loop)->binding);
           builder.CreateStore(item, storage);
           auto body_locals = block_locals;
           body_locals.insert_or_assign((*loop)->binding,
@@ -1274,8 +1285,9 @@ private:
                 std::get_if<janus::ast::ValueDeclaration>(&statement)) {
           const janus::Type &type =
               resolve(declaration->declared_type, substitutions);
-          ::llvm::Value *storage = builder.CreateAlloca(
-              lower_type(type, context_), nullptr, declaration->name);
+          ::llvm::Value *storage =
+              create_entry_alloca(builder, lower_type(type, context_),
+                                  declaration->name);
           if (declaration->initializer.has_value()) {
             ::llvm::Value *initializer =
                 emit_expression(*declaration->initializer, type, substitutions,
@@ -1606,9 +1618,9 @@ private:
       ::llvm::Argument &parameter = *argument++;
       parameter.setName(lambda.parameters[index].name);
       const janus::Type *parameter_type = signature.parameters[index];
-      ::llvm::Value *storage =
-          lambda_builder.CreateAlloca(lower_type(*parameter_type, context_),
-                                      nullptr, lambda.parameters[index].name);
+      ::llvm::Value *storage = create_entry_alloca(
+          lambda_builder, lower_type(*parameter_type, context_),
+          lambda.parameters[index].name);
       lambda_builder.CreateStore(&parameter, storage);
       lambda_locals.emplace(lambda.parameters[index].name,
                             Local{storage, parameter_type});
@@ -2945,8 +2957,8 @@ private:
                   class_declaration.constructor_parameters[index];
               const janus::Type &parameter_type =
                   resolve(parameter.type, specialization.substitutions);
-              ::llvm::Value *storage = builder.CreateAlloca(
-                  lower_type(parameter_type, context_), nullptr,
+              ::llvm::Value *storage = create_entry_alloca(
+                  builder, lower_type(parameter_type, context_),
                   parameter.name + ".constructor");
               builder.CreateStore(emit_expression(*node.arguments[index],
                                                   parameter_type, substitutions,
@@ -3032,9 +3044,9 @@ private:
               ::llvm::Value *object_value = emit_expression(
                   *node.object, object_type, substitutions, locals, builder);
               if (object_type.kind() == janus::TypeKind::Struct) {
-                object_pointer =
-                    builder.CreateAlloca(lower_type(object_type, context_),
-                                         nullptr, node.member + ".temporary");
+                object_pointer = create_entry_alloca(
+                    builder, lower_type(object_type, context_),
+                    node.member + ".temporary");
                 builder.CreateStore(object_value, object_pointer);
               } else {
                 object_pointer = object_value;
@@ -3123,9 +3135,9 @@ private:
               object_value = emit_expression(*node.object, object_type,
                                              substitutions, locals, builder);
               if (object_type.kind() == janus::TypeKind::Struct) {
-                ::llvm::Value *storage =
-                    builder.CreateAlloca(lower_type(object_type, context_),
-                                         nullptr, node.method + ".temporary");
+                ::llvm::Value *storage = create_entry_alloca(
+                    builder, lower_type(object_type, context_),
+                    node.method + ".temporary");
                 builder.CreateStore(object_value, storage);
                 object_value = storage;
               }
@@ -3260,9 +3272,9 @@ private:
                             specialization.substitutions);
                 ::llvm::Value *payload = builder.CreateExtractValue(
                     scrutinee, field++, arm.bindings[index] + ".payload");
-                ::llvm::Value *storage =
-                    builder.CreateAlloca(lower_type(payload_type, context_),
-                                         nullptr, arm.bindings[index]);
+                ::llvm::Value *storage = create_entry_alloca(
+                    builder, lower_type(payload_type, context_),
+                    arm.bindings[index]);
                 builder.CreateStore(payload, storage);
                 arm_locals.insert_or_assign(arm.bindings[index],
                                             Local{storage, &payload_type});

@@ -3,6 +3,7 @@
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
 
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -60,6 +61,25 @@ void expect_location(const janus::CompileError &error, std::uint32_t line,
                      std::uint32_t column, std::string_view message) {
   expect(error.location().line == line && error.location().column == column,
          message);
+}
+
+void expect_allocas_in_entry_block(const llvm::Module &module) {
+  bool found_alloca = false;
+  for (const llvm::Function &function : module) {
+    if (function.empty())
+      continue;
+    for (const llvm::BasicBlock &block : function) {
+      for (const llvm::Instruction &instruction : block) {
+        if (!llvm::isa<llvm::AllocaInst>(instruction))
+          continue;
+        found_alloca = true;
+        expect(&block == &function.getEntryBlock(),
+               "fixed-size stack allocations stay in the function entry "
+               "block");
+      }
+    }
+  }
+  expect(found_alloca, "the stack-allocation regression source uses allocas");
 }
 
 } // namespace
@@ -172,6 +192,52 @@ def main() : int { return classify(5) }
          "if/else creates distinct LLVM blocks");
   expect(ir.find("br i1") != std::string::npos,
          "conditions generate conditional branches");
+
+  constexpr std::string_view loop_allocation_source = R"(
+enum Option {
+    Some(int),
+    None
+}
+
+class Box(seed : int) {
+    val stored : int = seed
+}
+
+struct Point(val x : int) {
+    def value() : int {
+        return x
+    }
+}
+
+def main() : int {
+    var index : int = 0
+    while index < 2 {
+        val immutable : int = index
+        var mutable : int = immutable
+        val option : Option = Option.Some(mutable)
+        val payload : int = match option {
+            Some(value) => value,
+            None => 0
+        }
+        val pointValue : int = new Point(payload).value()
+        val box : Box = new Box(pointValue)
+        delete box
+        index = index + 1
+    }
+    return index
+}
+)";
+  janus::frontend::Parser loop_allocation_parser{loop_allocation_source};
+  const janus::ast::Program loop_allocation_program =
+      loop_allocation_parser.parse_program();
+  static_cast<void>(analyzer.analyze(loop_allocation_program));
+  llvm::LLVMContext loop_allocation_context;
+  janus::backend::llvm::IrGenerator loop_allocation_generator{
+      loop_allocation_context};
+  const std::unique_ptr<llvm::Module> loop_allocation_module =
+      loop_allocation_generator.generate(loop_allocation_program,
+                                         "loop_allocations");
+  expect_allocas_in_entry_block(*loop_allocation_module);
 
   llvm::LLVMContext else_if_context;
   janus::backend::llvm::IrGenerator else_if_generator{else_if_context};

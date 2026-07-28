@@ -3,6 +3,16 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.7.4-hotfix.1] - 2026-07-28
+
+### Backend LLVM
+
+- allocation unique dans le bloc d’entrée des variables locales et temporaires
+  de taille fixe, afin que les boucles `while` et `for` conservent une
+  consommation de pile bornée quel que soit leur nombre d’itérations ;
+- couverture des déclarations `val`/`var`, bindings d’itérateur et de `match`,
+  temporaires de structs et paramètres transitoires de constructeurs.
+
 ## [0.7.4] - 2026-07-28
 
 Cette version cumulative rassemble les gates validées depuis 0.6.0, qui
@@ -392,6 +402,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.7.4-hotfix.1]: https://github.com/cyril103/janus/compare/v0.7.4...v0.7.4-hotfix.1
 [0.7.4]: https://github.com/cyril103/janus/releases/tag/v0.7.4
 [0.6.0]: https://github.com/cyril103/janus/releases/tag/v0.6.0
 [0.5.0]: https://github.com/cyril103/janus/releases/tag/v0.5.0

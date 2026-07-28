@@ -4,6 +4,7 @@
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
 
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -21,6 +22,19 @@ void expect(bool condition, std::string_view message) {
   if (!condition) {
     std::cerr << "FAILED: " << message << '\n';
     ++failures;
+  }
+}
+
+void expect_allocas_in_entry_blocks(const llvm::Module &module) {
+  for (const llvm::Function &function : module) {
+    if (function.empty())
+      continue;
+    for (const llvm::BasicBlock &block : function)
+      for (const llvm::Instruction &instruction : block)
+        if (llvm::isa<llvm::AllocaInst>(instruction))
+          expect(&block == &function.getEntryBlock(),
+                 "stdlib loop stack allocations stay in function entry "
+                 "blocks");
   }
 }
 
@@ -224,6 +238,7 @@ int main() {
   expect(ir.find("define i32 @main(i32 %argc, ptr %argv)") !=
              std::string::npos,
          "the merged program produces its entry point");
+  expect_allocas_in_entry_blocks(*module);
 
   const janus::ast::Program algebraic_program =
       loader.load(std::filesystem::path{JANUS_OPTION_RESULT_EXAMPLE});
