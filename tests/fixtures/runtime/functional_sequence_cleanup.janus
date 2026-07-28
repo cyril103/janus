@@ -1,0 +1,85 @@
+import std.array
+import std.array_builder
+import std.option
+import std.result
+
+def optionShortCircuit(offset : int) : bool {
+    val result : Option[int] = std.option.map[int, int](
+    Option.None[int](),
+    (value : int) => value + offset
+    )
+    return std.option.isNone[int](result)
+}
+
+def resultShortCircuit(offset : int) : bool {
+    val result : Result[int, int] =
+    std.result.andThen[int, int, int](
+    Result.Error[int, int](7),
+    (value : int) => Result.Ok[int, int](value + offset)
+    )
+    return std.result.isError[int, int](result)
+}
+
+def exerciseArrayCallbacks() : Unit {
+    val values : Array[int] = new Array[int](usize(3))
+    defer delete values
+    values.push(1)
+    values.push(2)
+    values.push(3)
+
+    values.withValue(
+    usize(0),
+    (value : int) => println(value + 10)
+    )
+    values.foreach((value : int) => println(value + 10))
+
+    val mapped : Array[int] =
+    values.map[int]((value : int) => value + 10)
+    defer delete mapped
+    val filtered : Array[int] =
+    values.filter((value : int) => value + 10 > 11)
+    defer delete filtered
+    val found : Option[int] =
+    values.find((value : int) => value + 10 == 12)
+    val total : int = values.fold[int](
+    10,
+    (sum : int, value : int) => sum + value
+    )
+
+    println(mapped.get(usize(2)))
+    println(filtered.size())
+    println(match found {
+        Some(value) => value,
+        None => 0
+    })
+    println(total)
+    println(values.any((value : int) => value + 10 == 13))
+    println(values.all((value : int) => value + 10 > 10))
+    println(values.count((value : int) => value + 10 >= 12))
+}
+
+def exerciseBuilderAndIterator() : Unit {
+    val source : Array[int] = new Array[int](usize(3))
+    defer delete source
+    source.push(1)
+    source.push(2)
+    source.push(3)
+
+    val builder : ArrayBuilder[int] =
+    new ArrayBuilder[int](usize(3))
+    defer delete builder
+    builder.addAll[Array[int]](source)
+    val completed : Array[int] = builder.result()
+    println(completed.intoIterator().fold[int](
+        10,
+        (sum : int, value : int) => sum + value
+    ))
+}
+
+def main() : int {
+    println(optionShortCircuit(10))
+    println(resultShortCircuit(10))
+    exerciseArrayCallbacks()
+    exerciseBuilderAndIterator()
+    return 0
+}

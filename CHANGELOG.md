@@ -3,6 +3,19 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.7.10] - Non publiée
+
+### Cœur fonctionnel et séquences
+
+- passage de `Array.intoIterator()` à un parcours linéaire qui transfère les
+  éléments dans l'ordre et détruit exactement une fois la partie non visitée ;
+- remplacement des récursions de rejet de `Iterator.filter` et de saut des
+  sous-itérateurs vides de `flatMap` par des boucles à pile bornée ;
+- conservation du contrat d'emprunt des callbacks synchrones et du nettoyage
+  propriétaire des closures stockées par les adaptateurs d'itérateur ;
+- ajout de stress tests ASan/UBSan pour valeurs `Copy` et propriétaires, et
+  d'un benchmark versionné de pipeline.
+
 ## [0.7.3] - Non publiée
 
 ### Doctests
