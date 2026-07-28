@@ -16,15 +16,15 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "3a72180fcfc0a3cceccf1e7dcdd9176b2e7f55b1430c24517ec9da81aeb865ea",
-      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.get", "Array.getOption", "Array.set", "Array.replace", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count"]
+      "signature_digest": "b00abce019fbc7606836238035eeaa08b9537b272f9379c8d9171a995d4043cf",
+      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getOption", "Array.set", "Array.replace", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.withValue", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count"]
     },
     {
       "name": "std.array_builder",
       "source": "stdlib/std/array_builder.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "5af0fcd4e0dcc0da52042c4be690e7d6538657a7a68834864b70078618615cbf",
+      "signature_digest": "6973814411f5d00345cecf8c76475d935911a4ffa51a633f9895691a6b336018",
       "symbols": ["ArrayBuilder", "ArrayBuilder.add", "ArrayBuilder.addAll", "ArrayBuilder.size", "ArrayBuilder.clear", "ArrayBuilder.result", "collectArray"]
     },
     {
@@ -113,24 +113,24 @@
       "source": "stdlib/std/hashmap.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "09f8b5869df3c827bdd82322b339e6cfe017be3beaabe035674654a8dedd006c",
-      "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "HashMap", "HashMap.size", "HashMap.isEmpty", "HashMap.containsKey", "HashMap.getOption", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.entries", "HashMap.keys", "HashMap.values", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
+      "signature_digest": "0d62db523e945079a1fcb3dac2ff5e539d38aa954414855083c5fee66bed8dcb",
+      "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "MapEntry.intoKey", "MapEntry.intoValue", "HashMap", "HashMap.size", "HashMap.isEmpty", "HashMap.containsKey", "HashMap.getOption", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.entries", "HashMap.keys", "HashMap.values", "HashMap.intoEntries", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
     },
     {
       "name": "std.hashset",
       "source": "stdlib/std/hashset.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "4181cffea6e4ebc459eeb1622d50517d1e61cb0c0c1cda41afa17db56987926c",
-      "symbols": ["HashSet", "HashSet.size", "HashSet.isEmpty", "HashSet.contains", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.iterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
+      "signature_digest": "c2bef8f2079e79bbfa8c79b7a3a664d43b669862504010d18c4860b011ca6a68",
+      "symbols": ["HashSet", "HashSet.size", "HashSet.isEmpty", "HashSet.contains", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
     },
     {
       "name": "std.iterator",
       "source": "stdlib/std/iterator.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "f3d84db91fef86be99e793945fcd10c57319a83b4b3d38e441a1d1f530dfe635",
-      "symbols": ["Iterable", "Iterable.iterator", "ZipItem", "ZipItem.left", "ZipItem.right", "Indexed", "Indexed.index", "Indexed.value", "Iterator", "Iterator.next", "Iterator.map", "Iterator.filter", "Iterator.take", "Iterator.zip", "Iterator.enumerate", "Iterator.flatMap", "Iterator.collectWith"]
+      "signature_digest": "4b2665a86297526c4f97200cc99afa2f425ce60abbeea7d72811b4d1f78b5528",
+      "symbols": ["Iterable", "Iterable.iterator", "ZipItem", "ZipItem.left", "ZipItem.right", "Indexed", "Indexed.index", "Indexed.value", "Iterator", "Iterator.next", "Iterator.map", "Iterator.filter", "Iterator.take", "Iterator.zip", "Iterator.enumerate", "Iterator.flatMap", "Iterator.collectWith", "Iterator.fold"]
     },
     {
       "name": "std.math",

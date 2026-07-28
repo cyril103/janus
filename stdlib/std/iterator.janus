@@ -6,18 +6,18 @@ trait Iterable[T <: Copy] {
     def iterator() : Iterator[T]
 }
 
-struct ZipItem[A <: Copy, B <: Copy](val left : A, val right : B) {}
+struct ZipItem[A, B](val left : A, val right : B) {}
 
-struct Indexed[T <: Copy](val index : usize, val value : T) {}
+struct Indexed[T](val index : usize, val value : T) {}
 
-private class MapIteratorState[A <: Copy, B <: Copy](
+private class MapIteratorState[A, B](
 private val source : Iterator[A],
 private val transform : (A) => B
 ) {
     def next() : Option[B] {
         val value : Option[A] = source.next()
-        return match value {
-            Some(item) => Option.Some[B](transform(item)),
+        return match move value {
+            Some(item) => Option.Some[B](transform(move item)),
             None => Option.None[B]()
         }
     }
@@ -32,20 +32,24 @@ private val transform : (A) => B
     }
 }
 
-private class FilterIteratorState[T <: Copy](
+private class FilterIteratorState[T](
 private val source : Iterator[T],
 private val predicate : (T) => bool
 ) {
     def next() : Option[T] {
         val value : Option[T] = source.next()
-        return match value {
-            Some(item) => if predicate(item) {
-                Option.Some[T](item)
-            } else {
-                this.next()
-            },
+        return match move value {
+            Some(item) => this.select(move item),
             None => Option.None[T]()
         }
+    }
+
+    private def select(item : T) : Option[T] {
+        if predicate(item) {
+            return Option.Some[T](move item)
+        }
+        delete item
+        return this.next()
     }
 
     def dispose() : Unit {
@@ -58,7 +62,7 @@ private val predicate : (T) => bool
     }
 }
 
-private class TakeIteratorState[T <: Copy](
+private class TakeIteratorState[T](
 private val source : Iterator[T],
 private var remaining : usize
 ) {
@@ -79,25 +83,30 @@ private var remaining : usize
     }
 }
 
-private class ZipIteratorState[A <: Copy, B <: Copy](
+private class ZipIteratorState[A, B](
 private val left : Iterator[A],
 private val right : Iterator[B]
 ) {
     private def combine(leftValue : A) : Option[ZipItem[A, B]] {
         val rightValue : Option[B] = right.next()
-        return match rightValue {
+        return match move rightValue {
             Some(value) =>
             Option.Some[ZipItem[A, B]](
-            new ZipItem[A, B](leftValue, value)
+            new ZipItem[A, B](leftValue, move value)
             ),
-            None => Option.None[ZipItem[A, B]]()
+            None => this.releaseUnpaired(leftValue)
         }
+    }
+
+    private def releaseUnpaired(leftValue : A) : Option[ZipItem[A, B]] {
+        delete leftValue
+        return Option.None[ZipItem[A, B]]()
     }
 
     def next() : Option[ZipItem[A, B]] {
         val leftValue : Option[A] = left.next()
-        return match leftValue {
-            Some(value) => this.combine(value),
+        return match move leftValue {
+            Some(value) => this.combine(move value),
             None => Option.None[ZipItem[A, B]]()
         }
     }
@@ -112,7 +121,7 @@ private val right : Iterator[B]
     }
 }
 
-private class EnumerateIteratorState[T <: Copy](
+private class EnumerateIteratorState[T](
 private val source : Iterator[T],
 private var index : usize
 ) {
@@ -120,14 +129,14 @@ private var index : usize
         val current : usize = index
         index = index + usize(1)
         return Option.Some[Indexed[T]](
-        new Indexed[T](current, value)
+        new Indexed[T](current, move value)
         )
     }
 
     def next() : Option[Indexed[T]] {
         val value : Option[T] = source.next()
-        return match value {
-            Some(item) => this.attachIndex(item),
+        return match move value {
+            Some(item) => this.attachIndex(move item),
             None => Option.None[Indexed[T]]()
         }
     }
@@ -141,7 +150,7 @@ private var index : usize
     }
 }
 
-private class FlatMapIteratorState[A <: Copy, B <: Copy](
+private class FlatMapIteratorState[A, B](
 private val source : Iterator[A],
 private val transform : (A) => Iterator[B],
 private var current : Iterator[B]
@@ -169,8 +178,8 @@ private var current : Iterator[B]
         }
 
         val outer : Option[A] = source.next()
-        return match outer {
-            Some(item) => this.start(transform(item)),
+        return match move outer {
+            Some(item) => this.start(transform(move item)),
             None => Option.None[B]()
         }
     }
@@ -188,7 +197,7 @@ private var current : Iterator[B]
     }
 }
 
-class Iterator[T <: Copy](
+class Iterator[T](
 private val advance : () => Option[T],
 private val release : () => Unit
 ) {
@@ -196,7 +205,7 @@ private val release : () => Unit
         return advance()
     }
 
-    consume def map[U <: Copy](transform : (T) => U) : Iterator[U] {
+    consume def map[U](transform : (T) => U) : Iterator[U] {
         val state : MapIteratorState[T, U] =
         new MapIteratorState[T, U](move this, move transform)
         return new Iterator[U](
@@ -223,7 +232,7 @@ private val release : () => Unit
         )
     }
 
-    consume def zip[U <: Copy](
+    consume def zip[U](
     other : Iterator[U]
     ) : Iterator[ZipItem[T, U]] {
         val state : ZipIteratorState[T, U] =
@@ -243,7 +252,7 @@ private val release : () => Unit
         )
     }
 
-    consume def flatMap[U <: Copy](
+    consume def flatMap[U](
     transform : (T) => Iterator[U]
     ) : Iterator[U] {
         val state : FlatMapIteratorState[T, U] =
@@ -260,9 +269,17 @@ private val release : () => Unit
 
     consume def collectWith[C, B <: Builder[T, C]](builder : B) : C {
         for value in move this {
-            builder.add(value)
+            builder.add(move value)
         }
         return builder.result()
+    }
+
+    consume def fold[U](initial : U, combine : (U, T) => U) : U {
+        var accumulator : U = initial
+        for value in move this {
+            accumulator = combine(accumulator, move value)
+        }
+        return accumulator
     }
 
     destructor {

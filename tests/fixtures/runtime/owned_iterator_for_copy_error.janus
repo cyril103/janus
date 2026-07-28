@@ -1,0 +1,13 @@
+import std.array
+
+class Resource() {}
+
+def main() : int {
+    val values : Array[Resource] = new Array[Resource](usize(1))
+    val value : Resource = new Resource()
+    values.push(move value)
+    for item in values {
+        delete item
+    }
+    return 0
+}

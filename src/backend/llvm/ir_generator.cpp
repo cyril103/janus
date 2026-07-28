@@ -179,6 +179,8 @@ private:
 
   struct CleanupScope {
     const std::vector<const janus::ast::DeferStatement *> *actions;
+    const std::vector<std::pair<::llvm::Value *, const janus::Type *>>
+        *owned_values;
     std::unordered_map<std::string, Local> *locals;
     const Substitutions *substitutions;
   };
@@ -938,6 +940,9 @@ private:
            action != scope.actions->rend(); ++action)
         emit_cleanup_action(**action, *scope.substitutions, *scope.locals,
                             builder);
+      for (auto value = scope.owned_values->rbegin();
+           value != scope.owned_values->rend(); ++value)
+        emit_owned_value_cleanup(value->first, *value->second, builder);
     }
   }
 
@@ -1087,8 +1092,9 @@ private:
     emit_block = [&](const std::vector<janus::ast::Statement> &statements,
                      std::unordered_map<std::string, Local> &block_locals) {
       std::vector<const janus::ast::DeferStatement *> deferred_actions;
-      active_cleanup_scopes_.push_back(
-          CleanupScope{&deferred_actions, &block_locals, &substitutions});
+      std::vector<std::pair<::llvm::Value *, const janus::Type *>> owned_values;
+      active_cleanup_scopes_.push_back(CleanupScope{
+          &deferred_actions, &owned_values, &block_locals, &substitutions});
       for (const janus::ast::Statement &statement : statements) {
         if (const auto *conditional =
                 std::get_if<std::shared_ptr<janus::ast::IfStatement>>(
@@ -1213,6 +1219,13 @@ private:
           const janus::Type &element_type =
               resolve(some_case->payload_types.front(),
                       option_specialization.substitutions);
+          std::vector<const janus::ast::DeferStatement *>
+              iterator_deferred_actions;
+          std::vector<std::pair<::llvm::Value *, const janus::Type *>>
+              iterator_owned_values{{iterator, iterator_type}};
+          active_cleanup_scopes_.push_back(
+              CleanupScope{&iterator_deferred_actions, &iterator_owned_values,
+                           &block_locals, &substitutions});
 
           ::llvm::Function *current_function =
               builder.GetInsertBlock()->getParent();
@@ -1250,13 +1263,9 @@ private:
           if (!body_returns)
             builder.CreateBr(condition_block);
 
+          active_cleanup_scopes_.pop_back();
           builder.SetInsertPoint(exit_block);
-          builder.CreateCall(
-              emit_destructor(std::string{iterator_type->name()}), {iterator});
-          ::llvm::FunctionCallee free_function = module_->getOrInsertFunction(
-              "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
-                                                {builder.getPtrTy()}, false));
-          builder.CreateCall(free_function, {iterator});
+          emit_owned_value_cleanup(iterator, *iterator_type, builder);
           continue;
         }
 

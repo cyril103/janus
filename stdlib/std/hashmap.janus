@@ -14,6 +14,16 @@ struct MapEntry[K, V](val key : K, val value : V) {
         destination.put(move key, move value)
         delete previous
     }
+
+    consume def intoKey() : K {
+        delete value
+        return move key
+    }
+
+    consume def intoValue() : V {
+        delete key
+        return move value
+    }
 }
 
 private enum MapSlot[K, V] {
@@ -87,6 +97,32 @@ private var index : usize
 
     def dispose() : Unit {
         delete this
+    }
+}
+
+private class MapEntryIntoIteratorState[K, V, H <: Hashing[K]](
+private val source : HashMap[K, V, H],
+private var index : usize
+) {
+    def next() : Option[MapEntry[K, V]] {
+        var result : Option[MapEntry[K, V]] =
+        Option.None[MapEntry[K, V]]()
+        while index < source.storageSize() && match result {
+            Some(entry) => false,
+            None => true
+        } {
+            result = source.takeEntryAt(index)
+            index = index + usize(1)
+        }
+        return result
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        delete source
     }
 }
 
@@ -233,6 +269,41 @@ private val hashing : H
     private def restoreDeletedValue(index : usize) : Option[V] {
         slots.set(index, MapSlot.Deleted[K, V]())
         return Option.None[V]()
+    }
+
+    private def finishTakeEntry(
+    key : K,
+    value : V
+    ) : Option[MapEntry[K, V]] {
+        length = length - usize(1)
+        deletedCount = deletedCount + usize(1)
+        return Option.Some[MapEntry[K, V]](
+        new MapEntry[K, V](move key, move value)
+        )
+    }
+
+    private def restoreEmptyEntryTake(
+    index : usize
+    ) : Option[MapEntry[K, V]] {
+        slots.set(index, MapSlot.Empty[K, V]())
+        return Option.None[MapEntry[K, V]]()
+    }
+
+    internal def takeEntryAt(
+    index : usize
+    ) : Option[MapEntry[K, V]] {
+        this.initializeSlots()
+        if index >= slotCapacity {
+            return Option.None[MapEntry[K, V]]()
+        }
+        val slot : MapSlot[K, V] =
+        slots.replace(index, MapSlot.Deleted[K, V]())
+        return match move slot {
+            Occupied(key, value) =>
+            this.finishTakeEntry(move key, move value),
+            Empty => this.restoreEmptyEntryTake(index),
+            Deleted => this.restoreDeletedEntry(index)
+        }
     }
 
     private def restoreValue(key : K, value : V) : bool {
@@ -517,6 +588,15 @@ private val hashing : H
         val state : MapValueIteratorState[K, V, H] =
         new MapValueIteratorState[K, V, H](this, usize(0))
         return new Iterator[V](
+        () => state.next(),
+        () => state.dispose()
+        )
+    }
+
+    consume def intoEntries() : Iterator[MapEntry[K, V]] {
+        val state : MapEntryIntoIteratorState[K, V, H] =
+        new MapEntryIntoIteratorState[K, V, H](move this, usize(0))
+        return new Iterator[MapEntry[K, V]](
         () => state.next(),
         () => state.dispose()
         )

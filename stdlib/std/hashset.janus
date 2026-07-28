@@ -33,6 +33,31 @@ private var index : usize
     }
 }
 
+private class HashSetIntoIteratorState[T, H <: Hashing[T]](
+private val source : HashSet[T, H],
+private var index : usize
+) {
+    def next() : Option[T] {
+        var result : Option[T] = Option.None[T]()
+        while index < source.storageSize() && match result {
+            Some(value) => false,
+            None => true
+        } {
+            result = source.takeValueAt(index)
+            index = index + usize(1)
+        }
+        return result
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        delete source
+    }
+}
+
 class HashSet[T, H <: Hashing[T]](
 initialCapacity : usize,
 private val hashing : H
@@ -179,6 +204,31 @@ private val hashing : H
         return Option.None[T]()
     }
 
+    private def finishTakeValue(value : T) : Option[T] {
+        length = length - usize(1)
+        deletedCount = deletedCount + usize(1)
+        return Option.Some[T](move value)
+    }
+
+    private def restoreEmptyTake(index : usize) : Option[T] {
+        slots.set(index, SetSlot.Empty[T]())
+        return Option.None[T]()
+    }
+
+    internal def takeValueAt(index : usize) : Option[T] {
+        this.initializeSlots()
+        if index >= slotCapacity {
+            return Option.None[T]()
+        }
+        val slot : SetSlot[T] =
+        slots.replace(index, SetSlot.Deleted[T]())
+        return match move slot {
+            Occupied(value) => this.finishTakeValue(move value),
+            Empty => this.restoreEmptyTake(index),
+            Deleted => this.restoreDeletedValue(index)
+        }
+    }
+
     def contains(value : T) : bool {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
@@ -281,6 +331,15 @@ private val hashing : H
     def iterator() : Iterator[T] {
         val state : HashSetIteratorState[T, H] =
         new HashSetIteratorState[T, H](this, usize(0))
+        return new Iterator[T](
+        () => state.next(),
+        () => state.dispose()
+        )
+    }
+
+    consume def intoIterator() : Iterator[T] {
+        val state : HashSetIntoIteratorState[T, H] =
+        new HashSetIntoIteratorState[T, H](move this, usize(0))
         return new Iterator[T](
         () => state.next(),
         () => state.dispose()
