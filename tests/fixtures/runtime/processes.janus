@@ -68,8 +68,11 @@ def childMain() : int {
     environmentVariable("JANUS_PROCESS_TEST"),
     "valeur-béta"
     )
-    val marker : bool = boolResult(
-    writeTextFileAtomic("child-marker.txt", "ok")
+    val marker : bool = writeMarkerResult(
+    openSystemFile(
+    "child-marker.txt",
+    SystemOpenMode.Write
+    )
     )
     val standardOutputResult : Result[OutputStream, SystemError] =
     standardOutput()
@@ -85,6 +88,28 @@ def childMain() : int {
     }
     return if argumentsValid && environmentValid && marker &&
     outputWritten && errorWritten { 23 } else { 24 }
+}
+
+def writeMarkerResult(
+result : Result[SystemFile, SystemError]
+) : bool {
+    return match move result {
+        Ok(file) => writeMarker(move file),
+        Error(error) => false
+    }
+}
+
+def writeMarker(file : SystemFile) : bool {
+    val written : bool = match file.write(
+    stringData("ok"),
+    usize(2)
+    ) {
+        Ok(count) => count == usize(2),
+        Error(error) => false
+    }
+    val closed : bool = boolResult(file.close())
+    delete file
+    return written && closed
 }
 
 def writeChildOutput(stream : OutputStream) : bool {
