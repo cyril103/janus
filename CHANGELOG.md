@@ -13,6 +13,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
   `copyStream`, qui gère les lectures et écritures partielles ;
 - décodage UTF-8 explicite des buffers binaires et exemples exécutés de copie
   de fichier et de traitement ligne par ligne.
+- ajout de `std.process` pour les arguments du programme, les variables
+  d’environnement et le lancement synchrone sans shell ;
+- ajout des codes de sortie, captures binaires stdout/stderr et répertoires de
+  travail, avec conservation des arguments contenant espaces ou Unicode.
 
 ## [0.7.0] - Non publiée
 

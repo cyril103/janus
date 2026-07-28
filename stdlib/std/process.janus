@@ -1,0 +1,198 @@
+module std.process
+
+import std.array
+import std.option
+import std.result
+import std.system
+
+private extern def janus_process_argument_count() : usize
+private extern def janus_process_argument_data(index : usize) : Ptr[byte]
+private extern def janus_process_argument_size(index : usize) : usize
+private extern def janus_process_environment(
+name : Ptr[byte],
+length : usize
+) : isize
+private extern def janus_process_text_data(text : isize) : Ptr[byte]
+private extern def janus_process_text_size(text : isize) : usize
+private extern def janus_process_text_destroy(text : isize) : Unit
+private extern def janus_process_run(
+executable : Ptr[byte],
+executableLength : usize,
+arguments : Ptr[Ptr[byte]],
+argumentLengths : Ptr[usize],
+argumentCount : usize,
+workingDirectory : Ptr[byte],
+workingDirectoryLength : usize,
+captureStdout : bool,
+captureStderr : bool
+) : isize
+private extern def janus_process_result_exit_code(result : isize) : int
+private extern def janus_process_result_stdout_data(
+result : isize
+) : Ptr[byte]
+private extern def janus_process_result_stdout_size(
+result : isize
+) : usize
+private extern def janus_process_result_stderr_data(
+result : isize
+) : Ptr[byte]
+private extern def janus_process_result_stderr_size(
+result : isize
+) : usize
+private extern def janus_process_result_destroy(result : isize) : Unit
+private extern def janus_process_last_error_code() : uint
+private extern def janus_process_last_error_category() : int
+
+private def processError(
+operation : string,
+context : string
+) : SystemError {
+    return new SystemError(
+    operation,
+    SystemErrorCategory(janus_process_last_error_category()),
+    janus_process_last_error_code(),
+    context
+    )
+}
+
+def programArgumentCount() : usize {
+    return janus_process_argument_count()
+}
+
+def programArgument(index : usize) : Option[string] {
+    val data : Ptr[byte] = janus_process_argument_data(index)
+    if data == null[byte]() {
+        return Option.None[string]()
+    }
+    return Option.Some[string](
+    stringView(data, janus_process_argument_size(index))
+    )
+}
+
+class EnvironmentValue(private var nativeText : isize) {
+    def view() : string {
+        return stringView(
+        janus_process_text_data(nativeText),
+        janus_process_text_size(nativeText)
+        )
+    }
+
+    def size() : usize {
+        return janus_process_text_size(nativeText)
+    }
+
+    destructor {
+        janus_process_text_destroy(nativeText)
+        nativeText = isize(0)
+    }
+}
+
+def environmentVariable(
+name : string
+) : Result[Option[EnvironmentValue], SystemError] {
+    val text : isize = janus_process_environment(
+    stringData(name),
+    stringLength(name)
+    )
+    if text < isize(0) {
+        return Result.Error[Option[EnvironmentValue], SystemError](
+        processError("process.environment", name)
+        )
+    }
+    if text == isize(0) {
+        return Result.Ok[Option[EnvironmentValue], SystemError](
+        Option.None[EnvironmentValue]()
+        )
+    }
+    return Result.Ok[Option[EnvironmentValue], SystemError](
+    Option.Some[EnvironmentValue](new EnvironmentValue(text))
+    )
+}
+
+class ProcessResult(private var nativeResult : isize) {
+    def exitCode() : int {
+        return janus_process_result_exit_code(nativeResult)
+    }
+
+    def stdoutData() : Ptr[byte] {
+        return janus_process_result_stdout_data(nativeResult)
+    }
+
+    def stdoutSize() : usize {
+        return janus_process_result_stdout_size(nativeResult)
+    }
+
+    def stderrData() : Ptr[byte] {
+        return janus_process_result_stderr_data(nativeResult)
+    }
+
+    def stderrSize() : usize {
+        return janus_process_result_stderr_size(nativeResult)
+    }
+
+    destructor {
+        janus_process_result_destroy(nativeResult)
+        nativeResult = isize(0)
+    }
+}
+
+def runProcess(
+executable : string,
+arguments : Array[string],
+workingDirectory : string,
+captureStdout : bool,
+captureStderr : bool
+) : Result[ProcessResult, SystemError] {
+    val count : usize = arguments.size()
+    val argumentData : Ptr[Ptr[byte]] =
+    alloc[Ptr[byte]](count)
+    if argumentData == null[Ptr[byte]]() && count != usize(0) {
+        return Result.Error[ProcessResult, SystemError](
+        new SystemError(
+        "process.run",
+        SystemErrorCategory.ResourceExhausted,
+        uint(0),
+        executable
+        )
+        )
+    }
+    defer free(argumentData)
+    val argumentLengths : Ptr[usize] = alloc[usize](count)
+    if argumentLengths == null[usize]() && count != usize(0) {
+        return Result.Error[ProcessResult, SystemError](
+        new SystemError(
+        "process.run",
+        SystemErrorCategory.ResourceExhausted,
+        uint(0),
+        executable
+        )
+        )
+    }
+    defer free(argumentLengths)
+    var index : usize = usize(0)
+    while index < count {
+        val argument : string = arguments.get(index)
+        argumentData.store(index, stringData(argument))
+        argumentLengths.store(index, stringLength(argument))
+        index = index + usize(1)
+    }
+    val result : isize = janus_process_run(
+    stringData(executable),
+    stringLength(executable),
+    argumentData,
+    argumentLengths,
+    count,
+    stringData(workingDirectory),
+    stringLength(workingDirectory),
+    captureStdout,
+    captureStderr
+    )
+    if result < isize(0) {
+        return Result.Error[ProcessResult, SystemError](
+        processError("process.run", executable)
+        )
+    }
+    return Result.Ok[ProcessResult, SystemError](
+    new ProcessResult(result)
+    )
+}

@@ -52,6 +52,7 @@ add_library(janus_runtime STATIC
     runtime/janus_fs.c
     runtime/janus_graphics.c
     runtime/janus_io.c
+    runtime/janus_process.c
     runtime/janus_runtime.c
     runtime/janus_system.c
     runtime/janus_time_random.c
@@ -407,6 +408,18 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME runtime.io_native COMMAND io_runtime_test)
+
+    add_executable(process_runtime_test
+        tests/runtime/process_runtime_test.c
+    )
+    target_link_libraries(process_runtime_test PRIVATE janus_runtime)
+    target_compile_options(process_runtime_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME runtime.process_native COMMAND process_runtime_test)
 
     add_library(fake_raylib SHARED tests/runtime/fake_raylib.c)
     target_compile_options(fake_raylib
@@ -897,6 +910,20 @@ if(BUILD_TESTING)
             "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/io_streams_runtime"
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/io_streams.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME compatibility.processes
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/processes.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/processes_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/processes.expected.txt"
+            "-DPROGRAM_ENVIRONMENT=JANUS_PROCESS_TEST=valeur-béta"
+            -DDISABLE_LEAK_SANITIZER=ON
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(

@@ -41,6 +41,7 @@ EXPECTED_MODULES = {
     "std.math",
     "std.option",
     "std.path",
+    "std.process",
     "std.random",
     "std.range",
     "std.result",

@@ -89,6 +89,12 @@ int main() {
          "LLVM stores the evaluated value 5 in x");
   expect(ir.find("ret i32 0") != std::string::npos,
          "LLVM returns the value from main");
+  expect(ir.find("define i32 @main(i32 %argc, ptr %argv)") !=
+             std::string::npos,
+         "the native entry point receives argc and argv");
+  expect(ir.find("call void @janus_process_initialize(i32 %argc, ptr %argv)") !=
+             std::string::npos,
+         "the entry point initializes program arguments");
 
   janus::frontend::Parser builtin_parser{R"(
 def main() : int {
