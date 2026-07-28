@@ -1,0 +1,36 @@
+import std.hashing
+import std.hashmap
+import std.hashset
+
+def main() : int {
+    val hashing : IntHashing = new IntHashing()
+    defer delete hashing
+    var checksum : int = 0
+    var round : int = 0
+    while round < 5000 {
+        val set : HashSet[int, IntHashing] =
+        new HashSet[int, IntHashing](usize(8), hashing)
+        var value : int = 0
+        while value < 5 {
+            set.add(value)
+            value = value + 1
+        }
+        set.add(2)
+        checksum = checksum + int(set.size())
+        delete set
+
+        val map : HashMap[int, int, IntHashing] =
+        new HashMap[int, int, IntHashing](usize(8), hashing)
+        value = 0
+        while value < 5 {
+            map.put(value, value)
+            value = value + 1
+        }
+        map.put(2, round)
+        checksum = checksum + int(map.size())
+        delete map
+        round = round + 1
+    }
+    println(checksum)
+    return 0
+}

@@ -30,8 +30,8 @@ length : usize,
 deletedCount : usize,
 capacity : usize
 ) : bool {
-    return (length + deletedCount + usize(1)) * usize(4) >=
-    capacity * usize(3)
+    val threshold : usize = capacity - capacity / usize(4)
+    return length + deletedCount + usize(1) >= threshold
 }
 
 def hashProbe(hash : usize, capacity : usize) : HashProbe {

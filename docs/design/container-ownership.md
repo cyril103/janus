@@ -248,3 +248,7 @@ réutilisé sans changement de surface publique.
 
 La mesure avant/après et sa commande de reproduction sont versionnées dans le
 [rapport de benchmark 0.7.10](../benchmarks/stdlib-core-0.7.10.md).
+
+Les invariants spécifiques aux clés, valeurs, tombstones et redimensionnements
+de `HashSet` et `HashMap` sont définis dans le
+[design des collections hachées](hash-collections.md).
