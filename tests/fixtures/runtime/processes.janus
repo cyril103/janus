@@ -182,16 +182,15 @@ root : string
 ) : bool {
     return match move result {
         Ok(process) => inspectChild(move process, root),
-        Error(error) => reportProcessStartFailure(error)
+        Error(error) => reportProcessStartFailure()
     }
 }
 
-def reportProcessStartFailure(error : SystemError) : bool {
+def reportProcessStartFailure() : bool {
     println(false)
     println(false)
     println(false)
     println(false)
-    println(error.nativeCode)
     return false
 }
 

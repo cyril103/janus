@@ -803,7 +803,7 @@ intptr_t janus_process_run(const char *executable, uint64_t executable_length,
     startup.hStdError = capture_stderr ? error_write : inherited_error;
   }
   PROCESS_INFORMATION process = {0};
-  if (!CreateProcessW(program, (wchar_t *)command.data, NULL, NULL, TRUE, 0,
+  if (!CreateProcessW(NULL, (wchar_t *)command.data, NULL, NULL, TRUE, 0,
                       NULL, directory, &startup, &process)) {
     janus_system_capture_windows_error();
     goto windows_inherited_handles;
