@@ -124,7 +124,7 @@ class SiteStructureTests(unittest.TestCase):
 
     def test_public_content_states_version_and_experimental_status(self):
         home = (WEBSITE / "docs" / "index.md").read_text(encoding="utf-8")
-        self.assertIn("0.6.0", home)
+        self.assertIn("0.7.4", home)
         self.assertRegex(home.lower(), r"expérimental")
         self.assertNotIn("0.6.1", home)
 
@@ -277,16 +277,16 @@ class ReferenceSyncTests(unittest.TestCase):
             module.sync(REPOSITORY, destination)
             language = (destination / "language-guide.md").read_text(encoding="utf-8")
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.6.0/stdlib/std",
+                "https://github.com/cyril103/janus/tree/v0.7.4/stdlib/std",
                 language,
             )
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.6.0/examples",
+                "https://github.com/cyril103/janus/tree/v0.7.4/examples",
                 language,
             )
             graphics = (destination / "graphics.md").read_text(encoding="utf-8")
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.6.0/examples/snake",
+                "https://github.com/cyril103/janus/tree/v0.7.4/examples/snake",
                 graphics,
             )
             local_links = re.findall(r"\[[^]]+\]\((?!https?://|#|mailto:)([^)]+)\)", language)

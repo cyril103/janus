@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "audit_stdlib.py"
-REPORT = ROOT / "docs" / "audits" / "stdlib-0.7.10.md"
+REPORT = ROOT / "docs" / "audits" / "stdlib-0.7.4.md"
 PUBLIC_SURFACE = ROOT / "docs" / "public-surface-0.5.json"
 STDLIB_REFERENCE = ROOT / "docs" / "stdlib-reference.md"
 

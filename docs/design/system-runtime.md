@@ -61,7 +61,7 @@ existante en lecture, création/troncature en écriture et création/ajout en
 écriture. `removeSystemFile` ne supprime que des fichiers ; la gestion des
 répertoires et liens appartient à std.fs.
 
-### Révision 0.7.10
+### Révision 0.7.4
 
 Le handle natif est désormais l'unique état de disponibilité : toute valeur
 négative signifie « fermé ». Il n'existe plus de booléen parallèle susceptible
@@ -82,6 +82,6 @@ vérifie le transport dans `Result`, les quatre champs de l’erreur et
 l’invalidation exacte de `SystemFile`. Ces tests font partie de la matrice CI
 multiplateforme.
 
-Le [benchmark des services 0.7.10](../benchmarks/stdlib-services-0.7.10.md)
+Le [benchmark des services 0.7.4](../benchmarks/stdlib-services-0.7.4.md)
 mesure aussi les cycles ouverture/écriture/fermeture/suppression de
 `SystemFile`.

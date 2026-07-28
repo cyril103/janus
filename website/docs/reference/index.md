@@ -1,4 +1,4 @@
-# Référence Janus 0.6.0
+# Référence Janus 0.7.4
 
 Cette section publie les guides canoniques du dépôt. Ils sont copiés à chaque build : il n’existe donc pas de version éditoriale concurrente dans le site.
 
@@ -35,7 +35,7 @@ Cette section publie les guides canoniques du dépôt. Ils sont copiés à chaqu
 </div>
 
 !!! warning "Version expérimentale"
-    Cette référence décrit **Janus 0.6.0**. L’inventaire 0.5.x reste publié
+    Cette référence décrit **Janus 0.7.4**. L’inventaire 0.5.x reste publié
     comme base d’audit. Avant la version 1.0, la syntaxe, la bibliothèque
     standard et le format des paquets peuvent évoluer sans compatibilité
     ascendante.

@@ -1,7 +1,7 @@
 # Collections hachées
 
 `HashSet` et `HashMap` partagent les invariants de sondage et de croissance
-définis par `std.hash_probe`. Leur surface publique reste inchangée en 0.7.10.
+définis par `std.hash_probe`. Leur surface publique reste inchangée en 0.7.4.
 
 ## Invariants de table
 
@@ -52,7 +52,7 @@ Les parcours observants et consommateurs inspectent chaque emplacement au plus
 une fois, soit O(capacity). Leur ordre dépend de la disposition interne de la
 table et ne constitue pas un ordre d'insertion.
 
-Le [benchmark des collections 0.7.10](../benchmarks/hash-collections-0.7.10.md)
+Le [benchmark des collections 0.7.4](../benchmarks/hash-collections-0.7.4.md)
 mesure notamment les doublons et remplacements au seuil de charge.
 
 ## Propriété et nettoyage

@@ -88,6 +88,6 @@ Ajoutez `average : double` au rapport et affichez la moyenne. Gérez expliciteme
     ```
 
 !!! success "Vous avez le socle"
-    Vous savez maintenant lire et construire un programme Janus, gérer ses ressources, utiliser ses outils et retrouver un contrat précis dans la référence. Continuez avec les [tutoriels](../tutorials/index.md) ou explorez les [exemples du dépôt](https://github.com/cyril103/janus/tree/v0.6.0/examples).
+    Vous savez maintenant lire et construire un programme Janus, gérer ses ressources, utiliser ses outils et retrouver un contrat précis dans la référence. Continuez avec les [tutoriels](../tutorials/index.md) ou explorez les [exemples du dépôt](https://github.com/cyril103/janus/tree/v0.7.4/examples).
 
 <div class="lesson-nav"><a href="../07-projets-tests-outils/">← Projets, tests et outils</a><a href="../../tutorials/">Tutoriels →</a></div>

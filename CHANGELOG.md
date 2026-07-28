@@ -3,7 +3,11 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
-## [0.7.10] - Non publiée
+## [0.7.4] - 2026-07-28
+
+Cette version cumulative rassemble les gates validées depuis 0.6.0, qui
+n’avaient pas été publiées séparément, puis modernise et documente toute la
+bibliothèque standard avant les prochains lots d’outillage.
 
 ### Documentation de la bibliothèque standard
 
@@ -66,9 +70,7 @@ utilise le versionnage sémantique à partir de sa première version publique.
 - ajout de stress tests ASan/UBSan pour valeurs `Copy` et propriétaires, et
   d'un benchmark versionné de pipeline.
 
-## [0.7.3] - Non publiée
-
-### Doctests
+### Doctests et exemples compilés
 
 - ajout des directives `// doctest: doctest`, `incomplete` et
   `compile_fail=CODE`, indépendantes du texte des diagnostics ;
@@ -76,8 +78,6 @@ utilise le versionnage sémantique à partir de sa première version publique.
   contexte du paquet, chemins `--doc-path` et mode `--doc` ;
 - migration des extraits autonomes du site vers le même moteur, avec
   signalement des échecs par document et ligne.
-
-## [0.7.2] - Non publiée
 
 ### Documentation d’API
 
@@ -89,9 +89,7 @@ utilise le versionnage sémantique à partir de sa première version publique.
   absentes ou ambiguës, et exclusion par défaut des éléments privés ou
   internes.
 
-## [0.7.1] - Non publiée
-
-### Flux et bibliothèque standard
+### Flux, processus et bibliothèque standard
 
 - ajout de `std.io` avec buffers d’octets propriétaires, entrées et sorties
   séquentielles tamponnées, EOF, flush et fermeture définie ;
@@ -104,9 +102,7 @@ utilise le versionnage sémantique à partir de sa première version publique.
 - ajout des codes de sortie, captures binaires stdout/stderr et répertoires de
   travail, avec conservation des arguments contenant espaces ou Unicode.
 
-## [0.7.0] - Non publiée
-
-### Runtime et bibliothèque standard
+### Runtime portable, chemins et fichiers
 
 - ajout de `SystemError`, de catégories portables conservant le code natif et
   d’un contexte d’opération transportable dans `Result` ;
@@ -121,9 +117,7 @@ utilise le versionnage sémantique à partir de sa première version publique.
   temporaires, parcours, suppression et métadonnées sans suivi du dernier
   lien.
 
-## [0.6.3] - Non publiée
-
-### Langage et outillage
+### Dérivations et outillage
 
 - réservation de la clause explicite `derives` pour `Copy`, `Equality`,
   `Hashing` et `Debug` sur les structs, enums et classes pertinents, sans
@@ -140,9 +134,7 @@ utilise le versionnage sémantique à partir de sa première version publique.
   les clés utilisateur dérivées dans `HashSet` et `HashMap`, et de
   `debug(value)` pour une représentation diagnostique déterministe.
 
-## [0.6.2] - Non publiée
-
-### Bibliothèque standard
+### `Option`, `Result` et propagation
 
 - ajout des combinateurs `isSome`, `isNone`, `map`, `andThen`, `orElse` et
   `unwrapOr` dans `std.option`, avec observation bornée et variantes
@@ -156,9 +148,7 @@ utilise le versionnage sémantique à partir de sa première version publique.
   sans réutilisation possible après transfert et avec exécution des
   nettoyages actifs.
 
-## [0.6.1] - Non publiée
-
-### Langage et bibliothèque standard
+### Collections et itérateurs propriétaires
 
 - ajout des parcours consommateurs `intoIterator()` pour `Array` et `HashSet`
   et `intoEntries()` pour `HashMap`, avec transfert explicite des valeurs
@@ -402,9 +392,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
-[0.6.3]: https://github.com/cyril103/janus/compare/v0.6.2...HEAD
-[0.6.2]: https://github.com/cyril103/janus/compare/v0.6.1...HEAD
-[0.6.1]: https://github.com/cyril103/janus/compare/v0.6.0...HEAD
+[0.7.4]: https://github.com/cyril103/janus/releases/tag/v0.7.4
 [0.6.0]: https://github.com/cyril103/janus/releases/tag/v0.6.0
 [0.5.0]: https://github.com/cyril103/janus/releases/tag/v0.5.0
 [0.4.0]: https://github.com/cyril103/janus/releases/tag/v0.4.0

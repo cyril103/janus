@@ -361,7 +361,7 @@ Les helpers `drawPixelAt`, `drawLineBetween`, `drawCircleAt`,
 ces types. Les fonctions à coordonnées et couleurs brutes restent disponibles
 pour préserver la compatibilité. Ces primitives sont des `struct` copiés par
 valeur : elles ne font aucune allocation et ne doivent pas être libérées avec
-`delete`. Depuis 0.7.10, `Vector2`, `Rectangle`, `Color` et les enums
+`delete`. Depuis 0.7.4, `Vector2`, `Rectangle`, `Color` et les enums
 graphiques dérivent explicitement `Copy`, `Equality` et `Debug`.
 
 ## Caméra 2D
@@ -415,7 +415,7 @@ pas encore :
 L'API publique reste indépendante du backend afin que ces capacités puissent
 être ajoutées sans exposer directement les structures natives de raylib.
 
-## Audit et migration 0.7.10
+## Audit et migration 0.7.4
 
 Les six modules `std.graphics.*` restent expérimentaux. Les structures raylib,
 les fonctions `janus_graphics_*` et le chargeur dynamique demeurent des détails

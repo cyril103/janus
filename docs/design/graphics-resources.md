@@ -1,6 +1,6 @@
 # Propriété des ressources graphiques et audio
 
-Statut : implémenté pour Janus 0.7.10, surface expérimentale.
+Statut : implémenté pour Janus 0.7.4, surface expérimentale.
 
 Ce contrat couvre les wrappers de `std.graphics.*` et leur frontière avec le
 runtime raylib dynamique. Les structures raylib et les symboles

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate and verify the Janus 0.7.10 standard-library audit."""
+"""Generate and verify the Janus 0.7.4 standard-library audit."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_public_surface import parse_module  # noqa: E402
 
 
-REPORT_PATH = Path("docs/audits/stdlib-0.7.10.md")
+REPORT_PATH = Path("docs/audits/stdlib-0.7.4.md")
 PUBLIC_SURFACE_PATH = Path("docs/public-surface-0.5.json")
 AUDIT_DATE = "28 juillet 2026"
 DECISIONS = {
@@ -33,7 +33,7 @@ DECISIONS = {
     ),
 }
 OWNER_MODULES = {
-    "#111 / R0710-2": {
+    "#111 / R074-2": {
         "std.array",
         "std.array_builder",
         "std.builder",
@@ -42,13 +42,13 @@ OWNER_MODULES = {
         "std.range",
         "std.result",
     },
-    "#112 / R0710-3": {
+    "#112 / R074-3": {
         "std.hash_probe",
         "std.hashing",
         "std.hashmap",
         "std.hashset",
     },
-    "#113 / R0710-4": {
+    "#113 / R074-4": {
         "std.c",
         "std.fs",
         "std.io",
@@ -61,7 +61,7 @@ OWNER_MODULES = {
         "std.time",
         "std.wall_time",
     },
-    "#114 / R0710-5": {
+    "#114 / R074-5": {
         "std.graphics",
         "std.graphics.audio",
         "std.graphics.drawing",
@@ -336,7 +336,7 @@ def symbol_registry(model: AuditModel) -> list[str]:
             [
                 f"### `{module.name}`",
                 "",
-                "| Symbole | Surface actuelle | Décision 0.7.10 | "
+                "| Symbole | Surface actuelle | Décision 0.7.4 | "
                 "Propriétaire de migration |",
                 "| --- | --- | --- | --- |",
             ]
@@ -371,7 +371,7 @@ def render_report(model: AuditModel) -> str:
     destructor_count = sum(module.destructors for module in modules)
 
     lines = [
-        "# Audit de la bibliothèque standard — Janus 0.7.10",
+        "# Audit de la bibliothèque standard — Janus 0.7.4",
         "",
         f"État mesuré au {AUDIT_DATE}. Ce fichier est généré de façon déterministe :",
         "",
