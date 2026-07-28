@@ -36,6 +36,7 @@ EXPECTED_MODULES = {
     "std.hashing",
     "std.hashmap",
     "std.hashset",
+    "std.io",
     "std.iterator",
     "std.math",
     "std.option",
