@@ -750,6 +750,26 @@ Ces opérations peuvent produire des adresses invalides, des fuites ou des
 accès mémoire incorrects. Elles sont volontairement réservées au code qui doit
 contrôler précisément sa représentation et sa mémoire.
 
+### Erreurs système portables
+
+Le module `std.system` fournit la frontière bas niveau commune aux fichiers,
+flux et processus. Toutes les erreurs récupérables sont retournées dans un
+`Result` :
+
+```janus
+import std.system
+
+val opened : Result[SystemFile, SystemError] =
+openSystemFile("notes.txt", SystemOpenMode.Read)
+```
+
+Un `SystemError` expose l’opération, une catégorie portable, le code natif et
+le chemin ou contexte concerné. `SystemFile.close()` invalide immédiatement le
+handle ; le destructeur ne ferme que les handles encore ouverts. Les chemins
+sont du UTF-8 strict sans NUL embarqué. Consultez le
+[contrat du runtime système](design/system-runtime.md) pour les catégories,
+limites de taille et règles POSIX/Windows.
+
 Des programmes complets sont disponibles dans [`examples`](../examples).
 
 ## Structures copiées par valeur

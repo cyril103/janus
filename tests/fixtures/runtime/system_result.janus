@@ -1,0 +1,100 @@
+import std.system
+
+def reportMissing(error : SystemError) : int {
+    println(error.operation)
+    debug(error.category)
+    println(error.nativeCode > uint(0))
+    println(error.context)
+    return 0
+}
+
+def rejectUnexpected(file : SystemFile) : int {
+    delete file
+    return 1
+}
+
+def inspectMissing(
+result : Result[SystemFile, SystemError]
+) : int {
+    return match move result {
+        Ok(file) => rejectUnexpected(move file),
+        Error(error) => reportMissing(error)
+    }
+}
+
+def written(
+result : Result[usize, SystemError]
+) : usize {
+    return match result {
+        Ok(count) => count,
+        Error(error) => usize(0)
+    }
+}
+
+def closed(
+result : Result[bool, SystemError]
+) : bool {
+    return match result {
+        Ok(value) => value,
+        Error(error) => false
+    }
+}
+
+def rejectedSecondClose(
+result : Result[bool, SystemError]
+) : bool {
+    return match result {
+        Ok(value) => false,
+        Error(error) =>
+        error.operation == "close" &&
+        error.category == SystemErrorCategory.InvalidInput &&
+        error.nativeCode == uint(0)
+    }
+}
+
+def writeTemporary(file : SystemFile) : int {
+    val data : Ptr[byte] = alloc[byte](usize(3))
+    defer free(data)
+    data.store(usize(0), byte(74))
+    data.store(usize(1), byte(65))
+    data.store(usize(2), byte(78))
+    println(written(file.write(data, usize(3))))
+    println(closed(file.close()))
+    println(rejectedSecondClose(file.close()))
+    delete file
+    return 0
+}
+
+def useTemporary(
+result : Result[SystemFile, SystemError]
+) : int {
+    return match move result {
+        Ok(file) => writeTemporary(move file),
+        Error(error) => reportMissing(error)
+    }
+}
+
+def removed(
+result : Result[bool, SystemError]
+) : bool {
+    return match result {
+        Ok(value) => value,
+        Error(error) => false
+    }
+}
+
+def main() : int {
+    val missing : string = "janus-system-missing.fixture"
+    if inspectMissing(openSystemFile(missing, SystemOpenMode.Read)) != 0 {
+        return 1
+    }
+
+    val temporary : string = "janus-system-result.fixture"
+    if useTemporary(
+    openSystemFile(temporary, SystemOpenMode.Write)
+    ) != 0 {
+        return 1
+    }
+    println(removed(removeSystemFile(temporary)))
+    return 0
+}

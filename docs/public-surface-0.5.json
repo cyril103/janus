@@ -173,6 +173,14 @@
       "symbols": ["Result", "Result.Ok", "Result.Error", "isOk", "isError", "map", "mapError", "andThen", "orElse", "unwrapOr", "toOption", "fromOption"]
     },
     {
+      "name": "std.system",
+      "source": "stdlib/std/system.janus",
+      "documentation": ["docs/language-guide.md", "docs/design/system-runtime.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "signature_digest": "8bf00950f94bab131b199d301fc4e2304ee75c98081f4adc9e32130486673c1d",
+      "symbols": ["SystemErrorCategory", "SystemErrorCategory.NotFound", "SystemErrorCategory.PermissionDenied", "SystemErrorCategory.AlreadyExists", "SystemErrorCategory.InvalidInput", "SystemErrorCategory.Interrupted", "SystemErrorCategory.WouldBlock", "SystemErrorCategory.OutOfSpace", "SystemErrorCategory.TooLarge", "SystemErrorCategory.Unsupported", "SystemErrorCategory.ResourceExhausted", "SystemErrorCategory.Other", "SystemOpenMode", "SystemOpenMode.Read", "SystemOpenMode.Write", "SystemOpenMode.Append", "SystemError", "SystemError.operation", "SystemError.category", "SystemError.nativeCode", "SystemError.context", "SystemFile", "SystemFile.isOpen", "SystemFile.read", "SystemFile.write", "SystemFile.close", "openSystemFile", "removeSystemFile"]
+    },
+    {
       "name": "std.text",
       "source": "stdlib/std/text.janus",
       "documentation": ["docs/text.md", "docs/stability-contract.md"],

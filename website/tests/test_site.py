@@ -41,6 +41,7 @@ EXPECTED_MODULES = {
     "std.random",
     "std.range",
     "std.result",
+    "std.system",
     "std.text",
     "std.time",
     "std.wall_time",

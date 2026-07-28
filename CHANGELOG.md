@@ -3,6 +3,18 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.7.0] - Non publiée
+
+### Runtime et bibliothèque standard
+
+- ajout de `SystemError`, de catégories portables conservant le code natif et
+  d’un contexte d’opération transportable dans `Result` ;
+- ajout de `SystemFile`, `openSystemFile` et `removeSystemFile`, avec chemins
+  UTF-8 stricts, lecture/écriture en octets et fermeture native exactement une
+  fois ;
+- isolation des appels POSIX et Windows dans le runtime et couverture de leur
+  contrat dans la matrice CI Linux, macOS et Windows.
+
 ## [0.6.3] - Non publiée
 
 ### Langage et outillage

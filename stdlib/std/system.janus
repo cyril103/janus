@@ -1,0 +1,186 @@
+module std.system
+
+import std.result
+
+private extern def janus_system_open(
+path : Ptr[byte],
+length : usize,
+mode : int
+) : isize
+private extern def janus_system_read(
+handle : isize,
+data : Ptr[byte],
+capacity : usize
+) : isize
+private extern def janus_system_write(
+handle : isize,
+data : Ptr[byte],
+size : usize
+) : isize
+private extern def janus_system_close(handle : isize) : int
+private extern def janus_system_remove(
+path : Ptr[byte],
+length : usize
+) : int
+private extern def janus_system_error_code() : uint
+private extern def janus_system_error_category() : int
+
+enum SystemErrorCategory
+derives Copy, Equality, Debug {
+    NotFound,
+    PermissionDenied,
+    AlreadyExists,
+    InvalidInput,
+    Interrupted,
+    WouldBlock,
+    OutOfSpace,
+    TooLarge,
+    Unsupported,
+    ResourceExhausted,
+    Other
+}
+
+enum SystemOpenMode derives Copy, Equality, Debug {
+    Read,
+    Write,
+    Append
+}
+
+struct SystemError(
+val operation : string,
+val category : SystemErrorCategory,
+val nativeCode : uint,
+val context : string
+) derives Copy, Equality, Debug {}
+
+private def currentSystemError(
+operation : string,
+context : string
+) : SystemError {
+    return new SystemError(
+    operation,
+    SystemErrorCategory(janus_system_error_category()),
+    janus_system_error_code(),
+    context
+    )
+}
+
+private def closedSystemError(
+operation : string,
+context : string
+) : SystemError {
+    return new SystemError(
+    operation,
+    SystemErrorCategory.InvalidInput,
+    uint(0),
+    context
+    )
+}
+
+class SystemFile(
+private var nativeHandle : isize,
+private val fileContext : string
+) {
+    private var available : bool = true
+
+    def isOpen() : bool {
+        return available
+    }
+
+    def read(
+    data : Ptr[byte],
+    capacity : usize
+    ) : Result[usize, SystemError] {
+        if !available {
+            return Result.Error[usize, SystemError](
+            closedSystemError("read", fileContext)
+            )
+        }
+        val count : isize =
+        janus_system_read(nativeHandle, data, capacity)
+        if count < isize(0) {
+            return Result.Error[usize, SystemError](
+            currentSystemError("read", fileContext)
+            )
+        }
+        return Result.Ok[usize, SystemError](usize(count))
+    }
+
+    def write(
+    data : Ptr[byte],
+    size : usize
+    ) : Result[usize, SystemError] {
+        if !available {
+            return Result.Error[usize, SystemError](
+            closedSystemError("write", fileContext)
+            )
+        }
+        val count : isize =
+        janus_system_write(nativeHandle, data, size)
+        if count < isize(0) {
+            return Result.Error[usize, SystemError](
+            currentSystemError("write", fileContext)
+            )
+        }
+        return Result.Ok[usize, SystemError](usize(count))
+    }
+
+    def close() : Result[bool, SystemError] {
+        if !available {
+            return Result.Error[bool, SystemError](
+            closedSystemError("close", fileContext)
+            )
+        }
+        val handle : isize = nativeHandle
+        available = false
+        nativeHandle = isize(-1)
+        if janus_system_close(handle) != 0 {
+            return Result.Error[bool, SystemError](
+            currentSystemError("close", fileContext)
+            )
+        }
+        return Result.Ok[bool, SystemError](true)
+    }
+
+    destructor {
+        if available {
+            available = false
+            val handle : isize = nativeHandle
+            nativeHandle = isize(-1)
+            janus_system_close(handle)
+        }
+    }
+}
+
+def openSystemFile(
+path : string,
+mode : SystemOpenMode
+) : Result[SystemFile, SystemError] {
+    val handle : isize = janus_system_open(
+    stringData(path),
+    stringLength(path),
+    int(mode)
+    )
+    if handle < isize(0) {
+        return Result.Error[SystemFile, SystemError](
+        currentSystemError("open", path)
+        )
+    }
+    return Result.Ok[SystemFile, SystemError](
+    new SystemFile(handle, path)
+    )
+}
+
+def removeSystemFile(
+path : string
+) : Result[bool, SystemError] {
+    if janus_system_remove(
+    stringData(path),
+    stringLength(path)
+    ) != 0 {
+        return Result.Error[bool, SystemError](
+        currentSystemError("remove", path)
+        )
+    }
+    return Result.Ok[bool, SystemError](true)
+}
