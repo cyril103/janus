@@ -387,6 +387,7 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
     } while (true);
     static_cast<void>(expect(TokenKind::RightBracket));
   }
+  std::vector<ast::Derivation> derivations = parse_derivations();
   static_cast<void>(expect(TokenKind::LeftBrace));
 
   std::vector<ast::EnumDeclaration::Case> cases;
@@ -463,9 +464,10 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
     throw CompileError{enum_token.location,
                        "enum '" + std::string{name.lexeme} +
                            "' must declare at least one case"};
-  return ast::EnumDeclaration{std::string{name.lexeme},
-                              std::move(type_parameters), std::move(cases),
-                              enum_token.location, false, std::nullopt};
+  ast::EnumDeclaration declaration{
+      std::string{name.lexeme}, std::move(type_parameters), std::move(cases),
+      enum_token.location, false, std::nullopt, std::move(derivations)};
+  return declaration;
 }
 
 std::string Parser::parse_qualified_name() {
@@ -476,6 +478,47 @@ std::string Parser::parse_qualified_name() {
     name += expect(TokenKind::Identifier).lexeme;
   }
   return name;
+}
+
+std::vector<ast::Derivation> Parser::parse_derivations() {
+  std::vector<ast::Derivation> derivations;
+  if (current_.kind != TokenKind::Derives)
+    return derivations;
+
+  const Token derives = expect(TokenKind::Derives);
+  if (current_.kind != TokenKind::Identifier)
+    throw CompileError{derives.location,
+                       "expected a derivation name after 'derives'"};
+
+  do {
+    const Token name = expect(TokenKind::Identifier);
+    std::optional<ast::DerivationKind> kind;
+    if (name.lexeme == "Copy")
+      kind = ast::DerivationKind::Copy;
+    else if (name.lexeme == "Equality")
+      kind = ast::DerivationKind::Equality;
+    else if (name.lexeme == "Hashing")
+      kind = ast::DerivationKind::Hashing;
+    else if (name.lexeme == "Debug")
+      kind = ast::DerivationKind::Debug;
+    else
+      throw CompileError{name.location,
+                         "unknown derivation '" + std::string{name.lexeme} +
+                             "'; expected Copy, Equality, Hashing or Debug"};
+
+    for (const ast::Derivation &derivation : derivations)
+      if (derivation.kind == *kind)
+        throw CompileError{
+            name.location,
+            "derivation '" + std::string{name.lexeme} +
+                "' is requested more than once"};
+    derivations.push_back(ast::Derivation{*kind, name.location});
+
+    if (current_.kind != TokenKind::Comma)
+      break;
+    advance();
+  } while (true);
+  return derivations;
 }
 
 ast::ClassDeclaration Parser::parse_class_declaration() {
@@ -567,6 +610,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       advance();
     } while (true);
   }
+  std::vector<ast::Derivation> derivations = parse_derivations();
   static_cast<void>(expect(TokenKind::LeftBrace));
 
   std::vector<ast::ValueDeclaration> fields;
@@ -626,7 +670,8 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
                                     std::move(type_constraints),
                                     false,
                                     false,
-                                    std::nullopt};
+                                    std::nullopt,
+                                    std::move(derivations)};
   declaration.is_value_type = is_value_type;
   return declaration;
 }

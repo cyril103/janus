@@ -416,6 +416,17 @@ if(BUILD_TESTING)
         NAME parser.top_level_declaration
         COMMAND parser_top_level_declaration_test
     )
+    add_executable(derivation_syntax_test
+        tests/frontend/derivation_syntax_test.cpp
+    )
+    target_link_libraries(derivation_syntax_test PRIVATE janus_frontend)
+    target_compile_options(derivation_syntax_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME parser.derivation_syntax COMMAND derivation_syntax_test)
     add_executable(diagnostic_model_test
         tests/diagnostics/diagnostic_model_test.cpp
     )

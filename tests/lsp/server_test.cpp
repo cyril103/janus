@@ -56,6 +56,12 @@ int main() {
   assert(imported_definition.front().find("stdlib/std/array.janus") !=
          std::string::npos);
 
+  const std::vector<std::string> derivation_document = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///derivation.janus","text":"struct Point(val x : int, val y : int) derives Copy, Equality, Hashing, Debug {}\n\ndef main() : int { return 0 }"}}})");
+  assert(derivation_document.size() == 1);
+  assert(derivation_document.front().find("\"diagnostics\":[]") !=
+         std::string::npos);
+
   const std::vector<std::string> module = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///library.janus","text":"module library\n\ndef helper() : int { return 42 }"}}})");
   assert(module.size() == 1);
@@ -128,6 +134,8 @@ int main() {
   assert(completion.front().find("\"label\":\"answer\"") != std::string::npos);
   assert(completion.front().find("\"label\":\"int\"") != std::string::npos);
   assert(completion.front().find("\"label\":\"return\"") !=
+         std::string::npos);
+  assert(completion.front().find("\"label\":\"derives\"") !=
          std::string::npos);
 
   static_cast<void>(server.handle(

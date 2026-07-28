@@ -1201,8 +1201,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
              {"val", "var", "def", "class", "struct", "trait", "enum", "new",
-              "delete", "defer", "if", "else", "match", "for", "while",
-              "return", "true", "false"})
+              "derives", "delete", "defer", "if", "else", "match", "for",
+              "while", "return", "true", "false"})
           add_item(std::string{keyword}, "Janus keyword", 14);
       }
       return {response(
