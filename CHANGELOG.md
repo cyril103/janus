@@ -3,6 +3,18 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.7.2] - Non publiée
+
+### Documentation d’API
+
+- ajout des commentaires `///` pour les modules, types, variantes, traits,
+  fonctions, globales et membres, conservés dans l’AST ;
+- ajout de `janus doc`, de `janus doc --open` et d’une sortie HTML autonome
+  accompagnée d’un index public JSON déterministe ;
+- résolution des liens `[[Symbole]]`, avertissements pour les références
+  absentes ou ambiguës, et exclusion par défaut des éléments privés ou
+  internes.
+
 ## [0.7.1] - Non publiée
 
 ### Flux et bibliothèque standard

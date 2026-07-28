@@ -124,6 +124,8 @@ janus build --release
 janus test           # compiler et exécuter les tests
 janus fmt            # formater les fichiers Janus
 janus fmt --check    # vérifier le formatage sans modifier les fichiers
+janus doc            # générer la documentation d'API dans target/doc/
+janus doc --open     # générer puis ouvrir la documentation
 ```
 
 ## Aperçu du langage

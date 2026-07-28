@@ -13,6 +13,8 @@
 | `janus test [filtre]` | exécuter les tests |
 | `janus fmt` | formater `src/` et `tests/` |
 | `janus fmt --check` | vérifier le formatage |
+| `janus doc` | générer la documentation d’API hors ligne |
+| `janus doc --open` | générer puis ouvrir la documentation |
 
 Pour compiler un fichier isolé :
 
@@ -33,11 +35,23 @@ conserve uniquement l'origine source. Le mode `off` conserve seulement le
 message de panique. Le format précis de ces traces reste expérimental avant
 Janus 1.0.
 
+### Documentation d’API
+
+`janus doc` parcourt les sources du paquet sous `src/` et écrit une
+documentation HTML statique dans `target/doc/`. `-o <dossier>` choisit une
+autre destination, `--offline` explicite une génération sans réseau et
+`--open` ouvre la page après sa création.
+
+La syntaxe `///` et les liens `[[Symbole]]` sont décrits dans le
+[contrat de documentation d’API](api-documentation.md). Les symboles
+publics sont également écrits dans `api-index.json`. Une référence absente ou
+ambiguë produit un avertissement ; elle n’empêche pas la génération.
+
 ### Aide, erreurs et codes de sortie
 
 `janus --help` affiche l'aide générale. Les commandes d'exécution disposent
 aussi d'une aide ciblée : `janus check --help`, `janus build --help`,
-`janus run --help` et `janus test --help`. L'aide est écrite sur la sortie
+`janus run --help`, `janus test --help` et `janus doc --help`. L'aide est écrite sur la sortie
 standard, renvoie le code `0` et ne recherche ni projet ni chaîne d'outils.
 
 Pour `check`, `build`, `run` et `test`, une erreur d'invocation (option

@@ -4,6 +4,7 @@
 #include "janus/diagnostics/high_growth_loop_linter.hpp"
 #include "janus/diagnostics/renderer.hpp"
 #include "janus/driver/dependency.hpp"
+#include "janus/driver/documentation.hpp"
 #include "janus/driver/formatter.hpp"
 #include "janus/driver/manifest.hpp"
 #include "janus/driver/native_linker.hpp"
@@ -59,6 +60,7 @@ struct Options {
   bool locked{};
   bool offline{};
   bool format_check{};
+  bool doc_open{};
   bool warn_high_growth_loops{};
   bool diagnostic_format_set{};
   bool panic_trace_set{};
@@ -151,6 +153,7 @@ void print_usage(std::ostream &output) {
             << "  janus test [filter] [--release] "
                "[--panic-trace full|short|off]\n"
             << "  janus fmt [source.janus] [--check]\n"
+            << "  janus doc [-o directory] [--open] [--offline]\n"
             << "  diagnostics: --warn-high-growth-loops for check, build, "
                "run\n"
             << "  dependency options: --locked --offline\n"
@@ -176,13 +179,15 @@ void print_command_usage(std::ostream &output, std::string_view command) {
   else if (command == "test")
     output << " [filter] [--release] [--locked] [--offline] "
               "[--panic-trace full|short|off]\n";
+  else if (command == "doc")
+    output << " [-o directory] [--open] [--offline]\n";
   else
     output << " [source.janus] [--check]\n";
 }
 
 bool is_execution_command(std::string_view command) {
   return command == "check" || command == "build" || command == "run" ||
-         command == "test";
+         command == "test" || command == "doc";
 }
 
 void print_compile_error(
@@ -301,7 +306,7 @@ Options parse_options(int argc, char **argv) {
   options.command = argv[1];
   if (options.command != "check" && options.command != "build" &&
       options.command != "run" && options.command != "test" &&
-      options.command != "fmt")
+      options.command != "fmt" && options.command != "doc")
     throw UsageError{"", "unknown command '" + options.command + "'"};
   for (int index = 2; index < argc; ++index) {
     const std::string_view argument = argv[index];
@@ -317,6 +322,8 @@ Options parse_options(int argc, char **argv) {
       options.offline = true;
     } else if (argument == "--check" && options.command == "fmt") {
       options.format_check = true;
+    } else if (argument == "--open" && options.command == "doc") {
+      options.doc_open = true;
     } else if (argument == "--warn-high-growth-loops") {
       options.warn_high_growth_loops = true;
     } else if (argument == "--panic-trace") {
@@ -378,6 +385,9 @@ Options parse_options(int argc, char **argv) {
           throw UsageError{options.command,
                            "test accepts at most one filter"};
         options.test_filter = argv[index];
+      } else if (options.command == "doc") {
+        throw UsageError{options.command,
+                         "doc does not accept a source path"};
       } else {
         if (!options.source.empty())
           throw UsageError{options.command, "multiple source paths provided"};
@@ -404,6 +414,14 @@ Options parse_options(int argc, char **argv) {
        options.warn_high_growth_loops || options.panic_trace_set))
     throw UsageError{options.command,
                      "fmt only accepts a source path and --check"};
+  if (options.command == "doc" &&
+      (options.release || options.locked || options.format_check ||
+       options.emit_llvm || options.emit_object ||
+       options.warn_high_growth_loops || options.panic_trace_set ||
+       options.diagnostic_format_set))
+    throw UsageError{
+        options.command,
+        "doc only accepts -o, --open, and --offline"};
   if ((options.command == "test") && options.warn_high_growth_loops)
     throw UsageError{options.command,
                      "test does not accept --warn-high-growth-loops"};
@@ -695,6 +713,24 @@ int main(int argc, char **argv) {
     diagnostic_format = options.diagnostic_format;
     if (options.command == "fmt")
       return format_sources(options);
+    if (options.command == "doc") {
+      const std::filesystem::path output =
+          options.output.empty()
+              ? options.manifest->root() / "target" / "doc"
+              : std::filesystem::absolute(options.output).lexically_normal();
+      const janus::driver::DocumentationReport report =
+          janus::driver::generate_package_documentation(*options.manifest,
+                                                        output);
+      for (const janus::driver::UnresolvedDocumentationLink &link :
+           report.unresolved_links)
+        std::cerr << "warning: unresolved documentation link '[[" << link.symbol
+                  << "]]' in " << link.context << '\n';
+      std::cout << "generated " << report.symbol_count << " public symbols in "
+                << report.index_path.string() << '\n';
+      if (options.doc_open)
+        janus::driver::open_documentation(report.index_path);
+      return 0;
+    }
     const Toolchain toolchain = locate_toolchain(argv[0]);
     if (options.manifest.has_value())
       options.dependency_paths = janus::driver::resolve_dependencies(

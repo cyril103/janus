@@ -187,6 +187,7 @@ struct ValueDeclaration {
   SourceLocation location;
   bool is_private{};
   bool is_internal{};
+  std::string documentation;
 };
 
 struct GlobalDeclaration {
@@ -287,11 +288,13 @@ struct FunctionDeclaration {
   bool is_variadic{};
   std::optional<std::string> module_name;
   bool is_internal{};
+  std::string documentation;
 };
 
 struct DestructorDeclaration {
   std::vector<Statement> body;
   SourceLocation location;
+  std::string documentation;
 };
 
 enum class DerivationKind {
@@ -312,6 +315,7 @@ struct EnumDeclaration {
     std::int32_t value;
     std::vector<TypeReference> payload_types;
     SourceLocation location;
+    std::string documentation;
   };
 
   std::string name;
@@ -321,6 +325,7 @@ struct EnumDeclaration {
   bool is_private{};
   std::optional<std::string> module_name;
   std::vector<Derivation> derivations;
+  std::string documentation;
 };
 
 struct TraitDeclaration {
@@ -331,6 +336,7 @@ struct TraitDeclaration {
   std::vector<TypeConstraint> type_constraints;
   bool is_private{};
   std::optional<std::string> module_name;
+  std::string documentation;
 };
 
 struct ClassDeclaration {
@@ -348,6 +354,7 @@ struct ClassDeclaration {
   bool is_private{};
   std::optional<std::string> module_name;
   std::vector<Derivation> derivations;
+  std::string documentation;
 };
 
 struct Program {
@@ -358,6 +365,7 @@ struct Program {
   std::vector<EnumDeclaration> enums;
   std::vector<ClassDeclaration> classes;
   std::vector<FunctionDeclaration> functions;
+  std::string documentation;
 };
 
 } // namespace janus::ast

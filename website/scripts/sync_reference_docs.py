@@ -16,6 +16,7 @@ DOCUMENTS = (
     "language-guide.md",
     "text.md",
     "tooling.md",
+    "api-documentation.md",
     "graphics.md",
     "stability-contract.md",
     "development.md",

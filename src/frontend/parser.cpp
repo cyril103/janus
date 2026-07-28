@@ -167,8 +167,11 @@ Parser::Parser(std::string_view source)
 ast::Program Parser::parse_program() {
   ast::Program program;
   std::vector<Diagnostic> diagnostics;
+  std::string documentation = take_documentation();
 
   if (current_.kind == TokenKind::Module) {
+    program.documentation = std::move(documentation);
+    documentation.clear();
     advance();
     program.module_name = parse_qualified_name();
     if (current_.kind == TokenKind::Semicolon)
@@ -183,6 +186,10 @@ ast::Program Parser::parse_program() {
 
   while (current_.kind != TokenKind::End) {
     try {
+      if (documentation.empty())
+        documentation = take_documentation();
+      if (current_.kind == TokenKind::End)
+        break;
       if (current_.kind == TokenKind::Internal)
         throw CompileError{
             current_.location,
@@ -208,31 +215,38 @@ ast::Program Parser::parse_program() {
         ast::TraitDeclaration declaration = parse_trait_declaration();
         declaration.is_private = is_private;
         declaration.module_name = program.module_name;
+        declaration.documentation = std::move(documentation);
         program.traits.push_back(std::move(declaration));
       } else if (current_.kind == TokenKind::Enum) {
         ast::EnumDeclaration declaration = parse_enum_declaration();
         declaration.is_private = is_private;
         declaration.module_name = program.module_name;
+        declaration.documentation = std::move(documentation);
         program.enums.push_back(std::move(declaration));
       } else if (current_.kind == TokenKind::Class ||
                  current_.kind == TokenKind::Struct) {
         ast::ClassDeclaration declaration = parse_class_declaration();
         declaration.is_private = is_private;
         declaration.module_name = program.module_name;
+        declaration.documentation = std::move(documentation);
         program.classes.push_back(std::move(declaration));
       } else if (current_.kind == TokenKind::Val ||
                  current_.kind == TokenKind::Var) {
         ast::ValueDeclaration declaration = parse_variable_declaration();
         declaration.is_private = is_private;
+        declaration.documentation = std::move(documentation);
         program.globals.push_back(ast::GlobalDeclaration{
             std::move(declaration), program.module_name});
       } else {
         ast::FunctionDeclaration declaration = parse_function_declaration();
         declaration.is_private = is_private;
         declaration.module_name = program.module_name;
+        declaration.documentation = std::move(documentation);
         program.functions.push_back(std::move(declaration));
       }
+      documentation.clear();
     } catch (const CompileError &error) {
+      documentation.clear();
       diagnostics.insert(diagnostics.end(), error.diagnostics().begin(),
                          error.diagnostics().end());
       synchronize_top_level();
@@ -301,14 +315,18 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
   static_cast<void>(expect(TokenKind::LeftBrace));
   std::vector<ast::FunctionDeclaration> methods;
   while (current_.kind != TokenKind::RightBrace) {
-    methods.push_back(parse_trait_method());
+    std::string documentation = take_documentation();
+    ast::FunctionDeclaration method = parse_trait_method();
+    method.documentation = std::move(documentation);
+    methods.push_back(std::move(method));
     if (current_.kind == TokenKind::Semicolon)
       advance();
   }
   static_cast<void>(expect(TokenKind::RightBrace));
   ast::TraitDeclaration declaration{
       std::string{name.lexeme}, std::move(type_parameters), std::move(methods),
-      trait_token.location, std::move(type_constraints), false, std::nullopt};
+      trait_token.location, std::move(type_constraints), false, std::nullopt,
+      {}};
   return declaration;
 }
 
@@ -369,7 +387,9 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
                                        false,
                                        std::nullopt,
                                        false,
-                                       std::nullopt};
+                                       std::nullopt,
+                                       false,
+                                       {}};
   return declaration;
 }
 
@@ -393,6 +413,7 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
   std::vector<ast::EnumDeclaration::Case> cases;
   std::int64_t next_value = 0;
   while (current_.kind != TokenKind::RightBrace) {
+    std::string documentation = take_documentation();
     const Token case_name = expect(TokenKind::Identifier);
     std::vector<ast::TypeReference> payload_types;
     if (current_.kind == TokenKind::LeftParen) {
@@ -441,7 +462,8 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
     }
     cases.push_back(ast::EnumDeclaration::Case{
         std::string{case_name.lexeme}, static_cast<std::int32_t>(value),
-        std::move(payload_types), case_name.location});
+        std::move(payload_types), case_name.location,
+        std::move(documentation)});
 
     if (value == std::numeric_limits<std::int32_t>::max()) {
       next_value =
@@ -466,7 +488,7 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
                            "' must declare at least one case"};
   ast::EnumDeclaration declaration{
       std::string{name.lexeme}, std::move(type_parameters), std::move(cases),
-      enum_token.location, false, std::nullopt, std::move(derivations)};
+      enum_token.location, false, std::nullopt, std::move(derivations), {}};
   return declaration;
 }
 
@@ -478,6 +500,22 @@ std::string Parser::parse_qualified_name() {
     name += expect(TokenKind::Identifier).lexeme;
   }
   return name;
+}
+
+std::string Parser::take_documentation() {
+  std::string documentation;
+  while (current_.kind == TokenKind::DocumentationComment) {
+    std::string_view line = current_.lexeme;
+    if (!line.empty() && line.front() == ' ')
+      line.remove_prefix(1);
+    if (!line.empty() && line.back() == '\r')
+      line.remove_suffix(1);
+    if (!documentation.empty())
+      documentation += '\n';
+    documentation += line;
+    advance();
+  }
+  return documentation;
 }
 
 std::vector<ast::Derivation> Parser::parse_derivations() {
@@ -558,6 +596,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
   bool parsed_field = false;
   if (current_.kind != TokenKind::RightParen) {
     do {
+      std::string documentation = take_documentation();
       const bool is_private = current_.kind == TokenKind::Private;
       const bool is_internal = current_.kind == TokenKind::Internal;
       if (is_private || is_internal)
@@ -576,9 +615,11 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
         static_cast<void>(expect(TokenKind::Colon));
         ast::ValueDeclaration declaration{std::string{field.lexeme},
                                           parse_type(), is_mutable,
-                                          std::nullopt, keyword.location};
+                                          std::nullopt, keyword.location,
+                                          false, false, {}};
         declaration.is_private = is_private;
         declaration.is_internal = is_internal;
+        declaration.documentation = std::move(documentation);
         constructor_fields.push_back(std::move(declaration));
       } else {
         if (is_private || is_internal)
@@ -617,6 +658,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
   std::vector<ast::FunctionDeclaration> methods;
   std::optional<ast::DestructorDeclaration> destructor;
   while (current_.kind != TokenKind::RightBrace) {
+    std::string documentation = take_documentation();
     const bool is_private = current_.kind == TokenKind::Private;
     const bool is_internal = current_.kind == TokenKind::Internal;
     if (is_private || is_internal)
@@ -636,12 +678,14 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       ast::ValueDeclaration field = parse_variable_declaration();
       field.is_private = is_private;
       field.is_internal = is_internal;
+      field.documentation = std::move(documentation);
       fields.push_back(std::move(field));
     } else if (current_.kind == TokenKind::Def) {
       ast::FunctionDeclaration method = parse_function_declaration();
       method.is_private = is_private;
       method.is_internal = is_internal;
       method.is_consuming = is_consuming;
+      method.documentation = std::move(documentation);
       methods.push_back(std::move(method));
     } else if (current_.kind == TokenKind::Destructor) {
       if (is_private || is_internal || is_consuming)
@@ -651,6 +695,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
         throw CompileError{current_.location,
                            "class cannot declare multiple destructors"};
       destructor.emplace(parse_destructor_declaration());
+      destructor->documentation = std::move(documentation);
     } else
       throw CompileError{current_.location,
                          "expected field, method, destructor or '}'"};
@@ -671,14 +716,15 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
                                     false,
                                     false,
                                     std::nullopt,
-                                    std::move(derivations)};
+                                    std::move(derivations),
+                                    {}};
   declaration.is_value_type = is_value_type;
   return declaration;
 }
 
 ast::DestructorDeclaration Parser::parse_destructor_declaration() {
   const Token destructor = expect(TokenKind::Destructor);
-  return ast::DestructorDeclaration{parse_block(), destructor.location};
+  return ast::DestructorDeclaration{parse_block(), destructor.location, {}};
 }
 
 std::vector<ast::Statement> Parser::parse_block() {
@@ -779,7 +825,9 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
                                        is_external,
                                        std::move(external_symbol),
                                        is_variadic,
-                                       std::nullopt};
+                                       std::nullopt,
+                                       false,
+                                       {}};
   return declaration;
 }
 
@@ -838,7 +886,8 @@ ast::ValueDeclaration Parser::parse_variable_declaration() {
 
   return ast::ValueDeclaration{std::string{identifier.lexeme},
                                std::move(declared_type), is_mutable,
-                               std::move(initializer), declaration.location};
+                               std::move(initializer), declaration.location,
+                               false, false, {}};
 }
 
 ast::AssignmentStatement Parser::parse_assignment_statement() {

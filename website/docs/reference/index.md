@@ -14,7 +14,7 @@ Cette section publie les guides canoniques du dépôt. Ils sont copiés à chaqu
 
 **Outiller**
 
-:   [CLI, projets, dépendances et LSP](generated/tooling.md) · [Compiler depuis les sources](generated/development.md)
+:   [CLI, projets, dépendances et LSP](generated/tooling.md) · [Documentation d’API](generated/api-documentation.md) · [Compiler depuis les sources](generated/development.md)
 
 **Auditer**
 

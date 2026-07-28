@@ -19,6 +19,7 @@ set(TOP_LEVEL_USAGE
   janus run [source.janus] [--release] [--panic-trace full|short|off]
   janus test [filter] [--release] [--panic-trace full|short|off]
   janus fmt [source.janus] [--check]
+  janus doc [-o directory] [--open] [--offline]
   diagnostics: --warn-high-growth-loops for check, build, run
   dependency options: --locked --offline
   janus --help
@@ -35,6 +36,9 @@ set(RUN_USAGE
 ")
 set(TEST_USAGE
 "usage: janus test [filter] [--release] [--locked] [--offline] [--panic-trace full|short|off]
+")
+set(DOC_USAGE
+"usage: janus doc [-o directory] [--open] [--offline]
 ")
 
 function(assert_result NAME EXPECTED_STATUS EXPECTED_OUT EXPECTED_ERR)
@@ -67,6 +71,7 @@ assert_result("check help" 0 "${CHECK_USAGE}" "" check --help)
 assert_result("build help" 0 "${BUILD_USAGE}" "" build --help)
 assert_result("run help" 0 "${RUN_USAGE}" "" run --help)
 assert_result("test help" 0 "${TEST_USAGE}" "" test --help)
+assert_result("doc help" 0 "${DOC_USAGE}" "" doc --help)
 
 # Invocation mistakes use status 2, a command-qualified diagnostic, and only
 # the usage relevant to that command.
@@ -103,6 +108,11 @@ assert_result(
     "fmt invocation remains coherent" 2 ""
     "janus fmt: error: unknown option '--bogus'\nusage: janus fmt [source.janus] [--check]\n"
     fmt --bogus
+)
+assert_result(
+    "doc invocation error" 2 ""
+    "janus doc: error: doc does not accept a source path\n${DOC_USAGE}"
+    doc source.janus
 )
 assert_result(
     "conflicting emit modes" 2 ""

@@ -207,6 +207,7 @@ target_compile_definitions(janusc
 )
 
 add_library(janus_driver
+    src/driver/documentation.cpp
     src/driver/formatter.cpp
     src/driver/native_linker.cpp
     src/driver/manifest.cpp
@@ -216,6 +217,13 @@ add_library(janus_driver
     src/driver/registry.cpp
     src/driver/temporary_directory.cpp
 )
+target_link_libraries(janus_driver
+    PUBLIC
+        janus_frontend
+)
+if(WIN32)
+    target_link_libraries(janus_driver PRIVATE shell32)
+endif()
 target_include_directories(janus_driver
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
@@ -468,6 +476,20 @@ if(BUILD_TESTING)
         NAME parser.top_level_declaration
         COMMAND parser_top_level_declaration_test
     )
+    add_executable(documentation_comment_test
+        tests/frontend/documentation_comment_test.cpp
+    )
+    target_link_libraries(documentation_comment_test PRIVATE janus_frontend)
+    target_compile_options(documentation_comment_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(
+        NAME parser.documentation_comments
+        COMMAND documentation_comment_test
+    )
     add_executable(derivation_syntax_test
         tests/frontend/derivation_syntax_test.cpp
     )
@@ -670,6 +692,21 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME driver.formatter COMMAND formatter_test)
+    add_executable(documentation_test
+        tests/driver/documentation_test.cpp
+    )
+    target_link_libraries(documentation_test
+        PRIVATE
+            janus_driver
+            janus_frontend
+    )
+    target_compile_options(documentation_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME driver.documentation COMMAND documentation_test)
     find_package(Threads REQUIRED)
     add_executable(temporary_directory_test
         tests/driver/temporary_directory_test.cpp
@@ -709,6 +746,13 @@ if(BUILD_TESTING)
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}
                 -DJANUS=$<TARGET_FILE:janus>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_project_creation.cmake"
+    )
+    add_test(
+        NAME cli.documentation
+        COMMAND "${CMAKE_COMMAND}"
+                -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                -DJANUS=$<TARGET_FILE:janus>
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_documentation_cli.cmake"
     )
     add_test(
         NAME cli.execution_contract

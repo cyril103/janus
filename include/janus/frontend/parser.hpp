@@ -47,6 +47,7 @@ private:
   [[nodiscard]] ast::TypeReference parse_type();
   [[nodiscard]] bool starts_lambda() const;
   [[nodiscard]] std::string parse_qualified_name();
+  [[nodiscard]] std::string take_documentation();
   [[nodiscard]] Token expect(TokenKind kind);
   [[nodiscard]] bool starts_assignment() const;
   void synchronize_top_level();
