@@ -1,0 +1,9 @@
+true
+true
+true
+true
+Point { x: 2, y: 3 }
+Status.Ready(42)
+true
+true
+true

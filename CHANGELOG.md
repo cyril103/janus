@@ -15,6 +15,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 - spécification normative de l'éligibilité champ par champ, des génériques,
   de la visibilité, des diagnostics et des contraintes de propriété avant la
   génération des opérations.
+- génération structurelle de `Copy`, `Equality`, `Hashing` et `Debug`, avec
+  refus des agrégats propriétaires pour `Copy` et diagnostics localisant le
+  premier champ ou payload incompatible ;
+- ajout de `DerivedHashing[T]` dans `std.hashing` pour employer directement
+  les clés utilisateur dérivées dans `HashSet` et `HashMap`, et de
+  `debug(value)` pour une représentation diagnostique déterministe.
 
 ## [0.6.2] - Non publiée
 

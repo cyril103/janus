@@ -9,6 +9,16 @@ private def mixHash(value : usize) : usize {
     return value * usize(16777619) + usize(216613626)
 }
 
+class DerivedHashing[T]() extends Hashing[T] {
+    def hash(value : T) : usize {
+        return __derivedHash[T](value)
+    }
+
+    def equals(left : T, right : T) : bool {
+        return __derivedEquals[T](left, right)
+    }
+}
+
 class IntHashing() extends Hashing[int] {
     def hash(value : int) : usize {
         return mixHash(usize(value))

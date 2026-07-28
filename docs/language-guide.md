@@ -463,9 +463,23 @@ derives Copy, Equality, Hashing, Debug {}
 
 La demande est toujours explicite ; les capacités inconnues ou répétées sont
 rejetées. La clause est également disponible sur les enums et, sauf pour
-`Copy`, sur les classes. La génération effective des opérations est introduite
-séparément afin que la syntaxe et les règles de propriété puissent être
-stabilisées avant leur implémentation.
+`Copy`, sur les classes. `Equality` active `==` et `!=`, tandis que
+`debug(value)` écrit une représentation diagnostique déterministe distincte
+de `print`.
+
+Pour utiliser un type qui dérive `Hashing` comme clé, `std.hashing` fournit
+`DerivedHashing[T]` :
+
+```janus
+import std.hashing
+import std.hashset
+
+val hashing : DerivedHashing[Point] = new DerivedHashing[Point]()
+defer delete hashing
+val points : HashSet[Point, DerivedHashing[Point]] =
+new HashSet[Point, DerivedHashing[Point]](usize(8), hashing)
+defer delete points
+```
 
 Le [design des dérivations structurelles](https://github.com/cyril103/janus/blob/main/docs/design/derivations.md)
 définit l'éligibilité champ par champ, les génériques, la visibilité, les

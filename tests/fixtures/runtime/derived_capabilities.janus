@@ -1,0 +1,50 @@
+import std.hashing
+import std.hashset
+import std.hashmap
+
+struct Point(val x : int, val y : int)
+derives Copy, Equality, Hashing, Debug {}
+
+struct Measure(val value : double)
+derives Copy, Equality, Hashing {}
+
+enum Status derives Equality, Hashing, Debug {
+    Ready(int),
+    Failed
+}
+
+def main() : int {
+    val left : Point = new Point(2, 3)
+    val right : Point = left
+    val hashing : DerivedHashing[Point] = new DerivedHashing[Point]()
+    defer delete hashing
+    println(left == right)
+    println(hashing.hash(left) == hashing.hash(right))
+    val positiveZero : Measure = new Measure(0.0)
+    val negativeZero : Measure = new Measure(-0.0)
+    val measureHashing : DerivedHashing[Measure] =
+    new DerivedHashing[Measure]()
+    defer delete measureHashing
+    println(positiveZero == negativeZero)
+    println(
+    measureHashing.hash(positiveZero) ==
+    measureHashing.hash(negativeZero)
+    )
+    debug(left)
+    debug(Status.Ready(42))
+
+    val points : HashSet[Point, DerivedHashing[Point]] =
+    new HashSet[Point, DerivedHashing[Point]](usize(2), hashing)
+    defer delete points
+    println(points.add(left))
+    println(points.contains(right))
+
+    val mapHashing : DerivedHashing[Point] = new DerivedHashing[Point]()
+    defer delete mapHashing
+    val labels : HashMap[Point, int, DerivedHashing[Point]] =
+    new HashMap[Point, int, DerivedHashing[Point]](usize(2), mapHashing)
+    defer delete labels
+    labels.put(left, 42)
+    println(labels.containsKey(right))
+    return 0
+}

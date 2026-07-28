@@ -57,6 +57,27 @@ const janus::Type *builtin_type(std::string_view name) {
   return nullptr;
 }
 
+bool has_derivation(const std::vector<janus::ast::Derivation> &derivations,
+                    janus::ast::DerivationKind kind) {
+  return std::any_of(
+      derivations.begin(), derivations.end(),
+      [kind](const janus::ast::Derivation &item) { return item.kind == kind; });
+}
+
+std::string_view derivation_name(janus::ast::DerivationKind kind) {
+  switch (kind) {
+  case janus::ast::DerivationKind::Copy:
+    return "Copy";
+  case janus::ast::DerivationKind::Equality:
+    return "Equality";
+  case janus::ast::DerivationKind::Hashing:
+    return "Hashing";
+  case janus::ast::DerivationKind::Debug:
+    return "Debug";
+  }
+  return "";
+}
+
 janus::semantic::SemanticType
 resolve_type(const janus::ast::TypeReference &reference,
              const std::unordered_set<std::string> &type_parameters,
@@ -114,10 +135,9 @@ resolve_type(const janus::ast::TypeReference &reference,
     if (const auto iterator = class_arities->find(reference.name);
         iterator != class_arities->end()) {
       if (iterator->second == ambiguous_arity_marker)
-        throw janus::CompileError{
-            reference.location,
-            "type name '" + reference.name +
-                "' is ambiguous; use a qualified name"};
+        throw janus::CompileError{reference.location,
+                                  "type name '" + reference.name +
+                                      "' is ambiguous; use a qualified name"};
       if (iterator->second >= enum_arity_marker) {
         const std::size_t arity = iterator->second - enum_arity_marker;
         if (reference.type_arguments.size() != arity)
@@ -235,8 +255,7 @@ bool is_integer_cast_type(const janus::semantic::SemanticType &type) {
   }
 }
 
-bool is_c_abi_type(const janus::semantic::SemanticType &type,
-                   bool allow_unit) {
+bool is_c_abi_type(const janus::semantic::SemanticType &type, bool allow_unit) {
   if (type.is_pointer())
     return true;
   if (!type.is_concrete())
@@ -371,8 +390,7 @@ std::optional<__int128>
 integer_literal_value(const janus::ast::Expression &expression) {
   if (const auto *literal = std::get_if<janus::ast::IntegerLiteralExpression>(
           &expression.value)) {
-    const __int128 magnitude =
-        static_cast<__int128>(literal->magnitude);
+    const __int128 magnitude = static_cast<__int128>(literal->magnitude);
     return literal->is_negative ? -magnitude : magnitude;
   }
   return std::nullopt;
@@ -479,9 +497,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const std::string identity = register_type_identity(
         declaration.module_name, declaration.name, declaration.location);
     enums.emplace(identity, &declaration);
-    class_arities.emplace(
-        identity,
-        enum_arity_marker + declaration.type_parameters.size());
+    class_arities.emplace(identity, enum_arity_marker +
+                                        declaration.type_parameters.size());
   }
   for (const ast::TraitDeclaration &declaration : program.traits) {
     const std::string identity = register_type_identity(
@@ -497,12 +514,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   for (const ast::EnumDeclaration &declaration : program.enums)
     if (type_name_counts.at(declaration.name) == 1) {
       enums.emplace(declaration.name, &declaration);
-      class_arities.emplace(
-          declaration.name,
-          enum_arity_marker + declaration.type_parameters.size());
+      class_arities.emplace(declaration.name,
+                            enum_arity_marker +
+                                declaration.type_parameters.size());
     } else {
-      class_arities.insert_or_assign(declaration.name,
-                                     ambiguous_arity_marker);
+      class_arities.insert_or_assign(declaration.name, ambiguous_arity_marker);
     }
   for (const ast::TraitDeclaration &declaration : program.traits)
     if (type_name_counts.at(declaration.name) == 1)
@@ -513,8 +529,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       class_arities.emplace(declaration.name,
                             declaration.type_parameters.size());
     } else {
-      class_arities.insert_or_assign(declaration.name,
-                                     ambiguous_arity_marker);
+      class_arities.insert_or_assign(declaration.name, ambiguous_arity_marker);
     }
 
   struct TypeVisibility {
@@ -552,8 +567,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           }
     }
     if (const auto visibility = type_visibility.find(identity);
-        visibility != type_visibility.end() &&
-        visibility->second.is_private &&
+        visibility != type_visibility.end() && visibility->second.is_private &&
         visibility->second.module != context_module)
       throw CompileError{reference.location,
                          "type '" + identity + "' is private"};
@@ -574,8 +588,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     check_function_signature_visibility(function, function.module_name);
   for (const ast::GlobalDeclaration &global : program.globals)
     check_type_visibility(check_type_visibility,
-                          global.declaration.declared_type,
-                          global.module_name);
+                          global.declaration.declared_type, global.module_name);
   for (const ast::EnumDeclaration &declaration : program.enums)
     for (const ast::EnumDeclaration::Case &enum_case : declaration.cases)
       for (const ast::TypeReference &payload : enum_case.payload_types)
@@ -585,16 +598,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     for (const ast::FunctionDeclaration &method : declaration.methods)
       check_function_signature_visibility(method, declaration.module_name);
   for (const ast::ClassDeclaration &declaration : program.classes) {
-    for (const ast::TypeReference &implemented :
-         declaration.implemented_traits)
+    for (const ast::TypeReference &implemented : declaration.implemented_traits)
       check_type_visibility(check_type_visibility, implemented,
                             declaration.module_name);
     for (const ast::FunctionDeclaration::Parameter &parameter :
          declaration.constructor_parameters)
       check_type_visibility(check_type_visibility, parameter.type,
                             declaration.module_name);
-    for (const ast::ValueDeclaration &field :
-         declaration.constructor_fields)
+    for (const ast::ValueDeclaration &field : declaration.constructor_fields)
       check_type_visibility(check_type_visibility, field.declared_type,
                             declaration.module_name);
     for (const ast::ValueDeclaration &field : declaration.fields)
@@ -666,8 +677,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     return false;
   };
-  const auto visit_owned_children =
-      [&](const SemanticType &type, const auto &visit) {
+  const auto visit_owned_children = [&](const SemanticType &type,
+                                        const auto &visit) {
     if (type.is_class()) {
       const ast::ClassDeclaration &declaration = *classes.at(type.parameter);
       if (!declaration.is_value_type)
@@ -676,8 +687,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           declaration.type_parameters.begin(),
           declaration.type_parameters.end()};
       std::unordered_map<std::string, SemanticType> substitutions;
-      for (std::size_t index = 0;
-           index < declaration.type_parameters.size(); ++index)
+      for (std::size_t index = 0; index < declaration.type_parameters.size();
+           ++index)
         substitutions.emplace(declaration.type_parameters[index],
                               type.type_arguments[index]);
       for (const ast::ValueDeclaration &field :
@@ -694,8 +705,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           declaration.type_parameters.begin(),
           declaration.type_parameters.end()};
       std::unordered_map<std::string, SemanticType> substitutions;
-      for (std::size_t index = 0;
-           index < declaration.type_parameters.size(); ++index)
+      for (std::size_t index = 0; index < declaration.type_parameters.size();
+           ++index)
         substitutions.emplace(declaration.type_parameters[index],
                               type.type_arguments[index]);
       for (const ast::EnumDeclaration::Case &enum_case : declaration.cases)
@@ -707,44 +718,178 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
   };
   const auto aggregate_owns_value = [&](const SemanticType &type) {
-    return janus::ownership::recursively_owns_value(
-        type, directly_owns_value, visit_owned_children);
+    return janus::ownership::recursively_owns_value(type, directly_owns_value,
+                                                    visit_owned_children);
   };
+
+  const auto validate_derivation_dependencies = [&](const auto &declaration) {
+    if (has_derivation(declaration.derivations, ast::DerivationKind::Hashing) &&
+        !has_derivation(declaration.derivations,
+                        ast::DerivationKind::Equality)) {
+      const auto hashing = std::find_if(
+          declaration.derivations.begin(), declaration.derivations.end(),
+          [](const ast::Derivation &item) {
+            return item.kind == ast::DerivationKind::Hashing;
+          });
+      throw CompileError{hashing->location,
+                         "deriving Hashing requires Equality on type '" +
+                             declaration.name + "'"};
+    }
+  };
+  for (const ast::EnumDeclaration &declaration : program.enums)
+    validate_derivation_dependencies(declaration);
+  for (const ast::ClassDeclaration &declaration : program.classes) {
+    validate_derivation_dependencies(declaration);
+    if (!declaration.is_value_type &&
+        has_derivation(declaration.derivations, ast::DerivationKind::Copy)) {
+      const auto copy = std::find_if(
+          declaration.derivations.begin(), declaration.derivations.end(),
+          [](const ast::Derivation &item) {
+            return item.kind == ast::DerivationKind::Copy;
+          });
+      throw CompileError{copy->location, "cannot derive Copy for class '" +
+                                             declaration.name + "'"};
+    }
+    if (declaration.is_value_type &&
+        has_derivation(declaration.derivations, ast::DerivationKind::Copy)) {
+      const std::unordered_set<std::string> parameters{
+          declaration.type_parameters.begin(),
+          declaration.type_parameters.end()};
+      for (const ast::ValueDeclaration &field :
+           declaration.constructor_fields) {
+        const SemanticType field_type =
+            resolve_type(field.declared_type, parameters, &class_arities);
+        if (aggregate_owns_value(field_type)) {
+          const auto copy = std::find_if(
+              declaration.derivations.begin(), declaration.derivations.end(),
+              [](const ast::Derivation &item) {
+                return item.kind == ast::DerivationKind::Copy;
+              });
+          throw CompileError{
+              copy->location,
+              "cannot derive Copy for '" + declaration.name + "': field '" +
+                  field.name + "' has owning type '" + field_type.name() + "'"};
+        }
+      }
+    }
+  }
+  const auto validate_structural_fields =
+      [&](const auto &declaration, ast::DerivationKind kind,
+          const std::vector<ast::ValueDeclaration> &fields) {
+        if (!has_derivation(declaration.derivations, kind))
+          return;
+        const std::unordered_set<std::string> parameters{
+            declaration.type_parameters.begin(),
+            declaration.type_parameters.end()};
+        for (const ast::ValueDeclaration &field : fields) {
+          const ast::TypeReference &type = field.declared_type;
+          bool supported = builtin_type(type.name) != nullptr ||
+                           parameters.contains(type.name);
+          if (type.name == "Ptr" || type.name == "Function")
+            supported = false;
+          if (const auto nested = classes.find(type.name);
+              nested != classes.end())
+            supported = has_derivation(nested->second->derivations, kind);
+          if (const auto nested = enums.find(type.name); nested != enums.end())
+            supported = has_derivation(nested->second->derivations, kind);
+          if (!supported) {
+            const auto capability = std::find_if(
+                declaration.derivations.begin(), declaration.derivations.end(),
+                [kind](const ast::Derivation &item) {
+                  return item.kind == kind;
+                });
+            throw CompileError{
+                capability->location,
+                "cannot derive " + std::string{derivation_name(kind)} +
+                    " for '" + declaration.name + "': field '" + field.name +
+                    "' of type '" + type.name + "' does not support " +
+                    std::string{derivation_name(kind)}};
+          }
+        }
+      };
+  for (const ast::ClassDeclaration &declaration : program.classes) {
+    for (const ast::DerivationKind kind :
+         {ast::DerivationKind::Copy, ast::DerivationKind::Equality,
+          ast::DerivationKind::Hashing, ast::DerivationKind::Debug}) {
+      validate_structural_fields(declaration, kind,
+                                 declaration.constructor_fields);
+      validate_structural_fields(declaration, kind, declaration.fields);
+    }
+  }
+  for (const ast::EnumDeclaration &declaration : program.enums) {
+    const std::unordered_set<std::string> parameters{
+        declaration.type_parameters.begin(), declaration.type_parameters.end()};
+    for (const ast::DerivationKind kind :
+         {ast::DerivationKind::Copy, ast::DerivationKind::Equality,
+          ast::DerivationKind::Hashing, ast::DerivationKind::Debug}) {
+      if (!has_derivation(declaration.derivations, kind))
+        continue;
+      for (const ast::EnumDeclaration::Case &enum_case : declaration.cases)
+        for (std::size_t index = 0; index < enum_case.payload_types.size();
+             ++index) {
+          const ast::TypeReference &type = enum_case.payload_types[index];
+          bool supported = builtin_type(type.name) != nullptr ||
+                           parameters.contains(type.name);
+          if (type.name == "Ptr" || type.name == "Function")
+            supported = false;
+          if (const auto nested = classes.find(type.name);
+              nested != classes.end())
+            supported =
+                kind == ast::DerivationKind::Copy
+                    ? nested->second->is_value_type &&
+                          has_derivation(nested->second->derivations, kind)
+                    : has_derivation(nested->second->derivations, kind);
+          if (const auto nested = enums.find(type.name); nested != enums.end())
+            supported = has_derivation(nested->second->derivations, kind);
+          if (!supported) {
+            const auto capability = std::find_if(
+                declaration.derivations.begin(), declaration.derivations.end(),
+                [kind](const ast::Derivation &item) {
+                  return item.kind == kind;
+                });
+            throw CompileError{
+                capability->location,
+                "cannot derive " + std::string{derivation_name(kind)} +
+                    " for '" + declaration.name + "': case '" + enum_case.name +
+                    "' payload " + std::to_string(index + 1) + " of type '" +
+                    type.name + "' does not support " +
+                    std::string{derivation_name(kind)}};
+          }
+        }
+    }
+  }
   for (const ast::GlobalDeclaration &global : program.globals) {
     const ast::ValueDeclaration &declaration = global.declaration;
     const std::string key = global_key(global.module_name, declaration.name);
     if (globals.contains(key))
       throw CompileError{declaration.location,
-                         "global value '" + key +
-                             "' is already declared"};
+                         "global value '" + key + "' is already declared"};
     if (!declaration.is_private) {
       if (const auto existing = public_globals.find(declaration.name);
           existing != public_globals.end())
-        throw CompileError{
-            declaration.location,
-            "public global value '" + declaration.name +
-                "' is exported by both modules '" + existing->second +
-                "' and '" + global.module_name.value_or("<entry>") + "'"};
+        throw CompileError{declaration.location,
+                           "public global value '" + declaration.name +
+                               "' is exported by both modules '" +
+                               existing->second + "' and '" +
+                               global.module_name.value_or("<entry>") + "'"};
       public_globals.emplace(declaration.name, key);
     }
     if (global.module_name.has_value())
       global_modules.insert(*global.module_name);
-    const SemanticType type = resolve_type(
-        declaration.declared_type, no_type_parameters, &class_arities);
+    const SemanticType type = resolve_type(declaration.declared_type,
+                                           no_type_parameters, &class_arities);
     if (type.is_concrete() && type.concrete->kind() == TypeKind::Unit)
-      throw CompileError{
-          declaration.location,
-          "Unit cannot be used as a global value type"};
+      throw CompileError{declaration.location,
+                         "Unit cannot be used as a global value type"};
     const bool owns_value = aggregate_owns_value(type);
     if (owns_value && declaration.is_mutable)
-      throw CompileError{
-          declaration.location,
-          "owning global value '" + declaration.name +
-              "' must be declared with 'val'"};
-    if (!declaration.initializer.has_value())
       throw CompileError{declaration.location,
-                         "global variable '" + declaration.name +
-                             "' requires an initializer"};
+                         "owning global value '" + declaration.name +
+                             "' must be declared with 'val'"};
+    if (!declaration.initializer.has_value())
+      throw CompileError{declaration.location, "global variable '" +
+                                                   declaration.name +
+                                                   "' requires an initializer"};
     Symbol symbol{type, declaration.is_mutable, true};
     result.globals.emplace(key, symbol);
     globals.emplace(key, ResolvedGlobal{&global, std::move(symbol)});
@@ -759,9 +904,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   evaluate_global = [&](const std::string &key) -> const constant::Value & {
     const ConstantState state = constant_states[key];
     if (state == ConstantState::Visiting)
-      throw CompileError{
-          globals.at(key).declaration->declaration.location,
-          "cyclic global constant dependency involving '" + key + "'"};
+      throw CompileError{globals.at(key).declaration->declaration.location,
+                         "cyclic global constant dependency involving '" + key +
+                             "'"};
     if (state == ConstantState::Complete)
       return constant_values.at(key);
 
@@ -791,9 +936,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const ast::GlobalDeclaration &target = *dependency->second.declaration;
       if (target.declaration.is_private &&
           target.module_name != global.module_name)
-        throw CompileError{location,
-                           "global constant '" + dependency_key +
-                               "' is private"};
+        throw CompileError{location, "global constant '" + dependency_key +
+                                         "' is private"};
       if (target.declaration.is_mutable)
         throw CompileError{
             location, "global constant initializer cannot depend on mutable "
@@ -801,22 +945,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           dependency_key + "'"};
       return evaluate_global(dependency_key);
     };
-    constant::Value value = constant::evaluate(
-        *global.declaration.initializer, resolved.symbol.type.concrete,
-        resolver);
+    constant::Value value =
+        constant::evaluate(*global.declaration.initializer,
+                           resolved.symbol.type.concrete, resolver);
     constant_states[key] = ConstantState::Complete;
-    auto [iterator, inserted] =
-        constant_values.emplace(key, std::move(value));
+    auto [iterator, inserted] = constant_values.emplace(key, std::move(value));
     static_cast<void>(inserted);
     return iterator->second;
   };
   for (const ast::GlobalDeclaration *global : initialization_plan.constants)
-    if (globals
-            .at(global_key(global->module_name, global->declaration.name))
+    if (globals.at(global_key(global->module_name, global->declaration.name))
             .symbol.type.concrete != nullptr)
-      static_cast<void>(
-          evaluate_global(global_key(global->module_name,
-                                     global->declaration.name)));
+      static_cast<void>(evaluate_global(
+          global_key(global->module_name, global->declaration.name)));
 
   struct TraitInstance {
     const ast::TraitDeclaration *declaration;
@@ -901,8 +1042,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{constraint.location,
                                  "Copy does not accept type arguments"};
           } else {
-            static_cast<void>(
-                resolve_trait(constraint.trait, type_parameters));
+            static_cast<void>(resolve_trait(constraint.trait, type_parameters));
           }
         }
       };
@@ -985,13 +1125,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     validate_constraints(class_declaration.type_constraints, parameters);
     if (class_declaration.is_value_type) {
       if (!class_declaration.constructor_parameters.empty())
-        throw CompileError{
-            class_declaration.location,
-            "struct constructors only support val/var fields"};
+        throw CompileError{class_declaration.location,
+                           "struct constructors only support val/var fields"};
       if (!class_declaration.fields.empty())
-        throw CompileError{
-            class_declaration.location,
-            "struct fields must be declared in the constructor"};
+        throw CompileError{class_declaration.location,
+                           "struct fields must be declared in the constructor"};
       if (class_declaration.destructor.has_value())
         throw CompileError{class_declaration.location,
                            "struct values cannot declare a destructor"};
@@ -1199,9 +1337,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   for (const ast::FunctionDeclaration &function : program.functions) {
     if (!function.is_external)
       continue;
-    const std::string &symbol =
-        function.external_symbol.has_value() ? *function.external_symbol
-                                             : function.name;
+    const std::string &symbol = function.external_symbol.has_value()
+                                    ? *function.external_symbol
+                                    : function.name;
     if (symbol.empty())
       throw CompileError{function.location,
                          "external symbol name cannot be empty"};
@@ -1288,9 +1426,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     if (!is_destructor && context.function->is_external &&
         (!function_type_parameters.empty() ||
          !context.function->type_constraints.empty()))
-      throw CompileError{
-          function_location,
-          "external function '" + function_name + "' cannot be generic"};
+      throw CompileError{function_location, "external function '" +
+                                                function_name +
+                                                "' cannot be generic"};
     if (!is_destructor && context.function->is_variadic) {
       if (!context.function->is_external)
         throw CompileError{function_location,
@@ -1360,19 +1498,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     if (!is_destructor && context.function->is_external) {
       if (!is_c_abi_type(return_type, true))
-        throw CompileError{
-            context.function->return_type.location,
-            "external function return type '" + return_type.name() +
-                "' is not compatible with the C ABI"};
+        throw CompileError{context.function->return_type.location,
+                           "external function return type '" +
+                               return_type.name() +
+                               "' is not compatible with the C ABI"};
       for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
         const SemanticType parameter_type =
             resolve_type(parameter.type, type_parameters, &class_arities);
         if (!is_c_abi_type(parameter_type, false))
-          throw CompileError{
-              parameter.location,
-              "external parameter '" + parameter.name + "' has type '" +
-                  parameter_type.name() +
-                  "', which is not compatible with the C ABI"};
+          throw CompileError{parameter.location,
+                             "external parameter '" + parameter.name +
+                                 "' has type '" + parameter_type.name() +
+                                 "', which is not compatible with the C ABI"};
       }
       result.functions.emplace(function_name, std::move(symbols));
       continue;
@@ -1407,11 +1544,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       active_copy_constraints.insert("T");
     if (!is_destructor && owner != nullptr &&
         owner->module_name == std::optional<std::string>{"std.hashset"} &&
-        ((owner->name == "HashSet" &&
-          (context.function->name == "iterator" ||
-           context.function->name == "valueAt")) ||
-         (owner->name == "SetBuilder" &&
-          context.function->name == "addAll")))
+        ((owner->name == "HashSet" && (context.function->name == "iterator" ||
+                                       context.function->name == "valueAt")) ||
+         (owner->name == "SetBuilder" && context.function->name == "addAll")))
       active_copy_constraints.insert("T");
     if (!is_destructor && owner != nullptr && owner->name == "HashMap" &&
         owner->module_name == std::optional<std::string>{"std.hashmap"}) {
@@ -1420,8 +1555,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         active_copy_constraints.insert("K");
         active_copy_constraints.insert("V");
       }
-      if (context.function->name == "keyAt" ||
-          context.function->name == "keys")
+      if (context.function->name == "keyAt" || context.function->name == "keys")
         active_copy_constraints.insert("K");
       if (context.function->name == "valueAt" ||
           context.function->name == "getOption" ||
@@ -1479,9 +1613,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                       type.type_arguments[index]);
               for (const ast::ValueDeclaration &field :
                    declaration.constructor_fields) {
-                SemanticType field_type =
-                    resolve_type(field.declared_type, parameters,
-                                 &class_arities);
+                SemanticType field_type = resolve_type(
+                    field.declared_type, parameters, &class_arities);
                 visit(substitute(std::move(field_type), substitutions));
               }
               return;
@@ -1510,6 +1643,70 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const auto satisfies_copy = [&](const SemanticType &candidate) {
       return !potentially_owns_value(candidate);
     };
+    const auto supports_derivation = [&](const SemanticType &candidate,
+                                         ast::DerivationKind kind) -> bool {
+      std::unordered_set<std::string> visiting;
+      const auto visit = [&](const auto &self,
+                             const SemanticType &type) -> bool {
+        if (type.is_concrete())
+          return type.concrete->kind() != TypeKind::Unit;
+        if (type.is_pointer() || type.is_function())
+          return false;
+        if (!type.is_class() && !type.is_enum())
+          return true;
+        if (!visiting.insert(type.name()).second)
+          return false;
+        bool supported = true;
+        if (type.is_class()) {
+          const ast::ClassDeclaration &declaration = *classes.at(type.parameter);
+          supported = has_derivation(declaration.derivations, kind);
+          std::unordered_map<std::string, SemanticType> substitutions;
+          for (std::size_t index = 0;
+               index < declaration.type_parameters.size(); ++index)
+            substitutions.emplace(declaration.type_parameters[index],
+                                  type.type_arguments[index]);
+          const std::unordered_set<std::string> parameters{
+              declaration.type_parameters.begin(),
+              declaration.type_parameters.end()};
+          const auto check_field = [&](const ast::ValueDeclaration &field) {
+            SemanticType field_type = resolve_type(
+                field.declared_type, parameters, &class_arities);
+            return self(self,
+                        substitute(std::move(field_type), substitutions));
+          };
+          for (const ast::ValueDeclaration &field :
+               declaration.constructor_fields)
+            supported = supported && check_field(field);
+          for (const ast::ValueDeclaration &field : declaration.fields)
+            supported = supported && check_field(field);
+        } else {
+          const ast::EnumDeclaration &declaration = *enums.at(type.parameter);
+          supported = has_derivation(declaration.derivations, kind);
+          std::unordered_map<std::string, SemanticType> substitutions;
+          const std::unordered_set<std::string> parameters{
+              declaration.type_parameters.begin(),
+              declaration.type_parameters.end()};
+          for (std::size_t index = 0;
+               index < declaration.type_parameters.size(); ++index)
+            substitutions.emplace(declaration.type_parameters[index],
+                                  type.type_arguments[index]);
+          for (const ast::EnumDeclaration::Case &enum_case :
+               declaration.cases)
+            for (const ast::TypeReference &payload :
+                 enum_case.payload_types) {
+              SemanticType payload_type =
+                  resolve_type(payload, parameters, &class_arities);
+              supported =
+                  supported &&
+                  self(self,
+                       substitute(std::move(payload_type), substitutions));
+            }
+        }
+        visiting.erase(type.name());
+        return supported;
+      };
+      return visit(visit, candidate);
+    };
     SymbolTable *active_symbols = &symbols;
     const auto find_global =
         [&](const std::optional<std::string> &module,
@@ -1517,8 +1714,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto iterator = globals.find(global_key(module, name));
       return iterator == globals.end() ? nullptr : &iterator->second;
     };
-    const auto visible_global =
-        [&](std::string_view name) -> const Symbol * {
+    const auto visible_global = [&](std::string_view name) -> const Symbol * {
       if (const ResolvedGlobal *local = find_global(context_module, name))
         return &local->symbol;
       const auto exported = public_globals.find(std::string{name});
@@ -1584,19 +1780,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               (callee.is_variadic &&
                arguments.size() < callee.parameters.size()))
             throw CompileError{
-                location, "function '" + std::string{display_name} +
-                              "' expects " +
-                              (callee.is_variadic ? "at least " : "") +
-                              std::to_string(callee.parameters.size()) +
-                              " argument(s), got " +
-                              std::to_string(arguments.size())};
+                location,
+                "function '" + std::string{display_name} + "' expects " +
+                    (callee.is_variadic ? "at least " : "") +
+                    std::to_string(callee.parameters.size()) +
+                    " argument(s), got " + std::to_string(arguments.size())};
 
           std::unordered_map<std::string, SemanticType> substitutions;
           for (std::size_t index = 0; index < type_arguments.size(); ++index)
-            substitutions.emplace(
-                callee.type_parameters[index],
-                resolve_type(type_arguments[index], *active_type_parameters,
-                             &class_arities));
+            substitutions.emplace(callee.type_parameters[index],
+                                  resolve_type(type_arguments[index],
+                                               *active_type_parameters,
+                                               &class_arities));
           const std::unordered_set<std::string> callee_parameters{
               callee.type_parameters.begin(), callee.type_parameters.end()};
           for (const ast::TypeConstraint &constraint :
@@ -1617,12 +1812,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             for (SemanticType &argument : requirement.type_arguments)
               argument = substitute(std::move(argument), substitutions);
             if (!satisfies_active_trait(candidate, requirement))
-              throw CompileError{
-                  location, "type '" + candidate.name() +
-                                "' does not satisfy constraint '" +
-                                requirement.declaration->name +
-                                "' for type parameter '" +
-                                constraint.parameter + "'"};
+              throw CompileError{location,
+                                 "type '" + candidate.name() +
+                                     "' does not satisfy constraint '" +
+                                     requirement.declaration->name +
+                                     "' for type parameter '" +
+                                     constraint.parameter + "'"};
           }
           for (std::size_t index = 0; index < arguments.size(); ++index) {
             if (index >= callee.parameters.size()) {
@@ -1653,16 +1848,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 contextual_borrow_enum_name;
             contextual_borrow_expression = observes_owned_enum;
             contextual_borrow_enum_name =
-                callee.module_name ==
-                        std::optional<std::string>{"std.option"}
+                callee.module_name == std::optional<std::string>{"std.option"}
                     ? "Option"
                     : "Result";
             validate_expression(*arguments[index], expected,
                                 expression_location(*arguments[index]));
             contextual_borrow_expression =
                 previous_contextual_borrow_expression;
-            contextual_borrow_enum_name =
-                previous_contextual_borrow_enum_name;
+            contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
           }
           return substitute(resolve_type(callee.return_type, callee_parameters,
                                          &class_arities),
@@ -1688,10 +1881,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (integer_literal_value(expression)) {
           if (integer_literal_fits(expression, *expected.concrete))
             return;
-          throw CompileError{
-              expression_location(expression),
-              "integer literal is outside the " +
-              integer_range_description(*expected.concrete)};
+          throw CompileError{expression_location(expression),
+                             "integer literal is outside the " +
+                                 integer_range_description(*expected.concrete)};
         }
       }
 
@@ -1700,15 +1892,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (contextual_borrow_expression && aggregate_owns_value(actual) &&
             !std::holds_alternative<ast::IdentifierExpression>(
                 expression.value))
-          throw CompileError{
-              location, "observing an owning " +
-                            std::string{contextual_borrow_enum_name} +
-                            " requires a local value"};
+          throw CompileError{location,
+                             "observing an owning " +
+                                 std::string{contextual_borrow_enum_name} +
+                                 " requires a local value"};
         if (const auto *identifier =
                 std::get_if<ast::IdentifierExpression>(&expression.value);
             identifier != nullptr &&
             borrowed_values.contains(identifier->name) &&
-            potentially_owns_value(expected))
+            potentially_owns_value(expected) && !contextual_borrow_expression)
           throw CompileError{location,
                              "borrowed value '" + identifier->name +
                                  "' cannot be passed to an owning parameter"};
@@ -1719,16 +1911,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (std::holds_alternative<ast::IdentifierExpression>(
                   expression.value) &&
               !contextual_borrow_expression)
-            throw CompileError{
-                location,
-                "transferring owning aggregate '" + actual.name() +
-                    "' requires an explicit move"};
+            throw CompileError{location, "transferring owning aggregate '" +
+                                             actual.name() +
+                                             "' requires an explicit move"};
           if (std::holds_alternative<ast::MemberAccessExpression>(
                   expression.value))
             throw CompileError{
-                location,
-                "an owning aggregate field cannot be transferred "
-                "independently; move its enclosing aggregate"};
+                location, "an owning aggregate field cannot be transferred "
+                          "independently; move its enclosing aggregate"};
         }
         return;
       }
@@ -1760,10 +1950,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 aggregate_owns_value(actual)) {
               if (std::holds_alternative<ast::IdentifierExpression>(
                       expression.value))
-                throw CompileError{
-                    return_statement.location,
-                    "returning owning aggregate '" + actual.name() +
-                        "' requires an explicit move"};
+                throw CompileError{return_statement.location,
+                                   "returning owning aggregate '" +
+                                       actual.name() +
+                                       "' requires an explicit move"};
               if (std::holds_alternative<ast::MemberAccessExpression>(
                       expression.value))
                 throw CompileError{
@@ -1929,7 +2119,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   throw CompileError{
                       node.location,
                       node.callee +
-                          " supports int, double, byte, char, bool, string, and "
+                          " supports int, double, byte, char, bool, string, "
+                          "and "
                           "usize values, plus the other numeric primitives"};
                 return SemanticType{&Type::unit_type()};
               }
@@ -1951,12 +2142,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 validate_expression(
                     *node.arguments.front(), SemanticType{&Type::string_type()},
                     expression_location(*node.arguments.front()));
-                return SemanticType{
-                    nullptr,
-                    "Ptr",
-                    false,
-                    {SemanticType{&Type::byte_type()}},
-                    true};
+                return SemanticType{nullptr,
+                                    "Ptr",
+                                    false,
+                                    {SemanticType{&Type::byte_type()}},
+                                    true};
               }
               if (node.callee == "stringData" ||
                   node.callee == "stringLength") {
@@ -1969,9 +2159,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     expression_location(*node.arguments.front()));
                 if (node.callee == "stringLength")
                   return SemanticType{&Type::usize_type()};
-                return SemanticType{
-                    nullptr, "Ptr", false,
-                    {SemanticType{&Type::byte_type()}}, true};
+                return SemanticType{nullptr,
+                                    "Ptr",
+                                    false,
+                                    {SemanticType{&Type::byte_type()}},
+                                    true};
               }
               if (node.callee == "stringView") {
                 if (!node.type_arguments.empty() || node.arguments.size() != 2)
@@ -1979,14 +2171,68 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      "stringView expects a byte pointer and "
                                      "byte length"};
                 const SemanticType byte_pointer{
-                    nullptr, "Ptr", false,
-                    {SemanticType{&Type::byte_type()}}, true};
+                    nullptr,
+                    "Ptr",
+                    false,
+                    {SemanticType{&Type::byte_type()}},
+                    true};
                 validate_expression(*node.arguments[0], byte_pointer,
                                     expression_location(*node.arguments[0]));
-                validate_expression(
-                    *node.arguments[1], SemanticType{&Type::usize_type()},
-                    expression_location(*node.arguments[1]));
+                validate_expression(*node.arguments[1],
+                                    SemanticType{&Type::usize_type()},
+                                    expression_location(*node.arguments[1]));
                 return SemanticType{&Type::string_type()};
+              }
+              if (node.callee == "debug") {
+                if (!node.type_arguments.empty() || node.arguments.size() != 1)
+                  throw CompileError{
+                      node.location,
+                      "debug expects one value argument and no type argument"};
+                const SemanticType candidate =
+                    expression_type(*node.arguments.front());
+                if (!supports_derivation(candidate, ast::DerivationKind::Debug))
+                  throw CompileError{node.location,
+                                     "type '" + candidate.name() +
+                                         "' does not derive Debug"};
+                return SemanticType{&Type::unit_type()};
+              }
+              if (node.callee == "__derivedHash" ||
+                  node.callee == "__derivedEquals") {
+                const std::size_t value_arguments =
+                    node.callee == "__derivedHash" ? 1 : 2;
+                if (node.type_arguments.size() != 1 ||
+                    node.arguments.size() != value_arguments)
+                  throw CompileError{node.location,
+                                     node.callee +
+                                         " expects one type argument and " +
+                                         std::to_string(value_arguments) +
+                                         " value argument(s)"};
+                SemanticType candidate =
+                    resolve_type(node.type_arguments.front(),
+                                 *active_type_parameters, &class_arities);
+                if (active_type_substitutions != nullptr)
+                  candidate = substitute(std::move(candidate),
+                                         *active_type_substitutions);
+                const ast::DerivationKind capability =
+                    node.callee == "__derivedHash"
+                        ? ast::DerivationKind::Hashing
+                        : ast::DerivationKind::Equality;
+                if (!supports_derivation(candidate, capability))
+                  throw CompileError{
+                      node.location,
+                      "type '" + candidate.name() + "' does not derive " +
+                          std::string{derivation_name(capability)}};
+                const bool previous_contextual_borrow_expression =
+                    contextual_borrow_expression;
+                contextual_borrow_expression = true;
+                for (const auto &argument : node.arguments)
+                  validate_expression(*argument, candidate,
+                                      expression_location(*argument));
+                contextual_borrow_expression =
+                    previous_contextual_borrow_expression;
+                return node.callee == "__derivedHash"
+                           ? SemanticType{&Type::usize_type()}
+                           : SemanticType{&Type::bool_type()};
               }
               if (node.callee == "alloc" || node.callee == "realloc" ||
                   node.callee == "null" || node.callee == "sizeof" ||
@@ -2108,12 +2354,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "unknown function '" + node.callee + "'"};
               }
               const ast::FunctionDeclaration &callee = *callee_iterator->second;
-              if (callee.is_private &&
-                  callee.module_name != context_module)
+              if (callee.is_private && callee.module_name != context_module)
                 throw CompileError{
                     node.location,
-                    "function '" +
-                        global_key(callee.module_name, callee.name) +
+                    "function '" + global_key(callee.module_name, callee.name) +
                         "' is private"};
               if (node.type_arguments.size() != callee.type_parameters.size()) {
                 throw CompileError{
@@ -2192,12 +2436,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     index == 0 &&
                     ((callee.module_name ==
                           std::optional<std::string>{"std.option"} &&
-                      (callee.name == "isSome" ||
-                       callee.name == "isNone")) ||
+                      (callee.name == "isSome" || callee.name == "isNone")) ||
                      (callee.module_name ==
                           std::optional<std::string>{"std.result"} &&
-                      (callee.name == "isOk" ||
-                       callee.name == "isError")));
+                      (callee.name == "isOk" || callee.name == "isError")));
                 const bool previous_contextual_borrow_expression =
                     contextual_borrow_expression;
                 const std::string_view previous_contextual_borrow_enum_name =
@@ -2229,8 +2471,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               if (class_declaration.is_private &&
                   class_declaration.module_name != context_module)
                 throw CompileError{node.location,
-                                   "type '" + node.class_name +
-                                       "' is private"};
+                                   "type '" + node.class_name + "' is private"};
               SemanticType instance_type = resolve_type(
                   ast::TypeReference{node.class_name, node.location,
                                      node.type_arguments},
@@ -2240,6 +2481,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                            *active_type_substitutions);
               const auto substitutions =
                   class_substitutions(class_declaration, instance_type);
+              if (class_declaration.name == "DerivedHashing" &&
+                  class_declaration.module_name ==
+                      std::optional<std::string>{"std.hashing"}) {
+                const SemanticType &candidate = substitutions.at("T");
+                if (!supports_derivation(candidate,
+                                         ast::DerivationKind::Hashing))
+                  throw CompileError{
+                      node.location,
+                      "DerivedHashing requires a type that derives Hashing; '" +
+                          candidate.name() + "' does not"};
+              }
               const std::unordered_set<std::string> class_parameters{
                   class_declaration.type_parameters.begin(),
                   class_declaration.type_parameters.end()};
@@ -2335,8 +2587,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               return instance_type;
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {
-              const auto enum_name =
-                  qualified_expression_name(*node.object);
+              const auto enum_name = qualified_expression_name(*node.object);
               if (enum_name.has_value() && enums.contains(*enum_name) &&
                   (enum_name->find('.') == std::string::npos ||
                    !active_symbols->contains(
@@ -2351,8 +2602,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   throw CompileError{
                       node.location,
                       "generic enum cases require constructor syntax '" +
-                          *enum_name + "." + node.member +
-                          "[Types](...)'"};
+                          *enum_name + "." + node.member + "[Types](...)'"};
                 const auto enum_case =
                     std::find_if(enum_declaration.cases.begin(),
                                  enum_declaration.cases.end(),
@@ -2360,24 +2610,23 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    return item.name == node.member;
                                  });
                 if (enum_case == enum_declaration.cases.end())
-                  throw CompileError{node.location,
-                                     "enum '" + *enum_name +
-                                         "' has no case '" + node.member + "'"};
+                  throw CompileError{node.location, "enum '" + *enum_name +
+                                                        "' has no case '" +
+                                                        node.member + "'"};
                 if (!enum_case->payload_types.empty())
                   throw CompileError{node.location,
-                                     "enum case '" + *enum_name +
-                                         "." + node.member +
+                                     "enum case '" + *enum_name + "." +
+                                         node.member +
                                          "' requires constructor arguments"};
-                return SemanticType{
-                    nullptr, *enum_name, false, {}, false, true};
+                return SemanticType{nullptr, *enum_name, false,
+                                    {},      false,      true};
               }
               if (const auto module = qualified_expression_name(*node.object);
                   module.has_value() && global_modules.contains(*module) &&
                   !active_symbols->contains(
                       module->substr(0, module->find('.')))) {
-                const ResolvedGlobal *global =
-                    find_global(std::optional<std::string>{*module},
-                                node.member);
+                const ResolvedGlobal *global = find_global(
+                    std::optional<std::string>{*module}, node.member);
                 if (global == nullptr)
                   throw CompileError{node.location,
                                      "module '" + *module +
@@ -2385,10 +2634,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          node.member + "'"};
                 if (global->declaration->declaration.is_private &&
                     global->declaration->module_name != context_module)
-                  throw CompileError{
-                      node.location,
-                      "global value '" + *module + "." + node.member +
-                          "' is private"};
+                  throw CompileError{node.location, "global value '" + *module +
+                                                        "." + node.member +
+                                                        "' is private"};
                 return global->symbol.type;
               }
               const SemanticType object_type = expression_type(*node.object);
@@ -2415,8 +2663,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       class_declaration.module_name != context_module)
                     throw CompileError{
                         node.location,
-                        "field '" + node.member +
-                            "' is internal to module '" +
+                        "field '" + node.member + "' is internal to module '" +
                             class_declaration.module_name.value_or("<entry>") +
                             "'"};
                   return substitute(resolve_type(field.declared_type,
@@ -2438,8 +2685,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       class_declaration.module_name != context_module)
                     throw CompileError{
                         node.location,
-                        "field '" + node.member +
-                            "' is internal to module '" +
+                        "field '" + node.member + "' is internal to module '" +
                             class_declaration.module_name.value_or("<entry>") +
                             "'"};
                   return substitute(resolve_type(field.declared_type,
@@ -2453,8 +2699,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      "' has no field '" + node.member + "'"};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MethodCallExpression>) {
-              if (const auto module =
-                      qualified_expression_name(*node.object);
+              if (const auto module = qualified_expression_name(*node.object);
                   module.has_value() &&
                   !active_symbols->contains(
                       module->substr(0, module->find('.')))) {
@@ -2463,16 +2708,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     function != functions.end()) {
                   if (function->second->is_private &&
                       function->second->module_name != context_module)
-                    throw CompileError{node.location,
-                                       "function '" + qualified +
-                                           "' is private"};
-                  return declared_call_type(
-                      *function->second, node.type_arguments, node.arguments,
-                      node.location, qualified);
+                    throw CompileError{node.location, "function '" + qualified +
+                                                          "' is private"};
+                  return declared_call_type(*function->second,
+                                            node.type_arguments, node.arguments,
+                                            node.location, qualified);
                 }
               }
-              const auto enum_name =
-                  qualified_expression_name(*node.object);
+              const auto enum_name = qualified_expression_name(*node.object);
               if (enum_name.has_value() && enums.contains(*enum_name) &&
                   (enum_name->find('.') == std::string::npos ||
                    !active_symbols->contains(
@@ -2483,10 +2726,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     enum_declaration.module_name != context_module)
                   throw CompileError{node.location,
                                      "type '" + *enum_name + "' is private"};
-                const SemanticType instance_type = resolve_type(
-                    ast::TypeReference{*enum_name, node.location,
-                                       node.type_arguments},
-                    *active_type_parameters, &class_arities);
+                const SemanticType instance_type =
+                    resolve_type(ast::TypeReference{*enum_name, node.location,
+                                                    node.type_arguments},
+                                 *active_type_parameters, &class_arities);
                 const auto enum_case =
                     std::find_if(enum_declaration.cases.begin(),
                                  enum_declaration.cases.end(),
@@ -2494,14 +2737,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    return item.name == node.method;
                                  });
                 if (enum_case == enum_declaration.cases.end())
-                  throw CompileError{node.location,
-                                     "enum '" + *enum_name +
-                                         "' has no case '" + node.method + "'"};
+                  throw CompileError{node.location, "enum '" + *enum_name +
+                                                        "' has no case '" +
+                                                        node.method + "'"};
                 if (node.arguments.size() != enum_case->payload_types.size())
                   throw CompileError{
                       node.location,
-                      "enum case '" + *enum_name + "." +
-                          node.method + "' expects " +
+                      "enum case '" + *enum_name + "." + node.method +
+                          "' expects " +
                           std::to_string(enum_case->payload_types.size()) +
                           " argument(s), got " +
                           std::to_string(node.arguments.size())};
@@ -2684,11 +2927,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       std::optional<std::string>{"std.hashmap"}) {
                 const bool key_copy = satisfies_copy(substitutions.at("K"));
                 const bool value_copy = satisfies_copy(substitutions.at("V"));
-                if ((node.method == "entries" &&
-                     (!key_copy || !value_copy)) ||
+                if ((node.method == "entries" && (!key_copy || !value_copy)) ||
                     (node.method == "keys" && !key_copy) ||
-                    ((node.method == "values" ||
-                      node.method == "getOption") &&
+                    ((node.method == "values" || node.method == "getOption") &&
                      !value_copy))
                   throw CompileError{
                       node.location,
@@ -2784,16 +3025,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                      class_declaration->name == "HashSet" &&
                      class_declaration->module_name ==
                          std::optional<std::string>{"std.hashset"} &&
-                     (node.method == "contains" ||
-                      node.method == "remove")) ||
+                     (node.method == "contains" || node.method == "remove")) ||
                     (class_declaration != nullptr &&
                      class_declaration->name == "HashMap" &&
                      class_declaration->module_name ==
                          std::optional<std::string>{"std.hashmap"} &&
                      index == 0 &&
                      (node.method == "containsKey" ||
-                      node.method == "getOption" ||
-                      node.method == "remove"));
+                      node.method == "getOption" || node.method == "remove"));
                 if (observes_hash_value) {
                   const SemanticType actual =
                       expression_type(*node.arguments[index]);
@@ -2828,9 +3067,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 const bool previous_contextual_borrow =
                     contextual_borrow_lambda_parameters;
                 contextual_borrow_lambda_parameters = observes_owned_callback;
-                validate_expression(*node.arguments[index],
-                                    substituted_expected,
-                                    expression_location(*node.arguments[index]));
+                validate_expression(
+                    *node.arguments[index], substituted_expected,
+                    expression_location(*node.arguments[index]));
                 contextual_borrow_lambda_parameters =
                     previous_contextual_borrow;
               }
@@ -2859,10 +3098,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                             "expression, or closure"};
                   if (!active_symbols->contains(identifier->name) &&
                       visible_global(identifier->name) != nullptr)
-                    throw CompileError{
-                        node.location,
-                        "owning global value '" + identifier->name +
-                            "' cannot be consumed"};
+                    throw CompileError{node.location,
+                                       "owning global value '" +
+                                           identifier->name +
+                                           "' cannot be consumed"};
                   active_symbols->at(identifier->name).is_initialized = false;
                 } else if (!std::holds_alternative<ast::MoveExpression>(
                                node.object->value) &&
@@ -3054,16 +3293,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "' cannot be moved from a loop, branch expression, "
                         "or closure"};
               if (deferred_values.contains(identifier->name))
-                throw CompileError{
-                    node.location,
-                    "owning value '" + identifier->name +
-                        "' is scheduled for deferred cleanup"};
+                throw CompileError{node.location,
+                                   "owning value '" + identifier->name +
+                                       "' is scheduled for deferred cleanup"};
               if (!active_symbols->contains(identifier->name) &&
                   visible_global(identifier->name) != nullptr)
-                throw CompileError{
-                    node.location,
-                    "owning global value '" + identifier->name +
-                        "' cannot be moved"};
+                throw CompileError{node.location, "owning global value '" +
+                                                      identifier->name +
+                                                      "' cannot be moved"};
               const SemanticType moved_type = expression_type(*node.operand);
               const bool has_generic_argument = std::any_of(
                   moved_type.type_arguments.begin(),
@@ -3127,10 +3364,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               if (aggregate_owns_value(operand_type) &&
                   !std::holds_alternative<ast::MoveExpression>(
                       node.operand->value))
-                throw CompileError{
-                    node.location,
-                    "propagating owning aggregate '" + operand_type.name() +
-                        "' requires an explicit move"};
+                throw CompileError{node.location,
+                                   "propagating owning aggregate '" +
+                                       operand_type.name() +
+                                       "' requires an explicit move"};
               return operand_type.type_arguments.front();
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
@@ -3187,11 +3424,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 return left_type;
               case ast::BinaryOperator::Remainder:
-                if (!is_concrete ||
-                    !left_type.concrete->is_integer()) {
-                  throw CompileError{
-                      node.location,
-                      "operator '%' requires integer operands"};
+                if (!is_concrete || !left_type.concrete->is_integer()) {
+                  throw CompileError{node.location,
+                                     "operator '%' requires integer operands"};
                 }
                 return left_type;
               case ast::BinaryOperator::Less:
@@ -3208,22 +3443,31 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               case ast::BinaryOperator::Equal:
               case ast::BinaryOperator::NotEqual:
                 if (!is_concrete && !left_type.is_pointer() &&
-                    !left_type.is_enum()) {
+                    !left_type.is_enum() && !left_type.is_class()) {
                   throw CompileError{
                       node.location,
                       "equality operators require primitive operands"};
                 }
+                if (left_type.is_class() &&
+                    !supports_derivation(left_type,
+                                         ast::DerivationKind::Equality))
+                  throw CompileError{node.location,
+                                     "type '" + left_type.name() +
+                                         "' does not derive Equality"};
                 if (left_type.is_enum()) {
                   const ast::EnumDeclaration &declaration =
                       *enums.at(left_type.parameter);
-                  if (std::any_of(
-                          declaration.cases.begin(), declaration.cases.end(),
-                          [](const ast::EnumDeclaration::Case &enum_case) {
-                            return !enum_case.payload_types.empty();
-                          }))
-                    throw CompileError{
-                        node.location,
-                        "enums with payloads must be inspected with match"};
+                  const bool has_payload = std::any_of(
+                      declaration.cases.begin(), declaration.cases.end(),
+                      [](const ast::EnumDeclaration::Case &enum_case) {
+                        return !enum_case.payload_types.empty();
+                      });
+                  if (has_payload &&
+                      !supports_derivation(left_type,
+                                           ast::DerivationKind::Equality))
+                    throw CompileError{node.location,
+                                       "enum '" + left_type.name() +
+                                           "' does not derive Equality"};
                 }
                 return SemanticType{&Type::bool_type(), {}};
               case ast::BinaryOperator::LogicalAnd:
@@ -3235,8 +3479,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 return SemanticType{&Type::bool_type(), {}};
               }
-              throw CompileError{node.location,
-                                 "unsupported binary operator"};
+              throw CompileError{node.location, "unsupported binary operator"};
             }
           },
           expression.value);
@@ -3379,10 +3622,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                     &(*loop)->iterator.value)) {
               if (deferred_values.contains(identifier->name))
-                throw CompileError{
-                    (*loop)->location,
-                    "owning value '" + identifier->name +
-                        "' is scheduled for deferred cleanup"};
+                throw CompileError{(*loop)->location,
+                                   "owning value '" + identifier->name +
+                                       "' is scheduled for deferred cleanup"};
               block_symbols.at(identifier->name).is_initialized = false;
             }
           continue;
@@ -3414,25 +3656,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (!assignment->object.empty()) {
             if (!block_symbols.contains(assignment->object) &&
                 global_modules.contains(assignment->object)) {
-              const ResolvedGlobal *global = find_global(
-                  std::optional<std::string>{assignment->object},
-                  assignment->name);
+              const ResolvedGlobal *global =
+                  find_global(std::optional<std::string>{assignment->object},
+                              assignment->name);
               if (global == nullptr)
-                throw CompileError{
-                    assignment->location,
-                    "module '" + assignment->object +
-                        "' has no global value '" + assignment->name + "'"};
+                throw CompileError{assignment->location,
+                                   "module '" + assignment->object +
+                                       "' has no global value '" +
+                                       assignment->name + "'"};
               if (global->declaration->declaration.is_private &&
                   global->declaration->module_name != context_module)
-                throw CompileError{
-                    assignment->location,
-                    "global value '" + assignment->object + "." +
-                        assignment->name + "' is private"};
+                throw CompileError{assignment->location,
+                                   "global value '" + assignment->object + "." +
+                                       assignment->name + "' is private"};
               if (!global->symbol.is_mutable)
-                throw CompileError{
-                    assignment->location,
-                    "cannot assign to immutable global value '" +
-                        assignment->object + "." + assignment->name + "'"};
+                throw CompileError{assignment->location,
+                                   "cannot assign to immutable global value '" +
+                                       assignment->object + "." +
+                                       assignment->name + "'"};
               validate_expression(assignment->expression, global->symbol.type,
                                   assignment->location);
               continue;
@@ -3475,8 +3716,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 class_declaration.module_name != context_module)
               throw CompileError{
                   assignment->location,
-                  "field '" + assignment->name +
-                      "' is internal to module '" +
+                  "field '" + assignment->name + "' is internal to module '" +
                       class_declaration.module_name.value_or("<entry>") + "'"};
             if (!matched->is_mutable)
               throw CompileError{assignment->location,
@@ -3506,10 +3746,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             continue;
           }
           if (deferred_values.contains(assignment->name))
-            throw CompileError{
-                assignment->location,
-                "owning value '" + assignment->name +
-                    "' is scheduled for deferred cleanup"};
+            throw CompileError{assignment->location,
+                               "owning value '" + assignment->name +
+                                   "' is scheduled for deferred cleanup"};
           if (!iterator->second.is_mutable)
             throw CompileError{assignment->location,
                                "cannot assign to immutable value '" +
@@ -3526,10 +3765,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   &deletion->expression.value);
               identifier != nullptr &&
               deferred_values.contains(identifier->name))
-            throw CompileError{
-                deletion->location,
-                "owning value '" + identifier->name +
-                    "' is scheduled for deferred cleanup"};
+            throw CompileError{deletion->location,
+                               "owning value '" + identifier->name +
+                                   "' is scheduled for deferred cleanup"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value);
               identifier != nullptr &&
@@ -3539,12 +3777,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                        "' cannot be deleted"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value);
-              identifier != nullptr && !block_symbols.contains(identifier->name) &&
+              identifier != nullptr &&
+              !block_symbols.contains(identifier->name) &&
               visible_global(identifier->name) != nullptr)
-            throw CompileError{
-                deletion->location,
-                "owning global value '" + identifier->name +
-                    "' is destroyed automatically"};
+            throw CompileError{deletion->location,
+                               "owning global value '" + identifier->name +
+                                   "' is destroyed automatically"};
           const SemanticType deleted_type =
               expression_type(deletion->expression);
           const bool is_struct =
@@ -3555,8 +3793,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "struct values do not require delete"};
           if (!deleted_type.is_class() && !deleted_type.is_function() &&
               !potentially_owns_value(deleted_type) &&
-              !(deleted_type.is_enum() &&
-                aggregate_owns_value(deleted_type)))
+              !(deleted_type.is_enum() && aggregate_owns_value(deleted_type)))
             throw CompileError{deletion->location,
                                "delete requires an object or a function value"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
@@ -3580,10 +3817,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   "deferred delete requires an owning local identifier"};
             if (!block_symbols.contains(identifier->name) &&
                 visible_global(identifier->name) != nullptr)
-              throw CompileError{
-                  deletion->location,
-                  "owning global value '" + identifier->name +
-                      "' is destroyed automatically"};
+              throw CompileError{deletion->location,
+                                 "owning global value '" + identifier->name +
+                                     "' is destroyed automatically"};
             if (deferred_values.contains(identifier->name))
               throw CompileError{
                   deletion->location,
@@ -3599,8 +3835,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  "struct values do not require delete"};
             if (!deleted_type.is_class() && !deleted_type.is_function() &&
                 !potentially_owns_value(deleted_type) &&
-                !(deleted_type.is_enum() &&
-                  aggregate_owns_value(deleted_type)))
+                !(deleted_type.is_enum() && aggregate_owns_value(deleted_type)))
               throw CompileError{
                   deletion->location,
                   "deferred delete requires an object or a function value"};
@@ -3676,18 +3911,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{return_statement.location,
                                "return requires a value of type '" +
                                    return_type.name() + "'"};
-          if (const auto *identifier =
-                  std::get_if<ast::IdentifierExpression>(
-                      &return_statement.expression->value);
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &return_statement.expression->value);
               identifier != nullptr &&
               deferred_values.contains(identifier->name))
-            throw CompileError{
-                return_statement.location,
-                "owning value '" + identifier->name +
-                    "' is scheduled for deferred cleanup"};
-          if (const auto *identifier =
-                  std::get_if<ast::IdentifierExpression>(
-                      &return_statement.expression->value);
+            throw CompileError{return_statement.location,
+                               "owning value '" + identifier->name +
+                                   "' is scheduled for deferred cleanup"};
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &return_statement.expression->value);
               identifier != nullptr &&
               borrowed_values.contains(identifier->name) &&
               potentially_owns_value(return_type))
