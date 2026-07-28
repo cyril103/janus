@@ -34,11 +34,10 @@ val previous : Resource =
 defer delete previous
 ```
 
-`get`, `getOption`, l'itération et les opérations à callback qui copient `T`
-restent limitées aux éléments `Copy`. Le compilateur propose les opérations de
-transfert lorsqu'elles sont appelées sur un tableau propriétaire. Les
-observateurs bornés et l'itérateur consommant seront ajoutés dans l'étape
-suivante de la roadmap 0.6.
+`get`, `getOption` et `iterator()` restent limités aux éléments `Copy`.
+Pour observer un élément propriétaire sans le retirer, utilisez une lambda
+littérale avec `withValue` ou `foreach`. Pour transférer les éléments, consommez
+le tableau avec `intoIterator()`.
 
 ## Collections de hachage et builders
 
@@ -65,5 +64,44 @@ observés et restent la propriété de l'appelant. Une implémentation de
 propriétaires. `clear`, les tombstones, le rehash et le destructeur détruisent
 exactement les clés et valeurs qui restent stockées.
 
-Les itérateurs de set/map et `HashMap.getOption` restent disponibles uniquement
-lorsque les éléments qu'ils retournent sont `Copy`.
+`HashMap.getOption` et les itérateurs observants de set/map restent disponibles
+uniquement lorsque les éléments qu'ils retournent sont `Copy`.
+
+## Itérateurs propriétaires
+
+Les pipelines 0.5.x et 0.6.0 portant sur des types `Copy` restent valides :
+
+```janus
+val doubled : Array[int] = collectArray[int](
+    values.iterator().map[int]((value : int) => value * 2)
+)
+```
+
+Pour un élément propriétaire, l'entrée du pipeline doit être explicitement
+consommante :
+
+```janus
+val retained : Array[Resource] = collectArray[Resource](
+    resources.intoIterator()
+    .filter((value : Resource) => value.isValid())
+    .map[Resource]((value : Resource) => normalize(value))
+)
+```
+
+`filter` observe son paramètre dans une lambda littérale bornée et détruit les
+éléments refusés. `map`, `flatMap`, `fold` et les builders reçoivent la
+propriété de chaque élément. `take` transfère au plus le nombre demandé puis
+détruit le reste avec sa source. Un `for` direct sur un conteneur propriétaire
+est rejeté afin d'éviter toute copie implicite ; utilisez `intoIterator()` pour
+`Array`/`HashSet` et `intoEntries()` pour `HashMap`.
+
+Le conteneur est consommé dès la création de l'itérateur. Une terminaison
+normale ou anticipée (`break`, `continue`, `return`, `?`, panique) détruit
+l'itérateur et les éléments non produits. L'élément déjà produit appartient au
+corps de boucle et doit être transféré ou détruit.
+
+Le parcours consommant d'un `Array` préserve l'ordre mais coûte `O(n)` par
+élément produit et `O(n²)` pour un parcours complet. Un parcours consommant de
+`HashSet` ou `HashMap` coûte `O(capacity)` au total. À la destruction de
+l'itérateur, le stockage et toutes les valeurs restantes sont libérés ; le
+conteneur d'origine demeure consommé et ne peut pas être réutilisé.

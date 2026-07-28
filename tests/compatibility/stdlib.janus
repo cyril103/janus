@@ -1,4 +1,5 @@
 import std.array
+import std.array_builder
 import std.math
 import std.text
 
@@ -19,6 +20,13 @@ def main() : int {
     println(text.view())
     println(gcd(usize(54), usize(24)))
     println(is_prime(usize(29)))
+    val doubled : Array[int] = collectArray[int](
+    values.iterator().map[int]((value : int) => value * 2)
+    )
+    defer delete doubled
+    println(doubled.fold[int](
+        0,
+        (total : int, value : int) => total + value
+    ))
     return 0
 }
-

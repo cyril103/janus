@@ -1018,8 +1018,52 @@ if(BUILD_TESTING)
             ${CMAKE_COMMAND}
             "-DJANUSC=$<TARGET_FILE:janusc>"
             "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/hashing_borrow_error.janus"
-            "-DEXPECTED_ERROR=borrowed hashing value 'value' cannot be deleted"
+            "-DEXPECTED_ERROR=borrowed value 'value' cannot be deleted"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
+    )
+    add_test(
+        NAME runtime.owned_iterators
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_iterators.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/owned_iterators_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_iterators.expected.txt"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME language.owned_iterator_borrow_rejects_escape
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_iterator_borrow_error.janus"
+            "-DEXPECTED_ERROR=borrowed value 'item' cannot be passed to an owning parameter"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
+    )
+    add_test(
+        NAME language.owned_iterator_rejects_implicit_copy
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_iterator_for_copy_error.janus"
+            "-DEXPECTED_ERROR=for cannot copy an owned Iterable element"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
+    )
+    add_test(
+        NAME runtime.owned_iterator_panic
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_iterator_panic.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/owned_iterator_panic_runtime"
+            "-DEXPECTED_ERROR=owned iterator failure"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_iterator_panic.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
     )
     add_test(
         NAME runtime.global_aggregate_cleanup

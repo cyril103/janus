@@ -1,0 +1,266 @@
+import std.array
+import std.array_builder
+import std.hashing
+import std.hashmap
+import std.hashset
+import std.option
+
+var releases : int = 0
+
+class Resource(val id : int) {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+class ResourceHashing() extends Hashing[Resource] {
+    def hash(value : Resource) : usize {
+        return usize(value.id)
+    }
+
+    def equals(left : Resource, right : Resource) : bool {
+        return left.id == right.id
+    }
+}
+
+def transformed(value : Resource) : Resource {
+    val result : Resource = new Resource(value.id + 10)
+    delete value
+    return result
+}
+
+def releaseAndAdd(total : int, value : Resource) : int {
+    val next : int = total + value.id
+    delete value
+    return next
+}
+
+def expand(value : Resource) : Iterator[Resource] {
+    val values : Array[Resource] = new Array[Resource](usize(1))
+    val expanded : Resource = new Resource(value.id + 20)
+    values.push(move expanded)
+    delete value
+    return values.intoIterator()
+}
+
+def accumulate(
+values : Array[Resource],
+value : Resource
+) : Array[Resource] {
+    values.push(move value)
+    return values
+}
+
+def addArrayValues(values : Array[Resource], count : int) : Unit {
+    var id : int = 1
+    while id <= count {
+        val value : Resource = new Resource(id)
+        values.push(move value)
+        id = id + 1
+    }
+}
+
+def addSetValue(
+values : HashSet[Resource, ResourceHashing],
+id : int
+) : Unit {
+    val value : Resource = new Resource(id)
+    values.add(move value)
+}
+
+def putMapValue(
+values : HashMap[Resource, Resource, ResourceHashing],
+id : int
+) : Unit {
+    val key : Resource = new Resource(id)
+    val value : Resource = new Resource(id + 100)
+    val previous : Option[Resource] =
+    values.put(move key, move value)
+    delete previous
+}
+
+def exercisePipeline() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(4))
+    addArrayValues(values, 4)
+    val collected : Array[Resource] = collectArray[Resource](
+    values.intoIterator()
+    .filter((value : Resource) => value.id % 2 == 0)
+    .map[Resource]((value : Resource) => transformed(value))
+    )
+    delete collected
+}
+
+def exerciseBreak() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(3))
+    addArrayValues(values, 3)
+    for value in values.intoIterator() {
+        delete value
+        break
+    }
+}
+
+def exerciseContinue() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(2))
+    addArrayValues(values, 2)
+    for value in values.intoIterator() {
+        defer delete value
+        continue
+    }
+}
+
+def exerciseReturn() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(3))
+    addArrayValues(values, 3)
+    for value in values.intoIterator() {
+        defer delete value
+        return
+    }
+}
+
+def exerciseTry() : Option[int] {
+    val values : Array[Resource] = new Array[Resource](usize(3))
+    addArrayValues(values, 3)
+    for value in values.intoIterator() {
+        defer delete value
+        val absent : Option[int] = Option.None[int]()
+        val propagated : int = absent?
+        return Option.Some[int](propagated)
+    }
+    return Option.Some[int](0)
+}
+
+def exerciseSet(hashing : ResourceHashing) : Unit {
+    val values : HashSet[Resource, ResourceHashing] =
+    new HashSet[Resource, ResourceHashing](usize(4), hashing)
+    addSetValue(values, 1)
+    addSetValue(values, 2)
+    addSetValue(values, 3)
+    for value in values.intoIterator() {
+        delete value
+        break
+    }
+}
+
+def exerciseMap(hashing : ResourceHashing) : Unit {
+    val values : HashMap[Resource, Resource, ResourceHashing] =
+    new HashMap[Resource, Resource, ResourceHashing](usize(4), hashing)
+    putMapValue(values, 1)
+    putMapValue(values, 2)
+    for entry in values.intoEntries() {
+        delete entry
+        break
+    }
+}
+
+def exerciseTake() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(3))
+    addArrayValues(values, 3)
+    for value in values.intoIterator().take(usize(1)) {
+        delete value
+    }
+}
+
+def exerciseFold() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(3))
+    addArrayValues(values, 3)
+    val total : int = values.intoIterator().fold[int](
+    0,
+    (sum : int, value : Resource) => releaseAndAdd(sum, value)
+    )
+    println(total)
+}
+
+def exerciseFlatMap() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(2))
+    addArrayValues(values, 2)
+    for value in values.intoIterator()
+    .flatMap[Resource]((item : Resource) => expand(item)) {
+        delete value
+    }
+}
+
+def exerciseZip() : Unit {
+    val left : Array[Resource] = new Array[Resource](usize(2))
+    val right : Array[Resource] = new Array[Resource](usize(1))
+    addArrayValues(left, 2)
+    addArrayValues(right, 1)
+    for pair in left.intoIterator().zip[Resource](
+    right.intoIterator()
+    ) {
+        delete pair
+    }
+}
+
+def exerciseSetBuilder(hashing : ResourceHashing) : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(3))
+    addArrayValues(values, 3)
+    val builder : SetBuilder[Resource, ResourceHashing] =
+    new SetBuilder[Resource, ResourceHashing](usize(3), hashing)
+    defer delete builder
+    val collected : HashSet[Resource, ResourceHashing] =
+    values.intoIterator().collectWith[
+    HashSet[Resource, ResourceHashing],
+    SetBuilder[Resource, ResourceHashing]
+    ](builder)
+    delete collected
+}
+
+def exerciseObservation() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(2))
+    addArrayValues(values, 2)
+    values.withValue(
+    usize(0),
+    (value : Resource) => println(value.id)
+    )
+    values.foreach((value : Resource) => println(value.id))
+    delete values
+}
+
+def exerciseOwnedFold() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(2))
+    addArrayValues(values, 2)
+    val accumulated : Array[Resource] =
+    values.intoIterator().fold[Array[Resource]](
+    new Array[Resource](usize(2)),
+    (
+    result : Array[Resource],
+    value : Resource
+    ) => accumulate(result, value)
+    )
+    delete accumulated
+}
+
+def main() : int {
+    exercisePipeline()
+    println(releases)
+    exerciseBreak()
+    println(releases)
+    exerciseContinue()
+    println(releases)
+    exerciseReturn()
+    println(releases)
+    val propagated : Option[int] = exerciseTry()
+    println(releases)
+
+    val hashing : ResourceHashing = new ResourceHashing()
+    defer delete hashing
+    exerciseSet(hashing)
+    println(releases)
+    exerciseMap(hashing)
+    println(releases)
+    exerciseTake()
+    println(releases)
+    exerciseFold()
+    println(releases)
+    exerciseFlatMap()
+    println(releases)
+    exerciseZip()
+    println(releases)
+    exerciseSetBuilder(hashing)
+    println(releases)
+    exerciseObservation()
+    println(releases)
+    exerciseOwnedFold()
+    println(releases)
+    return 0
+}

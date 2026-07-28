@@ -1,0 +1,21 @@
+import std.array
+import std.iterator
+
+class Resource() {}
+
+def destroy(value : Resource) : bool {
+    delete value
+    return true
+}
+
+def main() : int {
+    val values : Array[Resource] = new Array[Resource](usize(1))
+    val value : Resource = new Resource()
+    values.push(move value)
+    val iterator : Iterator[Resource] =
+    values.intoIterator().filter(
+    (item : Resource) => destroy(item)
+    )
+    delete iterator
+    return 0
+}

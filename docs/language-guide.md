@@ -354,13 +354,12 @@ defer delete extracted
 ```
 
 Une contrainte générique `T <: Copy` garantit qu'un type peut être recopié
-sans dupliquer une ressource. Les ensembles, tables de hachage, builders et
-itérateurs de la bibliothèque standard utilisent cette contrainte. Depuis
-0.6.0, `Array[T]` accepte aussi les types propriétaires : `push`, `set`,
-`replace`, `remove` et `pop` transfèrent alors leurs valeurs avec `move`, tandis
-que `clear` et le destructeur détruisent les éléments restants. Les opérations
-qui copient un élément (`get`, `iterator`, `map`, etc.) restent réservées à
-`T: Copy`. Le [contrat de propriété des
+sans dupliquer une ressource. Les API qui produisent une copie, par exemple
+`Array.get` et `iterator()`, utilisent cette contrainte. Depuis 0.6.0, les
+collections principales acceptent aussi les types propriétaires : leurs
+opérations d'insertion et d'extraction transfèrent alors les valeurs avec
+`move`, tandis que `clear` et les destructeurs détruisent les éléments
+restants. Le [contrat de propriété des
 conteneurs](design/container-ownership.md) détaille cette séparation.
 
 ## Collections et itérateurs
@@ -389,8 +388,10 @@ val doubled : Array[int] =
 defer delete doubled
 ```
 
-Les opérations `map`, `filter`, `fold`, `foreach`, `find`, `any`, `all` et
-`count` acceptent des closures pour les éléments `Copy`.
+Les opérations directes de tableau qui retournent un élément par copie restent
+réservées aux éléments `Copy`. `withValue` et `foreach` observent en revanche
+une valeur propriétaire dans une lambda littérale bornée : son paramètre ne
+peut être ni déplacé, ni détruit, ni transmis à un paramètre propriétaire.
 
 Un tableau propriétaire reçoit et rend ses éléments par transfert explicite :
 
@@ -415,9 +416,50 @@ ces éléments avec `move`. Un doublon de `HashSet` détruit la valeur entrante 
 Les paramètres de `Hashing.hash` et `Hashing.equals` sont des observations :
 une implémentation ne doit ni les déplacer, ni les détruire, ni les retourner.
 Le hash et l'égalité doivent rester stables tant que la clé appartient à la
-collection. Les itérateurs et `HashMap.getOption` restent réservés aux types
-retournés qui satisfont `Copy` ; les itérateurs propriétaires arrivent dans
-l'étape suivante de la roadmap.
+collection. `HashMap.getOption` et les itérateurs observants `iterator()`,
+`entries()`, `keys()` et `values()` restent réservés aux types retournés qui
+satisfont `Copy`.
+
+### Observer ou consommer un parcours
+
+`iterator()` observe le conteneur et produit des copies ; il est donc
+disponible uniquement quand les éléments produits satisfont `Copy`.
+`intoIterator()` consomme un `Array` ou un `HashSet` et transfère chaque
+élément. Pour une table, `intoEntries()` transfère des `MapEntry[K, V]` ;
+`intoKey()` ou `intoValue()` permet ensuite de conserver une moitié en
+détruisant l'autre.
+
+```janus
+val resources : Array[Resource] = new Array[Resource](usize(2))
+resources.push(move first)
+resources.push(move second)
+
+for resource in resources.intoIterator() {
+    defer delete resource
+    resource.inspect()
+}
+```
+
+Un `for` sur des valeurs propriétaires exige ce parcours consommant explicite :
+le compilateur ne transforme jamais implicitement une observation en copie
+propriétaire. Les adaptateurs `map`, `filter`, `flatMap`, `take`, `zip`,
+`enumerate`, `fold` et `collectWith` transfèrent également leurs éléments.
+La lambda de `filter` observe son paramètre pendant l'appel ; `map`, `flatMap`
+et `fold` le consomment. Un élément refusé par `filter` est détruit
+immédiatement.
+
+La destruction de l'itérateur détruit sa source et tous les éléments qui n'ont
+pas été produits. Cette garantie s'applique à la fin normale et après
+`break`, `continue`, `return`, `?` ou une panique. Après l'appel à
+`intoIterator()` ou `intoEntries()`, le conteneur original est consommé et
+inutilisable, même si aucun élément n'est demandé.
+
+Le parcours consommant d'un `Array` conserve l'ordre mais retire son premier
+élément à chaque avancée : une avancée coûte `O(n)` et un parcours complet
+`O(n²)`. Les parcours consommateurs de `HashSet` et `HashMap` visitent chaque
+emplacement de la table au plus une fois, soit `O(capacity)` pour un parcours
+complet. Dans tous les cas, la fin ou la destruction de l'itérateur libère le
+stockage source ; `take(n)` détruit aussi la partie non visitée de sa source.
 
 Un pipeline paresseux est matérialisé avec `collectArray`, fourni par
 `std.array_builder` :

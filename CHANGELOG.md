@@ -3,6 +3,19 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.6.1] - Non publiée
+
+### Langage et bibliothèque standard
+
+- ajout des parcours consommateurs `intoIterator()` pour `Array` et `HashSet`
+  et `intoEntries()` pour `HashMap`, avec transfert explicite des valeurs
+  propriétaires et destruction des éléments non visités ;
+- adaptation des pipelines `map`, `filter`, `flatMap`, `take`, `fold` et des
+  builders aux éléments propriétaires, sans copie implicite ;
+- nettoyage des itérateurs lors des sorties `break`, `continue`, `return`, `?`
+  et des paniques, et diagnostics des tentatives d'échappement depuis une
+  observation bornée.
+
 ## [0.6.0] - 2026-07-27
 
 Cette version établit le contrat de propriété des conteneurs et permet aux
@@ -236,6 +249,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.6.1]: https://github.com/cyril103/janus/compare/v0.6.0...HEAD
 [0.6.0]: https://github.com/cyril103/janus/releases/tag/v0.6.0
 [0.5.0]: https://github.com/cyril103/janus/releases/tag/v0.5.0
 [0.4.0]: https://github.com/cyril103/janus/releases/tag/v0.4.0

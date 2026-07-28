@@ -1,6 +1,6 @@
 # Décision d'architecture : propriété des conteneurs
 
-Statut : acceptée pour Janus 0.6.0.
+Statut : acceptée pour Janus 0.6.0, étendue aux itérateurs en 0.6.1.
 
 Cette décision fixe le contrat cible des conteneurs qui stockent des valeurs
 propriétaires, avant son implémentation dans `Array`. Elle complète le
@@ -26,11 +26,11 @@ la transfère jamais.
 | Option | Avantages | Limites | Décision |
 | --- | --- | --- | --- |
 | emprunt général avec durée de vie | modèle uniforme et expressif | impose références, annotations de durée de vie et analyse interprocédurale | différé après 0.6.x |
-| callback d'observation borné | durée de vie délimitée par un appel, pas d'alias persistant | callback propriétaire soumis à des règles contextuelles | retenu pour 0.6.0 |
+| callback d'observation borné | durée de vie délimitée par un appel, pas d'alias persistant | callback propriétaire soumis à des règles contextuelles | retenu pour 0.6.x |
 | vue persistante sur le stockage | parcours efficace et API familière | invalidée par réallocation, mutation ou destruction ; nécessite des durées de vie | rejeté pour les valeurs propriétaires |
 | opérations uniquement consommantes | implémentation simple et aucune référence pendante | impossible d'inspecter un élément sans le retirer | retenu pour les transferts, insuffisant seul |
 
-Janus 0.6.0 combine donc callbacks bornés et opérations consommantes. Il
+Janus 0.6.x combine donc callbacks bornés et opérations consommantes. Il
 n'introduit ni type `Ref[T]`, ni tranche propriétaire, ni vue persistante.
 
 ## Invariants
@@ -143,10 +143,12 @@ d'abord la longueur, puis détruisent l'ancien dernier élément. Si un destruct
 panique, le préfixe `[0, length)` reste valide et aucun nettoyage ultérieur ne
 doit tenter de détruire de nouveau l'emplacement déjà retiré.
 
-Un `return`, `break`, `continue`, `?` ou une panique dans un callback termine
-l'observation avant les nettoyages de portée. Un `intoIterator` détruit dans
-son propre destructeur le tableau consommé et tous les éléments qui n'ont pas
-encore été produits.
+Un `return`, `break`, `continue`, `?` ou une panique termine l'observation
+avant les nettoyages de portée. Un `intoIterator` détruit dans son propre
+destructeur le conteneur consommé et tous les éléments qui n'ont pas encore été
+produits. Les adaptateurs propriétaires conservent cette responsabilité :
+`filter` détruit les éléments refusés, `take` détruit la partie non visitée et
+la destruction de tout pipeline remonte jusqu'à la source.
 
 ## Diagnostics attendus
 
@@ -209,9 +211,9 @@ implémentation.
 
 ## Conséquences
 
-- `Array[T]` pourra retirer sa contrainte globale `T <: Copy`.
+- `Array[T]` retire sa contrainte globale `T <: Copy`.
 - La compatibilité 0.5.x est conservée pour les opérations `Copy`.
 - Les API d'observation et de consommation deviennent distinctes.
-- Les collections 0.6.1 devront reprendre ces mêmes invariants.
+- Les collections et itérateurs 0.6.1 reprennent ces mêmes invariants.
 - Un futur système général de références pourra remplacer l'emprunt contextuel
   sans autoriser davantage de copies implicites.

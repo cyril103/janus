@@ -1397,9 +1397,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       add_active_constraints(context.function->type_constraints);
     const auto is_copy_only_array_method = [](std::string_view name) {
       return name == "iterator" || name == "get" || name == "getOption" ||
-             name == "foreach" || name == "map" || name == "filter" ||
-             name == "find" || name == "fold" || name == "any" ||
-             name == "all" || name == "count";
+             name == "map" || name == "filter" || name == "find" ||
+             name == "fold" || name == "any" || name == "all" ||
+             name == "count";
     };
     if (!is_destructor && owner != nullptr && owner->name == "Array" &&
         owner->module_name == std::optional<std::string>{"std.array"} &&
@@ -1532,6 +1532,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         *active_type_substitutions = nullptr;
     bool inside_lambda = false;
     bool inside_defer = false;
+    bool contextual_borrow_lambda_parameters = false;
     std::size_t loop_depth = 0;
     std::unordered_set<std::string> transfer_protected_values;
     std::unordered_set<std::string> deferred_values;
@@ -1662,6 +1663,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
       const SemanticType actual = expression_type(expression);
       if (same_type(actual, expected)) {
+        if (const auto *identifier =
+                std::get_if<ast::IdentifierExpression>(&expression.value);
+            identifier != nullptr &&
+            borrowed_values.contains(identifier->name) &&
+            potentially_owns_value(expected))
+          throw CompileError{location,
+                             "borrowed value '" + identifier->name +
+                                 "' cannot be passed to an owning parameter"};
         if ((actual.is_enum() ||
              (actual.is_class() &&
               classes.at(actual.parameter)->is_value_type)) &&
@@ -1771,6 +1780,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
               SymbolTable lambda_symbols = *active_symbols;
               std::unordered_set<std::string> parameter_names;
+              const auto previous_borrowed_values = borrowed_values;
               std::vector<SemanticType> signature;
               signature.reserve(node.parameters.size() + 1);
               for (const ast::LambdaExpression::Parameter &parameter :
@@ -1792,6 +1802,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 signature.push_back(parameter_type);
                 lambda_symbols.insert_or_assign(
                     parameter.name, Symbol{parameter_type, false, true});
+                if (contextual_borrow_lambda_parameters) {
+                  borrowed_values.insert(parameter.name);
+                }
               }
               SymbolTable *previous_symbols = active_symbols;
               active_symbols = &lambda_symbols;
@@ -1807,6 +1820,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               signature.push_back(expression_type(*node.body));
               inside_lambda = previous_inside_lambda;
               transfer_protected_values = previous_transfer_protected;
+              borrowed_values = previous_borrowed_values;
               active_symbols = previous_symbols;
               return SemanticType{
                   nullptr, "Function", false, std::move(signature),
@@ -2725,14 +2739,43 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                             "' is required"};
                   continue;
                 }
+                const bool observes_owned_callback =
+                    class_declaration != nullptr &&
+                    (((class_declaration->name == "Iterator" && index == 0) &&
+                      class_declaration->module_name ==
+                          std::optional<std::string>{"std.iterator"} &&
+                      node.method == "filter" &&
+                      potentially_owns_value(substitutions.at("T"))) ||
+                     (class_declaration->name == "Array" &&
+                      class_declaration->module_name ==
+                          std::optional<std::string>{"std.array"} &&
+                      ((node.method == "withValue" && index == 1) ||
+                       (node.method == "foreach" && index == 0)) &&
+                      potentially_owns_value(substitutions.at("T"))));
+                if (observes_owned_callback &&
+                    !std::holds_alternative<ast::LambdaExpression>(
+                        node.arguments[index]->value))
+                  throw CompileError{
+                      expression_location(*node.arguments[index]),
+                      "observing an owned collection element requires a "
+                      "bounded lambda literal"};
+                const bool previous_contextual_borrow =
+                    contextual_borrow_lambda_parameters;
+                contextual_borrow_lambda_parameters = observes_owned_callback;
                 validate_expression(*node.arguments[index],
                                     substituted_expected,
                                     expression_location(*node.arguments[index]));
+                contextual_borrow_lambda_parameters =
+                    previous_contextual_borrow;
               }
               if (method->is_consuming) {
                 if (const auto *identifier =
                         std::get_if<ast::IdentifierExpression>(
                             &node.object->value)) {
+                  if (borrowed_values.contains(identifier->name))
+                    throw CompileError{node.location,
+                                       "borrowed value '" + identifier->name +
+                                           "' cannot call a consuming method"};
                   if (deferred_values.contains(identifier->name))
                     throw CompileError{
                         node.location,
@@ -2923,10 +2966,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 throw CompileError{node.location,
                                    "move requires a local value identifier"};
               if (borrowed_values.contains(identifier->name))
-                throw CompileError{
-                    node.location,
-                    "borrowed hashing value '" + identifier->name +
-                        "' cannot be moved"};
+                throw CompileError{node.location, "borrowed value '" +
+                                                      identifier->name +
+                                                      "' cannot be moved"};
               if (transfer_protected_values.contains(identifier->name))
                 throw CompileError{
                     node.location,
@@ -3231,6 +3273,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "for requires an Iterator[T] or Iterable[T], "
                                "got '" +
                                    source_type.name() + "'"};
+          if (!consumes_source && !satisfies_copy(*element_type))
+            throw CompileError{(*loop)->location,
+                               "for cannot copy an owned Iterable element; use "
+                               "intoIterator to consume the collection"};
           SymbolTable loop_symbols = block_symbols;
           loop_symbols.insert_or_assign((*loop)->binding,
                                         Symbol{*element_type, false, true});
@@ -3403,10 +3449,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   &deletion->expression.value);
               identifier != nullptr &&
               borrowed_values.contains(identifier->name))
-            throw CompileError{
-                deletion->location,
-                "borrowed hashing value '" + identifier->name +
-                    "' cannot be deleted"};
+            throw CompileError{deletion->location, "borrowed value '" +
+                                                       identifier->name +
+                                                       "' cannot be deleted"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value);
               identifier != nullptr && !block_symbols.contains(identifier->name) &&
@@ -3561,10 +3606,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               identifier != nullptr &&
               borrowed_values.contains(identifier->name) &&
               potentially_owns_value(return_type))
-            throw CompileError{
-                return_statement.location,
-                "borrowed hashing value '" + identifier->name +
-                    "' cannot escape by return"};
+            throw CompileError{return_statement.location,
+                               "borrowed value '" + identifier->name +
+                                   "' cannot escape by return"};
           validate_return_expression(return_statement);
         }
         has_terminator = true;

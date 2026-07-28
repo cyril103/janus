@@ -20,6 +20,25 @@ private var index : usize
     }
 }
 
+private class ArrayIntoIteratorState[T](
+private val source : Array[T]
+) {
+    def next() : Option[T] {
+        if source.isEmpty() {
+            return Option.None[T]()
+        }
+        return Option.Some[T](source.remove(usize(0)))
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        delete source
+    }
+}
+
 class Array[T](initialCapacity : usize) extends Iterable[T] {
     private var data : Ptr[T] = alloc[T](initialCapacity)
     private var length : usize = usize(0)
@@ -62,6 +81,15 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     def iterator() : Iterator[T] {
         val state : ArrayIteratorState[T] =
         new ArrayIteratorState[T](this, usize(0))
+        return new Iterator[T](
+        () => state.next(),
+        () => state.dispose()
+        )
+    }
+
+    consume def intoIterator() : Iterator[T] {
+        val state : ArrayIntoIteratorState[T] =
+        new ArrayIntoIteratorState[T](move this)
         return new Iterator[T](
         () => state.next(),
         () => state.dispose()
@@ -179,6 +207,13 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
             val value : T = data.load(length)
             delete value
         }
+    }
+
+    def withValue(index : usize, action : (T) => Unit) : Unit {
+        if index >= length {
+            panic("Array index out of bounds\n")
+        }
+        action(data.load(index))
     }
 
     def foreach(action : (T) => Unit) : Unit {
