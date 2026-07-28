@@ -461,7 +461,6 @@ if(BUILD_TESTING)
             "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/graphics_resource_ownership.janus"
             "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/graphics_resource_ownership_runtime"
-            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/graphics_resource_ownership.expected.txt"
             "-DPROGRAM_ENVIRONMENT=JANUS_RAYLIB_PATH=$<TARGET_FILE:fake_raylib>"
             "-DENABLE_UNDEFINED_SANITIZER=ON"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"

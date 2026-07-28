@@ -58,12 +58,14 @@ def main() : int {
     val areaCopy : Rectangle = area
     val tint : Color = rgba(10, 20, 30, 40)
     val tintCopy : Color = tint
-    println(
-    point == pointCopy &&
-    area == areaCopy &&
-    tint == tintCopy &&
-    BlendMode.Additive == BlendMode.Additive
-    )
+    if !(
+        point == pointCopy &&
+        area == areaCopy &&
+        tint == tintCopy &&
+        BlendMode.Additive == BlendMode.Additive
+    ) {
+        return 4
+    }
 
     endBlend()
     endDrawing()
@@ -95,12 +97,14 @@ def main() : int {
     val missingTarget : RenderTexture = loadRenderTexture(0, 0)
     val missingShader : Shader =
     loadFragmentShader("missing-shader.fs")
-    println(
-    !missingTexture.isValid() &&
-    !missingFont.isValid() &&
-    !missingTarget.isValid() &&
-    !missingShader.isValid()
-    )
+    if !(
+        !missingTexture.isValid() &&
+        !missingFont.isValid() &&
+        !missingTarget.isValid() &&
+        !missingShader.isValid()
+    ) {
+        return 5
+    }
     delete missingTexture
     delete missingFont
     delete missingTarget
@@ -113,13 +117,15 @@ def main() : int {
     shader.begin()
     endShader()
     endShader()
-    println(
-    releaseTexture(move texture) &&
-    scopedFont() &&
-    releaseFont(move secondFont) &&
-    scopedRenderTexture() &&
-    releaseShader(move shader)
-    )
+    if !(
+        releaseTexture(move texture) &&
+        scopedFont() &&
+        releaseFont(move secondFont) &&
+        scopedRenderTexture() &&
+        releaseShader(move shader)
+    ) {
+        return 6
+    }
 
     if !initAudio() {
         closeWindow()
@@ -127,7 +133,9 @@ def main() : int {
     }
     val missingSound : Sound = loadSound("missing-sound.wav")
     val missingMusic : Music = loadMusic("missing-music.ogg")
-    println(!missingSound.isValid() && !missingMusic.isValid())
+    if missingSound.isValid() || missingMusic.isValid() {
+        return 7
+    }
     delete missingSound
     delete missingMusic
     val sound : Sound = loadSound("effect.wav")
