@@ -79,10 +79,11 @@ context : string
 }
 
 private def closedDirectoryError(
+operation : string,
 context : string
 ) : SystemError {
     return new SystemError(
-    "directory.next",
+    operation,
     SystemErrorCategory.InvalidInput,
     uint(0),
     context
@@ -132,13 +133,11 @@ class DirectoryIterator(
 private var nativeHandle : isize,
 private val directoryContext : string
 ) {
-    private var available : bool = true
-
     def next(
     ) : Result[Option[Path], SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[Option[Path], SystemError](
-            closedDirectoryError(directoryContext)
+            closedDirectoryError("directory.next", directoryContext)
             )
         }
         val output : Ptr[Ptr[byte]] = pointerOutput()
@@ -171,14 +170,13 @@ private val directoryContext : string
     }
 
     def close() : Result[bool, SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
-            closedDirectoryError(directoryContext)
+            closedDirectoryError("directory.close", directoryContext)
             )
         }
         val handle : isize = nativeHandle
         nativeHandle = isize(-1)
-        available = false
         if janus_fs_directory_close(handle) != 0 {
             return Result.Error[bool, SystemError](
             fsError("directory.close", directoryContext)
@@ -188,8 +186,7 @@ private val directoryContext : string
     }
 
     destructor {
-        if available {
-            available = false
+        if nativeHandle >= isize(0) {
             val handle : isize = nativeHandle
             nativeHandle = isize(-1)
             janus_fs_directory_close(handle)

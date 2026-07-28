@@ -81,17 +81,15 @@ class SystemFile(
 private var nativeHandle : isize,
 private val fileContext : string
 ) {
-    private var available : bool = true
-
     def isOpen() : bool {
-        return available
+        return nativeHandle >= isize(0)
     }
 
     def read(
     data : Ptr[byte],
     capacity : usize
     ) : Result[usize, SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[usize, SystemError](
             closedSystemError("read", fileContext)
             )
@@ -110,7 +108,7 @@ private val fileContext : string
     data : Ptr[byte],
     size : usize
     ) : Result[usize, SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[usize, SystemError](
             closedSystemError("write", fileContext)
             )
@@ -126,13 +124,12 @@ private val fileContext : string
     }
 
     def close() : Result[bool, SystemError] {
-        if !available {
+        if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
             closedSystemError("close", fileContext)
             )
         }
         val handle : isize = nativeHandle
-        available = false
         nativeHandle = isize(-1)
         if janus_system_close(handle) != 0 {
             return Result.Error[bool, SystemError](
@@ -143,8 +140,7 @@ private val fileContext : string
     }
 
     destructor {
-        if available {
-            available = false
+        if nativeHandle >= isize(0) {
             val handle : isize = nativeHandle
             nativeHandle = isize(-1)
             janus_system_close(handle)

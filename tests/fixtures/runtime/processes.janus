@@ -199,16 +199,24 @@ result : Result[ProcessResult, SystemError]
 ) : bool {
     return match move result {
         Ok(process) => rejectProcess(move process),
-        Error(error) => error.category == SystemErrorCategory.NotFound
+        Error(error) =>
+        error.operation == "process.run" &&
+        error.category == SystemErrorCategory.NotFound &&
+        error.nativeCode > uint(0) &&
+        error.context == "janus-process-definitely-missing-6d52b"
     }
 }
 
 def refusedProcess(
-result : Result[ProcessResult, SystemError]
+result : Result[ProcessResult, SystemError],
+expectedContext : string
 ) : bool {
     return match move result {
         Ok(process) => rejectProcess(move process),
-        Error(error) => true
+        Error(error) =>
+        error.operation == "process.run" &&
+        error.nativeCode > uint(0) &&
+        error.context == expectedContext
     }
 }
 
@@ -245,7 +253,7 @@ def runParent(root : Path, executable : string) : int {
     "",
     true,
     true
-    )))
+    ), root.view()))
     delete refusedArguments
     val markerPath : Result[Path, SystemError] =
     joinPath(root.view(), "child-marker.txt")
