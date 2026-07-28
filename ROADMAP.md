@@ -64,6 +64,7 @@ Ces sujets pourront être évalués après 0.8.0 sans bloquer la maturation du c
 | 0.7.7 | Build incrémental | cache correct et invalidation par interface |
 | 0.7.8 | Protocole du registre | format et modèle de sécurité versionnés |
 | 0.7.9 | Client et registre | recherche, publication distante et service de référence avec provenance |
+| 0.7.10 | Modernisation de la stdlib | surface auditée, implémentation réécrite avec les idiomes récents et documentation générée |
 | 0.8.0 | Audit et gel | audit de la surface publique et rapport de préparation 1.0 |
 
 ## Ordre de publication
@@ -75,7 +76,7 @@ Ces sujets pourront être évalués après 0.8.0 sans bloquer la maturation du c
                               ↓
 0.7.0 → 0.7.1 → 0.7.2 → 0.7.3 → 0.7.4
                                       ↓
-0.7.5 → 0.7.6 → 0.7.7 → 0.7.8 → 0.7.9 → 0.8.0
+0.7.5 → 0.7.6 → 0.7.7 → 0.7.8 → 0.7.9 → 0.7.10 → 0.8.0
 ```
 
 Une release peut être préparée en parallèle, mais elle ne doit pas être publiée avant la réussite des critères de sortie de la release précédente.
@@ -598,6 +599,149 @@ Ajouter `isOk`, `isError`, `map`, `mapError`, `andThen`, `orElse`, `unwrapOr` et
 - disponibilité du registre n'est pas requise pour un build `--locked --offline` déjà mis en cache.
 
 **Gate de release 0.7.9 :** client distant et registre de référence interopèrent, le cache est atomique, sauvegarde/restauration et provenance sont testées, et aucun secret n'apparaît dans les sorties ou artefacts.
+
+---
+
+<a id="release-0-7-10"></a>
+## Janus 0.7.10 — Modernisation de la bibliothèque standard
+
+**Objectif :** auditer puis réécrire la stdlib avec les idiomes de propriété,
+traits, dérivations, combinateurs, itérateurs et doctests disponibles après
+0.7.3, avant de figer une surface candidate en 0.8.0.
+
+**Point de départ mesuré au 28 juillet 2026 :** la stdlib contient 28 modules,
+5 634 lignes et 637 symboles publics dans l'inventaire versionné. Aucun module
+ne porte encore de commentaire `///`; la référence d'API générée ne peut donc
+pas servir de contrat autonome. Les changements de surface doivent rester
+intentionnels : les helpers de déplacement et de destruction ne sont supprimés
+que lorsqu'un test démontre une sémantique de propriété équivalente.
+
+### R0710-1 — Auditer la stdlib et figer les contrats de migration
+
+- produire un inventaire versionné par module : symboles, propriété, erreurs,
+  allocations, dépendances, tests et documentation ;
+- classer les API en conservation, refonte interne, dépréciation ou
+  remplacement public ;
+- mesurer duplications, allocations, branches de nettoyage et couverture de
+  tests ;
+- définir les budgets de compatibilité, taille, performance et documentation
+  des cinq lots suivants.
+
+**Critères d'acceptation :**
+
+- 100 % des modules et symboles publics possèdent un statut et un propriétaire
+  de migration dans `docs/audits/stdlib-0.7.10.md` ;
+- chaque rupture proposée possède une justification, une migration et une
+  fixture N/N+1 avant implémentation ;
+- les invariants de déplacement, consommation et destruction des types
+  propriétaires sont recensés ;
+- un rapport reproductible donne lignes, surface publique, couverture `///`,
+  imports de fixtures et principaux motifs dupliqués.
+
+### R0710-2 — Réécrire le cœur fonctionnel et les séquences
+
+- moderniser `std.option`, `std.result`, `std.builder`, `std.iterator`,
+  `std.array` et `std.array_builder` ;
+- utiliser méthodes `consume`, combinateurs, traits et `?` lorsque leur
+  sémantique de propriété est plus claire ;
+- mutualiser les états de parcours et fallbacks seulement lorsque les
+  nettoyages restent prouvés ;
+- conserver des parcours observants et consommateurs explicites.
+
+**Critères d'acceptation :**
+
+- valeurs `Copy` et non-`Copy` couvrent succès, erreur, court-circuit et
+  destruction anticipée sous ASan ;
+- aucune copie, fuite, double destruction ou consommation implicite n'est
+  introduite ;
+- les anciens appels conservés restent compatibles, et tout remplacement
+  public possède une migration compilée ;
+- les benchmarks de pipelines ne régressent pas au-delà du budget fixé par
+  R0710-1.
+
+### R0710-3 — Mutualiser collections, hachage et dérivations
+
+- réécrire `std.hash_probe`, `std.hashing`, `std.hashmap` et `std.hashset`
+  autour d'invariants partagés ;
+- employer `derives Equality, Hashing, Debug` pour les capacités structurelles
+  au lieu de code manuel lorsque le contrat est identique ;
+- réduire la duplication entre slots, redimensionnement, builders et
+  itérateurs ;
+- vérifier collisions, tombstones, transferts de clés/valeurs et paniques.
+
+**Critères d'acceptation :**
+
+- une suite commune teste les invariants de table pour map et set ;
+- dérivations et implémentations explicites produisent les mêmes résultats sur
+  le corpus versionné ;
+- clés et valeurs propriétaires passent ASan lors des insertions,
+  remplacements, suppressions, redimensionnements et destructions ;
+- complexité asymptotique et seuils de croissance restent documentés et
+  benchmarkés.
+
+### R0710-4 — Unifier système, texte, flux et ressources natives
+
+- moderniser `std.system`, `std.path`, `std.fs`, `std.io`, `std.process`,
+  `std.text`, `std.time`, `std.wall_time`, `std.random` et `std.math` ;
+- factoriser conversion des erreurs natives, paramètres de sortie, buffers et
+  états fermé/ouvert ;
+- utiliser `Result`, `Option`, `?`, destructeurs et types dérivés de façon
+  cohérente ;
+- préserver octets, UTF-8, codes natifs et fermetures exactement une fois.
+
+**Critères d'acceptation :**
+
+- Linux, macOS et Windows couvrent succès, erreurs, fermetures répétées,
+  entrées partielles et chemins Unicode ;
+- aucun handle, buffer ou résultat natif ne fuit sous sanitizers et outils de
+  plateforme disponibles ;
+- les erreurs récupérables ne paniquent pas et conservent opération, catégorie,
+  code natif et contexte ;
+- les API modifiées possèdent fixtures de compatibilité et migrations.
+
+### R0710-5 — Réécrire les wrappers graphiques et audio
+
+- auditer `std.graphics.*`, ses données copiables, handles propriétaires,
+  alias historiques et appels runtime ;
+- utiliser dérivations pour les valeurs structurelles et destructeurs pour les
+  ressources natives ;
+- factoriser les wrappers répétitifs sans masquer les transitions begin/end ;
+- séparer clairement API stable proposée, surface expérimentale et détails
+  raylib.
+
+**Critères d'acceptation :**
+
+- textures, fontes, shaders, rendertargets, sons et musiques sont libérés
+  exactement une fois sur tous les chemins testables ;
+- valeurs graphiques copiables utilisent des dérivations cohérentes ;
+- tests avec backend factice couvrent chargement invalide, mouvement,
+  destruction et begin/end déséquilibré ;
+- les alias conservés ou retirés sont recensés dans la migration.
+
+### R0710-6 — Documenter et publier toute la stdlib
+
+- ajouter `///` aux modules, types, variantes, traits, fonctions et membres
+  publics ;
+- ajouter exemples `// doctest:` pour usages normaux, propriété et erreurs ;
+- générer une référence stdlib déterministe avec `janus doc` et la publier sur
+  le site ;
+- vérifier liens entre symboles, couverture et dérive entre inventaire,
+  sources, tests et pages.
+
+**Critères d'acceptation :**
+
+- 100 % de la surface publique non expérimentale possède une documentation
+  source et apparaît dans l'index généré ;
+- chaque module possède au moins un doctest de succès et les modules à erreur
+  structurée un doctest `compile_fail` pertinent ;
+- aucun lien documentaire non résolu et aucune déclaration privée/interne
+  n'apparaît dans la référence ;
+- CI, site et archives génèrent la même référence hors ligne.
+
+**Gate de release 0.7.10 :** inventaire et migrations complets, cinq lots de
+modernisation validés sous compatibilité et sanitizers, référence stdlib
+déterministe publiée, couverture `///` de 100 % de la surface
+non expérimentale et tous les doctests verts.
 
 ---
 
