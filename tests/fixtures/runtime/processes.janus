@@ -71,15 +71,30 @@ def childMain() : int {
     val marker : bool = boolResult(
     writeTextFileAtomic("child-marker.txt", "ok")
     )
-    println("child-out")
+    val standardOutputResult : Result[OutputStream, SystemError] =
+    standardOutput()
+    val outputWritten : bool = match move standardOutputResult {
+        Ok(stream) => writeChildOutput(move stream),
+        Error(error) => false
+    }
     val standardErrorResult : Result[OutputStream, SystemError] =
     standardError()
     val errorWritten : bool = match move standardErrorResult {
         Ok(stream) => writeChildError(move stream),
         Error(error) => false
     }
-    return if argumentsValid && environmentValid &&
-    marker && errorWritten { 23 } else { 24 }
+    return if argumentsValid && environmentValid && marker &&
+    outputWritten && errorWritten { 23 } else { 24 }
+}
+
+def writeChildOutput(stream : OutputStream) : bool {
+    val written : bool = match stream.writeText("child-out\n") {
+        Ok(count) => count == usize(10),
+        Error(error) => false
+    }
+    val closed : bool = boolResult(stream.close())
+    delete stream
+    return written && closed
 }
 
 def writeChildError(stream : OutputStream) : bool {

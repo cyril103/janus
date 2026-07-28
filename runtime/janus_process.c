@@ -708,6 +708,20 @@ static int janus_process_quote_argument(janus_process_buffer *command,
   return janus_process_buffer_append(command, &quote, sizeof(quote));
 }
 
+static HANDLE janus_process_inheritable_standard(DWORD identifier,
+                                                 DWORD fallback_access) {
+  const HANDLE standard = GetStdHandle(identifier);
+  HANDLE duplicate = NULL;
+  if (standard != NULL && standard != INVALID_HANDLE_VALUE &&
+      DuplicateHandle(GetCurrentProcess(), standard, GetCurrentProcess(),
+                      &duplicate, 0, TRUE, DUPLICATE_SAME_ACCESS))
+    return duplicate;
+  SECURITY_ATTRIBUTES security = {sizeof(security), NULL, TRUE};
+  return CreateFileW(L"NUL", fallback_access,
+                     FILE_SHARE_READ | FILE_SHARE_WRITE, &security,
+                     OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+}
+
 intptr_t janus_process_run(const char *executable, uint64_t executable_length,
                            const char *const *arguments,
                            const uint64_t *argument_lengths,
@@ -765,20 +779,41 @@ intptr_t janus_process_run(const char *executable, uint64_t executable_length,
   }
   STARTUPINFOW startup = {0};
   startup.cb = sizeof(startup);
+  HANDLE inherited_input = NULL;
+  HANDLE inherited_output = NULL;
+  HANDLE inherited_error = NULL;
   if (capture_stdout || capture_stderr) {
+    inherited_input =
+        janus_process_inheritable_standard(STD_INPUT_HANDLE, GENERIC_READ);
+    if (!capture_stdout)
+      inherited_output =
+          janus_process_inheritable_standard(STD_OUTPUT_HANDLE, GENERIC_WRITE);
+    if (!capture_stderr)
+      inherited_error =
+          janus_process_inheritable_standard(STD_ERROR_HANDLE, GENERIC_WRITE);
+    if (inherited_input == INVALID_HANDLE_VALUE ||
+        (!capture_stdout && inherited_output == INVALID_HANDLE_VALUE) ||
+        (!capture_stderr && inherited_error == INVALID_HANDLE_VALUE)) {
+      janus_system_capture_windows_error();
+      goto windows_inherited_handles;
+    }
     startup.dwFlags = STARTF_USESTDHANDLES;
-    startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-    startup.hStdOutput =
-        capture_stdout ? output_write : GetStdHandle(STD_OUTPUT_HANDLE);
-    startup.hStdError =
-        capture_stderr ? error_write : GetStdHandle(STD_ERROR_HANDLE);
+    startup.hStdInput = inherited_input;
+    startup.hStdOutput = capture_stdout ? output_write : inherited_output;
+    startup.hStdError = capture_stderr ? error_write : inherited_error;
   }
   PROCESS_INFORMATION process = {0};
   if (!CreateProcessW(program, (wchar_t *)command.data, NULL, NULL, TRUE, 0,
                       NULL, directory, &startup, &process)) {
     janus_system_capture_windows_error();
-    goto windows_handles;
+    goto windows_inherited_handles;
   }
+  if (inherited_input != NULL)
+    CloseHandle(inherited_input);
+  if (inherited_output != NULL)
+    CloseHandle(inherited_output);
+  if (inherited_error != NULL)
+    CloseHandle(inherited_error);
   if (output_write != NULL) {
     CloseHandle(output_write);
     output_write = NULL;
@@ -869,6 +904,13 @@ intptr_t janus_process_run(const char *executable, uint64_t executable_length,
   janus_system_clear_error();
   return (intptr_t)result;
 
+windows_inherited_handles:
+  if (inherited_input != NULL && inherited_input != INVALID_HANDLE_VALUE)
+    CloseHandle(inherited_input);
+  if (inherited_output != NULL && inherited_output != INVALID_HANDLE_VALUE)
+    CloseHandle(inherited_output);
+  if (inherited_error != NULL && inherited_error != INVALID_HANDLE_VALUE)
+    CloseHandle(inherited_error);
 windows_handles:
   if (output_read != NULL)
     CloseHandle(output_read);
