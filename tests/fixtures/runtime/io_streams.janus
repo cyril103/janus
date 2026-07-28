@@ -1,0 +1,375 @@
+import std.fs
+import std.io
+import std.path
+
+def boolResult(
+result : Result[bool, SystemError]
+) : bool {
+    return match result {
+        Ok(value) => value,
+        Error(error) => false
+    }
+}
+
+def closedResult(
+result : Result[bool, SystemError]
+) : bool {
+    return match result {
+        Ok(value) => false,
+        Error(error) =>
+        error.category == SystemErrorCategory.InvalidInput &&
+        error.nativeCode == uint(0)
+    }
+}
+
+def textResultEquals(
+result : Result[string, TextDecodeError],
+expected : string
+) : bool {
+    return match result {
+        Ok(value) => value == expected,
+        Error(error) => false
+    }
+}
+
+def validBufferTest() : bool {
+    val buffer : ByteBuffer = new ByteBuffer(usize(1))
+    val appended : bool = buffer.appendText("béta")
+    val valid : bool = buffer.isUtf8()
+    val text : bool = textResultEquals(
+    buffer.asText(),
+    "béta"
+    )
+    delete buffer
+    return appended && valid && text
+}
+
+def invalidBufferTest() : bool {
+    val bytes : Ptr[byte] = alloc[byte](usize(2))
+    defer free(bytes)
+    bytes.store(usize(0), byte(195))
+    bytes.store(usize(1), byte(40))
+    val buffer : ByteBuffer = new ByteBuffer(usize(2))
+    val appended : bool = buffer.append(bytes, usize(2))
+    val rejected : bool = match buffer.asText() {
+        Ok(value) => false,
+        Error(error) => error == TextDecodeError.InvalidUtf8
+    }
+    delete buffer
+    return appended && rejected
+}
+
+def closeStandardInput(input : InputStream) : bool {
+    val open : bool = input.isOpen()
+    val closed : bool = boolResult(input.close())
+    val rejected : bool = closedResult(input.close())
+    delete input
+    return open && closed && rejected
+}
+
+def standardInputTest(
+result : Result[InputStream, SystemError]
+) : bool {
+    return match move result {
+        Ok(input) => closeStandardInput(move input),
+        Error(error) => false
+    }
+}
+
+def closeStandardOutput(output : OutputStream) : bool {
+    val open : bool = output.isOpen()
+    val closed : bool = boolResult(output.close())
+    val rejected : bool = closedResult(output.close())
+    delete output
+    return open && closed && rejected
+}
+
+def standardOutputTest(
+result : Result[OutputStream, SystemError]
+) : bool {
+    return match move result {
+        Ok(output) => closeStandardOutput(move output),
+        Error(error) => false
+    }
+}
+
+def writtenCount(
+result : Result[usize, SystemError],
+expected : usize
+) : bool {
+    return match result {
+        Ok(count) => count == expected,
+        Error(error) => false
+    }
+}
+
+def copyStreams(
+input : InputStream,
+output : OutputStream
+) : bool {
+    val copied : bool = writtenCount(
+    copyStream(input, output),
+    usize(12)
+    )
+    val inputClosed : bool = boolResult(input.close())
+    val outputClosed : bool = boolResult(output.close())
+    val inputRejected : bool = match input.read(
+    null[byte](),
+    usize(0)
+    ) {
+        Ok(count) => false,
+        Error(error) =>
+        error.category == SystemErrorCategory.InvalidInput
+    }
+    val outputRejected : bool = closedResult(output.close())
+    delete input
+    delete output
+    return copied && inputClosed && outputClosed &&
+    inputRejected && outputRejected
+}
+
+class CopyInputState(private var input : InputStream) {
+    private var available : bool = true
+
+    def run(output : OutputStream) : bool {
+        available = false
+        return copyStreams(move input, move output)
+    }
+
+    def reject() : bool {
+        available = false
+        delete input
+        return false
+    }
+
+    destructor {
+        if available {
+            delete input
+        }
+    }
+}
+
+def copyOutputResult(
+input : InputStream,
+result : Result[OutputStream, SystemError]
+) : bool {
+    val state : CopyInputState =
+    new CopyInputState(move input)
+    defer delete state
+    return match move result {
+        Ok(output) => state.run(move output),
+        Error(error) => state.reject()
+    }
+}
+
+def copyInputResult(
+result : Result[InputStream, SystemError],
+destination : string
+) : bool {
+    return match move result {
+        Ok(input) => copyOutputResult(
+        move input,
+        openOutputStreamBuffered(
+        destination,
+        false,
+        usize(2)
+        )
+        ),
+        Error(error) => false
+    }
+}
+
+def copyFile(
+source : string,
+destination : string
+) : bool {
+    return copyInputResult(
+    openInputStreamBuffered(source, usize(3)),
+    destination
+    )
+}
+
+def rejectData(data : FileData) : bool {
+    delete data
+    return false
+}
+
+def copiedFileResult(
+result : Result[FileData, SystemError]
+) : bool {
+    return match move result {
+        Ok(data) => copiedData(move data),
+        Error(error) => false
+    }
+}
+
+def copiedData(data : FileData) : bool {
+    val matches : bool =
+    data.view() == "alpha\nbéta\n"
+    delete data
+    return matches
+}
+
+def lineOptionEquals(
+option : Option[ByteBuffer],
+expected : string
+) : bool {
+    return match move option {
+        Some(line) => lineEquals(move line, expected),
+        None => false
+    }
+}
+
+def lineEquals(
+line : ByteBuffer,
+expected : string
+) : bool {
+    val matches : bool = textResultEquals(
+    line.asText(),
+    expected
+    )
+    delete line
+    return matches
+}
+
+def lineResultEquals(
+result : Result[Option[ByteBuffer], SystemError],
+expected : string
+) : bool {
+    return match move result {
+        Ok(option) => lineOptionEquals(move option, expected),
+        Error(error) => false
+    }
+}
+
+def eofResult(
+result : Result[Option[ByteBuffer], SystemError]
+) : bool {
+    return match move result {
+        Ok(option) => match move option {
+            Some(line) => rejectLine(move line),
+            None => true
+        },
+        Error(error) => false
+    }
+}
+
+def rejectLine(line : ByteBuffer) : bool {
+    delete line
+    return false
+}
+
+def processLines(input : InputStream) : bool {
+    val first : bool = lineResultEquals(
+    input.readLine(),
+    "alpha"
+    )
+    val second : bool = lineResultEquals(
+    input.readLine(),
+    "béta"
+    )
+    val ended : bool = eofResult(input.readLine())
+    val eof : bool = input.isEof()
+    val closed : bool = boolResult(input.close())
+    delete input
+    return first && second && ended && eof && closed
+}
+
+def lineInputResult(
+result : Result[InputStream, SystemError]
+) : bool {
+    return match move result {
+        Ok(input) => processLines(move input),
+        Error(error) => false
+    }
+}
+
+def usePaths(
+root : Path,
+source : Path,
+destination : Path
+) : int {
+    println(boolResult(
+    writeTextFileAtomic(
+    source.view(),
+    "alpha\nbéta\n"
+    )
+    ))
+    println(copyFile(
+    source.view(),
+    destination.view()
+    ))
+    println(copiedFileResult(
+    readFile(destination.view())
+    ))
+    println(lineInputResult(
+    openInputStreamBuffered(
+    destination.view(),
+    usize(2)
+    )
+    ))
+    println(boolResult(removeFile(source.view())))
+    println(boolResult(removeFile(destination.view())))
+    println(boolResult(removeDirectory(root.view())))
+    delete source
+    delete destination
+    return 0
+}
+
+def destinationResult(
+root : Path,
+source : Path,
+result : Result[Path, SystemError]
+) : int {
+    return match move result {
+        Ok(destination) => usePaths(
+        root,
+        source,
+        move destination
+        ),
+        Error(error) => 1
+    }
+}
+
+def sourceResult(
+root : Path,
+result : Result[Path, SystemError]
+) : int {
+    return match move result {
+        Ok(source) => destinationResult(
+        root,
+        source,
+        joinPath(root.view(), "copie.txt")
+        ),
+        Error(error) => 1
+    }
+}
+
+def useTemporary(root : Path) : int {
+    val status : int = sourceResult(
+    root,
+    joinPath(root.view(), "source.txt")
+    )
+    delete root
+    return status
+}
+
+def temporaryResult(
+result : Result[Path, SystemError]
+) : int {
+    return match move result {
+        Ok(root) => useTemporary(move root),
+        Error(error) => 1
+    }
+}
+
+def main() : int {
+    println(validBufferTest())
+    println(invalidBufferTest())
+    println(standardInputTest(standardInput()))
+    println(standardOutputTest(standardOutput()))
+    println(standardOutputTest(standardError()))
+    return temporaryResult(
+    createTemporaryDirectory("janus-io")
+    )
+}

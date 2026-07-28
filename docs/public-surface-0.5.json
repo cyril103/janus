@@ -133,6 +133,14 @@
       "symbols": ["HashSet", "HashSet.size", "HashSet.isEmpty", "HashSet.contains", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
     },
     {
+      "name": "std.io",
+      "source": "stdlib/std/io.janus",
+      "documentation": ["docs/language-guide.md", "docs/design/io-streams.md", "docs/stability-contract.md"],
+      "status": "stable-proposed",
+      "signature_digest": "fde969a7f2602ed62099e6743f7368de318b021df738ddc461d69f109d38b8cd",
+      "symbols": ["TextDecodeError", "TextDecodeError.InvalidUtf8", "ByteBuffer", "ByteBuffer.data", "ByteBuffer.size", "ByteBuffer.capacity", "ByteBuffer.isEmpty", "ByteBuffer.clear", "ByteBuffer.append", "ByteBuffer.appendByte", "ByteBuffer.appendText", "ByteBuffer.isUtf8", "ByteBuffer.asText", "InputStream", "InputStream.isOpen", "InputStream.isEof", "InputStream.read", "InputStream.readLine", "InputStream.close", "OutputStream", "OutputStream.isOpen", "OutputStream.write", "OutputStream.writeText", "OutputStream.flush", "OutputStream.close", "openInputStreamBuffered", "openInputStream", "openOutputStreamBuffered", "openOutputStream", "standardInput", "standardOutput", "standardError", "copyStream"]
+    },
+    {
       "name": "std.iterator",
       "source": "stdlib/std/iterator.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],

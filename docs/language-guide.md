@@ -792,6 +792,28 @@ les libèrent à la destruction. Les métadonnées ne suivent pas le dernier lie
 symbolique. Le [contrat chemins et fichiers](design/path-filesystem.md)
 documente l’écriture atomique, les liens et les différences POSIX/Windows.
 
+### Flux tamponnés
+
+`std.io` sépare les octets du texte. `InputStream` expose les lectures
+séquentielles, EOF et les lignes sous forme de `ByteBuffer`.
+`OutputStream` absorbe les écritures partielles, fournit `flush` et ferme les
+handles propriétaires exactement une fois.
+
+```janus
+import std.io
+
+val input : Result[InputStream, SystemError] =
+openInputStream("source.txt")
+val output : Result[OutputStream, SystemError] =
+openOutputStream("copie.txt", false)
+```
+
+`standardInput`, `standardOutput` et `standardError` créent des wrappers qui ne
+ferment pas les handles du processus. Un buffer binaire doit appeler `isUtf8`
+ou `asText` avant d’être traité comme du texte. Le
+[contrat des flux](design/io-streams.md) précise les lectures partielles, les
+fins de ligne, la durée de vie des vues et le flush selon le type de handle.
+
 Des programmes complets sont disponibles dans [`examples`](../examples).
 
 ## Structures copiées par valeur

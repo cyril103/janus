@@ -3,6 +3,17 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.7.1] - Non publiée
+
+### Flux et bibliothèque standard
+
+- ajout de `std.io` avec buffers d’octets propriétaires, entrées et sorties
+  séquentielles tamponnées, EOF, flush et fermeture définie ;
+- ajout des wrappers non propriétaires pour les trois flux standards et de
+  `copyStream`, qui gère les lectures et écritures partielles ;
+- décodage UTF-8 explicite des buffers binaires et exemples exécutés de copie
+  de fichier et de traitement ligne par ligne.
+
 ## [0.7.0] - Non publiée
 
 ### Runtime et bibliothèque standard
