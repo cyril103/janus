@@ -65,10 +65,12 @@ private:
   std::vector<std::filesystem::path> workspace_roots_;
   std::vector<std::filesystem::path> dependency_roots_;
   std::unordered_map<std::string, std::string> documents_;
+  std::unordered_map<std::string, std::int64_t> document_versions_;
   std::unordered_map<std::string, DocumentIndex> index_cache_;
   std::unordered_set<std::string> workspace_uris_;
   std::unordered_set<std::string> dependency_uris_;
   WorkspaceIndexMetrics workspace_metrics_;
+  bool inferred_type_hints_{true};
   bool shutdown_{};
 };
 
