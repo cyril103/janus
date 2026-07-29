@@ -17,7 +17,8 @@ jobs:
   marketplace:
     name: Package and publish tagged VSIX
     runs-on: ubuntu-24.04
-    environment: vscode-marketplace
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
     steps:
       - name: Resolve release tag
@@ -77,7 +78,12 @@ jobs:
           if-no-files-found: error
 
       - name: Publish the packaged VSIX
+        if: env.VSCE_PAT != ''
         working-directory: editors/vscode
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: npx vsce publish --packagePath janus-language.vsix
+
+      - name: Explain manual Marketplace upload
+        if: env.VSCE_PAT == ''
+        run: >
+          echo "VSCE_PAT is not configured; upload the tagged VSIX artifact
+          manually from the Visual Studio Marketplace publisher page."
