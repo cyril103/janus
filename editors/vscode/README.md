@@ -38,8 +38,8 @@ n'est trouvé, l'extension propose d'ouvrir directement le paramètre concerné.
 
 | Extension | `janus-lsp` | VS Code | Statut |
 | --- | --- | --- | --- |
-| 0.7.4 | 0.7.4 | 1.91 ou plus récent | VSIX du dépôt, non publié |
-| branche `main` (cible 0.7.6) | 0.7.5–0.7.6 | 1.91 ou plus récent | développement et prépublication |
+| 0.7.4 | 0.7.4 | 1.91 ou plus récent | VSIX historique du dépôt |
+| 0.7.6 | 0.7.5–0.7.6 | 1.91 ou plus récent | version Marketplace |
 
 La version d'extension et la toolchain du même tag sont la combinaison
 recommandée. Les capacités LSP sont négociées à l'initialisation : une

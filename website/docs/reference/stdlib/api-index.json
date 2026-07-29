@@ -1,6 +1,6 @@
 {
   "package": "Janus standard library",
-  "version": "0.7.4",
+  "version": "0.7.6",
   "modules": [
     {"name":"std.array","kind":"module","documentation":"Fournit les tableaux propriétaires et leurs parcours observants ou consommateurs.","anchor":"module-std-array"},
     {"name":"std.array_builder","kind":"module","documentation":"Construit des tableaux propriétaires à partir de valeurs ou d’itérateurs.","anchor":"module-std-array-builder"},

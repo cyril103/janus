@@ -3,7 +3,10 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
-## [Unreleased]
+## [0.7.6] - 2026-07-29
+
+Cette version cumulative publie les fonctions de navigation LSP de la 0.7.5
+avec l'extension VS Code enrichie et sa chaîne de distribution reproductible.
 
 ### Serveur de langage
 
@@ -424,6 +427,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.7.6]: https://github.com/cyril103/janus/releases/tag/v0.7.6
 [0.7.4-hotfix.1]: https://github.com/cyril103/janus/compare/v0.7.4...v0.7.4-hotfix.1
 [0.7.4]: https://github.com/cyril103/janus/releases/tag/v0.7.4
 [0.6.0]: https://github.com/cyril103/janus/releases/tag/v0.6.0
