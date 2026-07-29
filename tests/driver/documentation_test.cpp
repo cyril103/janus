@@ -102,6 +102,21 @@ private def hidden() : int { return 0 }
          "private functions are excluded");
   expect(html.find("href=\"#sample-widget\"") != std::string::npos,
          "known documentation links are resolved");
+  expect(html.find("id=\"api-search\"") != std::string::npos &&
+             html.find("Search modules, symbols and signatures") !=
+                 std::string::npos,
+         "Scala-inspired API search is rendered");
+  expect(html.find("class=\"doc-layout\"") != std::string::npos &&
+             html.find("class=\"module-nav\"") != std::string::npos &&
+             html.find("class=\"symbol-card kind-struct\"") !=
+                 std::string::npos,
+         "API layout renders content cards and the module sidebar");
+  expect(html.find("@media(max-width:800px)") != std::string::npos &&
+             html.find("class=\"nav-toggle\"") != std::string::npos,
+         "API layout includes responsive navigation");
+  expect(html.find("No network resources are required") != std::string::npos &&
+             html.find("https://") == std::string::npos,
+         "API documentation remains self-contained and offline");
   expect(html.find("&lt;unsafe&gt;") != std::string::npos &&
              html.find("<unsafe>") == std::string::npos,
          "documentation text is HTML-escaped");

@@ -444,47 +444,73 @@ generate_documentation(const std::vector<ast::Program> &programs,
   }
 
   std::ostringstream html;
-  html
-      << "<!doctype html>\n"
-         "<html lang=\"en\">\n"
-         "<head>\n"
-         "<meta charset=\"utf-8\">\n"
-         "<meta name=\"viewport\" "
-         "content=\"width=device-width,initial-scale=1\">\n"
-      << "<title>" << html_escape(options.package_name) << ' '
-      << html_escape(options.package_version)
-      << " API</title>\n"
-         "<style>"
-         "body{font:16px/1.55 system-ui,sans-serif;max-width:72rem;margin:auto;"
-         "padding:2rem;color:#17202a}nav a{margin-right:1rem}"
-         "section{border-top:1px solid #d8dee4;margin-top:2rem}"
-         "article{margin:1.5rem 0;padding-left:1rem;border-left:3px solid "
-         "#d8dee4}"
-         "code{background:#f3f4f6;padding:.1rem .3rem;border-radius:.2rem}"
-         ".kind{color:#57606a;text-transform:uppercase;font-size:.75rem}"
-         ".unresolved{color:#b42318}</style>\n"
-         "</head>\n<body>\n<header><h1>"
-      << html_escape(options.package_name) << " API</h1><p>Version "
-      << html_escape(options.package_version)
-      << "</p></header>\n<nav aria-label=\"Modules\">";
+  html << R"(<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>)"
+       << html_escape(options.package_name) << ' '
+       << html_escape(options.package_version)
+       << R"( API</title>
+<style>
+:root{--ink:#173c50;--ink-strong:#102f40;--top:#123f54;--top-soft:#315d70;--paper:#edf1f3;--panel:#fff;--line:#d9e1e5;--signature:#c8d8e1;--accent:#087b51;--accent-bright:#62e6a7;--flare:#d95c36;--muted:#617784;--shadow:0 2px 9px rgba(16,47,64,.12);--mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;--sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:5.5rem}body{margin:0;background:var(--paper);color:var(--ink);font:13px/1.55 var(--sans)}a{color:#285d7c;text-decoration:underline;text-decoration-thickness:.06em;text-underline-offset:.14em}a:hover{color:var(--accent)}a:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid rgba(98,230,167,.68);outline-offset:2px}code{font-family:var(--mono)}
+.topbar{position:sticky;z-index:20;top:0;display:grid;grid-template-columns:minmax(15rem,auto) minmax(16rem,1fr) auto;align-items:center;gap:1.4rem;min-height:49px;padding:.45rem 1.55rem;background:var(--top);border-bottom:8px solid var(--top-soft);box-shadow:0 2px 5px rgba(0,0,0,.18);color:#fff}.brand{display:flex;align-items:baseline;gap:1rem;white-space:nowrap}.brand strong{font-size:16px;font-weight:500}.brand .version{color:#b9cad2;font:11px var(--mono)}.search{position:relative;max-width:75rem}.search svg{position:absolute;left:.7rem;top:50%;width:17px;height:17px;transform:translateY(-50%);fill:#9db3be;pointer-events:none}.search input{width:100%;height:30px;border:0;border-radius:2px;padding:.3rem .7rem .3rem 2.15rem;background:#42697b;color:#fff;font:13px var(--sans)}.search input::placeholder{color:#b9c8cf}.search-status{min-width:6rem;color:#c5d5dc;font:11px var(--mono);text-align:right}.nav-toggle{display:none;border:1px solid #73909d;background:transparent;color:#fff;border-radius:3px;padding:.35rem .55rem}
+.doc-layout{display:grid;grid-template-columns:minmax(0,1fr) 15rem;gap:1.7rem;width:min(1120px,calc(100% - 3rem));margin:0 auto;padding:2.2rem 0 0}.content{min-width:0}.hero{display:flex;align-items:center;gap:1rem;margin:0 0 1rem;padding:.1rem .75rem}.hero-mark{display:grid;place-items:center;width:64px;height:64px;flex:0 0 64px;border-radius:50%;background:#297896;color:#fff;box-shadow:var(--shadow);font:38px/1 Georgia,serif}.hero h1{margin:0;color:var(--ink-strong);font-size:clamp(25px,3vw,32px);font-weight:400;line-height:1.1}.hero p{margin:.3rem 0 0;color:var(--muted);font:12px var(--mono)}
+.module{margin:0 0 2.5rem;scroll-margin-top:5.5rem}.module[hidden],.symbol-card[hidden],.module-link[hidden]{display:none}.module-heading{display:flex;align-items:center;gap:.55rem;min-height:34px;margin:0 0 1rem;padding:.4rem .7rem;background:var(--signature);border-radius:2px;color:var(--ink-strong);font:13px var(--mono)}.module-heading .keyword{font-weight:400}.module-heading h2{display:inline;margin:0;font:700 13px var(--mono)}.module-summary{margin:0 0 1rem;padding:0 .15rem}.module-summary p{margin:.45rem 0}.member-heading{margin:1.7rem 0 .65rem;padding-left:1rem;color:var(--ink-strong);font-size:15px}.member-count{margin-left:.4rem;color:var(--muted);font:11px var(--mono)}
+.symbol-list{display:grid;gap:6px}.symbol-card{position:relative;display:grid;grid-template-columns:2rem minmax(0,1fr);gap:.7rem;min-width:0;padding:.65rem .85rem .7rem;background:var(--panel);border-left:3px solid var(--kind-color,#2d7f9e);border-radius:2px;box-shadow:var(--shadow);scroll-margin-top:5.5rem}.kind-icon{display:grid;place-items:center;width:19px;height:19px;margin-top:.1rem;border-radius:50%;background:var(--kind-color,#2d7f9e);color:#fff;font:700 10px var(--mono);text-transform:uppercase}.kind{display:block;margin-bottom:.2rem;color:var(--muted);font:10px var(--mono);letter-spacing:.08em;text-transform:uppercase}.symbol-card h3{margin:0;color:var(--ink-strong);font-size:13px;font-weight:400;line-height:1.5}.symbol-card h3 code{overflow-wrap:anywhere}.symbol-card p{margin:.35rem 0 0;color:#284e62}.symbol-card .qualified{margin-top:.25rem;color:#78909c;font:10px var(--mono)}.symbol-card .permalink{position:absolute;right:.55rem;top:.45rem;opacity:0;color:#7b929d;text-decoration:none}.symbol-card:hover .permalink,.symbol-card .permalink:focus{opacity:1}.kind-class,.kind-struct,.kind-trait,.kind-enum{--kind-color:#087b51}.kind-function,.kind-method{--kind-color:#168db2}.kind-global,.kind-field{--kind-color:#7d5aa6}.kind-variant{--kind-color:#d4673e}.unresolved{color:#b42318;background:#fff0ee;padding:.05rem .2rem;border-radius:2px}
+.sidebar{position:sticky;top:5.4rem;align-self:start;max-height:calc(100vh - 6.3rem);overflow:auto;padding:.2rem 0 1.5rem}.sidebar h2{margin:0 0 .45rem;color:var(--ink-strong);font-size:13px;font-weight:500}.module-nav{display:grid}.module-link{display:flex;align-items:center;gap:.45rem;padding:.22rem .4rem;border-left:3px solid transparent;color:#315b75;font:12px var(--mono);text-decoration:none}.module-link:hover{background:#e2e9ec}.module-link.active{border-left-color:#62cce7;color:var(--ink-strong);background:#e6edef}.module-link .dot{width:6px;height:6px;border-radius:50%;background:#4e9fb8}.legend{margin-top:1.4rem;padding-top:.8rem;border-top:1px solid #cfdbdf}.legend p{margin:.25rem 0;color:var(--muted);font:10px var(--mono)}.legend i{display:inline-grid;place-items:center;width:14px;height:14px;margin-right:.35rem;border-radius:50%;background:var(--kind-color);color:#fff;font:8px var(--mono);font-style:normal}
+.empty-state{display:none;margin:2rem 0;padding:2rem;background:#fff;border:1px solid var(--line);text-align:center}.empty-state.visible{display:block}footer{width:min(1120px,calc(100% - 3rem));margin:0 auto;padding:1rem 15rem 1.5rem 0;color:#7c8d95;text-align:center;font-size:11px}
+@media(max-width:800px){.topbar{grid-template-columns:1fr auto;gap:.7rem;padding:.55rem 1rem;border-bottom-width:5px}.brand{grid-column:1}.search{grid-column:1/-1;grid-row:2}.search-status{display:none}.nav-toggle{display:block;grid-column:2;grid-row:1}.doc-layout{grid-template-columns:1fr;width:min(100% - 1.4rem,54rem);padding-top:1.1rem}.sidebar{display:none;position:fixed;z-index:30;inset:96px .7rem auto;max-height:65vh;padding:1rem;background:#fff;border:1px solid var(--line);box-shadow:0 8px 30px rgba(16,47,64,.28)}body.nav-open .sidebar{display:block}.hero{padding:.3rem 0}.hero-mark{width:50px;height:50px;flex-basis:50px;font-size:29px}.symbol-card{grid-template-columns:1.6rem minmax(0,1fr);padding:.7rem .65rem}.module-heading{overflow-wrap:anywhere}footer{width:100%;padding:1rem}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.topbar,.sidebar,.permalink{display:none!important}.doc-layout{display:block;width:100%;padding:0}.symbol-card{break-inside:avoid;box-shadow:none;border:1px solid var(--line);border-left:3px solid var(--kind-color)}footer{width:100%;padding:1rem}}
+</style>
+</head>
+<body>
+<header class="topbar">
+<div class="brand"><strong>)"
+       << html_escape(options.package_name) << R"(</strong><span class="version">)"
+       << html_escape(options.package_version) << R"(</span></div>
+<label class="search"><span class="sr-only" hidden>Search the API</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 3a6.5 6.5 0 1 0 4.1 11.55L19.05 20 20.5 18.55l-5.45-5.45A6.5 6.5 0 0 0 9.5 3Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"/></svg><input id="api-search" type="search" autocomplete="off" placeholder="Search modules, symbols and signatures" aria-controls="api-content"></label>
+<div id="search-status" class="search-status" aria-live="polite"></div><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="module-sidebar">Modules</button>
+</header>
+<div class="doc-layout">
+<main id="api-content" class="content">
+<header class="hero"><span class="hero-mark" aria-hidden="true">J</span><div><h1>)"
+       << html_escape(options.package_name) << R"( API</h1><p>Offline reference · version )"
+       << html_escape(options.package_version) << R"(</p></div></header>
+<div id="empty-state" class="empty-state"><strong>No API entries match this search.</strong><br>Try a module name, symbol or type.</div>
+)";
   for (const auto &[module, documentation] : module_documentation) {
-    static_cast<void>(documentation);
-    html << "<a href=\"#module-" << anchor_for(module) << "\">"
-         << html_escape(module) << "</a>";
-  }
-  html << "</nav>\n<main>\n";
-  for (const auto &[module, documentation] : module_documentation) {
-    html << "<section id=\"module-" << anchor_for(module) << "\"><h2>Module "
-         << html_escape(module) << "</h2>\n";
+    const std::size_t member_count = static_cast<std::size_t>(std::count_if(
+        symbols.begin(), symbols.end(), [&](const Symbol &symbol) {
+          return symbol.module == module;
+        }));
+    html << "<section class=\"module\" id=\"module-" << anchor_for(module)
+         << "\" data-module data-search=\""
+         << html_escape(module + " " + documentation) << "\">\n"
+         << "<header class=\"module-heading\"><span class=\"keyword\">module</span> "
+         << "<h2>" << html_escape(module) << "</h2></header>\n"
+         << "<div class=\"module-summary\">";
     if (!documentation.empty())
       html << "<p>"
            << render_documentation(documentation, module, links,
                                    report.unresolved_links)
-           << "</p>\n";
+           << "</p>";
+    html << "</div><h3 class=\"member-heading\">Public members <span class=\"member-count\">"
+         << member_count << "</span></h3>\n<div class=\"symbol-list\">\n";
     for (const Symbol &symbol : symbols) {
       if (symbol.module != module)
         continue;
-      html << "<article id=\"" << symbol.anchor << "\"><span class=\"kind\">"
+      const char kind_initial = symbol.kind.empty() ? '?' : symbol.kind.front();
+      html << "<article class=\"symbol-card kind-" << html_escape(symbol.kind)
+           << "\" id=\"" << symbol.anchor << "\" data-symbol data-search=\""
+           << html_escape(symbol.qualified_name + " " + symbol.kind + " " +
+                          symbol.signature + " " + symbol.documentation)
+           << "\"><span class=\"kind-icon\" aria-hidden=\"true\">"
+           << kind_initial << "</span><div><span class=\"kind\">"
            << html_escape(symbol.kind) << "</span><h3><code>"
            << html_escape(symbol.signature) << "</code></h3>\n";
       if (!symbol.documentation.empty())
@@ -493,12 +519,30 @@ generate_documentation(const std::vector<ast::Program> &programs,
                                      symbol.qualified_name, links,
                                      report.unresolved_links)
              << "</p>\n";
-      html << "</article>\n";
+      html << "<div class=\"qualified\">" << html_escape(symbol.qualified_name)
+           << "</div></div><a class=\"permalink\" href=\"#" << symbol.anchor
+           << "\" aria-label=\"Permanent link to " << html_escape(symbol.qualified_name)
+           << "\">#</a></article>\n";
     }
-    html << "</section>\n";
+    html << "</div></section>\n";
   }
-  html << "</main>\n<footer><p>Generated by Janus. No network resources are "
-          "required.</p></footer>\n</body>\n</html>\n";
+  html << "</main>\n<aside id=\"module-sidebar\" class=\"sidebar\"><h2>Modules</h2>"
+          "<nav class=\"module-nav\" aria-label=\"Modules\">";
+  for (const auto &[module, documentation] : module_documentation) {
+    static_cast<void>(documentation);
+    html << "<a class=\"module-link\" data-module-link href=\"#module-"
+         << anchor_for(module) << "\"><span class=\"dot\"></span>"
+         << html_escape(module) << "</a>";
+  }
+  html << R"(</nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
+</div>
+<footer><p>Generated by Janus. No network resources are required.</p></footer>
+<script>
+(()=>{const input=document.querySelector('#api-search'),status=document.querySelector('#search-status'),empty=document.querySelector('#empty-state'),sections=[...document.querySelectorAll('[data-module]')],links=[...document.querySelectorAll('[data-module-link]')],toggle=document.querySelector('.nav-toggle'),normalize=value=>value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');let visibleSymbols=document.querySelectorAll('[data-symbol]').length;const update=()=>{const query=normalize(input.value.trim());visibleSymbols=0;let visibleModules=0;sections.forEach(section=>{const moduleMatches=query&&normalize(section.dataset.search).includes(query);let moduleSymbols=0;section.querySelectorAll('[data-symbol]').forEach(card=>{const match=!query||moduleMatches||normalize(card.dataset.search).includes(query);card.hidden=!match;if(match){moduleSymbols++;visibleSymbols++}});section.hidden=Boolean(query)&&moduleSymbols===0;if(!section.hidden)visibleModules++});links.forEach(link=>{const target=document.querySelector(link.hash);link.hidden=Boolean(target&&target.hidden)});empty.classList.toggle('visible',visibleModules===0);status.textContent=query?visibleSymbols+' results':''};input.addEventListener('input',update);toggle.addEventListener('click',()=>{const open=document.body.classList.toggle('nav-open');toggle.setAttribute('aria-expanded',String(open))});document.querySelector('.module-nav').addEventListener('click',()=>{document.body.classList.remove('nav-open');toggle.setAttribute('aria-expanded','false')});const observer=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;links.forEach(link=>link.classList.toggle('active',link.hash==='#'+entry.target.id))})},{rootMargin:'-20% 0px -70% 0px'});sections.forEach(section=>observer.observe(section));update()})();
+</script>
+</body>
+</html>
+)";
 
   std::sort(report.unresolved_links.begin(), report.unresolved_links.end(),
             [](const auto &left, const auto &right) {
