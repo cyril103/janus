@@ -3,6 +3,16 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [Unreleased]
+
+### Serveur de langage
+
+- ajout du renommage sémantique atomique à l'échelle du workspace, de l'aide à
+  la signature, des jetons sémantiques, des types déduits configurables et de
+  la navigation vers les implémentations de traits ;
+- annonce des capacités LSP correspondantes et conservation des frontières de
+  module, de portée et de visibilité lors du renommage.
+
 ## [0.7.4-hotfix.1] - 2026-07-28
 
 ### Backend LLVM

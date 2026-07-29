@@ -10,8 +10,26 @@
 namespace {
 
 std::string file_uri(const std::filesystem::path &path) {
-  return "file://" +
-         std::filesystem::absolute(path).lexically_normal().generic_string();
+  const std::string normalized =
+      std::filesystem::absolute(path).lexically_normal().generic_string();
+  constexpr char hex[] = "0123456789ABCDEF";
+  std::string result = "file://";
+  for (const unsigned char character : normalized) {
+    const bool unreserved =
+        (character >= 'a' && character <= 'z') ||
+        (character >= 'A' && character <= 'Z') ||
+        (character >= '0' && character <= '9') || character == '-' ||
+        character == '.' || character == '_' || character == '~' ||
+        character == '/' || character == ':';
+    if (unreserved) {
+      result.push_back(static_cast<char>(character));
+    } else {
+      result.push_back('%');
+      result.push_back(hex[character >> 4U]);
+      result.push_back(hex[character & 0x0FU]);
+    }
+  }
+  return result;
 }
 
 std::size_t occurrences(const std::string &text, std::string_view needle) {
@@ -97,6 +115,65 @@ int main() {
       R"("},"position":{"line":3,"character":12},"context":{"includeDeclaration":false}}})");
   assert(occurrences(uses.front(), "\"uri\"") == 2);
 
+  const std::vector<std::string> workspace_rename = server.handle(
+      R"({"jsonrpc":"2.0","id":14,"method":"textDocument/rename","params":{"textDocument":{"uri":")" +
+      main_uri +
+      R"("},"position":{"line":3,"character":12},"newName":"renamedHelper"}})");
+  assert(occurrences(workspace_rename.front(), "\"newText\":\"renamedHelper\"") ==
+         3);
+  assert(workspace_rename.front().find("deps/library/src/library.janus") !=
+         std::string::npos);
+  assert(workspace_rename.front().find("tests/reference.janus") !=
+         std::string::npos);
+
+  const std::string module_a_uri = file_uri(workspace.path / "src/a.janus");
+  const std::string module_b_uri = file_uri(workspace.path / "src/b.janus");
+  const std::string qualified_consumer_uri =
+      file_uri(workspace.path / "src/qualified-consumer.janus");
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      module_a_uri +
+      R"(","text":"module a\n\ndef helper() : int { return 1 }\n"}}})"));
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      module_b_uri +
+      R"(","text":"module b\n\ndef helper() : int { return 2 }\ndef renamedQualified() : int { return 3 }\n"}}})"));
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      qualified_consumer_uri +
+      R"(","text":"import a\nimport b\n\ndef main() : int { return a.helper() }\n"}}})"));
+  const std::vector<std::string> qualified_references = server.handle(
+      R"({"jsonrpc":"2.0","id":16,"method":"textDocument/references","params":{"textDocument":{"uri":")" +
+      qualified_consumer_uri +
+      R"("},"position":{"line":3,"character":29},"context":{"includeDeclaration":true}}})");
+  assert(qualified_references.front().find(module_a_uri) != std::string::npos);
+  assert(qualified_references.front().find(qualified_consumer_uri) !=
+         std::string::npos);
+  assert(qualified_references.front().find(module_b_uri) == std::string::npos);
+  const std::vector<std::string> qualified_rename = server.handle(
+      R"({"jsonrpc":"2.0","id":17,"method":"textDocument/rename","params":{"textDocument":{"uri":")" +
+      qualified_consumer_uri +
+      R"("},"position":{"line":3,"character":29},"newName":"renamedQualified"}})");
+  assert(occurrences(qualified_rename.front(),
+                     "\"newText\":\"renamedQualified\"") == 2);
+  assert(qualified_rename.front().find(module_a_uri) != std::string::npos);
+  assert(qualified_rename.front().find(qualified_consumer_uri) !=
+         std::string::npos);
+  assert(qualified_rename.front().find(module_b_uri) == std::string::npos);
+
+  const std::string library_uri =
+      file_uri(workspace.path / "deps/library/src/library.janus");
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      library_uri +
+      R"(","text":"module library\n\nprivate def secretHelper() : int { return 7 }\ndef helper() : int { return 42 }\n"}}})"));
+  const std::vector<std::string> private_rename = server.handle(
+      R"({"jsonrpc":"2.0","id":15,"method":"textDocument/rename","params":{"textDocument":{"uri":")" +
+      library_uri +
+      R"("},"position":{"line":2,"character":14},"newName":"privateRenamed"}})");
+  assert(private_rename.front().find(library_uri) != std::string::npos);
+  assert(private_rename.front().find(main_uri) == std::string::npos);
+
   const std::vector<std::string> workspace_symbols = server.handle(
       R"({"jsonrpc":"2.0","id":5,"method":"workspace/symbol","params":{"query":""}})");
   assert(workspace_symbols.front().find("workspaceValue") !=
@@ -130,10 +207,10 @@ int main() {
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":")" +
       main_uri +
-      R"("},"contentChanges":[{"text":"def main() : int { return workspaceValue }"}]}})"));
+      R"("},"contentChanges":[{"text":"import unopened\n\ndef main() : int { return workspaceValue }"}]}})"));
   const std::vector<std::string> unopened_definition = server.handle(
       R"({"jsonrpc":"2.0","id":6,"method":"textDocument/definition","params":{"textDocument":{"uri":")" +
-      main_uri + R"("},"position":{"line":0,"character":30}}})");
+      main_uri + R"("},"position":{"line":2,"character":30}}})");
   assert(unopened_definition.front().find("src/unopened.janus") !=
          std::string::npos);
 
@@ -187,5 +264,27 @@ int main() {
       R"({"jsonrpc":"2.0","id":11,"method":"janus/workspaceIndexStats","params":{}})");
   assert(stats.front().find("\"files\":4") != std::string::npos);
   assert(stats.front().find("\"estimatedMemoryBytes\"") != std::string::npos);
+
+  TemporaryWorkspace encoded_workspace{
+      std::filesystem::temp_directory_path() /
+      ("janus project #80 % \xC3\xA9-" + std::to_string(suffix))};
+  std::filesystem::create_directories(encoded_workspace.path / "src");
+  const std::filesystem::path encoded_file =
+      encoded_workspace.path / "src/module # %.janus";
+  {
+    std::ofstream output{encoded_file};
+    output << "module encoded\n\nval encodedValue : int = 1\n";
+  }
+  janus::lsp::Server encoded_server;
+  const std::string encoded_root_uri = file_uri(encoded_workspace.path);
+  const std::string encoded_file_uri = file_uri(encoded_file);
+  static_cast<void>(encoded_server.handle(
+      R"({"jsonrpc":"2.0","id":40,"method":"initialize","params":{"rootUri":")" +
+      encoded_root_uri + R"("}})"));
+  const std::vector<std::string> encoded_symbols = encoded_server.handle(
+      R"({"jsonrpc":"2.0","id":41,"method":"workspace/symbol","params":{"query":"encodedValue"}})");
+  assert(encoded_symbols.front().find(encoded_file_uri) != std::string::npos);
+  assert(encoded_symbols.front().find("module # %.janus") ==
+         std::string::npos);
   return 0;
 }

@@ -199,6 +199,13 @@ actuellement en charge :
 - diagnostics lors de l'ouverture et de la modification d'un fichier ;
 - survol d'un symbole ;
 - définition et références à l'échelle du workspace ;
+- renommage sémantique à l'échelle du workspace, avec refus atomique des
+  collisions et respect des symboles privés ;
+- aide à la signature lors de `(` et `,` ;
+- jetons sémantiques pour les déclarations, identifiants, mots-clés et
+  littéraux ;
+- indications de types déduits ;
+- navigation d'un trait vers les classes qui l'implémentent ;
 - recherche de symboles dans le workspace ;
 - autocomplétion ;
 - formatage du document.
@@ -210,6 +217,10 @@ présentes dans le cache sont chargées hors ligne. La navigation ne dépend don
 pas des fichiers préalablement ouverts. Les déclarations privées restent
 visibles dans leur propre fichier, mais ne sont proposées ni résolues depuis un
 autre module.
+
+Les indications de types déduits sont activées par défaut. Un client peut les
+désactiver avec `janus.inlayHints.inferredTypes: false` dans les paramètres
+transmis par `workspace/didChangeConfiguration`.
 
 Le serveur demande au client de surveiller `**/*.janus` et `**/janus.toml`.
 Les créations, modifications, suppressions, sauvegardes et changements de

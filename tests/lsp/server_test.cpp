@@ -12,9 +12,20 @@ int main() {
   assert(initialized.size() == 1);
   assert(initialized.front().find("\"textDocumentSync\"") !=
          std::string::npos);
+  assert(initialized.front().find("\"renameProvider\"") != std::string::npos);
+  assert(initialized.front().find("\"prepareProvider\":true") !=
+         std::string::npos);
+  assert(initialized.front().find("\"signatureHelpProvider\"") !=
+         std::string::npos);
+  assert(initialized.front().find("\"semanticTokensProvider\"") !=
+         std::string::npos);
+  assert(initialized.front().find("\"inlayHintProvider\":true") !=
+         std::string::npos);
+  assert(initialized.front().find("\"implementationProvider\":true") !=
+         std::string::npos);
 
   const std::vector<std::string> invalid = server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///broken.janus","text":"def main() : int { return nope }"}}})");
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///broken.janus","version":1,"text":"def main() : int { return nope }"}}})");
   assert(invalid.size() == 1);
   assert(invalid.front().find("publishDiagnostics") != std::string::npos);
   assert(invalid.front().find("unknown value") != std::string::npos);
@@ -141,22 +152,22 @@ int main() {
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///settings.janus","text":"module settings\n\nval sharedCount : int = 42\nprivate val secretCount : int = 7\n"}}})"));
   static_cast<void>(server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { return sharedCount }"}]}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"import settings\n\ndef main() : int { return sharedCount }"}]}})"));
 
   const std::vector<std::string> global_hover = server.handle(
-      R"({"jsonrpc":"2.0","id":10,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":30}}})");
+      R"({"jsonrpc":"2.0","id":10,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":2,"character":30}}})");
   assert(global_hover.front().find("val sharedCount : int") !=
          std::string::npos);
   assert(global_hover.front().find("module `settings`") != std::string::npos);
 
   const std::vector<std::string> global_definition = server.handle(
-      R"({"jsonrpc":"2.0","id":11,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":30}}})");
+      R"({"jsonrpc":"2.0","id":11,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":2,"character":30}}})");
   assert(global_definition.front().find("\"uri\":\"file:///settings.janus\"") !=
          std::string::npos);
   assert(global_definition.front().find("\"line\":2") != std::string::npos);
 
   const std::vector<std::string> global_references = server.handle(
-      R"({"jsonrpc":"2.0","id":12,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":30},"context":{"includeDeclaration":true}}})");
+      R"({"jsonrpc":"2.0","id":12,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":2,"character":30},"context":{"includeDeclaration":true}}})");
   assert(global_references.front().find("file:///settings.janus") !=
          std::string::npos);
   assert(global_references.front().find("file:///broken.janus") !=
@@ -208,6 +219,174 @@ int main() {
     else_if_reference_position += 5;
   }
   assert(else_if_reference_count == 2);
+
+  const std::vector<std::string> signature_help = server.handle(
+      R"({"jsonrpc":"2.0","id":22,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":12,"character":42}}})");
+  assert(signature_help.front().find(
+             "\"label\":\"choose(first : bool, second : bool) : int\"") !=
+         std::string::npos);
+  assert(signature_help.front().find("\"activeParameter\":1") !=
+         std::string::npos);
+  const std::vector<std::string> parameter_rename = server.handle(
+      R"({"jsonrpc":"2.0","id":30,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":11},"newName":"primary"}})");
+  assert(parameter_rename.front().find("\"error\"") == std::string::npos);
+  assert(parameter_rename.front().find("\"newText\":\"primary\"") !=
+         std::string::npos);
+
+  const std::vector<std::string> semantic_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":23,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///broken.janus"}}})");
+  assert(semantic_tokens.front().find("\"data\":[") != std::string::npos);
+  assert(semantic_tokens.front().find("\"data\":[]") == std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val inferred = 42 return inferred }"}]}})"));
+  const std::vector<std::string> default_hints = server.handle(
+      R"({"jsonrpc":"2.0","id":24,"method":"textDocument/inlayHint","params":{"textDocument":{"uri":"file:///broken.janus"},"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":0}}}})");
+  assert(default_hints.front().find("\": int\"") != std::string::npos);
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"workspace/didChangeConfiguration","params":{"settings":{"janus":{"inlayHints":{"inferredTypes":false}}}}})"));
+  const std::vector<std::string> disabled_hints = server.handle(
+      R"({"jsonrpc":"2.0","id":25,"method":"textDocument/inlayHint","params":{"textDocument":{"uri":"file:///broken.janus"},"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":0}}}})");
+  assert(disabled_hints.front().find("\"result\":[]") != std::string::npos);
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"workspace/didChangeConfiguration","params":{"settings":{"janus":{"inlayHints":{"inferredTypes":true}}}}})"));
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///traits.janus","text":"trait Printable { def print() : int }\nclass Console() extends Printable { def print() : int { return 1 } }\ndef main() : int { return 0 }"}}})"));
+  const std::vector<std::string> implementations = server.handle(
+      R"({"jsonrpc":"2.0","id":26,"method":"textDocument/implementation","params":{"textDocument":{"uri":"file:///traits.janus"},"position":{"line":0,"character":7}}})");
+  assert(implementations.front().find("\"line\":1") != std::string::npos);
+  assert(implementations.front().find("\"character\":6") !=
+         std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 return answer }"}]}})"));
+  const std::vector<std::string> prepare_rename = server.handle(
+      R"({"jsonrpc":"2.0","id":27,"method":"textDocument/prepareRename","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50}}})");
+  assert(prepare_rename.front().find("\"placeholder\":\"answer\"") !=
+         std::string::npos);
+  const std::vector<std::string> local_rename = server.handle(
+      R"({"jsonrpc":"2.0","id":28,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50},"newName":"result"}})");
+  assert(local_rename.front().find("\"newText\":\"result\"") !=
+         std::string::npos);
+  assert(local_rename.front().find("\"version\":1") != std::string::npos);
+  assert(local_rename.front().find("\"uri\":\"file:///broken.janus\"") !=
+         std::string::npos);
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 val result : int = answer return answer }"}]}})"));
+  const std::vector<std::string> colliding_rename = server.handle(
+      R"({"jsonrpc":"2.0","id":29,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":60},"newName":"result"}})");
+  assert(colliding_rename.front().find("\"error\"") != std::string::npos);
+  assert(colliding_rename.front().find("\"changes\"") == std::string::npos);
+  const std::vector<std::string> keyword_rename = server.handle(
+      R"({"jsonrpc":"2.0","id":34,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":60},"newName":"return"}})");
+  assert(keyword_rename.front().find("\"error\"") != std::string::npos);
+  assert(keyword_rename.front().find("\"documentChanges\"") ==
+         std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///homonym-a.janus","text":"module homonym_a\n\ndef helper(value : int) : int { return value }\ntrait Printable { def print() : int }\n"}}})"));
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///homonym-b.janus","text":"module homonym_b\n\ndef helper(text : string, enabled : bool, count : int, fallback : int) : int { return count }\ntrait Printable { def print() : int }\n"}}})"));
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///homonym-consumer.janus","text":"import homonym_b\n\ndef main() : int {\n    return helper(\"a,b\", // ignored, comma\n                  true, 1, 0)\n}\n"}}})"));
+  const std::vector<std::string> imported_homonym_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":31,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"position":{"line":3,"character":13}}})");
+  assert(imported_homonym_definition.front().find("file:///homonym-b.janus") !=
+         std::string::npos);
+  assert(imported_homonym_definition.front().find("file:///homonym-a.janus") ==
+         std::string::npos);
+  const std::vector<std::string> imported_homonym_references = server.handle(
+      R"({"jsonrpc":"2.0","id":32,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"position":{"line":3,"character":13},"context":{"includeDeclaration":true}}})");
+  assert(imported_homonym_references.front().find("file:///homonym-b.janus") !=
+         std::string::npos);
+  assert(imported_homonym_references.front().find("file:///homonym-a.janus") ==
+         std::string::npos);
+  const std::vector<std::string> imported_homonym_signature = server.handle(
+      R"({"jsonrpc":"2.0","id":33,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"position":{"line":4,"character":22}}})");
+  assert(imported_homonym_signature.front().find(
+             "helper(text : string, enabled : bool, count : int, fallback : int)") !=
+         std::string::npos);
+  assert(imported_homonym_signature.front().find("\"activeParameter\":1") !=
+         std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///method-signature.janus","text":"class A() { def combine(value : string) : string { return value } }\nclass B() { def combine(left : int, right : int) : int { return left } }\n\ndef main() : int { val b : B = new B() return b.combine(1, 2) }\n"}}})"));
+  const std::vector<std::string> method_signature = server.handle(
+      R"({"jsonrpc":"2.0","id":42,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///method-signature.janus"},"position":{"line":3,"character":60}}})");
+  assert(method_signature.front().find(
+             "combine(left : int, right : int) : int") !=
+         std::string::npos);
+  assert(method_signature.front().find("combine(value : string)") ==
+         std::string::npos);
+  assert(method_signature.front().find("\"activeParameter\":1") !=
+         std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///qualified-method-a.janus","text":"module method_a\n\nclass Box() { def combine(value : string) : string { return value } }\n"}}})"));
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///qualified-method-b.janus","text":"module method_b\n\nclass Box() { def combine(left : int, right : int) : int { return left } }\n"}}})"));
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///qualified-method-consumer.janus","text":"import method_a\nimport method_b\n\ndef main() : int { val box : method_b.Box = new method_b.Box() return box.combine(1, 2) }\n"}}})"));
+  const std::vector<std::string> qualified_method_signature = server.handle(
+      R"({"jsonrpc":"2.0","id":43,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///qualified-method-consumer.janus"},"position":{"line":3,"character":85}}})");
+  assert(qualified_method_signature.front().find(
+             "combine(left : int, right : int) : int") !=
+         std::string::npos);
+  assert(qualified_method_signature.front().find("combine(value : string)") ==
+         std::string::npos);
+  assert(qualified_method_signature.front().find("\"activeParameter\":1") !=
+         std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"contentChanges":[{"text":"import homonym_b\n\nval foo : int = 7\ndef main() : int { return helper(1, true, 2, foo) }\n"}]}})"));
+  const std::vector<std::string> captured_workspace_rename = server.handle(
+      R"({"jsonrpc":"2.0","id":34,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///homonym-b.janus"},"position":{"line":2,"character":5},"newName":"foo"}})");
+  assert(captured_workspace_rename.front().find("\"error\"") !=
+         std::string::npos);
+  assert(captured_workspace_rename.front().find("\"documentChanges\"") ==
+         std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///trait-consumer.janus","text":"import homonym_b\n\nclass Console() extends Printable { def print() : int { return 1 } }\n"}}})"));
+  const std::vector<std::string> imported_trait_implementations =
+      server.handle(
+          R"({"jsonrpc":"2.0","id":35,"method":"textDocument/implementation","params":{"textDocument":{"uri":"file:///homonym-b.janus"},"position":{"line":3,"character":7}}})");
+  assert(imported_trait_implementations.front().find(
+             "file:///trait-consumer.janus") != std::string::npos);
+  const std::vector<std::string> unrelated_trait_implementations =
+      server.handle(
+          R"({"jsonrpc":"2.0","id":36,"method":"textDocument/implementation","params":{"textDocument":{"uri":"file:///homonym-a.janus"},"position":{"line":3,"character":7}}})");
+  assert(unrelated_trait_implementations.front().find(
+             "file:///trait-consumer.janus") == std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///utf16.janus","text":"def main() : int { val prefix = \"é😀\" val answer : int = 1 return answer }\n"}}})"));
+  const std::vector<std::string> utf16_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":37,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///utf16.janus"},"position":{"line":0,"character":66}}})");
+  assert(utf16_definition.front().find("\"character\":42") !=
+         std::string::npos);
+  const std::vector<std::string> utf16_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":38,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///utf16.janus"}}})");
+  assert(utf16_tokens.front().find(
+             "0,4,6,7,1,0,9,5,11,0,0,6,3,10,0,0,4,6,7,1") !=
+         std::string::npos);
+
+  const std::vector<std::string> utf16_diagnostics = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///utf16.janus"},"contentChanges":[{"text":"def main() : int { val prefix : string = \"é😀\" return missing }\n"}]}})");
+  assert(utf16_diagnostics.front().find(
+             "\"start\":{\"character\":54,\"line\":0}") !=
+         std::string::npos);
+  assert(utf16_diagnostics.front().find(
+             "\"end\":{\"character\":55,\"line\":0}") !=
+         std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///utf16.janus"},"contentChanges":[{"text":"def main() : int {\n    val first = 1\n    val ignored = \"😀\"\n    val second = 2\n    return first + second\n}\n"}]}})"));
+  const std::vector<std::string> ranged_hints = server.handle(
+      R"({"jsonrpc":"2.0","id":39,"method":"textDocument/inlayHint","params":{"textDocument":{"uri":"file:///utf16.janus"},"range":{"start":{"line":3,"character":0},"end":{"line":4,"character":0}}}})");
+  assert(ranged_hints.front().find("\"line\":3") != std::string::npos);
+  assert(ranged_hints.front().find("\"line\":1") == std::string::npos);
 
   const std::vector<std::string> formatting = server.handle(
       R"({"jsonrpc":"2.0","id":6,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///broken.janus"},"options":{"tabSize":2,"insertSpaces":true}}})");
