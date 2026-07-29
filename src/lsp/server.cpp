@@ -175,9 +175,8 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
       detail = "enum " + std::string{name.lexeme};
     } else if ((token.kind == TokenKind::LeftParen ||
                 token.kind == TokenKind::Comma) &&
-               index + 3 < document_tokens.size() &&
-               document_tokens[index + 2].kind == TokenKind::Colon &&
-               document_tokens[index + 3].kind == TokenKind::Identifier) {
+               index + 2 < document_tokens.size() &&
+               document_tokens[index + 2].kind == TokenKind::Colon) {
       std::size_t previous = index;
       while (previous != 0 &&
              document_tokens[previous].kind != TokenKind::Def &&
@@ -186,8 +185,10 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
         --previous;
       if (document_tokens[previous].kind != TokenKind::Def)
         continue;
-      detail = "parameter " + std::string{name.lexeme} + " : " +
-               qualified_type_name(document_tokens, index + 3);
+      detail = "parameter " + std::string{name.lexeme};
+      if (index + 3 < document_tokens.size() &&
+          document_tokens[index + 3].kind == TokenKind::Identifier)
+        detail += " : " + qualified_type_name(document_tokens, index + 3);
       is_parameter = true;
     } else {
       continue;
@@ -1378,6 +1379,139 @@ std::vector<std::string> Server::handle(std::string_view message) {
     bool first = true;
     const std::vector<frontend::Token> document_tokens =
         tokens(open_document->second);
+    std::unordered_map<std::size_t,
+                       std::pair<std::int64_t, std::int64_t>>
+        declaration_kinds;
+    std::unordered_map<std::string, std::int64_t> type_kinds;
+    std::vector<std::vector<std::string>> imported_paths;
+    std::unordered_map<std::size_t, std::int64_t> namespace_offsets;
+    for (std::size_t index = 0; index + 1 < document_tokens.size(); ++index) {
+      const bool is_import =
+          document_tokens[index].kind == frontend::TokenKind::Import;
+      const bool is_module =
+          document_tokens[index].kind == frontend::TokenKind::Module;
+      if (!is_import && !is_module)
+        continue;
+      std::vector<std::string> import_path;
+      std::size_t component = index + 1;
+      while (component < document_tokens.size() &&
+             document_tokens[component].kind ==
+                 frontend::TokenKind::Identifier) {
+        namespace_offsets.insert_or_assign(
+            document_tokens[component].location.offset, is_module ? 1 : 0);
+        if (is_import)
+          import_path.emplace_back(document_tokens[component].lexeme);
+        if (component + 2 >= document_tokens.size() ||
+            document_tokens[component + 1].kind != frontend::TokenKind::Dot)
+          break;
+        component += 2;
+      }
+      if (!import_path.empty())
+        imported_paths.push_back(std::move(import_path));
+    }
+    const auto semantic_kind = [](const DocumentSymbol &symbol) {
+      std::string_view detail = symbol.detail;
+      if (detail.starts_with("private "))
+        detail.remove_prefix(std::string_view{"private "}.size());
+      if (detail.starts_with("class "))
+        return std::int64_t{2};
+      if (detail.starts_with("trait "))
+        return std::int64_t{4};
+      if (detail.starts_with("enum "))
+        return std::int64_t{3};
+      if (detail.starts_with("def "))
+        return symbol.is_top_level ? std::int64_t{5} : std::int64_t{6};
+      if (detail.starts_with("parameter "))
+        return std::int64_t{8};
+      return std::int64_t{7};
+    };
+    const std::vector<DocumentSymbol> semantic_symbols =
+        symbols(*uri, open_document->second);
+    for (const DocumentSymbol &symbol : semantic_symbols) {
+      const std::int64_t kind = semantic_kind(symbol);
+      std::int64_t modifiers = 1;
+      if (symbol.detail.starts_with("val ") ||
+          symbol.detail.starts_with("private val "))
+        modifiers |= 2;
+      declaration_kinds.insert_or_assign(
+          symbol.location.offset,
+          std::pair<std::int64_t, std::int64_t>{kind, modifiers});
+      if (kind == 2 || kind == 3 || kind == 4)
+        type_kinds.try_emplace(symbol.name, kind);
+    }
+    const auto resolved_kind = [&](std::string_view name, std::size_t offset)
+        -> std::optional<std::int64_t> {
+      const DocumentSymbol *best = nullptr;
+      for (const DocumentSymbol &candidate : semantic_symbols) {
+        if (candidate.name != name || offset < candidate.scope_start ||
+            offset > candidate.scope_end)
+          continue;
+        const std::int64_t kind = semantic_kind(candidate);
+        const bool forward_visible =
+            candidate.is_top_level && kind >= 2 && kind <= 6;
+        if (candidate.location.offset > offset && !forward_visible)
+          continue;
+        if (best == nullptr || candidate.scope_depth > best->scope_depth ||
+            (candidate.scope_depth == best->scope_depth &&
+             candidate.location.offset > best->location.offset &&
+             candidate.location.offset <= offset))
+          best = &candidate;
+      }
+      if (best == nullptr)
+        return std::nullopt;
+      return semantic_kind(*best);
+    };
+    const auto is_type_position = [&](std::size_t index) {
+      while (index >= 2 &&
+             document_tokens[index - 1].kind == frontend::TokenKind::Dot &&
+             document_tokens[index - 2].kind ==
+                 frontend::TokenKind::Identifier)
+        index -= 2;
+      if (index == 0)
+        return false;
+      const frontend::TokenKind previous = document_tokens[index - 1].kind;
+      return previous == frontend::TokenKind::Colon ||
+             previous == frontend::TokenKind::New ||
+             previous == frontend::TokenKind::Extends;
+    };
+    const auto chain_start = [&](std::size_t index) {
+      while (index >= 2 &&
+             document_tokens[index - 1].kind == frontend::TokenKind::Dot &&
+             document_tokens[index - 2].kind ==
+                 frontend::TokenKind::Identifier)
+        index -= 2;
+      return index;
+    };
+    const auto matches_import = [&](std::size_t index, bool exact) {
+      const std::size_t start = chain_start(index);
+      if (resolved_kind(document_tokens[start].lexeme,
+                        document_tokens[start].location.offset)
+              .has_value())
+        return false;
+      std::vector<std::string_view> components;
+      for (std::size_t component = start; component <= index; component += 2)
+        components.push_back(document_tokens[component].lexeme);
+      for (const std::vector<std::string> &path : imported_paths) {
+        if ((exact && path.size() != components.size()) ||
+            (!exact && path.size() < components.size()))
+          continue;
+        bool matches = true;
+        for (std::size_t component = 0; component < components.size();
+             ++component)
+          if (path[component] != components[component]) {
+            matches = false;
+            break;
+          }
+        if (matches)
+          return true;
+      }
+      return false;
+    };
+    const auto is_builtin_type = [](std::string_view name) {
+      return name == "bool" || name == "byte" || name == "char" ||
+             name == "double" || name == "int" || name == "string" ||
+             name == "unit" || name == "usize";
+    };
     for (std::size_t index = 0; index < document_tokens.size(); ++index) {
       const frontend::Token &token = document_tokens[index];
       std::optional<std::int64_t> type;
@@ -1394,24 +1528,49 @@ std::vector<std::string> Server::handle(std::string_view message) {
         const frontend::TokenKind previous =
             index == 0 ? frontend::TokenKind::End
                        : document_tokens[index - 1].kind;
-        if (previous == frontend::TokenKind::Class ||
-            previous == frontend::TokenKind::Struct) {
-          type = 2;
-          modifiers = 1;
-        } else if (previous == frontend::TokenKind::Trait) {
-          type = 4;
-          modifiers = 1;
-        } else if (previous == frontend::TokenKind::Enum) {
-          type = 3;
-          modifiers = 1;
-        } else if (previous == frontend::TokenKind::Def) {
-          type = 5;
-          modifiers = 1;
+        if (const auto namespace_token =
+                namespace_offsets.find(token.location.offset);
+            namespace_token != namespace_offsets.end()) {
+          type = 0;
+          modifiers = namespace_token->second;
+        } else if (const auto declaration =
+                declaration_kinds.find(token.location.offset);
+            declaration != declaration_kinds.end()) {
+          type = declaration->second.first;
+          modifiers = declaration->second.second;
+        } else if (is_builtin_type(token.lexeme)) {
+          type = 1;
+        } else if (is_type_position(index)) {
+          if (index + 1 < document_tokens.size() &&
+              document_tokens[index + 1].kind == frontend::TokenKind::Dot) {
+            type = matches_import(index, false) ? 0 : 1;
+          } else {
+            const auto known_type = type_kinds.find(std::string{token.lexeme});
+            type = known_type == type_kinds.end() ? 1 : known_type->second;
+          }
+        } else if (index + 1 < document_tokens.size() &&
+                   document_tokens[index + 1].kind ==
+                       frontend::TokenKind::LeftParen) {
+          bool module_function = false;
+          if (index >= 2 && previous == frontend::TokenKind::Dot)
+            module_function = matches_import(index - 2, true);
+          type = previous == frontend::TokenKind::Dot
+                     ? (module_function ? 5 : 6)
+                     : resolved_kind(token.lexeme, token.location.offset)
+                           .value_or(5);
+        } else if (const std::optional<std::int64_t> known =
+                       resolved_kind(token.lexeme, token.location.offset)) {
+          type = *known;
+        } else if (index + 1 < document_tokens.size() &&
+                   document_tokens[index + 1].kind ==
+                       frontend::TokenKind::Dot &&
+                   matches_import(index, false)) {
+          type = 0;
+        } else if (index != 0 && document_tokens[index - 1].kind ==
+                                     frontend::TokenKind::Dot) {
+          type = 9;
         } else {
           type = 7;
-          if (previous == frontend::TokenKind::Val ||
-              previous == frontend::TokenKind::Var)
-            modifiers = 1;
         }
       }
       if (!type.has_value())

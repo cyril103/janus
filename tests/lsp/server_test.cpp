@@ -1,8 +1,52 @@
 #include "janus/lsp/server.hpp"
 
 #include <cassert>
+#include <charconv>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
+
+[[noreturn]] inline void janus_test_assertion_failed(const char *expression,
+                                                     const char *file,
+                                                     int line) {
+  std::fprintf(stderr, "%s:%d: assertion failed: %s\n", file, line,
+               expression);
+  std::abort();
+}
+#define REQUIRE(condition)                                                      \
+  ((condition) ? static_cast<void>(0)                                           \
+               : janus_test_assertion_failed(#condition, __FILE__, __LINE__))
+
+namespace {
+
+std::vector<std::int64_t> semantic_token_field(const std::string &response,
+                                               std::size_t field) {
+  REQUIRE(field < 5);
+  const std::string marker = "\"data\":[";
+  std::size_t cursor = response.find(marker);
+  REQUIRE(cursor != std::string::npos);
+  cursor += marker.size();
+  std::vector<std::int64_t> values;
+  while (cursor < response.size() && response[cursor] != ']') {
+    std::int64_t value = 0;
+    const char *begin = response.data() + cursor;
+    const char *end = response.data() + response.size();
+    const auto parsed = std::from_chars(begin, end, value);
+    REQUIRE(parsed.ec == std::errc{});
+    values.push_back(value);
+    cursor = static_cast<std::size_t>(parsed.ptr - response.data());
+    if (cursor < response.size() && response[cursor] == ',')
+      ++cursor;
+  }
+  REQUIRE(values.size() % 5 == 0);
+  std::vector<std::int64_t> fields;
+  for (std::size_t index = field; index < values.size(); index += 5)
+    fields.push_back(values[index]);
+  return fields;
+}
+
+} // namespace
 
 int main() {
   janus::lsp::Server server{{std::filesystem::path{JANUS_STDLIB_DIR}}};
@@ -239,6 +283,62 @@ int main() {
   assert(semantic_tokens.front().find("\"data\":[]") == std::string::npos);
 
   static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-kinds.janus","text":"class C() { def f(x : C) : int { val local : C = x return local } }\ndef top(value : int) : int { return value }\ndef shadow(f : int) : int { return f() }\nprivate def hidden() : int { return 0 }\n"}}})"));
+  const std::vector<std::string> classified_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":44,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-kinds.janus"}}})");
+  const std::vector<std::int64_t> classified_types =
+      semantic_token_field(classified_tokens.front(), 3);
+  REQUIRE((classified_types ==
+          std::vector<std::int64_t>{10, 2, 10, 6, 8, 2, 1, 10, 7, 2,
+                                    8, 10, 7, 10, 5, 8, 1, 1, 10, 8,
+                                    10, 5, 8, 1, 1, 10, 8, 10, 10, 5,
+                                    1, 10, 12}));
+  const std::vector<std::int64_t> classified_modifiers =
+      semantic_token_field(classified_tokens.front(), 4);
+  REQUIRE((classified_modifiers ==
+          std::vector<std::int64_t>{0, 1, 0, 1, 1, 0, 0, 0, 3, 0,
+                                    0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
+                                    0, 1, 1, 0, 0, 0, 0, 0, 0, 1,
+                                    0, 0, 0}));
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-qualified.janus","text":"import b\ndef main() : int { val x : b.Box = new b.Box() return b.helper() }\n"}}})"));
+  const std::vector<std::string> qualified_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":45,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-qualified.janus"}}})");
+  REQUIRE((semantic_token_field(qualified_tokens.front(), 3) ==
+          std::vector<std::int64_t>{10, 0, 10, 5, 1, 10, 7, 0, 1, 10,
+                                    0, 1, 10, 0, 5}));
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-shadowed-import.janus","text":"import b\ndef main(b : int) : int { return b.helper() }\n"}}})"));
+  const std::vector<std::string> shadowed_import_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":46,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-shadowed-import.janus"}}})");
+  REQUIRE((semantic_token_field(shadowed_import_tokens.front(), 3) ==
+          std::vector<std::int64_t>{10, 0, 10, 5, 8, 1, 1, 10, 8, 6}));
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-import-path.janus","text":"import std.math\n"}}})"));
+  const std::vector<std::string> import_path_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":47,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-import-path.janus"}}})");
+  REQUIRE((semantic_token_field(import_path_tokens.front(), 3) ==
+          std::vector<std::int64_t>{10, 0, 0}));
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-shadowed-path.janus","text":"import std.math\ndef main(std : int) : int { return std.math.gcd() }\n"}}})"));
+  const std::vector<std::string> shadowed_path_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":48,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-shadowed-path.janus"}}})");
+  REQUIRE((semantic_token_field(shadowed_path_tokens.front(), 3) ==
+          std::vector<std::int64_t>{10, 0, 0, 10, 5, 8, 1, 1, 10, 8, 9,
+                                    6}));
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-callable.janus","text":"def invoke(f : (int) => int) : int { return f(1) }\n"}}})"));
+  const std::vector<std::string> callable_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":49,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-callable.janus"}}})");
+  REQUIRE((semantic_token_field(callable_tokens.front(), 3) ==
+          std::vector<std::int64_t>{10, 5, 8, 1, 1, 1, 10, 8, 12}));
+
+  static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val inferred = 42 return inferred }"}]}})"));
   const std::vector<std::string> default_hints = server.handle(
       R"({"jsonrpc":"2.0","id":24,"method":"textDocument/inlayHint","params":{"textDocument":{"uri":"file:///broken.janus"},"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":0}}}})");
@@ -369,7 +469,7 @@ int main() {
   const std::vector<std::string> utf16_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":38,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///utf16.janus"}}})");
   assert(utf16_tokens.front().find(
-             "0,4,6,7,1,0,9,5,11,0,0,6,3,10,0,0,4,6,7,1") !=
+             "0,4,6,7,3,0,9,5,11,0,0,6,3,10,0,0,4,6,7,3") !=
          std::string::npos);
 
   const std::vector<std::string> utf16_diagnostics = server.handle(
