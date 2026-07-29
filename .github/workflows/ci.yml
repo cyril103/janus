@@ -32,6 +32,10 @@ jobs:
         working-directory: editors/vscode
         run: npm ci
 
+      - name: Test extension
+        working-directory: editors/vscode
+        run: npm test
+
       - name: Package extension
         working-directory: editors/vscode
         run: npm run package -- --out janus-language.vsix

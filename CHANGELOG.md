@@ -12,6 +12,18 @@ utilise le versionnage sémantique à partir de sa première version publique.
   la navigation vers les implémentations de traits ;
 - annonce des capacités LSP correspondantes et conservation des frontières de
   module, de portée et de visibilité lors du renommage.
+- ajout de quick fixes fondés sur des `WorkspaceEdit` pour les suggestions
+  structurées, les imports manquants non ambigus et les branches `match`
+  manquantes, sans application automatique des choix à vérifier ;
+- transmission des notes, emplacements secondaires et corrections structurées
+  avec les diagnostics publiés.
+
+### Extension VS Code
+
+- tests du choix de `janus-lsp`, matrice extension/toolchain et procédures
+  d'installation et de mise à jour ;
+- publication Marketplace reproductible à partir du même VSIX construit sur
+  le tag de release.
 
 ## [0.7.4-hotfix.1] - 2026-07-28
 

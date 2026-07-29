@@ -55,8 +55,8 @@ std::string error_response(llvm::json::Value id, std::int64_t code,
   return serialize(llvm::json::Object{
       {"jsonrpc", "2.0"},
       {"id", std::move(id)},
-      {"error", llvm::json::Object{{"code", code},
-                                    {"message", std::move(message)}}},
+      {"error",
+       llvm::json::Object{{"code", code}, {"message", std::move(message)}}},
   });
 }
 
@@ -85,17 +85,21 @@ using DocumentSymbol = janus::lsp::IndexedSymbol;
 std::vector<janus::frontend::Token> tokens(std::string_view source) {
   std::vector<janus::frontend::Token> result;
   janus::frontend::Lexer lexer{source};
-  while (true) {
-    const janus::frontend::Token token = lexer.next();
-    result.push_back(token);
-    if (token.kind == janus::frontend::TokenKind::End)
-      return result;
+  try {
+    while (true) {
+      const janus::frontend::Token token = lexer.next();
+      result.push_back(token);
+      if (token.kind == janus::frontend::TokenKind::End)
+        return result;
+    }
+  } catch (const janus::CompileError &) {
+    return result;
   }
 }
 
-std::string qualified_type_name(
-    const std::vector<janus::frontend::Token> &document_tokens,
-    std::size_t start) {
+std::string
+qualified_type_name(const std::vector<janus::frontend::Token> &document_tokens,
+                    std::size_t start) {
   using janus::frontend::TokenKind;
   if (start >= document_tokens.size() ||
       document_tokens[start].kind != TokenKind::Identifier)
@@ -132,8 +136,7 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
   for (const Token &token : document_tokens) {
     if (token.kind == TokenKind::LeftBrace) {
       scope_stack.emplace_back(token.location.offset, scope_stack.size() + 1);
-    } else if (token.kind == TokenKind::RightBrace &&
-               !scope_stack.empty()) {
+    } else if (token.kind == TokenKind::RightBrace && !scope_stack.empty()) {
       const auto [start, depth] = scope_stack.back();
       scope_stack.pop_back();
       scopes.push_back(Scope{start, token.location.offset, depth});
@@ -193,9 +196,8 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
     } else {
       continue;
     }
-    const bool is_global =
-        brace_depth == 0 &&
-        (token.kind == TokenKind::Val || token.kind == TokenKind::Var);
+    const bool is_global = brace_depth == 0 && (token.kind == TokenKind::Val ||
+                                                token.kind == TokenKind::Var);
     const bool is_top_level = brace_depth == 0;
     const bool is_private =
         is_top_level && index != 0 &&
@@ -207,8 +209,7 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
     std::size_t scope_depth = 0;
     for (const Scope &scope : scopes)
       if (name.location.offset > scope.start &&
-          name.location.offset < scope.end &&
-          scope.depth >= scope_depth) {
+          name.location.offset < scope.end && scope.depth >= scope_depth) {
         scope_start = scope.start;
         scope_end = scope.end;
         scope_depth = scope.depth;
@@ -230,23 +231,14 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
     const std::string identity =
         symbol_top_level
             ? (module_name.has_value() ? *module_name : std::string{uri}) +
-                  "." +
-                  std::string{name.lexeme} + ":" + detail.substr(0, detail.find(' '))
-            : std::string{uri} + "#" +
-                  std::to_string(name.location.offset) + ":" +
-                  std::string{name.lexeme};
+                  "." + std::string{name.lexeme} + ":" +
+                  detail.substr(0, detail.find(' '))
+            : std::string{uri} + "#" + std::to_string(name.location.offset) +
+                  ":" + std::string{name.lexeme};
     result.push_back(DocumentSymbol{
-        identity,
-        std::string{name.lexeme},
-        std::move(detail),
-        name.location,
-        scope_start,
-        scope_end,
-        scope_depth,
-        is_global,
-        symbol_top_level,
-        is_private,
-        symbol_top_level ? module_name : std::nullopt});
+        identity, std::string{name.lexeme}, std::move(detail), name.location,
+        scope_start, scope_end, scope_depth, is_global, symbol_top_level,
+        is_private, symbol_top_level ? module_name : std::nullopt});
   }
   return result;
 }
@@ -257,9 +249,9 @@ struct LocatedIdentifier {
   std::optional<std::string> qualifier;
 };
 
-LocatedIdentifier located_identifier(
-    const std::vector<janus::frontend::Token> &document_tokens,
-    std::size_t index) {
+LocatedIdentifier
+located_identifier(const std::vector<janus::frontend::Token> &document_tokens,
+                   std::size_t index) {
   using janus::frontend::TokenKind;
   const janus::frontend::Token &token = document_tokens[index];
   std::optional<std::string> qualifier;
@@ -269,11 +261,9 @@ LocatedIdentifier located_identifier(
     std::size_t qualifier_index = index - 2;
     while (qualifier_index >= 2 &&
            document_tokens[qualifier_index - 1].kind == TokenKind::Dot &&
-           document_tokens[qualifier_index - 2].kind ==
-               TokenKind::Identifier) {
-      *qualifier =
-          std::string{document_tokens[qualifier_index - 2].lexeme} + "." +
-          *qualifier;
+           document_tokens[qualifier_index - 2].kind == TokenKind::Identifier) {
+      *qualifier = std::string{document_tokens[qualifier_index - 2].lexeme} +
+                   "." + *qualifier;
       qualifier_index -= 2;
     }
   }
@@ -405,7 +395,8 @@ std::string type_reference(const janus::ast::TypeReference &type) {
   return result;
 }
 
-std::string function_signature(const janus::ast::FunctionDeclaration &function) {
+std::string
+function_signature(const janus::ast::FunctionDeclaration &function) {
   std::string result = function.name + "(";
   for (std::size_t index = 0; index < function.parameters.size(); ++index) {
     if (index != 0)
@@ -422,9 +413,9 @@ struct CallSite {
   std::optional<LocatedIdentifier> receiver;
 };
 
-std::optional<CallSite>
-call_at(std::string_view source, std::uint32_t requested_line,
-        std::uint32_t requested_column) {
+std::optional<CallSite> call_at(std::string_view source,
+                                std::uint32_t requested_line,
+                                std::uint32_t requested_column) {
   const std::optional<std::size_t> requested =
       offset_from_position(source, requested_line, requested_column);
   if (!requested)
@@ -445,9 +436,8 @@ call_at(std::string_view source, std::uint32_t requested_line,
         --depth;
         continue;
       }
-      if (index == 0 ||
-          document_tokens[index - 1].kind !=
-              janus::frontend::TokenKind::Identifier)
+      if (index == 0 || document_tokens[index - 1].kind !=
+                            janus::frontend::TokenKind::Identifier)
         return std::nullopt;
       const std::size_t callee_index = index - 1;
       const LocatedIdentifier callee =
@@ -601,12 +591,12 @@ std::string file_uri(const std::filesystem::path &path) {
   constexpr char hex[] = "0123456789ABCDEF";
   std::string result = "file://";
   for (const unsigned char character : normalized) {
-    const bool unreserved =
-        (character >= 'a' && character <= 'z') ||
-        (character >= 'A' && character <= 'Z') ||
-        (character >= '0' && character <= '9') || character == '-' ||
-        character == '.' || character == '_' || character == '~' ||
-        character == '/' || character == ':';
+    const bool unreserved = (character >= 'a' && character <= 'z') ||
+                            (character >= 'A' && character <= 'Z') ||
+                            (character >= '0' && character <= '9') ||
+                            character == '-' || character == '.' ||
+                            character == '_' || character == '~' ||
+                            character == '/' || character == ':';
     if (unreserved) {
       result.push_back(static_cast<char>(character));
     } else {
@@ -700,8 +690,8 @@ SemanticIndex build_semantic_index(
       add_document(uri, cached->second.source);
   }
 
-  for (std::size_t document_index = 0;
-       document_index < ordered_uris.size(); ++document_index) {
+  for (std::size_t document_index = 0; document_index < ordered_uris.size();
+       ++document_index) {
     const std::string &document_uri = ordered_uris[document_index];
     const auto cached_document = cache.find(document_uri);
     if (cached_document == cache.end())
@@ -748,9 +738,9 @@ SemanticIndex build_semantic_index(
         imports = std::move(program.imports);
       } catch (const std::exception &) {
       }
-      index.documents.push_back(IndexedDocument{
-          std::move(uri), &cached->second, std::move(module_name),
-          std::move(imports)});
+      index.documents.push_back(IndexedDocument{std::move(uri), &cached->second,
+                                                std::move(module_name),
+                                                std::move(imports)});
     }
   }
   return index;
@@ -765,9 +755,9 @@ Server::Server(std::vector<std::filesystem::path> module_search_paths)
 
 void Server::refresh_workspace_metrics(std::uint64_t startup_milliseconds) {
   WorkspaceIndexMetrics metrics;
-  metrics.startup_milliseconds =
-      startup_milliseconds == 0 ? workspace_metrics_.startup_milliseconds
-                                : startup_milliseconds;
+  metrics.startup_milliseconds = startup_milliseconds == 0
+                                     ? workspace_metrics_.startup_milliseconds
+                                     : startup_milliseconds;
   for (const std::string &uri : workspace_uris_) {
     const auto document = index_cache_.find(uri);
     if (document == index_cache_.end())
@@ -778,9 +768,9 @@ void Server::refresh_workspace_metrics(std::uint64_t startup_milliseconds) {
         sizeof(DocumentIndex) + document->second.source.size();
     for (const IndexedSymbol &symbol : document->second.symbols) {
       ++metrics.symbols;
-      metrics.estimated_memory_bytes +=
-          sizeof(IndexedSymbol) + symbol.id.size() + symbol.name.size() +
-          symbol.detail.size();
+      metrics.estimated_memory_bytes += sizeof(IndexedSymbol) +
+                                        symbol.id.size() + symbol.name.size() +
+                                        symbol.detail.size();
       if (symbol.module_name.has_value())
         metrics.estimated_memory_bytes += symbol.module_name->size();
     }
@@ -847,10 +837,11 @@ void Server::initialize_workspace(
     if (!std::filesystem::is_directory(directory))
       return;
     std::error_code error;
-    for (std::filesystem::recursive_directory_iterator iterator{
-             directory,
-             std::filesystem::directory_options::skip_permission_denied,
-             error},
+    for (std::filesystem::recursive_directory_iterator
+             iterator{directory,
+                      std::filesystem::directory_options::
+                          skip_permission_denied,
+                      error},
          end;
          iterator != end; iterator.increment(error)) {
       if (error) {
@@ -913,13 +904,80 @@ void Server::initialize_workspace(
   }
   const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::steady_clock::now() - started);
-  refresh_workspace_metrics(
-      static_cast<std::uint64_t>(elapsed.count()) + UINT64_C(1));
+  refresh_workspace_metrics(static_cast<std::uint64_t>(elapsed.count()) +
+                            UINT64_C(1));
 }
 
 std::string Server::diagnostics(std::string_view uri,
                                 std::string_view source) const {
   llvm::json::Array items;
+  for (const Diagnostic &diagnostic : analyze_document(uri, source)) {
+    const SourceLocation location = diagnostic.primary_location;
+    const int severity = diagnostic.severity == DiagnosticSeverity::Error ? 1
+                         : diagnostic.severity == DiagnosticSeverity::Warning
+                             ? 2
+                             : 3;
+    std::string message = diagnostic.message;
+    for (const std::string &note : diagnostic.notes)
+      message += "\n\nnote: " + note;
+
+    llvm::json::Array related_information;
+    for (const DiagnosticLocation &secondary : diagnostic.secondary_locations) {
+      related_information.emplace_back(llvm::json::Object{
+          {"location",
+           llvm::json::Object{
+               {"uri", std::string{uri}},
+               {"range", range(source, secondary.location, 1)},
+           }},
+          {"message", secondary.label},
+      });
+    }
+
+    llvm::json::Array actions;
+    for (const DiagnosticSuggestion &suggestion : diagnostic.suggestions) {
+      actions.emplace_back(llvm::json::Object{
+          {"title", suggestion.message},
+          {"range",
+           llvm::json::Object{
+               {"start",
+                position_at_offset(source, suggestion.range.start.offset)},
+               {"end", position_at_offset(source, suggestion.range.end.offset)},
+           }},
+          {"newText", suggestion.replacement},
+          {"isPreferred", true},
+      });
+    }
+
+    llvm::json::Object item{
+        {"range",
+         llvm::json::Object{
+             {"start", position_at_offset(source, location.offset)},
+             {"end", position_at_offset(
+                         source, location.offset < source.size()
+                                     ? location.offset +
+                                           utf8_sequence_length(
+                                               static_cast<unsigned char>(
+                                                   source[location.offset]))
+                                     : location.offset)},
+         }},
+        {"severity", severity},
+        {"code", std::string{diagnostic_code_name(diagnostic.code)}},
+        {"source", "janus"},
+        {"message", std::move(message)},
+    };
+    if (!related_information.empty())
+      item.insert({"relatedInformation", std::move(related_information)});
+    if (!actions.empty())
+      item.insert(
+          {"data", llvm::json::Object{{"actions", std::move(actions)}}});
+    items.emplace_back(std::move(item));
+  }
+
+  return publish_diagnostics(uri, std::move(items));
+}
+
+std::vector<Diagnostic>
+Server::analyze_document(std::string_view uri, std::string_view source) const {
   try {
     ast::Program program;
     if (const std::optional<std::filesystem::path> path = file_uri_path(uri)) {
@@ -936,46 +994,81 @@ std::string Server::diagnostics(std::string_view uri,
     static_cast<void>(semantic::Analyzer{}.analyze(
         program, semantic::AnalysisOptions{!is_module}));
   } catch (const CompileError &error) {
-    for (const Diagnostic &diagnostic : error.diagnostics()) {
-      const SourceLocation location = diagnostic.primary_location;
-      const int severity =
-          diagnostic.severity == DiagnosticSeverity::Error
-              ? 1
-              : diagnostic.severity == DiagnosticSeverity::Warning ? 2 : 3;
-      items.emplace_back(llvm::json::Object{
-          {"range",
-           llvm::json::Object{
-               {"start", position_at_offset(source, location.offset)},
-               {"end",
-                position_at_offset(
-                    source,
-                    location.offset < source.size()
-                        ? location.offset +
-                              utf8_sequence_length(static_cast<unsigned char>(
-                                  source[location.offset]))
-                        : location.offset)},
-           }},
-          {"severity", severity},
-          {"code", std::string{diagnostic_code_name(diagnostic.code)}},
-          {"source", "janus"},
-          {"message", diagnostic.message},
-      });
-    }
+    return error.diagnostics();
   } catch (const std::exception &error) {
-    items.emplace_back(llvm::json::Object{
-        {"range",
-         llvm::json::Object{
-             {"start", position(0, 0)},
-             {"end", position(0, 1)},
-         }},
-        {"severity", 1},
-        {"source", "janus"},
-        {"message", std::string{error.what()}},
-    });
+    return {Diagnostic{
+        DiagnosticSeverity::Error,
+        DiagnosticCode::Unclassified,
+        error.what(),
+        SourceLocation{},
+        {},
+        {},
+        {},
+    }};
   }
-
-  return publish_diagnostics(uri, std::move(items));
+  return {};
 }
+
+namespace {
+
+std::size_t import_insertion_offset(std::string_view source) {
+  std::size_t insertion = 0;
+  std::size_t line_start = 0;
+  while (line_start < source.size()) {
+    const std::size_t newline = source.find('\n', line_start);
+    const std::size_t line_end =
+        newline == std::string_view::npos ? source.size() : newline;
+    std::string_view line = source.substr(line_start, line_end - line_start);
+    while (!line.empty() &&
+           std::isspace(static_cast<unsigned char>(line.front())))
+      line.remove_prefix(1);
+    if (line.starts_with("module ") || line.starts_with("import "))
+      insertion = newline == std::string_view::npos ? line_end : newline + 1;
+    else if (!line.empty())
+      break;
+    line_start =
+        newline == std::string_view::npos ? source.size() : newline + 1;
+  }
+  return insertion;
+}
+
+std::optional<std::size_t> matching_match_brace(std::string_view source,
+                                                std::size_t match_offset) {
+  using janus::frontend::TokenKind;
+  bool saw_match = false;
+  bool saw_brace = false;
+  std::size_t depth = 0;
+  for (const janus::frontend::Token &token : tokens(source)) {
+    if (!saw_match) {
+      saw_match = token.kind == TokenKind::Match &&
+                  token.location.offset == match_offset;
+      continue;
+    }
+    if (token.kind == TokenKind::LeftBrace) {
+      saw_brace = true;
+      ++depth;
+    } else if (token.kind == TokenKind::RightBrace && saw_brace) {
+      if (--depth == 0)
+        return token.location.offset;
+    }
+  }
+  return std::nullopt;
+}
+
+llvm::json::Object workspace_edit(std::string_view uri,
+                                  llvm::json::Object edit_range,
+                                  std::string new_text) {
+  llvm::json::Array edits;
+  edits.emplace_back(llvm::json::Object{
+      {"range", std::move(edit_range)},
+      {"newText", std::move(new_text)},
+  });
+  llvm::json::Object changes;
+  changes.insert({std::string{uri}, std::move(edits)});
+  return llvm::json::Object{{"changes", std::move(changes)}};
+}
+
+} // namespace
 
 std::vector<std::string> Server::handle(std::string_view message) {
   llvm::Expected<llvm::json::Value> parsed = llvm::json::parse(message);
@@ -1021,10 +1114,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
         llvm::json::Object{
             {"capabilities",
              llvm::json::Object{
-                 {"textDocumentSync",
-                  llvm::json::Object{{"openClose", true},
-                                     {"change", 1},
-                                     {"save", true}}},
+                 {"textDocumentSync", llvm::json::Object{{"openClose", true},
+                                                         {"change", 1},
+                                                         {"save", true}}},
                  {"hoverProvider", true},
                  {"definitionProvider", true},
                  {"referencesProvider", true},
@@ -1040,11 +1132,11 @@ std::vector<std::string> Server::handle(std::string_view message) {
                       {"legend",
                        llvm::json::Object{
                            {"tokenTypes",
-                            llvm::json::Array{
-                                "namespace", "type", "class", "enum",
-                                "interface", "function", "method", "variable",
-                                "parameter", "property", "keyword", "string",
-                                "number", "operator"}},
+                            llvm::json::Array{"namespace", "type", "class",
+                                              "enum", "interface", "function",
+                                              "method", "variable", "parameter",
+                                              "property", "keyword", "string",
+                                              "number", "operator"}},
                            {"tokenModifiers",
                             llvm::json::Array{"declaration", "readonly",
                                               "static"}},
@@ -1054,6 +1146,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
                   }},
                  {"inlayHintProvider", true},
                  {"implementationProvider", true},
+                 {"codeActionProvider",
+                  llvm::json::Object{
+                      {"codeActionKinds", llvm::json::Array{"quickfix"}},
+                  }},
                  {"workspaceSymbolProvider", true},
                  {"completionProvider",
                   llvm::json::Object{
@@ -1067,9 +1163,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                           {"changeNotifications", true}}},
                   }},
              }},
-            {"serverInfo",
-             llvm::json::Object{{"name", "janus-lsp"},
-                                {"version", JANUS_VERSION}}},
+            {"serverInfo", llvm::json::Object{{"name", "janus-lsp"},
+                                              {"version", JANUS_VERSION}}},
         })};
   }
   if (*method == "shutdown") {
@@ -1094,11 +1189,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
                    llvm::json::Object{
                        {"watchers",
                         llvm::json::Array{
-                            llvm::json::Object{
-                                {"globPattern", "**/*.janus"}, {"kind", 7}},
-                            llvm::json::Object{
-                                {"globPattern", "**/janus.toml"},
-                                {"kind", 7}},
+                            llvm::json::Object{{"globPattern", "**/*.janus"},
+                                               {"kind", 7}},
+                            llvm::json::Object{{"globPattern", "**/janus.toml"},
+                                               {"kind", 7}},
                         }},
                    }},
               }}},
@@ -1110,8 +1204,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
     if (params != nullptr)
       if (const llvm::json::Object *settings = params->getObject("settings"))
         if (const llvm::json::Object *janus = settings->getObject("janus"))
-          if (const llvm::json::Object *hints =
-                  janus->getObject("inlayHints"))
+          if (const llvm::json::Object *hints = janus->getObject("inlayHints"))
             if (const std::optional<bool> enabled =
                     hints->getBoolean("inferredTypes"))
               inferred_type_hints_ = *enabled;
@@ -1331,16 +1424,115 @@ std::vector<std::string> Server::handle(std::string_view message) {
            llvm::json::Object{
                {"uri", match.uri},
                {"range",
-                range(index_cache_.at(match.uri).source,
-                      match.symbol.location, match.symbol.name.size())},
+                range(index_cache_.at(match.uri).source, match.symbol.location,
+                      match.symbol.name.size())},
            }},
       });
     }
     return {response(request_id(*request), std::move(result))};
   }
 
-  const auto open_document =
-      uri ? documents_.find(*uri) : documents_.end();
+  const auto open_document = uri ? documents_.find(*uri) : documents_.end();
+  if (*method == "textDocument/codeAction" && uri &&
+      open_document != documents_.end()) {
+    llvm::json::Array actions;
+    const std::string_view source = open_document->second;
+    const auto add_action = [&](std::string title,
+                                llvm::json::Object edit_range,
+                                std::string new_text, bool preferred) {
+      actions.emplace_back(llvm::json::Object{
+          {"title", std::move(title)},
+          {"kind", "quickfix"},
+          {"isPreferred", preferred},
+          {"edit",
+           workspace_edit(*uri, std::move(edit_range), std::move(new_text))},
+      });
+    };
+
+    for (const Diagnostic &diagnostic : analyze_document(*uri, source)) {
+      for (const DiagnosticSuggestion &suggestion : diagnostic.suggestions) {
+        add_action(suggestion.message,
+                   llvm::json::Object{
+                       {"start", position_at_offset(
+                                     source, suggestion.range.start.offset)},
+                       {"end", position_at_offset(source,
+                                                  suggestion.range.end.offset)},
+                   },
+                   suggestion.replacement, true);
+      }
+
+      if (diagnostic.code == DiagnosticCode::AnalyzerUnknownValue) {
+        std::optional<std::string> unknown_name;
+        for (const frontend::Token &token : tokens(source))
+          if (token.kind == frontend::TokenKind::Identifier &&
+              token.location.offset == diagnostic.primary_location.offset) {
+            unknown_name = std::string{token.lexeme};
+            break;
+          }
+        std::unordered_set<std::string> modules;
+        if (unknown_name)
+          for (const auto &[indexed_uri, index] : index_cache_) {
+            if (indexed_uri == *uri)
+              continue;
+            for (const IndexedSymbol &symbol : index.symbols)
+              if (symbol.name == *unknown_name && symbol.is_top_level &&
+                  !symbol.is_private && symbol.module_name.has_value())
+                modules.insert(*symbol.module_name);
+          }
+        if (modules.size() == 1) {
+          const std::string &module = *modules.begin();
+          const std::string import_line = "import " + module;
+          if (source.find(import_line) == std::string_view::npos) {
+            const std::size_t insertion = import_insertion_offset(source);
+            add_action("Import module `" + module + "`",
+                       llvm::json::Object{
+                           {"start", position_at_offset(source, insertion)},
+                           {"end", position_at_offset(source, insertion)},
+                       },
+                       import_line + "\n", false);
+          }
+        }
+      }
+
+      constexpr std::string_view missing_marker = ": missing case(s): ";
+      if (const std::size_t marker = diagnostic.message.find(missing_marker);
+          marker != std::string::npos) {
+        const std::optional<std::size_t> insertion =
+            matching_match_brace(source, diagnostic.primary_location.offset);
+        if (!insertion)
+          continue;
+        const std::string cases =
+            diagnostic.message.substr(marker + missing_marker.size());
+        std::string replacement;
+        std::size_t start = 0;
+        while (start < cases.size()) {
+          const std::size_t comma = cases.find(", ", start);
+          const std::string name =
+              cases.substr(start, comma == std::string::npos ? std::string::npos
+                                                             : comma - start);
+          if (!replacement.empty())
+            replacement += ", ";
+          replacement += name + " => 0";
+          if (comma == std::string::npos)
+            break;
+          start = comma + 2;
+        }
+        if (!replacement.empty()) {
+          const std::size_t previous =
+              source.substr(0, *insertion).find_last_not_of(" \t\r\n");
+          const bool needs_separator =
+              previous != std::string_view::npos && source[previous] != '{';
+          add_action("Add missing match branches",
+                     llvm::json::Object{
+                         {"start", position_at_offset(source, *insertion)},
+                         {"end", position_at_offset(source, *insertion)},
+                     },
+                     (needs_separator ? ", " : "") + replacement + " ", false);
+        }
+      }
+    }
+    return {response(request_id(*request), std::move(actions))};
+  }
   if (*method == "textDocument/formatting" && uri &&
       open_document != documents_.end()) {
     driver::FormatOptions options;
@@ -1379,8 +1571,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
     bool first = true;
     const std::vector<frontend::Token> document_tokens =
         tokens(open_document->second);
-    std::unordered_map<std::size_t,
-                       std::pair<std::int64_t, std::int64_t>>
+    std::unordered_map<std::size_t, std::pair<std::int64_t, std::int64_t>>
         declaration_kinds;
     std::unordered_map<std::string, std::int64_t> type_kinds;
     std::vector<std::vector<std::string>> imported_paths;
@@ -1439,8 +1630,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
       if (kind == 2 || kind == 3 || kind == 4)
         type_kinds.try_emplace(symbol.name, kind);
     }
-    const auto resolved_kind = [&](std::string_view name, std::size_t offset)
-        -> std::optional<std::int64_t> {
+    const auto resolved_kind =
+        [&](std::string_view name,
+            std::size_t offset) -> std::optional<std::int64_t> {
       const DocumentSymbol *best = nullptr;
       for (const DocumentSymbol &candidate : semantic_symbols) {
         if (candidate.name != name || offset < candidate.scope_start ||
@@ -1464,8 +1656,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
     const auto is_type_position = [&](std::size_t index) {
       while (index >= 2 &&
              document_tokens[index - 1].kind == frontend::TokenKind::Dot &&
-             document_tokens[index - 2].kind ==
-                 frontend::TokenKind::Identifier)
+             document_tokens[index - 2].kind == frontend::TokenKind::Identifier)
         index -= 2;
       if (index == 0)
         return false;
@@ -1477,8 +1668,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
     const auto chain_start = [&](std::size_t index) {
       while (index >= 2 &&
              document_tokens[index - 1].kind == frontend::TokenKind::Dot &&
-             document_tokens[index - 2].kind ==
-                 frontend::TokenKind::Identifier)
+             document_tokens[index - 2].kind == frontend::TokenKind::Identifier)
         index -= 2;
       return index;
     };
@@ -1534,8 +1724,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
           type = 0;
           modifiers = namespace_token->second;
         } else if (const auto declaration =
-                declaration_kinds.find(token.location.offset);
-            declaration != declaration_kinds.end()) {
+                       declaration_kinds.find(token.location.offset);
+                   declaration != declaration_kinds.end()) {
           type = declaration->second.first;
           modifiers = declaration->second.second;
         } else if (is_builtin_type(token.lexeme)) {
@@ -1577,16 +1767,15 @@ std::vector<std::string> Server::handle(std::string_view message) {
         continue;
       const llvm::json::Object token_position =
           position_at_offset(open_document->second, token.location.offset);
-      const std::uint32_t line = static_cast<std::uint32_t>(
-          *token_position.getInteger("line"));
-      const std::uint32_t column = static_cast<std::uint32_t>(
-          *token_position.getInteger("character"));
-      data.emplace_back(static_cast<std::int64_t>(
-          first ? line : line - previous_line));
+      const std::uint32_t line =
+          static_cast<std::uint32_t>(*token_position.getInteger("line"));
+      const std::uint32_t column =
+          static_cast<std::uint32_t>(*token_position.getInteger("character"));
+      data.emplace_back(
+          static_cast<std::int64_t>(first ? line : line - previous_line));
       data.emplace_back(static_cast<std::int64_t>(
           first || line != previous_line ? column : column - previous_column));
-      data.emplace_back(
-          static_cast<std::int64_t>(utf16_length(token.lexeme)));
+      data.emplace_back(static_cast<std::int64_t>(utf16_length(token.lexeme)));
       data.emplace_back(*type);
       data.emplace_back(modifiers);
       previous_line = line;
@@ -1614,15 +1803,14 @@ std::vector<std::string> Server::handle(std::string_view message) {
             const auto end_line = end->getInteger("line");
             const auto end_character = end->getInteger("character");
             if (start_line && start_character && end_line && end_character &&
-                *start_line >= 0 && *start_character >= 0 &&
-                *end_line >= 0 && *end_character >= 0) {
+                *start_line >= 0 && *start_character >= 0 && *end_line >= 0 &&
+                *end_character >= 0) {
               range_start = offset_from_position(
                   open_document->second,
                   static_cast<std::uint32_t>(*start_line),
                   static_cast<std::uint32_t>(*start_character));
               range_end = offset_from_position(
-                  open_document->second,
-                  static_cast<std::uint32_t>(*end_line),
+                  open_document->second, static_cast<std::uint32_t>(*end_line),
                   static_cast<std::uint32_t>(*end_character));
             }
           }
@@ -1647,7 +1835,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
         if (hint_offset < *range_start || hint_offset >= *range_end)
           continue;
         hints.emplace_back(llvm::json::Object{
-            {"position", position_at_offset(open_document->second, hint_offset)},
+            {"position",
+             position_at_offset(open_document->second, hint_offset)},
             {"label", ": " + *inferred},
             {"kind", 1},
             {"paddingLeft", false},
@@ -1668,9 +1857,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                   : request_position->getInteger("character");
   const auto document = open_document;
   if (uri && line && character && document != documents_.end()) {
-    const std::optional<LocatedIdentifier> identifier = identifier_at(
-        document->second, static_cast<std::uint32_t>(*line),
-        static_cast<std::uint32_t>(*character));
+    const std::optional<LocatedIdentifier> identifier =
+        identifier_at(document->second, static_cast<std::uint32_t>(*line),
+                      static_cast<std::uint32_t>(*character));
     std::vector<std::filesystem::path> search_paths = module_search_paths_;
     search_paths.insert(search_paths.end(), workspace_search_paths_.begin(),
                         workspace_search_paths_.end());
@@ -1679,9 +1868,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
                              workspace_uris_, search_paths, index_cache_);
     const std::vector<DocumentSymbol> &document_symbols =
         semantic_index.documents.front().index->symbols;
-    const auto bind_symbol =
-        [&](const IndexedDocument &origin,
-            const LocatedIdentifier &requested)
+    const auto bind_symbol = [&](const IndexedDocument &origin,
+                                 const LocatedIdentifier &requested)
         -> std::optional<std::pair<std::string, DocumentSymbol>> {
       const DocumentSymbol *best = nullptr;
       if (!requested.qualifier)
@@ -1740,56 +1928,55 @@ std::vector<std::string> Server::handle(std::string_view message) {
       if (const auto call =
               call_at(document->second, static_cast<std::uint32_t>(*line),
                       static_cast<std::uint32_t>(*character))) {
-        const auto callee = bind_symbol(
-            semantic_index.documents.front(), call->callee);
+        const auto callee =
+            bind_symbol(semantic_index.documents.front(), call->callee);
         if (callee) {
           llvm::json::Array signatures;
           std::size_t active_parameter = 0;
           for (const IndexedDocument &indexed : semantic_index.documents) {
             if (indexed.uri != callee->first)
               continue;
-          try {
-            frontend::Parser parser{indexed.index->source};
-            const ast::Program program = parser.parse_program();
-            for (const ast::FunctionDeclaration &function :
-                 program.functions) {
-              if (function.name != call->callee.name)
-                continue;
-              llvm::json::Array parameters;
-              for (const ast::FunctionDeclaration::Parameter &parameter :
-                   function.parameters)
-                parameters.emplace_back(llvm::json::Object{
-                    {"label", parameter.name + " : " +
-                                  type_reference(parameter.type)}});
-              const std::size_t active =
-                  function.parameters.empty()
-                      ? 0
-                      : std::min(call->active_parameter,
-                                 function.parameters.size() - 1);
-              if (signatures.empty())
-                active_parameter = active;
-              signatures.emplace_back(llvm::json::Object{
-                  {"label", function_signature(function)},
-                  {"parameters", std::move(parameters)},
-              });
+            try {
+              frontend::Parser parser{indexed.index->source};
+              const ast::Program program = parser.parse_program();
+              for (const ast::FunctionDeclaration &function :
+                   program.functions) {
+                if (function.name != call->callee.name)
+                  continue;
+                llvm::json::Array parameters;
+                for (const ast::FunctionDeclaration::Parameter &parameter :
+                     function.parameters)
+                  parameters.emplace_back(llvm::json::Object{
+                      {"label", parameter.name + " : " +
+                                    type_reference(parameter.type)}});
+                const std::size_t active =
+                    function.parameters.empty()
+                        ? 0
+                        : std::min(call->active_parameter,
+                                   function.parameters.size() - 1);
+                if (signatures.empty())
+                  active_parameter = active;
+                signatures.emplace_back(llvm::json::Object{
+                    {"label", function_signature(function)},
+                    {"parameters", std::move(parameters)},
+                });
+              }
+            } catch (const std::exception &) {
             }
-          } catch (const std::exception &) {
-          }
           }
           if (!signatures.empty())
-            return {response(
-                request_id(*request),
-                llvm::json::Object{
-                    {"signatures", std::move(signatures)},
-                    {"activeSignature", 0},
-                    {"activeParameter",
-                     static_cast<std::int64_t>(active_parameter)},
-                })};
+            return {response(request_id(*request),
+                             llvm::json::Object{
+                                 {"signatures", std::move(signatures)},
+                                 {"activeSignature", 0},
+                                 {"activeParameter",
+                                  static_cast<std::int64_t>(active_parameter)},
+                             })};
         } else {
           if (!call->receiver)
             return {response(request_id(*request), nullptr)};
-          const auto bound_receiver = bind_symbol(
-              semantic_index.documents.front(), *call->receiver);
+          const auto bound_receiver =
+              bind_symbol(semantic_index.documents.front(), *call->receiver);
           if (!bound_receiver)
             return {response(request_id(*request), nullptr)};
           const std::size_t type_separator =
@@ -1872,14 +2059,13 @@ std::vector<std::string> Server::handle(std::string_view message) {
             }
           }
           if (!ambiguous_owner && !signatures.empty())
-            return {response(
-                request_id(*request),
-                llvm::json::Object{
-                    {"signatures", std::move(signatures)},
-                    {"activeSignature", 0},
-                    {"activeParameter",
-                     static_cast<std::int64_t>(active_parameter)},
-                })};
+            return {response(request_id(*request),
+                             llvm::json::Object{
+                                 {"signatures", std::move(signatures)},
+                                 {"activeSignature", 0},
+                                 {"activeParameter",
+                                  static_cast<std::int64_t>(active_parameter)},
+                             })};
         }
       }
       return {response(request_id(*request), nullptr)};
@@ -1913,22 +2099,19 @@ std::vector<std::string> Server::handle(std::string_view message) {
                               : std::optional<std::string>{
                                     trait.name.substr(0, separator)};
                       const auto bound_trait = bind_symbol(
-                          indexed,
-                          LocatedIdentifier{trait_name, trait.location,
-                                            qualifier});
+                          indexed, LocatedIdentifier{trait_name, trait.location,
+                                                     qualifier});
                       return bound_trait.has_value() &&
                              bound_trait->second.id == target->second.id;
                     });
                 if (implements)
-                  for (const DocumentSymbol &symbol :
-                       indexed.index->symbols)
+                  for (const DocumentSymbol &symbol : indexed.index->symbols)
                     if (symbol.name == implementation.name &&
                         symbol.detail.starts_with("class ")) {
                       locations.emplace_back(llvm::json::Object{
                           {"uri", indexed.uri},
-                          {"range",
-                           range(indexed.index->source, symbol.location,
-                                 symbol.name.size())},
+                          {"range", range(indexed.index->source,
+                                          symbol.location, symbol.name.size())},
                       });
                       break;
                     }
@@ -1943,20 +2126,19 @@ std::vector<std::string> Server::handle(std::string_view message) {
     }
     if (*method == "textDocument/prepareRename") {
       if (identifier && locate_symbol(*identifier).has_value())
-        return {response(
-            request_id(*request),
-            llvm::json::Object{
-                {"range", range(document->second, identifier->location,
-                                identifier->name.size())},
-                {"placeholder", identifier->name},
-            })};
+        return {
+            response(request_id(*request),
+                     llvm::json::Object{
+                         {"range", range(document->second, identifier->location,
+                                         identifier->name.size())},
+                         {"placeholder", identifier->name},
+                     })};
       return {response(request_id(*request), nullptr)};
     }
     if (*method == "textDocument/rename") {
       const std::optional<llvm::StringRef> requested_name =
           params == nullptr ? std::nullopt : params->getString("newName");
-      if (!identifier || !requested_name ||
-          !valid_identifier(*requested_name))
+      if (!identifier || !requested_name || !valid_identifier(*requested_name))
         return {error_response(request_id(*request), -32602,
                                "Rename requires a valid identifier")};
       const auto target = locate_symbol(*identifier);
@@ -1964,9 +2146,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
         return {error_response(request_id(*request), -32602,
                                "No symbol can be renamed here")};
       if (target->second.name == *requested_name)
-        return {response(request_id(*request),
-                         llvm::json::Object{{"changes",
-                                             llvm::json::Object{}}})};
+        return {
+            response(request_id(*request),
+                     llvm::json::Object{{"changes", llvm::json::Object{}}})};
       const std::string new_name = requested_name->str();
 
       struct RenameOccurrence {
@@ -1980,8 +2162,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
           continue;
         const std::vector<frontend::Token> document_tokens =
             tokens(indexed.index->source);
-        for (std::size_t token_index = 0;
-             token_index < document_tokens.size(); ++token_index) {
+        for (std::size_t token_index = 0; token_index < document_tokens.size();
+             ++token_index) {
           const frontend::Token &token = document_tokens[token_index];
           if (token.kind != frontend::TokenKind::Identifier ||
               token.lexeme != target->second.name)
@@ -1989,8 +2171,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
           LocatedIdentifier occurrence_identifier =
               located_identifier(document_tokens, token_index);
           const auto bound = bind_symbol(indexed, occurrence_identifier);
-          if (!bound.has_value() ||
-              bound->second.id != target->second.id)
+          if (!bound.has_value() || bound->second.id != target->second.id)
             continue;
           occurrences.push_back(RenameOccurrence{
               &indexed, token, std::move(occurrence_identifier)});
@@ -2027,11 +2208,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
             visible =
                 candidate_document.module_name ==
                     occurrence.identifier.qualifier &&
-                (visible ||
-                 std::find(occurrence.document->imports.begin(),
-                           occurrence.document->imports.end(),
-                           *occurrence.identifier.qualifier) !=
-                     occurrence.document->imports.end());
+                (visible || std::find(occurrence.document->imports.begin(),
+                                      occurrence.document->imports.end(),
+                                      *occurrence.identifier.qualifier) !=
+                                occurrence.document->imports.end());
           } else if (!visible && candidate_document.module_name) {
             visible = std::find(occurrence.document->imports.begin(),
                                 occurrence.document->imports.end(),
@@ -2045,16 +2225,14 @@ std::vector<std::string> Server::handle(std::string_view message) {
             const bool renamed_target = candidate.id == target->second.id;
             const std::string_view effective_name =
                 renamed_target ? std::string_view{new_name} : candidate.name;
-            if (!candidate.is_top_level ||
-                effective_name != new_name ||
+            if (!candidate.is_top_level || effective_name != new_name ||
                 (candidate.is_private &&
                  candidate_document.uri != occurrence.document->uri))
               continue;
             identities.insert(candidate.id);
           }
         }
-        return identities.size() == 1 &&
-               identities.contains(target->second.id);
+        return identities.size() == 1 && identities.contains(target->second.id);
       };
       if (std::any_of(occurrences.begin(), occurrences.end(),
                       [&](const RenameOccurrence &occurrence) {
@@ -2067,9 +2245,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
       std::unordered_map<std::string, llvm::json::Array> edits;
       for (const RenameOccurrence &occurrence : occurrences)
         edits[occurrence.document->uri].emplace_back(llvm::json::Object{
-            {"range", range(occurrence.document->index->source,
-                            occurrence.token.location,
-                            occurrence.token.lexeme.size())},
+            {"range",
+             range(occurrence.document->index->source,
+                   occurrence.token.location, occurrence.token.lexeme.size())},
             {"newText", new_name},
         });
       llvm::json::Array document_changes;
@@ -2090,10 +2268,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
             {"edits", std::move(edits.at(edited_uri))},
         });
       }
-      return {response(
-          request_id(*request),
-          llvm::json::Object{{"documentChanges",
-                              std::move(document_changes)}})};
+      return {response(request_id(*request),
+                       llvm::json::Object{
+                           {"documentChanges", std::move(document_changes)}})};
     }
     if (*method == "textDocument/hover") {
       if (identifier) {
@@ -2139,8 +2316,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
         const auto target = locate_symbol(*identifier);
         bool include_declaration = true;
         if (params != nullptr)
-          if (const llvm::json::Object *context =
-                  params->getObject("context"))
+          if (const llvm::json::Object *context = params->getObject("context"))
             if (const std::optional<bool> requested =
                     context->getBoolean("includeDeclaration"))
               include_declaration = *requested;
@@ -2208,10 +2384,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
       }
 
       for (const DocumentSymbol &symbol : document_symbols) {
-        const bool member =
-            symbol.detail.find("def ") != std::string::npos ||
-            symbol.detail.find("val ") != std::string::npos ||
-            symbol.detail.find("var ") != std::string::npos;
+        const bool member = symbol.detail.find("def ") != std::string::npos ||
+                            symbol.detail.find("val ") != std::string::npos ||
+                            symbol.detail.find("var ") != std::string::npos;
         if (!module_member_context && (!member_context || member)) {
           const std::int64_t kind =
               symbol.detail.starts_with("def ") ? 3
@@ -2232,16 +2407,15 @@ std::vector<std::string> Server::handle(std::string_view message) {
               const std::int64_t kind =
                   symbol.detail.starts_with("def ") ? 3
                   : symbol.detail.starts_with("class ") ||
-                            symbol.detail.starts_with("trait ") ||
-                            symbol.detail.starts_with("enum ")
+                          symbol.detail.starts_with("trait ") ||
+                          symbol.detail.starts_with("enum ")
                       ? 7
                       : 6;
               add_item(symbol.name, symbol.detail, kind);
             }
         }
-        for (const std::string_view type :
-             {"int", "double", "byte", "char", "bool", "string", "unit",
-              "usize"})
+        for (const std::string_view type : {"int", "double", "byte", "char",
+                                            "bool", "string", "unit", "usize"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
              {"val", "var", "def", "class", "struct", "trait", "enum", "new",
@@ -2249,15 +2423,13 @@ std::vector<std::string> Server::handle(std::string_view message) {
               "while", "return", "true", "false"})
           add_item(std::string{keyword}, "Janus keyword", 14);
       }
-      return {response(
-          request_id(*request),
-          llvm::json::Object{{"isIncomplete", false},
-                             {"items", std::move(items)}})};
+      return {response(request_id(*request),
+                       llvm::json::Object{{"isIncomplete", false},
+                                          {"items", std::move(items)}})};
     }
   }
 
-  if (*method == "textDocument/hover" ||
-      *method == "textDocument/definition" ||
+  if (*method == "textDocument/hover" || *method == "textDocument/definition" ||
       *method == "textDocument/references" ||
       *method == "textDocument/signatureHelp" ||
       *method == "textDocument/implementation" ||

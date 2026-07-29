@@ -65,6 +65,7 @@
   },
   "scripts": {
     "build": "esbuild src/extension.js --bundle --minify --platform=node --external:vscode --outfile=dist/extension.js",
+    "test": "node --test test/*.test.js",
     "check-package": "vsce ls --tree",
     "package": "vsce package",
     "vscode:prepublish": "npm run build"
