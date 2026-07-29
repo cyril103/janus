@@ -1,19 +1,76 @@
 # Extension VS Code pour Janus
 
-Cette extension associe les fichiers `.janus` au langage Janus, fournit une
-coloration syntaxique et démarre `janus-lsp` sur l'entrée/sortie standard.
+Cette extension associe les fichiers `.janus` au langage Janus, fournit la
+coloration syntaxique et démarre `janus-lsp` sur l'entrée/sortie standard. Les
+diagnostics structurés affichent leur code, leurs notes, leurs emplacements
+associés et leurs corrections. Les actions rapides couvrent notamment les
+corrections sûres proposées par le compilateur, les imports manquants non
+ambigus et les branches de `match` manquantes.
 
-Le serveur est recherché dans cet ordre :
+## Installation et mise à jour
+
+Après publication sur la Marketplace, rechercher **Janus Language**, puis
+choisir **Install**. VS Code installe ensuite les mises à jour normalement. Un
+VSIX tagué peut aussi être installé ou mis à jour sans Marketplace :
+
+```bash
+code --install-extension janus-language.vsix
+```
+
+La même commande avec un VSIX plus récent met l'installation existante à jour.
+Après une installation ou une mise à jour, ouvrir un fichier `.janus` et
+contrôler la sortie **Janus Language Server**.
+
+## Choix de `janus-lsp`
+
+Le serveur est recherché dans cet ordre déterministe :
 
 1. le paramètre VS Code `janus.server.path` ;
-2. `$JANUS_HOME/bin` ;
+2. `$JANUS_HOME/bin` (y compris le canal sélectionné par `janusup`) ;
 3. `~/.janus/bin` ;
 4. le `PATH`.
 
-Pour développer ou construire un paquet VSIX :
+Un chemin explicite a donc toujours priorité. Après un changement de chemin ou
+de canal `janusup`, exécuter **Developer: Reload Window**. Si aucun exécutable
+n'est trouvé, l'extension propose d'ouvrir directement le paramètre concerné.
+
+## Compatibilité
+
+| Extension | `janus-lsp` | VS Code | Statut |
+| --- | --- | --- | --- |
+| 0.7.4 | 0.7.4 | 1.91 ou plus récent | VSIX du dépôt, non publié |
+| branche `main` (cible 0.7.6) | 0.7.5–0.7.6 | 1.91 ou plus récent | développement et prépublication |
+
+La version d'extension et la toolchain du même tag sont la combinaison
+recommandée. Les capacités LSP sont négociées à l'initialisation : une
+toolchain plus ancienne continue de fournir ses capacités connues, sans les
+nouvelles actions.
+
+## Développement et paquet VSIX
 
 ```bash
 cd editors/vscode
-npm install
-npm run package
+npm ci
+npm test
+npm run package -- --out janus-language.vsix
 ```
+
+`npm test` protège la priorité du chemin configuré ainsi que les dispositions
+d'installation et de mise à jour gérées par `JANUS_HOME`. La CI reconstruit
+ensuite le bundle et le VSIX depuis le lockfile.
+
+## Publication Marketplace
+
+La publication est réservée à un tag stable `vX.Y.Z`. Le workflow
+`publish-vscode.yml` vérifie que le tag, `package.json` et `package-lock.json`
+portent exactement la même version, construit une seule fois
+`janus-language.vsix`, archive son SHA-256, puis transmet ce même fichier à
+`vsce publish --packagePath`.
+
+Le dépôt doit disposer de l'environnement GitHub
+`vscode-marketplace` et du secret `VSCE_PAT` associé au publisher
+`janus-lang`. Pour republier un tag existant après un incident de workflow,
+lancer manuellement **Publish VS Code extension** en indiquant ce tag ; le
+contenu reste alors celui du commit tagué. Une version déjà acceptée par la
+Marketplace ne doit jamais être remplacée : corriger, incrémenter la version et
+créer un nouveau tag.

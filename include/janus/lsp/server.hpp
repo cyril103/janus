@@ -2,8 +2,8 @@
 
 #include "janus/diagnostics/compile_error.hpp"
 
-#include <filesystem>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -51,12 +51,12 @@ public:
   }
 
 private:
+  [[nodiscard]] std::vector<Diagnostic>
+  analyze_document(std::string_view uri, std::string_view source) const;
   [[nodiscard]] std::string diagnostics(std::string_view uri,
                                         std::string_view source) const;
-  void initialize_workspace(
-      const std::vector<std::filesystem::path> &roots);
-  void index_workspace_file(const std::filesystem::path &path,
-                            bool dependency);
+  void initialize_workspace(const std::vector<std::filesystem::path> &roots);
+  void index_workspace_file(const std::filesystem::path &path, bool dependency);
   void remove_workspace_file(std::string_view uri);
   void refresh_workspace_metrics(std::uint64_t startup_milliseconds = 0);
 

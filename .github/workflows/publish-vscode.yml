@@ -1,0 +1,83 @@
+name: Publish VS Code extension
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  marketplace:
+    name: Package and publish tagged VSIX
+    runs-on: ubuntu-24.04
+    environment: vscode-marketplace
+
+    steps:
+      - name: Resolve release tag
+        id: release
+        env:
+          PUSH_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          REQUESTED_TAG: ${{ inputs.tag || '' }}
+        run: |
+          tag="${PUSH_TAG:-$REQUESTED_TAG}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a stable release tag such as v0.7.6, got: $tag" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the exact tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+
+      - name: Verify tag and extension versions
+        working-directory: editors/vscode
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+          lock_version="$(node -p "require('./package-lock.json').version")"
+          if [[ "v$package_version" != "$RELEASE_TAG" ||
+                "$lock_version" != "$package_version" ]]; then
+            echo "Tag, package and lockfile versions must match" >&2
+            exit 1
+          fi
+
+      - name: Install, test and package
+        working-directory: editors/vscode
+        run: |
+          npm ci
+          npm test
+          npm run package -- --out janus-language.vsix
+          npx vsce ls --tree
+          sha256sum janus-language.vsix > janus-language.vsix.sha256
+
+      - name: Upload tagged VSIX
+        uses: actions/upload-artifact@v7
+        with:
+          name: janus-vscode-${{ steps.release.outputs.tag }}
+          path: |
+            editors/vscode/janus-language.vsix
+            editors/vscode/janus-language.vsix.sha256
+          if-no-files-found: error
+
+      - name: Publish the packaged VSIX
+        working-directory: editors/vscode
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --packagePath janus-language.vsix

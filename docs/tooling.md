@@ -239,6 +239,15 @@ L'extension VS Code se trouve dans
 [`editors/vscode`](../editors/vscode/README.md). Elle cherche le serveur dans
 `janus.server.path`, `$JANUS_HOME/bin`, `~/.janus/bin`, puis le `PATH`.
 
+Les diagnostics LSP conservent leurs codes, notes, emplacements secondaires et
+corrections structurées. Les quick fixes utilisent toujours un
+`WorkspaceEdit`. Un import n'est proposé que lorsqu'un unique module public
+exporte le symbole ; les imports ambigus ne produisent aucune action. L'ajout
+de branches `match` reste une action explicite non préférée afin qu'elle ne
+soit jamais appliquée automatiquement. La matrice de compatibilité, les
+procédures d'installation/mise à jour et la publication Marketplace
+reproductible sont détaillées dans le README de l'extension.
+
 ## Variables d'environnement
 
 | Variable | Utilisation |

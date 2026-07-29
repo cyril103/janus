@@ -2,19 +2,19 @@
 
 const fs = require("fs");
 const os = require("os");
-const path = require("path");
 const childProcess = require("child_process");
 const vscode = require("vscode");
 const {
   LanguageClient,
   TransportKind,
 } = require("vscode-languageclient/node");
+const {
+  executableName,
+  serverCandidates,
+  selectServer,
+} = require("./server-path");
 
 let client;
-
-function executableName() {
-  return process.platform === "win32" ? "janus-lsp.exe" : "janus-lsp";
-}
 
 function isExecutable(candidate) {
   if (!candidate) {
@@ -48,14 +48,15 @@ function findServer() {
     .getConfiguration("janus")
     .get("server.path", "")
     .trim();
-  const home = process.env.JANUS_HOME;
-  const candidates = [
-    configured,
-    home && path.join(home, "bin", executableName()),
-    path.join(os.homedir(), ".janus", "bin", executableName()),
-    findOnPath(),
-  ];
-  return candidates.find(isExecutable);
+  return selectServer(
+    serverCandidates({
+      configured,
+      janusHome: process.env.JANUS_HOME,
+      home: os.homedir(),
+      pathCandidate: findOnPath(),
+    }),
+    isExecutable,
+  );
 }
 
 async function activate(context) {
