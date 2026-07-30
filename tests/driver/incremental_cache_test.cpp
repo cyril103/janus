@@ -249,6 +249,8 @@ void test_store_is_atomic_concurrent_and_validated() {
           "malicious artifact metadata was not rejected");
   require(std::filesystem::is_regular_file(victim),
           "cache metadata was allowed to delete an external file");
+  input.close();
+  existing_output.close();
   std::filesystem::remove_all(root);
 }
 
