@@ -15,6 +15,7 @@ EXPECTED_REFERENCE = {
     "language-guide.md",
     "text.md",
     "tooling.md",
+    "compiler-performance.md",
     "api-documentation.md",
     "doctests.md",
     "stdlib-reference.md",
