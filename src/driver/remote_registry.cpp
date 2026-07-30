@@ -41,6 +41,11 @@ constexpr std::uintmax_t maximum_archive_size = 128U * 1024U * 1024U;
 constexpr std::uintmax_t maximum_file_size = 32U * 1024U * 1024U;
 constexpr std::uintmax_t maximum_extracted_size = 256U * 1024U * 1024U;
 constexpr std::size_t maximum_entries = 10000;
+#ifdef _WIN32
+constexpr std::string_view tar_force_local = " --force-local";
+#else
+constexpr std::string_view tar_force_local = "";
+#endif
 
 struct ArchiveEntry {
   std::string path;
@@ -475,9 +480,11 @@ void extract_verified_archive(const std::filesystem::path &archive,
                               const std::vector<ArchiveEntry> &entries) {
   const std::filesystem::path listing = archive.string() + ".listing";
   const std::filesystem::path verbose = archive.string() + ".verbose";
-  run_command("tar -tzf " + shell_quote(archive) + " >" + shell_quote(listing),
+  run_command("tar" + std::string{tar_force_local} + " -tzf " +
+                  shell_quote(archive) + " >" + shell_quote(listing),
               "registry archive is invalid");
-  run_command("tar -tvzf " + shell_quote(archive) + " >" + shell_quote(verbose),
+  run_command("tar" + std::string{tar_force_local} + " -tvzf " +
+                  shell_quote(archive) + " >" + shell_quote(verbose),
               "registry archive is invalid");
   std::vector<std::string> expected;
   expected.reserve(entries.size());
@@ -497,8 +504,8 @@ void extract_verified_archive(const std::filesystem::path &archive,
                   }))
     throw std::runtime_error{"registry archive contains a non-regular entry"};
   std::filesystem::create_directories(destination);
-  run_command("tar -xzf " + shell_quote(archive) + " -C " +
-                  shell_quote(destination),
+  run_command("tar" + std::string{tar_force_local} + " -xzf " +
+                  shell_quote(archive) + " -C " + shell_quote(destination),
               "could not extract registry archive");
   std::set<std::string> extracted;
   for (const auto &item :
@@ -962,14 +969,14 @@ void publish_remote_package(const Manifest &manifest,
   write_file(manifest_path, manifest_contents);
   const auto file_list = scratch.path() / "files.txt";
   {
-    std::ofstream output{file_list};
+    std::ofstream output{file_list, std::ios::binary};
     for (const ArchiveEntry &entry : entries)
       output << entry.path << '\n';
   }
   const auto archive_path = scratch.path() / "archive.tar.gz";
-  run_command("tar -czf " + shell_quote(archive_path) + " -C " +
-                  shell_quote(package_staging) + " -T " +
-                  shell_quote(file_list),
+  run_command("tar" + std::string{tar_force_local} + " -czf " +
+                  shell_quote(archive_path) + " -C " +
+                  shell_quote(package_staging) + " -T " + shell_quote(file_list),
               "could not create the registry archive");
   const std::uintmax_t archive_size = std::filesystem::file_size(archive_path);
   if (archive_size == 0 || archive_size > maximum_archive_size)
