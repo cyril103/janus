@@ -2,7 +2,7 @@
 
 ## Prérequis
 
-- Janus 0.7.6 installé ;
+- Janus 0.8.0 installé ;
 - une session graphique locale ;
 - **raylib 6** installée comme bibliothèque partagée ;
 - le dépôt Janus cloné, car ce tutoriel exécute le vrai exemple et ses assets (`neon.fs`).
@@ -59,7 +59,7 @@ defer closeWindow()
 setTargetFps(60)
 ```
 
-À chaque image, il utilise les APIs 0.7.6 de temps et d’entrée :
+À chaque image, il utilise les APIs 0.8.0 de temps et d’entrée :
 
 ```janus
 while !windowShouldClose() && !isKeyPressed(Key.Escape) {
@@ -95,4 +95,4 @@ Si `initWindow` échoue, consultez `JANUS_RAYLIB_PATH` et le [guide graphique](.
 3. remplacez le texte d’aide ;
 4. relancez `janus check` avant `janus run`.
 
-Le [source complet v0.7.6](https://github.com/cyril103/janus/blob/v0.7.6/examples/snake/main.janus) reste l’autorité : ce tutoriel n’introduit aucune API graphique supplémentaire.
+Le [source complet v0.8.0](https://github.com/cyril103/janus/blob/v0.8.0/examples/snake/main.janus) reste l’autorité : ce tutoriel n’introduit aucune API graphique supplémentaire.

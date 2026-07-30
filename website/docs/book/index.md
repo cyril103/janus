@@ -1,6 +1,6 @@
 # Le Book Janus
 
-Un parcours en huit chapitres pour passer d’un terminal vide à un petit programme natif structuré. Le Book vise Janus **0.7.6** : exécutez les exemples et gardez la [référence](../reference/index.md) à portée de main.
+Un parcours en huit chapitres pour passer d’un terminal vide à un petit programme natif structuré. Le Book vise Janus **0.8.0** : exécutez les exemples et gardez la [référence](../reference/index.md) à portée de main.
 
 ## Parcours
 
