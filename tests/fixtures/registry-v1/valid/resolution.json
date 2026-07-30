@@ -1,0 +1,11 @@
+{
+  "protocolVersion": "1",
+  "requested": {"package": "acme/http", "registry": "https://registry.example", "requirement": "^1.2.0"},
+  "selected": {
+    "package": "acme/http",
+    "registry": "https://registry.example",
+    "version": "1.2.3",
+    "metadataSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "archiveSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  }
+}

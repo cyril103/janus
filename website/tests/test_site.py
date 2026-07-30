@@ -15,6 +15,7 @@ EXPECTED_REFERENCE = {
     "language-guide.md",
     "text.md",
     "tooling.md",
+    "registry-protocol-v1.md",
     "compiler-performance.md",
     "api-documentation.md",
     "doctests.md",
@@ -271,6 +272,17 @@ class ReferenceSyncTests(unittest.TestCase):
                 text = path.read_text(encoding="utf-8")
                 self.assertIn("Documentation canonique", text)
                 self.assertIn("Ne modifiez pas cette copie", text)
+            registry = (destination / "registry-protocol-v1.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "github.com/cyril103/janus/blob/main/docs/registry-protocol-v1.md",
+                registry,
+            )
+            self.assertIn(
+                "github.com/cyril103/janus/tree/main/docs/schemas/registry-v1",
+                registry,
+            )
 
     def test_sync_rewrites_links_outside_published_reference(self):
         module = load_sync_module()

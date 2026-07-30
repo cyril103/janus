@@ -16,6 +16,7 @@ DOCUMENTS = (
     "language-guide.md",
     "text.md",
     "tooling.md",
+    "registry-protocol-v1.md",
     "compiler-performance.md",
     "api-documentation.md",
     "doctests.md",
@@ -25,6 +26,7 @@ DOCUMENTS = (
     "development.md",
     "migration-0.5-to-0.6.md",
 )
+DOCUMENT_VERSIONS = {"registry-protocol-v1.md": "main"}
 ASSETS = ("public-surface-0.5.json",)
 LINK_RE = re.compile(r"(?P<image>!)?\[(?P<label>[^]]*)\]\((?P<target>[^)]+)\)")
 NOTICE = """> **Documentation canonique** — Cette page est générée depuis
@@ -34,7 +36,9 @@ NOTICE = """> **Documentation canonique** — Cette page est générée depuis
 """
 
 
-def _rewrite_target(target: str, source: Path, repository: Path, image: bool) -> str:
+def _rewrite_target(
+    target: str, source: Path, repository: Path, image: bool, version: str = VERSION
+) -> str:
     if target.startswith(("https://", "http://", "mailto:", "#")):
         return target
 
@@ -52,18 +56,22 @@ def _rewrite_target(target: str, source: Path, repository: Path, image: bool) ->
             return target
         relative_url = PurePosixPath(relative).as_posix()
         if image:
-            rewritten = f"https://raw.githubusercontent.com/cyril103/janus/{VERSION}/{relative_url}"
+            rewritten = f"https://raw.githubusercontent.com/cyril103/janus/{version}/{relative_url}"
         else:
             kind = "tree" if candidate.is_dir() or not candidate.suffix else "blob"
-            rewritten = f"{REPOSITORY_URL}/{kind}/{VERSION}/{relative_url}"
+            rewritten = f"{REPOSITORY_URL}/{kind}/{version}/{relative_url}"
 
     return f"{rewritten}{marker}{fragment}" if marker else rewritten
 
 
-def rewrite_links(text: str, source: Path, repository: Path) -> str:
+def rewrite_links(
+    text: str, source: Path, repository: Path, version: str = VERSION
+) -> str:
     def replace(match: re.Match[str]) -> str:
         image = bool(match.group("image"))
-        target = _rewrite_target(match.group("target"), source, repository, image)
+        target = _rewrite_target(
+            match.group("target"), source, repository, image, version
+        )
         prefix = "!" if image else ""
         return f"{prefix}[{match.group('label')}]({target})"
 
@@ -82,8 +90,11 @@ def sync(repository: Path, destination: Path) -> None:
         source = repository / "docs" / name
         if not source.is_file():
             raise FileNotFoundError(f"Document canonique introuvable : {source}")
-        content = rewrite_links(source.read_text(encoding="utf-8"), source, repository)
-        notice = NOTICE.format(name=name, url=REPOSITORY_URL, version=VERSION)
+        version = DOCUMENT_VERSIONS.get(name, VERSION)
+        content = rewrite_links(
+            source.read_text(encoding="utf-8"), source, repository, version
+        )
+        notice = NOTICE.format(name=name, url=REPOSITORY_URL, version=version)
         (destination / name).write_text(notice + content, encoding="utf-8")
 
     for name in ASSETS:

@@ -1,0 +1,9 @@
+{
+  "protocolVersion": "1",
+  "versions": [
+    {
+      "protocolVersion": "1",
+      "apiBase": "https://registry.example/v1"
+    }
+  ]
+}

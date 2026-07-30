@@ -182,8 +182,11 @@ silencieusement un lockfile en mode `--locked`.
 n'est pas disponible localement. Deux dépendances du même nom mais de sources
 différentes restent un conflit.
 
-Le protocole du registre, son hébergement et l'organisation des caches locaux
-ne sont pas stables.
+Le [protocole du registre v1](registry-protocol-v1.md) est versionné à partir de
+Janus 0.7.9 : ses identités, ressources, schémas, règles d'immuabilité, de yank
+et de vérification des lockfiles ne changent pas de sens sans nouveau numéro de
+protocole. Le client distant, l'hébergement du service de référence, la
+provenance et l'organisation interne des caches restent expérimentaux.
 
 ## Bibliothèque standard
 
@@ -217,7 +220,7 @@ release ne les promeut pas :
 | Surface | Partie expérimentale | Condition de promotion |
 | --- | --- | --- |
 | `std.graphics` | backend dynamique, ressources GPU/audio, valeurs et modes ajoutés après 0.6 | tests sur les trois plateformes et contrat de portée/erreur complet |
-| Publication au registre | transport, authentification, stockage et cache | protocole versionné et registre de référence |
+| Publication au registre | client distant, hébergement, provenance, stockage et cache | registre de référence interopérable avec le protocole v1 |
 | LSP et extension VS Code | extensions de protocole, indexation et réglages éditeur | matrice de compatibilité toolchain/extension publiée |
 | Diagnostics | texte, codes et ordre des notes | schéma de codes de diagnostic versionné |
 | IR et objets Janus | noms, disposition des agrégats et métadonnées LLVM | ABI de module séparée et versionnée |

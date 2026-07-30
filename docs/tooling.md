@@ -176,6 +176,12 @@ janus publish
 `JANUS_REGISTRY` permet d'utiliser un autre emplacement. Une version publiée
 est immuable et ne peut pas être écrasée.
 
+Le futur registre distant suit le
+[protocole Janus Registry v1](registry-protocol-v1.md). Celui-ci fixe avant
+l'implémentation réseau les ressources, schémas, checksums, espaces de noms,
+yanking et garanties de sécurité. Le registre local actuel n'implémente pas
+encore ce transport HTTP.
+
 ## Gestion des versions avec `janusup`
 
 ```bash

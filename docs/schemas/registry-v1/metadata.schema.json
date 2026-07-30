@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://janus-lang.org/schemas/registry/v1/metadata.schema.json",
+  "title": "Janus registry v1 release metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocolVersion", "package", "version", "publishedAt", "archive", "dependencies"],
+  "properties": {
+    "protocolVersion": {"const": "1"},
+    "package": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}/[a-z][a-z0-9_-]{0,63}$"},
+    "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"},
+    "publishedAt": {"type": "string", "format": "date-time"},
+    "archive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "sha256", "size", "manifestSha256"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:/(?!\\.{1,2}(?:/|$))[A-Za-z0-9._~+-]+)*$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size": {"type": "integer", "minimum": 1},
+        "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["package", "requirement", "registry"],
+        "properties": {
+          "package": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}/[a-z][a-z0-9_-]{0,63}$"},
+          "requirement": {"type": "string", "minLength": 1, "maxLength": 128},
+          "registry": {"type": "string", "pattern": "^https://(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:/(?!\\.{1,2}(?:/|$))[A-Za-z0-9._~+-]+)*$"}
+        }
+      }
+    }
+  }
+}

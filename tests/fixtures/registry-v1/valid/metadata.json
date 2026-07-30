@@ -1,0 +1,19 @@
+{
+  "protocolVersion": "1",
+  "package": "acme/http",
+  "version": "1.2.3",
+  "publishedAt": "2026-07-30T12:00:00Z",
+  "archive": {
+    "url": "https://registry.example/v1/packages/acme/http/1.2.3/archive.tar.gz",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "size": 4096,
+    "manifestSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "dependencies": [
+    {
+      "package": "janus/json",
+      "requirement": "^2.0.0",
+      "registry": "https://registry.example"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "protocolVersion": "1",
+  "package": "acme/http",
+  "releases": [
+    {
+      "version": "1.2.3",
+      "metadataUrl": "https://registry.example/v1/packages/acme/http/1.2.3/metadata",
+      "metadataSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "yanked": true,
+      "yankReason": "maintainer security advisory"
+    }
+  ]
+}

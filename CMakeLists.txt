@@ -1006,6 +1006,16 @@ if(BUILD_TESTING)
             -v
     )
     add_test(
+        NAME docs.registry_protocol_v1
+        COMMAND
+            "${Python3_EXECUTABLE}"
+            -m unittest
+            discover
+            -s "${PROJECT_SOURCE_DIR}/tests/documentation"
+            -p "test_registry_protocol.py"
+            -v
+    )
+    add_test(
         NAME docs.canonical_output
         COMMAND
             ${CMAKE_COMMAND}
