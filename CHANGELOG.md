@@ -15,6 +15,17 @@ utilise le versionnage sémantique à partir de sa première version publique.
   jeton dans les sorties, diagnostics ou lockfiles ;
 - maintien du registre local historique pour compatibilité et tests.
 
+### Registre de référence
+
+- ajout d'un service v1 conteneurisé sans dépendance d'exécution externe, avec
+  blobs immuables, index SQLite transactionnel et autorités par namespace ;
+- reçus de provenance HMAC-SHA-256 et journal d'audit signé et chaîné pour les
+  publications, refus et changements de yank ;
+- sauvegarde cohérente, restauration vérifiée dans une nouvelle racine et
+  procédures de déploiement, administration et réponse à incident ;
+- test d'interopérabilité couvrant publication, installation, refus d'accès et
+  de remplacement, yank, sauvegarde/restauration et `--locked --offline`.
+
 ## [0.7.9] - À venir
 
 ### Protocole du registre

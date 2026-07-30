@@ -13,6 +13,29 @@ permissions:
   contents: read
 
 jobs:
+  reference-registry-image:
+    name: Reference registry image
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Janus
+        uses: actions/checkout@v7
+
+      - name: Validate Compose deployment
+        env:
+          JANUS_REGISTRY_ORIGIN: https://registry.example
+          JANUS_REGISTRY_BIND: 127.0.0.1
+          JANUS_REGISTRY_DATA_DIR: /tmp/janus-registry-data
+          JANUS_REGISTRY_KEY_ID: ci-key-v1
+          JANUS_REGISTRY_SIGNING_KEY_FILE: /tmp/janus-registry-signing.key
+        run: docker compose -f registry/compose.yaml config --quiet
+
+      - name: Build reference registry image
+        run: docker build --tag janus-reference-registry:test registry
+
+      - name: Smoke test reference registry image
+        run: scripts/smoke-test-reference-registry-image.sh
+
   vscode-extension:
     name: VS Code extension
     runs-on: ubuntu-24.04
