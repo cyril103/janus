@@ -246,6 +246,7 @@ Une extension VS Code est disponible dans
 - [Conversion, formatage et parsing de texte](docs/text.md)
 - [Commandes, projets, dépendances et outils](docs/tooling.md)
 - [Protocole et modèle de sécurité du registre v1](docs/registry-protocol-v1.md)
+- [Déploiement et exploitation du registre de référence](docs/reference-registry.md)
 - [Diagnostics structurés et codes](docs/diagnostics.md)
 - [Graphisme 2D](docs/graphics.md)
 - [Inventaire de la surface publique 0.5.x](docs/public-surface-0.5.json)

@@ -856,6 +856,15 @@ if(BUILD_TESTING)
     )
     set_tests_properties(cli.remote_registry PROPERTIES TIMEOUT 120)
     add_test(
+        NAME registry.reference
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/registry/run_reference_registry.py"
+                --janus $<TARGET_FILE:janus>
+                --source-root "${PROJECT_SOURCE_DIR}"
+                --work-dir "${PROJECT_BINARY_DIR}/reference-registry-test"
+    )
+    set_tests_properties(registry.reference PROPERTIES TIMEOUT 180)
+    add_test(
         NAME cli.documentation
         COMMAND "${CMAKE_COMMAND}"
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}

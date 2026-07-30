@@ -189,8 +189,10 @@ Le [protocole du registre v1](registry-protocol-v1.md) est versionné à partir 
 Janus 0.7.9 : ses identités, ressources, schémas, règles d'immuabilité, de yank
 et de vérification des lockfiles ne changent pas de sens sans nouveau numéro de
 protocole. Le client distant et l'organisation interne de ses caches restent
-expérimentaux. L'hébergement du service de référence et la provenance sont
-prévus par le lot suivant.
+expérimentaux. Le [service de référence](reference-registry.md), son reçu de
+provenance signé, son journal d'audit et ses procédures d'exploitation sont
+également expérimentaux : ils peuvent évoluer sans modifier les objets fermés
+du protocole v1.
 
 ## Bibliothèque standard
 

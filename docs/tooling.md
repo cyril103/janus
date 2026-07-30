@@ -187,6 +187,11 @@ métadonnées, manifeste, taille et SHA-256 avant extraction, puis publie le cac
 atomiquement. `--locked` conserve registre, version et checksums exacts ;
 `--offline` n'utilise que des archives déjà vérifiées.
 
+Le [registre de référence](reference-registry.md) fournit une implémentation
+déployable du protocole v1 avec publication immuable, autorités par namespace,
+yank, reçus de provenance signés, audit chaîné et sauvegarde/restauration
+vérifiée.
+
 Pour les tests et installations historiques, `JANUS_REGISTRY` peut encore
 désigner un répertoire local. Ce transport local est expérimental et ne
 possède pas les garanties réseau du protocole v1.
