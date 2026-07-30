@@ -3,6 +3,19 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.8.0] - À venir
+
+### Audit et gel pré-1.0
+
+- publication d'un inventaire versionné classant toutes les surfaces publiques
+  en `stable-candidate` ou `experimental`, avec contrôle automatique des
+  signatures stdlib, de la CLI et des liens ;
+- publication de la migration 0.5 vers 0.8, des limites connues, de la politique
+  de sévérité et d'un rapport NO-GO explicite pour 1.0 ;
+- extension de la compatibilité N/N+1 au binaire 0.7.6 publié et au candidat ;
+- ajout de corpus versionnés lexer, parseur, manifeste et résolution, chacun
+  exercé par une campagne ASan/UBSan planifiée de 60 minutes.
+
 ## [0.7.10] - À venir
 
 ### Client de registre distant

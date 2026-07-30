@@ -1,0 +1,5 @@
+/// documentation
+def main() : int {
+  // Unicode remains input data: é λ 🐙
+  return 0
+}

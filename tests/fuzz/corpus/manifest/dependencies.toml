@@ -1,0 +1,7 @@
+[package]
+name = "fuzz-root"
+version = "0.1.0-alpha.1"
+entry = "src/main.janus"
+
+[dependencies]
+lib = { path = "deps/lib" }

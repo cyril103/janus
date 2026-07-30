@@ -6,6 +6,12 @@ on:
     tags: ['v*.*.*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      run_fuzz:
+        description: Run the four 60-minute sanitizer campaigns
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '17 3 * * 1'
 
@@ -266,10 +272,90 @@ jobs:
         shell: bash
         run: scripts/smoke-test-package.sh dist/janus-*.tar.gz
 
+  release-compatibility:
+    name: Published 0.7.6 to current compatibility
+    needs: toolchain
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out Janus
+        uses: actions/checkout@v6
+
+      - name: Download current Linux distribution
+        uses: actions/download-artifact@v8
+        with:
+          name: janus-Linux-X64
+          path: dist/current
+
+      - name: Download published baseline
+        run: >
+          gh release download v0.7.6
+          --pattern 'janus-0.7.6-Linux-x86_64.tar.gz*'
+          --dir dist/previous
+
+      - name: Verify and extract distributions
+        shell: bash
+        run: |
+          (cd dist/current && sha256sum --check *.sha256)
+          (cd dist/previous && sha256sum --check *.sha256)
+          mkdir -p dist/current/root dist/previous/root
+          tar -xzf dist/current/*.tar.gz -C dist/current/root
+          tar -xzf dist/previous/*.tar.gz -C dist/previous/root
+
+      - name: Exercise N/N+1 fixtures
+        shell: bash
+        run: |
+          previous="$(find dist/previous/root -type f -path '*/bin/janus' -print -quit)"
+          current="$(find dist/current/root -type f -path '*/bin/janus' -print -quit)"
+          test -n "$previous" && test -n "$current"
+          cmake \
+            -DPREVIOUS_JANUS="$previous" \
+            -DCURRENT_JANUS="$current" \
+            -DFIXTURE_DIR="$GITHUB_WORKSPACE/tests/compatibility" \
+            -DOUTPUT_DIR="$RUNNER_TEMP/compatibility-N-N+1" \
+            -DEXECUTABLE_SUFFIX= \
+            -P tests/compatibility/run_compatibility.cmake
+
+  release-readiness:
+    name: 0.8 public audit and critical gate
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out Janus
+        uses: actions/checkout@v6
+
+      - name: Validate stability inventory and links
+        run: python3 scripts/check_stability_inventory.py
+
+      - name: Reject open critical issues
+        shell: bash
+        run: |
+          count="$(gh issue list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --label severity:critical \
+            --json number \
+            --jq length)"
+          if (( count != 0 )); then
+            gh issue list \
+              --repo "$GITHUB_REPOSITORY" \
+              --state open \
+              --label severity:critical
+            exit 1
+          fi
+
   release:
     name: Publish release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [toolchain, linux-compatibility]
+    needs:
+      [toolchain, linux-compatibility, release-compatibility, release-readiness]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -340,10 +426,14 @@ jobs:
           fi
 
   diagnostic-fuzz:
-    name: Lexer and parser fuzz campaigns
-    if: github.event_name == 'schedule'
+    name: ${{ matrix.mode }} sanitizer campaign (60 min)
+    if: github.event_name == 'schedule' || inputs.run_fuzz == true
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [lexer, parser, manifest, resolver]
 
     steps:
       - name: Check out Janus
@@ -368,21 +458,13 @@ jobs:
       - name: Build compiler
         run: cmake --build build-fuzz --target janus --parallel
 
-      - name: Fuzz lexer for 15 minutes
-        timeout-minutes: 17
+      - name: Fuzz ${{ matrix.mode }} for 60 minutes
+        timeout-minutes: 62
         run: >
           python3 scripts/fuzz_frontend.py
           --janus build-fuzz/janus
-          --mode lexer
-          --duration 900
-
-      - name: Fuzz parser for 15 minutes
-        timeout-minutes: 17
-        run: >
-          python3 scripts/fuzz_frontend.py
-          --janus build-fuzz/janus
-          --mode parser
-          --duration 900
+          --mode "${{ matrix.mode }}"
+          --duration 3600
 
   nightly:
     name: Publish nightly channel

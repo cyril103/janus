@@ -1008,6 +1008,25 @@ if(BUILD_TESTING)
             --janus $<TARGET_FILE:janus>
     )
     add_test(
+        NAME docs.stability_inventory_0_8
+        COMMAND
+            "${Python3_EXECUTABLE}"
+            "${PROJECT_SOURCE_DIR}/scripts/check_stability_inventory.py"
+            --root "${PROJECT_SOURCE_DIR}"
+    )
+    foreach(FUZZ_MODE lexer parser manifest resolver)
+        add_test(
+            NAME fuzz.smoke.${FUZZ_MODE}
+            COMMAND
+                "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/fuzz_frontend.py"
+                --janus $<TARGET_FILE:janus>
+                --mode "${FUZZ_MODE}"
+                --duration 1
+        )
+        set_tests_properties(fuzz.smoke.${FUZZ_MODE} PROPERTIES TIMEOUT 10)
+    endforeach()
+    add_test(
         NAME docs.public_surface_stale_fixture
         COMMAND
             "${CMAKE_COMMAND}"
