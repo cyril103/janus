@@ -810,8 +810,15 @@ discard_cached_dependency_definitions(llvm::Module &module) {
 }
 
 std::filesystem::path default_output(const Options &options) {
-  if (!options.output.empty())
-    return options.output;
+  if (!options.output.empty()) {
+    std::filesystem::path output = options.output;
+#ifdef _WIN32
+    if (!options.emit_llvm && !options.emit_object &&
+        output.extension() != ".exe")
+      output += ".exe";
+#endif
+    return output;
+  }
   if (options.manifest.has_value()) {
     std::filesystem::path output = options.manifest->root() / "target" /
                                    (options.release ? "release" : "debug") /
