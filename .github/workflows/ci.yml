@@ -443,6 +443,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes clang-18 lld-18 llvm-18-dev ninja-build
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
 
       - name: Configure sanitizer build
         run: >
