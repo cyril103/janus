@@ -40,7 +40,12 @@ nav:
       - Index API de la stdlib: reference/stdlib/index.html
       - Graphisme 2D: reference/generated/graphics.md
       - Contrat de stabilité 1.0: reference/generated/stability-contract.md
+      - Inventaire de stabilité 0.8: reference/generated/stability-inventory-0.8.md
+      - Limites connues 0.8: reference/generated/known-limitations-0.8.md
+      - Préparation à 1.0: reference/generated/readiness-1.0.md
+      - Politique de sévérité 0.8: reference/generated/release-severity-policy-0.8.md
       - Migration 0.5 vers 0.6: reference/generated/migration-0.5-to-0.6.md
+      - Migration 0.5 vers 0.8: reference/generated/migration-0.5-to-0.8.md
       - Compiler depuis les sources: reference/generated/development.md
 theme:
   name: material

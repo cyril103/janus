@@ -3,7 +3,11 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
-## [0.8.0] - À venir
+## [0.8.0] - 2026-07-31
+
+Cette version cumulative publie les travaux menés depuis 0.7.6 sur les
+performances, les builds incrémentaux et le registre, puis audite et gèle un
+candidat de surface publique sans activer les garanties définitives de 1.0.
 
 ### Audit et gel pré-1.0
 
@@ -15,8 +19,6 @@ utilise le versionnage sémantique à partir de sa première version publique.
 - extension de la compatibilité N/N+1 au binaire 0.7.6 publié et au candidat ;
 - ajout de corpus versionnés lexer, parseur, manifeste et résolution, chacun
   exercé par une campagne ASan/UBSan planifiée de 60 minutes.
-
-## [0.7.10] - À venir
 
 ### Client de registre distant
 
@@ -39,8 +41,6 @@ utilise le versionnage sémantique à partir de sa première version publique.
 - test d'interopérabilité couvrant publication, installation, refus d'accès et
   de remplacement, yank, sauvegarde/restauration et `--locked --offline`.
 
-## [0.7.9] - À venir
-
 ### Protocole du registre
 
 - publication du protocole distant `v1`, de ses six schémas JSON stricts et
@@ -50,8 +50,6 @@ utilise le versionnage sémantique à partir de sa première version publique.
   négociation explicite et identité complète `(registre, namespace, paquet)` ;
 - modèle de sécurité couvrant authentification, autorisation, confusion de
   dépendance, traversée de chemin, sauvegarde et récupération.
-
-## [0.7.8] - À venir
 
 ### Construction incrémentale
 
@@ -66,8 +64,6 @@ utilise le versionnage sémantique à partir de sa première version publique.
   interruption, corruption ou collision ;
 - ajout de `janus build --no-cache` et de la commande idempotente
   `janus clean`.
-
-## [0.7.7] - À venir
 
 ### Performances du compilateur
 
@@ -502,6 +498,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.8.0]: https://github.com/cyril103/janus/releases/tag/v0.8.0
 [0.7.6]: https://github.com/cyril103/janus/releases/tag/v0.7.6
 [0.7.4-hotfix.1]: https://github.com/cyril103/janus/compare/v0.7.4...v0.7.4-hotfix.1
 [0.7.4]: https://github.com/cyril103/janus/releases/tag/v0.7.4

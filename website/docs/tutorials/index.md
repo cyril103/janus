@@ -1,6 +1,6 @@
 # Tutoriels
 
-Des parcours indépendants, orientés vers un résultat observable. Ils décrivent **Janus 0.7.6** et réutilisent les APIs ou exemples présents dans le dépôt.
+Des parcours indépendants, orientés vers un résultat observable. Ils décrivent **Janus 0.8.0** et réutilisent les APIs ou exemples présents dans le dépôt.
 
 | Tutoriel | Durée | Résultat | Notions |
 | --- | ---: | --- | --- |
