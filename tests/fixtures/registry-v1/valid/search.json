@@ -1,0 +1,10 @@
+{
+  "protocolVersion": "1",
+  "packages": [
+    {
+      "package": "acme/http",
+      "latestVersion": "1.2.3",
+      "description": "HTTP helpers for Janus"
+    }
+  ]
+}

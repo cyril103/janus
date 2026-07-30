@@ -218,6 +218,7 @@ add_library(janus_driver
     src/driver/manifest.cpp
     src/driver/project.cpp
     src/driver/dependency.cpp
+    src/driver/remote_registry.cpp
     src/driver/semver.cpp
     src/driver/registry.cpp
     src/driver/temporary_directory.cpp
@@ -228,6 +229,9 @@ target_link_libraries(janus_driver
     PRIVATE
         janus_constant
 )
+llvm_map_components_to_libnames(JANUS_DRIVER_LLVM_LIBS Support)
+target_link_libraries(janus_driver PRIVATE ${JANUS_DRIVER_LLVM_LIBS})
+target_include_directories(janus_driver SYSTEM PRIVATE ${JANUS_LLVM_INCLUDE_DIR})
 if(WIN32)
     target_link_libraries(janus_driver PRIVATE shell32)
 endif()
@@ -843,6 +847,14 @@ if(BUILD_TESTING)
                 -DJANUS=$<TARGET_FILE:janus>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_project_creation.cmake"
     )
+    add_test(
+        NAME cli.remote_registry
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/driver/run_remote_registry.py"
+                --janus $<TARGET_FILE:janus>
+                --work-dir "${PROJECT_BINARY_DIR}/remote-registry-test"
+    )
+    set_tests_properties(cli.remote_registry PROPERTIES TIMEOUT 120)
     add_test(
         NAME cli.documentation
         COMMAND "${CMAKE_COMMAND}"

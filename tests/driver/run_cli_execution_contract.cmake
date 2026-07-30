@@ -11,9 +11,10 @@ set(TOP_LEVEL_USAGE
 "usage:
   janus new <directory> [--name <name>]
   janus init [directory] [--name <name>]
-  janus add <name>[@<version>] [--path <path> | --git <url> --rev <commit>]
+  janus add <name>[@<version>] [--path <path> | --git <url> --rev <commit>] [--registry <url>]
   janus remove <name>
-  janus publish
+  janus search <query> [--registry <url>]
+  janus publish [--registry <url>]
   janus clean
   janus check [source.janus] [--diagnostic-format human|json]
   janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache]

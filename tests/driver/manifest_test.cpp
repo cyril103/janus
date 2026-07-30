@@ -32,7 +32,8 @@ int main() {
              << "local = { path = \"../local\", version = \"^1.0.0\" }\n"
              << "remote = { git = \"https://example.invalid/repo\", "
                 "rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
-             << "registered = \"^2.1.0\"\n";
+             << "acme/registered = { version = \"^2.1.0\", "
+                "registry = \"https://registry.example\" }\n";
     }
     const janus::driver::Manifest manifest = janus::driver::load_manifest(path);
     require(manifest.name == "hello-world", "package name was not parsed");
@@ -52,7 +53,8 @@ int main() {
                 manifest.dependencies[1].revision.size() == 40,
             "Git dependency was not retained");
     require(manifest.dependencies[2].is_registry() &&
-                manifest.dependencies[2].version_requirement == "^2.1.0",
+                manifest.dependencies[2].version_requirement == "^2.1.0" &&
+                manifest.dependencies[2].registry == "https://registry.example",
             "registry dependency was not retained");
 
     {

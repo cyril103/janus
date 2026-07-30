@@ -3,11 +3,23 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.7.10] - À venir
+
+### Client de registre distant
+
+- ajout de `janus search`, de registres par défaut ou explicites et de la
+  publication distante authentifiée selon le protocole v1 ;
+- résolution et téléchargement avec identité complète, métadonnées, manifeste,
+  tailles et SHA-256 vérifiés avant extraction ;
+- cache publié atomiquement, réutilisable avec `--locked --offline`, sans
+  jeton dans les sorties, diagnostics ou lockfiles ;
+- maintien du registre local historique pour compatibilité et tests.
+
 ## [0.7.9] - À venir
 
 ### Protocole du registre
 
-- publication du protocole distant `v1`, de ses cinq schémas JSON stricts et
+- publication du protocole distant `v1`, de ses six schémas JSON stricts et
   de fixtures de référence pour l'index, les métadonnées, les archives et la
   résolution verrouillée ;
 - contrat d'immuabilité des versions, yanking compatible avec les lockfiles,

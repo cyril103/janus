@@ -147,7 +147,9 @@ et doit rester ignoré.
 Ajouter ou retirer une dépendance :
 
 ```bash
-janus add collections@^1.2.0
+janus search collections
+janus add acme/collections@^1.2.0
+janus add acme/collections@^1.2.0 --registry https://registry.example
 janus add outil --path ../outil
 janus add protocole --git https://example.com/protocole.git \
   --rev 0123456789abcdef0123456789abcdef01234567
@@ -164,23 +166,30 @@ janus build --locked   # refuser toute modification de janus.lock
 janus build --offline  # utiliser uniquement le cache local
 ```
 
-## Publication locale
+## Registres et publication
 
-Le registre actuel est un répertoire local, placé par défaut dans
-`~/.janus/registry` :
+Le registre distant par défaut est `https://registry.janus-lang.org`.
+`JANUS_REGISTRY` le remplace pour toutes les commandes et `--registry <url>`
+sélectionne explicitement un registre pour `search`, `add` ou `publish` :
 
 ```bash
-janus publish
+export JANUS_REGISTRY_TOKEN=...
+janus publish --registry https://registry.example
 ```
 
-`JANUS_REGISTRY` permet d'utiliser un autre emplacement. Une version publiée
-est immuable et ne peut pas être écrasée.
+Le jeton est envoyé uniquement dans l'en-tête `Authorization`. Il n'est jamais
+écrit dans les URLs, sorties, diagnostics ou lockfiles. Une version publiée est
+immuable et ne peut pas être écrasée.
 
-Le futur registre distant suit le
-[protocole Janus Registry v1](registry-protocol-v1.md). Celui-ci fixe avant
-l'implémentation réseau les ressources, schémas, checksums, espaces de noms,
-yanking et garanties de sécurité. Le registre local actuel n'implémente pas
-encore ce transport HTTP.
+Les dépendances distantes utilisent une identité `namespace/name`. Le client
+suit le [protocole Janus Registry v1](registry-protocol-v1.md), vérifie
+métadonnées, manifeste, taille et SHA-256 avant extraction, puis publie le cache
+atomiquement. `--locked` conserve registre, version et checksums exacts ;
+`--offline` n'utilise que des archives déjà vérifiées.
+
+Pour les tests et installations historiques, `JANUS_REGISTRY` peut encore
+désigner un répertoire local. Ce transport local est expérimental et ne
+possède pas les garanties réseau du protocole v1.
 
 ## Gestion des versions avec `janusup`
 
@@ -277,7 +286,8 @@ reproductible sont détaillées dans le README de l'extension.
 | --- | --- |
 | `JANUSUP_HOME` | dossier géré par `janusup` |
 | `JANUS_CACHE` | cache des dépendances |
-| `JANUS_REGISTRY` | registre local |
+| `JANUS_REGISTRY` | URL du registre par défaut ou registre local historique |
+| `JANUS_REGISTRY_TOKEN` | jeton de publication distant, transmis seulement par `Authorization` |
 | `JANUS_CC` | pilote Clang utilisé pour l'édition de liens |
 | `JANUS_RAYLIB_PATH` | chemin de la bibliothèque partagée raylib 6 |
 | `JANUS_REQUIRE_ATTESTATION` | exiger la vérification de provenance |

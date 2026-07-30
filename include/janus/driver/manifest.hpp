@@ -12,6 +12,7 @@ struct Dependency {
   std::string git;
   std::string revision;
   std::string version_requirement;
+  std::string registry;
 
   [[nodiscard]] bool is_git() const { return !git.empty(); }
   [[nodiscard]] bool is_registry() const { return git.empty() && path.empty(); }
