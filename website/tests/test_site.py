@@ -60,6 +60,7 @@ EXPECTED_COMMANDS = {
     "add",
     "build",
     "check",
+    "clean",
     "doc",
     "fmt",
     "init",

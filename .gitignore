@@ -4,6 +4,7 @@
 /cmake-build-*/
 /out/
 target/
+.janus-cache/
 compiler-benchmark-work/
 
 # CMake and Ninja generated files

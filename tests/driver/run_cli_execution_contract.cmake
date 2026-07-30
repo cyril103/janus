@@ -14,8 +14,9 @@ set(TOP_LEVEL_USAGE
   janus add <name>[@<version>] [--path <path> | --git <url> --rev <commit>]
   janus remove <name>
   janus publish
+  janus clean
   janus check [source.janus] [--diagnostic-format human|json]
-  janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json] [--timings[=human|json]]
+  janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache]
   janus run [source.janus] [--release] [--panic-trace full|short|off]
   janus test [filter] [--doc] [--doc-path <path>] [--release] [--panic-trace full|short|off]
   janus fmt [source.janus] [--check]
@@ -29,7 +30,7 @@ set(CHECK_USAGE
 "usage: janus check [source.janus] [--locked] [--offline] [--warn-high-growth-loops] [--diagnostic-format human|json]
 ")
 set(BUILD_USAGE
-"usage: janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops] [--diagnostic-format human|json] [--timings[=human|json]]
+"usage: janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache]
 ")
 set(RUN_USAGE
 "usage: janus run [source.janus] [--release] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops]
@@ -39,6 +40,9 @@ set(TEST_USAGE
 ")
 set(DOC_USAGE
 "usage: janus doc [--stdlib] [-o directory] [--open] [--offline]
+")
+set(CLEAN_USAGE
+"usage: janus clean
 ")
 
 function(assert_result NAME EXPECTED_STATUS EXPECTED_OUT EXPECTED_ERR)
@@ -72,6 +76,7 @@ assert_result("build help" 0 "${BUILD_USAGE}" "" build --help)
 assert_result("run help" 0 "${RUN_USAGE}" "" run --help)
 assert_result("test help" 0 "${TEST_USAGE}" "" test --help)
 assert_result("doc help" 0 "${DOC_USAGE}" "" doc --help)
+assert_result("clean help" 0 "${CLEAN_USAGE}" "" clean --help)
 
 # Invocation mistakes use status 2, a command-qualified diagnostic, and only
 # the usage relevant to that command.
@@ -113,6 +118,16 @@ assert_result(
     "doc invocation error" 2 ""
     "janus doc: error: doc does not accept a source path\n${DOC_USAGE}"
     doc source.janus
+)
+assert_result(
+    "clean invocation error" 2 ""
+    "janus clean: error: clean does not accept arguments\n${CLEAN_USAGE}"
+    clean unexpected
+)
+assert_result(
+    "no-cache invocation error" 2 ""
+    "janus run: error: --no-cache is only available for build\n${RUN_USAGE}"
+    run --no-cache
 )
 assert_result(
     "conflicting emit modes" 2 ""

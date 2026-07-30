@@ -7,6 +7,7 @@
 #include "janus/driver/doctest.hpp"
 #include "janus/driver/documentation.hpp"
 #include "janus/driver/formatter.hpp"
+#include "janus/driver/incremental_cache.hpp"
 #include "janus/driver/manifest.hpp"
 #include "janus/driver/native_linker.hpp"
 #include "janus/driver/project.hpp"
@@ -18,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cctype>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -38,6 +40,11 @@
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Bitcode/BitcodeReader.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/Linker/Linker.h>
+#include <llvm/Support/MemoryBuffer.h>
+#include <llvm/TargetParser/Host.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -64,6 +71,7 @@ struct Options {
   bool release{};
   bool locked{};
   bool offline{};
+  bool no_cache{};
   bool format_check{};
   bool doc_open{};
   bool doc_stdlib{};
@@ -167,11 +175,13 @@ void print_usage(std::ostream &output) {
             "--git <url> --rev <commit>]\n"
          << "  janus remove <name>\n"
          << "  janus publish\n"
+         << "  janus clean\n"
          << "  janus check [source.janus] "
             "[--diagnostic-format human|json]\n"
          << "  janus build [source.janus] [-o output] [--release] "
             "[--emit llvm-ir|object] [--panic-trace full|short|off] "
-            "[--diagnostic-format human|json] [--timings[=human|json]]\n"
+            "[--diagnostic-format human|json] [--timings[=human|json]] "
+            "[--no-cache]\n"
          << "  janus run [source.janus] [--release] "
             "[--panic-trace full|short|off]\n"
          << "  janus test [filter] [--doc] [--doc-path <path>] "
@@ -198,7 +208,7 @@ void print_command_usage(std::ostream &output, std::string_view command) {
               "[--panic-trace full|short|off] "
               "[--warn-high-growth-loops] "
               "[--diagnostic-format human|json] "
-              "[--timings[=human|json]]\n";
+              "[--timings[=human|json]] [--no-cache]\n";
   else if (command == "run")
     output << " [source.janus] [--release] [--locked] [--offline] "
               "[--panic-trace full|short|off] [--warn-high-growth-loops]\n";
@@ -208,13 +218,15 @@ void print_command_usage(std::ostream &output, std::string_view command) {
               "[--panic-trace full|short|off]\n";
   else if (command == "doc")
     output << " [--stdlib] [-o directory] [--open] [--offline]\n";
+  else if (command == "clean")
+    output << '\n';
   else
     output << " [source.janus] [--check]\n";
 }
 
 bool is_execution_command(std::string_view command) {
   return command == "check" || command == "build" || command == "run" ||
-         command == "test" || command == "doc";
+         command == "test" || command == "doc" || command == "clean";
 }
 
 void print_compile_error(const std::filesystem::path &path,
@@ -333,7 +345,8 @@ Options parse_options(int argc, char **argv) {
   options.command = argv[1];
   if (options.command != "check" && options.command != "build" &&
       options.command != "run" && options.command != "test" &&
-      options.command != "fmt" && options.command != "doc")
+      options.command != "fmt" && options.command != "doc" &&
+      options.command != "clean")
     throw UsageError{"", "unknown command '" + options.command + "'"};
   for (int index = 2; index < argc; ++index) {
     const std::string_view argument = argv[index];
@@ -347,6 +360,8 @@ Options parse_options(int argc, char **argv) {
       options.locked = true;
     } else if (argument == "--offline") {
       options.offline = true;
+    } else if (argument == "--no-cache") {
+      options.no_cache = true;
     } else if (argument == "--check" && options.command == "fmt") {
       options.format_check = true;
     } else if (argument == "--open" && options.command == "doc") {
@@ -455,14 +470,15 @@ Options parse_options(int argc, char **argv) {
   if (options.command == "fmt" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object ||
        options.release || options.locked || options.offline ||
-       options.warn_high_growth_loops || options.panic_trace_set))
+       options.warn_high_growth_loops || options.panic_trace_set ||
+       options.no_cache))
     throw UsageError{options.command,
                      "fmt only accepts a source path and --check"};
   if (options.command == "doc" &&
       (options.release || options.locked || options.format_check ||
        options.emit_llvm || options.emit_object ||
        options.warn_high_growth_loops || options.panic_trace_set ||
-       options.diagnostic_format_set))
+       options.diagnostic_format_set || options.no_cache))
     throw UsageError{options.command,
                      "doc only accepts --stdlib, -o, --open, and --offline"};
   if ((options.command == "test") && options.warn_high_growth_loops)
@@ -477,9 +493,22 @@ Options parse_options(int argc, char **argv) {
       options.command != "build")
     throw UsageError{options.command,
                      "--timings is only available for build"};
+  if (options.no_cache && options.command != "build")
+    throw UsageError{options.command,
+                     "--no-cache is only available for build"};
+  if (options.command == "clean" &&
+      (!options.source.empty() || !options.output.empty() || options.release ||
+       options.locked || options.offline || options.no_cache ||
+       options.format_check || options.doc_open || options.doc_stdlib ||
+       options.doctests_only || options.warn_high_growth_loops ||
+       options.timings_format != Options::TimingsFormat::None ||
+       options.diagnostic_format_set || options.panic_trace_set ||
+       options.emit_llvm || options.emit_object))
+    throw UsageError{options.command, "clean does not accept arguments"};
   if (options.release && !options.panic_trace_set)
     options.panic_trace = janus::backend::llvm::PanicTraceMode::Short;
-  if (options.source.empty() && !options.doc_stdlib) {
+  if (options.source.empty() && !options.doc_stdlib &&
+      options.command != "clean") {
     options.manifest = janus::driver::load_manifest(
         janus::driver::find_manifest(std::filesystem::current_path()));
     options.source = options.manifest->entry_path();
@@ -527,7 +556,9 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
         const std::vector<std::filesystem::path> &dependency_paths,
         bool warn_high_growth_loops,
         janus::backend::llvm::PanicTraceMode panic_trace,
-        CompilationTimings *timings = nullptr) {
+        CompilationTimings *timings = nullptr,
+        bool dependencies_only = false,
+        std::string_view source_name_override = {}) {
   std::vector<std::filesystem::path> search_paths{toolchain.stdlib};
   search_paths.insert(search_paths.end(), dependency_paths.begin(),
                       dependency_paths.end());
@@ -546,10 +577,13 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
   static_cast<void>(analyzer.analyze(program));
   if (timings != nullptr)
     timings->analysis += std::chrono::steady_clock::now() - analysis_start;
+  const std::string source_name = source_name_override.empty()
+                                      ? source.string()
+                                      : std::string{source_name_override};
   if (warn_high_growth_loops) {
     for (const janus::diagnostics::HighGrowthLoopWarning &warning :
          janus::diagnostics::find_high_growth_loop_warnings(program)) {
-      std::cerr << source.string() << ':' << warning.location.line << ':'
+      std::cerr << source_name << ':' << warning.location.line << ':'
                 << warning.location.column
                 << ": warning: high-growth loop pattern may cause integer "
                    "overflow or excessive running time; add an explicit "
@@ -561,7 +595,7 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
                          : CompilationTimings::Clock::now();
   janus::backend::llvm::IrGenerator generator{context};
   std::unique_ptr<llvm::Module> module =
-      generator.generate(program, source.string(), panic_trace);
+      generator.generate(program, source_name, panic_trace, dependencies_only);
   if (llvm::verifyModule(*module, &llvm::errs()))
     throw std::runtime_error{"generated invalid LLVM IR"};
   if (timings != nullptr)
@@ -668,9 +702,123 @@ void write_ir(const llvm::Module &module, const std::filesystem::path &path) {
   module.print(output, nullptr);
 }
 
+void write_bitcode(const llvm::Module &module,
+                   const std::filesystem::path &path) {
+  std::error_code error;
+  llvm::raw_fd_ostream output{path.string(), error, llvm::sys::fs::OF_None};
+  if (error)
+    throw std::runtime_error{"cannot create '" + path.string() +
+                             "': " + error.message()};
+  llvm::WriteBitcodeToFile(module, output);
+}
+
+std::unique_ptr<llvm::Module>
+read_bitcode(const std::filesystem::path &path, llvm::LLVMContext &context) {
+  auto buffer = llvm::MemoryBuffer::getFile(path.string());
+  if (!buffer)
+    throw std::runtime_error{"cannot read cached consumer bitcode"};
+  auto parsed = llvm::parseBitcodeFile((*buffer)->getMemBufferRef(), context);
+  if (!parsed)
+    throw std::runtime_error{"cannot parse cached consumer bitcode"};
+  return std::move(*parsed);
+}
+
+std::vector<std::string>
+consumer_definition_manifest(const llvm::Module &module) {
+  std::vector<std::string> definitions;
+  for (const llvm::Function &function : module)
+    if (!function.isDeclaration() &&
+        (!function.hasFnAttribute("janus.module") ||
+         function.hasFnAttribute("janus.consumer-owned")))
+      definitions.push_back("f:" + function.getName().str());
+  for (const llvm::GlobalVariable &global : module.globals())
+    if (global.hasInitializer() && global.getMetadata("janus.module") == nullptr)
+      definitions.push_back("g:" + global.getName().str());
+  std::sort(definitions.begin(), definitions.end());
+  definitions.erase(std::unique(definitions.begin(), definitions.end()),
+                    definitions.end());
+  return definitions;
+}
+
+bool has_required_definitions(const llvm::Module &module,
+                              const std::vector<std::string> &definitions) {
+  return std::all_of(definitions.begin(), definitions.end(),
+                     [&](const std::string &definition) {
+    if (definition.starts_with("f:")) {
+      const llvm::Function *function = module.getFunction(definition.substr(2));
+      return function != nullptr && !function->isDeclaration();
+    }
+    if (definition.starts_with("g:")) {
+      const llvm::GlobalVariable *global =
+          module.getNamedGlobal(definition.substr(2));
+      return global != nullptr && global->hasInitializer();
+    }
+    return false;
+  });
+}
+
+bool has_incomplete_consumer_definitions(const llvm::Module &module) {
+  return std::any_of(module.begin(), module.end(), [](const llvm::Function &fn) {
+    return fn.hasFnAttribute("janus.consumer-owned") && fn.isDeclaration();
+  });
+}
+
+struct CachedDependencyDefinition {
+  std::string name;
+  bool global{};
+};
+
+std::vector<CachedDependencyDefinition>
+discard_cached_dependency_definitions(llvm::Module &module) {
+  for (llvm::Function &function : module)
+    if (function.hasFnAttribute("janus.module") &&
+        !function.hasFnAttribute("janus.consumer-owned") &&
+        !function.isDeclaration()) {
+      function.addFnAttr("janus.cached-definition");
+      function.deleteBody();
+    }
+  for (llvm::GlobalVariable &global : module.globals())
+    if (global.getMetadata("janus.module") != nullptr &&
+        global.hasInitializer()) {
+      global.setMetadata("janus.cached-definition",
+                         llvm::MDNode::get(module.getContext(), {}));
+      global.setInitializer(nullptr);
+    }
+  for (auto iterator = module.global_begin(); iterator != module.global_end();) {
+    llvm::GlobalVariable &global = *iterator++;
+    if (global.hasLocalLinkage() && global.use_empty())
+      global.eraseFromParent();
+  }
+  for (auto iterator = module.begin(); iterator != module.end();) {
+    llvm::Function &function = *iterator++;
+    if ((function.hasFnAttribute("janus.module") ||
+         function.hasLocalLinkage()) &&
+        function.use_empty())
+      function.eraseFromParent();
+  }
+  std::vector<CachedDependencyDefinition> required;
+  for (const llvm::Function &function : module)
+    if (function.hasFnAttribute("janus.cached-definition") &&
+        !function.hasLocalLinkage() &&
+        !function.getName().starts_with("__janus_lambda_"))
+      required.push_back({function.getName().str(), false});
+  for (const llvm::GlobalVariable &global : module.globals())
+    if (global.getMetadata("janus.cached-definition") != nullptr &&
+        !global.hasLocalLinkage())
+      required.push_back({global.getName().str(), true});
+  return required;
+}
+
 std::filesystem::path default_output(const Options &options) {
-  if (!options.output.empty())
-    return options.output;
+  if (!options.output.empty()) {
+    std::filesystem::path output = options.output;
+#ifdef _WIN32
+    if (!options.emit_llvm && !options.emit_object &&
+        output.extension() != ".exe")
+      output += ".exe";
+#endif
+    return output;
+  }
   if (options.manifest.has_value()) {
     std::filesystem::path output = options.manifest->root() / "target" /
                                    (options.release ? "release" : "debug") /
@@ -703,6 +851,59 @@ std::filesystem::path default_output(const Options &options) {
   return output;
 }
 
+std::filesystem::path snapshot_module_path(
+    const std::filesystem::path &root, std::string_view module) {
+  if (module.empty())
+    throw std::runtime_error{"cannot snapshot an unnamed imported module"};
+  std::filesystem::path relative;
+  std::size_t start = 0;
+  while (start < module.size()) {
+    const std::size_t separator = module.find('.', start);
+    const std::string_view segment = module.substr(
+        start, separator == std::string_view::npos ? module.size() - start
+                                                   : separator - start);
+    if (segment.empty() ||
+        !std::all_of(segment.begin(), segment.end(), [](unsigned char value) {
+          return std::isalnum(value) != 0 || value == '_';
+        }))
+      throw std::runtime_error{"invalid imported module name in build snapshot"};
+    relative /= segment;
+    if (separator == std::string_view::npos)
+      break;
+    start = separator + 1;
+  }
+  relative += ".janus";
+  return root / relative;
+}
+
+void write_snapshot_source(const std::filesystem::path &path,
+                           std::string_view source) {
+  std::filesystem::create_directories(path.parent_path());
+  std::ofstream output{path, std::ios::binary | std::ios::trunc};
+  if (!output)
+    throw std::runtime_error{"cannot create build-input snapshot"};
+  output << source;
+  if (!output)
+    throw std::runtime_error{"cannot write build-input snapshot"};
+}
+
+std::filesystem::path materialize_build_snapshot(
+    const janus::driver::BuildFingerprintInput &inputs,
+    const std::filesystem::path &root) {
+  const auto entry = root / "entry.janus";
+  write_snapshot_source(entry, inputs.source);
+  for (const auto &dependency : inputs.dependencies) {
+    write_snapshot_source(snapshot_module_path(root, dependency.import_name),
+                          dependency.source);
+    if (dependency.name != dependency.import_name &&
+        dependency.name.find('/') == std::string::npos &&
+        dependency.name.find('\\') == std::string::npos)
+      write_snapshot_source(snapshot_module_path(root, dependency.name),
+                            dependency.source);
+  }
+  return entry;
+}
+
 int build(const Options &options, const std::filesystem::path &output,
           const Toolchain &toolchain, CompilationTimings *timings = nullptr) {
   const auto total_start =
@@ -710,15 +911,186 @@ int build(const Options &options, const std::filesystem::path &output,
                          : CompilationTimings::Clock::now();
   if (!output.parent_path().empty())
     std::filesystem::create_directories(output.parent_path());
+  std::optional<janus::driver::IncrementalCache> cache;
+  std::string cache_key;
+  std::string cache_identity;
+  std::string consumer_key;
+  std::string consumer_cache_identity;
+  std::optional<janus::driver::BuildFingerprintInput> fingerprint_inputs;
+  const auto inspect_inputs = [&] {
+    std::vector<std::filesystem::path> search_paths{toolchain.stdlib};
+    search_paths.insert(search_paths.end(), options.dependency_paths.begin(),
+                        options.dependency_paths.end());
+    std::vector<std::string> compilation_options{
+        options.release ? "release" : "debug",
+        options.emit_llvm
+            ? "emit=llvm-ir"
+            : options.emit_object ? "emit=object" : "emit=executable",
+        "panic-trace=" +
+            std::to_string(static_cast<int>(options.panic_trace)),
+        options.warn_high_growth_loops ? "warn-high-growth-loops=on"
+                                       : "warn-high-growth-loops=off"};
+    return janus::driver::inspect_build_inputs(
+        options.source, search_paths, JANUS_VERSION,
+        llvm::sys::getDefaultTargetTriple(), std::move(compilation_options));
+  };
+  if (!options.no_cache && !options.warn_high_growth_loops) {
+    const auto inputs = inspect_inputs();
+    cache_key = janus::driver::build_fingerprint(inputs);
+    cache_identity = janus::driver::build_identity(inputs);
+    consumer_key = janus::driver::consumer_fingerprint(inputs);
+    consumer_cache_identity = janus::driver::consumer_identity(inputs);
+    fingerprint_inputs = inputs;
+    const std::filesystem::path cache_root =
+        options.manifest.has_value()
+            ? options.manifest->root() / "target" / ".janus-cache" / "v1"
+            : options.source.parent_path() / ".janus-cache" / "v1";
+    cache.emplace(cache_root);
+    janus::driver::TemporaryDirectory cached_output =
+        janus::driver::TemporaryDirectory::create("janus-cache-hit");
+    const auto staged_hit = cached_output.path() / output.filename();
+    if (cache->restore(cache_key, cache_identity, staged_hit) ==
+        janus::driver::CacheLookup::Hit) {
+      const auto current_inputs = inspect_inputs();
+      if (janus::driver::build_fingerprint(current_inputs) != cache_key ||
+          janus::driver::build_identity(current_inputs) != cache_identity ||
+          janus::driver::consumer_fingerprint(current_inputs) != consumer_key ||
+          janus::driver::consumer_identity(current_inputs) !=
+              consumer_cache_identity)
+        throw std::runtime_error{
+            "build inputs changed during cache lookup; retry the build"};
+      if (cache->restore(cache_key, cache_identity, output) !=
+          janus::driver::CacheLookup::Hit)
+        throw std::runtime_error{"cached build output changed during restore"};
+      if (timings != nullptr) {
+        timings->total = std::chrono::steady_clock::now() - total_start;
+        timings->overhead = timings->total;
+      }
+      return 0;
+    }
+  }
+  std::optional<janus::driver::TemporaryDirectory> staged_output_directory;
+  std::filesystem::path compilation_output = output;
+  if (cache.has_value()) {
+    staged_output_directory.emplace(
+        janus::driver::TemporaryDirectory::create("janus-cache-output"));
+    compilation_output = staged_output_directory->path() / output.filename();
+  }
+  std::optional<janus::driver::TemporaryDirectory> source_snapshot_directory;
+  std::filesystem::path compilation_source = options.source;
+  Toolchain compilation_toolchain = toolchain;
+  std::vector<std::filesystem::path> compilation_dependency_paths =
+      options.dependency_paths;
+  if (cache.has_value()) {
+    source_snapshot_directory.emplace(
+        janus::driver::TemporaryDirectory::create("janus-build-inputs"));
+    compilation_source = materialize_build_snapshot(
+        *fingerprint_inputs, source_snapshot_directory->path());
+    compilation_toolchain.stdlib = source_snapshot_directory->path();
+    compilation_dependency_paths.clear();
+  }
   llvm::LLVMContext context;
-  std::unique_ptr<llvm::Module> module =
-      compile(options.source, context, toolchain, options.dependency_paths,
-              options.warn_high_growth_loops, options.panic_trace, timings);
-  if (options.emit_llvm) {
-    write_ir(*module, output);
-  } else {
+  std::unique_ptr<llvm::Module> module;
+  bool reused_consumer = false;
+  std::optional<janus::driver::TemporaryDirectory> consumer_directory;
+  if (cache.has_value()) {
+    consumer_directory.emplace(
+        janus::driver::TemporaryDirectory::create("janus-consumer"));
+    const auto bitcode = consumer_directory->path() / "consumer.bc";
+    std::vector<std::string> required_consumer_definitions;
+    if (cache->restore_consumer(consumer_key, consumer_cache_identity, bitcode,
+                                &required_consumer_definitions)) {
+      try {
+        module = read_bitcode(bitcode, context);
+      } catch (const std::exception &) {
+        cache->invalidate_consumer(consumer_key);
+      }
+      if (module) {
+        const llvm::Function *entry = module->getFunction("main");
+        if (entry == nullptr || entry->isDeclaration() ||
+            !has_required_definitions(*module,
+                                      required_consumer_definitions) ||
+            has_incomplete_consumer_definitions(*module) ||
+            llvm::verifyModule(*module, &llvm::errs())) {
+          cache->invalidate_consumer(consumer_key);
+          module.reset();
+        }
+      }
+      if (module) {
+        const std::vector<CachedDependencyDefinition> required_definitions =
+            discard_cached_dependency_definitions(*module);
+        std::unique_ptr<llvm::Module> dependencies =
+            compile(compilation_source, context, compilation_toolchain,
+                    compilation_dependency_paths,
+                    options.warn_high_growth_loops, options.panic_trace, timings,
+                    true, options.source.string());
+        if (const llvm::Function *entry = dependencies->getFunction("main");
+            entry != nullptr && !entry->isDeclaration())
+          throw std::runtime_error{
+              "incremental dependency partition contains the consumer entry"};
+        llvm::Linker linker{*module};
+        const bool link_failed = linker.linkInModule(
+            std::move(dependencies), llvm::Linker::Flags::OverrideFromSrc);
+        bool incomplete_dependencies = false;
+        if (!link_failed) {
+          for (const CachedDependencyDefinition &definition :
+               required_definitions) {
+            if (definition.global) {
+              const llvm::GlobalVariable *global =
+                  module->getNamedGlobal(definition.name);
+              const bool missing =
+                  global == nullptr || !global->hasInitializer();
+              incomplete_dependencies = incomplete_dependencies || missing;
+              if (missing && std::getenv("JANUS_INCREMENTAL_TRACE") != nullptr)
+                std::cerr << "incremental: missing dependency global "
+                          << definition.name << '\n';
+            } else {
+              const llvm::Function *function =
+                  module->getFunction(definition.name);
+              const bool missing =
+                  function == nullptr || function->isDeclaration();
+              incomplete_dependencies = incomplete_dependencies || missing;
+              if (missing && std::getenv("JANUS_INCREMENTAL_TRACE") != nullptr)
+                std::cerr << "incremental: missing dependency function "
+                          << definition.name << '\n';
+            }
+          }
+        }
+        if (link_failed || incomplete_dependencies ||
+            !has_required_definitions(*module,
+                                      required_consumer_definitions) ||
+            has_incomplete_consumer_definitions(*module) ||
+            llvm::verifyModule(*module, &llvm::errs()) ||
+            module->getFunction("main") == nullptr ||
+            module->getFunction("main")->isDeclaration()) {
+          cache->invalidate_consumer(consumer_key);
+          module.reset();
+        } else {
+          reused_consumer = true;
+        }
+      }
+    }
+  }
+  if (!module)
+    module = compile(compilation_source, context, compilation_toolchain,
+                     compilation_dependency_paths,
+                     options.warn_high_growth_loops, options.panic_trace,
+                     timings, false, options.source.string());
+  std::optional<std::filesystem::path> pending_consumer_bitcode;
+  std::vector<std::string> pending_consumer_definitions;
+  if (cache.has_value() && !reused_consumer) {
+    const auto bitcode = consumer_directory->path() / "consumer.bc";
+    pending_consumer_definitions = consumer_definition_manifest(*module);
+    write_bitcode(*module, bitcode);
+    pending_consumer_bitcode = bitcode;
+  }
+  const auto emit_artifact = [&](llvm::Module &current) {
+    if (options.emit_llvm) {
+      write_ir(current, compilation_output);
+      return;
+    }
     std::optional<janus::driver::TemporaryDirectory> temporary_directory;
-    std::filesystem::path object = output;
+    std::filesystem::path object = compilation_output;
     if (!options.emit_object) {
       temporary_directory.emplace(
           janus::driver::TemporaryDirectory::create("janus-build"));
@@ -727,7 +1099,7 @@ int build(const Options &options, const std::filesystem::path &output,
     const auto optimization_start =
         timings == nullptr ? CompilationTimings::Clock::time_point{}
                            : CompilationTimings::Clock::now();
-    janus::backend::llvm::emit_object(*module, object, options.release);
+    janus::backend::llvm::emit_object(current, object, options.release);
     if (timings != nullptr)
       timings->optimization +=
           std::chrono::steady_clock::now() - optimization_start;
@@ -736,13 +1108,34 @@ int build(const Options &options, const std::filesystem::path &output,
           timings == nullptr ? CompilationTimings::Clock::time_point{}
                              : CompilationTimings::Clock::now();
       janus::driver::link_executable(
-          {object}, output,
+          {object}, compilation_output,
           janus::driver::LinkOptions{!options.release, {toolchain.runtime},
                                      toolchain.clang});
       if (timings != nullptr)
         timings->link += std::chrono::steady_clock::now() - link_start;
     }
+  };
+  try {
+    emit_artifact(*module);
+  } catch (const std::exception &) {
+    if (!reused_consumer)
+      throw;
+    cache->invalidate_consumer(consumer_key);
+    module = compile(compilation_source, context, compilation_toolchain,
+                     compilation_dependency_paths,
+                     options.warn_high_growth_loops, options.panic_trace,
+                     timings, false, options.source.string());
+    reused_consumer = false;
+    const auto bitcode = consumer_directory->path() / "consumer.bc";
+    pending_consumer_definitions = consumer_definition_manifest(*module);
+    write_bitcode(*module, bitcode);
+    pending_consumer_bitcode = bitcode;
+    emit_artifact(*module);
   }
+  if (const char *trace = std::getenv("JANUS_INCREMENTAL_TRACE");
+      trace != nullptr && *trace != '\0')
+    std::cerr << "incremental: consumer "
+              << (reused_consumer ? "reused" : "compiled") << '\n';
   if (timings != nullptr) {
     timings->total = std::chrono::steady_clock::now() - total_start;
     const auto measured = timings->loading + timings->parsing +
@@ -751,6 +1144,24 @@ int build(const Options &options, const std::filesystem::path &output,
     timings->overhead = timings->total > measured
                             ? timings->total - measured
                             : CompilationTimings::Duration{};
+  }
+  if (cache.has_value()) {
+    const auto current_inputs = inspect_inputs();
+    if (janus::driver::build_fingerprint(current_inputs) != cache_key ||
+        janus::driver::build_identity(current_inputs) != cache_identity ||
+        janus::driver::consumer_fingerprint(current_inputs) != consumer_key ||
+        janus::driver::consumer_identity(current_inputs) !=
+            consumer_cache_identity)
+      throw std::runtime_error{
+          "build inputs changed during compilation; retry the build"};
+    if (pending_consumer_bitcode.has_value())
+      cache->store_consumer(consumer_key, consumer_cache_identity,
+                            *pending_consumer_bitcode,
+                            pending_consumer_definitions);
+    cache->store(cache_key, cache_identity, compilation_output, consumer_key);
+    if (cache->restore(cache_key, cache_identity, output) !=
+        janus::driver::CacheLookup::Hit)
+      throw std::runtime_error{"cannot restore newly cached build output"};
   }
   return 0;
 }
@@ -961,6 +1372,19 @@ int main(int argc, char **argv) {
       return manage_package(argc, argv);
     Options options = parse_options(argc, argv);
     diagnostic_format = options.diagnostic_format;
+    if (options.command == "clean") {
+      const auto manifest_path =
+          janus::driver::find_manifest(std::filesystem::current_path());
+      const auto manifest = janus::driver::load_manifest(manifest_path);
+      const auto target = manifest.root() / "target";
+      std::error_code error;
+      std::filesystem::remove_all(target, error);
+      if (error)
+        throw std::runtime_error{"cannot clean '" + target.string() +
+                                 "': " + error.message()};
+      std::cout << "removed " << target.string() << '\n';
+      return 0;
+    }
     if (options.command == "fmt")
       return format_sources(options);
     if (options.command == "doc") {
