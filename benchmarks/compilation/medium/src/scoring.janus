@@ -1,0 +1,18 @@
+module scoring
+import model
+
+
+def weight(item : model.Item, multiplier : int) : int {
+    return item.total(multiplier) - 287
+}
+
+
+def clamp(value : int, minimum : int, maximum : int) : int {
+    if value < minimum {
+        return minimum
+    }
+    if value > maximum {
+        return maximum
+    }
+    return value
+}

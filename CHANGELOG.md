@@ -3,6 +3,17 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.7.7] - À venir
+
+### Performances du compilateur
+
+- ajout de `janus build --timings` et `--timings=json`, avec attribution du
+  temps total au chargement, parsing, analyse, génération LLVM,
+  optimisation/émission objet, lien et surcoût résiduel ;
+- ajout de projets de benchmark petits et moyens, mesurés sur cinq exécutions ;
+- publication d'un dashboard GitHub Actions non bloquant, dont l'alerte exige
+  une hausse de médiane d'au moins 15 % confirmée par deux jobs consécutifs.
+
 ## [0.7.6] - 2026-07-29
 
 Cette version cumulative publie les fonctions de navigation LSP de la 0.7.5

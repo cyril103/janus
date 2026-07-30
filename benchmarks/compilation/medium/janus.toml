@@ -1,0 +1,4 @@
+[package]
+name = "compiler-benchmark-medium"
+version = "0.1.0"
+entry = "src/main.janus"

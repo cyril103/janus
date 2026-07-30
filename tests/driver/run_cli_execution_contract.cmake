@@ -15,7 +15,7 @@ set(TOP_LEVEL_USAGE
   janus remove <name>
   janus publish
   janus check [source.janus] [--diagnostic-format human|json]
-  janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json]
+  janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json] [--timings[=human|json]]
   janus run [source.janus] [--release] [--panic-trace full|short|off]
   janus test [filter] [--doc] [--doc-path <path>] [--release] [--panic-trace full|short|off]
   janus fmt [source.janus] [--check]
@@ -29,7 +29,7 @@ set(CHECK_USAGE
 "usage: janus check [source.janus] [--locked] [--offline] [--warn-high-growth-loops] [--diagnostic-format human|json]
 ")
 set(BUILD_USAGE
-"usage: janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops] [--diagnostic-format human|json]
+"usage: janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops] [--diagnostic-format human|json] [--timings[=human|json]]
 ")
 set(RUN_USAGE
 "usage: janus run [source.janus] [--release] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops]
@@ -123,6 +123,16 @@ assert_result(
     "invalid diagnostic format" 2 ""
     "janus check: error: --diagnostic-format accepts 'human' or 'json'\n${CHECK_USAGE}"
     check --diagnostic-format xml
+)
+assert_result(
+    "invalid timing format" 2 ""
+    "janus build: error: --timings accepts 'human' or 'json'\n${BUILD_USAGE}"
+    build --timings=xml
+)
+assert_result(
+    "timings rejected outside build" 2 ""
+    "janus run: error: --timings is only available for build\n${RUN_USAGE}"
+    run --timings
 )
 assert_result(
     "invalid panic trace" 2 ""

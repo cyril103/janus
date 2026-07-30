@@ -16,14 +16,18 @@
 #include "janus/semantic/analyzer.hpp"
 
 #include <algorithm>
+#include <array>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -65,6 +69,8 @@ struct Options {
   bool doc_stdlib{};
   bool doctests_only{};
   bool warn_high_growth_loops{};
+  enum class TimingsFormat { None, Human, Json } timings_format{
+      TimingsFormat::None};
   bool diagnostic_format_set{};
   bool panic_trace_set{};
   janus::backend::llvm::PanicTraceMode panic_trace{
@@ -75,6 +81,20 @@ struct Options {
   std::vector<std::filesystem::path> dependency_paths;
   std::vector<std::filesystem::path> documentation_paths;
   std::string test_filter;
+};
+
+struct CompilationTimings {
+  using Clock = std::chrono::steady_clock;
+  using Duration = std::chrono::nanoseconds;
+
+  Duration loading{};
+  Duration parsing{};
+  Duration analysis{};
+  Duration llvm_generation{};
+  Duration optimization{};
+  Duration link{};
+  Duration overhead{};
+  Duration total{};
 };
 
 class UsageError final : public std::runtime_error {
@@ -151,7 +171,7 @@ void print_usage(std::ostream &output) {
             "[--diagnostic-format human|json]\n"
          << "  janus build [source.janus] [-o output] [--release] "
             "[--emit llvm-ir|object] [--panic-trace full|short|off] "
-            "[--diagnostic-format human|json]\n"
+            "[--diagnostic-format human|json] [--timings[=human|json]]\n"
          << "  janus run [source.janus] [--release] "
             "[--panic-trace full|short|off]\n"
          << "  janus test [filter] [--doc] [--doc-path <path>] "
@@ -177,7 +197,8 @@ void print_command_usage(std::ostream &output, std::string_view command) {
               "[--emit llvm-ir|object] [--locked] [--offline] "
               "[--panic-trace full|short|off] "
               "[--warn-high-growth-loops] "
-              "[--diagnostic-format human|json]\n";
+              "[--diagnostic-format human|json] "
+              "[--timings[=human|json]]\n";
   else if (command == "run")
     output << " [source.janus] [--release] [--locked] [--offline] "
               "[--panic-trace full|short|off] [--warn-high-growth-loops]\n";
@@ -341,6 +362,21 @@ Options parse_options(int argc, char **argv) {
       options.documentation_paths.emplace_back(argv[index]);
     } else if (argument == "--warn-high-growth-loops") {
       options.warn_high_growth_loops = true;
+    } else if (argument == "--timings" ||
+               argument.starts_with("--timings=")) {
+      if (options.timings_format != Options::TimingsFormat::None)
+        throw UsageError{options.command,
+                         "--timings may be specified only once"};
+      const std::string_view format =
+          argument == "--timings" ? std::string_view{"human"}
+                                  : argument.substr(10);
+      if (format == "human")
+        options.timings_format = Options::TimingsFormat::Human;
+      else if (format == "json")
+        options.timings_format = Options::TimingsFormat::Json;
+      else
+        throw UsageError{options.command,
+                         "--timings accepts 'human' or 'json'"};
     } else if (argument == "--panic-trace") {
       if (options.panic_trace_set)
         throw UsageError{options.command,
@@ -437,6 +473,10 @@ Options parse_options(int argc, char **argv) {
     throw UsageError{
         options.command,
         "--diagnostic-format is only available for check and build"};
+  if (options.timings_format != Options::TimingsFormat::None &&
+      options.command != "build")
+    throw UsageError{options.command,
+                     "--timings is only available for build"};
   if (options.release && !options.panic_trace_set)
     options.panic_trace = janus::backend::llvm::PanicTraceMode::Short;
   if (options.source.empty() && !options.doc_stdlib) {
@@ -486,14 +526,26 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
         const Toolchain &toolchain,
         const std::vector<std::filesystem::path> &dependency_paths,
         bool warn_high_growth_loops,
-        janus::backend::llvm::PanicTraceMode panic_trace) {
+        janus::backend::llvm::PanicTraceMode panic_trace,
+        CompilationTimings *timings = nullptr) {
   std::vector<std::filesystem::path> search_paths{toolchain.stdlib};
   search_paths.insert(search_paths.end(), dependency_paths.begin(),
                       dependency_paths.end());
   janus::frontend::ModuleLoader loader{std::move(search_paths)};
-  const janus::ast::Program program = loader.load(source);
+  janus::frontend::ModuleLoadTimings load_timings;
+  const janus::ast::Program program =
+      loader.load(source, timings == nullptr ? nullptr : &load_timings);
+  if (timings != nullptr) {
+    timings->loading = load_timings.loading;
+    timings->parsing = load_timings.parsing;
+  }
+  const auto analysis_start =
+      timings == nullptr ? CompilationTimings::Clock::time_point{}
+                         : CompilationTimings::Clock::now();
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
+  if (timings != nullptr)
+    timings->analysis += std::chrono::steady_clock::now() - analysis_start;
   if (warn_high_growth_loops) {
     for (const janus::diagnostics::HighGrowthLoopWarning &warning :
          janus::diagnostics::find_high_growth_loop_warnings(program)) {
@@ -504,12 +556,107 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
                    "bound, use a safe numeric type, or enforce a time budget\n";
     }
   }
+  const auto generation_start =
+      timings == nullptr ? CompilationTimings::Clock::time_point{}
+                         : CompilationTimings::Clock::now();
   janus::backend::llvm::IrGenerator generator{context};
   std::unique_ptr<llvm::Module> module =
       generator.generate(program, source.string(), panic_trace);
   if (llvm::verifyModule(*module, &llvm::errs()))
     throw std::runtime_error{"generated invalid LLVM IR"};
+  if (timings != nullptr)
+    timings->llvm_generation +=
+        std::chrono::steady_clock::now() - generation_start;
   return module;
+}
+
+double milliseconds(CompilationTimings::Duration duration) {
+  return std::chrono::duration<double, std::milli>{duration}.count();
+}
+
+std::string json_escape(std::string_view value) {
+  std::ostringstream escaped;
+  for (const unsigned char character : value) {
+    switch (character) {
+    case '"':
+      escaped << "\\\"";
+      break;
+    case '\\':
+      escaped << "\\\\";
+      break;
+    case '\b':
+      escaped << "\\b";
+      break;
+    case '\f':
+      escaped << "\\f";
+      break;
+    case '\n':
+      escaped << "\\n";
+      break;
+    case '\r':
+      escaped << "\\r";
+      break;
+    case '\t':
+      escaped << "\\t";
+      break;
+    default:
+      if (character < 0x20)
+        escaped << "\\u" << std::hex << std::setw(4) << std::setfill('0')
+                << static_cast<unsigned int>(character) << std::dec;
+      else
+        escaped << character;
+    }
+  }
+  return escaped.str();
+}
+
+auto timing_phases(const CompilationTimings &timings) {
+  using Entry = std::pair<std::string_view, CompilationTimings::Duration>;
+  return std::array<Entry, 7>{{
+      {"loading", timings.loading},
+      {"parsing", timings.parsing},
+      {"analysis", timings.analysis},
+      {"llvm_generation", timings.llvm_generation},
+      {"optimization", timings.optimization},
+      {"link", timings.link},
+      {"overhead", timings.overhead},
+  }};
+}
+
+void print_timings(const CompilationTimings &timings, const Options &options) {
+  const auto phases = timing_phases(timings);
+  const double total_ms = milliseconds(timings.total);
+  std::ostream &output = options.timings_format == Options::TimingsFormat::Json
+                             ? std::cout
+                             : std::cerr;
+  output << std::fixed << std::setprecision(3);
+  if (options.timings_format == Options::TimingsFormat::Json) {
+    output << "{\"schema_version\":1,\"command\":\"build\",\"unit\":"
+              "\"milliseconds\",\"source\":\""
+           << json_escape(options.source.generic_string())
+           << "\",\"total_ms\":" << total_ms << ",\"phases\":{";
+    for (std::size_t index = 0; index < phases.size(); ++index) {
+      if (index != 0)
+        output << ',';
+      output << '"' << phases[index].first << "\":"
+             << milliseconds(phases[index].second);
+    }
+    output << "}}\n";
+    return;
+  }
+
+  output << "compilation timings (milliseconds):\n";
+  for (const auto &[name, duration] : phases) {
+    const double value = milliseconds(duration);
+    const double percentage = total_ms > 0.0 ? value * 100.0 / total_ms : 0.0;
+    output << "  " << std::left << std::setw(18) << name << std::right
+           << std::setw(10) << value << " ms  " << std::setprecision(1)
+           << std::setw(5) << percentage << "%\n"
+           << std::setprecision(3);
+  }
+  output << "  " << std::left << std::setw(18) << "total" << std::right
+         << std::setw(10) << total_ms << " ms  " << std::setprecision(1)
+         << std::setw(5) << 100.0 << "%\n";
 }
 
 void write_ir(const llvm::Module &module, const std::filesystem::path &path) {
@@ -557,32 +704,54 @@ std::filesystem::path default_output(const Options &options) {
 }
 
 int build(const Options &options, const std::filesystem::path &output,
-          const Toolchain &toolchain) {
+          const Toolchain &toolchain, CompilationTimings *timings = nullptr) {
+  const auto total_start =
+      timings == nullptr ? CompilationTimings::Clock::time_point{}
+                         : CompilationTimings::Clock::now();
   if (!output.parent_path().empty())
     std::filesystem::create_directories(output.parent_path());
   llvm::LLVMContext context;
   std::unique_ptr<llvm::Module> module =
       compile(options.source, context, toolchain, options.dependency_paths,
-              options.warn_high_growth_loops, options.panic_trace);
+              options.warn_high_growth_loops, options.panic_trace, timings);
   if (options.emit_llvm) {
     write_ir(*module, output);
-    return 0;
+  } else {
+    std::optional<janus::driver::TemporaryDirectory> temporary_directory;
+    std::filesystem::path object = output;
+    if (!options.emit_object) {
+      temporary_directory.emplace(
+          janus::driver::TemporaryDirectory::create("janus-build"));
+      object = temporary_directory->path() / "module.o";
+    }
+    const auto optimization_start =
+        timings == nullptr ? CompilationTimings::Clock::time_point{}
+                           : CompilationTimings::Clock::now();
+    janus::backend::llvm::emit_object(*module, object, options.release);
+    if (timings != nullptr)
+      timings->optimization +=
+          std::chrono::steady_clock::now() - optimization_start;
+    if (!options.emit_object) {
+      const auto link_start =
+          timings == nullptr ? CompilationTimings::Clock::time_point{}
+                             : CompilationTimings::Clock::now();
+      janus::driver::link_executable(
+          {object}, output,
+          janus::driver::LinkOptions{!options.release, {toolchain.runtime},
+                                     toolchain.clang});
+      if (timings != nullptr)
+        timings->link += std::chrono::steady_clock::now() - link_start;
+    }
   }
-
-  std::optional<janus::driver::TemporaryDirectory> temporary_directory;
-  std::filesystem::path object = output;
-  if (!options.emit_object) {
-    temporary_directory.emplace(
-        janus::driver::TemporaryDirectory::create("janus-build"));
-    object = temporary_directory->path() / "module.o";
+  if (timings != nullptr) {
+    timings->total = std::chrono::steady_clock::now() - total_start;
+    const auto measured = timings->loading + timings->parsing +
+                          timings->analysis + timings->llvm_generation +
+                          timings->optimization + timings->link;
+    timings->overhead = timings->total > measured
+                            ? timings->total - measured
+                            : CompilationTimings::Duration{};
   }
-  janus::backend::llvm::emit_object(*module, object, options.release);
-  if (options.emit_object)
-    return 0;
-  janus::driver::link_executable({object}, output,
-                                 janus::driver::LinkOptions{!options.release,
-                                                            {toolchain.runtime},
-                                                            toolchain.clang});
   return 0;
 }
 
@@ -846,8 +1015,18 @@ int main(int argc, char **argv) {
       std::cout << "checked " << options.source.string() << '\n';
       return 0;
     }
-    if (options.command == "build")
-      return build(options, default_output(options), toolchain);
+    if (options.command == "build") {
+      CompilationTimings timings;
+      const int status =
+          build(options, default_output(options), toolchain,
+                options.timings_format == Options::TimingsFormat::None
+                    ? nullptr
+                    : &timings);
+      if (status == 0 &&
+          options.timings_format != Options::TimingsFormat::None)
+        print_timings(timings, options);
+      return status;
+    }
 
     const bool temporary = !options.manifest.has_value();
     std::optional<janus::driver::TemporaryDirectory> run_directory;

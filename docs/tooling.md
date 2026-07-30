@@ -28,6 +28,21 @@ janus build fichier.janus -o programme
 Les options `--emit llvm-ir` et `--emit object` arrêtent la compilation après
 la production de l'IR LLVM ou du fichier objet.
 
+### Timings de compilation
+
+`janus build --timings` écrit sur stderr un tableau humain qui attribue 100 %
+du temps mesuré au chargement, parsing, analyse, génération LLVM,
+optimisation/génération objet, édition de liens et surcoût résiduel. Pour une
+sortie CI pure sur stdout, utilisez :
+
+```bash
+janus build --release --timings=json > timings.json
+```
+
+Le JSON versionné emploie les millisecondes, expose `total_ms` et un objet
+`phases`. Les benchmarks canoniques et la politique d'alerte non bloquante sont
+décrits dans [Performance du compilateur](compiler-performance.md).
+
 `janus build`, `janus run` et `janus test` acceptent
 `--panic-trace full|short|off`. Le mode `full`, utilisé par défaut en
 développement, affiche l'origine source et une pile native symbolisée lorsque
