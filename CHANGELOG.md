@@ -3,6 +3,18 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.7.9] - À venir
+
+### Protocole du registre
+
+- publication du protocole distant `v1`, de ses cinq schémas JSON stricts et
+  de fixtures de référence pour l'index, les métadonnées, les archives et la
+  résolution verrouillée ;
+- contrat d'immuabilité des versions, yanking compatible avec les lockfiles,
+  négociation explicite et identité complète `(registre, namespace, paquet)` ;
+- modèle de sécurité couvrant authentification, autorisation, confusion de
+  dépendance, traversée de chemin, sauvegarde et récupération.
+
 ## [0.7.8] - À venir
 
 ### Construction incrémentale

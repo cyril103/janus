@@ -32,6 +32,7 @@ nav:
       - Guide du langage: reference/generated/language-guide.md
       - Texte et parsing: reference/generated/text.md
       - Commandes et outils: reference/generated/tooling.md
+      - Protocole du registre v1: reference/generated/registry-protocol-v1.md
       - Performance du compilateur: reference/generated/compiler-performance.md
       - Documentation d’API: reference/generated/api-documentation.md
       - Doctests: reference/generated/doctests.md
