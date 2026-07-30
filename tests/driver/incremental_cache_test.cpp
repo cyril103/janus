@@ -311,6 +311,7 @@ void test_restore_replaces_an_existing_output() {
   require(std::string{std::istreambuf_iterator<char>{restored},
                       std::istreambuf_iterator<char>{}} == "new-output",
           "cache hit left the pre-existing output in place");
+  restored.close();
   std::filesystem::remove_all(root);
 }
 
