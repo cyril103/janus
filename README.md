@@ -121,6 +121,8 @@ janus check          # vérifier le programme sans produire d'exécutable
 janus run            # compiler puis exécuter
 janus build          # construire un exécutable dans target/
 janus build --release
+janus build --timings       # détailler les phases de compilation
+janus build --timings=json  # produire un rapport exploitable par CI
 janus test           # exécuter les tests et les doctests documentaires
 janus test --doc     # exécuter uniquement les doctests
 janus fmt            # formater les fichiers Janus

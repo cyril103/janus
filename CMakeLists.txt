@@ -613,6 +613,33 @@ if(BUILD_TESTING)
                 -o "${PROJECT_BINARY_DIR}/cli_value"
     )
     add_test(
+        NAME cli.compilation_timings
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/driver/run_compilation_timings_cli.py"
+                --janus "$<TARGET_FILE:janus>"
+                --source "${PROJECT_SOURCE_DIR}/examples/value.janus"
+                --work-dir "${PROJECT_BINARY_DIR}/compilation-timings"
+    )
+    add_test(
+        NAME performance.compilation_trend
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/performance/test_compilation_trend.py"
+    )
+    add_test(
+        NAME performance.compilation_benchmark_schema
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/performance/test_benchmark_compilation.py"
+    )
+    add_test(
+        NAME performance.compilation_benchmarks
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/benchmark-compilation.py"
+                --janus "$<TARGET_FILE:janus>"
+                --benchmarks "${PROJECT_SOURCE_DIR}/benchmarks/compilation"
+                --samples 1
+                --output "${PROJECT_BINARY_DIR}/compiler-performance-smoke.json"
+    )
+    add_test(
         NAME cli.run
         COMMAND janus run "${PROJECT_SOURCE_DIR}/examples/loop_jumps.janus"
     )

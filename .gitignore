@@ -3,6 +3,8 @@
 /build-*/
 /cmake-build-*/
 /out/
+target/
+compiler-benchmark-work/
 
 # CMake and Ninja generated files
 /CMakeCache.txt

@@ -1,0 +1,11 @@
+import algorithms
+import model
+import scoring
+
+
+def main() : int {
+    val item : model.Item = new model.Item(7, 11)
+    val base : int = algorithms.accumulate(200)
+    val weighted : int = scoring.weight(item, 3)
+    return base + weighted - 20044
+}

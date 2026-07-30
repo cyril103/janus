@@ -4,6 +4,7 @@
 #include "janus/frontend/parser.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
@@ -14,25 +15,29 @@ namespace janus::frontend {
 ModuleLoader::ModuleLoader(std::vector<std::filesystem::path> search_paths)
     : search_paths_{std::move(search_paths)} {}
 
-ast::Program ModuleLoader::load(const std::filesystem::path &entry_path) {
+ast::Program ModuleLoader::load(const std::filesystem::path &entry_path,
+                                ModuleLoadTimings *timings) {
   loaded_paths_.clear();
   const std::filesystem::path absolute =
       std::filesystem::absolute(entry_path).lexically_normal();
-  return load_file(absolute, absolute.parent_path(), nullptr);
+  return load_file(absolute, absolute.parent_path(), nullptr, nullptr, timings);
 }
 
 ast::Program ModuleLoader::load(const std::filesystem::path &entry_path,
-                                std::string_view entry_source) {
+                                std::string_view entry_source,
+                                ModuleLoadTimings *timings) {
   loaded_paths_.clear();
   const std::filesystem::path absolute =
       std::filesystem::absolute(entry_path).lexically_normal();
-  return load_file(absolute, absolute.parent_path(), nullptr, &entry_source);
+  return load_file(absolute, absolute.parent_path(), nullptr, &entry_source,
+                   timings);
 }
 
 ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
                                      const std::filesystem::path &project_root,
                                      const std::string *expected_module,
-                                     const std::string_view *source_override) {
+                                     const std::string_view *source_override,
+                                     ModuleLoadTimings *timings) {
   const std::filesystem::path normalized =
       std::filesystem::absolute(path).lexically_normal();
   if (std::find(loaded_paths_.begin(), loaded_paths_.end(), normalized) !=
@@ -41,6 +46,9 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
   loaded_paths_.push_back(normalized);
 
   std::string source;
+  const auto loading_start =
+      timings == nullptr ? std::chrono::steady_clock::time_point{}
+                         : std::chrono::steady_clock::now();
   if (source_override != nullptr) {
     source = *source_override;
   } else {
@@ -51,8 +59,15 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
     source.assign(std::istreambuf_iterator<char>{input},
                   std::istreambuf_iterator<char>{});
   }
+  if (timings != nullptr)
+    timings->loading += std::chrono::steady_clock::now() - loading_start;
+  const auto parsing_start =
+      timings == nullptr ? std::chrono::steady_clock::time_point{}
+                         : std::chrono::steady_clock::now();
   Parser parser{source};
   ast::Program parsed = parser.parse_program();
+  if (timings != nullptr)
+    timings->parsing += std::chrono::steady_clock::now() - parsing_start;
 
   if (expected_module != nullptr && (!parsed.module_name.has_value() ||
                                      *parsed.module_name != *expected_module))
@@ -63,7 +78,8 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
   ast::Program result;
   for (const std::string &import : parsed.imports) {
     ast::Program dependency =
-        load_file(resolve_import(import, project_root), project_root, &import);
+        load_file(resolve_import(import, project_root), project_root, &import,
+                  nullptr, timings);
     for (ast::GlobalDeclaration &global : dependency.globals)
       result.globals.push_back(std::move(global));
     for (ast::TraitDeclaration &trait_declaration : dependency.traits)
