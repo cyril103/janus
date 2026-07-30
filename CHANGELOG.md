@@ -3,6 +3,22 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.7.8] - À venir
+
+### Construction incrémentale
+
+- ajout d'un cache d'artefacts indexé par la version Janus, la cible, les
+  options, le source et les interfaces publiques des dépendances ;
+- séparation de l'empreinte consommateur et de l'empreinte d'artefact afin
+  qu'un changement d'implémentation privée sans effet ABI n'invalide pas le
+  consommateur, tandis qu'un changement public ou de disposition l'invalide et
+  que le binaire final reste à jour ;
+- écritures atomiques compatibles avec les builds concurrents, validation de
+  l'identité et du contenu à la lecture, et reconstruction automatique après
+  interruption, corruption ou collision ;
+- ajout de `janus build --no-cache` et de la commande idempotente
+  `janus clean`.
+
 ## [0.7.7] - À venir
 
 ### Performances du compilateur

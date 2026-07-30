@@ -2,17 +2,24 @@
 #include "janus/driver/registry.hpp"
 #include "janus/driver/semver.hpp"
 
+#include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <random>
 #include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-#ifndef _WIN32
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#else
 #include <sys/wait.h>
 #endif
 
@@ -214,6 +221,59 @@ validate_dependency(const janus::driver::Dependency &dependency,
   return dependency_manifest;
 }
 
+void write_lockfile_atomic(const std::filesystem::path &path,
+                           std::string_view contents) {
+  static std::atomic<std::uint64_t> sequence{};
+  static thread_local std::mt19937_64 random{std::random_device{}()};
+  std::filesystem::path reservation;
+  for (int attempt = 0; attempt < 100; ++attempt) {
+    const auto nonce = random() ^
+                       sequence.fetch_add(1, std::memory_order_relaxed) ^
+                       static_cast<std::uint64_t>(
+                           std::chrono::steady_clock::now()
+                               .time_since_epoch()
+                               .count());
+    reservation = path.string() + ".new-" + std::to_string(nonce);
+    std::error_code error;
+    if (std::filesystem::create_directory(reservation, error))
+      break;
+    reservation.clear();
+    if (error && error != std::errc::file_exists)
+      throw std::runtime_error{"cannot reserve janus.lock temporary: " +
+                               error.message()};
+  }
+  if (reservation.empty())
+    throw std::runtime_error{"cannot reserve janus.lock temporary"};
+  const auto temporary = reservation / "payload";
+  try {
+    {
+      std::ofstream output{temporary, std::ios::binary};
+      if (!output)
+        throw std::runtime_error{"cannot write janus.lock"};
+      output << contents;
+      if (!output)
+        throw std::runtime_error{"cannot write janus.lock"};
+    }
+    std::error_code error;
+#ifdef _WIN32
+    if (!MoveFileExW(temporary.c_str(), path.c_str(),
+                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+      error = std::error_code{static_cast<int>(GetLastError()),
+                              std::system_category()};
+#else
+    std::filesystem::rename(temporary, path, error);
+#endif
+    if (error)
+      throw std::runtime_error{"cannot publish janus.lock: " +
+                               error.message()};
+    std::filesystem::remove_all(reservation);
+  } catch (...) {
+    std::error_code ignored;
+    std::filesystem::remove_all(reservation, ignored);
+    throw;
+  }
+}
+
 } // namespace
 
 namespace janus::driver {
@@ -313,16 +373,7 @@ resolve_dependencies(const Manifest &manifest,
   }
   if (existing_lock == lock)
     return search_paths;
-  const std::filesystem::path temporary = manifest.root() / "janus.lock.new";
-  {
-    std::ofstream output{temporary, std::ios::binary | std::ios::trunc};
-    if (!output)
-      throw std::runtime_error{"cannot write janus.lock"};
-    output << lock;
-  }
-  std::error_code ignored;
-  std::filesystem::remove(lock_path, ignored);
-  std::filesystem::rename(temporary, lock_path);
+  write_lockfile_atomic(lock_path, lock);
   return search_paths;
 }
 

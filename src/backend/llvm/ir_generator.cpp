@@ -10,6 +10,7 @@
 #include <cctype>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -79,10 +80,13 @@ class Generator {
 public:
   Generator(::llvm::LLVMContext &context, const janus::ast::Program &program,
             std::string_view module_name,
-            janus::backend::llvm::PanicTraceMode panic_trace)
+            janus::backend::llvm::PanicTraceMode panic_trace,
+            bool dependencies_only)
       : context_{context}, module_{std::make_unique<::llvm::Module>(
                                std::string{module_name}, context)},
-        source_name_{module_name}, panic_trace_{panic_trace} {
+        source_name_{module_name}, panic_trace_{panic_trace},
+        entry_module_{program.module_name},
+        dependencies_only_{dependencies_only} {
 #if LLVM_VERSION_MAJOR >= 21
     module_->setTargetTriple(
         ::llvm::Triple{::llvm::sys::getDefaultTargetTriple()});
@@ -124,6 +128,8 @@ public:
       else
         ambiguous_function_names_.insert(function.name);
     for (const janus::ast::GlobalDeclaration &global : program.globals) {
+      if (dependencies_only_ && !is_dependency(global.module_name))
+        continue;
       global_declarations_.push_back(&global);
       global_by_key_.emplace(
           source_global_key(global.module_name, global.declaration.name),
@@ -136,6 +142,15 @@ public:
         global_modules_.insert(*global.module_name);
     }
     initialization_plan_ = janus::constant::plan_initialization(program);
+    if (dependencies_only_) {
+      const auto imported = [&](const janus::ast::GlobalDeclaration *global) {
+        return is_dependency(global->module_name);
+      };
+      std::erase_if(initialization_plan_.constants,
+                    [&](const auto *global) { return !imported(global); });
+      std::erase_if(initialization_plan_.dynamic,
+                    [&](const auto *global) { return !imported(global); });
+    }
     for (const janus::ast::GlobalDeclaration *global :
          initialization_plan_.constants)
       constant_global_keys_.insert(
@@ -146,15 +161,58 @@ public:
     for (const janus::ast::GlobalDeclaration *declaration :
          global_declarations_)
       emit_global(*declaration);
-    emit_global_initializer_function();
-    emit_global_finalizer_function();
+    const auto all_dynamic = initialization_plan_.dynamic;
+    const auto emit_lifecycle = [&](bool dependencies) {
+      initialization_plan_.dynamic = all_dynamic;
+      std::erase_if(initialization_plan_.dynamic, [&](const auto *global) {
+        return is_dependency(global->module_name) != dependencies;
+      });
+      global_lifecycle_suffix_ =
+          dependencies ? "_dependencies" : "_consumer";
+      emitting_dependency_lifecycle_ = dependencies;
+      force_global_lifecycle_ = dependencies;
+      global_initializer_ = nullptr;
+      global_finalizer_ = nullptr;
+      global_initialization_started_ = nullptr;
+      global_initialized_count_ = nullptr;
+      global_finalization_finished_ = nullptr;
+      emit_global_initializer_function();
+      emit_global_finalizer_function();
+      if (global_initializer_ != nullptr)
+        global_initializers_.push_back(global_initializer_);
+      if (global_finalizer_ != nullptr)
+        global_finalizers_.push_back(global_finalizer_);
+    };
+    if (dependencies_only_)
+      emit_lifecycle(true);
+    else {
+      emit_lifecycle(true);
+      emit_lifecycle(false);
+      emit_panic_finalizer_function();
+    }
+    initialization_plan_.dynamic = all_dynamic;
     for (const auto &[name, class_declaration] : classes_) {
-      if (class_declaration->type_parameters.empty())
-        static_cast<void>(ensure_class(name, {}));
+      if (!class_declaration->type_parameters.empty() ||
+          (dependencies_only_ &&
+           !is_dependency(class_declaration->module_name)))
+        continue;
+      static_cast<void>(ensure_class(name, {}));
+      if (dependencies_only_) {
+        const ClassSpecialization &specialization =
+            class_specializations_.at(name);
+        for (const janus::ast::FunctionDeclaration &method :
+             class_declaration->methods)
+          if (method.type_parameters.empty())
+            static_cast<void>(emit_function(
+                method, {}, class_declaration, &specialization.substitutions,
+                name));
+        static_cast<void>(emit_destructor(name));
+      }
     }
     for (const auto &[name, function] : functions_) {
       static_cast<void>(name);
-      if (function->type_parameters.empty())
+      if (function->type_parameters.empty() &&
+          (!dependencies_only_ || is_dependency(function->module_name)))
         static_cast<void>(emit_function(*function, {}));
     }
     return std::move(module_);
@@ -190,6 +248,12 @@ private:
     std::unordered_map<std::string, Local> *locals;
     const Substitutions *substitutions;
   };
+
+  [[nodiscard]] bool
+  is_dependency(const std::optional<std::string> &module) const {
+    return module.has_value() &&
+           (!entry_module_.has_value() || *module != *entry_module_);
+  }
 
   static ::llvm::AllocaInst *
   create_entry_alloca(::llvm::IRBuilder<> &builder, ::llvm::Type *type,
@@ -467,30 +531,48 @@ private:
         *module_, lower_type(type, context_),
         is_constant && !declaration.is_mutable, linkage, initializer,
         global_symbol_name(global));
+    if (is_dependency(global.module_name))
+      storage->setMetadata(
+          "janus.module",
+          ::llvm::MDNode::get(context_, ::llvm::MDString::get(
+                                           context_, *global.module_name)));
     global_storage_.emplace(
         source_global_key(global.module_name, declaration.name),
         Local{storage, &type});
   }
 
   void emit_global_initializer_function() {
-    if (initialization_plan_.dynamic.empty())
+    if (initialization_plan_.dynamic.empty() && !force_global_lifecycle_)
       return;
 
     auto *boolean_type = ::llvm::Type::getInt1Ty(context_);
     auto *count_type = ::llvm::Type::getInt64Ty(context_);
     global_initialization_started_ = new ::llvm::GlobalVariable(
-        *module_, boolean_type, false, ::llvm::GlobalValue::InternalLinkage,
+        *module_, boolean_type, false, ::llvm::GlobalValue::ExternalLinkage,
         ::llvm::ConstantInt::getFalse(context_),
-        "__janus_globals_initialization_started");
+        "__janus_globals_initialization_started" + global_lifecycle_suffix_);
     global_initialized_count_ = new ::llvm::GlobalVariable(
-        *module_, count_type, false, ::llvm::GlobalValue::InternalLinkage,
+        *module_, count_type, false, ::llvm::GlobalValue::ExternalLinkage,
         ::llvm::ConstantInt::get(count_type, 0),
-        "__janus_globals_initialized_count");
+        "__janus_globals_initialized_count" + global_lifecycle_suffix_);
+    global_initialization_started_->setVisibility(
+        ::llvm::GlobalValue::HiddenVisibility);
+    global_initialized_count_->setVisibility(
+        ::llvm::GlobalValue::HiddenVisibility);
+    if (emitting_dependency_lifecycle_) {
+      const auto metadata = ::llvm::MDNode::get(
+          context_, ::llvm::MDString::get(context_, "dependencies"));
+      global_initialization_started_->setMetadata("janus.module", metadata);
+      global_initialized_count_->setMetadata("janus.module", metadata);
+    }
     auto *function_type =
         ::llvm::FunctionType::get(::llvm::Type::getVoidTy(context_), false);
     global_initializer_ = ::llvm::Function::Create(
-        function_type, ::llvm::Function::InternalLinkage,
-        "__janus_init_globals", *module_);
+        function_type, ::llvm::Function::ExternalLinkage,
+        "__janus_init_globals" + global_lifecycle_suffix_, *module_);
+    global_initializer_->setVisibility(::llvm::GlobalValue::HiddenVisibility);
+    if (emitting_dependency_lifecycle_)
+      global_initializer_->addFnAttr("janus.module", "dependencies");
     auto *entry =
         ::llvm::BasicBlock::Create(context_, "entry", global_initializer_);
     ::llvm::IRBuilder<> builder{entry};
@@ -534,28 +616,39 @@ private:
 
   void emit_global_finalizer_function() {
     const bool has_owned =
-        std::any_of(global_declarations_.begin(), global_declarations_.end(),
+        std::any_of(initialization_plan_.dynamic.begin(),
+                    initialization_plan_.dynamic.end(),
                     [&](const janus::ast::GlobalDeclaration *global) {
                       const janus::Type &type =
                           resolve(global->declaration.declared_type, {});
                       return owns_value(type);
                     });
-    if (!has_owned)
+    if (!has_owned && !force_global_lifecycle_)
       return;
 
     auto *function_type =
         ::llvm::FunctionType::get(::llvm::Type::getVoidTy(context_), false);
     global_finalizer_ = ::llvm::Function::Create(
-        function_type, ::llvm::Function::InternalLinkage,
-        "__janus_fini_globals", *module_);
+        function_type, ::llvm::Function::ExternalLinkage,
+        "__janus_fini_globals" + global_lifecycle_suffix_, *module_);
+    global_finalizer_->setVisibility(::llvm::GlobalValue::HiddenVisibility);
+    if (emitting_dependency_lifecycle_)
+      global_finalizer_->addFnAttr("janus.module", "dependencies");
     auto *entry =
         ::llvm::BasicBlock::Create(context_, "entry", global_finalizer_);
     ::llvm::IRBuilder<> builder{entry};
     auto *boolean_type = builder.getInt1Ty();
     global_finalization_finished_ = new ::llvm::GlobalVariable(
-        *module_, boolean_type, false, ::llvm::GlobalValue::InternalLinkage,
+        *module_, boolean_type, false, ::llvm::GlobalValue::ExternalLinkage,
         ::llvm::ConstantInt::getFalse(context_),
-        "__janus_globals_finalization_finished");
+        "__janus_globals_finalization_finished" + global_lifecycle_suffix_);
+    global_finalization_finished_->setVisibility(
+        ::llvm::GlobalValue::HiddenVisibility);
+    if (emitting_dependency_lifecycle_)
+      global_finalization_finished_->setMetadata(
+          "janus.module",
+          ::llvm::MDNode::get(
+              context_, ::llvm::MDString::get(context_, "dependencies")));
     auto *cleanup =
         ::llvm::BasicBlock::Create(context_, "cleanup", global_finalizer_);
     auto *done =
@@ -596,6 +689,23 @@ private:
     }
     builder.CreateBr(done);
     builder.SetInsertPoint(done);
+    builder.CreateRetVoid();
+  }
+
+  void emit_panic_finalizer_function() {
+    if (global_finalizers_.empty())
+      return;
+    auto *function_type =
+        ::llvm::FunctionType::get(::llvm::Type::getVoidTy(context_), false);
+    panic_finalizer_ = ::llvm::Function::Create(
+        function_type, ::llvm::Function::InternalLinkage,
+        "__janus_fini_globals_panic", *module_);
+    auto *entry =
+        ::llvm::BasicBlock::Create(context_, "entry", panic_finalizer_);
+    ::llvm::IRBuilder<> builder{entry};
+    for (auto finalizer = global_finalizers_.rbegin();
+         finalizer != global_finalizers_.rend(); ++finalizer)
+      builder.CreateCall(*finalizer);
     builder.CreateRetVoid();
   }
 
@@ -1005,6 +1115,13 @@ private:
             : ::llvm::Function::ExternalLinkage;
     auto *llvm_function =
         ::llvm::Function::Create(function_type, linkage, llvm_name, *module_);
+    const std::optional<std::string> definition_module =
+        owner == nullptr ? function.module_name : owner->module_name;
+    if (is_dependency(definition_module))
+      llvm_function->addFnAttr("janus.module", *definition_module);
+    if (!function.type_parameters.empty() ||
+        (owner != nullptr && !owner->type_parameters.empty()))
+      llvm_function->addFnAttr("janus.consumer-owned");
     emitted_.emplace(llvm_name, llvm_function);
     if (function.is_external)
       return llvm_function;
@@ -1021,13 +1138,12 @@ private:
     auto *entry = ::llvm::BasicBlock::Create(context_, "entry", llvm_function);
     ::llvm::IRBuilder<> builder{entry};
     std::unordered_map<std::string, Local> locals;
-    if (native_entry &&
-        global_finalizer_ != nullptr) {
+    if (native_entry && panic_finalizer_ != nullptr) {
       ::llvm::FunctionCallee register_cleanup = module_->getOrInsertFunction(
           "janus_set_panic_cleanup",
           ::llvm::FunctionType::get(builder.getVoidTy(), {builder.getPtrTy()},
                                     false));
-      builder.CreateCall(register_cleanup, {global_finalizer_});
+      builder.CreateCall(register_cleanup, {panic_finalizer_});
     }
     auto argument_iterator = llvm_function->arg_begin();
     if (native_entry) {
@@ -1042,8 +1158,9 @@ private:
                                     false));
       builder.CreateCall(initialize, {&argc, &argv});
     }
-    if (native_entry && global_initializer_ != nullptr)
-      builder.CreateCall(global_initializer_);
+    if (native_entry)
+      for (::llvm::Function *initializer : global_initializers_)
+        builder.CreateCall(initializer);
 
     if (owner != nullptr) {
       ::llvm::Argument &this_argument = *argument_iterator++;
@@ -1390,9 +1507,10 @@ private:
               emit_expression(*return_statement.expression, return_type,
                               substitutions, block_locals, builder);
         emit_active_cleanups(builder);
-        if (owner == nullptr && function.name == "main" &&
-            global_finalizer_ != nullptr)
-          builder.CreateCall(global_finalizer_);
+        if (owner == nullptr && function.name == "main")
+          for (auto finalizer = global_finalizers_.rbegin();
+               finalizer != global_finalizers_.rend(); ++finalizer)
+            builder.CreateCall(*finalizer);
         if (return_value != nullptr)
           builder.CreateRet(return_value);
         else
@@ -1597,6 +1715,8 @@ private:
     ::llvm::Function *lambda_function = ::llvm::Function::Create(
         llvm_function_type, ::llvm::Function::InternalLinkage,
         "__janus_lambda_" + std::to_string(lambda_index), *module_);
+    if (is_dependency(active_module_))
+      lambda_function->addFnAttr("janus.module", *active_module_);
     auto *entry =
         ::llvm::BasicBlock::Create(context_, "entry", lambda_function);
     ::llvm::IRBuilder<> lambda_builder{entry};
@@ -3568,6 +3688,12 @@ private:
   std::unordered_map<std::string, janus::constant::Value> constant_values_;
   ::llvm::Function *global_initializer_{};
   ::llvm::Function *global_finalizer_{};
+  ::llvm::Function *panic_finalizer_{};
+  std::vector<::llvm::Function *> global_initializers_;
+  std::vector<::llvm::Function *> global_finalizers_;
+  std::string global_lifecycle_suffix_;
+  bool emitting_dependency_lifecycle_{};
+  bool force_global_lifecycle_{};
   ::llvm::GlobalVariable *global_initialization_started_{};
   ::llvm::GlobalVariable *global_initialized_count_{};
   ::llvm::GlobalVariable *global_finalization_finished_{};
@@ -3591,6 +3717,8 @@ private:
   std::string active_function_;
   std::size_t string_literal_index_{};
   std::size_t lambda_index_{};
+  std::optional<std::string> entry_module_;
+  bool dependencies_only_{};
 };
 
 } // namespace
@@ -3602,8 +3730,9 @@ IrGenerator::IrGenerator(::llvm::LLVMContext &context) noexcept
 
 std::unique_ptr<::llvm::Module>
 IrGenerator::generate(const ast::Program &program, std::string_view module_name,
-                      PanicTraceMode panic_trace) {
-  return Generator{context_, program, module_name, panic_trace}.generate();
+                      PanicTraceMode panic_trace, bool dependencies_only) {
+  return Generator{context_, program, module_name, panic_trace,
+                   dependencies_only}.generate();
 }
 
 } // namespace janus::backend::llvm

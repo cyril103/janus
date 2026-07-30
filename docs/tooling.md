@@ -8,8 +8,10 @@
 | `janus init [dossier]` | initialiser Janus dans un dossier existant |
 | `janus check` | analyser le projet sans construire d'exécutable |
 | `janus run` | compiler et exécuter |
-| `janus build` | construire en mode développement |
+| `janus build` | construire en mode développement avec cache incrémental |
 | `janus build --release` | construire avec optimisations |
+| `janus build --no-cache` | forcer une construction sans lire ni écrire le cache |
+| `janus clean` | supprimer `target/`, cache incrémental compris |
 | `janus test [filtre]` | exécuter les tests et doctests |
 | `janus test --doc` | exécuter uniquement les doctests |
 | `janus fmt` | formater `src/` et `tests/` |

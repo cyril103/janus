@@ -172,6 +172,9 @@ target_link_libraries(janus_llvm_backend
 llvm_map_components_to_libnames(
     JANUS_LLVM_LIBS
     Core
+    BitReader
+    BitWriter
+    Linker
     Support
     native
     nativecodegen
@@ -210,6 +213,7 @@ add_library(janus_driver
     src/driver/documentation.cpp
     src/driver/doctest.cpp
     src/driver/formatter.cpp
+    src/driver/incremental_cache.cpp
     src/driver/native_linker.cpp
     src/driver/manifest.cpp
     src/driver/project.cpp
@@ -221,6 +225,8 @@ add_library(janus_driver
 target_link_libraries(janus_driver
     PUBLIC
         janus_frontend
+    PRIVATE
+        janus_constant
 )
 if(WIN32)
     target_link_libraries(janus_driver PRIVATE shell32)
@@ -784,6 +790,35 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME driver.temporary_directory COMMAND temporary_directory_test)
+    add_executable(incremental_cache_test
+        tests/driver/incremental_cache_test.cpp
+    )
+    target_link_libraries(incremental_cache_test
+        PRIVATE
+            janus_driver
+            Threads::Threads
+    )
+    target_compile_options(incremental_cache_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME driver.incremental_cache COMMAND incremental_cache_test)
+    add_test(
+        NAME cli.incremental_cache
+        COMMAND "${CMAKE_COMMAND}"
+                -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                -DJANUS=$<TARGET_FILE:janus>
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_incremental_cache_cli.cmake"
+    )
+    add_test(
+        NAME cli.incremental_cache_concurrent
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/driver/run_incremental_cache_concurrent.py"
+                --janus "$<TARGET_FILE:janus>"
+                --work-dir "${PROJECT_BINARY_DIR}/incremental-cache-concurrent"
+    )
     foreach(INDEX RANGE 1 8)
         add_test(
             NAME cli.concurrent_build_${INDEX}

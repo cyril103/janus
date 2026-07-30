@@ -121,8 +121,10 @@ janus check          # vérifier le programme sans produire d'exécutable
 janus run            # compiler puis exécuter
 janus build          # construire un exécutable dans target/
 janus build --release
+janus build --no-cache       # compiler sans lire ni écrire le cache
 janus build --timings       # détailler les phases de compilation
 janus build --timings=json  # produire un rapport exploitable par CI
+janus clean                 # supprimer target/ et le cache incrémental
 janus test           # exécuter les tests et les doctests documentaires
 janus test --doc     # exécuter uniquement les doctests
 janus fmt            # formater les fichiers Janus
@@ -130,6 +132,9 @@ janus fmt --check    # vérifier le formatage sans modifier les fichiers
 janus doc            # générer la documentation d'API dans target/doc/
 janus doc --open     # générer puis ouvrir la documentation
 ```
+
+Le cache de construction, ses règles d'invalidation et son mode de récupération
+sont décrits dans [Construction incrémentale](docs/incremental-builds.md).
 
 Les blocs Markdown marqués `// doctest: doctest` sont compilés avec le contexte
 du paquet. Consultez le [contrat des doctests](docs/doctests.md) pour les

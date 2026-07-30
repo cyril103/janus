@@ -183,7 +183,7 @@ def main() : int { return hour }
                  "@__janus_global_entry__falseValue = constant i1 false") !=
                  std::string::npos,
          "constant casts cover floating-point and boolean destinations");
-  expect(constant_ir.find("define internal void @__janus_init_globals") ==
+  expect(constant_ir.find("define hidden void @__janus_init_globals_consumer") ==
              std::string::npos,
          "constant casts do not require runtime global initialization");
   expect(constant_ir.find(
@@ -230,7 +230,7 @@ def main() : int { return dynamic }
              "@__janus_global_entry__dynamic = global i32 0") !=
              std::string::npos,
          "dynamic global starts with zeroed native storage");
-  expect(dynamic_ir.find("define internal void @__janus_init_globals()") !=
+  expect(dynamic_ir.find("define hidden void @__janus_init_globals_consumer()") !=
              std::string::npos,
          "dynamic globals generate an initialization function");
   expect(dynamic_ir.find("call i32 @compute()") != std::string::npos &&
@@ -238,7 +238,7 @@ def main() : int { return dynamic }
                  "store i32 %compute.result, ptr "
                  "@__janus_global_entry__dynamic") != std::string::npos,
          "dynamic initializer result is stored globally");
-  expect(dynamic_ir.find("call void @__janus_init_globals()") !=
+  expect(dynamic_ir.find("call void @__janus_init_globals_consumer()") !=
              std::string::npos,
          "entry point invokes global initialization");
   expect_compile_error(
@@ -317,7 +317,7 @@ def main() : int {
              "@__janus_global_entry__origin = constant %struct.Point") !=
              std::string::npos,
          "constant struct globals use inline static storage");
-  expect(aggregate_ir.find("define internal void @__janus_init_globals") ==
+  expect(aggregate_ir.find("define hidden void @__janus_init_globals_consumer") ==
              std::string::npos,
          "constant aggregate globals require no runtime initializer");
   expect(aggregate_ir.find(
@@ -378,7 +378,7 @@ def main() : int { return callback() }
   owned_module->print(owned_output, nullptr);
   owned_output.flush();
   const std::size_t finalizer =
-      owned_ir.find("define internal void @__janus_fini_globals()");
+      owned_ir.find("define hidden void @__janus_fini_globals_consumer()");
   const std::size_t free_memory =
       owned_ir.find("call void @janus_free", finalizer);
   const std::size_t free_callback =
@@ -392,17 +392,17 @@ def main() : int { return callback() }
              free_memory < free_callback &&
              free_callback < destroy_resource,
          "owning globals are finalized in reverse declaration order");
-  expect(owned_ir.find("call void @__janus_fini_globals()") !=
+  expect(owned_ir.find("call void @__janus_fini_globals_consumer()") !=
              std::string::npos,
          "entry point invokes global finalization");
   expect(owned_ir.find(
-             "@__janus_globals_initialization_started = internal global i1 "
+             "@__janus_globals_initialization_started_consumer = hidden global i1 "
              "false") != std::string::npos &&
              owned_ir.find(
-                 "@__janus_globals_finalization_finished = internal global "
+                 "@__janus_globals_finalization_finished_consumer = hidden global "
                  "i1 false") != std::string::npos,
          "global initialization and finalization have idempotency guards");
-  expect(owned_ir.find("@__janus_globals_initialized_count = internal global "
+  expect(owned_ir.find("@__janus_globals_initialized_count_consumer = hidden global "
                        "i64 0") != std::string::npos &&
              owned_ir.find("icmp uge i64 %initialized.count") !=
                  std::string::npos,
@@ -410,11 +410,23 @@ def main() : int { return callback() }
   const std::size_t register_panic_cleanup =
       owned_ir.find("call void @janus_set_panic_cleanup");
   const std::size_t invoke_initializer =
-      owned_ir.find("call void @__janus_init_globals()", register_panic_cleanup);
+      owned_ir.find("call void @__janus_init_globals_consumer()",
+                    register_panic_cleanup);
   expect(register_panic_cleanup != std::string::npos &&
              invoke_initializer != std::string::npos &&
              register_panic_cleanup < invoke_initializer,
          "panic cleanup is registered before dynamic global initialization");
+  const std::size_t panic_finalizer =
+      owned_ir.find("define internal void @__janus_fini_globals_panic()");
+  const std::size_t panic_consumer = owned_ir.find(
+      "call void @__janus_fini_globals_consumer()", panic_finalizer);
+  const std::size_t panic_dependencies = owned_ir.find(
+      "call void @__janus_fini_globals_dependencies()", panic_consumer);
+  expect(panic_finalizer != std::string::npos &&
+             panic_consumer != std::string::npos &&
+             panic_dependencies != std::string::npos &&
+             panic_consumer < panic_dependencies,
+         "panic cleanup finalizes consumer and dependency globals in reverse order");
   expect_compile_error(
       "class Resource() {}\n"
       "var resource : Resource = new Resource()\n"

@@ -26,7 +26,8 @@ public:
   [[nodiscard]] std::unique_ptr<::llvm::Module>
   generate(const ast::Program &program,
            std::string_view module_name = "janus_module",
-           PanicTraceMode panic_trace = PanicTraceMode::Full);
+           PanicTraceMode panic_trace = PanicTraceMode::Full,
+           bool dependencies_only = false);
 
 private:
   ::llvm::LLVMContext &context_;
