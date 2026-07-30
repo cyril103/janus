@@ -88,7 +88,7 @@ std::string shell_quote_string(std::string_view value) {
 }
 
 std::string shell_quote(const std::filesystem::path &path) {
-  return shell_quote_string(path.string());
+  return shell_quote_string(path.generic_string());
 }
 
 int command_status(int status) {
