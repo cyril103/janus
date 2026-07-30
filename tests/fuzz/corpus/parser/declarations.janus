@@ -1,0 +1,5 @@
+trait Named { def name() : string }
+struct Point { val x : int, val y : int }
+enum Maybe[T] { None, Some(T) }
+def identity[T](value : T) : T { return value }
+def main() : int { return identity[int](0) }

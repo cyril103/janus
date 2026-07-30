@@ -157,18 +157,27 @@ JANUS_PREVIOUS=/opt/janus-N/bin/janus \
 Checklist de release :
 
 1. vérifier que la version, le changelog et l'extension VS Code sont alignés ;
-2. relire le [contrat de stabilité](stability-contract.md), notamment la liste
-   des API expérimentales, et documenter toute promotion ou dépréciation ;
-3. pour une version 1.x, exécuter la suite N/N+1 avec le dernier compilateur
-   publié et le candidat sur chaque plateforme de niveau 1 ;
+2. relire le [contrat de stabilité](stability-contract.md) et
+   l'[inventaire 0.8](stability-inventory-0.8.md), notamment la liste des API
+   expérimentales, et documenter toute promotion ou dépréciation ;
+3. à partir du candidat 0.8, exécuter la suite N/N+1 avec le dernier compilateur
+   publié et le candidat ; pour 1.x, l'exécuter sur chaque plateforme tier-1 ;
 4. joindre un guide de migration à tout changement incompatible autorisé ;
 5. vérifier manifestes et lockfiles précédents avec `--locked --offline` ;
-6. terminer la validation de l'archive et de l'extension.
+6. vérifier la [politique critique 0.8](release-severity-policy-0.8.md) et le
+   [rapport de préparation 1.0](readiness-1.0.md) ;
+7. terminer la validation de l'archive et de l'extension.
 
 La commande N/N+1 exacte est documentée dans
 [`tests/compatibility`](../tests/compatibility/README.md). CTest exécute aussi
 `compatibility.current` avec le compilateur courant des deux côtés afin de
 garder le harnais et les fixtures fonctionnels avant 1.0.
+
+La campagne planifiée `diagnostic-fuzz` exécute sous ASan et UBSan les corpus
+versionnés `tests/fuzz/corpus/{lexer,parser,manifest,resolver}`. Chaque mode
+dispose d'un job parallèle de 3 600 secondes. Les tests `fuzz.smoke.*`
+contrôlent rapidement le harnais à chaque changement sans prétendre remplacer
+ces quatre sessions longues.
 
 ## Organisation du dépôt
 

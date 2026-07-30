@@ -11,6 +11,10 @@ Les mots « doit », « ne doit pas » et « garanti » désignent une obligatio
 compatibilité. Les guides décrivent l'usage courant ; en cas de contradiction
 à partir de Janus 1.0, ce contrat prévaut.
 
+Le [candidat audité 0.8](stability-inventory-0.8.md) classe chaque surface
+comme `stable-candidate` ou `experimental`. Cette classification prépare le
+contrat, sans activer avant 1.0 les garanties normatives du présent document.
+
 ## Périmètre public
 
 Le contrat couvre :

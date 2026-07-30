@@ -27,3 +27,7 @@ Une fixture ne doit utiliser qu'une surface déclarée stable. Toute modificatio
 d'une sortie attendue doit être justifiée selon la procédure de migration du
 contrat.
 
+La CI 0.8 télécharge l'archive Linux vérifiée de Janus 0.7.6 et l'archive du
+candidat construite par la matrice. Elle exécute cette commande avec les deux
+binaires réels : le test CTest courant reste un contrôle rapide, tandis que ce
+job constitue la preuve N/N+1 de release.
