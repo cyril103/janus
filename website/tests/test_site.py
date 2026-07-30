@@ -69,6 +69,7 @@ EXPECTED_COMMANDS = {
     "publish",
     "remove",
     "run",
+    "search",
     "test",
 }
 BOOK = [f"{number:02d}-" for number in range(1, 9)]

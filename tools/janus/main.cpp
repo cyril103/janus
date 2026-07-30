@@ -172,9 +172,10 @@ void print_usage(std::ostream &output) {
          << "  janus new <directory> [--name <name>]\n"
          << "  janus init [directory] [--name <name>]\n"
          << "  janus add <name>[@<version>] [--path <path> | "
-            "--git <url> --rev <commit>]\n"
+            "--git <url> --rev <commit>] [--registry <url>]\n"
          << "  janus remove <name>\n"
-         << "  janus publish\n"
+         << "  janus search <query> [--registry <url>]\n"
+         << "  janus publish [--registry <url>]\n"
          << "  janus clean\n"
          << "  janus check [source.janus] "
             "[--diagnostic-format human|json]\n"
@@ -248,16 +249,42 @@ void print_compile_error(const std::filesystem::path &path,
 
 int manage_package(int argc, char **argv) {
   const std::string command = argv[1];
+  if (command == "search") {
+    if (argc < 3)
+      throw std::runtime_error{"search requires a query"};
+    const std::string query = argv[2];
+    std::string registry;
+    for (int index = 3; index < argc; ++index) {
+      if (std::string_view{argv[index]} != "--registry" || ++index == argc)
+        throw std::runtime_error{
+            "search only accepts a query and --registry <url>"};
+      registry = argv[index];
+    }
+    const auto results = janus::driver::search_registry(query, registry);
+    for (const janus::driver::RegistrySearchResult &result : results) {
+      std::cout << result.package << ' ' << result.latest_version;
+      if (!result.description.empty())
+        std::cout << " - " << result.description;
+      std::cout << '\n';
+    }
+    return 0;
+  }
   const std::filesystem::path manifest_path =
       janus::driver::find_manifest(std::filesystem::current_path());
   if (command == "publish") {
-    if (argc != 2)
-      throw std::runtime_error{"publish does not accept arguments"};
+    std::string registry;
+    if (argc != 2) {
+      if (argc != 4 || std::string_view{argv[2]} != "--registry")
+        throw std::runtime_error{"publish only accepts --registry <url>"};
+      registry = argv[3];
+    }
     const janus::driver::Manifest manifest =
         janus::driver::load_manifest(manifest_path);
-    janus::driver::publish_package(manifest);
+    janus::driver::publish_package(manifest, registry);
+    const std::string location =
+        registry.empty() ? janus::driver::registry_location() : registry;
     std::cout << "published " << manifest.name << ' ' << manifest.version
-              << " to " << janus::driver::registry_root().string() << '\n';
+              << " to " << location << '\n';
     return 0;
   }
   if (command == "remove") {
@@ -294,6 +321,10 @@ int manage_package(int argc, char **argv) {
       if (++index == argc)
         throw std::runtime_error{"--version requires a requirement"};
       dependency.version_requirement = argv[index];
+    } else if (argument == "--registry") {
+      if (++index == argc)
+        throw std::runtime_error{"--registry requires a URL"};
+      dependency.registry = argv[index];
     } else {
       throw std::runtime_error{"unknown add option '" + std::string{argument} +
                                "'"};
@@ -1368,6 +1399,7 @@ int main(int argc, char **argv) {
       return create_or_initialize(argc, argv);
     if (argc >= 2 && (std::string_view{argv[1]} == "add" ||
                       std::string_view{argv[1]} == "remove" ||
+                      std::string_view{argv[1]} == "search" ||
                       std::string_view{argv[1]} == "publish"))
       return manage_package(argc, argv);
     Options options = parse_options(argc, argv);

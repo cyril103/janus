@@ -1,4 +1,5 @@
 #include "janus/driver/registry.hpp"
+#include "janus/driver/remote_registry.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -32,8 +33,16 @@ void validate_text(std::string_view value, std::string_view description) {
 std::string dependency_line(const janus::driver::Dependency &dependency) {
   validate_text(dependency.name, "dependency name");
   validate_text(dependency.version_requirement, "version requirement");
-  if (dependency.is_registry())
-    return dependency.name + " = \"" + dependency.version_requirement + "\"";
+  if (dependency.is_registry()) {
+    if (!dependency.registry.empty())
+      validate_text(dependency.registry, "registry URL");
+    return dependency.registry.empty()
+               ? dependency.name + " = \"" + dependency.version_requirement +
+                     "\""
+               : dependency.name + " = { version = \"" +
+                     dependency.version_requirement + "\", registry = \"" +
+                     dependency.registry + "\" }";
+  }
   std::string result = dependency.name + " = { ";
   if (dependency.is_git()) {
     validate_text(dependency.git, "Git URL");
@@ -53,30 +62,39 @@ std::string dependency_line(const janus::driver::Dependency &dependency) {
 
 namespace janus::driver {
 
-std::filesystem::path registry_root() {
+std::string registry_location() {
   if (const char *configured = std::getenv("JANUS_REGISTRY"))
     return configured;
-  if (const char *janus_home = std::getenv("JANUSUP_HOME"))
-    return std::filesystem::path{janus_home} / "registry";
-#ifdef _WIN32
-  if (const char *local = std::getenv("LOCALAPPDATA"))
-    return std::filesystem::path{local} / "Janus/registry";
-#else
-  if (const char *home = std::getenv("HOME"))
-    return std::filesystem::path{home} / ".janus/registry";
-#endif
-  throw std::runtime_error{"cannot determine the Janus registry directory"};
+  return "https://registry.janus-lang.org";
 }
 
-void publish_package(const Manifest &manifest) {
+bool is_remote_registry(std::string_view location) {
+  return location.starts_with("https://") || location.starts_with("http://");
+}
+
+std::filesystem::path registry_root() {
+  const std::string location = registry_location();
+  if (is_remote_registry(location))
+    throw std::runtime_error{"the configured registry is remote"};
+  return location;
+}
+
+void publish_package(const Manifest &manifest, const std::string &registry) {
+  const std::string location =
+      registry.empty() ? registry_location() : registry;
+  if (is_remote_registry(location)) {
+    publish_remote_package(manifest, location);
+    return;
+  }
   if (!std::filesystem::is_directory(manifest.root() / "src"))
     throw std::runtime_error{"cannot publish a package without src/"};
   for (const Dependency &dependency : manifest.dependencies)
     if (!dependency.is_git() && !dependency.is_registry())
       throw std::runtime_error{"cannot publish path dependency '" +
                                dependency.name + "'"};
-  const std::filesystem::path destination =
-      registry_root() / manifest.name / manifest.version / "package";
+  const std::filesystem::path destination = std::filesystem::path{location} /
+                                            manifest.name / manifest.version /
+                                            "package";
   if (std::filesystem::exists(destination))
     throw std::runtime_error{"package " + manifest.name + " " +
                              manifest.version + " is already published"};

@@ -48,6 +48,7 @@ Les segments sont encodés séparément ; après décodage, tout segment contena
 | Méthode et ressource | Réponse / corps normatif |
 | --- | --- |
 | `GET /.well-known/janus-registry` | négociation conforme à `discovery.schema.json` |
+| `GET /v1/search?q={texte}` | résultats publics conformes à `search.schema.json`, triés de façon stable par identité canonique |
 | `GET /v1/packages/{namespace}/{name}` | index conforme à `index.schema.json` |
 | `GET /v1/packages/{namespace}/{name}/{version}/metadata` | métadonnées conformes à `metadata.schema.json` |
 | `GET /v1/packages/{namespace}/{name}/{version}/archive.tar.gz` | archive gzip déterministe dont SHA-256 et taille correspondent aux métadonnées |
@@ -55,6 +56,11 @@ Les segments sont encodés séparément ; après décodage, tout segment contena
 | `PUT /v1/packages/{namespace}/{name}/{version}` | publication atomique authentifiée, métadonnées + manifeste + archive |
 | `POST /v1/packages/{namespace}/{name}/{version}/yank` | changement du seul état de résolution |
 | `DELETE /v1/packages/{namespace}/{name}/{version}/yank` | restauration du seul état de résolution |
+
+La recherche est informative et ne participe jamais à la résolution. Le
+paramètre `q` est UTF-8 encodé dans la query, ne contient aucun secret et le
+serveur peut rechercher identité et description. Une installation repart
+toujours de l'identité canonique retournée et de son index vérifié.
 
 Les réponses JSON sont sérialisées selon RFC 8785 (JCS) avant calcul d'une
 empreinte ; les consommateurs vérifient les octets canoniques, pas une

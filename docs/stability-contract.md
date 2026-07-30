@@ -165,14 +165,17 @@ Le format stable de `janus.toml` comprend :
 
 - `[package]` avec `name`, `version` et `entry` ;
 - `[dependencies]` avec sources locales, Git ou registre et contraintes de
-  version documentées ;
+  version documentées ; une dépendance distante peut épingler son champ
+  `registry` explicite ;
 - des versions conformes au versionnage sémantique.
 
 Une version mineure peut ajouter un champ facultatif. Un champ stable existant
 ne change pas de sens avant une version majeure.
 
 `janus.lock` est généré, porte un numéro de format et enregistre pour chaque
-dépendance son nom, sa source, sa version et, pour Git, sa révision. Une version
+dépendance son nom, sa source, sa version et, pour Git, sa révision. Pour un
+registre distant, il conserve aussi l'URL canonique et les SHA-256 des
+métadonnées et de l'archive. Une version
 1.x doit lire tous les lockfiles de format `version = 1`. Un nouveau format
 doit utiliser un nouveau numéro, fournir une migration et ne jamais réécrire
 silencieusement un lockfile en mode `--locked`.
@@ -185,8 +188,9 @@ différentes restent un conflit.
 Le [protocole du registre v1](registry-protocol-v1.md) est versionné à partir de
 Janus 0.7.9 : ses identités, ressources, schémas, règles d'immuabilité, de yank
 et de vérification des lockfiles ne changent pas de sens sans nouveau numéro de
-protocole. Le client distant, l'hébergement du service de référence, la
-provenance et l'organisation interne des caches restent expérimentaux.
+protocole. Le client distant et l'organisation interne de ses caches restent
+expérimentaux. L'hébergement du service de référence et la provenance sont
+prévus par le lot suivant.
 
 ## Bibliothèque standard
 

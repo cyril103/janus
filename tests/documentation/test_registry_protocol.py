@@ -175,6 +175,7 @@ class RegistryProtocolV1Tests(unittest.TestCase):
     def test_v1_json_schemas_are_strict_and_versioned(self):
         expected = {
             "discovery.schema.json",
+            "search.schema.json",
             "index.schema.json",
             "metadata.schema.json",
             "archive-manifest.schema.json",
@@ -218,7 +219,14 @@ class RegistryProtocolV1Tests(unittest.TestCase):
                             )
 
     def test_valid_fixtures_pin_registry_metadata_and_archive(self):
-        for stem in ("discovery", "index", "metadata", "archive-manifest", "resolution"):
+        for stem in (
+            "discovery",
+            "search",
+            "index",
+            "metadata",
+            "archive-manifest",
+            "resolution",
+        ):
             with self.subTest(fixture=stem):
                 validate_schema(
                     self,

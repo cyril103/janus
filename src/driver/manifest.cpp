@@ -102,7 +102,9 @@ std::map<std::string, std::string> parse_inline_table(std::string value,
 }
 
 void validate(const janus::driver::Manifest &manifest) {
-  if (!std::regex_match(manifest.name, std::regex{"[A-Za-z][A-Za-z0-9_-]*"}))
+  if (!std::regex_match(
+          manifest.name,
+          std::regex{R"([A-Za-z][A-Za-z0-9_-]*(?:/[A-Za-z][A-Za-z0-9_-]*)?)"}))
     throw std::runtime_error{
         "janus.toml: package.name must be a valid identifier"};
   if (!std::regex_match(
@@ -116,8 +118,10 @@ void validate(const janus::driver::Manifest &manifest) {
     throw std::runtime_error{
         "janus.toml: package.entry must be a relative .janus path"};
   for (const janus::driver::Dependency &dependency : manifest.dependencies) {
-    if (!std::regex_match(dependency.name,
-                          std::regex{"[A-Za-z][A-Za-z0-9_-]*"}))
+    if (!std::regex_match(
+            dependency.name,
+            std::regex{
+                R"([A-Za-z][A-Za-z0-9_-]*(?:/[A-Za-z][A-Za-z0-9_-]*)?)"}))
       throw std::runtime_error{"janus.toml: invalid dependency name '" +
                                dependency.name + "'"};
     if (dependency.is_registry()) {
@@ -126,13 +130,13 @@ void validate(const janus::driver::Manifest &manifest) {
         throw std::runtime_error{"janus.toml: registry dependency '" +
                                  dependency.name + "' requires a version"};
     } else if (dependency.is_git()) {
-      if (!dependency.path.empty() ||
+      if (!dependency.path.empty() || !dependency.registry.empty() ||
           !std::regex_match(dependency.revision, std::regex{"[0-9a-fA-F]{40}"}))
         throw std::runtime_error{
             "janus.toml: Git dependency '" + dependency.name +
             "' requires git and a full 40-character commit rev"};
     } else if (dependency.path.empty() || dependency.path.is_absolute() ||
-               !dependency.revision.empty()) {
+               !dependency.revision.empty() || !dependency.registry.empty()) {
       throw std::runtime_error{"janus.toml: path dependency '" +
                                dependency.name +
                                "' requires one relative path"};
@@ -211,10 +215,12 @@ Manifest load_manifest(const std::filesystem::path &path) {
           dependency.revision = found->second;
         if (const auto found = fields.find("version"); found != fields.end())
           dependency.version_requirement = found->second;
+        if (const auto found = fields.find("registry"); found != fields.end())
+          dependency.registry = found->second;
         for (const auto &[field, unused] : fields) {
           static_cast<void>(unused);
           if (field != "path" && field != "git" && field != "rev" &&
-              field != "version")
+              field != "version" && field != "registry")
             throw std::runtime_error{
                 "janus.toml:" + std::to_string(line_number) +
                 ": unknown dependency field '" + field + "'"};
