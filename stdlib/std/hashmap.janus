@@ -1,4 +1,16 @@
-/// Fournit une table associative propriétaire et ses vues d’itération.
+/// Fournit une table associative propriétaire fondée sur le hachage.
+///
+/// [[HashMap]] associe des clés à des valeurs selon une stratégie [[Hashing]],
+/// avec sondage linéaire et redimensionnement automatique. Les opérations de
+/// recherche sont amorties constantes lorsque les hachages sont bien répartis;
+/// l’itération suit l’ordre interne des cases et non l’ordre d’insertion.
+/// @example
+/// ```janus
+/// val scores : HashMap[int, int, IntHashing] =
+///     new HashMap[int, int, IntHashing](usize(8), new IntHashing())
+/// delete scores.put(7, 42)
+/// val score : Option[int] = scores.getOption(7)
+/// ```
 module std.hashmap
 import std.array
 import std.builder
@@ -7,11 +19,16 @@ import std.hashing
 import std.iterator
 import std.option
 
-/// Représente le type public `MapEntry`.
+/// Paire propriétaire clé-valeur produite par les parcours d’une [[HashMap]].
+///
+/// Une entrée possède ses deux membres. Les méthodes `intoKey` et `intoValue`
+/// consomment l’entrée, déplacent le membre demandé et détruisent l’autre.
+/// @param key Clé dont l’entrée prend possession.
+/// @param value Valeur associée dont l’entrée prend possession.
 struct MapEntry[K, V](
-/// Expose le membre public `key`.
+/// Clé possédée de l’association.
 val key : K,
-/// Expose le membre public `value`.
+/// Valeur possédée associée à [[MapEntry.key]].
 val value : V
 ) {
     internal consume def insertInto[H <: Hashing[K]](
@@ -22,22 +39,32 @@ val value : V
         delete previous
     }
 
-    /// Exécute l’opération publique `intoKey`.
+    /// Consomme l’entrée pour n’en conserver que la clé.
+    ///
+    /// La valeur associée est détruite avant le retour.
+    /// @return Clé déplacée hors de l’entrée.
     consume def intoKey() : K {
         delete value
         return move key
     }
 
-    /// Exécute l’opération publique `intoValue`.
+    /// Consomme l’entrée pour n’en conserver que la valeur.
+    ///
+    /// La clé est détruite avant le retour.
+    /// @return Valeur déplacée hors de l’entrée.
     consume def intoValue() : V {
         delete key
         return move value
     }
 }
 
+/// Décrit l’état interne d’une case de la table à adressage ouvert.
 private enum MapSlot[K, V] {
+    /// Case jamais occupée, qui termine une recherche par sondage.
     Empty,
+    /// Case contenant une clé et sa valeur, toutes deux possédées par la table.
     Occupied(K, V),
+    /// Tombstone conservant la continuité des chaînes de sondage après suppression.
     Deleted
 }
 
@@ -135,7 +162,16 @@ private var index : usize
     }
 }
 
-/// Représente le type public `HashMap`.
+/// Table associative propriétaire à adressage ouvert et sondage linéaire.
+///
+/// La table possède ses clés, ses valeurs et la stratégie `hashing`. Une clé
+/// existante est reconnue par [[Hashing.equals]] au sein de sa chaîne de sondage.
+/// La capacité minimale est 8 et la table se réorganise lorsque valeurs et
+/// tombstones approchent 75 % des cases. Les méthodes d’observation copient les
+/// résultats concernés; [[HashMap.intoEntries]] transfère au contraire tout le
+/// contenu sans copie.
+/// @param initialCapacity Capacité souhaitée, normalisée à un minimum de 8.
+/// @param hashing Stratégie d’égalité et de hachage conservée par la table.
 class HashMap[K, V, H <: Hashing[K]](
 initialCapacity : usize,
 private val hashing : H
@@ -347,11 +383,13 @@ private val hashing : H
     }
 
     /// Retourne le nombre d’associations stockées.
+    /// @return Nombre de cases occupées, hors tombstones.
     def size() : usize {
         return length
     }
 
     /// Indique si la table ne contient aucune association.
+    /// @return `true` lorsque [[HashMap.size]] vaut zéro.
     def isEmpty() : bool {
         return length == usize(0)
     }
@@ -410,7 +448,12 @@ private val hashing : H
         }
     }
 
-    /// Exécute l’opération publique `containsKey`.
+    /// Teste la présence d’une clé selon la stratégie de la table.
+    ///
+    /// `key` est seulement observée. Le coût est amorti constant avec un bon
+    /// hachage et peut devenir linéaire en présence de nombreuses collisions.
+    /// @param key Clé à hacher puis comparer aux clés stockées.
+    /// @return `true` si une clé égale est présente.
     def containsKey(key : K) : bool {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
@@ -427,6 +470,11 @@ private val hashing : H
     }
 
     /// Retourne la valeur associée à la clé, si elle existe.
+    ///
+    /// La table conserve l’association et rend une copie de la valeur. La
+    /// complexité suit celle de [[HashMap.containsKey]].
+    /// @param key Clé observée utilisée pour la recherche.
+    /// @return `Some` avec une copie de la valeur associée, ou `None` si absente.
     def getOption(key : K) : Option[V] {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
@@ -474,7 +522,15 @@ private val hashing : H
         }
     }
 
-    /// Exécute l’opération publique `put`.
+    /// Insère une association ou remplace la valeur d’une clé existante.
+    ///
+    /// La table prend possession de `key` et `value`. Lors d’un remplacement, la
+    /// clé fournie devient la clé stockée, l’ancienne clé est détruite et
+    /// l’ancienne valeur est rendue. Une insertion peut réorganiser toutes les
+    /// cases pour agrandir la table ou éliminer les tombstones.
+    /// @param key Clé déplacée dans la table.
+    /// @param value Valeur déplacée dans la table.
+    /// @return `Some` avec l’ancienne valeur remplacée, ou `None` pour une nouvelle clé.
     def put(key : K, value : V) : Option[V] {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
@@ -549,6 +605,12 @@ private val hashing : H
     }
 
     /// Retire l’association et retourne son ancienne valeur.
+    ///
+    /// La clé de recherche est observée; si une association est trouvée, sa clé
+    /// stockée est détruite et sa valeur est transférée à l’appelant. La case
+    /// devient un tombstone jusqu’à une réorganisation ultérieure.
+    /// @param key Clé à rechercher selon la stratégie de la table.
+    /// @return `Some` avec la valeur retirée, ou `None` si la clé est absente.
     def remove(key : K) : Option[V] {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
@@ -581,7 +643,10 @@ private val hashing : H
         return Option.Some[V](move value)
     }
 
-    /// Réinitialise l’état.
+    /// Détruit toutes les clés et valeurs tout en conservant la capacité.
+    ///
+    /// Toutes les cases, tombstones compris, redeviennent vides. L’opération est
+    /// linéaire dans la capacité de stockage.
     def clear() : Unit {
         this.initializeSlots()
         var index : usize = usize(0)
@@ -593,7 +658,12 @@ private val hashing : H
         deletedCount = usize(0)
     }
 
-    /// Exécute l’opération publique `entries`.
+    /// Crée un parcours observant de copies des associations.
+    ///
+    /// La table reste propriétaire de son contenu et doit vivre pendant le
+    /// parcours. L’ordre correspond aux cases internes et peut changer après une
+    /// insertion ou un redimensionnement.
+    /// @return Un [[Iterator]] d’entrées copiées; exige clés et valeurs `Copy`.
     def entries() : Iterator[MapEntry[K, V]] {
         val state : MapEntryIteratorState[K, V, H] =
         new MapEntryIteratorState[K, V, H](this, usize(0))
@@ -603,7 +673,11 @@ private val hashing : H
         )
     }
 
-    /// Exécute l’opération publique `keys`.
+    /// Crée un parcours observant de copies des clés.
+    ///
+    /// La table n’est pas consommée et doit rester vivante pendant le parcours;
+    /// l’ordre n’est ni trié ni garanti comme ordre d’insertion.
+    /// @return Un [[Iterator]] de clés copiées; exige `K <: Copy`.
     def keys() : Iterator[K] {
         val state : MapKeyIteratorState[K, V, H] =
         new MapKeyIteratorState[K, V, H](this, usize(0))
@@ -613,7 +687,11 @@ private val hashing : H
         )
     }
 
-    /// Exécute l’opération publique `values`.
+    /// Crée un parcours observant de copies des valeurs.
+    ///
+    /// La table conserve les associations et doit vivre pendant le parcours. Les
+    /// valeurs suivent l’ordre interne des cases de leurs clés.
+    /// @return Un [[Iterator]] de valeurs copiées; exige `V <: Copy`.
     def values() : Iterator[V] {
         val state : MapValueIteratorState[K, V, H] =
         new MapValueIteratorState[K, V, H](this, usize(0))
@@ -623,7 +701,12 @@ private val hashing : H
         )
     }
 
-    /// Exécute l’opération publique `intoEntries`.
+    /// Consomme la table et transfère ses associations à un parcours.
+    ///
+    /// Chaque entrée produite reçoit la clé et la valeur de sa case sans copie.
+    /// Détruire prématurément l’itérateur détruit la table et toutes les
+    /// associations qui n’ont pas été extraites.
+    /// @return Un [[Iterator]] propriétaire des [[MapEntry]] de la table.
     consume def intoEntries() : Iterator[MapEntry[K, V]] {
         val state : MapEntryIntoIteratorState[K, V, H] =
         new MapEntryIntoIteratorState[K, V, H](move this, usize(0))
@@ -638,7 +721,13 @@ private val hashing : H
     }
 }
 
-/// Représente le type public `MapBuilder`.
+/// Constructeur mutable de [[HashMap]] à partir de [[MapEntry]].
+///
+/// Le constructeur possède la table en cours. `add` consomme chaque entrée et
+/// détruit toute valeur remplacée. [[MapBuilder.result]] transfère la table
+/// terminée puis réinitialise le constructeur avec une capacité de 8.
+/// @param initialCapacity Capacité initiale souhaitée pour la table accumulée.
+/// @param hashing Stratégie conservée et réutilisée après chaque résultat.
 class MapBuilder[K, V, H <: Hashing[K]](
 initialCapacity : usize,
 private val hashing : H
@@ -647,21 +736,30 @@ private val hashing : H
     new HashMap[K, V, H](initialCapacity, hashing)
 
     /// Ajoute une valeur.
+    ///
+    /// L’entrée est consommée. Si sa clé existe déjà, la valeur précédemment
+    /// accumulée est détruite.
+    /// @param entry Association dont la clé et la valeur sont transférées au constructeur.
     def add(entry : MapEntry[K, V]) : Unit {
         entry.insertInto[H](values)
     }
 
     /// Retourne le nombre d’associations accumulées.
+    /// @return Nombre de clés distinctes dans la table en cours.
     def size() : usize {
         return values.size()
     }
 
-    /// Réinitialise l’état.
+    /// Détruit toutes les associations accumulées sans changer la capacité.
     def clear() : Unit {
         values.clear()
     }
 
     /// Produit la table associative construite.
+    ///
+    /// La table courante est déplacée vers l’appelant. Le constructeur reste
+    /// utilisable avec une nouvelle table vide de capacité initiale 8.
+    /// @return [[HashMap]] possédant les associations accumulées.
     def result() : HashMap[K, V, H] {
         val completed : HashMap[K, V, H] = move values
         values = new HashMap[K, V, H](usize(8), hashing)

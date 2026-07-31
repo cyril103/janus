@@ -1,4 +1,15 @@
-/// Fournit la construction de texte et le parsing typé avec erreurs structurées.
+/// Construit du texte UTF-8 et analyse des représentations scalaires avec erreurs structurées.
+///
+/// Une chaîne Janus est une vue empruntée d’octets avec longueur explicite.
+/// [[TextBuilder]] possède son allocation ; les parseurs ne modifient pas leur entrée
+/// et distinguent forme invalide, signe interdit et limites numériques.
+/// @example
+/// ```janus
+/// val builder = new TextBuilder()
+/// builder.append("port=")
+/// builder.appendInt(8080)
+/// val parsed = parseInt("8080")
+/// ```
 module std.text
 import std.result
 
@@ -67,19 +78,19 @@ error : Ptr[int]) : double
 private extern def janus_parse_char(data : Ptr[byte], length : usize,
 error : Ptr[int]) : char
 
-/// Énumère les états publics de `ParseError`.
+/// Explique pourquoi une chaîne ne peut pas être convertie vers le type demandé.
 enum ParseError {
-    /// Représente le cas `Empty`.
+    /// L’entrée ne contient aucun octet.
     Empty,
-    /// Représente le cas `Invalid`.
+    /// L’entrée ne respecte pas entièrement la syntaxe du type cible.
     Invalid,
-    /// Représente le cas `Sign`.
+    /// Le signe rencontré n’est pas permis pour le type cible, notamment un négatif vers un entier non signé.
     Sign,
-    /// Représente le cas `Overflow`.
+    /// La valeur est supérieure à la plus grande valeur représentable.
     Overflow,
-    /// Représente le cas `Underflow`.
+    /// La valeur est inférieure à la plus petite valeur représentable ou trop petite en magnitude flottante selon le parseur natif.
     Underflow,
-    /// Représente le cas `NonFinite`.
+    /// Une valeur flottante non finie, telle qu’un infini ou NaN, a été refusée.
     NonFinite
 }
 
@@ -98,7 +109,11 @@ private def newParseStatus() : Ptr[int] {
     return status
 }
 
-/// Représente le type public `TextBuilder`.
+/// Constructeur mutable possédant un tampon de texte terminé par NUL en interne.
+///
+/// [[view]] emprunte ce tampon et reste valide seulement jusqu’à la prochaine
+/// mutation ou destruction. Les allocations impossibles et débordements provoquent
+/// un `panic`. [[appendChar]] encode un scalaire Unicode en UTF-8 et remplace un scalaire invalide par U+FFFD.
 class TextBuilder() {
     // allocated includes one byte reserved for the trailing C-compatible NUL.
     private var data : Ptr[byte] = alloc[byte](usize(128))
@@ -135,22 +150,25 @@ class TextBuilder() {
         data.store(length, byte(0))
     }
 
-    /// Réinitialise l’état.
+    /// Vide le texte tout en conservant l’allocation.
     def clear() : Unit {
         this.ensure(usize(0))
         length = usize(0)
         data.store(usize(0), byte(0))
     }
     /// Retourne la longueur du texte construit.
+    /// @return Nombre d’octets UTF-8, sans compter le NUL interne.
     def size() : usize { return length }
-    /// Exécute l’opération publique `view`.
+    /// Emprunte le contenu courant sous forme de chaîne.
+    /// @return Vue valide jusqu’à la prochaine mutation ou destruction du constructeur.
     def view() : string {
         this.ensure(usize(0))
         data.store(length, byte(0))
         return stringView(data, length)
     }
 
-    /// Ajoute une valeur.
+    /// Copie une chaîne à la fin du contenu.
+    /// @param value Octets à ajouter, sans terminateur ; une vue issue de ce même constructeur est acceptée.
     def append(value : string) : Unit {
         val source : Ptr[byte] = stringData(value)
         val aliasesBuilder : bool = source == data
@@ -165,82 +183,100 @@ class TextBuilder() {
         data.store(length, byte(0))
     }
     /// Ajoute la représentation décimale d’un `int`.
+    /// @param value Entier signé à formater en base dix.
     def appendInt(value : int) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_int(data, allocated, length, value))
     }
     /// Ajoute la représentation décimale d’un `uint`.
+    /// @param value Entier non signé à formater en base dix.
     def appendUInt(value : uint) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_uint(data, allocated, length, value))
     }
     /// Ajoute la représentation décimale d’un `long`.
+    /// @param value Entier signé long à formater en base dix.
     def appendLong(value : long) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_long(data, allocated, length, value))
     }
     /// Ajoute la représentation décimale d’un `ulong`.
+    /// @param value Entier non signé long à formater en base dix.
     def appendULong(value : ulong) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_ulong(data, allocated, length, value))
     }
     /// Ajoute la représentation décimale d’un `byte`.
+    /// @param value Octet signé à formater comme nombre décimal, non comme caractère brut.
     def appendByte(value : byte) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_byte(data, allocated, length, value))
     }
     /// Ajoute la représentation décimale d’un `ubyte`.
+    /// @param value Octet non signé à formater comme nombre décimal.
     def appendUByte(value : ubyte) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_ubyte(data, allocated, length, value))
     }
     /// Ajoute la représentation décimale d’un `short`.
+    /// @param value Entier court signé à formater en base dix.
     def appendShort(value : short) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_short(data, allocated, length, value))
     }
     /// Ajoute la représentation décimale d’un `ushort`.
+    /// @param value Entier court non signé à formater en base dix.
     def appendUShort(value : ushort) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_ushort(data, allocated, length, value))
     }
     /// Ajoute la représentation décimale d’un `isize`.
+    /// @param value Entier signé de taille native à formater en base dix.
     def appendISize(value : isize) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_isize(data, allocated, length, value))
     }
     /// Ajoute la représentation décimale d’un `usize`.
+    /// @param value Entier non signé de taille native à formater en base dix.
     def appendUSize(value : usize) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_usize(data, allocated, length, value))
     }
-    /// Ajoute la représentation d’un `float`.
+    /// Ajoute la représentation décimale native d’un `float`.
+    /// @param value Nombre simple précision à formater.
     def appendFloat(value : float) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_float(data, allocated, length, value))
     }
-    /// Ajoute la représentation d’un `double`.
+    /// Ajoute la représentation décimale native d’un `double`.
+    /// @param value Nombre double précision à formater.
     def appendDouble(value : double) : Unit {
         this.ensure(usize(64))
         this.wrote(janus_text_double(data, allocated, length, value))
     }
     /// Ajoute la représentation d’un booléen.
+    /// @param value Booléen formaté en `true` ou `false` par le runtime.
     def appendBool(value : bool) : Unit {
         this.ensure(usize(5))
         this.wrote(janus_text_bool(data, allocated, length, value))
     }
     /// Ajoute le caractère encodé en UTF-8.
+    /// @param value Scalaire Unicode ; une valeur invalide est remplacée par U+FFFD.
     def appendChar(value : char) : Unit {
         this.ensure(usize(4))
         this.wrote(janus_text_char(data, allocated, length, value))
     }
     /// Ajoute la représentation hexadécimale d’un entier.
+    /// @param value Entier non signé à formater en base seize.
+    /// @param uppercase Sélectionne les chiffres `A`–`F` si `true`, `a`–`f` sinon.
     def appendHex(value : ulong, uppercase : bool) : Unit {
         this.ensure(usize(32))
         this.wrote(janus_text_hex(data, allocated, length, value, uppercase))
     }
     // Fixed decimal formatting accepts 0..18 fractional digits.
     /// Ajoute un nombre décimal avec une précision fixe.
+    /// @param value Nombre double précision à formater en notation décimale fixe.
+    /// @param digits Nombre de chiffres après la virgule, accepté de 0 à 18 par le formateur natif.
     def appendFixed(value : double, digits : uint) : Unit {
         this.ensure(usize(384))
         this.wrote(janus_text_fixed(data, allocated, length, value, digits))
@@ -249,7 +285,9 @@ class TextBuilder() {
     destructor { free(data) }
 }
 
-/// Exécute l’opération publique `parseInt`.
+/// Analyse un entier signé `int` en représentation décimale.
+/// @param text Représentation complète à analyser ; aucun suffixe ne peut rester.
+/// @return `Ok(int)` ou `Error(ParseError)` décrivant entrée vide, syntaxe, signe ou dépassement.
 def parseInt(text : string) : Result[int, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : int = janus_parse_int(stringData(text), stringLength(text), error)
@@ -258,7 +296,9 @@ def parseInt(text : string) : Result[int, ParseError] {
     return if code == 0 { Result.Ok[int, ParseError](value) }
     else { Result.Error[int, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseUInt`.
+/// Analyse un entier non signé `uint` en représentation décimale.
+/// @param text Représentation complète à analyser.
+/// @return `Ok(uint)` ou `Error(ParseError)`, notamment `Sign` pour un signe interdit et `Overflow` hors plage.
 def parseUInt(text : string) : Result[uint, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : uint = janus_parse_uint(stringData(text), stringLength(text), error)
@@ -267,7 +307,9 @@ def parseUInt(text : string) : Result[uint, ParseError] {
     return if code == 0 { Result.Ok[uint, ParseError](value) }
     else { Result.Error[uint, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseLong`.
+/// Analyse un entier signé `long` en représentation décimale.
+/// @param text Représentation complète à analyser.
+/// @return `Ok(long)` ou `Error(ParseError)` selon le statut précis du parseur.
 def parseLong(text : string) : Result[long, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : long = janus_parse_long(stringData(text), stringLength(text), error)
@@ -276,7 +318,9 @@ def parseLong(text : string) : Result[long, ParseError] {
     return if code == 0 { Result.Ok[long, ParseError](value) }
     else { Result.Error[long, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseULong`.
+/// Analyse un entier non signé `ulong` en représentation décimale.
+/// @param text Représentation complète à analyser.
+/// @return `Ok(ulong)` ou `Error(ParseError)` selon le statut précis du parseur.
 def parseULong(text : string) : Result[ulong, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : ulong = janus_parse_ulong(stringData(text), stringLength(text), error)
@@ -285,7 +329,9 @@ def parseULong(text : string) : Result[ulong, ParseError] {
     return if code == 0 { Result.Ok[ulong, ParseError](value) }
     else { Result.Error[ulong, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseByte`.
+/// Analyse un entier signé de type `byte`.
+/// @param text Représentation décimale complète à analyser.
+/// @return `Ok(byte)` ou `Error(ParseError)` si la forme ou la plage du type est violée.
 def parseByte(text : string) : Result[byte, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : byte = janus_parse_byte(stringData(text), stringLength(text), error)
@@ -294,7 +340,9 @@ def parseByte(text : string) : Result[byte, ParseError] {
     return if code == 0 { Result.Ok[byte, ParseError](value) }
     else { Result.Error[byte, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseUByte`.
+/// Analyse un entier non signé de type `ubyte`.
+/// @param text Représentation décimale complète à analyser.
+/// @return `Ok(ubyte)` ou `Error(ParseError)` si la forme, le signe ou la plage est invalide.
 def parseUByte(text : string) : Result[ubyte, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : ubyte = janus_parse_ubyte(stringData(text), stringLength(text), error)
@@ -303,7 +351,9 @@ def parseUByte(text : string) : Result[ubyte, ParseError] {
     return if code == 0 { Result.Ok[ubyte, ParseError](value) }
     else { Result.Error[ubyte, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseShort`.
+/// Analyse un entier signé de type `short`.
+/// @param text Représentation décimale complète à analyser.
+/// @return `Ok(short)` ou `Error(ParseError)` si la forme ou la plage est invalide.
 def parseShort(text : string) : Result[short, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : short = janus_parse_short(stringData(text), stringLength(text), error)
@@ -312,7 +362,9 @@ def parseShort(text : string) : Result[short, ParseError] {
     return if code == 0 { Result.Ok[short, ParseError](value) }
     else { Result.Error[short, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseUShort`.
+/// Analyse un entier non signé de type `ushort`.
+/// @param text Représentation décimale complète à analyser.
+/// @return `Ok(ushort)` ou `Error(ParseError)` si la forme, le signe ou la plage est invalide.
 def parseUShort(text : string) : Result[ushort, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : ushort = janus_parse_ushort(stringData(text), stringLength(text), error)
@@ -321,7 +373,9 @@ def parseUShort(text : string) : Result[ushort, ParseError] {
     return if code == 0 { Result.Ok[ushort, ParseError](value) }
     else { Result.Error[ushort, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseISize`.
+/// Analyse un entier signé de largeur native.
+/// @param text Représentation décimale complète à analyser.
+/// @return `Ok(isize)` ou `Error(ParseError)` selon la plage de la plateforme cible.
 def parseISize(text : string) : Result[isize, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : isize = janus_parse_isize(stringData(text), stringLength(text), error)
@@ -330,7 +384,9 @@ def parseISize(text : string) : Result[isize, ParseError] {
     return if code == 0 { Result.Ok[isize, ParseError](value) }
     else { Result.Error[isize, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseUSize`.
+/// Analyse un entier non signé de largeur native.
+/// @param text Représentation décimale complète à analyser.
+/// @return `Ok(usize)` ou `Error(ParseError)` selon le signe, la syntaxe et la plage de la plateforme.
 def parseUSize(text : string) : Result[usize, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : usize = janus_parse_usize(stringData(text), stringLength(text), error)
@@ -339,7 +395,9 @@ def parseUSize(text : string) : Result[usize, ParseError] {
     return if code == 0 { Result.Ok[usize, ParseError](value) }
     else { Result.Error[usize, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseFloat`.
+/// Analyse un nombre flottant simple précision fini.
+/// @param text Représentation complète acceptée par le parseur flottant natif.
+/// @return `Ok(float)` ou `Error(ParseError)`, avec `NonFinite` pour une valeur non finie refusée.
 def parseFloat(text : string) : Result[float, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : float = janus_parse_float(stringData(text), stringLength(text), error)
@@ -348,7 +406,9 @@ def parseFloat(text : string) : Result[float, ParseError] {
     return if code == 0 { Result.Ok[float, ParseError](value) }
     else { Result.Error[float, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseDouble`.
+/// Analyse un nombre flottant double précision fini.
+/// @param text Représentation complète acceptée par le parseur flottant natif.
+/// @return `Ok(double)` ou `Error(ParseError)`, avec débordement, sous-dépassement ou non-finitude distingués.
 def parseDouble(text : string) : Result[double, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : double = janus_parse_double(stringData(text), stringLength(text), error)
@@ -357,7 +417,9 @@ def parseDouble(text : string) : Result[double, ParseError] {
     return if code == 0 { Result.Ok[double, ParseError](value) }
     else { Result.Error[double, ParseError](parseError(code)) }
 }
-/// Exécute l’opération publique `parseBool`.
+/// Analyse strictement un booléen ASCII en minuscules.
+/// @param text Chaîne devant être exactement `true` ou `false`.
+/// @return `Ok(bool)` pour ces deux formes, `Error(Empty)` pour une chaîne vide, sinon `Error(Invalid)`.
 def parseBool(text : string) : Result[bool, ParseError] {
     if text == "true" { return Result.Ok[bool, ParseError](true) }
     if text == "false" { return Result.Ok[bool, ParseError](false) }
@@ -366,7 +428,9 @@ def parseBool(text : string) : Result[bool, ParseError] {
     }
     return Result.Error[bool, ParseError](ParseError.Invalid)
 }
-/// Exécute l’opération publique `parseChar`.
+/// Analyse exactement un caractère Unicode selon le parseur natif.
+/// @param text Séquence d’octets représentant le caractère à convertir.
+/// @return `Ok(char)` si toute l’entrée forme un caractère accepté, ou `Error(ParseError)` pour vide ou encodage invalide.
 def parseChar(text : string) : Result[char, ParseError] {
     val error : Ptr[int] = newParseStatus()
     val value : char = janus_parse_char(stringData(text), stringLength(text), error)

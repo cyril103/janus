@@ -1,4 +1,16 @@
-/// Fournit les opérations de fichiers, répertoires et métadonnées structurées.
+/// Fournit des opérations propriétaires sur fichiers, répertoires et métadonnées.
+///
+/// Les chemins restent des chaînes natives sauf lorsque l’API retourne un [[Path]].
+/// Les échecs de la plateforme sont conservés dans [[SystemError]]. Les buffers de
+/// [[FileData]] et les parcours [[DirectoryIterator]] libèrent leurs ressources à la destruction.
+/// @example
+/// ```janus
+/// val loaded = readFile("config/app.toml")
+/// match loaded {
+///     Ok(file) => println(file.view()),
+///     Error(error) => println(error.context)
+/// }
+/// ```
 module std.fs
 
 import std.option
@@ -55,23 +67,26 @@ private extern def janus_fs_last_error_code() : uint
 private extern def janus_fs_last_error_category() : int
 private extern def janus_file_free(data : Ptr[byte]) : Unit
 
-/// Énumère les états publics de `FileType`.
+/// Identifie la nature d’une entrée telle que rapportée par [[metadata]].
 enum FileType derives Copy, Equality, Debug {
-    /// Représente le cas `File`.
+    /// Fichier régulier contenant une suite d’octets.
     File,
-    /// Représente le cas `Directory`.
+    /// Répertoire pouvant contenir des entrées.
     Directory,
-    /// Représente le cas `SymbolicLink`.
+    /// Lien symbolique rapporté comme tel par la plateforme.
     SymbolicLink,
-    /// Représente le cas `Other`.
+    /// Type natif distinct des fichiers, répertoires et liens symboliques.
     Other
 }
 
-/// Représente le type public `FileMetadata`.
+/// Instantané copiable des métadonnées minimales d’une entrée.
+///
+/// Il contient uniquement le type et la taille renvoyés par l’hôte ; leur sens
+/// précis pour les répertoires, liens et autres objets dépend de la plateforme.
 struct FileMetadata(
-/// Expose le membre public `kind`.
+/// Nature de l’entrée.
 val kind : FileType,
-/// Expose le membre public `size`.
+/// Taille native en octets, dont la signification dépend de [[kind]].
 val size : usize
 ) derives Copy, Equality, Debug {}
 
@@ -116,22 +131,28 @@ private def sizeOutput() : Ptr[usize] {
     return output
 }
 
-/// Représente le type public `FileData`.
+/// Contenu binaire propriétaire chargé intégralement par [[readFile]].
+///
+/// Les vues et pointeurs obtenus sont empruntés et deviennent invalides à la
+/// destruction. Aucune validation d’encodage n’est effectuée.
 class FileData(
 private var nativeData : Ptr[byte],
 private val nativeSize : usize
 ) {
-    /// Exécute l’opération publique `data`.
+    /// Emprunte le premier octet du contenu.
+    /// @return Pointeur lisible sur [[size]] octets pendant la vie de ce [[FileData]].
     def data() : Ptr[byte] {
         return nativeData
     }
 
     /// Retourne la taille du fichier en octets.
+    /// @return Nombre d’octets accessibles par [[data]] et [[view]].
     def size() : usize {
         return nativeSize
     }
 
-    /// Exécute l’opération publique `view`.
+    /// Emprunte le contenu comme chaîne binaire de longueur explicite.
+    /// @return Vue non validée UTF-8, valable jusqu’à la destruction du propriétaire.
     def view() : string {
         return stringView(nativeData, nativeSize)
     }
@@ -142,12 +163,16 @@ private val nativeSize : usize
     }
 }
 
-/// Représente le type public `DirectoryIterator`.
+/// Parcours propriétaire et à usage unique des entrées d’un répertoire.
+///
+/// Chaque [[next]] alloue un [[Path]] indépendant. [[close]] ou le destructeur
+/// libère le handle natif ; l’ordre des entrées est celui fourni par la plateforme.
 class DirectoryIterator(
 private var nativeHandle : isize,
 private val directoryContext : string
 ) {
-    /// Avance le parcours et retourne la prochaine valeur disponible.
+    /// Avance le parcours d’une entrée.
+    /// @return `Ok(Some(Path))` pour une entrée, `Ok(None)` à la fin, ou `Error(SystemError)` en cas d’échec ou après fermeture.
     def next(
     ) : Result[Option[Path], SystemError] {
         if nativeHandle < isize(0) {
@@ -184,7 +209,8 @@ private val directoryContext : string
         )
     }
 
-    /// Ferme le parcours de répertoire.
+    /// Ferme le handle du parcours et invalide l’itérateur.
+    /// @return `Ok(true)` en cas de succès, ou `Error(SystemError)` ; un nouvel appel renvoie `InvalidInput`.
     def close() : Result[bool, SystemError] {
         if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
@@ -211,6 +237,8 @@ private val directoryContext : string
 }
 
 /// Lit intégralement un fichier dans un tampon propriétaire.
+/// @param path Chemin natif du fichier à lire.
+/// @return `Ok(FileData)` possédant tous les octets, ou `Error(SystemError)` avec l’opération `file.read`.
 def readFile(
 path : string
 ) : Result[FileData, SystemError] {
@@ -237,6 +265,13 @@ path : string
 }
 
 /// Écrit un tampon dans un fichier par remplacement atomique.
+///
+/// L’atomicité est celle fournie par l’implémentation native ; cette API ne promet
+/// ni durabilité après panne ni conservation particulière des métadonnées.
+/// @param path Chemin natif de destination.
+/// @param data Zone lisible contenant les octets à écrire ; elle reste détenue par l’appelant.
+/// @param size Nombre d’octets lisibles depuis `data`.
+/// @return `Ok(true)` après remplacement, ou `Error(SystemError)` avec l’opération `file.writeAtomic`.
 def writeFileAtomic(
 path : string,
 data : Ptr[byte],
@@ -256,6 +291,9 @@ size : usize
 }
 
 /// Écrit un texte dans un fichier par remplacement atomique.
+/// @param path Chemin natif de destination.
+/// @param content Octets de la chaîne Janus à écrire, sans terminateur ajouté.
+/// @return Le résultat de [[writeFileAtomic]], avec les mêmes garanties et erreurs.
 def writeTextFileAtomic(
 path : string,
 content : string
@@ -268,6 +306,9 @@ content : string
 }
 
 /// Crée le répertoire demandé.
+/// @param path Chemin natif du répertoire à créer.
+/// @param recursive Si `true`, demande aussi la création des parents manquants ; sinon, crée seulement le dernier composant.
+/// @return `Ok(true)` après création, ou `Error(SystemError)` avec l’opération `directory.create`.
 def createDirectory(
 path : string,
 recursive : bool
@@ -285,6 +326,10 @@ recursive : bool
 }
 
 /// Crée un répertoire temporaire unique.
+///
+/// Le répertoire est effectivement créé et reste à supprimer par l’appelant.
+/// @param prefix Préfixe transmis à la plateforme pour nommer le répertoire.
+/// @return `Ok(Path)` propriétaire vers le répertoire créé, ou `Error(SystemError)` avec l’opération `directory.temporary`.
 def createTemporaryDirectory(
 prefix : string
 ) : Result[Path, SystemError] {
@@ -311,6 +356,8 @@ prefix : string
 }
 
 /// Supprime le répertoire demandé.
+/// @param path Chemin natif du répertoire ; aucun parcours récursif n’est réalisé par cette fonction.
+/// @return `Ok(true)` après suppression, ou `Error(SystemError)` avec l’opération `directory.remove`.
 def removeDirectory(
 path : string
 ) : Result[bool, SystemError] {
@@ -326,13 +373,17 @@ path : string
 }
 
 /// Supprime le fichier demandé.
+/// @param path Chemin natif transmis à [[removeSystemFile]].
+/// @return `Ok(true)` après suppression, ou l’`Error(SystemError)` renvoyée par le service système.
 def removeFile(
 path : string
 ) : Result[bool, SystemError] {
     return removeSystemFile(path)
 }
 
-/// Exécute l’opération publique `metadata`.
+/// Consulte le type et la taille natifs d’une entrée.
+/// @param path Chemin natif à interroger.
+/// @return `Ok(FileMetadata)` en cas de succès, ou `Error(SystemError)` avec l’opération `metadata`.
 def metadata(
 path : string
 ) : Result[FileMetadata, SystemError] {
@@ -362,6 +413,8 @@ path : string
 }
 
 /// Ouvre un parcours sur les entrées du répertoire.
+/// @param path Chemin natif du répertoire à énumérer.
+/// @return `Ok(DirectoryIterator)` propriétaire, ou `Error(SystemError)` avec l’opération `directory.open`.
 def readDirectory(
 path : string
 ) : Result[DirectoryIterator, SystemError] {

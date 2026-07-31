@@ -3,6 +3,7 @@
 #include "janus/frontend/parser.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -26,6 +27,22 @@
 
 namespace {
 
+struct DocumentedParameter {
+  std::string name;
+  std::string type;
+  std::string description;
+};
+
+struct StructuredDocumentation {
+  std::string summary;
+  std::vector<std::string> details;
+  std::map<std::string, std::string> parameter_descriptions;
+  std::vector<std::string> duplicate_parameters;
+  std::string return_description;
+  bool has_return{};
+  std::vector<std::string> examples;
+};
+
 struct Symbol {
   std::string module;
   std::string name;
@@ -33,9 +50,127 @@ struct Symbol {
   std::string kind;
   std::string signature;
   std::string documentation;
+  StructuredDocumentation structured;
+  std::vector<DocumentedParameter> parameters;
+  std::string return_type;
+  bool is_function{};
   std::string anchor;
   std::string parent;
 };
+
+std::string trim(std::string_view value) {
+  const std::size_t first = value.find_first_not_of(" \t\r");
+  if (first == std::string_view::npos)
+    return {};
+  const std::size_t last = value.find_last_not_of(" \t\r");
+  return std::string{value.substr(first, last - first + 1)};
+}
+
+bool is_unit_or_void(std::string_view type) {
+  std::string normalized;
+  normalized.reserve(type.size());
+  std::transform(type.begin(), type.end(), std::back_inserter(normalized),
+                 [](unsigned char character) {
+                   return static_cast<char>(std::tolower(character));
+                 });
+  return normalized == "unit" || normalized == "void";
+}
+
+StructuredDocumentation parse_documentation(std::string_view source) {
+  StructuredDocumentation result;
+  std::vector<std::string> prose;
+  std::string example;
+  bool reading_example = false;
+  bool inside_example_fence = false;
+  std::istringstream lines{std::string{source}};
+  std::string line;
+  while (std::getline(lines, line)) {
+    const std::string stripped = trim(line);
+    if (reading_example) {
+      if (!inside_example_fence &&
+          (stripped.rfind("@param", 0) == 0 ||
+           stripped.rfind("@return", 0) == 0 ||
+           stripped == "@example")) {
+        result.examples.push_back(trim(example));
+        example.clear();
+        reading_example = false;
+      } else {
+        if (!example.empty())
+          example += '\n';
+        example += line;
+        if (stripped.rfind("```", 0) == 0)
+          inside_example_fence = !inside_example_fence;
+        continue;
+      }
+    }
+    if (stripped == "@example") {
+      reading_example = true;
+      continue;
+    }
+    if (stripped.rfind("@param", 0) == 0 &&
+        (stripped.size() == 6 || stripped[6] == ' ' ||
+         stripped[6] == '\t')) {
+      const std::string body = trim(std::string_view{stripped}.substr(6));
+      const std::size_t separator = body.find_first_of(" \t");
+      const std::string name = body.substr(0, separator);
+      const std::string description =
+          separator == std::string::npos
+              ? std::string{}
+              : trim(std::string_view{body}.substr(separator + 1));
+      if (!name.empty()) {
+        const auto [entry, inserted] =
+            result.parameter_descriptions.emplace(name, description);
+        static_cast<void>(entry);
+        if (!inserted)
+          result.duplicate_parameters.push_back(name);
+      }
+      continue;
+    }
+    if (stripped.rfind("@return", 0) == 0 &&
+        (stripped.size() == 7 || stripped[7] == ' ' ||
+         stripped[7] == '\t')) {
+      result.has_return = true;
+      result.return_description =
+          trim(std::string_view{stripped}.substr(7));
+      continue;
+    }
+    prose.push_back(line);
+  }
+  if (reading_example)
+    result.examples.push_back(trim(example));
+  for (std::string &value : result.examples) {
+    if (value.rfind("```", 0) != 0)
+      continue;
+    const std::size_t first_newline = value.find('\n');
+    const std::size_t closing = value.rfind("```");
+    if (first_newline != std::string::npos && closing > first_newline)
+      value = trim(std::string_view{value}.substr(
+          first_newline + 1, closing - first_newline - 1));
+  }
+
+  std::vector<std::string> paragraphs;
+  std::string paragraph;
+  for (const std::string &prose_line : prose) {
+    if (trim(prose_line).empty()) {
+      if (!paragraph.empty()) {
+        paragraphs.push_back(std::move(paragraph));
+        paragraph.clear();
+      }
+    } else {
+      if (!paragraph.empty())
+        paragraph += '\n';
+      paragraph += trim(prose_line);
+    }
+  }
+  if (!paragraph.empty())
+    paragraphs.push_back(std::move(paragraph));
+  if (!paragraphs.empty()) {
+    result.summary = std::move(paragraphs.front());
+    result.details.assign(std::make_move_iterator(paragraphs.begin() + 1),
+                          std::make_move_iterator(paragraphs.end()));
+  }
+  return result;
+}
 
 std::string html_escape(std::string_view value) {
   std::string escaped;
@@ -213,13 +348,32 @@ std::string trait_signature(const janus::ast::TraitDeclaration &value) {
 
 void add_symbol(std::vector<Symbol> &symbols, std::string module,
                 std::string name, std::string kind, std::string signature,
-                std::string documentation, std::string parent = {}) {
+                std::string documentation, std::string parent = {},
+                std::vector<DocumentedParameter> parameters = {},
+                std::string return_type = {}, bool is_function = false) {
   const std::string qualified =
       parent.empty() ? module + '.' + name : parent + '.' + name;
-  symbols.push_back(Symbol{std::move(module), std::move(name), qualified,
-                           std::move(kind), std::move(signature),
-                           std::move(documentation), anchor_for(qualified),
-                           std::move(parent)});
+  StructuredDocumentation structured = parse_documentation(documentation);
+  for (DocumentedParameter &parameter : parameters) {
+    const auto found =
+        structured.parameter_descriptions.find(parameter.name);
+    if (found != structured.parameter_descriptions.end())
+      parameter.description = found->second;
+  }
+  symbols.push_back(
+      Symbol{std::move(module), std::move(name), qualified, std::move(kind),
+             std::move(signature), std::move(documentation),
+             std::move(structured), std::move(parameters),
+             std::move(return_type), is_function, anchor_for(qualified),
+             std::move(parent)});
+}
+
+std::vector<DocumentedParameter>
+function_parameters(const janus::ast::FunctionDeclaration &function) {
+  std::vector<DocumentedParameter> parameters;
+  for (const auto &parameter : function.parameters)
+    parameters.push_back({parameter.name, type_name(parameter.type), {}});
+  return parameters;
 }
 
 std::vector<Symbol>
@@ -243,7 +397,9 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
       for (const janus::ast::FunctionDeclaration &method : trait.methods) {
         if (!method.is_private && !method.is_internal)
           add_symbol(symbols, module, method.name, "method",
-                     function_signature(method), method.documentation, parent);
+                     function_signature(method), method.documentation, parent,
+                     function_parameters(method), type_name(method.return_type),
+                     true);
       }
     }
     for (const janus::ast::EnumDeclaration &enumeration : program.enums) {
@@ -288,13 +444,17 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
       for (const janus::ast::FunctionDeclaration &method : type.methods) {
         if (!method.is_private && !method.is_internal)
           add_symbol(symbols, module, method.name, "method",
-                     function_signature(method), method.documentation, parent);
+                     function_signature(method), method.documentation, parent,
+                     function_parameters(method), type_name(method.return_type),
+                     true);
       }
     }
     for (const janus::ast::FunctionDeclaration &function : program.functions) {
       if (!function.is_private && !function.is_internal)
         add_symbol(symbols, module, function.name, "function",
-                   function_signature(function), function.documentation);
+                   function_signature(function), function.documentation, {},
+                   function_parameters(function),
+                   type_name(function.return_type), true);
     }
   }
   std::sort(symbols.begin(), symbols.end(),
@@ -309,7 +469,8 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
 std::string render_documentation(
     std::string_view documentation, std::string_view context,
     const std::map<std::string, std::vector<std::string>> &links,
-    std::vector<janus::driver::UnresolvedDocumentationLink> &unresolved) {
+    std::vector<janus::driver::UnresolvedDocumentationLink> &unresolved,
+    bool strict_links) {
   std::string rendered;
   std::size_t position = 0;
   while (position < documentation.size()) {
@@ -332,7 +493,8 @@ std::string render_documentation(
                   html_escape(name) + "</code></a>";
     } else {
       rendered += "<code class=\"unresolved\">" + html_escape(name) + "</code>";
-      unresolved.push_back({name, std::string{context}});
+      if (strict_links)
+        unresolved.push_back({name, std::string{context}});
     }
     position = closing + 2;
   }
@@ -355,6 +517,42 @@ void write_text(const std::filesystem::path &path, std::string_view contents) {
   if (!output)
     throw std::runtime_error{"cannot write documentation file '" +
                              path.string() + "'"};
+}
+
+void write_structured_json(
+    std::ostringstream &output, const StructuredDocumentation &documentation,
+    const std::vector<DocumentedParameter> &parameters = {},
+    std::string_view return_type = {}, bool has_return_type = false) {
+  output << ",\"summary\":\"" << json_escape(documentation.summary)
+         << "\",\"details\":[";
+  for (std::size_t index = 0; index < documentation.details.size(); ++index) {
+    if (index != 0)
+      output << ',';
+    output << '"' << json_escape(documentation.details[index]) << '"';
+  }
+  output << "],\"parameters\":[";
+  for (std::size_t index = 0; index < parameters.size(); ++index) {
+    if (index != 0)
+      output << ',';
+    output << "{\"name\":\"" << json_escape(parameters[index].name)
+           << "\",\"type\":\"" << json_escape(parameters[index].type)
+           << "\",\"description\":\""
+           << json_escape(parameters[index].description) << "\"}";
+  }
+  output << "],\"returns\":";
+  if (has_return_type && !is_unit_or_void(return_type))
+    output << "{\"type\":\"" << json_escape(return_type)
+           << "\",\"description\":\""
+           << json_escape(documentation.return_description) << "\"}";
+  else
+    output << "null";
+  output << ",\"examples\":[";
+  for (std::size_t index = 0; index < documentation.examples.size(); ++index) {
+    if (index != 0)
+      output << ',';
+    output << '"' << json_escape(documentation.examples[index]) << '"';
+  }
+  output << ']';
 }
 
 std::vector<std::filesystem::path>
@@ -401,7 +599,8 @@ namespace janus::driver {
 
 DocumentationReport
 generate_documentation(const std::vector<ast::Program> &programs,
-                       const DocumentationOptions &options) {
+                      const DocumentationOptions &options,
+                      bool strict_links) {
   if (options.package_name.empty())
     throw std::runtime_error{"documentation package name cannot be empty"};
   if (options.output_directory.empty())
@@ -410,6 +609,7 @@ generate_documentation(const std::vector<ast::Program> &programs,
   std::filesystem::create_directories(options.output_directory);
   const std::vector<Symbol> symbols = public_symbols(programs);
   std::map<std::string, std::string> module_documentation;
+  std::map<std::string, StructuredDocumentation> structured_modules;
   for (const ast::Program &program : programs) {
     const std::string module = program.module_name.value_or("root");
     auto [entry, inserted] =
@@ -417,11 +617,23 @@ generate_documentation(const std::vector<ast::Program> &programs,
     if (!inserted && entry->second.empty())
       entry->second = program.documentation;
   }
+  for (const auto &[module, documentation] : module_documentation)
+    structured_modules.emplace(module, parse_documentation(documentation));
 
   std::map<std::string, std::vector<std::string>> links;
+  for (const auto &[module, documentation] : module_documentation)
+    static_cast<void>(documentation),
+        links[module].push_back("module-" + anchor_for(module));
   for (const Symbol &symbol : symbols) {
     links[symbol.name].push_back(symbol.anchor);
     links[symbol.qualified_name].push_back(symbol.anchor);
+    if (!symbol.parent.empty()) {
+      const auto last = symbol.parent.find_last_of('.');
+      const std::string local_parent =
+          last == std::string::npos ? symbol.parent
+                                   : symbol.parent.substr(last + 1);
+      links[local_parent + "." + symbol.name].push_back(symbol.anchor);
+    }
   }
   for (auto &[name, anchors] : links) {
     static_cast<void>(name);
@@ -441,7 +653,48 @@ generate_documentation(const std::vector<ast::Program> &programs,
   for (const Symbol &symbol : symbols) {
     if (symbol.documentation.empty())
       report.undocumented_symbols.push_back(symbol.qualified_name);
+    if (!symbol.is_function)
+      continue;
+    std::set<std::string> parameter_names;
+    for (const DocumentedParameter &parameter : symbol.parameters)
+      parameter_names.insert(parameter.name);
+    for (const auto &[name, description] :
+         symbol.structured.parameter_descriptions) {
+      static_cast<void>(description);
+      if (!parameter_names.contains(name))
+        report.diagnostics.push_back(
+            {"unknown-param", symbol.qualified_name, name,
+             "@param '" + name + "' does not name a public parameter"});
+    }
+    for (const std::string &name : symbol.structured.duplicate_parameters)
+      report.diagnostics.push_back(
+          {"duplicate-param", symbol.qualified_name, name,
+           "@param '" + name + "' is documented more than once"});
+    for (const DocumentedParameter &parameter : symbol.parameters) {
+      const auto documented =
+          symbol.structured.parameter_descriptions.find(parameter.name);
+      if (documented == symbol.structured.parameter_descriptions.end() ||
+          documented->second.empty())
+        report.diagnostics.push_back(
+            {"undocumented-param", symbol.qualified_name, parameter.name,
+             "public parameter '" + parameter.name + "' is undocumented"});
+    }
+    if (!is_unit_or_void(symbol.return_type) &&
+        (!symbol.structured.has_return ||
+         symbol.structured.return_description.empty()))
+      report.diagnostics.push_back(
+          {"missing-return", symbol.qualified_name, {},
+           "non-unit return type '" + symbol.return_type +
+               "' requires an @return description"});
   }
+  std::sort(report.diagnostics.begin(), report.diagnostics.end(),
+            [](const DocumentationDiagnostic &left,
+               const DocumentationDiagnostic &right) {
+              return std::tie(left.symbol, left.code, left.parameter,
+                              left.message) <
+                     std::tie(right.symbol, right.code, right.parameter,
+                              right.message);
+            });
 
   std::ostringstream html;
   html << R"(<!doctype html>
@@ -460,7 +713,7 @@ generate_documentation(const std::vector<ast::Program> &programs,
 .topbar{position:sticky;z-index:20;top:0;display:grid;grid-template-columns:minmax(15rem,auto) minmax(16rem,1fr) auto;align-items:center;gap:1.4rem;min-height:49px;padding:.45rem 1.55rem;background:var(--top);border-bottom:8px solid var(--top-soft);box-shadow:0 2px 5px rgba(0,0,0,.18);color:#fff}.brand{display:flex;align-items:baseline;gap:1rem;white-space:nowrap}.brand strong{font-size:16px;font-weight:500}.brand .version{color:#b9cad2;font:11px var(--mono)}.search{position:relative;max-width:75rem}.search svg{position:absolute;left:.7rem;top:50%;width:17px;height:17px;transform:translateY(-50%);fill:#9db3be;pointer-events:none}.search input{width:100%;height:30px;border:0;border-radius:2px;padding:.3rem .7rem .3rem 2.15rem;background:#42697b;color:#fff;font:13px var(--sans)}.search input::placeholder{color:#b9c8cf}.search-status{min-width:6rem;color:#c5d5dc;font:11px var(--mono);text-align:right}.nav-toggle{display:none;border:1px solid #73909d;background:transparent;color:#fff;border-radius:3px;padding:.35rem .55rem}
 .doc-layout{display:grid;grid-template-columns:minmax(0,1fr) 15rem;gap:1.7rem;width:min(1120px,calc(100% - 3rem));margin:0 auto;padding:2.2rem 0 0}.content{min-width:0}.hero{display:flex;align-items:center;gap:1rem;margin:0 0 1rem;padding:.1rem .75rem}.hero-mark{display:grid;place-items:center;width:64px;height:64px;flex:0 0 64px;border-radius:50%;background:#297896;color:#fff;box-shadow:var(--shadow);font:38px/1 Georgia,serif}.hero h1{margin:0;color:var(--ink-strong);font-size:clamp(25px,3vw,32px);font-weight:400;line-height:1.1}.hero p{margin:.3rem 0 0;color:var(--muted);font:12px var(--mono)}
 .module{margin:0 0 2.5rem;scroll-margin-top:5.5rem}.module[hidden],.symbol-card[hidden],.module-link[hidden]{display:none}.module-heading{display:flex;align-items:center;gap:.55rem;min-height:34px;margin:0 0 1rem;padding:.4rem .7rem;background:var(--signature);border-radius:2px;color:var(--ink-strong);font:13px var(--mono)}.module-heading .keyword{font-weight:400}.module-heading h2{display:inline;margin:0;font:700 13px var(--mono)}.module-summary{margin:0 0 1rem;padding:0 .15rem}.module-summary p{margin:.45rem 0}.member-heading{margin:1.7rem 0 .65rem;padding-left:1rem;color:var(--ink-strong);font-size:15px}.member-count{margin-left:.4rem;color:var(--muted);font:11px var(--mono)}
-.symbol-list{display:grid;gap:6px}.symbol-card{position:relative;display:grid;grid-template-columns:2rem minmax(0,1fr);gap:.7rem;min-width:0;padding:.65rem .85rem .7rem;background:var(--panel);border-left:3px solid var(--kind-color,#2d7f9e);border-radius:2px;box-shadow:var(--shadow);scroll-margin-top:5.5rem}.kind-icon{display:grid;place-items:center;width:19px;height:19px;margin-top:.1rem;border-radius:50%;background:var(--kind-color,#2d7f9e);color:#fff;font:700 10px var(--mono);text-transform:uppercase}.kind{display:block;margin-bottom:.2rem;color:var(--muted);font:10px var(--mono);letter-spacing:.08em;text-transform:uppercase}.symbol-card h3{margin:0;color:var(--ink-strong);font-size:13px;font-weight:400;line-height:1.5}.symbol-card h3 code{overflow-wrap:anywhere}.symbol-card p{margin:.35rem 0 0;color:#284e62}.symbol-card .qualified{margin-top:.25rem;color:#78909c;font:10px var(--mono)}.symbol-card .permalink{position:absolute;right:.55rem;top:.45rem;opacity:0;color:#7b929d;text-decoration:none}.symbol-card:hover .permalink,.symbol-card .permalink:focus{opacity:1}.kind-class,.kind-struct,.kind-trait,.kind-enum{--kind-color:#087b51}.kind-function,.kind-method{--kind-color:#168db2}.kind-global,.kind-field{--kind-color:#7d5aa6}.kind-variant{--kind-color:#d4673e}.unresolved{color:#b42318;background:#fff0ee;padding:.05rem .2rem;border-radius:2px}
+.symbol-list{display:grid;gap:6px}.symbol-card{position:relative;display:grid;grid-template-columns:2rem minmax(0,1fr);gap:.7rem;min-width:0;padding:.65rem .85rem .7rem;background:var(--panel);border-left:3px solid var(--kind-color,#2d7f9e);border-radius:2px;box-shadow:var(--shadow);scroll-margin-top:5.5rem}.symbol-card.child{margin-left:1.6rem}.kind-icon{display:grid;place-items:center;width:19px;height:19px;margin-top:.1rem;border-radius:50%;background:var(--kind-color,#2d7f9e);color:#fff;font:700 10px var(--mono);text-transform:uppercase}.kind{display:block;margin-bottom:.2rem;color:var(--muted);font:10px var(--mono);letter-spacing:.08em;text-transform:uppercase}.owner{color:var(--muted);font:11px var(--mono)}.symbol-card h3{margin:0;color:var(--ink-strong);font-size:13px;font-weight:400;line-height:1.5}.symbol-card h3 code{overflow-wrap:anywhere}.symbol-card p{margin:.35rem 0 0;color:#284e62}.doc-summary{font-weight:500}.doc-details p{margin:.45rem 0}.doc-section{margin-top:.8rem}.doc-section h4{margin:0 0 .3rem;color:var(--ink-strong);font-size:12px}.parameters{width:100%;border-collapse:collapse}.parameters th,.parameters td{padding:.3rem .45rem;border-top:1px solid var(--line);text-align:left;vertical-align:top}.parameters th{color:var(--muted);font-size:10px;text-transform:uppercase}.example{overflow:auto;margin:.35rem 0 0;padding:.65rem .75rem;background:#102f40;color:#f3f7f8;border-radius:2px;white-space:pre}.example a{color:var(--accent-bright)}.symbol-card .qualified{margin-top:.6rem;color:#78909c;font:10px var(--mono)}.symbol-card .permalink{position:absolute;right:.55rem;top:.45rem;opacity:0;color:#7b929d;text-decoration:none}.symbol-card:hover .permalink,.symbol-card .permalink:focus{opacity:1}.kind-class,.kind-struct,.kind-trait,.kind-enum{--kind-color:#087b51}.kind-function,.kind-method{--kind-color:#168db2}.kind-global,.kind-field{--kind-color:#7d5aa6}.kind-variant{--kind-color:#d4673e}.unresolved{color:#b42318;background:#fff0ee;padding:.05rem .2rem;border-radius:2px}
 .sidebar{position:sticky;top:5.4rem;align-self:start;max-height:calc(100vh - 6.3rem);overflow:auto;padding:.2rem 0 1.5rem}.sidebar h2{margin:0 0 .45rem;color:var(--ink-strong);font-size:13px;font-weight:500}.module-nav{display:grid}.module-link{display:flex;align-items:center;gap:.45rem;padding:.22rem .4rem;border-left:3px solid transparent;color:#315b75;font:12px var(--mono);text-decoration:none}.module-link:hover{background:#e2e9ec}.module-link.active{border-left-color:#62cce7;color:var(--ink-strong);background:#e6edef}.module-link .dot{width:6px;height:6px;border-radius:50%;background:#4e9fb8}.legend{margin-top:1.4rem;padding-top:.8rem;border-top:1px solid #cfdbdf}.legend p{margin:.25rem 0;color:var(--muted);font:10px var(--mono)}.legend i{display:inline-grid;place-items:center;width:14px;height:14px;margin-right:.35rem;border-radius:50%;background:var(--kind-color);color:#fff;font:8px var(--mono);font-style:normal}
 .empty-state{display:none;margin:2rem 0;padding:2rem;background:#fff;border:1px solid var(--line);text-align:center}.empty-state.visible{display:block}footer{width:min(1120px,calc(100% - 3rem));margin:0 auto;padding:1rem 15rem 1.5rem 0;color:#7c8d95;text-align:center;font-size:11px}
 @media(max-width:800px){.topbar{grid-template-columns:1fr auto;gap:.7rem;padding:.55rem 1rem;border-bottom-width:5px}.brand{grid-column:1}.search{grid-column:1/-1;grid-row:2}.search-status{display:none}.nav-toggle{display:block;grid-column:2;grid-row:1}.doc-layout{grid-template-columns:1fr;width:min(100% - 1.4rem,54rem);padding-top:1.1rem}.sidebar{display:none;position:fixed;z-index:30;inset:96px .7rem auto;max-height:65vh;padding:1rem;background:#fff;border:1px solid var(--line);box-shadow:0 8px 30px rgba(16,47,64,.28)}body.nav-open .sidebar{display:block}.hero{padding:.3rem 0}.hero-mark{width:50px;height:50px;flex-basis:50px;font-size:29px}.symbol-card{grid-template-columns:1.6rem minmax(0,1fr);padding:.7rem .65rem}.module-heading{overflow-wrap:anywhere}footer{width:100%;padding:1rem}}
@@ -494,11 +747,21 @@ generate_documentation(const std::vector<ast::Program> &programs,
          << "<header class=\"module-heading\"><span class=\"keyword\">module</span> "
          << "<h2>" << html_escape(module) << "</h2></header>\n"
          << "<div class=\"module-summary\">";
-    if (!documentation.empty())
-      html << "<p>"
-           << render_documentation(documentation, module, links,
-                                   report.unresolved_links)
+    const StructuredDocumentation &module_doc = structured_modules.at(module);
+    if (!module_doc.summary.empty())
+      html << "<p class=\"doc-summary\">"
+           << render_documentation(module_doc.summary, module, links,
+                                   report.unresolved_links, strict_links)
            << "</p>";
+    if (!module_doc.details.empty()) {
+      html << "<div class=\"doc-details\">";
+      for (const std::string &paragraph : module_doc.details)
+        html << "<p>"
+             << render_documentation(paragraph, module, links,
+                                     report.unresolved_links, strict_links)
+                                     << "</p>";
+      html << "</div>";
+    }
     html << "</div><h3 class=\"member-heading\">Public members <span class=\"member-count\">"
          << member_count << "</span></h3>\n<div class=\"symbol-list\">\n";
     for (const Symbol &symbol : symbols) {
@@ -506,19 +769,63 @@ generate_documentation(const std::vector<ast::Program> &programs,
         continue;
       const char kind_initial = symbol.kind.empty() ? '?' : symbol.kind.front();
       html << "<article class=\"symbol-card kind-" << html_escape(symbol.kind)
+           << (symbol.parent.empty() ? "" : " child")
            << "\" id=\"" << symbol.anchor << "\" data-symbol data-search=\""
            << html_escape(symbol.qualified_name + " " + symbol.kind + " " +
                           symbol.signature + " " + symbol.documentation)
            << "\"><span class=\"kind-icon\" aria-hidden=\"true\">"
            << kind_initial << "</span><div><span class=\"kind\">"
-           << html_escape(symbol.kind) << "</span><h3><code>"
+           << html_escape(symbol.kind) << "</span>";
+      if (!symbol.parent.empty())
+        html << "<div class=\"owner\">Member of "
+             << html_escape(symbol.parent) << "</div>";
+      html << "<h3><code>"
            << html_escape(symbol.signature) << "</code></h3>\n";
-      if (!symbol.documentation.empty())
-        html << "<p>"
-             << render_documentation(symbol.documentation,
+      if (!symbol.structured.summary.empty())
+        html << "<p class=\"doc-summary\">"
+             << render_documentation(symbol.structured.summary,
                                      symbol.qualified_name, links,
-                                     report.unresolved_links)
-             << "</p>\n";
+                                     report.unresolved_links, strict_links)
+                                     << "</p>\n";
+      if (!symbol.structured.details.empty()) {
+        html << "<div class=\"doc-details\">";
+        for (const std::string &paragraph : symbol.structured.details)
+          html << "<p>"
+               << render_documentation(paragraph, symbol.qualified_name, links,
+                                       report.unresolved_links, strict_links)
+                                       << "</p>";
+        html << "</div>\n";
+      }
+      if (!symbol.parameters.empty()) {
+        html << "<section class=\"doc-section\"><h4>Parameters</h4>"
+                "<table class=\"parameters\"><thead><tr><th>Name</th><th>Type</th>"
+                "<th>Description</th></tr></thead><tbody>";
+        for (const DocumentedParameter &parameter : symbol.parameters)
+          html << "<tr><td><code>" << html_escape(parameter.name)
+                << "</code></td><td><code>" << html_escape(parameter.type)
+                << "</code></td><td>"
+                << render_documentation(parameter.description,
+                                        symbol.qualified_name, links,
+                                        report.unresolved_links, strict_links)
+                                        << "</td></tr>";
+        html << "</tbody></table></section>\n";
+      }
+      if (symbol.is_function && !is_unit_or_void(symbol.return_type)) {
+        html << "<section class=\"doc-section\"><h4>Returns</h4><p><code>"
+             << html_escape(symbol.return_type) << "</code>";
+        if (symbol.structured.has_return)
+          html << " — "
+               << render_documentation(symbol.structured.return_description,
+                                       symbol.qualified_name, links,
+                                       report.unresolved_links, strict_links);
+        html << "</p></section>\n";
+      }
+      for (const std::string &example : symbol.structured.examples)
+        html << "<section class=\"doc-section\"><h4>Example</h4><pre "
+                << "class=\"example\"><code>"
+                 << render_documentation(example, symbol.qualified_name, links,
+                                         report.unresolved_links, strict_links)
+                                         << "</code></pre></section>\n";
       html << "<div class=\"qualified\">" << html_escape(symbol.qualified_name)
            << "</div></div><a class=\"permalink\" href=\"#" << symbol.anchor
            << "\" aria-label=\"Permanent link to " << html_escape(symbol.qualified_name)
@@ -567,7 +874,9 @@ generate_documentation(const std::vector<ast::Program> &programs,
           << json_escape(module)
           << "\",\"kind\":\"module\",\"documentation\":\""
           << json_escape(documentation) << "\",\"anchor\":\"module-"
-          << json_escape(anchor_for(module)) << "\"}";
+          << json_escape(anchor_for(module)) << '"';
+    write_structured_json(index, structured_modules.at(module));
+    index << '}';
   }
   if (!module_documentation.empty())
     index << '\n';
@@ -579,7 +888,10 @@ generate_documentation(const std::vector<ast::Program> &programs,
           << json_escape(symbol.kind) << "\",\"signature\":\""
           << json_escape(symbol.signature) << "\",\"documentation\":\""
           << json_escape(symbol.documentation) << "\",\"anchor\":\""
-          << json_escape(symbol.anchor) << "\"}";
+          << json_escape(symbol.anchor) << '"';
+    write_structured_json(index, symbol.structured, symbol.parameters,
+                          symbol.return_type, symbol.is_function);
+    index << '}';
   }
   if (!symbols.empty())
     index << '\n';
@@ -598,7 +910,7 @@ generate_package_documentation(const Manifest &manifest,
   if (programs.empty())
     throw std::runtime_error{"package contains no Janus source files"};
   return generate_documentation(
-      programs, {manifest.name, manifest.version, output_directory});
+      programs, {manifest.name, manifest.version, output_directory}, true);
 }
 
 DocumentationReport generate_stdlib_documentation(
@@ -627,7 +939,7 @@ DocumentationReport generate_stdlib_documentation(
   }
   return generate_documentation(
       programs, {"Janus standard library", std::move(package_version),
-                 output_directory});
+                 output_directory}, false);
 }
 
 void open_documentation(const std::filesystem::path &index_path) {

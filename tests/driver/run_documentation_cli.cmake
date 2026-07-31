@@ -19,13 +19,19 @@ file(WRITE "${PROJECT_DIR}/src/main.janus"
 "/// A public greeting.\n"
 "class Greeting() {\n"
 "    /// Returns a greeting.\n"
+"    /// @return The greeting text.\n"
 "    def text() : string { return \"hello\" }\n"
 "    /// Must stay private.\n"
 "    private val secret : int = 7\n"
 "}\n"
 "/// Builds a [[Greeting]].\n"
+"/// @return A new greeting.\n"
 "def greeting() : Greeting { return new Greeting() }\n"
-"def main() : int { return 0 }\n")
+"/// Entry point.\n"
+"/// @return The process status.\n"
+"def main() : int { return 0 }\n"
+"/// Demonstrates permissive package diagnostics.\n"
+"def incomplete(value : int) : int { return value }\n")
 
 foreach(COMMAND check build run)
     execute_process(
@@ -60,6 +66,13 @@ if(NOT FIRST_ERROR MATCHES
    "unresolved documentation link '\\[\\[Unknown\\]\\]' in documented")
     message(FATAL_ERROR "janus doc did not signal the unresolved link")
 endif()
+if(NOT FIRST_ERROR MATCHES
+   "warning: documented.incomplete: public parameter 'value' is undocumented"
+   OR NOT FIRST_ERROR MATCHES
+   "warning: documented.incomplete: non-unit return type 'int' requires an @return")
+    message(FATAL_ERROR
+            "janus doc did not keep package contract diagnostics permissive")
+endif()
 
 set(HTML "${OUTPUT_DIR}/index.html")
 set(API_INDEX "${OUTPUT_DIR}/api-index.json")
@@ -67,6 +80,7 @@ if(NOT EXISTS "${HTML}" OR NOT EXISTS "${API_INDEX}")
     message(FATAL_ERROR "janus doc did not create its offline artifacts")
 endif()
 file(READ "${HTML}" HTML_CONTENT)
+file(READ "${API_INDEX}" API_INDEX_CONTENT)
 if(NOT HTML_CONTENT MATCHES "A public greeting\\.")
     message(FATAL_ERROR "public type documentation is missing")
 endif()
@@ -79,6 +93,11 @@ endif()
 if(NOT HTML_CONTENT MATCHES "href=\"#documented-greeting\"")
     message(FATAL_ERROR "known symbol links were not resolved")
 endif()
+foreach(FIELD summary details parameters returns examples)
+    if(NOT API_INDEX_CONTENT MATCHES "\"${FIELD}\":")
+        message(FATAL_ERROR "api-index.json is missing '${FIELD}'")
+    endif()
+endforeach()
 file(SHA256 "${HTML}" FIRST_HASH)
 
 execute_process(

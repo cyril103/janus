@@ -1,4 +1,8 @@
-/// Regroupe la surface graphique et audio expérimentale de Janus.
+/// Point d’entrée de la surface graphique, audio et d’entrée de Janus.
+///
+/// Ce module ne possède aucune ressource par lui-même: il réexporte [[std.graphics.types]],
+/// [[std.graphics.drawing]], [[std.graphics.resources]], [[std.graphics.input]] et
+/// [[std.graphics.audio]]. Consultez ces modules pour les séquences d’initialisation et fermeture.
 module std.graphics
 
 import std.graphics.audio

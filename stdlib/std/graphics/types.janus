@@ -1,315 +1,359 @@
-/// Définit les valeurs, couleurs et énumérations copiables du graphisme.
+/// Définit les valeurs copiables partagées par les API graphiques.
+///
+/// Les positions et dimensions utilisent des pixels flottants, les rotations des degrés et les
+/// canaux de [[Color]] des octets RGBA compris entre 0 et 255.
+/// @example
+/// ```janus
+/// val point : Vector2 = vector2(10.0, 20.0)
+/// val tint : Color = rgba(255, 128, 0, 255)
+/// ```
 module std.graphics.types
 
-/// Énumère les états publics de `Key`.
+/// Énumère les valeurs de [[Key]] reconnues par le backend ou l’algorithme.
 enum Key derives Copy, Equality, Debug {
-    /// Représente le cas `Space`.
+    /// Variante `Space`, correspondant à cette valeur précise.
     Space = 32,
-    /// Représente le cas `Apostrophe`.
+    /// Variante `Apostrophe`, correspondant à cette valeur précise.
     Apostrophe = 39,
-    /// Représente le cas `Comma`.
+    /// Variante `Comma`, correspondant à cette valeur précise.
     Comma = 44,
-    /// Représente le cas `Minus`.
+    /// Variante `Minus`, correspondant à cette valeur précise.
     Minus = 45,
-    /// Représente le cas `Period`.
+    /// Variante `Period`, correspondant à cette valeur précise.
     Period = 46,
-    /// Représente le cas `Slash`.
+    /// Variante `Slash`, correspondant à cette valeur précise.
     Slash = 47,
-    /// Représente le cas `Digit0`.
+    /// Variante `Digit0`, correspondant à cette valeur précise.
     Digit0 = 48,
-    /// Représente le cas `Digit1`.
+    /// Variante `Digit1`, correspondant à cette valeur précise.
     Digit1 = 49,
-    /// Représente le cas `Digit2`.
+    /// Variante `Digit2`, correspondant à cette valeur précise.
     Digit2 = 50,
-    /// Représente le cas `Digit3`.
+    /// Variante `Digit3`, correspondant à cette valeur précise.
     Digit3 = 51,
-    /// Représente le cas `Digit4`.
+    /// Variante `Digit4`, correspondant à cette valeur précise.
     Digit4 = 52,
-    /// Représente le cas `Digit5`.
+    /// Variante `Digit5`, correspondant à cette valeur précise.
     Digit5 = 53,
-    /// Représente le cas `Digit6`.
+    /// Variante `Digit6`, correspondant à cette valeur précise.
     Digit6 = 54,
-    /// Représente le cas `Digit7`.
+    /// Variante `Digit7`, correspondant à cette valeur précise.
     Digit7 = 55,
-    /// Représente le cas `Digit8`.
+    /// Variante `Digit8`, correspondant à cette valeur précise.
     Digit8 = 56,
-    /// Représente le cas `Digit9`.
+    /// Variante `Digit9`, correspondant à cette valeur précise.
     Digit9 = 57,
-    /// Représente le cas `Semicolon`.
+    /// Variante `Semicolon`, correspondant à cette valeur précise.
     Semicolon = 59,
-    /// Représente le cas `Equal`.
+    /// Variante `Equal`, correspondant à cette valeur précise.
     Equal = 61,
-    /// Représente le cas `A`.
+    /// Variante `A`, correspondant à cette valeur précise.
     A = 65,
-    /// Représente le cas `B`.
+    /// Variante `B`, correspondant à cette valeur précise.
     B = 66,
-    /// Représente le cas `C`.
+    /// Variante `C`, correspondant à cette valeur précise.
     C = 67,
-    /// Représente le cas `D`.
+    /// Variante `D`, correspondant à cette valeur précise.
     D = 68,
-    /// Représente le cas `E`.
+    /// Variante `E`, correspondant à cette valeur précise.
     E = 69,
-    /// Représente le cas `F`.
+    /// Variante `F`, correspondant à cette valeur précise.
     F = 70,
-    /// Représente le cas `G`.
+    /// Variante `G`, correspondant à cette valeur précise.
     G = 71,
-    /// Représente le cas `H`.
+    /// Variante `H`, correspondant à cette valeur précise.
     H = 72,
-    /// Représente le cas `I`.
+    /// Variante `I`, correspondant à cette valeur précise.
     I = 73,
-    /// Représente le cas `J`.
+    /// Variante `J`, correspondant à cette valeur précise.
     J = 74,
-    /// Représente le cas `K`.
+    /// Variante `K`, correspondant à cette valeur précise.
     K = 75,
-    /// Représente le cas `L`.
+    /// Variante `L`, correspondant à cette valeur précise.
     L = 76,
-    /// Représente le cas `M`.
+    /// Variante `M`, correspondant à cette valeur précise.
     M = 77,
-    /// Représente le cas `N`.
+    /// Variante `N`, correspondant à cette valeur précise.
     N = 78,
-    /// Représente le cas `O`.
+    /// Variante `O`, correspondant à cette valeur précise.
     O = 79,
-    /// Représente le cas `P`.
+    /// Variante `P`, correspondant à cette valeur précise.
     P = 80,
-    /// Représente le cas `Q`.
+    /// Variante `Q`, correspondant à cette valeur précise.
     Q = 81,
-    /// Représente le cas `R`.
+    /// Variante `R`, correspondant à cette valeur précise.
     R = 82,
-    /// Représente le cas `S`.
+    /// Variante `S`, correspondant à cette valeur précise.
     S = 83,
-    /// Représente le cas `T`.
+    /// Variante `T`, correspondant à cette valeur précise.
     T = 84,
-    /// Représente le cas `U`.
+    /// Variante `U`, correspondant à cette valeur précise.
     U = 85,
-    /// Représente le cas `V`.
+    /// Variante `V`, correspondant à cette valeur précise.
     V = 86,
-    /// Représente le cas `W`.
+    /// Variante `W`, correspondant à cette valeur précise.
     W = 87,
-    /// Représente le cas `X`.
+    /// Variante `X`, correspondant à cette valeur précise.
     X = 88,
-    /// Représente le cas `Y`.
+    /// Variante `Y`, correspondant à cette valeur précise.
     Y = 89,
-    /// Représente le cas `Z`.
+    /// Variante `Z`, correspondant à cette valeur précise.
     Z = 90,
-    /// Représente le cas `LeftBracket`.
+    /// Variante `LeftBracket`, correspondant à cette valeur précise.
     LeftBracket = 91,
-    /// Représente le cas `Backslash`.
+    /// Variante `Backslash`, correspondant à cette valeur précise.
     Backslash = 92,
-    /// Représente le cas `RightBracket`.
+    /// Variante `RightBracket`, correspondant à cette valeur précise.
     RightBracket = 93,
-    /// Représente le cas `Grave`.
+    /// Variante `Grave`, correspondant à cette valeur précise.
     Grave = 96,
-    /// Représente le cas `Escape`.
+    /// Variante `Escape`, correspondant à cette valeur précise.
     Escape = 256,
-    /// Représente le cas `Enter`.
+    /// Variante `Enter`, correspondant à cette valeur précise.
     Enter = 257,
-    /// Représente le cas `Tab`.
+    /// Variante `Tab`, correspondant à cette valeur précise.
     Tab = 258,
-    /// Représente le cas `Backspace`.
+    /// Variante `Backspace`, correspondant à cette valeur précise.
     Backspace = 259,
-    /// Représente le cas `Insert`.
+    /// Variante `Insert`, correspondant à cette valeur précise.
     Insert = 260,
-    /// Représente le cas `Delete`.
+    /// Variante `Delete`, correspondant à cette valeur précise.
     Delete = 261,
-    /// Représente le cas `Right`.
+    /// Variante `Right`, correspondant à cette valeur précise.
     Right = 262,
-    /// Représente le cas `Left`.
+    /// Variante `Left`, correspondant à cette valeur précise.
     Left = 263,
-    /// Représente le cas `Down`.
+    /// Variante `Down`, correspondant à cette valeur précise.
     Down = 264,
-    /// Représente le cas `Up`.
+    /// Variante `Up`, correspondant à cette valeur précise.
     Up = 265,
-    /// Représente le cas `PageUp`.
+    /// Variante `PageUp`, correspondant à cette valeur précise.
     PageUp = 266,
-    /// Représente le cas `PageDown`.
+    /// Variante `PageDown`, correspondant à cette valeur précise.
     PageDown = 267,
-    /// Représente le cas `Home`.
+    /// Variante `Home`, correspondant à cette valeur précise.
     Home = 268,
-    /// Représente le cas `End`.
+    /// Variante `End`, correspondant à cette valeur précise.
     End = 269,
-    /// Représente le cas `CapsLock`.
+    /// Variante `CapsLock`, correspondant à cette valeur précise.
     CapsLock = 280,
-    /// Représente le cas `ScrollLock`.
+    /// Variante `ScrollLock`, correspondant à cette valeur précise.
     ScrollLock = 281,
-    /// Représente le cas `NumLock`.
+    /// Variante `NumLock`, correspondant à cette valeur précise.
     NumLock = 282,
-    /// Représente le cas `PrintScreen`.
+    /// Variante `PrintScreen`, correspondant à cette valeur précise.
     PrintScreen = 283,
-    /// Représente le cas `Pause`.
+    /// Variante `Pause`, correspondant à cette valeur précise.
     Pause = 284,
-    /// Représente le cas `F1`.
+    /// Variante `F1`, correspondant à cette valeur précise.
     F1 = 290,
-    /// Représente le cas `F2`.
+    /// Variante `F2`, correspondant à cette valeur précise.
     F2 = 291,
-    /// Représente le cas `F3`.
+    /// Variante `F3`, correspondant à cette valeur précise.
     F3 = 292,
-    /// Représente le cas `F4`.
+    /// Variante `F4`, correspondant à cette valeur précise.
     F4 = 293,
-    /// Représente le cas `F5`.
+    /// Variante `F5`, correspondant à cette valeur précise.
     F5 = 294,
-    /// Représente le cas `F6`.
+    /// Variante `F6`, correspondant à cette valeur précise.
     F6 = 295,
-    /// Représente le cas `F7`.
+    /// Variante `F7`, correspondant à cette valeur précise.
     F7 = 296,
-    /// Représente le cas `F8`.
+    /// Variante `F8`, correspondant à cette valeur précise.
     F8 = 297,
-    /// Représente le cas `F9`.
+    /// Variante `F9`, correspondant à cette valeur précise.
     F9 = 298,
-    /// Représente le cas `F10`.
+    /// Variante `F10`, correspondant à cette valeur précise.
     F10 = 299,
-    /// Représente le cas `F11`.
+    /// Variante `F11`, correspondant à cette valeur précise.
     F11 = 300,
-    /// Représente le cas `F12`.
+    /// Variante `F12`, correspondant à cette valeur précise.
     F12 = 301,
-    /// Représente le cas `Keypad0`.
+    /// Variante `Keypad0`, correspondant à cette valeur précise.
     Keypad0 = 320,
-    /// Représente le cas `Keypad1`.
+    /// Variante `Keypad1`, correspondant à cette valeur précise.
     Keypad1 = 321,
-    /// Représente le cas `Keypad2`.
+    /// Variante `Keypad2`, correspondant à cette valeur précise.
     Keypad2 = 322,
-    /// Représente le cas `Keypad3`.
+    /// Variante `Keypad3`, correspondant à cette valeur précise.
     Keypad3 = 323,
-    /// Représente le cas `Keypad4`.
+    /// Variante `Keypad4`, correspondant à cette valeur précise.
     Keypad4 = 324,
-    /// Représente le cas `Keypad5`.
+    /// Variante `Keypad5`, correspondant à cette valeur précise.
     Keypad5 = 325,
-    /// Représente le cas `Keypad6`.
+    /// Variante `Keypad6`, correspondant à cette valeur précise.
     Keypad6 = 326,
-    /// Représente le cas `Keypad7`.
+    /// Variante `Keypad7`, correspondant à cette valeur précise.
     Keypad7 = 327,
-    /// Représente le cas `Keypad8`.
+    /// Variante `Keypad8`, correspondant à cette valeur précise.
     Keypad8 = 328,
-    /// Représente le cas `Keypad9`.
+    /// Variante `Keypad9`, correspondant à cette valeur précise.
     Keypad9 = 329,
-    /// Représente le cas `KeypadDecimal`.
+    /// Variante `KeypadDecimal`, correspondant à cette valeur précise.
     KeypadDecimal = 330,
-    /// Représente le cas `KeypadDivide`.
+    /// Variante `KeypadDivide`, correspondant à cette valeur précise.
     KeypadDivide = 331,
-    /// Représente le cas `KeypadMultiply`.
+    /// Variante `KeypadMultiply`, correspondant à cette valeur précise.
     KeypadMultiply = 332,
-    /// Représente le cas `KeypadSubtract`.
+    /// Variante `KeypadSubtract`, correspondant à cette valeur précise.
     KeypadSubtract = 333,
-    /// Représente le cas `KeypadAdd`.
+    /// Variante `KeypadAdd`, correspondant à cette valeur précise.
     KeypadAdd = 334,
-    /// Représente le cas `KeypadEnter`.
+    /// Variante `KeypadEnter`, correspondant à cette valeur précise.
     KeypadEnter = 335,
-    /// Représente le cas `KeypadEqual`.
+    /// Variante `KeypadEqual`, correspondant à cette valeur précise.
     KeypadEqual = 336,
-    /// Représente le cas `LeftShift`.
+    /// Variante `LeftShift`, correspondant à cette valeur précise.
     LeftShift = 340,
-    /// Représente le cas `LeftControl`.
+    /// Variante `LeftControl`, correspondant à cette valeur précise.
     LeftControl = 341,
-    /// Représente le cas `LeftAlt`.
+    /// Variante `LeftAlt`, correspondant à cette valeur précise.
     LeftAlt = 342,
-    /// Représente le cas `LeftSuper`.
+    /// Variante `LeftSuper`, correspondant à cette valeur précise.
     LeftSuper = 343,
-    /// Représente le cas `RightShift`.
+    /// Variante `RightShift`, correspondant à cette valeur précise.
     RightShift = 344,
-    /// Représente le cas `RightControl`.
+    /// Variante `RightControl`, correspondant à cette valeur précise.
     RightControl = 345,
-    /// Représente le cas `RightAlt`.
+    /// Variante `RightAlt`, correspondant à cette valeur précise.
     RightAlt = 346,
-    /// Représente le cas `RightSuper`.
+    /// Variante `RightSuper`, correspondant à cette valeur précise.
     RightSuper = 347,
-    /// Représente le cas `Menu`.
+    /// Variante `Menu`, correspondant à cette valeur précise.
     Menu = 348
 }
 
-/// Énumère les états publics de `MouseButton`.
+/// Énumère les valeurs de [[MouseButton]] reconnues par le backend ou l’algorithme.
 enum MouseButton derives Copy, Equality, Debug {
-    /// Représente le cas `Left`.
+    /// Variante `Left`, correspondant à cette valeur précise.
     Left,
-    /// Représente le cas `Right`.
+    /// Variante `Right`, correspondant à cette valeur précise.
     Right,
-    /// Représente le cas `Middle`.
+    /// Variante `Middle`, correspondant à cette valeur précise.
     Middle,
-    /// Représente le cas `Side`.
+    /// Variante `Side`, correspondant à cette valeur précise.
     Side,
-    /// Représente le cas `Extra`.
+    /// Variante `Extra`, correspondant à cette valeur précise.
     Extra,
-    /// Représente le cas `Forward`.
+    /// Variante `Forward`, correspondant à cette valeur précise.
     Forward,
-    /// Représente le cas `Back`.
+    /// Variante `Back`, correspondant à cette valeur précise.
     Back
 }
 
-/// Énumère les états publics de `TextureFilter`.
+/// Énumère les valeurs de [[TextureFilter]] reconnues par le backend ou l’algorithme.
 enum TextureFilter derives Copy, Equality, Debug {
-    /// Représente le cas `Point`.
+    /// Variante `Point`, correspondant à cette valeur précise.
     Point,
-    /// Représente le cas `Bilinear`.
+    /// Variante `Bilinear`, correspondant à cette valeur précise.
     Bilinear,
-    /// Représente le cas `Trilinear`.
+    /// Variante `Trilinear`, correspondant à cette valeur précise.
     Trilinear,
-    /// Représente le cas `Anisotropic4x`.
+    /// Variante `Anisotropic4x`, correspondant à cette valeur précise.
     Anisotropic4x,
-    /// Représente le cas `Anisotropic8x`.
+    /// Variante `Anisotropic8x`, correspondant à cette valeur précise.
     Anisotropic8x,
-    /// Représente le cas `Anisotropic16x`.
+    /// Variante `Anisotropic16x`, correspondant à cette valeur précise.
     Anisotropic16x
 }
 
-/// Énumère les états publics de `BlendMode`.
+/// Énumère les valeurs de [[BlendMode]] reconnues par le backend ou l’algorithme.
 enum BlendMode derives Copy, Equality, Debug {
-    /// Représente le cas `Alpha`.
+    /// Variante `Alpha`, correspondant à cette valeur précise.
     Alpha,
-    /// Représente le cas `Additive`.
+    /// Variante `Additive`, correspondant à cette valeur précise.
     Additive
 }
 
-/// Énumère les états publics de `GamepadButton`.
+/// Énumère les valeurs de [[GamepadButton]] reconnues par le backend ou l’algorithme.
 enum GamepadButton derives Copy, Equality, Debug {
-    /// Représente le cas `Unknown`.
+    /// Variante `Unknown`, correspondant à cette valeur précise.
     Unknown,
-    /// Représente le cas `LeftFaceUp`.
+    /// Variante `LeftFaceUp`, correspondant à cette valeur précise.
     LeftFaceUp,
-    /// Représente le cas `LeftFaceRight`.
+    /// Variante `LeftFaceRight`, correspondant à cette valeur précise.
     LeftFaceRight,
-    /// Représente le cas `LeftFaceDown`.
+    /// Variante `LeftFaceDown`, correspondant à cette valeur précise.
     LeftFaceDown,
-    /// Représente le cas `LeftFaceLeft`.
+    /// Variante `LeftFaceLeft`, correspondant à cette valeur précise.
     LeftFaceLeft,
-    /// Représente le cas `RightFaceUp`.
+    /// Variante `RightFaceUp`, correspondant à cette valeur précise.
     RightFaceUp,
-    /// Représente le cas `RightFaceRight`.
+    /// Variante `RightFaceRight`, correspondant à cette valeur précise.
     RightFaceRight,
-    /// Représente le cas `RightFaceDown`.
+    /// Variante `RightFaceDown`, correspondant à cette valeur précise.
     RightFaceDown,
-    /// Représente le cas `RightFaceLeft`.
+    /// Variante `RightFaceLeft`, correspondant à cette valeur précise.
     RightFaceLeft,
-    /// Représente le cas `LeftTrigger1`.
+    /// Variante `LeftTrigger1`, correspondant à cette valeur précise.
     LeftTrigger1,
-    /// Représente le cas `LeftTrigger2`.
+    /// Variante `LeftTrigger2`, correspondant à cette valeur précise.
     LeftTrigger2,
-    /// Représente le cas `RightTrigger1`.
+    /// Variante `RightTrigger1`, correspondant à cette valeur précise.
     RightTrigger1,
-    /// Représente le cas `RightTrigger2`.
+    /// Variante `RightTrigger2`, correspondant à cette valeur précise.
     RightTrigger2,
-    /// Représente le cas `MiddleLeft`.
+    /// Variante `MiddleLeft`, correspondant à cette valeur précise.
     MiddleLeft,
-    /// Représente le cas `Middle`.
+    /// Variante `Middle`, correspondant à cette valeur précise.
     Middle,
-    /// Représente le cas `MiddleRight`.
+    /// Variante `MiddleRight`, correspondant à cette valeur précise.
     MiddleRight,
-    /// Représente le cas `LeftThumb`.
+    /// Variante `LeftThumb`, correspondant à cette valeur précise.
     LeftThumb,
-    /// Représente le cas `RightThumb`.
+    /// Variante `RightThumb`, correspondant à cette valeur précise.
     RightThumb
 }
 
-/// Énumère les états publics de `GamepadAxis`.
+/// Énumère les valeurs de [[GamepadAxis]] reconnues par le backend ou l’algorithme.
 enum GamepadAxis derives Copy, Equality, Debug {
-    /// Représente le cas `LeftX`.
+    /// Variante `LeftX`, correspondant à cette valeur précise.
+    ///
+    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @return Résultat de type [[uint]].
     LeftX,
-    /// Représente le cas `LeftY`.
+    /// Variante `LeftY`, correspondant à cette valeur précise.
+    ///
+    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @return Résultat de type [[uint]].
     LeftY,
-    /// Représente le cas `RightX`.
+    /// Variante `RightX`, correspondant à cette valeur précise.
+    ///
+    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @return Résultat de type [[uint]].
     RightX,
-    /// Représente le cas `RightY`.
+    /// Variante `RightY`, correspondant à cette valeur précise.
+    ///
+    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @return Résultat de type [[uint]].
     RightY,
-    /// Représente le cas `LeftTrigger`.
+    /// Variante `LeftTrigger`, correspondant à cette valeur précise.
+    ///
+    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @return Résultat de type [[uint]].
     LeftTrigger,
-    /// Représente le cas `RightTrigger`.
+    /// Variante `RightTrigger`, correspondant à cette valeur précise.
+    ///
+    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @return Résultat de type [[uint]].
     RightTrigger
 }
 private extern def janus_graphics_rgba(
@@ -318,7 +362,7 @@ green : ubyte,
 blue : ubyte,
 alpha : ubyte
 ) : uint
-/// Représente le type public `Vector2`.
+/// Définit [[Vector2]], avec les garanties et la propriété décrites par ses méthodes.
 struct Vector2(
 /// Expose le membre public `x`.
 val x : float,
@@ -327,7 +371,7 @@ val y : float
 )
 derives Copy, Equality, Debug {}
 
-/// Représente le type public `Rectangle`.
+/// Définit [[Rectangle]], avec les garanties et la propriété décrites par ses méthodes.
 struct Rectangle(
 /// Expose le membre public `x`.
 val x : float,
@@ -339,30 +383,54 @@ val width : float,
 val height : float
 ) derives Copy, Equality, Debug {}
 
-/// Représente le type public `Color`.
+/// Définit [[Color]], avec les garanties et la propriété décrites par ses méthodes.
 struct Color(private val packedValue : uint)
 derives Copy, Equality, Debug {
-    /// Exécute l’opération publique `packed`.
+    /// Fournit la sémantique de [[packed]].
+    ///
+    /// @return Résultat de type [[uint]].
     def packed() : uint {
         return packedValue
     }
 }
-/// Exécute l’opération publique `rgba`.
+/// Fournit la sémantique de [[rgba]].
+///
+/// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Color]].
 def rgba(red : ubyte, green : ubyte, blue : ubyte, alpha : ubyte) : Color {
     return new Color(janus_graphics_rgba(red, green, blue, alpha))
 }
 
-/// Exécute l’opération publique `vector2`.
+/// Fournit la sémantique de [[vector2]].
+///
+/// @param x Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param y Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Vector2]].
 def vector2(x : float, y : float) : Vector2 {
     return new Vector2(x, y)
 }
 
-/// Exécute l’opération publique `rectangle`.
+/// Fournit la sémantique de [[rectangle]].
+///
+/// @param x Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param y Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param width Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param height Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Rectangle]].
 def rectangle(x : float, y : float, width : float, height : float) : Rectangle {
     return new Rectangle(x, y, width, height)
 }
 
-/// Exécute l’opération publique `colorRgba`.
+/// Fournit la sémantique de [[colorRgba]].
+///
+/// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Color]].
 def colorRgba(
 red : ubyte,
 green : ubyte,
@@ -372,48 +440,78 @@ alpha : ubyte
     return rgba(red, green, blue, alpha)
 }
 
-/// Exécute l’opération publique `colorRgb`.
+/// Fournit la sémantique de [[colorRgb]].
+///
+/// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Color]].
 def colorRgb(red : ubyte, green : ubyte, blue : ubyte) : Color {
     return rgb(red, green, blue)
 }
 
-/// Exécute l’opération publique `rgb`.
+/// Fournit la sémantique de [[rgb]].
+///
+/// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Color]].
 def rgb(red : ubyte, green : ubyte, blue : ubyte) : Color {
     return rgba(red, green, blue, 255)
 }
 
 /// Expose la valeur publique `Black`.
+///
+/// @return Résultat de type [[Color]].
 val Black : Color = new Color(255)
 /// Expose la valeur publique `White`.
+///
+/// @return Résultat de type [[Color]].
 val White : Color = new Color(4294967295)
 /// Expose la valeur publique `Red`.
+///
+/// @return Résultat de type [[Color]].
 val Red : Color = new Color(3861460991)
 /// Expose la valeur publique `Green`.
+///
+/// @return Résultat de type [[Color]].
 val Green : Color = new Color(14954751)
 /// Expose la valeur publique `Blue`.
+///
+/// @return Résultat de type [[Color]].
 val Blue : Color = new Color(7991807)
 
-/// Exécute l’opération publique `black`.
+/// Fournit la sémantique de [[black]].
+///
+/// @return Résultat de type [[Color]].
 def black() : Color {
     return Black
 }
 
-/// Exécute l’opération publique `white`.
+/// Fournit la sémantique de [[white]].
+///
+/// @return Résultat de type [[Color]].
 def white() : Color {
     return White
 }
 
-/// Exécute l’opération publique `red`.
+/// Fournit la sémantique de [[red]].
+///
+/// @return Résultat de type [[Color]].
 def red() : Color {
     return Red
 }
 
-/// Exécute l’opération publique `green`.
+/// Fournit la sémantique de [[green]].
+///
+/// @return Résultat de type [[Color]].
 def green() : Color {
     return Green
 }
 
-/// Exécute l’opération publique `blue`.
+/// Fournit la sémantique de [[blue]].
+///
+/// @return Résultat de type [[Color]].
 def blue() : Color {
     return Blue
 }

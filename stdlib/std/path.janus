@@ -1,4 +1,16 @@
-/// Normalise, compose et inspecte les chemins natifs.
+/// Normalise, compose et inspecte des chemins selon les règles de la plateforme.
+///
+/// Les [[Path]] retournés possèdent leur stockage natif. Les séparateurs, racines
+/// et notions de chemin absolu sont délégués à l’hôte ; aucune existence sur le
+/// système de fichiers n’est vérifiée.
+/// @example
+/// ```janus
+/// val joined = joinPath("var", "log/app.log")
+/// match joined {
+///     Ok(path) => println(path.view()),
+///     Error(error) => println(error.context)
+/// }
+/// ```
 module std.path
 
 import std.result
@@ -66,22 +78,29 @@ private def lengthOutput() : Ptr[usize] {
     return output
 }
 
-/// Représente le type public `Path`.
+/// Chemin natif normalisé possédant son tampon d’octets.
+///
+/// La vue produite par [[view]] emprunte ce tampon et cesse d’être valide à la
+/// destruction du chemin. Un `Path` décrit une syntaxe de chemin, pas une entrée
+/// nécessairement présente sur le système de fichiers.
 class Path(
 private var nativeData : Ptr[byte],
 private val nativeLength : usize
 ) {
-    /// Exécute l’opération publique `view`.
+    /// Emprunte le chemin normalisé sous forme de chaîne.
+    /// @return Vue valide jusqu’à la destruction de ce [[Path]].
     def view() : string {
         return stringView(nativeData, nativeLength)
     }
 
-    /// Retourne la longueur du chemin normalisé.
+    /// Retourne la longueur du chemin normalisé en octets.
+    /// @return Nombre d’octets de [[view]], hors éventuel terminateur natif.
     def size() : usize {
         return nativeLength
     }
 
-    /// Indique si le chemin est absolu.
+    /// Teste si le chemin possède une racine absolue selon la plateforme.
+    /// @return `true` si la syntaxe native considère le chemin absolu.
     def isAbsolute() : bool {
         return janus_path_is_absolute(
         nativeData,
@@ -89,7 +108,10 @@ private val nativeLength : usize
         ) == 1
     }
 
-    /// Exécute l’opération publique `componentCount`.
+    /// Compte les composants du chemin normalisé.
+    ///
+    /// Une erreur native éventuelle est ramenée à zéro par cette API.
+    /// @return Nombre de composants, ou zéro si le chemin n’en a aucun ou si le comptage natif échoue.
     def componentCount() : usize {
         val count : int = janus_path_component_count(
         nativeData,
@@ -101,7 +123,9 @@ private val nativeLength : usize
         return usize(count)
     }
 
-    /// Exécute l’opération publique `component`.
+    /// Copie un composant du chemin dans un nouveau [[Path]] propriétaire.
+    /// @param index Position du composant, à partir de zéro.
+    /// @return `Ok` avec le composant, ou `Error(SystemError)` si l’indice ou le chemin est refusé par l’implémentation native.
     def component(
     index : usize
     ) : Result[Path, SystemError] {
@@ -134,7 +158,12 @@ private val nativeLength : usize
     }
 }
 
-/// Exécute l’opération publique `normalizePath`.
+/// Normalise un chemin avec les règles lexicales natives.
+///
+/// Cette opération alloue un [[Path]] mais n’accède pas nécessairement au système
+/// de fichiers et ne garantit donc pas que la cible existe.
+/// @param path Chemin source, exprimé dans la syntaxe de la plateforme.
+/// @return `Ok(Path)` propriétaire, ou `Error(SystemError)` avec l’opération `path.normalize` et le chemin en contexte.
 def normalizePath(
 path : string
 ) : Result[Path, SystemError] {
@@ -160,7 +189,10 @@ path : string
     )
 }
 
-/// Exécute l’opération publique `joinPath`.
+/// Joint un chemin enfant à une base puis produit un [[Path]] normalisé.
+/// @param base Chemin servant de base dans la syntaxe native.
+/// @param child Chemin à joindre ; le traitement d’un enfant absolu dépend des règles natives.
+/// @return `Ok(Path)` propriétaire, ou `Error(SystemError)` avec l’opération `path.join` et `base` en contexte.
 def joinPath(
 base : string,
 child : string

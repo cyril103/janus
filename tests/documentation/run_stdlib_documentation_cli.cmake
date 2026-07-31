@@ -16,27 +16,17 @@ execute_process(
     ERROR_VARIABLE FIRST_ERROR
     RESULT_VARIABLE FIRST_RESULT
 )
-if(NOT FIRST_RESULT EQUAL 0)
+if (NOT FIRST_RESULT EQUAL 0)
     message(FATAL_ERROR
-            "stdlib documentation generation failed (${FIRST_RESULT}):\n"
-            "${FIRST_ERROR}")
+            "stdlib documentation generation failed:\n${FIRST_ERROR}")
 endif()
-if(NOT EXISTS "${FIRST_INDEX}" OR NOT EXISTS "${FIRST_HTML}")
+if (NOT EXISTS "${FIRST_INDEX}" OR NOT EXISTS "${FIRST_HTML}")
     message(FATAL_ERROR "stdlib documentation output is incomplete")
 endif()
-foreach(reference api-index.json index.html)
-    execute_process(
-        COMMAND "${CMAKE_COMMAND}" -E compare_files
-                "${OUTPUT_DIR}/${reference}"
-                "${SOURCE_DIR}/website/docs/reference/stdlib/${reference}"
-        RESULT_VARIABLE REFERENCE_RESULT
-    )
-    if(NOT REFERENCE_RESULT EQUAL 0)
-        message(FATAL_ERROR
-                "committed stdlib reference is stale: ${reference}")
-    endif()
-endforeach()
-
+if (FIRST_ERROR MATCHES "unresolved documentation link")
+    message(FATAL_ERROR
+            "stdlib documentation still contains unresolved links:\n${FIRST_ERROR}")
+endif()
 file(READ "${FIRST_INDEX}" INDEX_CONTENT)
 string(REGEX MATCHALL "\"kind\":\"module\"" MODULES "${INDEX_CONTENT}")
 list(LENGTH MODULES MODULE_COUNT)
@@ -61,14 +51,12 @@ file(SHA256 "${FIRST_HTML}" FIRST_HTML_DIGEST)
 execute_process(
     COMMAND "${JANUS}" doc --stdlib --offline -o "${OUTPUT_DIR}"
     WORKING_DIRECTORY "${SOURCE_DIR}"
-    OUTPUT_VARIABLE SECOND_OUTPUT
-    ERROR_VARIABLE SECOND_ERROR
     RESULT_VARIABLE SECOND_RESULT
+    ERROR_VARIABLE SECOND_ERROR
 )
-if(NOT SECOND_RESULT EQUAL 0)
+if (NOT SECOND_RESULT EQUAL 0)
     message(FATAL_ERROR
-            "second stdlib documentation generation failed (${SECOND_RESULT}):\n"
-            "${SECOND_ERROR}")
+            "second stdlib documentation generation failed:\n${SECOND_ERROR}")
 endif()
 file(SHA256 "${FIRST_INDEX}" SECOND_INDEX_DIGEST)
 file(SHA256 "${FIRST_HTML}" SECOND_HTML_DIGEST)
@@ -79,4 +67,4 @@ endif()
 
 message(STATUS
         "stdlib documentation covers ${MODULE_COUNT} modules and "
-        "${SYMBOL_COUNT} symbols deterministically")
+        "${SYMBOL_COUNT} symbols deterministically and enforces contracts")

@@ -1,17 +1,39 @@
-/// Expose les primitives minimales d’interopérabilité avec la bibliothèque C.
+/// Déclare un sous-ensemble brut de la bibliothèque C pour l’interopérabilité.
+///
+/// Les pointeurs, chaînes terminées par NUL, formats et durées de vie restent à la
+/// charge de l’appelant ; ces déclarations ne vérifient ni les bornes ni les types
+/// des arguments variadiques.
+/// @example
+/// ```janus
+/// import std.c
+/// c.puts(cstr("Bonjour depuis C"))
+/// ```
 module std.c
 
-/// Exécute l’opération publique `puts`.
+/// Écrit une chaîne C suivie d’un saut de ligne sur la sortie standard.
+/// @param text Pointeur vers une chaîne valide terminée par NUL.
+/// @return Valeur non négative en cas de succès, ou `EOF` selon la bibliothèque C en cas d’échec.
 extern def puts(text : Ptr[byte]) : int
-/// Exécute l’opération publique `strlen`.
+/// Mesure une chaîne C sans compter son octet NUL final.
+/// @param text Pointeur vers une chaîne valide terminée par NUL.
+/// @return Nombre d’octets précédant le premier octet NUL.
 extern def strlen(text : Ptr[byte]) : usize
-/// Exécute l’opération publique `memcmp`.
+/// Compare lexicographiquement deux zones mémoire octet par octet.
+/// @param left Début de la première zone, lisible sur `size` octets.
+/// @param right Début de la seconde zone, lisible sur `size` octets.
+/// @param size Nombre d’octets à comparer.
+/// @return Entier négatif, nul ou positif selon que la première zone est inférieure, égale ou supérieure à la seconde.
 extern def memcmp(
 left : Ptr[byte],
 right : Ptr[byte],
 size : usize
 ) : int
-/// Exécute l’opération publique `exit`.
+/// Termine immédiatement le processus avec le statut demandé.
+///
+/// Les destructeurs Janus de portée automatique ne sont pas garantis exécutés.
+/// @param status Code transmis à l’environnement hôte.
 extern def exit(status : int) : Unit
-/// Exécute l’opération publique `printf`.
+/// Formate des arguments variadiques sur la sortie standard selon une chaîne C.
+/// @param format Chaîne C terminée par NUL ; chaque conversion doit correspondre exactement au type de son argument variadique.
+/// @return Nombre de caractères écrits, ou une valeur négative en cas d’échec d’écriture ou d’encodage.
 extern def printf(format : Ptr[byte], ...) : int

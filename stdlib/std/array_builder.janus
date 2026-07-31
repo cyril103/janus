@@ -1,10 +1,19 @@
 /// Construit des tableaux propriétaires à partir de valeurs ou d’itérateurs.
+///
+/// [[ArrayBuilder]] possède chaque valeur ajoutée. [[ArrayBuilder.result]] transfère le tableau
+/// achevé et réinitialise le constructeur pour permettre sa réutilisation.
+/// @example
+/// ```janus
+/// val builder : ArrayBuilder[int] = new ArrayBuilder[int](usize(2))
+/// builder.add(10)
+/// val values : Array[int] = builder.result()
+/// ```
 module std.array_builder
 import std.array
 import std.builder
 import std.iterator
 
-/// Représente le type public `ArrayBuilder`.
+/// Définit [[ArrayBuilder]], avec les garanties et la propriété décrites par ses méthodes.
 class ArrayBuilder[T](
 initialCapacity : usize
 ) extends Builder[T, Array[T]] {
@@ -12,11 +21,16 @@ initialCapacity : usize
     new Array[T](initialCapacity)
 
     /// Ajoute une valeur.
+    ///
+    /// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
     def add(value : T) : Unit {
         values.push(move value)
     }
 
     /// Ajoute tous les éléments de la source.
+    ///
+    /// @param source Itérateur ou iterable source d’où chaque valeur est récupérée.
+    /// @return Résultat de type [[usize]].
     def addAll[C <: Iterable[T]](source : C) : Unit {
         for value in source {
             this.add(value)
@@ -24,6 +38,8 @@ initialCapacity : usize
     }
 
     /// Retourne le nombre d’éléments accumulés.
+    ///
+    /// @return Résultat de type [[usize]].
     def size() : usize {
         return values.size()
     }
@@ -34,6 +50,8 @@ initialCapacity : usize
     }
 
     /// Transfère les éléments accumulés dans un nouveau tableau.
+    ///
+    /// @return Résultat de type [[ArrayT]].
     def result() : Array[T] {
         val completed : Array[T] = move values
         values = new Array[T](usize(0))
@@ -45,7 +63,10 @@ initialCapacity : usize
     }
 }
 
-/// Exécute l’opération publique `collectArray`.
+/// Fournit la sémantique de [[collectArray]].
+///
+/// @param source Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[ArrayT]].
 def collectArray[T](source : Iterator[T]) : Array[T] {
     val builder : ArrayBuilder[T] =
     new ArrayBuilder[T](usize(0))

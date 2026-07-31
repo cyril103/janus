@@ -17,6 +17,33 @@ trait Printable {
 }
 ```
 
+Une fiche pédagogique sépare le premier paragraphe (le résumé), les
+paragraphes suivants (les détails), les paramètres, le résultat et les
+exemples. La convention complète est :
+
+````janus
+/// Construit un message pour [[Printable]].
+///
+/// Le message peut ensuite être transmis à un moteur de rendu.
+/// @param name Nom affiché dans le message.
+/// @param count Nombre d’occurrences à produire.
+/// @return Le message construit.
+/// @example
+/// ```janus
+/// val message = buildMessage("Janus", 2)
+/// ```
+def buildMessage(name : string, count : int) : string {
+    return name
+}
+````
+
+Chaque `@param` doit nommer exactement un paramètre réel et chaque paramètre
+public doit être documenté. Une fonction dont le résultat n’est ni `void` ni
+`unit` doit fournir `@return`. Plusieurs blocs `@example` sont permis. Leur
+contenu, comme tout le texte documentaire, est strictement échappé dans le
+HTML. Les références `[[Nom]]` sont résolues dans le résumé, les détails, les
+descriptions de paramètres et de résultat ainsi que dans les exemples.
+
 Le commentaire placé immédiatement avant `module` décrit le module. La même
 syntaxe s’applique aux globales, fonctions, classes, structs, enums, variantes,
 traits, champs et méthodes. Le texte est conservé dans l’AST ; `//` reste un
@@ -42,13 +69,17 @@ La sortie par défaut est `target/doc/index.html`. `api-index.json`, placé dans
 le même dossier, fournit l’index public trié utilisé par les outils. Les
 modules, types, variantes, traits, fonctions, globales et membres publics y
 sont recensés ; les déclarations `private` et les membres `internal` sont
-exclus.
+exclus. Les champs historiques sont conservés. Chaque entrée expose aussi
+`summary`, `details`, `parameters`, `returns` et `examples`, dans un ordre
+déterministe.
 
 `--stdlib` documente directement les sources de la bibliothèque standard
 livrée avec la chaîne d’outils. Ce mode exige une documentation source pour
 chaque module et chaque symbole public, refuse les liens `[[...]]` non résolus
 et échoue si la couverture n’est pas complète. Il ne recherche pas de
-manifeste de projet.
+manifeste de projet. Les contrats structurés invalides sont également des
+erreurs dans ce mode. Pour un paquet, la génération reste permissive et
+signale ces mêmes problèmes sous forme d’avertissements actionnables.
 
 Le HTML contient sa feuille de style et ne charge aucune ressource réseau.
 À sources, manifeste et version de Janus identiques, `index.html` et

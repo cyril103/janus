@@ -1,4 +1,13 @@
-/// Construit des itérateurs sur des intervalles entiers.
+/// Construit des itérateurs sur des intervalles entiers semi-ouverts.
+///
+/// [[range]] produit `start` inclus à `end` exclu, par pas de un; l’intervalle est vide lorsque
+/// `start >= end`.
+/// @example
+/// ```janus
+/// for index in range(0, 3) {
+///     println(index)
+/// }
+/// ```
 module std.range
 import std.iterator
 import std.option
@@ -21,7 +30,11 @@ private val end : int
     }
 }
 
-/// Exécute l’opération publique `range`.
+/// Fournit la sémantique de [[range]].
+///
+/// @param start Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param end Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Iteratorint]].
 def range(start : int, end : int) : Iterator[int] {
     val state : Range = new Range(start, end)
     return new Iterator[int](

@@ -1,4 +1,14 @@
-/// Expose les arguments, l’environnement et l’exécution de processus.
+/// Consulte le contexte du processus courant et lance des processus enfants.
+///
+/// Les chaînes d’arguments du programme sont empruntées au runtime. Les valeurs
+/// d’environnement et résultats de commande possèdent en revanche leurs buffers.
+/// [[runProcess]] attend la fin de l’enfant et peut capturer ses sorties en octets.
+/// @example
+/// ```janus
+/// val args = new Array[string](usize(1))
+/// args.push("--version")
+/// val result = runProcess("janus", args, "", true, true)
+/// ```
 module std.process
 
 import std.array
@@ -67,12 +77,15 @@ context : string
     )
 }
 
-/// Exécute l’opération publique `programArgumentCount`.
+/// Retourne le nombre d’arguments du processus courant, nom du programme compris selon le runtime.
+/// @return Nombre d’indices acceptés par [[programArgument]].
 def programArgumentCount() : usize {
     return janus_process_argument_count()
 }
 
-/// Exécute l’opération publique `programArgument`.
+/// Emprunte un argument du processus courant.
+/// @param index Indice à partir de zéro.
+/// @return `Some(string)` pour un indice valide, sinon `None`; la vue reste détenue par le runtime.
 def programArgument(index : usize) : Option[string] {
     val data : Ptr[byte] = janus_process_argument_data(index)
     if data == null[byte]() {
@@ -83,9 +96,12 @@ def programArgument(index : usize) : Option[string] {
     )
 }
 
-/// Représente le type public `EnvironmentValue`.
+/// Valeur d’environnement propriétaire obtenue par [[environmentVariable]].
+///
+/// Sa vue emprunte un stockage natif libéré avec l’objet.
 class EnvironmentValue(private var nativeText : isize) {
-    /// Exécute l’opération publique `view`.
+    /// Emprunte le contenu exact de la variable, sans interpréter son encodage.
+    /// @return Vue valide jusqu’à la destruction de cette [[EnvironmentValue]].
     def view() : string {
         return stringView(
         janus_process_text_data(nativeText),
@@ -94,6 +110,7 @@ class EnvironmentValue(private var nativeText : isize) {
     }
 
     /// Retourne la longueur de la valeur d’environnement.
+    /// @return Taille en octets de [[view]].
     def size() : usize {
         return janus_process_text_size(nativeText)
     }
@@ -104,7 +121,9 @@ class EnvironmentValue(private var nativeText : isize) {
     }
 }
 
-/// Exécute l’opération publique `environmentVariable`.
+/// Recherche une variable dans l’environnement du processus courant.
+/// @param name Nom exact de la variable, encodé comme une chaîne Janus.
+/// @return `Ok(Some(value))` si elle existe, `Ok(None)` si elle est absente, ou `Error(SystemError)` si la consultation native échoue.
 def environmentVariable(
 name : string
 ) : Result[Option[EnvironmentValue], SystemError] {
@@ -127,29 +146,37 @@ name : string
     )
 }
 
-/// Représente le type public `ProcessResult`.
+/// Résultat propriétaire d’un processus terminé et de ses sorties éventuellement capturées.
+///
+/// Les pointeurs retournés par les accesseurs de sortie sont empruntés et deviennent
+/// invalides à la destruction. Les données sont brutes et ne sont pas validées UTF-8.
 class ProcessResult(private var nativeResult : isize) {
-    /// Exécute l’opération publique `exitCode`.
+    /// Retourne le code de terminaison rapporté par l’hôte.
+    /// @return Code de sortie natif de l’enfant.
     def exitCode() : int {
         return janus_process_result_exit_code(nativeResult)
     }
 
-    /// Exécute l’opération publique `stdoutData`.
+    /// Emprunte le début de la sortie standard capturée.
+    /// @return Pointeur lisible sur [[stdoutSize]] octets, valide pendant la vie de ce résultat.
     def stdoutData() : Ptr[byte] {
         return janus_process_result_stdout_data(nativeResult)
     }
 
-    /// Exécute l’opération publique `stdoutSize`.
+    /// Retourne la taille de la sortie standard capturée.
+    /// @return Nombre d’octets disponibles via [[stdoutData]], zéro si rien n’a été capturé.
     def stdoutSize() : usize {
         return janus_process_result_stdout_size(nativeResult)
     }
 
-    /// Exécute l’opération publique `stderrData`.
+    /// Emprunte le début de la sortie d’erreur capturée.
+    /// @return Pointeur lisible sur [[stderrSize]] octets, valide pendant la vie de ce résultat.
     def stderrData() : Ptr[byte] {
         return janus_process_result_stderr_data(nativeResult)
     }
 
-    /// Exécute l’opération publique `stderrSize`.
+    /// Retourne la taille de la sortie d’erreur capturée.
+    /// @return Nombre d’octets disponibles via [[stderrData]], zéro si rien n’a été capturé.
     def stderrSize() : usize {
         return janus_process_result_stderr_size(nativeResult)
     }
@@ -160,7 +187,13 @@ class ProcessResult(private var nativeResult : isize) {
     }
 }
 
-/// Exécute l’opération publique `runProcess`.
+/// Lance un processus, attend sa terminaison et restitue son résultat propriétaire.
+/// @param executable Chemin ou nom de l’exécutable interprété par la plateforme.
+/// @param arguments Arguments transmis à l’enfant, sans ajout implicite documenté du nom de l’exécutable.
+/// @param workingDirectory Répertoire de travail demandé ; le sens d’une chaîne vide dépend de l’implémentation native.
+/// @param captureStdout Active la collecte de la sortie standard dans [[ProcessResult]].
+/// @param captureStderr Active la collecte de la sortie d’erreur dans [[ProcessResult]].
+/// @return `Ok(ProcessResult)` même si l’enfant termine avec un code non nul, ou `Error(SystemError)` si l’allocation ou le lancement échoue.
 def runProcess(
 executable : string,
 arguments : Array[string],
