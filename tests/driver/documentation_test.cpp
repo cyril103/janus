@@ -25,6 +25,17 @@ std::string read(const std::filesystem::path &path) {
           std::istreambuf_iterator<char>{}};
 }
 
+std::size_t count_occurrences(std::string_view haystack,
+                              std::string_view needle) {
+  std::size_t count = 0;
+  std::size_t position = 0;
+  while ((position = haystack.find(needle, position)) != std::string_view::npos) {
+    ++count;
+    position += needle.size();
+  }
+  return count;
+}
+
 } // namespace
 
 int main() {
@@ -54,6 +65,11 @@ struct Widget() {
     /// Hidden method.
     internal def reset() : int { return 0 }
 }
+/// A shade value.
+struct Shade() {}
+/// Creates a shade value.
+/// @return A new [[Shade]].
+def shade() : Shade { return Shade() }
 /// Visible state.
 enum Status {
     /// Ready state.
@@ -113,6 +129,13 @@ private def hidden() : int { return 0 }
          "internal methods are excluded");
   expect(html.find("Hidden function.") == std::string::npos,
          "private functions are excluded");
+  expect(count_occurrences(html, "id=\"sample-shade\"") == 1 &&
+             count_occurrences(html, "id=\"sample-shade-function\"") == 1,
+         "case-insensitive symbol collisions receive unique stable anchors");
+  expect(api_index.find("\"name\":\"sample.Shade\"") != std::string::npos &&
+             api_index.find("\"anchor\":\"sample-shade-function\"") !=
+                 std::string::npos,
+         "the API index exposes the disambiguated anchor");
   expect(html.find("href=\"#sample-widget\"") != std::string::npos,
          "known documentation links are resolved");
   expect(html.find("id=\"api-search\"") != std::string::npos &&

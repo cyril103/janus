@@ -474,29 +474,17 @@ class Shader(private val handle : Ptr[byte]) {
 
 /// Définit [[SpriteAnimation]], avec les garanties et la propriété décrites par ses méthodes.
 class SpriteAnimation(
-/// Expose le membre public `texture`.
-///
-/// @return Résultat de type [[int]].
+/// Texture propriétaire contenant la feuille de sprites découpée en images.
 val texture : Texture,
-/// Expose le membre public `frameWidth`.
-///
-/// @return Résultat de type [[int]].
+/// Largeur en pixels d’une image dans la feuille de sprites.
 val frameWidth : int,
-/// Expose le membre public `frameHeight`.
-///
-/// @return Résultat de type [[int]].
+/// Hauteur en pixels d’une image dans la feuille de sprites.
 val frameHeight : int,
-/// Expose le membre public `columns`.
-///
-/// @return Résultat de type [[int]].
+/// Nombre d’images disposées sur chaque ligne de la texture.
 val columns : int,
-/// Expose le membre public `frameCount`.
-///
-/// @return Résultat de type [[int]].
+/// Nombre total d’images de l’animation; il doit être strictement positif pour [[advance]].
 val frameCount : int,
-/// Expose le membre public `currentFrame`.
-///
-/// @return Résultat de type [[int]].
+/// Indice zéro-based de l’image actuellement dessinée.
 var currentFrame : int
 ) {
     /// Fournit la sémantique de [[advance]].

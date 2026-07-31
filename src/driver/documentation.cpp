@@ -463,6 +463,18 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
                      std::tie(right.qualified_name, right.kind,
                               right.signature);
             });
+  std::set<std::string> used_anchors;
+  for (Symbol &symbol : symbols) {
+    if (used_anchors.insert(symbol.anchor).second)
+      continue;
+    const std::string disambiguated_base =
+        symbol.anchor + '-' + anchor_for(symbol.kind);
+    std::string candidate = disambiguated_base;
+    std::size_t occurrence = 2;
+    while (!used_anchors.insert(candidate).second)
+      candidate = disambiguated_base + '-' + std::to_string(occurrence++);
+    symbol.anchor = std::move(candidate);
+  }
   return symbols;
 }
 

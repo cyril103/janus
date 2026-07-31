@@ -130,29 +130,17 @@ private var graphicsPreviousFrameTime : Instant = graphicsStartTime
 
 /// Définit [[Camera2D]], avec les garanties et la propriété décrites par ses méthodes.
 class Camera2D(
-/// Expose le membre public `offsetX`.
-///
-/// @return Résultat de type [[bool]].
+/// Décalage horizontal de la caméra dans l’espace écran, exprimé en pixels.
 var offsetX : float,
-/// Expose le membre public `offsetY`.
-///
-/// @return Résultat de type [[bool]].
+/// Décalage vertical de la caméra dans l’espace écran, exprimé en pixels.
 var offsetY : float,
-/// Expose le membre public `targetX`.
-///
-/// @return Résultat de type [[bool]].
+/// Coordonnée horizontale du point suivi dans l’espace monde.
 var targetX : float,
-/// Expose le membre public `targetY`.
-///
-/// @return Résultat de type [[bool]].
+/// Coordonnée verticale du point suivi dans l’espace monde.
 var targetY : float,
-/// Expose le membre public `rotation`.
-///
-/// @return Résultat de type [[bool]].
+/// Rotation de la vue en degrés autour de la cible.
 var rotation : float,
-/// Expose le membre public `zoom`.
-///
-/// @return Résultat de type [[bool]].
+/// Facteur d’agrandissement de la vue; `1.0` conserve l’échelle native.
 var zoom : float
 ) {}
 

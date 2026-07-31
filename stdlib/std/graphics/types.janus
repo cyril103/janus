@@ -364,22 +364,22 @@ alpha : ubyte
 ) : uint
 /// Définit [[Vector2]], avec les garanties et la propriété décrites par ses méthodes.
 struct Vector2(
-/// Expose le membre public `x`.
+/// Coordonnée horizontale dans l’unité attendue par l’opération graphique.
 val x : float,
-/// Expose le membre public `y`.
+/// Coordonnée verticale dans l’unité attendue par l’opération graphique.
 val y : float
 )
 derives Copy, Equality, Debug {}
 
 /// Définit [[Rectangle]], avec les garanties et la propriété décrites par ses méthodes.
 struct Rectangle(
-/// Expose le membre public `x`.
+/// Coordonnée horizontale du coin supérieur gauche.
 val x : float,
-/// Expose le membre public `y`.
+/// Coordonnée verticale du coin supérieur gauche.
 val y : float,
-/// Expose le membre public `width`.
+/// Largeur du rectangle dans l’unité attendue par l’opération graphique.
 val width : float,
-/// Expose le membre public `height`.
+/// Hauteur du rectangle dans l’unité attendue par l’opération graphique.
 val height : float
 ) derives Copy, Equality, Debug {}
 
