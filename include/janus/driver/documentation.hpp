@@ -41,7 +41,8 @@ struct DocumentationReport {
 
 [[nodiscard]] DocumentationReport
 generate_documentation(const std::vector<ast::Program> &programs,
-                       const DocumentationOptions &options);
+                      const DocumentationOptions &options,
+                      bool strict_links);
 
 [[nodiscard]] DocumentationReport
 generate_package_documentation(const Manifest &manifest,

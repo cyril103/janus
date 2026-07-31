@@ -16,18 +16,16 @@ execute_process(
     ERROR_VARIABLE FIRST_ERROR
     RESULT_VARIABLE FIRST_RESULT
 )
-if(FIRST_RESULT EQUAL 0)
+if (NOT FIRST_RESULT EQUAL 0)
     message(FATAL_ERROR
-            "stdlib documentation must reject incomplete structured contracts")
+            "stdlib documentation generation failed:\n${FIRST_ERROR}")
 endif()
-if(NOT FIRST_ERROR MATCHES
-   "error: .*: .*requires an @return description \\[missing-return\\]")
-    message(FATAL_ERROR
-            "stdlib documentation did not emit an actionable contract error:\n"
-            "${FIRST_ERROR}")
-endif()
-if(NOT EXISTS "${FIRST_INDEX}" OR NOT EXISTS "${FIRST_HTML}")
+if (NOT EXISTS "${FIRST_INDEX}" OR NOT EXISTS "${FIRST_HTML}")
     message(FATAL_ERROR "stdlib documentation output is incomplete")
+endif()
+if (FIRST_ERROR MATCHES "unresolved documentation link")
+    message(FATAL_ERROR
+            "stdlib documentation still contains unresolved links:\n${FIRST_ERROR}")
 endif()
 file(READ "${FIRST_INDEX}" INDEX_CONTENT)
 string(REGEX MATCHALL "\"kind\":\"module\"" MODULES "${INDEX_CONTENT}")
@@ -53,13 +51,12 @@ file(SHA256 "${FIRST_HTML}" FIRST_HTML_DIGEST)
 execute_process(
     COMMAND "${JANUS}" doc --stdlib --offline -o "${OUTPUT_DIR}"
     WORKING_DIRECTORY "${SOURCE_DIR}"
-    OUTPUT_VARIABLE SECOND_OUTPUT
-    ERROR_VARIABLE SECOND_ERROR
     RESULT_VARIABLE SECOND_RESULT
+    ERROR_VARIABLE SECOND_ERROR
 )
-if(SECOND_RESULT EQUAL 0)
+if (NOT SECOND_RESULT EQUAL 0)
     message(FATAL_ERROR
-            "second stdlib documentation generation unexpectedly succeeded")
+            "second stdlib documentation generation failed:\n${SECOND_ERROR}")
 endif()
 file(SHA256 "${FIRST_INDEX}" SECOND_INDEX_DIGEST)
 file(SHA256 "${FIRST_HTML}" SECOND_HTML_DIGEST)

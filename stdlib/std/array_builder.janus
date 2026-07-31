@@ -29,6 +29,7 @@ initialCapacity : usize
 
     /// Ajoute tous les éléments de la source.
     ///
+    /// @param source Itérateur ou iterable source d’où chaque valeur est récupérée.
     /// @return Résultat de type [[usize]].
     def addAll[C <: Iterable[T]](source : C) : Unit {
         for value in source {

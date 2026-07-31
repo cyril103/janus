@@ -81,10 +81,10 @@ private def hidden() : int { return 0 }
 
   const janus::driver::DocumentationReport first =
       janus::driver::generate_documentation(
-          programs, {"sample-package", "1.2.3", root / "first"});
+          programs, {"sample-package", "1.2.3", root / "first"}, true);
   const janus::driver::DocumentationReport second =
       janus::driver::generate_documentation(
-          programs, {"sample-package", "1.2.3", root / "second"});
+          programs, {"sample-package", "1.2.3", root / "second"}, true);
 
   const std::string html = read(first.index_path);
   const std::string api_index = read(first.api_index_path);
@@ -195,7 +195,7 @@ private def hidden() : int { return 0 }
   bool rejected_output = false;
   try {
     static_cast<void>(janus::driver::generate_documentation(
-        programs, {"sample-package", "1.2.3", blocked}));
+        programs, {"sample-package", "1.2.3", blocked}, true));
   } catch (const std::filesystem::filesystem_error &) {
     rejected_output = true;
   }

@@ -469,7 +469,8 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
 std::string render_documentation(
     std::string_view documentation, std::string_view context,
     const std::map<std::string, std::vector<std::string>> &links,
-    std::vector<janus::driver::UnresolvedDocumentationLink> &unresolved) {
+    std::vector<janus::driver::UnresolvedDocumentationLink> &unresolved,
+    bool strict_links) {
   std::string rendered;
   std::size_t position = 0;
   while (position < documentation.size()) {
@@ -492,7 +493,8 @@ std::string render_documentation(
                   html_escape(name) + "</code></a>";
     } else {
       rendered += "<code class=\"unresolved\">" + html_escape(name) + "</code>";
-      unresolved.push_back({name, std::string{context}});
+      if (strict_links)
+        unresolved.push_back({name, std::string{context}});
     }
     position = closing + 2;
   }
@@ -597,7 +599,8 @@ namespace janus::driver {
 
 DocumentationReport
 generate_documentation(const std::vector<ast::Program> &programs,
-                       const DocumentationOptions &options) {
+                      const DocumentationOptions &options,
+                      bool strict_links) {
   if (options.package_name.empty())
     throw std::runtime_error{"documentation package name cannot be empty"};
   if (options.output_directory.empty())
@@ -618,9 +621,19 @@ generate_documentation(const std::vector<ast::Program> &programs,
     structured_modules.emplace(module, parse_documentation(documentation));
 
   std::map<std::string, std::vector<std::string>> links;
+  for (const auto &[module, documentation] : module_documentation)
+    static_cast<void>(documentation),
+        links[module].push_back("module-" + anchor_for(module));
   for (const Symbol &symbol : symbols) {
     links[symbol.name].push_back(symbol.anchor);
     links[symbol.qualified_name].push_back(symbol.anchor);
+    if (!symbol.parent.empty()) {
+      const auto last = symbol.parent.find_last_of('.');
+      const std::string local_parent =
+          last == std::string::npos ? symbol.parent
+                                   : symbol.parent.substr(last + 1);
+      links[local_parent + "." + symbol.name].push_back(symbol.anchor);
+    }
   }
   for (auto &[name, anchors] : links) {
     static_cast<void>(name);
@@ -738,15 +751,15 @@ generate_documentation(const std::vector<ast::Program> &programs,
     if (!module_doc.summary.empty())
       html << "<p class=\"doc-summary\">"
            << render_documentation(module_doc.summary, module, links,
-                                   report.unresolved_links)
+                                   report.unresolved_links, strict_links)
            << "</p>";
     if (!module_doc.details.empty()) {
       html << "<div class=\"doc-details\">";
       for (const std::string &paragraph : module_doc.details)
         html << "<p>"
              << render_documentation(paragraph, module, links,
-                                     report.unresolved_links)
-             << "</p>";
+                                     report.unresolved_links, strict_links)
+                                     << "</p>";
       html << "</div>";
     }
     html << "</div><h3 class=\"member-heading\">Public members <span class=\"member-count\">"
@@ -772,15 +785,15 @@ generate_documentation(const std::vector<ast::Program> &programs,
         html << "<p class=\"doc-summary\">"
              << render_documentation(symbol.structured.summary,
                                      symbol.qualified_name, links,
-                                     report.unresolved_links)
-             << "</p>\n";
+                                     report.unresolved_links, strict_links)
+                                     << "</p>\n";
       if (!symbol.structured.details.empty()) {
         html << "<div class=\"doc-details\">";
         for (const std::string &paragraph : symbol.structured.details)
           html << "<p>"
                << render_documentation(paragraph, symbol.qualified_name, links,
-                                       report.unresolved_links)
-               << "</p>";
+                                       report.unresolved_links, strict_links)
+                                       << "</p>";
         html << "</div>\n";
       }
       if (!symbol.parameters.empty()) {
@@ -789,12 +802,12 @@ generate_documentation(const std::vector<ast::Program> &programs,
                 "<th>Description</th></tr></thead><tbody>";
         for (const DocumentedParameter &parameter : symbol.parameters)
           html << "<tr><td><code>" << html_escape(parameter.name)
-               << "</code></td><td><code>" << html_escape(parameter.type)
-               << "</code></td><td>"
-               << render_documentation(parameter.description,
-                                       symbol.qualified_name, links,
-                                       report.unresolved_links)
-               << "</td></tr>";
+                << "</code></td><td><code>" << html_escape(parameter.type)
+                << "</code></td><td>"
+                << render_documentation(parameter.description,
+                                        symbol.qualified_name, links,
+                                        report.unresolved_links, strict_links)
+                                        << "</td></tr>";
         html << "</tbody></table></section>\n";
       }
       if (symbol.is_function && !is_unit_or_void(symbol.return_type)) {
@@ -804,15 +817,15 @@ generate_documentation(const std::vector<ast::Program> &programs,
           html << " — "
                << render_documentation(symbol.structured.return_description,
                                        symbol.qualified_name, links,
-                                       report.unresolved_links);
+                                       report.unresolved_links, strict_links);
         html << "</p></section>\n";
       }
       for (const std::string &example : symbol.structured.examples)
         html << "<section class=\"doc-section\"><h4>Example</h4><pre "
-                "class=\"example\"><code>"
-             << render_documentation(example, symbol.qualified_name, links,
-                                     report.unresolved_links)
-             << "</code></pre></section>\n";
+                << "class=\"example\"><code>"
+                 << render_documentation(example, symbol.qualified_name, links,
+                                         report.unresolved_links, strict_links)
+                                         << "</code></pre></section>\n";
       html << "<div class=\"qualified\">" << html_escape(symbol.qualified_name)
            << "</div></div><a class=\"permalink\" href=\"#" << symbol.anchor
            << "\" aria-label=\"Permanent link to " << html_escape(symbol.qualified_name)
@@ -897,7 +910,7 @@ generate_package_documentation(const Manifest &manifest,
   if (programs.empty())
     throw std::runtime_error{"package contains no Janus source files"};
   return generate_documentation(
-      programs, {manifest.name, manifest.version, output_directory});
+      programs, {manifest.name, manifest.version, output_directory}, true);
 }
 
 DocumentationReport generate_stdlib_documentation(
@@ -926,7 +939,7 @@ DocumentationReport generate_stdlib_documentation(
   }
   return generate_documentation(
       programs, {"Janus standard library", std::move(package_version),
-                 output_directory});
+                 output_directory}, false);
 }
 
 void open_documentation(const std::filesystem::path &index_path) {
