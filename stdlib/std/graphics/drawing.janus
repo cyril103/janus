@@ -128,7 +128,7 @@ color : uint
 private val graphicsStartTime : Instant = monotonicNow()
 private var graphicsPreviousFrameTime : Instant = graphicsStartTime
 
-/// Définit [[Camera2D]], avec les garanties et la propriété décrites par ses méthodes.
+/// Décrit la transformation entre l’espace monde et l’écran utilisée par [[beginCamera]].
 class Camera2D(
 /// Décalage horizontal de la caméra dans l’espace écran, exprimé en pixels.
 var offsetX : float,
@@ -144,170 +144,172 @@ var rotation : float,
 var zoom : float
 ) {}
 
-/// Fournit la sémantique de [[graphicsAvailable]].
+/// Tente de charger le backend graphique sans créer de fenêtre.
 ///
-/// @return Résultat de type [[bool]].
+/// @return `true` si le backend est disponible, `false` si son chargement a échoué.
 def graphicsAvailable() : bool {
     return janus_graphics_available()
 }
 
-/// Fournit la sémantique de [[graphicsLastError]].
+/// Renvoie le dernier diagnostic produit pendant le chargement du backend graphique.
 ///
-/// @return Résultat de type [[Ptrbyte]].
+/// @return Pointeur vers un texte appartenant au runtime; il ne doit pas être libéré par l’appelant.
 def graphicsLastError() : Ptr[byte] {
     return janus_graphics_last_error()
 }
 
-/// Fournit la sémantique de [[initWindow]].
+/// Charge le backend et crée la fenêtre de rendu.
 ///
-/// @param width Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param height Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param title Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param width Largeur initiale en pixels, strictement positive.
+/// @param height Hauteur initiale en pixels, strictement positive.
+/// @param title Texte affiché dans la barre de titre.
+/// @return `true` si la fenêtre est prête; `false` si le backend est indisponible, les dimensions sont invalides ou la création échoue.
 def initWindow(width : int, height : int, title : string) : bool {
     return janus_graphics_init_window(width, height, cstr(title))
 }
 
-/// Fournit la sémantique de [[windowShouldClose]].
+/// Indique si la boucle de rendu doit se terminer.
 ///
-/// @return Résultat de type [[bool]].
+/// @return `true` si aucune fenêtre n’est initialisée ou si sa fermeture a été demandée; sinon `false`.
 def windowShouldClose() : bool {
     return janus_graphics_window_should_close()
 }
 
-/// Ferme la fenêtre et libère le backend graphique.
+/// Termine les modes de rendu encore actifs, puis ferme la fenêtre si elle est ouverte.
 def closeWindow() : Unit {
     janus_graphics_close_window()
 }
 
 /// Indique si la fenêtre occupe tout l’écran.
 ///
-/// @return Résultat de type [[bool]].
+/// @return `true` si la fenêtre initialisée est en plein écran; sinon `false`.
 def isWindowFullscreen() : bool {
     return janus_graphics_is_window_fullscreen()
 }
 
 /// Indique si la fenêtre est masquée.
 ///
-/// @return Résultat de type [[bool]].
+/// @return `true` si la fenêtre initialisée est masquée; sinon `false`.
 def isWindowHidden() : bool {
     return janus_graphics_is_window_hidden()
 }
 
 /// Indique si la fenêtre est réduite.
 ///
-/// @return Résultat de type [[bool]].
+/// @return `true` si la fenêtre initialisée est réduite; sinon `false`.
 def isWindowMinimized() : bool {
     return janus_graphics_is_window_minimized()
 }
 
 /// Indique si la fenêtre est agrandie.
 ///
-/// @return Résultat de type [[bool]].
+/// @return `true` si la fenêtre initialisée est agrandie; sinon `false`.
 def isWindowMaximized() : bool {
     return janus_graphics_is_window_maximized()
 }
 
 /// Indique si la fenêtre possède le focus.
 ///
-/// @return Résultat de type [[bool]].
+/// @return `true` si la fenêtre initialisée reçoit les entrées; sinon `false`.
 def isWindowFocused() : bool {
     return janus_graphics_is_window_focused()
 }
 
-/// Indique si la fenêtre a été redimensionnée.
+/// Indique si la fenêtre a été redimensionnée pendant le cadre courant.
 ///
-/// @return Résultat de type [[bool]].
+/// @return `true` lorsqu’un redimensionnement est signalé pour ce cadre; sinon `false`.
 def isWindowResized() : bool {
     return janus_graphics_is_window_resized()
 }
 
-/// Fournit la sémantique de [[toggleFullscreen]].
+/// Bascule la fenêtre initialisée entre plein écran et mode fenêtré.
 def toggleFullscreen() : Unit {
     janus_graphics_toggle_fullscreen()
 }
 
-/// Fournit la sémantique de [[maximizeWindow]].
+/// Agrandit la fenêtre initialisée.
 def maximizeWindow() : Unit {
     janus_graphics_maximize_window()
 }
 
-/// Fournit la sémantique de [[minimizeWindow]].
+/// Réduit la fenêtre initialisée.
 def minimizeWindow() : Unit {
     janus_graphics_minimize_window()
 }
 
-/// Fournit la sémantique de [[restoreWindow]].
+/// Restaure la fenêtre initialisée après réduction ou agrandissement.
 def restoreWindow() : Unit {
     janus_graphics_restore_window()
 }
 
 /// Modifie le titre de la fenêtre.
 ///
-/// @param title Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param title Nouveau texte de la barre de titre.
 def setWindowTitle(title : string) : Unit {
     janus_graphics_set_window_title(cstr(title))
 }
 
 /// Déplace la fenêtre aux coordonnées demandées.
 ///
-/// @param x Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param y Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param x Abscisse en pixels de la fenêtre sur l’écran.
+/// @param y Ordonnée en pixels de la fenêtre sur l’écran.
 def setWindowPosition(x : int, y : int) : Unit {
     janus_graphics_set_window_position(x, y)
 }
 
 /// Redimensionne la fenêtre.
 ///
-/// @param width Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param height Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param width Nouvelle largeur en pixels, strictement positive.
+/// @param height Nouvelle hauteur en pixels, strictement positive.
 def setWindowSize(width : int, height : int) : Unit {
     janus_graphics_set_window_size(width, height)
 }
 
 /// Règle l’opacité de la fenêtre.
 ///
-/// @param opacity Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param opacity Opacité transmise au backend pour la fenêtre initialisée.
 def setWindowOpacity(opacity : float) : Unit {
     janus_graphics_set_window_opacity(opacity)
 }
 
-/// Fournit la sémantique de [[screenWidth]].
+/// Lit la largeur courante de la zone de rendu.
 ///
-/// @return Résultat de type [[int]].
+/// @return Largeur en pixels, ou `0` si le backend n’est pas chargé.
 def screenWidth() : int {
     return janus_graphics_screen_width()
 }
 
-/// Fournit la sémantique de [[screenHeight]].
+/// Lit la hauteur courante de la zone de rendu.
 ///
-/// @return Résultat de type [[int]].
+/// @return Hauteur en pixels, ou `0` si le backend n’est pas chargé.
 def screenHeight() : int {
     return janus_graphics_screen_height()
 }
 
 /// Règle la fréquence d’images cible.
 ///
-/// @param framesPerSecond Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param framesPerSecond Nombre d’images par seconde transmis au limiteur du backend.
 def setTargetFps(framesPerSecond : int) : Unit {
     janus_graphics_set_target_fps(framesPerSecond)
 }
 
-/// Fournit la sémantique de [[beginBlend]].
+/// Empile le mode de mélange courant et active le nouveau mode pour les dessins suivants.
 ///
-/// @param mode Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// Chaque appel effectif doit être apparié à [[endBlend]]; les modes peuvent être imbriqués.
+/// @param mode Mode alpha ou additif à activer.
 def beginBlend(mode : BlendMode) : Unit {
     janus_graphics_begin_blend(int(mode))
 }
 
-/// Fournit la sémantique de [[endBlend]].
+/// Termine le dernier mode ouvert par [[beginBlend]] et restaure le mode précédent.
 def endBlend() : Unit {
     janus_graphics_end_blend()
 }
 
-/// Fournit la sémantique de [[frameTime]].
+/// Mesure le temps monotone écoulé depuis le précédent appel à cette fonction.
 ///
-/// @return Résultat de type [[Duration]].
+/// Le premier appel mesure depuis l’initialisation du module.
+/// @return Durée mesurée; l’appel devient le nouveau point de référence.
 def frameTime() : Duration {
     val current : Instant = monotonicNow()
     val duration : Duration =
@@ -316,26 +318,31 @@ def frameTime() : Duration {
     return duration
 }
 
-/// Fournit la sémantique de [[elapsedTime]].
+/// Mesure le temps monotone écoulé depuis l’initialisation du module.
 ///
-/// @return Résultat de type [[Duration]].
+/// @return Durée totale sans modifier le point de référence de [[frameTime]].
 def elapsedTime() : Duration {
     return monotonicNow().durationSince(graphicsStartTime)
 }
 
-/// Fournit la sémantique de [[beginDrawing]].
+/// Ouvre un cadre de rendu sur une fenêtre initialisée.
+///
+/// Un second appel avant [[endDrawing]] est ignoré.
 def beginDrawing() : Unit {
     janus_graphics_begin_drawing()
 }
 
-/// Fournit la sémantique de [[endDrawing]].
+/// Présente et ferme le cadre ouvert par [[beginDrawing]].
+///
+/// Fermez d’abord toute caméra active avec [[endCamera]]; sinon l’appel est ignoré.
 def endDrawing() : Unit {
     janus_graphics_end_drawing()
 }
 
-/// Fournit la sémantique de [[beginCamera]].
+/// Active la transformation 2D pour les dessins suivants du cadre courant.
 ///
-/// @param camera Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// L’appel exige un cadre ouvert et aucune autre caméra active; appariez-le à [[endCamera]].
+/// @param camera Transformation entre coordonnées monde et pixels écran.
 def beginCamera(camera : Camera2D) : Unit {
     janus_graphics_begin_camera(
     camera.offsetX,
@@ -347,16 +354,16 @@ def beginCamera(camera : Camera2D) : Unit {
     )
 }
 
-/// Fournit la sémantique de [[endCamera]].
+/// Termine la transformation ouverte par [[beginCamera]] et revient aux coordonnées écran.
 def endCamera() : Unit {
     janus_graphics_end_camera()
 }
 
-/// Fournit la sémantique de [[screenToWorld]].
+/// Convertit une position en pixels écran vers l’espace monde d’une caméra.
 ///
-/// @param position Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param camera Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Vector2]].
+/// @param position Position dans l’espace écran.
+/// @param camera Transformation à inverser.
+/// @return Position monde, ou `(0, 0)` si le backend n’est pas chargé.
 def screenToWorld(position : Vector2, camera : Camera2D) : Vector2 {
     return vector2(
     janus_graphics_screen_to_world_x(
@@ -382,11 +389,11 @@ def screenToWorld(position : Vector2, camera : Camera2D) : Vector2 {
     )
 }
 
-/// Fournit la sémantique de [[worldToScreen]].
+/// Convertit une position monde en pixels écran selon une caméra.
 ///
-/// @param position Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param camera Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Vector2]].
+/// @param position Position dans l’espace monde.
+/// @param camera Transformation à appliquer.
+/// @return Position en pixels écran, ou `(0, 0)` si le backend n’est pas chargé.
 def worldToScreen(position : Vector2, camera : Camera2D) : Vector2 {
     return vector2(
     janus_graphics_world_to_screen_x(
@@ -414,42 +421,42 @@ def worldToScreen(position : Vector2, camera : Camera2D) : Vector2 {
 
 /// Efface le rendu avec la couleur d’arrière-plan.
 ///
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param color Couleur appliquée à tous les pixels du cadre courant.
 def clearBackground(color : Color) : Unit {
     janus_graphics_clear_background(color.packed())
 }
 
 /// Efface le rendu avec la couleur fournie.
 ///
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param color Couleur appliquée à tous les pixels du cadre courant.
 def clearColor(color : Color) : Unit {
     clearBackground(color)
 }
 
-/// Fournit la sémantique de [[drawPixel]].
+/// Dessine un pixel dans le cadre courant.
 ///
-/// @param x Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param y Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param x Abscisse en pixels, dans l’espace de rendu actif.
+/// @param y Ordonnée en pixels, dans l’espace de rendu actif.
+/// @param color Couleur du pixel.
 def drawPixel(x : int, y : int, color : Color) : Unit {
     janus_graphics_draw_pixel(x, y, color.packed())
 }
 
-/// Fournit la sémantique de [[drawPixelAt]].
+/// Dessine un pixel à une position vectorielle, après conversion des coordonnées en entiers.
 ///
-/// @param position Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param position Position dans l’espace de rendu actif.
+/// @param color Couleur du pixel.
 def drawPixelAt(position : Vector2, color : Color) : Unit {
     drawPixel(int(position.x), int(position.y), color)
 }
 
-/// Fournit la sémantique de [[drawLine]].
+/// Trace un segment entre deux positions entières du cadre courant.
 ///
-/// @param startX Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param startY Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param endX Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param endY Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param startX Abscisse du premier point dans l’espace de rendu actif.
+/// @param startY Ordonnée du premier point dans l’espace de rendu actif.
+/// @param endX Abscisse du second point dans l’espace de rendu actif.
+/// @param endY Ordonnée du second point dans l’espace de rendu actif.
+/// @param color Couleur du segment.
 def drawLine(
 startX : int,
 startY : int,
@@ -460,11 +467,11 @@ color : Color
     janus_graphics_draw_line(startX, startY, endX, endY, color.packed())
 }
 
-/// Fournit la sémantique de [[drawLineBetween]].
+/// Trace un segment entre deux vecteurs, après conversion de leurs coordonnées en entiers.
 ///
-/// @param start Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param end Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param start Premier point dans l’espace de rendu actif.
+/// @param end Second point dans l’espace de rendu actif.
+/// @param color Couleur du segment.
 def drawLineBetween(start : Vector2, end : Vector2, color : Color) : Unit {
     drawLine(
     int(start.x),
@@ -475,12 +482,12 @@ def drawLineBetween(start : Vector2, end : Vector2, color : Color) : Unit {
     )
 }
 
-/// Fournit la sémantique de [[drawCircle]].
+/// Dessine un disque centré sur une position entière du cadre courant.
 ///
-/// @param centerX Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param centerY Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param radius Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param centerX Abscisse du centre dans l’espace de rendu actif.
+/// @param centerY Ordonnée du centre dans l’espace de rendu actif.
+/// @param radius Rayon dans l’unité de l’espace de rendu actif.
+/// @param color Couleur de remplissage.
 def drawCircle(
 centerX : int,
 centerY : int,
@@ -490,22 +497,22 @@ color : Color
     janus_graphics_draw_circle(centerX, centerY, radius, color.packed())
 }
 
-/// Fournit la sémantique de [[drawCircleAt]].
+/// Dessine un disque centré sur un vecteur, après conversion du centre en entiers.
 ///
-/// @param center Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param radius Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param center Centre dans l’espace de rendu actif.
+/// @param radius Rayon dans l’unité de cet espace.
+/// @param color Couleur de remplissage.
 def drawCircleAt(center : Vector2, radius : float, color : Color) : Unit {
     drawCircle(int(center.x), int(center.y), radius, color)
 }
 
-/// Fournit la sémantique de [[drawRectangle]].
+/// Dessine un rectangle plein dans le cadre courant.
 ///
-/// @param x Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param y Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param width Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param height Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param x Abscisse du coin supérieur gauche dans l’espace de rendu actif.
+/// @param y Ordonnée du coin supérieur gauche dans l’espace de rendu actif.
+/// @param width Largeur dans l’unité de cet espace.
+/// @param height Hauteur dans l’unité de cet espace.
+/// @param color Couleur de remplissage.
 def drawRectangle(
 x : int,
 y : int,
@@ -516,10 +523,10 @@ color : Color
     janus_graphics_draw_rectangle(x, y, width, height, color.packed())
 }
 
-/// Fournit la sémantique de [[drawRectangleArea]].
+/// Dessine un rectangle plein décrit par une zone, après conversion de ses composantes en entiers.
 ///
-/// @param area Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param area Position et dimensions dans l’espace de rendu actif.
+/// @param color Couleur de remplissage.
 def drawRectangleArea(area : Rectangle, color : Color) : Unit {
     drawRectangle(
     int(area.x),
@@ -530,13 +537,13 @@ def drawRectangleArea(area : Rectangle, color : Color) : Unit {
     )
 }
 
-/// Fournit la sémantique de [[drawText]].
+/// Dessine une chaîne avec la police par défaut dans le cadre courant.
 ///
-/// @param text Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param x Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param y Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param fontSize Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param text Texte à afficher.
+/// @param x Abscisse en pixels de l’origine du texte.
+/// @param y Ordonnée en pixels de l’origine du texte.
+/// @param fontSize Taille de police en pixels.
+/// @param color Couleur du texte.
 def drawText(
 text : string,
 x : int,
@@ -547,12 +554,12 @@ color : Color
     janus_graphics_draw_text(cstr(text), x, y, fontSize, color.packed())
 }
 
-/// Fournit la sémantique de [[drawTextAt]].
+/// Dessine une chaîne à une position vectorielle, après conversion de celle-ci en entiers.
 ///
-/// @param text Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param position Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param fontSize Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param text Texte à afficher.
+/// @param position Origine du texte en pixels écran.
+/// @param fontSize Taille de police en pixels.
+/// @param color Couleur du texte.
 def drawTextAt(
 text : string,
 position : Vector2,
