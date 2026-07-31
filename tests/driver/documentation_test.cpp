@@ -45,6 +45,10 @@ int main() {
 
   janus::frontend::Parser parser{R"(
 /// Package module linking to [[Widget]] and [[Missing]] with <unsafe> text.
+/// @example
+/// ```janus
+/// val widget : Widget = Widget()
+/// ```
 module sample
 /// Visible type.
 struct Widget() {
@@ -166,6 +170,11 @@ private def hidden() : int { return 0 }
              std::string::npos &&
              html.find("class=\"doc-details\"") != std::string::npos,
          "summary and detail paragraphs are rendered separately");
+  expect(html.find("class=\"module-example doc-section\"") !=
+             std::string::npos &&
+             html.find("<h3>Usage example</h3>") != std::string::npos &&
+             html.find("val widget : Widget = Widget()") != std::string::npos,
+         "module usage examples are visible before the public members");
   expect(html.find("<h4>Parameters</h4>") != std::string::npos &&
              html.find("<code>prefix</code>") != std::string::npos &&
              html.find("<code>string</code>") != std::string::npos,
