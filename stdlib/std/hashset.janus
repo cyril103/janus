@@ -1,4 +1,16 @@
-/// Fournit un ensemble haché propriétaire et ses parcours.
+/// Fournit un ensemble propriétaire fondé sur le hachage.
+///
+/// [[HashSet]] conserve au plus une valeur par classe d’égalité définie par une
+/// stratégie [[Hashing]]. Le sondage linéaire donne des opérations amorties
+/// constantes avec des hachages bien répartis; le parcours suit les cases
+/// internes et ne garantit aucun ordre d’insertion.
+/// @example
+/// ```janus
+/// val ids : HashSet[int, IntHashing] =
+///     new HashSet[int, IntHashing](usize(8), new IntHashing())
+/// val inserted : bool = ids.add(42)
+/// val present : bool = ids.contains(42)
+/// ```
 module std.hashset
 import std.array
 import std.builder
@@ -7,9 +19,13 @@ import std.hashing
 import std.iterator
 import std.option
 
+/// Décrit l’état interne d’une case de l’ensemble à adressage ouvert.
 private enum SetSlot[T] {
+    /// Case jamais occupée, qui termine une recherche par sondage.
     Empty,
+    /// Case possédant une valeur actuellement membre de l’ensemble.
     Occupied(T),
+    /// Tombstone préservant la chaîne de sondage après une suppression.
     Deleted
 }
 
@@ -59,7 +75,15 @@ private var index : usize
     }
 }
 
-/// Représente le type public `HashSet`.
+/// Ensemble propriétaire à adressage ouvert et sondage linéaire.
+///
+/// L’ensemble possède ses valeurs et la stratégie `hashing`. La capacité est au
+/// minimum 8 et une insertion réorganise la table lorsque membres et tombstones
+/// approchent 75 % des cases. Les observations copient les valeurs et nécessitent
+/// donc `Copy`; [[HashSet.intoIterator]] consomme l’ensemble pour transférer des
+/// valeurs de tout type.
+/// @param initialCapacity Capacité souhaitée, normalisée à un minimum de 8.
+/// @param hashing Stratégie d’égalité et de hachage conservée par l’ensemble.
 class HashSet[T, H <: Hashing[T]](
 initialCapacity : usize,
 private val hashing : H
@@ -157,11 +181,13 @@ private val hashing : H
     }
 
     /// Retourne le nombre de valeurs stockées.
+    /// @return Nombre de cases occupées, hors tombstones.
     def size() : usize {
         return length
     }
 
     /// Indique si l’ensemble est vide.
+    /// @return `true` lorsque [[HashSet.size]] vaut zéro.
     def isEmpty() : bool {
         return length == usize(0)
     }
@@ -226,6 +252,11 @@ private val hashing : H
     }
 
     /// Indique si la valeur appartient à l’ensemble.
+    ///
+    /// `value` est observée et comparée selon la stratégie. Le coût est amorti
+    /// constant avec un bon hachage, mais peut devenir linéaire sous collisions.
+    /// @param value Valeur à hacher puis comparer aux membres stockés.
+    /// @return `true` si une valeur égale est présente.
     def contains(value : T) : bool {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
@@ -242,6 +273,12 @@ private val hashing : H
     }
 
     /// Ajoute une valeur.
+    ///
+    /// En cas de succès, la propriété de `value` est transférée à l’ensemble. Si
+    /// un membre égal existe, la valeur fournie est détruite et la collection ne
+    /// change pas. Une insertion peut redimensionner ou nettoyer la table.
+    /// @param value Valeur possédée proposée comme nouveau membre.
+    /// @return `true` si elle a été insérée, `false` si un équivalent existait déjà.
     def add(value : T) : bool {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
@@ -306,6 +343,11 @@ private val hashing : H
     }
 
     /// Retire la valeur et indique si elle était présente.
+    ///
+    /// La valeur de recherche est seulement observée. Le membre stocké est
+    /// détruit lorsqu’il est trouvé et sa case devient un tombstone.
+    /// @param value Valeur à rechercher selon la stratégie de l’ensemble.
+    /// @return `true` si un membre a été trouvé et détruit, sinon `false`.
     def remove(value : T) : bool {
         this.initializeSlots()
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
@@ -326,7 +368,10 @@ private val hashing : H
         return false
     }
 
-    /// Réinitialise l’état.
+    /// Détruit tous les membres tout en conservant la capacité réservée.
+    ///
+    /// Les tombstones sont également supprimés. Le coût est linéaire dans la
+    /// capacité de stockage.
     def clear() : Unit {
         this.initializeSlots()
         var index : usize = usize(0)
@@ -338,7 +383,12 @@ private val hashing : H
         deletedCount = usize(0)
     }
 
-    /// Exécute l’opération publique `iterator`.
+    /// Crée un parcours observant de copies des membres.
+    ///
+    /// L’ensemble reste propriétaire de ses valeurs et doit vivre pendant le
+    /// parcours. L’ordre reflète les cases internes et peut changer après toute
+    /// réorganisation.
+    /// @return Un [[Iterator]] de copies des membres; exige `T <: Copy`.
     def iterator() : Iterator[T] {
         val state : HashSetIteratorState[T, H] =
         new HashSetIteratorState[T, H](this, usize(0))
@@ -348,7 +398,11 @@ private val hashing : H
         )
     }
 
-    /// Exécute l’opération publique `intoIterator`.
+    /// Consomme l’ensemble et transfère ses membres à un parcours.
+    ///
+    /// Les valeurs sont déplacées hors des cases sans copie. Si le parcours est
+    /// détruit avant épuisement, l’ensemble source détruit les membres restants.
+    /// @return Un [[Iterator]] propriétaire parcourant les membres dans l’ordre interne.
     consume def intoIterator() : Iterator[T] {
         val state : HashSetIntoIteratorState[T, H] =
         new HashSetIntoIteratorState[T, H](move this, usize(0))
@@ -363,7 +417,13 @@ private val hashing : H
     }
 }
 
-/// Représente le type public `SetBuilder`.
+/// Constructeur mutable de [[HashSet]] à partir d’une suite de valeurs.
+///
+/// Il possède l’ensemble en cours et consomme chaque valeur ajoutée. Les doublons
+/// sont détruits conformément à [[HashSet.add]]. [[SetBuilder.result]] transfère
+/// le résultat puis réinitialise le constructeur à une capacité de 8.
+/// @param initialCapacity Capacité initiale souhaitée pour l’ensemble accumulé.
+/// @param hashing Stratégie conservée et réutilisée après chaque résultat.
 class SetBuilder[T, H <: Hashing[T]](
 initialCapacity : usize,
 private val hashing : H
@@ -372,11 +432,19 @@ private val hashing : H
     new HashSet[T, H](initialCapacity, hashing)
 
     /// Ajoute une valeur.
+    ///
+    /// La valeur est consommée; elle est stockée si elle est nouvelle, sinon
+    /// détruite comme doublon.
+    /// @param value Valeur dont la propriété est transférée au constructeur.
     def add(value : T) : Unit {
         values.add(move value)
     }
 
     /// Ajoute tous les éléments de la source.
+    ///
+    /// La source est parcourue sans être consommée et fournit donc des copies de
+    /// ses éléments. Les doublons sont éliminés par la stratégie de l’ensemble.
+    /// @param source Source [[Iterable]] observée dans son ordre de parcours.
     def addAll[C <: Iterable[T]](source : C) : Unit {
         for value in source {
             this.add(value)
@@ -384,16 +452,21 @@ private val hashing : H
     }
 
     /// Retourne le nombre de valeurs accumulées.
+    /// @return Nombre de membres distincts dans l’ensemble en cours.
     def size() : usize {
         return values.size()
     }
 
-    /// Réinitialise l’état.
+    /// Détruit toutes les valeurs accumulées sans changer la capacité.
     def clear() : Unit {
         values.clear()
     }
 
     /// Produit l’ensemble construit.
+    ///
+    /// L’ensemble courant est déplacé vers l’appelant. Le constructeur reste
+    /// utilisable avec un nouvel ensemble vide de capacité initiale 8.
+    /// @return [[HashSet]] possédant les membres accumulés.
     def result() : HashSet[T, H] {
         val completed : HashSet[T, H] = move values
         values = new HashSet[T, H](usize(8), hashing)

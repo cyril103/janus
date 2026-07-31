@@ -1,4 +1,16 @@
-/// Fournit les tableaux propriétaires et leurs parcours observants ou consommateurs.
+/// Fournit un tableau dynamique propriétaire et ses opérations séquentielles.
+///
+/// [[Array]] conserve les valeurs dans une zone contiguë, agrandit sa capacité
+/// selon les besoins et détruit les éléments encore stockés avec le tableau. Les
+/// accès sont constants; une suppression au milieu et les transformations
+/// complètes sont linéaires.
+/// @example
+/// ```janus
+/// val values : Array[int] = new Array[int](usize(2))
+/// values.push(10)
+/// values.push(20)
+/// val doubled : Array[int] = values.map[int]((value : int) => value * 2)
+/// ```
 module std.array
 import std.option
 import std.iterator
@@ -46,7 +58,14 @@ private var index : usize
     }
 }
 
-/// Représente le type public `Array`.
+/// Tableau dynamique contigu qui possède ses éléments.
+///
+/// `initialCapacity` réserve de la mémoire sans créer d’élément. Les insertions
+/// déplacent les valeurs dans le tableau; le remplacement, l’effacement et la
+/// destruction appellent `delete` sur les valeurs abandonnées. Les parcours
+/// observants exigent `T <: Copy`, tandis que [[Array.intoIterator]] consomme le
+/// tableau et peut transférer des valeurs non copiables.
+/// @param initialCapacity Nombre initial d’emplacements réservés.
 class Array[T](initialCapacity : usize) extends Iterable[T] {
     private var data : Ptr[T] = alloc[T](initialCapacity)
     private var length : usize = usize(0)
@@ -75,21 +94,29 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     }
 
     /// Retourne le nombre d’éléments stockés.
+    /// @return Nombre de valeurs initialisées, distinct de la capacité.
     def size() : usize {
         return length
     }
 
     /// Retourne la capacité actuellement réservée.
+    /// @return Nombre d’éléments pouvant être stockés sans nouvelle allocation.
     def capacity() : usize {
         return allocated
     }
 
     /// Indique si le tableau est vide.
+    /// @return `true` lorsque [[Array.size]] vaut zéro.
     def isEmpty() : bool {
         return length == usize(0)
     }
 
-    /// Exécute l’opération publique `iterator`.
+    /// Crée un parcours observant les éléments dans l’ordre des indices.
+    ///
+    /// Cette méthode ne consomme pas le tableau et chaque valeur produite est une
+    /// copie; elle n’est disponible que lorsque `T` satisfait `Copy`. Le tableau
+    /// doit rester vivant pendant le parcours.
+    /// @return Un nouvel [[Iterator]] positionné avant l’indice zéro.
     def iterator() : Iterator[T] {
         val state : ArrayIteratorState[T] =
         new ArrayIteratorState[T](this, usize(0))
@@ -99,7 +126,12 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         )
     }
 
-    /// Exécute l’opération publique `intoIterator`.
+    /// Consomme le tableau et transfère ses éléments à un itérateur.
+    ///
+    /// Chaque appel à `next` déplace la valeur suivante sans la copier. Détruire
+    /// prématurément l’itérateur détruit tous les éléments non encore produits,
+    /// puis libère le tableau source.
+    /// @return Un [[Iterator]] propriétaire parcourant les valeurs par indice croissant.
     consume def intoIterator() : Iterator[T] {
         val state : ArrayIntoIteratorState[T] =
         new ArrayIntoIteratorState[T](move this, usize(0))
@@ -125,6 +157,11 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     }
 
     /// Retourne l’élément situé à l’index demandé.
+    ///
+    /// L’accès est en temps constant et produit une copie de la valeur stockée.
+    /// Déclenche `panic` si `index` est hors limites.
+    /// @param index Position de l’élément, à partir de zéro.
+    /// @return Copie de l’élément à cette position.
     def get(index : usize) : T {
         if index >= length {
             panic("Array index out of bounds\n")
@@ -133,6 +170,8 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     }
 
     /// Retourne l’élément demandé, ou `None` si l’index est hors limites.
+    /// @param index Position recherchée, à partir de zéro.
+    /// @return `Some` avec une copie de l’élément, ou `None` si `index >= size()`.
     def getOption(index : usize) : Option[T] {
         return if index < length {
             Option.Some[T](data.load(index))
@@ -142,6 +181,11 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     }
 
     /// Remplace l’élément situé à l’index demandé.
+    ///
+    /// La nouvelle valeur est déplacée dans le tableau et l’ancienne est
+    /// détruite. Si l’indice est invalide, `value` est détruite avant `panic`.
+    /// @param index Position existante à modifier.
+    /// @param value Nouvelle valeur dont la propriété est transférée au tableau.
     def set(index : usize, value : T) : Unit {
         if index < length {
             val previous : T = data.load(index)
@@ -153,7 +197,13 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         panic("Array index out of bounds\n")
     }
 
-    /// Exécute l’opération publique `replace`.
+    /// Remplace un élément et transfère l’ancienne valeur à l’appelant.
+    ///
+    /// L’opération est constante. Si l’indice est invalide, la nouvelle `value`
+    /// est détruite puis l’exécution s’arrête par `panic`.
+    /// @param index Position existante à modifier.
+    /// @param value Nouvelle valeur déplacée dans le tableau.
+    /// @return Ancienne valeur possédée, retirée de cette position.
     def replace(index : usize, value : T) : T {
         if index < length {
             val previous : T = data.load(index)
@@ -181,6 +231,12 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     }
 
     /// Ajoute une valeur.
+    ///
+    /// La valeur est déplacée à la fin. La capacité double lorsqu’elle est
+    /// épuisée; un dépassement de capacité ou un échec d’allocation détruit
+    /// `value` puis déclenche `panic`.
+    /// @param value Valeur dont le tableau prend possession.
+    /// @return Nouvelle taille du tableau après insertion.
     def push(value : T) : usize {
         if data != null[T]() {
             return this.pushAllocated(move value)
@@ -193,6 +249,10 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     }
 
     /// Retire et retourne le dernier élément.
+    ///
+    /// L’opération est constante et ne réduit pas la capacité. Déclenche `panic`
+    /// lorsque le tableau est vide.
+    /// @return Dernière valeur, déplacée hors du tableau.
     def pop() : T {
         if length == usize(0) {
             panic("cannot pop an empty Array\n")
@@ -202,7 +262,10 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return move value
     }
 
-    /// Exécute l’opération publique `popOption`.
+    /// Retire sans erreur le dernier élément s’il existe.
+    ///
+    /// L’opération est constante et conserve la capacité réservée.
+    /// @return `Some` avec la dernière valeur possédée, ou `None` si le tableau est vide.
     def popOption() : Option[T] {
         if length == usize(0) {
             return Option.None[T]()
@@ -213,6 +276,11 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     }
 
     /// Retire et retourne l’élément situé à l’index demandé.
+    ///
+    /// Les éléments suivants sont décalés d’une case, soit un coût linéaire dans
+    /// leur nombre. Déclenche `panic` si `index` est hors limites.
+    /// @param index Position de la valeur à retirer.
+    /// @return Valeur possédée retirée du tableau.
     def remove(index : usize) : T {
         if index >= length {
             panic("Array index out of bounds\n")
@@ -228,7 +296,11 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return move removed
     }
 
-    /// Exécute l’opération publique `reserve`.
+    /// Garantit une capacité au moins égale à `requested`.
+    ///
+    /// Les éléments et la taille sont préservés. La capacité n’est jamais réduite
+    /// et un échec d’allocation déclenche `panic`.
+    /// @param requested Capacité minimale souhaitée.
     def reserve(requested : usize) : Unit {
         if data == null[T]() {
             this.resize(allocated)
@@ -238,7 +310,10 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
     }
 
-    /// Réinitialise l’état.
+    /// Détruit tous les éléments sans libérer la capacité réservée.
+    ///
+    /// L’opération est linéaire dans la taille actuelle; le tableau reste prêt à
+    /// recevoir de nouvelles valeurs.
     def clear() : Unit {
         while length > usize(0) {
             length = length - usize(1)
@@ -247,7 +322,12 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
     }
 
-    /// Exécute l’opération publique `withValue`.
+    /// Exécute une action sur une copie de l’élément à un indice donné.
+    ///
+    /// Le tableau conserve son élément. Déclenche `panic` si `index` est hors
+    /// limites.
+    /// @param index Position de la valeur à observer.
+    /// @param action Fonction appelée une fois avec une copie de la valeur.
     def withValue(index : usize, action : (T) => Unit) : Unit {
         if index >= length {
             panic("Array index out of bounds\n")
@@ -255,7 +335,8 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         action(data.load(index))
     }
 
-    /// Exécute l’opération publique `foreach`.
+    /// Applique une action à des copies de tous les éléments, dans l’ordre.
+    /// @param action Fonction appelée une fois par élément, de l’indice zéro à la fin.
     def foreach(action : (T) => Unit) : Unit {
         var index : usize = usize(0)
         while index < length {
@@ -264,7 +345,12 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
     }
 
-    /// Transforme la valeur ou la séquence avec la fonction fournie.
+    /// Construit un tableau en transformant chaque élément dans l’ordre.
+    ///
+    /// La source n’est pas modifiée; `transform` reçoit une copie par élément. Le
+    /// coût est linéaire et le résultat réserve initialement la taille source.
+    /// @param transform Fonction produisant une valeur du résultat depuis une copie source.
+    /// @return Nouveau tableau possédant toutes les valeurs transformées.
     def map[U <: Copy](transform : (T) => U) : Array[U] {
         val result : Array[U] = new Array[U](length)
         var index : usize = usize(0)
@@ -275,7 +361,12 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return result
     }
 
-    /// Conserve les valeurs qui satisfont le prédicat.
+    /// Copie dans un nouveau tableau les éléments acceptés par le prédicat.
+    ///
+    /// La source reste inchangée. Le prédicat et la copie suivent l’ordre des
+    /// indices; l’opération est linéaire.
+    /// @param predicate Fonction d’acceptation appelée sur une copie de chaque élément.
+    /// @return Nouveau tableau contenant les copies acceptées.
     def filter(predicate : (T) => bool) : Array[T] {
         val result : Array[T] = new Array[T](length)
         var index : usize = usize(0)
@@ -289,7 +380,11 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return result
     }
 
-    /// Exécute l’opération publique `find`.
+    /// Recherche le premier élément qui satisfait le prédicat.
+    ///
+    /// La recherche s’arrête au premier succès et ne modifie pas le tableau.
+    /// @param predicate Fonction testée dans l’ordre des indices.
+    /// @return `Some` avec une copie du premier élément trouvé, sinon `None`.
     def find(predicate : (T) => bool) : Option[T] {
         var index : usize = usize(0)
         while index < length {
@@ -303,6 +398,12 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     }
 
     /// Réduit les valeurs avec un accumulateur.
+    ///
+    /// Les éléments sont copiés et combinés de l’indice zéro au dernier; le
+    /// tableau reste inchangé.
+    /// @param initial Valeur initiale de l’accumulateur.
+    /// @param combine Fonction produisant l’accumulateur suivant depuis une copie d’élément.
+    /// @return Accumulateur final, ou `initial` si le tableau est vide.
     def fold[U](initial : U, combine : (U, T) => U) : U {
         var accumulator : U = initial
         var index : usize = usize(0)
@@ -313,7 +414,11 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return accumulator
     }
 
-    /// Exécute l’opération publique `any`.
+    /// Indique si au moins un élément satisfait le prédicat.
+    ///
+    /// L’évaluation s’arrête au premier succès.
+    /// @param predicate Fonction testée dans l’ordre sur des copies des éléments.
+    /// @return `true` si un élément est accepté, sinon `false`.
     def any(predicate : (T) => bool) : bool {
         var index : usize = usize(0)
         while index < length {
@@ -325,7 +430,11 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return false
     }
 
-    /// Exécute l’opération publique `all`.
+    /// Indique si tous les éléments satisfont le prédicat.
+    ///
+    /// L’évaluation s’arrête au premier échec; un tableau vide rend `true`.
+    /// @param predicate Fonction testée dans l’ordre sur des copies des éléments.
+    /// @return `true` si aucun élément ne viole le prédicat.
     def all(predicate : (T) => bool) : bool {
         var index : usize = usize(0)
         while index < length {
@@ -338,6 +447,8 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     }
 
     /// Compte les éléments qui satisfont le prédicat.
+    /// @param predicate Fonction testée une fois sur une copie de chaque élément.
+    /// @return Nombre d’éléments acceptés.
     def count(predicate : (T) => bool) : usize {
         var matches : usize = usize(0)
         var index : usize = usize(0)

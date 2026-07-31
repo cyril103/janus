@@ -1,11 +1,31 @@
-/// Définit les stratégies d’égalité et de hachage des clés.
+/// Définit les stratégies cohérentes d’égalité et de hachage des collections.
+///
+/// Une stratégie [[Hashing]] est conservée par [[HashMap]] ou [[HashSet]] et
+/// décide quelles valeurs représentent la même clé. Les implémentations doivent
+/// garantir que deux valeurs égales ont le même hachage; elles ne doivent pas
+/// supposer que deux hachages égaux impliquent l’égalité.
+/// @example
+/// ```janus
+/// val hashing : Hashing[int] = new IntHashing()
+/// val same : bool = hashing.equals(7, 7)
+/// val bucketHash : usize = hashing.hash(7)
+/// ```
 module std.hashing
 
-/// Définit le contrat public `Hashing`.
+/// Contrat d’une stratégie de hachage et d’égalité pour le type `T`.
+///
+/// Les méthodes observent leurs arguments et n’en prennent pas la propriété.
+/// Une stratégie sert notamment à personnaliser la notion d’identité des clés
+/// dans les collections hachées.
 trait Hashing[T] {
-    /// Calcule le hachage de la valeur.
+    /// Calcule un hachage déterministe compatible avec [[Hashing.equals]].
+    /// @param value Valeur observée à hacher.
+    /// @return Hachage utilisé comme point de départ du sondage.
     def hash(value : T) : usize
-    /// Exécute l’opération publique `equals`.
+    /// Compare deux valeurs selon l’identité de clé de la stratégie.
+    /// @param left Première valeur observée.
+    /// @param right Seconde valeur observée.
+    /// @return `true` si les valeurs doivent être traitées comme une même clé.
     def equals(left : T, right : T) : bool
 }
 
@@ -13,79 +33,128 @@ private def mixHash(value : usize) : usize {
     return value * usize(16777619) + usize(216613626)
 }
 
-/// Représente le type public `DerivedHashing`.
+/// Délègue le hachage et l’égalité aux opérations dérivées du type `T`.
+///
+/// Cette stratégie convient aux types pour lesquels `__derivedHash` et
+/// `__derivedEquals` décrivent déjà l’identité souhaitée. Elle ne possède aucun
+/// état mutable.
 class DerivedHashing[T]() extends Hashing[T] {
-    /// Calcule le hachage de la valeur.
+    /// Calcule le hachage dérivé de `value`.
+    /// @param value Valeur observée à hacher.
+    /// @return Résultat de `__derivedHash[T]`.
     def hash(value : T) : usize {
         return __derivedHash[T](value)
     }
 
-    /// Exécute l’opération publique `equals`.
+    /// Compare deux valeurs avec l’égalité dérivée de `T`.
+    /// @param left Première valeur observée.
+    /// @param right Seconde valeur observée.
+    /// @return Résultat de `__derivedEquals[T]`.
     def equals(left : T, right : T) : bool {
         return __derivedEquals[T](left, right)
     }
 }
 
-/// Représente le type public `IntHashing`.
+/// Stratégie de hachage pour les entiers signés `int`.
+///
+/// Le hachage convertit la valeur en `usize` puis applique un mélange affine;
+/// l’égalité est l’égalité dérivée des entiers. La stratégie est sans état.
 class IntHashing() extends Hashing[int] {
-    /// Calcule le hachage de la valeur.
+    /// Mélange la représentation non signée de l’entier.
+    /// @param value Entier à hacher.
+    /// @return Hachage mélangé de `value`.
     def hash(value : int) : usize {
         return mixHash(usize(value))
     }
 
-    /// Exécute l’opération publique `equals`.
+    /// Compare deux entiers par égalité dérivée.
+    /// @param left Premier entier.
+    /// @param right Second entier.
+    /// @return `true` si les deux entiers sont égaux.
     def equals(left : int, right : int) : bool {
         return __derivedEquals[int](left, right)
     }
 }
 
-/// Représente le type public `USizeHashing`.
+/// Stratégie sans état pour les entiers non signés `usize`.
+///
+/// Elle applique le même mélange affine que les autres stratégies scalaires et
+/// utilise l’égalité dérivée de `usize`.
 class USizeHashing() extends Hashing[usize] {
-    /// Calcule le hachage de la valeur.
+    /// Mélange la valeur `usize`.
+    /// @param value Entier non signé à hacher.
+    /// @return Hachage mélangé de `value`.
     def hash(value : usize) : usize {
         return mixHash(value)
     }
 
-    /// Exécute l’opération publique `equals`.
+    /// Compare deux valeurs `usize` par égalité dérivée.
+    /// @param left Première valeur.
+    /// @param right Seconde valeur.
+    /// @return `true` si les deux valeurs sont égales.
     def equals(left : usize, right : usize) : bool {
         return __derivedEquals[usize](left, right)
     }
 }
 
-/// Représente le type public `ByteHashing`.
+/// Stratégie sans état pour les valeurs `byte`.
+///
+/// L’octet est élargi en `usize` avant le mélange; l’égalité reste l’égalité
+/// dérivée de `byte`.
 class ByteHashing() extends Hashing[byte] {
-    /// Calcule le hachage de la valeur.
+    /// Mélange la valeur numérique de l’octet.
+    /// @param value Octet à hacher.
+    /// @return Hachage mélangé de `value`.
     def hash(value : byte) : usize {
         return mixHash(usize(value))
     }
 
-    /// Exécute l’opération publique `equals`.
+    /// Compare deux octets par égalité dérivée.
+    /// @param left Premier octet.
+    /// @param right Second octet.
+    /// @return `true` si les deux octets sont égaux.
     def equals(left : byte, right : byte) : bool {
         return __derivedEquals[byte](left, right)
     }
 }
 
-/// Représente le type public `CharHashing`.
+/// Stratégie sans état pour les caractères `char`.
+///
+/// La valeur numérique du caractère est mélangée; aucune normalisation Unicode
+/// ou équivalence textuelle supplémentaire n’est appliquée.
 class CharHashing() extends Hashing[char] {
-    /// Calcule le hachage de la valeur.
+    /// Mélange la valeur numérique du caractère.
+    /// @param value Caractère à hacher.
+    /// @return Hachage mélangé de `value`.
     def hash(value : char) : usize {
         return mixHash(usize(value))
     }
 
-    /// Exécute l’opération publique `equals`.
+    /// Compare exactement deux caractères par égalité dérivée.
+    /// @param left Premier caractère.
+    /// @param right Second caractère.
+    /// @return `true` si les caractères sont égaux.
     def equals(left : char, right : char) : bool {
         return __derivedEquals[char](left, right)
     }
 }
 
-/// Représente le type public `BoolHashing`.
+/// Stratégie sans état pour les booléens.
+///
+/// `false` et `true` sont convertis en `usize`, puis mélangés. L’égalité est
+/// l’égalité dérivée de `bool`.
 class BoolHashing() extends Hashing[bool] {
-    /// Calcule le hachage de la valeur.
+    /// Mélange la représentation numérique du booléen.
+    /// @param value Booléen à hacher.
+    /// @return Hachage mélangé de `value`.
     def hash(value : bool) : usize {
         return mixHash(usize(value))
     }
 
-    /// Exécute l’opération publique `equals`.
+    /// Compare deux booléens par égalité dérivée.
+    /// @param left Premier booléen.
+    /// @param right Second booléen.
+    /// @return `true` si les booléens ont la même valeur.
     def equals(left : bool, right : bool) : bool {
         return __derivedEquals[bool](left, right)
     }
