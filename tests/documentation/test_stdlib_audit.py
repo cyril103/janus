@@ -16,6 +16,7 @@ PUBLIC_SURFACE = ROOT / "docs" / "public-surface-0.5.json"
 STDLIB_REFERENCE = ROOT / "docs" / "stdlib-reference.md"
 STDLIB_ROOT = ROOT / "stdlib" / "std"
 API_INDEX = ROOT / "website" / "docs" / "reference" / "stdlib" / "api-index.json"
+API_HTML = ROOT / "website" / "docs" / "reference" / "stdlib" / "index.html"
 
 GENERIC_DOCUMENTATION_PHRASES = (
     "Fournit la sémantique de",
@@ -74,6 +75,27 @@ class StdlibAuditTests(unittest.TestCase):
         api_index = json.loads(API_INDEX.read_text(encoding="utf-8"))
         anchors = [entry["anchor"] for entry in api_index["symbols"]]
         self.assertEqual(len(anchors), len(set(anchors)))
+
+    def test_module_usage_examples_are_published_in_html_and_json(self):
+        expected_modules = set()
+        for source in sorted(STDLIB_ROOT.rglob("*.janus")):
+            text = source.read_text(encoding="utf-8")
+            module = re.search(r"^module\s+(\S+)", text, flags=re.MULTILINE)
+            if module is not None and "@example" in text:
+                expected_modules.add(module.group(1))
+
+        api_index = json.loads(API_INDEX.read_text(encoding="utf-8"))
+        indexed_modules = {
+            entry["name"] for entry in api_index["modules"] if entry["examples"]
+        }
+        html = API_HTML.read_text(encoding="utf-8")
+
+        self.assertEqual(expected_modules, indexed_modules)
+        self.assertEqual(27, len(expected_modules))
+        self.assertEqual(
+            len(expected_modules),
+            html.count('class="module-example doc-section"'),
+        )
 
     def test_committed_report_is_deterministic_and_current(self):
         expected = self.audit.render_report(self.audit.collect_audit(ROOT))
