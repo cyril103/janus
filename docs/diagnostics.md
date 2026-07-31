@@ -57,7 +57,8 @@ Les fixtures `tests/diagnostics/rendering/` verrouillent le JSON et les rendus
 sans couleur à 80 et 120 colonnes. Une fixture contenant deux déclarations
 invalides vérifie la récupération sans cascade.
 
-Lors du workflow nocturne, deux campagnes de mutation indépendantes exercent
-le lexer et le parser pendant au moins quinze minutes chacune. Toute
-terminaison par signal, erreur de sanitizer ou expiration d'un cas conserve
-dans le log la charge utile hexadécimale permettant de le reproduire.
+Lors du workflow nocturne, quatre campagnes indépendantes exercent le lexer, le
+parser, les manifestes et le résolveur pendant 3 600 secondes chacune sous
+ASan/UBSan. Toute terminaison par signal, erreur de sanitizer ou expiration
+d'un cas conserve dans le log la charge utile hexadécimale permettant de le
+reproduire.

@@ -1,5 +1,9 @@
 # Migration de Janus 0.5 vers 0.6
 
+Janus 0.6.0 a été publié séparément. Les lots 0.6.1 à 0.6.3 décrits ci-dessous
+ont ensuite été livrés cumulativement avec Janus 0.7.4 ; ces numéros de lots ne
+correspondent pas à des tags publics distincts.
+
 ## `Array` et valeurs propriétaires
 
 En 0.5.x, `Array[T]` exigeait `T <: Copy`. En 0.6, la contrainte du tableau
@@ -100,9 +104,10 @@ normale ou anticipée (`break`, `continue`, `return`, `?`, panique) détruit
 l'itérateur et les éléments non produits. L'élément déjà produit appartient au
 corps de boucle et doit être transféré ou détruit.
 
-Le parcours consommant d'un `Array` préserve l'ordre mais coûte `O(n)` par
-élément produit et `O(n²)` pour un parcours complet. Un parcours consommant de
-`HashSet` ou `HashMap` coûte `O(capacity)` au total. À la destruction de
+Dans l'implémentation initiale du lot 0.6, le parcours consommant d'un `Array`
+coûtait `O(n)` par élément et `O(n²)` au total. Depuis la révision publiée avec
+Janus 0.7.4, il avance en `O(1)` par élément et `O(n)` au total. Un parcours
+consommant de `HashSet` ou `HashMap` coûte `O(capacity)` au total. À la destruction de
 l'itérateur, le stockage et toutes les valeurs restantes sont libérés ; le
 conteneur d'origine demeure consommé et ne peut pas être réutilisé.
 

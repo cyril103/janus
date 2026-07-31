@@ -3,7 +3,7 @@
 
 ## Objectifs
 
-- combiner fonctions, struct, tableau, boucle et test ;
+- combiner fonctions, struct, tableau et boucle ;
 - produire une sortie déterministe ;
 - valider un projet complet avec la chaîne d’outils.
 

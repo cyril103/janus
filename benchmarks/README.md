@@ -1,7 +1,10 @@
 # Benchmarks
 
-Benchmarks are deterministic microbenchmarks for local comparison. Wall-clock
-times are informational only and are not CI gates.
+This directory contains deterministic runtime microbenchmarks for local
+comparison and canonical small/medium compiler workloads under `compilation/`.
+Wall-clock times are informational only and are not CI gates. See
+[`docs/compiler-performance.md`](../docs/compiler-performance.md) for the
+compiler timing workflow and its non-blocking trend dashboard.
 
 ## `prime_factors.janus`
 

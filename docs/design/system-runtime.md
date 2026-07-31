@@ -2,8 +2,8 @@
 
 Statut : implémenté pour Janus 0.7.0.
 
-Ce contrat constitue la frontière commune utilisée par les futures API de
-fichiers, de flux et de processus. Les différences POSIX/Windows restent dans
+Ce contrat constitue la frontière commune utilisée par les API de fichiers,
+de flux et de processus. Les différences POSIX/Windows restent dans
 le runtime C ; le code Janus reçoit toujours une valeur ou un `SystemError`
 dans un `Result`.
 

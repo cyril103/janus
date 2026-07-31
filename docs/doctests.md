@@ -1,6 +1,6 @@
 # Doctests Janus
 
-Statut : contrat proposé pour Janus 0.7.3.
+Statut : lot 0.7.3 implémenté et publié avec Janus 0.7.4.
 
 ## Blocs exécutables et exemples incomplets
 

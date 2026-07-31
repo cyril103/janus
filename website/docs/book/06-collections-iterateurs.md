@@ -27,7 +27,10 @@ def main() : int {
 }
 ```
 
-La capacité initiale est un `usize`. Le tableau est possédé et doit être détruit. Les collections et itérateurs actuels contraignent leurs éléments à `Copy`.
+La capacité initiale est un `usize`. Le tableau est possédé et doit être
+détruit. `Array[T]` accepte aussi les valeurs propriétaires : les parcours
+observants comme `iterator()` exigent des éléments `Copy`, tandis que
+`intoIterator()` consomme le tableau et transfère ses éléments.
 
 ## Pipeline paresseux
 

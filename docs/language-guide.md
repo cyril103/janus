@@ -1,10 +1,11 @@
 # Guide du langage Janus
 
-> **Statut des API 0.5.x.** La syntaxe et la bibliothèque restent
-> pré-1.0. L'[inventaire versionné de la surface publique
-> 0.5.x](public-surface-0.5.json) indique, pour chaque module, sa source
-> canonique, sa documentation et son statut : candidat à la stabilité,
-> expérimental ou détail d'implémentation.
+> **Statut des API 0.8.** La syntaxe et la bibliothèque restent pré-1.0.
+> L'[inventaire de stabilité 0.8](stability-inventory-0.8.md) classe les
+> surfaces candidates et expérimentales. L'[inventaire machine de la surface
+> publique](public-surface-0.5.json), dont le nom historique est conservé pour
+> compatibilité avec les outils, relie chaque module à sa source canonique et à
+> sa documentation.
 
 Janus est fortement typé : chaque variable, paramètre et retour possède un
 type connu à la compilation. Les conversions entre types sont explicites.
@@ -453,8 +454,8 @@ conteneurs](design/container-ownership.md) détaille cette séparation.
 
 ### Dérivations explicites
 
-Janus 0.6.3 réserve la clause `derives` pour demander les capacités
-structurelles `Copy`, `Equality`, `Hashing` et `Debug` :
+Le lot 0.6.3, publié avec Janus 0.7.4, réserve la clause `derives` pour demander
+les capacités structurelles `Copy`, `Equality`, `Hashing` et `Debug` :
 
 ```janus
 struct Point(val x : int, val y : int)
@@ -585,9 +586,9 @@ pas été produits. Cette garantie s'applique à la fin normale et après
 `intoIterator()` ou `intoEntries()`, le conteneur original est consommé et
 inutilisable, même si aucun élément n'est demandé.
 
-Le parcours consommant d'un `Array` conserve l'ordre mais retire son premier
-élément à chaque avancée : une avancée coûte `O(n)` et un parcours complet
-`O(n²)`. Les parcours consommateurs de `HashSet` et `HashMap` visitent chaque
+Le parcours consommant d'un `Array` conserve l'ordre et avance par index :
+chaque avancée coûte `O(1)` et un parcours complet `O(n)`. Les parcours
+consommateurs de `HashSet` et `HashMap` visitent chaque
 emplacement de la table au plus une fois, soit `O(capacity)` pour un parcours
 complet. Dans tous les cas, la fin ou la destruction de l'itérateur libère le
 stockage source ; `take(n)` détruit aussi la partie non visitée de sa source.
@@ -868,10 +869,10 @@ durée de vie des vues, les erreurs et le nettoyage.
 
 Des programmes complets sont disponibles dans [`examples`](../examples).
 
-## Structures copiées par valeur
+## Structures copiables et propriétaires
 
-Une `struct` regroupe de petites données sans allocation dynamique. Sa syntaxe
-reprend celle des champs de constructeur d'une classe :
+Une `struct` regroupe des données par valeur. Sa syntaxe reprend celle des
+champs de constructeur d'une classe :
 
 ```janus
 struct Point(var x : int, var y : int) {
@@ -886,10 +887,15 @@ var copy : Point = original
 copy.translate(5, 0)
 ```
 
-L'affectation et le passage à une fonction copient la valeur. `original` reste
-donc inchangé lorsque `copy` est modifié. Une structure n'utilise ni `move` ni
-`delete` et ne peut pas déclarer de destructeur. Dans cette première version,
-ses champs doivent tous être déclarés entre parenthèses avec `val` ou `var`.
+Lorsque tous ses champs sont copiables, l'affectation et le passage à une
+fonction copient la valeur : `original` reste donc inchangé lorsque `copy` est
+modifié. La dérivation explicite `Copy` permet en plus de satisfaire une
+contrainte générique `T <: Copy`.
+
+Une structure qui contient une ressource devient en revanche propriétaire :
+son transfert emploie `move` et `delete` détruit récursivement son contenu. Une
+structure ne déclare pas son propre destructeur ; la propriété découle de ses
+champs. Ceux-ci sont déclarés entre parenthèses avec `val` ou `var`.
 
 ## Graphisme 2D
 

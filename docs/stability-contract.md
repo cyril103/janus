@@ -230,8 +230,8 @@ release ne les promeut pas :
 | Surface | Partie expérimentale | Condition de promotion |
 | --- | --- | --- |
 | `std.graphics` | backend dynamique, ressources GPU/audio, valeurs et modes ajoutés après 0.6 | tests sur les trois plateformes et contrat de portée/erreur complet |
-| Publication au registre | client distant, hébergement, provenance, stockage et cache | registre de référence interopérable avec le protocole v1 |
-| LSP et extension VS Code | extensions de protocole, indexation et réglages éditeur | matrice de compatibilité toolchain/extension publiée |
+| Publication au registre | client distant, hébergement, provenance, stockage et cache | plusieurs cycles de retour utilisateur et politique de cache définitive |
+| LSP et extension VS Code | extensions de protocole, indexation et réglages éditeur | gel explicite des garanties relevant du contrat 1.x |
 | Diagnostics | texte, codes et ordre des notes | schéma de codes de diagnostic versionné |
 | IR et objets Janus | noms, disposition des agrégats et métadonnées LLVM | ABI de module séparée et versionnée |
 

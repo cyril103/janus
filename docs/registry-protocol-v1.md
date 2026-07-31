@@ -1,7 +1,8 @@
 # Protocole du registre Janus v1
 
-Statut : **normatif pour le protocole v1, expérimental dans Janus 0.7.9**. Ce
-contrat précède volontairement le client distant et le service de référence.
+Statut : **normatif pour le protocole v1**. Le client distant et le service de
+référence l'implémentent depuis Janus 0.8.0 ; l'écosystème de paquets reste
+expérimental avant 1.0.
 Les mots **DOIT**, **NE DOIT PAS** et **DEVRAIT** ont leur sens normatif usuel.
 Les schémas JSON associés vivent dans [`docs/schemas/registry-v1`](schemas/registry-v1/)
 et les exemples exécutables dans
@@ -147,9 +148,9 @@ sensibles exigent une identité distincte et une authentification renforcée.
 | serveur ou stockage compromis | checksums du lockfile, sauvegardes immuables, audit de restauration |
 | indisponibilité | cache vérifié et builds `--locked --offline` |
 
-SHA-256 protège l'intégrité et non l'identité de l'éditeur. La provenance signée
-pourra être ajoutée sans remplacer les contrôles v1 ; sa politique appartient au
-registre de référence de la release suivante.
+SHA-256 protège l'intégrité et non l'identité de l'éditeur. Le service de
+référence fournit une provenance signée comme extension hors des objets JSON
+fermés du protocole v1 ; elle complète ces contrôles sans en modifier le sens.
 
 ## Sauvegarde et récupération
 

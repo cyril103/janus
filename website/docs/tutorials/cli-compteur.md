@@ -90,5 +90,6 @@ janus fmt --check
 ## Prolongements
 
 - passez la limite à une `val` globale initialisée ;
-- ignorez l’étape 3 avec `continue` ;
+- ignorez l’étape 3 avec `continue`, en incrémentant d'abord `step` pour éviter
+  de rester indéfiniment sur cette valeur ;
 - quittez à l’étape 4 avec `break` et observez la sortie.
