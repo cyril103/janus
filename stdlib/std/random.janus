@@ -16,6 +16,8 @@ private extern def janus_random_seed() : usize
 private var automaticState : usize = janus_random_seed()
 
 /// Générateur mutable dont chaque tirage avance un état initialisé par `seed`.
+///
+/// @param seed État initial déterminant entièrement la suite produite.
 class Random(seed : usize) {
     private var state : usize = seed
 

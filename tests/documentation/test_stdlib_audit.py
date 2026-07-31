@@ -14,6 +14,16 @@ SCRIPT = ROOT / "scripts" / "audit_stdlib.py"
 REPORT = ROOT / "docs" / "audits" / "stdlib-0.7.4.md"
 PUBLIC_SURFACE = ROOT / "docs" / "public-surface-0.5.json"
 STDLIB_REFERENCE = ROOT / "docs" / "stdlib-reference.md"
+STDLIB_ROOT = ROOT / "stdlib" / "std"
+API_INDEX = ROOT / "website" / "docs" / "reference" / "stdlib" / "api-index.json"
+
+GENERIC_DOCUMENTATION_PHRASES = (
+    "Fournit la sémantique de",
+    "Valeur utilisée par cette opération",
+    "Résultat de type",
+    "correspondant à cette valeur précise",
+    "Définit [[",
+)
 
 
 def load_audit_module():
@@ -50,6 +60,20 @@ class StdlibAuditTests(unittest.TestCase):
         self.assertTrue(all(module.owner for module in model.modules.values()))
         self.assertTrue(all(symbol.owner for symbol in model.symbols.values()))
         self.assertTrue(all(symbol.decision for symbol in model.symbols.values()))
+
+    def test_public_documentation_is_semantic_not_tautological(self):
+        occurrences = []
+        for source in sorted(STDLIB_ROOT.rglob("*.janus")):
+            text = source.read_text(encoding="utf-8")
+            for phrase in GENERIC_DOCUMENTATION_PHRASES:
+                if phrase in text:
+                    occurrences.append(f"{source.relative_to(ROOT)}: {phrase}")
+        self.assertEqual([], occurrences)
+
+    def test_published_api_anchors_are_unique(self):
+        api_index = json.loads(API_INDEX.read_text(encoding="utf-8"))
+        anchors = [entry["anchor"] for entry in api_index["symbols"]]
+        self.assertEqual(len(anchors), len(set(anchors)))
 
     def test_committed_report_is_deterministic_and_current(self):
         expected = self.audit.render_report(self.audit.collect_audit(ROOT))

@@ -348,6 +348,8 @@ val height : float
 ) derives Copy, Equality, Debug {}
 
 /// Couleur RGBA stockée sous la représentation entière compacte produite par [[rgba]].
+///
+/// @param packedValue Représentation compacte transmise sans conversion aux opérations graphiques.
 struct Color(private val packedValue : uint)
 derives Copy, Equality, Debug {
     /// Lit la représentation entière compacte de la couleur, sans conversion.

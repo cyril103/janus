@@ -315,6 +315,22 @@ std::string type_signature(const janus::ast::ClassDeclaration &value) {
     }
     signature += ']';
   }
+  signature += '(';
+  bool first_parameter = true;
+  for (const auto &parameter : value.constructor_parameters) {
+    if (!first_parameter)
+      signature += ", ";
+    first_parameter = false;
+    signature += parameter.name + " : " + type_name(parameter.type);
+  }
+  for (const janus::ast::ValueDeclaration &field : value.constructor_fields) {
+    if (!first_parameter)
+      signature += ", ";
+    first_parameter = false;
+    signature += std::string{field.is_mutable ? "var " : "val "} + field.name +
+                 " : " + type_name(field.declared_type);
+  }
+  signature += ')';
   return signature;
 }
 
@@ -376,6 +392,18 @@ function_parameters(const janus::ast::FunctionDeclaration &function) {
   return parameters;
 }
 
+std::vector<DocumentedParameter>
+constructor_parameters(const janus::ast::ClassDeclaration &type) {
+  std::vector<DocumentedParameter> parameters;
+  for (const auto &parameter : type.constructor_parameters)
+    parameters.push_back({parameter.name, type_name(parameter.type), {}});
+  for (const janus::ast::ValueDeclaration &field : type.constructor_fields) {
+    parameters.push_back({field.name, type_name(field.declared_type),
+                          parse_documentation(field.documentation).summary});
+  }
+  return parameters;
+}
+
 std::vector<Symbol>
 public_symbols(const std::vector<janus::ast::Program> &programs) {
   std::vector<Symbol> symbols;
@@ -429,9 +457,12 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
       if (type.is_private)
         continue;
       const std::string parent = module + '.' + type.name;
+      std::vector<DocumentedParameter> parameters = constructor_parameters(type);
+      const bool has_constructor_parameters = !parameters.empty();
       add_symbol(symbols, module, type.name,
                  type.is_value_type ? "struct" : "class", type_signature(type),
-                 type.documentation);
+                 type.documentation, {}, std::move(parameters), {},
+                 has_constructor_parameters);
       const auto append_fields = [&](const auto &fields) {
         for (const janus::ast::ValueDeclaration &field : fields) {
           if (!field.is_private && !field.is_internal)
@@ -683,15 +714,12 @@ generate_documentation(const std::vector<ast::Program> &programs,
           {"duplicate-param", symbol.qualified_name, name,
            "@param '" + name + "' is documented more than once"});
     for (const DocumentedParameter &parameter : symbol.parameters) {
-      const auto documented =
-          symbol.structured.parameter_descriptions.find(parameter.name);
-      if (documented == symbol.structured.parameter_descriptions.end() ||
-          documented->second.empty())
+      if (parameter.description.empty())
         report.diagnostics.push_back(
             {"undocumented-param", symbol.qualified_name, parameter.name,
              "public parameter '" + parameter.name + "' is undocumented"});
     }
-    if (!is_unit_or_void(symbol.return_type) &&
+    if (!symbol.return_type.empty() && !is_unit_or_void(symbol.return_type) &&
         (!symbol.structured.has_return ||
          symbol.structured.return_description.empty()))
       report.diagnostics.push_back(
@@ -822,7 +850,7 @@ generate_documentation(const std::vector<ast::Program> &programs,
                                         << "</td></tr>";
         html << "</tbody></table></section>\n";
       }
-      if (symbol.is_function && !is_unit_or_void(symbol.return_type)) {
+      if (!symbol.return_type.empty() && !is_unit_or_void(symbol.return_type)) {
         html << "<section class=\"doc-section\"><h4>Returns</h4><p><code>"
              << html_escape(symbol.return_type) << "</code>";
         if (symbol.structured.has_return)
@@ -902,7 +930,7 @@ generate_documentation(const std::vector<ast::Program> &programs,
           << json_escape(symbol.documentation) << "\",\"anchor\":\""
           << json_escape(symbol.anchor) << '"';
     write_structured_json(index, symbol.structured, symbol.parameters,
-                          symbol.return_type, symbol.is_function);
+                          symbol.return_type, !symbol.return_type.empty());
     index << '}';
   }
   if (!symbols.empty())

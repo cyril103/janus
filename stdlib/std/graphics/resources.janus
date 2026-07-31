@@ -140,6 +140,8 @@ location : int,
 value : int
 ) : Unit
 /// Possède une texture native et la libère à sa destruction.
+///
+/// @param handle Texture native transférée par une fonction de chargement.
 class Texture(private val handle : Ptr[byte]) {
     /// Indique si la texture est valide.
     ///
@@ -281,6 +283,8 @@ class Texture(private val handle : Ptr[byte]) {
 }
 
 /// Possède une fonte native et la libère à sa destruction.
+///
+/// @param handle Fonte native transférée par une fonction de chargement.
 class Font(private val handle : Ptr[byte]) {
     /// Indique si la fonte est valide.
     ///
@@ -347,6 +351,8 @@ class Font(private val handle : Ptr[byte]) {
 }
 
 /// Possède une cible de rendu native et la libère à sa destruction.
+///
+/// @param handle Cible de rendu native transférée par [[loadRenderTexture]].
 class RenderTexture(private val handle : Ptr[byte]) {
     /// Indique si la texture de rendu est valide.
     ///
@@ -411,6 +417,8 @@ class RenderTexture(private val handle : Ptr[byte]) {
 }
 
 /// Possède un programme shader natif et le libère à sa destruction.
+///
+/// @param handle Programme natif transféré par une fonction de chargement de shader.
 class Shader(private val handle : Ptr[byte]) {
     /// Indique si le shader est valide.
     ///

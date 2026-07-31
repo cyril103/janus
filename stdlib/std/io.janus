@@ -290,6 +290,10 @@ private class LineBufferState() {
 ///
 /// Les lectures consomment d’abord le tampon interne. La fin n’est connue qu’après
 /// une lecture native renvoyant zéro. Le destructeur ferme uniquement les handles possédés.
+/// @param nativeHandle Descripteur natif lu par le flux.
+/// @param ownsHandle `true` si [[close]] et le destructeur doivent fermer ce descripteur.
+/// @param streamContext Nom conservé pour contextualiser les erreurs de lecture.
+/// @param requestedCapacity Capacité initiale, en octets, du tampon interne.
 class InputStream(
 private var nativeHandle : isize,
 private val ownsHandle : bool,
@@ -476,6 +480,10 @@ private val requestedCapacity : usize
 ///
 /// [[write]] ne garantit pas que les octets ont atteint l’hôte ; appeler [[flush]]
 /// ou [[close]] pour vider le tampon. Le destructeur tente ces opérations sans exposer leurs erreurs.
+/// @param nativeHandle Descripteur natif recevant les octets du flux.
+/// @param ownsHandle `true` si [[close]] et le destructeur doivent fermer ce descripteur.
+/// @param streamContext Nom conservé pour contextualiser les erreurs d’écriture.
+/// @param requestedCapacity Capacité initiale, en octets, du tampon interne.
 class OutputStream(
 private var nativeHandle : isize,
 private val ownsHandle : bool,

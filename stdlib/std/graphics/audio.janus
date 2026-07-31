@@ -55,6 +55,8 @@ handle : Ptr[byte],
 pan : float
 ) : Unit
 /// Possède un effet sonore chargé; sa destruction décharge le handle natif.
+///
+/// @param handle Ressource native créée par le backend et désormais possédée par l’objet.
 class Sound(private val handle : Ptr[byte]) {
     /// Indique si le handle référence encore un son valide dans le backend chargé.
     ///
@@ -107,6 +109,8 @@ class Sound(private val handle : Ptr[byte]) {
 }
 
 /// Possède un flux musical chargé; sa destruction décharge le handle natif.
+///
+/// @param handle Flux natif créé par le backend et désormais possédé par l’objet.
 class Music(private val handle : Ptr[byte]) {
     /// Indique si le handle référence encore un flux valide dans le backend chargé.
     ///

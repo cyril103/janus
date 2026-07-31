@@ -12,6 +12,8 @@ module std.wall_time
 private extern def janus_wall_nanoseconds() : usize
 
 /// Stocke un horodatage civil comme nanosecondes écoulées depuis l’époque Unix.
+///
+/// @param value Nombre de nanosecondes écoulées depuis l’époque Unix.
 struct WallTime(private val value : usize) {
     /// Lit l’horodatage exact en nanosecondes Unix.
     ///

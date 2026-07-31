@@ -83,6 +83,8 @@ private def lengthOutput() : Ptr[usize] {
 /// La vue produite par [[view]] emprunte ce tampon et cesse d’être valide à la
 /// destruction du chemin. Un `Path` décrit une syntaxe de chemin, pas une entrée
 /// nécessairement présente sur le système de fichiers.
+/// @param nativeData Tampon natif normalisé dont l’objet prend possession.
+/// @param nativeLength Nombre d’octets du chemin, hors éventuel terminateur natif.
 class Path(
 private var nativeData : Ptr[byte],
 private val nativeLength : usize

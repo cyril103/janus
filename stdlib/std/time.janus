@@ -12,6 +12,8 @@ module std.time
 private extern def janus_monotonic_nanoseconds() : usize
 
 /// Stocke une durée non négative sous forme d’un nombre entier de nanosecondes.
+///
+/// @param value Nombre exact de nanosecondes à conserver.
 struct Duration(private val value : usize) {
     /// Lit la représentation exacte en nanosecondes.
     ///
@@ -43,6 +45,8 @@ struct Duration(private val value : usize) {
 }
 
 /// Représente une lecture opaque de l’horloge monotone en nanosecondes.
+///
+/// @param value Lecture native de l’horloge monotone à conserver.
 struct Instant(private val value : usize) {
     /// Soustrait un instant antérieur de cet instant.
     ///

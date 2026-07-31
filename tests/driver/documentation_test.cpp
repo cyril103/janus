@@ -66,10 +66,11 @@ struct Widget() {
     internal def reset() : int { return 0 }
 }
 /// A shade value.
-struct Shade() {}
+/// @param intensity Initial shade intensity.
+class Shade(intensity : int) {}
 /// Creates a shade value.
 /// @return A new [[Shade]].
-def shade() : Shade { return Shade() }
+def shade() : Shade { return new Shade(1) }
 /// Visible state.
 enum Status {
     /// Ready state.
@@ -88,7 +89,7 @@ trait Printable {
 /// @param unknown This parameter is duplicated.
 def create(name : string, count : int) : Widget { return Widget() }
 /// Performs work.
-def perform() : unit {}
+def perform() : Unit {}
 /// Hidden function.
 private def hidden() : int { return 0 }
 )"};
@@ -136,6 +137,11 @@ private def hidden() : int { return 0 }
              api_index.find("\"anchor\":\"sample-shade-function\"") !=
                  std::string::npos,
          "the API index exposes the disambiguated anchor");
+  expect(html.find("class Shade(intensity : int)") != std::string::npos &&
+             api_index.find(
+                 "\"name\":\"intensity\",\"type\":\"int\",\"description\":\"Initial shade intensity.\"") !=
+                 std::string::npos,
+         "class constructor parameters are documented with their types");
   expect(html.find("href=\"#sample-widget\"") != std::string::npos,
          "known documentation links are resolved");
   expect(html.find("id=\"api-search\"") != std::string::npos &&
@@ -181,6 +187,9 @@ private def hidden() : int { return 0 }
              api_index.find("\"examples\":[\"val label = Widget().label") !=
                  std::string::npos,
          "the compatible API index exposes deterministic structured fields");
+  expect(api_index.find("\"returns\":{\"type\":\"Unit\"") ==
+             std::string::npos,
+         "canonical Unit returns do not require or expose return documentation");
   expect(html.find("href=\"#sample-widget\"") != std::string::npos &&
              html.find("href=\"#sample-status\"") != std::string::npos,
          "documentation references resolve in every structured section");

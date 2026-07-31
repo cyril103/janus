@@ -14,6 +14,8 @@ import std.builder
 import std.iterator
 
 /// Accumule des éléments propriétaires dans un tableau redimensionnable.
+///
+/// @param initialCapacity Nombre d’emplacements réservés avant le premier ajout.
 class ArrayBuilder[T](
 initialCapacity : usize
 ) extends Builder[T, Array[T]] {

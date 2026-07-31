@@ -118,6 +118,8 @@ context : string
 ///
 /// [[close]] invalide immédiatement le descripteur, même si sa fermeture native
 /// échoue. Le destructeur ferme silencieusement tout descripteur encore ouvert.
+/// @param nativeHandle Descripteur natif dont l’objet prend possession.
+/// @param fileContext Chemin ou libellé conservé pour enrichir les erreurs système.
 class SystemFile(
 private var nativeHandle : isize,
 private val fileContext : string
