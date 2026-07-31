@@ -21,12 +21,20 @@ struct UnresolvedDocumentationLink {
   std::string context;
 };
 
+struct DocumentationDiagnostic {
+  std::string code;
+  std::string symbol;
+  std::string parameter;
+  std::string message;
+};
+
 struct DocumentationReport {
   std::filesystem::path index_path;
   std::filesystem::path api_index_path;
   std::vector<UnresolvedDocumentationLink> unresolved_links;
   std::vector<std::string> undocumented_modules;
   std::vector<std::string> undocumented_symbols;
+  std::vector<DocumentationDiagnostic> diagnostics;
   std::size_t module_count{};
   std::size_t symbol_count{};
 };

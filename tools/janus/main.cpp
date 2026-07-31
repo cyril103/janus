@@ -1434,8 +1434,14 @@ int main(int argc, char **argv) {
                                                           output);
       for (const janus::driver::UnresolvedDocumentationLink &link :
            report.unresolved_links)
-        std::cerr << "warning: unresolved documentation link '[[" << link.symbol
+        std::cerr << (options.doc_stdlib ? "error: " : "warning: ")
+                  << "unresolved documentation link '[[" << link.symbol
                   << "]]' in " << link.context << '\n';
+      for (const janus::driver::DocumentationDiagnostic &diagnostic :
+           report.diagnostics)
+        std::cerr << (options.doc_stdlib ? "error: " : "warning: ")
+                  << diagnostic.symbol << ": " << diagnostic.message << " ["
+                  << diagnostic.code << "]\n";
       if (options.doc_stdlib) {
         for (const std::string &module : report.undocumented_modules)
           std::cerr << "error: undocumented standard-library module "
@@ -1445,7 +1451,8 @@ int main(int argc, char **argv) {
                     << symbol << '\n';
         if (!report.unresolved_links.empty() ||
             !report.undocumented_modules.empty() ||
-            !report.undocumented_symbols.empty())
+            !report.undocumented_symbols.empty() ||
+            !report.diagnostics.empty())
           return 1;
       }
       std::cout << "generated " << report.symbol_count << " public symbols in "

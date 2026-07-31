@@ -41,8 +41,16 @@ struct Widget() {
     val name : string = "ok"
     /// Hidden field.
     private val secret : int = 1
-    /// Visible method.
-    def label() : string { return name }
+    /// Builds a label for [[Widget]].
+    ///
+    /// The prefix is escaped and kept next to [[Status]].
+    /// @param prefix Text placed before the label and [[Widget]].
+    /// @return The resulting <label> linked to [[Status]].
+    /// @example
+    /// ```janus
+    /// val label = Widget().label("<unsafe>")
+    /// ```
+    def label(prefix : string) : string { return prefix }
     /// Hidden method.
     internal def reset() : int { return 0 }
 }
@@ -56,10 +64,15 @@ enum Status {
 /// Visible trait.
 trait Printable {
     /// Render a value.
+    /// @return The rendered value.
     def render() : string
 }
-/// Visible function.
-def create() : Widget { return Widget() }
+/// Creates a widget.
+/// @param unknown This parameter does not exist.
+/// @param unknown This parameter is duplicated.
+def create(name : string, count : int) : Widget { return Widget() }
+/// Performs work.
+def perform() : unit {}
 /// Hidden function.
 private def hidden() : int { return 0 }
 )"};
@@ -86,13 +99,13 @@ private def hidden() : int { return 0 }
          "public type documentation is rendered");
   expect(html.find("Visible field.") != std::string::npos,
          "public fields are indexed");
-  expect(html.find("Visible method.") != std::string::npos,
+  expect(html.find("Builds a label") != std::string::npos,
          "public methods are indexed");
   expect(html.find("Ready state.") != std::string::npos,
          "enum variants are indexed");
   expect(html.find("Visible trait.") != std::string::npos,
          "traits are indexed");
-  expect(html.find("Visible function.") != std::string::npos,
+  expect(html.find("Creates a widget.") != std::string::npos,
          "functions are indexed");
   expect(html.find("Hidden field.") == std::string::npos,
          "private fields are excluded");
@@ -120,9 +133,59 @@ private def hidden() : int { return 0 }
   expect(html.find("&lt;unsafe&gt;") != std::string::npos &&
              html.find("<unsafe>") == std::string::npos,
          "documentation text is HTML-escaped");
+  expect(html.find("class=\"doc-summary\">Builds a label") !=
+             std::string::npos &&
+             html.find("class=\"doc-details\"") != std::string::npos,
+         "summary and detail paragraphs are rendered separately");
+  expect(html.find("<h4>Parameters</h4>") != std::string::npos &&
+             html.find("<code>prefix</code>") != std::string::npos &&
+             html.find("<code>string</code>") != std::string::npos,
+         "real parameter names and types are rendered");
+  expect(html.find("<h4>Returns</h4>") != std::string::npos &&
+             html.find("The resulting &lt;label&gt;") != std::string::npos,
+         "return type and escaped explanation are rendered");
+  expect(html.find("<h4>Example</h4>") != std::string::npos &&
+             html.find("&quot;&lt;unsafe&gt;&quot;") != std::string::npos,
+         "examples are readable and strictly HTML-escaped");
+  expect(api_index.find("\"summary\":\"Builds a label for [[Widget]].\"") !=
+             std::string::npos &&
+             api_index.find("\"details\":[\"The prefix is escaped") !=
+                 std::string::npos &&
+             api_index.find("\"parameters\":[{\"name\":\"prefix\",\"type\":\"string\"") !=
+                 std::string::npos &&
+             api_index.find("\"returns\":{\"type\":\"string\"") !=
+                 std::string::npos &&
+             api_index.find("\"examples\":[\"val label = Widget().label") !=
+                 std::string::npos,
+         "the compatible API index exposes deterministic structured fields");
+  expect(html.find("href=\"#sample-widget\"") != std::string::npos &&
+             html.find("href=\"#sample-status\"") != std::string::npos,
+         "documentation references resolve in every structured section");
   expect(first.unresolved_links.size() == 1 &&
              first.unresolved_links[0].symbol == "Missing",
          "unknown documentation links are reported");
+  expect(first.diagnostics.size() == 5,
+         "documentation contracts produce one structured diagnostic per issue");
+  expect(first.diagnostics[0].code == "duplicate-param" ||
+             first.diagnostics[1].code == "duplicate-param",
+         "duplicate parameter tags are diagnosed");
+  bool saw_unknown = false;
+  bool saw_missing_name = false;
+  bool saw_missing_count = false;
+  bool saw_missing_return = false;
+  for (const auto &diagnostic : first.diagnostics) {
+    saw_unknown |= diagnostic.code == "unknown-param" &&
+                   diagnostic.parameter == "unknown";
+    saw_missing_name |= diagnostic.code == "undocumented-param" &&
+                        diagnostic.parameter == "name";
+    saw_missing_count |= diagnostic.code == "undocumented-param" &&
+                         diagnostic.parameter == "count";
+    saw_missing_return |= diagnostic.code == "missing-return" &&
+                          diagnostic.symbol == "sample.create";
+  }
+  expect(saw_unknown && saw_missing_name && saw_missing_count &&
+             saw_missing_return,
+         "unknown, undocumented parameters and missing returns are actionable");
 
   const std::filesystem::path blocked = root / "blocked";
   {

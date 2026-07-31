@@ -47,7 +47,15 @@ struct Widget() {
 }
 
 /// Creates a [[Widget]].
-def makeWidget() : Widget { return Widget() }
+///
+/// Uses the requested name.
+/// @param name Display name.
+/// @return A new widget.
+/// @example
+/// ```janus
+/// val widget = makeWidget("demo")
+/// ```
+def makeWidget(name : string) : Widget { return Widget() }
 )"};
   const janus::ast::Program program = parser.parse_program();
 
@@ -70,8 +78,11 @@ def makeWidget() : Widget { return Widget() }
   expect(program.classes[0].methods[0].documentation ==
              "Returns the display name.",
          "method documentation is retained");
-  expect(program.functions[0].documentation == "Creates a [[Widget]].",
-         "function documentation is retained");
+  expect(program.functions[0].documentation ==
+             "Creates a [[Widget]].\n\nUses the requested name.\n"
+             "@param name Display name.\n@return A new widget.\n@example\n"
+             "```janus\nval widget = makeWidget(\"demo\")\n```",
+         "structured documentation source is retained losslessly in the AST");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

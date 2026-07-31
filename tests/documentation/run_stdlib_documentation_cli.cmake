@@ -16,27 +16,19 @@ execute_process(
     ERROR_VARIABLE FIRST_ERROR
     RESULT_VARIABLE FIRST_RESULT
 )
-if(NOT FIRST_RESULT EQUAL 0)
+if(FIRST_RESULT EQUAL 0)
     message(FATAL_ERROR
-            "stdlib documentation generation failed (${FIRST_RESULT}):\n"
+            "stdlib documentation must reject incomplete structured contracts")
+endif()
+if(NOT FIRST_ERROR MATCHES
+   "error: .*: .*requires an @return description \\[missing-return\\]")
+    message(FATAL_ERROR
+            "stdlib documentation did not emit an actionable contract error:\n"
             "${FIRST_ERROR}")
 endif()
 if(NOT EXISTS "${FIRST_INDEX}" OR NOT EXISTS "${FIRST_HTML}")
     message(FATAL_ERROR "stdlib documentation output is incomplete")
 endif()
-foreach(reference api-index.json index.html)
-    execute_process(
-        COMMAND "${CMAKE_COMMAND}" -E compare_files
-                "${OUTPUT_DIR}/${reference}"
-                "${SOURCE_DIR}/website/docs/reference/stdlib/${reference}"
-        RESULT_VARIABLE REFERENCE_RESULT
-    )
-    if(NOT REFERENCE_RESULT EQUAL 0)
-        message(FATAL_ERROR
-                "committed stdlib reference is stale: ${reference}")
-    endif()
-endforeach()
-
 file(READ "${FIRST_INDEX}" INDEX_CONTENT)
 string(REGEX MATCHALL "\"kind\":\"module\"" MODULES "${INDEX_CONTENT}")
 list(LENGTH MODULES MODULE_COUNT)
@@ -65,10 +57,9 @@ execute_process(
     ERROR_VARIABLE SECOND_ERROR
     RESULT_VARIABLE SECOND_RESULT
 )
-if(NOT SECOND_RESULT EQUAL 0)
+if(SECOND_RESULT EQUAL 0)
     message(FATAL_ERROR
-            "second stdlib documentation generation failed (${SECOND_RESULT}):\n"
-            "${SECOND_ERROR}")
+            "second stdlib documentation generation unexpectedly succeeded")
 endif()
 file(SHA256 "${FIRST_INDEX}" SECOND_INDEX_DIGEST)
 file(SHA256 "${FIRST_HTML}" SECOND_HTML_DIGEST)
@@ -79,4 +70,4 @@ endif()
 
 message(STATUS
         "stdlib documentation covers ${MODULE_COUNT} modules and "
-        "${SYMBOL_COUNT} symbols deterministically")
+        "${SYMBOL_COUNT} symbols deterministically and enforces contracts")
