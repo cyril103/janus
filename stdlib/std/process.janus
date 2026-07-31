@@ -99,6 +99,7 @@ def programArgument(index : usize) : Option[string] {
 /// Valeur d’environnement propriétaire obtenue par [[environmentVariable]].
 ///
 /// Sa vue emprunte un stockage natif libéré avec l’objet.
+/// @param nativeText Stockage natif transféré par l’API de processus.
 class EnvironmentValue(private var nativeText : isize) {
     /// Emprunte le contenu exact de la variable, sans interpréter son encodage.
     /// @return Vue valide jusqu’à la destruction de cette [[EnvironmentValue]].
@@ -150,6 +151,7 @@ name : string
 ///
 /// Les pointeurs retournés par les accesseurs de sortie sont empruntés et deviennent
 /// invalides à la destruction. Les données sont brutes et ne sont pas validées UTF-8.
+/// @param nativeResult Résultat natif propriétaire contenant le statut et les captures.
 class ProcessResult(private var nativeResult : isize) {
     /// Retourne le code de terminaison rapporté par l’hôte.
     /// @return Code de sortie natif de l’enfant.

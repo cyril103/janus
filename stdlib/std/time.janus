@@ -11,43 +11,47 @@ module std.time
 
 private extern def janus_monotonic_nanoseconds() : usize
 
-/// Définit [[Duration]], avec les garanties et la propriété décrites par ses méthodes.
+/// Stocke une durée non négative sous forme d’un nombre entier de nanosecondes.
+///
+/// @param value Nombre exact de nanosecondes à conserver.
 struct Duration(private val value : usize) {
-    /// Fournit la sémantique de [[nanoseconds]].
+    /// Lit la représentation exacte en nanosecondes.
     ///
-    /// @return Résultat de type [[usize]].
+    /// @return Nombre de nanosecondes stocké.
     def nanoseconds() : usize {
         return value
     }
 
-    /// Fournit la sémantique de [[microseconds]].
+    /// Convertit la durée en microsecondes entières.
     ///
-    /// @return Résultat de type [[usize]].
+    /// @return Quotient par 1 000; les nanosecondes restantes sont tronquées.
     def microseconds() : usize {
         return value / usize(1000)
     }
 
-    /// Fournit la sémantique de [[milliseconds]].
+    /// Convertit la durée en millisecondes entières.
     ///
-    /// @return Résultat de type [[usize]].
+    /// @return Quotient par 1 000 000; la fraction restante est tronquée.
     def milliseconds() : usize {
         return value / usize(1000000)
     }
 
-    /// Fournit la sémantique de [[seconds]].
+    /// Convertit la durée en secondes à virgule flottante.
     ///
-    /// @return Résultat de type [[double]].
+    /// @return Nombre de nanosecondes divisé par 1 000 000 000.
     def seconds() : double {
         return double(value) / double(1000000000.0)
     }
 }
 
-/// Définit [[Instant]], avec les garanties et la propriété décrites par ses méthodes.
+/// Représente une lecture opaque de l’horloge monotone en nanosecondes.
+///
+/// @param value Lecture native de l’horloge monotone à conserver.
 struct Instant(private val value : usize) {
-    /// Fournit la sémantique de [[durationSince]].
+    /// Soustrait un instant antérieur de cet instant.
     ///
-    /// @param earlier Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @return Résultat de type [[Duration]].
+    /// @param earlier Instant à soustraire; une valeur postérieure à `this` provoque une panique.
+    /// @return Écart non négatif entre les deux lectures, en nanosecondes.
     def durationSince(earlier : Instant) : Duration {
         if value < earlier.value {
             panic("instant precedes earlier instant\n")
@@ -55,19 +59,19 @@ struct Instant(private val value : usize) {
         return new Duration(value - earlier.value)
     }
 
-    /// Fournit la sémantique de [[elapsed]].
+    /// Mesure la durée entre cet instant et une nouvelle lecture monotone.
     ///
-    /// @return Résultat de type [[Duration]].
+    /// @return Différence en nanosecondes entre [[monotonicNow]] et cet instant.
     def elapsed() : Duration {
         val current : Instant = monotonicNow()
         return new Duration(current.value - value)
     }
 }
 
-/// Fournit la sémantique de [[nanoseconds]].
+/// Construit une durée directement exprimée en nanosecondes.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Duration]].
+/// @param value Nombre de nanosecondes à stocker sans conversion.
+/// @return Durée contenant exactement `value` nanosecondes.
 def nanoseconds(value : usize) : Duration {
     return new Duration(value)
 }
@@ -83,33 +87,33 @@ scale : usize
     return new Duration(value * scale)
 }
 
-/// Fournit la sémantique de [[microseconds]].
+/// Convertit des microsecondes entières en nanosecondes.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Duration]].
+/// @param value Nombre de microsecondes; une multiplication hors de `usize` provoque une panique.
+/// @return Durée de `value * 1 000` nanosecondes.
 def microseconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000))
 }
 
-/// Fournit la sémantique de [[milliseconds]].
+/// Convertit des millisecondes entières en nanosecondes.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Duration]].
+/// @param value Nombre de millisecondes; une multiplication hors de `usize` provoque une panique.
+/// @return Durée de `value * 1 000 000` nanosecondes.
 def milliseconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000000))
 }
 
-/// Fournit la sémantique de [[seconds]].
+/// Convertit des secondes entières en nanosecondes.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Duration]].
+/// @param value Nombre de secondes; une multiplication hors de `usize` provoque une panique.
+/// @return Durée de `value * 1 000 000 000` nanosecondes.
 def seconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000000000))
 }
 
-/// Fournit la sémantique de [[monotonicNow]].
+/// Lit l’horloge monotone native.
 ///
-/// @return Résultat de type [[Instant]].
+/// @return Instant construit avec la lecture courante en nanosecondes.
 def monotonicNow() : Instant {
     return new Instant(janus_monotonic_nanoseconds())
 }

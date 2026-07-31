@@ -30,11 +30,11 @@ private val end : int
     }
 }
 
-/// Fournit la sémantique de [[range]].
+/// Crée un itérateur croissant de `start` inclus à `end` exclu.
 ///
-/// @param start Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param end Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Iteratorint]].
+/// @param start Première valeur produite lorsque `start < end`.
+/// @param end Borne supérieure jamais produite.
+/// @return Itérateur avançant par pas de un, vide lorsque `start >= end`.
 def range(start : int, end : int) : Iterator[int] {
     val state : Range = new Range(start, end)
     return new Iterator[int](

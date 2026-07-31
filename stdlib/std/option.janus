@@ -8,11 +8,11 @@
 /// ```
 module std.option
 
-/// Énumère les valeurs de [[Option]] reconnues par le backend ou l’algorithme.
+/// Représente soit une valeur propriétaire, soit son absence.
 enum Option[T] {
-    /// Variante `Some`, correspondant à cette valeur précise.
+    /// Contient une valeur de type `T`.
     Some(T),
-    /// Variante `None`, correspondant à cette valeur précise.
+    /// Ne contient aucune valeur.
     None
 }
 
@@ -40,8 +40,8 @@ private class OptionFallback[T](private var value : T) {
 
 /// Indique si l’option contient une valeur.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param value Option inspectée sans déplacer son contenu.
+/// @return `true` pour `Some`, `false` pour `None`.
 def isSome[T](value : Option[T]) : bool {
     return match value {
         Some(item) => true,
@@ -51,8 +51,8 @@ def isSome[T](value : Option[T]) : bool {
 
 /// Indique si l’option est vide.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param value Option inspectée sans déplacer son contenu.
+/// @return `true` pour `None`, `false` pour `Some`.
 def isNone[T](value : Option[T]) : bool {
     return match value {
         Some(item) => false,
@@ -60,11 +60,11 @@ def isNone[T](value : Option[T]) : bool {
     }
 }
 
-/// Transforme la valeur ou la séquence avec la fonction fournie.
+/// Consomme l’option et transforme son contenu lorsqu’il existe.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param transform Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[OptionU]].
+/// @param value Option consommée par l’opération.
+/// @param transform Fonction propriétaire appelée une fois avec la valeur déplacée pour `Some`, puis détruite.
+/// @return `Some` du résultat de `transform`, ou `None` sans appeler `transform`.
 def map[T, U](
 value : Option[T],
 transform : (T) => U
@@ -76,11 +76,11 @@ transform : (T) => U
     }
 }
 
-/// Fournit la sémantique de [[andThen]].
+/// Enchaîne une opération optionnelle sur la branche présente.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param transform Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[OptionU]].
+/// @param value Option consommée par l’opération.
+/// @param transform Fonction propriétaire appelée une fois avec le contenu déplacé pour `Some`, puis détruite.
+/// @return Résultat de `transform` pour `Some`, ou `None` sans appeler `transform`.
 def andThen[T, U](
 value : Option[T],
 transform : (T) => Option[U]
@@ -92,11 +92,11 @@ transform : (T) => Option[U]
     }
 }
 
-/// Fournit la sémantique de [[orElse]].
+/// Conserve la première valeur présente entre deux options consommées.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param fallback Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[OptionT]].
+/// @param value Option prioritaire, consommée.
+/// @param fallback Option consommée et détruite si `value` est `Some`, sinon retournée.
+/// @return `value` lorsqu’elle est présente, sinon `fallback`.
 def orElse[T](
 value : Option[T],
 fallback : Option[T]
@@ -112,11 +112,11 @@ fallback : Option[T]
     }
 }
 
-/// Fournit la sémantique de [[unwrapOr]].
+/// Extrait le contenu présent ou adopte une valeur de remplacement.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param fallback Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[T]].
+/// @param value Option consommée.
+/// @param fallback Valeur consommée et détruite pour `Some`, retournée pour `None`.
+/// @return Contenu déplacé de `Some`, sinon `fallback`.
 def unwrapOr[T](value : Option[T], fallback : T) : T {
     val state : OptionFallback[T] =
     new OptionFallback[T](move fallback)

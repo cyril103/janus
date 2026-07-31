@@ -139,42 +139,44 @@ handle : Ptr[byte],
 location : int,
 value : int
 ) : Unit
-/// Définit [[Texture]], avec les garanties et la propriété décrites par ses méthodes.
+/// Possède une texture native et la libère à sa destruction.
+///
+/// @param handle Texture native transférée par une fonction de chargement.
 class Texture(private val handle : Ptr[byte]) {
     /// Indique si la texture est valide.
     ///
-    /// @return Résultat de type [[bool]].
+    /// @return Validité signalée par le backend pour le handle chargé.
     def isValid() : bool {
         return janus_graphics_texture_is_valid(handle)
     }
 
     /// Retourne la largeur de la texture.
     ///
-    /// @return Résultat de type [[int]].
+    /// @return Largeur en pixels rapportée par le backend.
     def width() : int {
         return janus_graphics_texture_width(handle)
     }
 
     /// Retourne la hauteur de la texture.
     ///
-    /// @return Résultat de type [[int]].
+    /// @return Hauteur en pixels rapportée par le backend.
     def height() : int {
         return janus_graphics_texture_height(handle)
     }
 
-    /// Fournit la sémantique de [[draw]].
+    /// Dessine la texture entière aux coordonnées entières données.
     ///
-    /// @param x Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param y Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param tint Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param x Coordonnée horizontale de destination.
+    /// @param y Coordonnée verticale de destination.
+    /// @param tint Couleur multiplicative transmise au backend.
     def draw(x : int, y : int, tint : Color) : Unit {
         janus_graphics_draw_texture(handle, x, y, tint.packed())
     }
 
-    /// Fournit la sémantique de [[drawAt]].
+    /// Dessine la texture entière après conversion tronquée de la position en entiers.
     ///
-    /// @param position Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param tint Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param position Coordonnées flottantes converties en `int` avant le dessin.
+    /// @param tint Couleur multiplicative transmise au backend.
     def drawAt(position : Vector2, tint : Color) : Unit {
         janus_graphics_draw_texture(
         handle,
@@ -184,13 +186,13 @@ class Texture(private val handle : Ptr[byte]) {
         )
     }
 
-    /// Fournit la sémantique de [[drawPro]].
+    /// Dessine une zone source dans un rectangle de destination avec origine et rotation.
     ///
-    /// @param source Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param destination Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param origin Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param rotation Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param tint Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param source Zone lue dans la texture; des dimensions négatives sont transmises telles quelles.
+    /// @param destination Rectangle où la zone est dessinée.
+    /// @param origin Point d’origine dans le rectangle de destination.
+    /// @param rotation Angle transmis au backend graphique.
+    /// @param tint Couleur multiplicative du dessin.
     def drawPro(
     source : Rectangle,
     destination : Rectangle,
@@ -215,18 +217,20 @@ class Texture(private val handle : Ptr[byte]) {
         )
     }
 
-    /// Fournit la sémantique de [[drawFrame]].
+    /// Dessine une image d’une feuille régulière, indexée ligne par ligne.
     ///
-    /// @param frame Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param frameWidth Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param frameHeight Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param columns Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param position Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param scale Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param rotation Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param flipX Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param flipY Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param tint Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// `columns` sert de diviseur et doit donc être non nul.
+    ///
+    /// @param frame Indice utilisé pour calculer colonne et ligne, sans contrôle de plage.
+    /// @param frameWidth Largeur en pixels de chaque image.
+    /// @param frameHeight Hauteur en pixels de chaque image.
+    /// @param columns Nombre d’images par ligne.
+    /// @param position Coin de destination de l’image.
+    /// @param scale Facteur appliqué aux dimensions de destination.
+    /// @param rotation Angle transmis au backend graphique.
+    /// @param flipX Inverse le signe de la largeur source lorsqu’il vaut `true`.
+    /// @param flipY Inverse le signe de la hauteur source lorsqu’il vaut `true`.
+    /// @param tint Couleur multiplicative du dessin.
     def drawFrame(
     frame : int,
     frameWidth : int,
@@ -268,7 +272,7 @@ class Texture(private val handle : Ptr[byte]) {
 
     /// Règle le filtre d’échantillonnage de la texture.
     ///
-    /// @param filter Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param filter Mode converti en entier et appliqué au handle natif.
     def setFilter(filter : TextureFilter) : Unit {
         janus_graphics_set_texture_filter(handle, int(filter))
     }
@@ -278,22 +282,24 @@ class Texture(private val handle : Ptr[byte]) {
     }
 }
 
-/// Définit [[Font]], avec les garanties et la propriété décrites par ses méthodes.
+/// Possède une fonte native et la libère à sa destruction.
+///
+/// @param handle Fonte native transférée par une fonction de chargement.
 class Font(private val handle : Ptr[byte]) {
     /// Indique si la fonte est valide.
     ///
-    /// @return Résultat de type [[bool]].
+    /// @return Validité signalée par le backend pour le handle chargé.
     def isValid() : bool {
         return janus_graphics_font_is_valid(handle)
     }
 
-    /// Fournit la sémantique de [[draw]].
+    /// Dessine une chaîne avec cette fonte, sa taille, son espacement et sa couleur.
     ///
-    /// @param text Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param position Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param fontSize Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param spacing Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param color Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param text Texte converti en chaîne C pour le backend.
+    /// @param position Coordonnées de départ du dessin.
+    /// @param fontSize Taille de fonte transmise en pixels.
+    /// @param spacing Espacement transmis entre caractères.
+    /// @param color Couleur du texte.
     def draw(
     text : string,
     position : Vector2,
@@ -312,12 +318,12 @@ class Font(private val handle : Ptr[byte]) {
         )
     }
 
-    /// Fournit la sémantique de [[measure]].
+    /// Mesure séparément la largeur et la hauteur d’une chaîne sans la dessiner.
     ///
-    /// @param text Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param fontSize Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param spacing Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @return Résultat de type [[Vector2]].
+    /// @param text Texte converti en chaîne C pour les deux mesures.
+    /// @param fontSize Taille de fonte utilisée pour les deux mesures.
+    /// @param spacing Espacement entre caractères utilisé pour les deux mesures.
+    /// @return Vecteur `(largeur, hauteur)` rapporté par le backend.
     def measure(
     text : string,
     fontSize : float,
@@ -344,41 +350,43 @@ class Font(private val handle : Ptr[byte]) {
     }
 }
 
-/// Définit [[RenderTexture]], avec les garanties et la propriété décrites par ses méthodes.
+/// Possède une cible de rendu native et la libère à sa destruction.
+///
+/// @param handle Cible de rendu native transférée par [[loadRenderTexture]].
 class RenderTexture(private val handle : Ptr[byte]) {
     /// Indique si la texture de rendu est valide.
     ///
-    /// @return Résultat de type [[bool]].
+    /// @return Validité signalée par le backend pour le handle créé.
     def isValid() : bool {
         return janus_graphics_render_texture_is_valid(handle)
     }
 
     /// Retourne la largeur de la texture de rendu.
     ///
-    /// @return Résultat de type [[int]].
+    /// @return Largeur en pixels rapportée par le backend.
     def width() : int {
         return janus_graphics_render_texture_width(handle)
     }
 
     /// Retourne la hauteur de la texture de rendu.
     ///
-    /// @return Résultat de type [[int]].
+    /// @return Hauteur en pixels rapportée par le backend.
     def height() : int {
         return janus_graphics_render_texture_height(handle)
     }
 
-    /// Fournit la sémantique de [[begin]].
+    /// Active cette cible pour les dessins suivants dans l’état graphique global.
     def begin() : Unit {
         janus_graphics_begin_render_texture(handle)
     }
 
-    /// Fournit la sémantique de [[drawPro]].
+    /// Dessine une zone de la cible dans un rectangle avec origine et rotation.
     ///
-    /// @param source Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param destination Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param origin Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param rotation Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param tint Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param source Zone lue dans la cible de rendu.
+    /// @param destination Rectangle de destination.
+    /// @param origin Point d’origine dans le rectangle de destination.
+    /// @param rotation Angle transmis au backend graphique.
+    /// @param tint Couleur multiplicative du dessin.
     def drawPro(
     source : Rectangle,
     destination : Rectangle,
@@ -408,40 +416,42 @@ class RenderTexture(private val handle : Ptr[byte]) {
     }
 }
 
-/// Définit [[Shader]], avec les garanties et la propriété décrites par ses méthodes.
+/// Possède un programme shader natif et le libère à sa destruction.
+///
+/// @param handle Programme natif transféré par une fonction de chargement de shader.
 class Shader(private val handle : Ptr[byte]) {
     /// Indique si le shader est valide.
     ///
-    /// @return Résultat de type [[bool]].
+    /// @return Validité signalée par le backend pour le handle chargé.
     def isValid() : bool {
         return janus_graphics_shader_is_valid(handle)
     }
 
-    /// Fournit la sémantique de [[begin]].
+    /// Active ce shader pour les dessins suivants dans l’état graphique global.
     def begin() : Unit {
         janus_graphics_begin_shader(handle)
     }
 
-    /// Fournit la sémantique de [[location]].
+    /// Recherche l’emplacement natif d’un uniforme par son nom.
     ///
-    /// @param name Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @return Résultat de type [[int]].
+    /// @param name Nom converti en chaîne C pour la recherche.
+    /// @return Indice d’emplacement rapporté par le backend, sans interprétation.
     def location(name : string) : int {
         return janus_graphics_shader_location(handle, cstr(name))
     }
 
     /// Affecte une valeur flottante à l’uniforme.
     ///
-    /// @param location Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param location Emplacement obtenu auprès du backend, par exemple avec [[location]].
+    /// @param value Flottant transmis à l’uniforme.
     def setFloat(location : int, value : float) : Unit {
         janus_graphics_set_shader_float(handle, location, value)
     }
 
     /// Affecte un vecteur 2D à l’uniforme.
     ///
-    /// @param location Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param location Emplacement obtenu auprès du backend, par exemple avec [[location]].
+    /// @param value Composantes `x` et `y` transmises à l’uniforme.
     def setVector2(location : int, value : Vector2) : Unit {
         janus_graphics_set_shader_vector2(
         handle,
@@ -453,16 +463,16 @@ class Shader(private val handle : Ptr[byte]) {
 
     /// Affecte une couleur à l’uniforme.
     ///
-    /// @param location Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param location Emplacement obtenu auprès du backend, par exemple avec [[location]].
+    /// @param value Couleur empaquetée transmise à l’uniforme.
     def setColor(location : int, value : Color) : Unit {
         janus_graphics_set_shader_color(handle, location, value.packed())
     }
 
     /// Affecte une valeur entière à l’uniforme.
     ///
-    /// @param location Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param location Emplacement obtenu auprès du backend, par exemple avec [[location]].
+    /// @param value Entier transmis à l’uniforme.
     def setInt(location : int, value : int) : Unit {
         janus_graphics_set_shader_int(handle, location, value)
     }
@@ -472,54 +482,44 @@ class Shader(private val handle : Ptr[byte]) {
     }
 }
 
-/// Définit [[SpriteAnimation]], avec les garanties et la propriété décrites par ses méthodes.
+/// Associe une texture propriétaire à un découpage régulier et à un indice d’image mutable.
 class SpriteAnimation(
-/// Expose le membre public `texture`.
-///
-/// @return Résultat de type [[int]].
+/// Texture propriétaire contenant la feuille de sprites découpée en images.
 val texture : Texture,
-/// Expose le membre public `frameWidth`.
-///
-/// @return Résultat de type [[int]].
+/// Largeur en pixels d’une image dans la feuille de sprites.
 val frameWidth : int,
-/// Expose le membre public `frameHeight`.
-///
-/// @return Résultat de type [[int]].
+/// Hauteur en pixels d’une image dans la feuille de sprites.
 val frameHeight : int,
-/// Expose le membre public `columns`.
-///
-/// @return Résultat de type [[int]].
+/// Nombre d’images disposées sur chaque ligne de la texture.
 val columns : int,
-/// Expose le membre public `frameCount`.
-///
-/// @return Résultat de type [[int]].
+/// Nombre total d’images de l’animation; il doit être strictement positif pour [[advance]].
 val frameCount : int,
-/// Expose le membre public `currentFrame`.
-///
-/// @return Résultat de type [[int]].
+/// Indice zéro-based de l’image actuellement dessinée.
 var currentFrame : int
 ) {
-    /// Fournit la sémantique de [[advance]].
+    /// Avance d’une image puis revient à zéro après la dernière.
     ///
-    /// @return Résultat de type [[int]].
+    /// `frameCount` sert de diviseur et doit être strictement positif.
+    ///
+    /// @return Nouvel indice `(currentFrame + 1) % frameCount`.
     def advance() : int {
         currentFrame = (currentFrame + 1) % frameCount
         return currentFrame
     }
 
-    /// Réinitialise l’état.
+    /// Replace l’indice courant à zéro.
     def reset() : Unit {
         currentFrame = 0
     }
 
-    /// Fournit la sémantique de [[draw]].
+    /// Dessine l’image courante via [[Texture.drawFrame]].
     ///
-    /// @param position Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param scale Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param rotation Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param flipX Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param flipY Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param tint Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param position Coin de destination de l’image.
+    /// @param scale Facteur appliqué à sa largeur et sa hauteur.
+    /// @param rotation Angle transmis au backend graphique.
+    /// @param flipX Inverse horizontalement la zone source lorsqu’il vaut `true`.
+    /// @param flipY Inverse verticalement la zone source lorsqu’il vaut `true`.
+    /// @param tint Couleur multiplicative du dessin.
     def draw(
     position : Vector2,
     scale : float,
@@ -545,27 +545,27 @@ var currentFrame : int
 
 /// Charge une texture depuis un fichier.
 ///
-/// @param fileName Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Texture]].
+/// @param fileName Chemin converti en chaîne C et transmis au chargeur natif.
+/// @return Texture propriétaire; vérifier [[Texture.isValid]] avant de l’utiliser.
 def loadTexture(fileName : string) : Texture {
     return new Texture(janus_graphics_load_texture(cstr(fileName)))
 }
 
 /// Charge une fonte à la taille demandée.
 ///
-/// @param fileName Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param fontSize Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Font]].
+/// @param fileName Chemin converti en chaîne C et transmis au chargeur natif.
+/// @param fontSize Taille demandée au chargeur natif.
+/// @return Fonte propriétaire, y compris lorsque son handle est invalide.
 def loadFont(fileName : string, fontSize : int) : Font {
     return new Font(janus_graphics_load_font(cstr(fileName), fontSize))
 }
 
 /// Charge une fonte limitée aux caractères UTF-8 fournis.
 ///
-/// @param fileName Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param fontSize Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param characters Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Font]].
+/// @param fileName Chemin converti en chaîne C et transmis au chargeur natif.
+/// @param fontSize Taille demandée au chargeur natif.
+/// @param characters Chaîne UTF-8 convertie en chaîne C pour sélectionner les glyphes.
+/// @return Fonte propriétaire, y compris lorsque son handle est invalide.
 def loadFontUtf8(
 fileName : string,
 fontSize : int,
@@ -582,22 +582,22 @@ characters : string
 
 /// Crée une texture de rendu aux dimensions demandées.
 ///
-/// @param width Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param height Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[RenderTexture]].
+/// @param width Largeur en pixels transmise au backend.
+/// @param height Hauteur en pixels transmise au backend.
+/// @return Cible propriétaire; vérifier [[RenderTexture.isValid]] avant de l’utiliser.
 def loadRenderTexture(width : int, height : int) : RenderTexture {
     return new RenderTexture(janus_graphics_load_render_texture(width, height))
 }
 
-/// Fournit la sémantique de [[endRenderTexture]].
+/// Termine le rendu dans la cible active et restaure l’état géré par le backend.
 def endRenderTexture() : Unit {
     janus_graphics_end_render_texture()
 }
 
 /// Charge un shader de fragment depuis un fichier.
 ///
-/// @param fragmentFile Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Shader]].
+/// @param fragmentFile Chemin du fragment shader, converti en chaîne C.
+/// @return Shader propriétaire; vérifier [[Shader.isValid]] avant de l’utiliser.
 def loadFragmentShader(fragmentFile : string) : Shader {
     return new Shader(
     janus_graphics_load_fragment_shader(cstr(fragmentFile))
@@ -606,16 +606,16 @@ def loadFragmentShader(fragmentFile : string) : Shader {
 
 /// Charge un shader de sommet et de fragment.
 ///
-/// @param vertexFile Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param fragmentFile Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Shader]].
+/// @param vertexFile Chemin du vertex shader, converti en chaîne C.
+/// @param fragmentFile Chemin du fragment shader, converti en chaîne C.
+/// @return Shader propriétaire; vérifier [[Shader.isValid]] avant de l’utiliser.
 def loadShader(vertexFile : string, fragmentFile : string) : Shader {
     return new Shader(
     janus_graphics_load_shader(cstr(vertexFile), cstr(fragmentFile))
     )
 }
 
-/// Fournit la sémantique de [[endShader]].
+/// Désactive le shader courant et restaure l’état géré par le backend.
 def endShader() : Unit {
     janus_graphics_end_shader()
 }

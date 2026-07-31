@@ -11,33 +11,35 @@ module std.wall_time
 
 private extern def janus_wall_nanoseconds() : usize
 
-/// Définit [[WallTime]], avec les garanties et la propriété décrites par ses méthodes.
+/// Stocke un horodatage civil comme nanosecondes écoulées depuis l’époque Unix.
+///
+/// @param value Nombre de nanosecondes écoulées depuis l’époque Unix.
 struct WallTime(private val value : usize) {
-    /// Fournit la sémantique de [[unixNanoseconds]].
+    /// Lit l’horodatage exact en nanosecondes Unix.
     ///
-    /// @return Résultat de type [[usize]].
+    /// @return Nombre de nanosecondes stocké depuis l’époque Unix.
     def unixNanoseconds() : usize {
         return value
     }
 
-    /// Fournit la sémantique de [[unixMilliseconds]].
+    /// Convertit l’horodatage en millisecondes Unix entières.
     ///
-    /// @return Résultat de type [[usize]].
+    /// @return Quotient des nanosecondes par 1 000 000, avec troncature du reste.
     def unixMilliseconds() : usize {
         return value / usize(1000000)
     }
 
-    /// Fournit la sémantique de [[unixSeconds]].
+    /// Convertit l’horodatage en secondes Unix entières.
     ///
-    /// @return Résultat de type [[usize]].
+    /// @return Quotient des nanosecondes par 1 000 000 000, avec troncature du reste.
     def unixSeconds() : usize {
         return value / usize(1000000000)
     }
 }
 
-/// Fournit la sémantique de [[wallNow]].
+/// Lit l’horloge civile native en nanosecondes depuis l’époque Unix.
 ///
-/// @return Résultat de type [[WallTime]].
+/// @return Horodatage construit avec la lecture courante du système.
 def wallNow() : WallTime {
     return new WallTime(janus_wall_nanoseconds())
 }

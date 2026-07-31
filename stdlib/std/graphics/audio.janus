@@ -54,49 +54,51 @@ private extern def janus_graphics_set_music_pan(
 handle : Ptr[byte],
 pan : float
 ) : Unit
-/// Définit [[Sound]], avec les garanties et la propriété décrites par ses méthodes.
+/// Possède un effet sonore chargé; sa destruction décharge le handle natif.
+///
+/// @param handle Ressource native créée par le backend et désormais possédée par l’objet.
 class Sound(private val handle : Ptr[byte]) {
-    /// Indique si la ressource sonore est valide.
+    /// Indique si le handle référence encore un son valide dans le backend chargé.
     ///
-    /// @return Résultat de type [[bool]].
+    /// @return `true` si les opérations de lecture sont possibles; sinon `false`.
     def isValid() : bool {
         return janus_graphics_sound_is_valid(handle)
     }
 
-    /// Fournit la sémantique de [[play]].
+    /// Lance la lecture du son s’il est valide et si le périphérique audio reste ouvert.
     def play() : Unit {
         janus_graphics_play_sound(handle)
     }
 
-    /// Fournit la sémantique de [[stop]].
+    /// Arrête la lecture du son s’il est valide.
     def stop() : Unit {
         janus_graphics_stop_sound(handle)
     }
 
     /// Indique si le son est en cours de lecture.
     ///
-    /// @return Résultat de type [[bool]].
+    /// @return `true` si le son valide est actuellement lu; sinon `false`.
     def isPlaying() : bool {
         return janus_graphics_sound_is_playing(handle)
     }
 
     /// Règle le volume du son.
     ///
-    /// @param volume Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param volume Gain transmis au backend pour ce son.
     def setVolume(volume : float) : Unit {
         janus_graphics_set_sound_volume(handle, volume)
     }
 
     /// Règle la hauteur du son.
     ///
-    /// @param pitch Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param pitch Facteur de hauteur transmis au backend pour ce son.
     def setPitch(pitch : float) : Unit {
         janus_graphics_set_sound_pitch(handle, pitch)
     }
 
     /// Règle la panoramique du son.
     ///
-    /// @param pan Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param pan Position stéréo transmise au backend pour ce son.
     def setPan(pan : float) : Unit {
         janus_graphics_set_sound_pan(handle, pan)
     }
@@ -106,54 +108,56 @@ class Sound(private val handle : Ptr[byte]) {
     }
 }
 
-/// Définit [[Music]], avec les garanties et la propriété décrites par ses méthodes.
+/// Possède un flux musical chargé; sa destruction décharge le handle natif.
+///
+/// @param handle Flux natif créé par le backend et désormais possédé par l’objet.
 class Music(private val handle : Ptr[byte]) {
-    /// Indique si la ressource musicale est valide.
+    /// Indique si le handle référence encore un flux valide dans le backend chargé.
     ///
-    /// @return Résultat de type [[bool]].
+    /// @return `true` si les opérations de lecture sont possibles; sinon `false`.
     def isValid() : bool {
         return janus_graphics_music_is_valid(handle)
     }
 
-    /// Fournit la sémantique de [[play]].
+    /// Lance la lecture du flux s’il est valide et si le périphérique audio reste ouvert.
     def play() : Unit {
         janus_graphics_play_music(handle)
     }
 
-    /// Fournit la sémantique de [[stop]].
+    /// Arrête la lecture du flux s’il est valide.
     def stop() : Unit {
         janus_graphics_stop_music(handle)
     }
 
-    /// Met à jour le flux musical.
+    /// Alimente le flux musical en cours; appelez cette méthode régulièrement pendant sa lecture.
     def update() : Unit {
         janus_graphics_update_music(handle)
     }
 
     /// Indique si la musique est en cours de lecture.
     ///
-    /// @return Résultat de type [[bool]].
+    /// @return `true` si le flux valide est actuellement lu; sinon `false`.
     def isPlaying() : bool {
         return janus_graphics_music_is_playing(handle)
     }
 
     /// Règle le volume de la musique.
     ///
-    /// @param volume Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param volume Gain transmis au backend pour ce flux.
     def setVolume(volume : float) : Unit {
         janus_graphics_set_music_volume(handle, volume)
     }
 
     /// Règle la hauteur de la musique.
     ///
-    /// @param pitch Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param pitch Facteur de hauteur transmis au backend pour ce flux.
     def setPitch(pitch : float) : Unit {
         janus_graphics_set_music_pitch(handle, pitch)
     }
 
     /// Règle la panoramique de la musique.
     ///
-    /// @param pan Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param pan Position stéréo transmise au backend pour ce flux.
     def setPan(pan : float) : Unit {
         janus_graphics_set_music_pan(handle, pan)
     }
@@ -163,37 +167,39 @@ class Music(private val handle : Ptr[byte]) {
     }
 }
 
-/// Fournit la sémantique de [[initAudio]].
+/// Charge le backend, ouvre le périphérique audio et le rend prêt au chargement.
 ///
-/// @return Résultat de type [[bool]].
+/// @return `true` si le périphérique est prêt; `false` si le backend ou l’ouverture échoue.
 def initAudio() : bool {
     return janus_graphics_init_audio()
 }
 
-/// Ferme le périphérique audio.
+/// Ferme le périphérique audio s’il est ouvert.
+///
+/// Détruisez les [[Sound]] et [[Music]] chargés avant cet appel.
 def closeAudio() : Unit {
     janus_graphics_close_audio()
 }
 
 /// Règle le volume audio principal.
 ///
-/// @param volume Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param volume Gain global transmis au backend lorsque le périphérique est prêt.
 def setMasterVolume(volume : float) : Unit {
     janus_graphics_set_master_volume(volume)
 }
 
-/// Charge un son depuis un fichier.
+/// Charge entièrement un effet sonore depuis un fichier, après [[initAudio]].
 ///
-/// @param fileName Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Sound]].
+/// @param fileName Chemin du fichier à décoder.
+/// @return Ressource propriétaire; [[Sound.isValid]] vaut `false` si le chargement échoue.
 def loadSound(fileName : string) : Sound {
     return new Sound(janus_graphics_load_sound(cstr(fileName)))
 }
 
-/// Charge un flux musical depuis un fichier.
+/// Ouvre un flux musical depuis un fichier, après [[initAudio]].
 ///
-/// @param fileName Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Music]].
+/// @param fileName Chemin du fichier à diffuser.
+/// @return Ressource propriétaire; [[Music.isValid]] vaut `false` si le chargement échoue.
 def loadMusic(fileName : string) : Music {
     return new Music(janus_graphics_load_music(cstr(fileName)))
 }

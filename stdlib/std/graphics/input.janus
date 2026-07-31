@@ -50,172 +50,172 @@ duration : float
 ) : Unit
 /// Indique si la touche est maintenue.
 ///
-/// @param key Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param key Touche à interroger sur la fenêtre initialisée.
+/// @return `true` tant que la touche reste enfoncée; sinon `false`.
 def isKeyDown(key : Key) : bool {
     return janus_graphics_is_key_down(int(key))
 }
 
-/// Indique si la touche vient d’être pressée.
+/// Indique si la touche a été pressée pendant le cadre courant.
 ///
-/// @param key Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param key Touche à interroger sur la fenêtre initialisée.
+/// @return `true` uniquement pour le cadre signalant la transition vers l’état enfoncé; sinon `false`.
 def isKeyPressed(key : Key) : bool {
     return janus_graphics_is_key_pressed(int(key))
 }
 
-/// Fournit la sémantique de [[keyPressed]].
+/// Retire de la file la prochaine touche pressée pendant le cadre courant.
 ///
-/// @return Résultat de type [[int]].
+/// @return Code de la touche, ou `0` si la file est vide ou le backend indisponible.
 def keyPressed() : int {
     return janus_graphics_key_pressed()
 }
 
-/// Fournit la sémantique de [[mouseX]].
+/// Lit l’abscisse courante du pointeur dans la fenêtre.
 ///
-/// @return Résultat de type [[int]].
+/// @return Coordonnée en pixels écran, ou `0` si le backend est indisponible.
 def mouseX() : int {
     return janus_graphics_mouse_x()
 }
 
-/// Fournit la sémantique de [[mouseY]].
+/// Lit l’ordonnée courante du pointeur dans la fenêtre.
 ///
-/// @return Résultat de type [[int]].
+/// @return Coordonnée en pixels écran, ou `0` si le backend est indisponible.
 def mouseY() : int {
     return janus_graphics_mouse_y()
 }
 
 /// Déplace le pointeur de souris.
 ///
-/// @param x Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param y Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param x Nouvelle abscisse en pixels écran.
+/// @param y Nouvelle ordonnée en pixels écran.
 def setMousePosition(x : int, y : int) : Unit {
     janus_graphics_set_mouse_position(x, y)
 }
 
-/// Fournit la sémantique de [[mouseWheelMove]].
+/// Lit le déplacement de la molette signalé pendant le cadre courant.
 ///
-/// @return Résultat de type [[float]].
+/// @return Déplacement signé transmis par le backend, ou `0.0` sans mouvement ou si le backend est indisponible.
 def mouseWheelMove() : float {
     return janus_graphics_mouse_wheel_move()
 }
 
 /// Indique si le bouton de souris est maintenu.
 ///
-/// @param button Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param button Bouton à interroger.
+/// @return `true` tant que le bouton reste enfoncé; sinon `false`.
 def isMouseButtonDown(button : MouseButton) : bool {
     return janus_graphics_is_mouse_button_down(int(button))
 }
 
-/// Indique si le bouton de souris vient d’être pressé.
+/// Indique si le bouton de souris a été pressé pendant le cadre courant.
 ///
-/// @param button Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param button Bouton à interroger.
+/// @return `true` uniquement pour le cadre signalant la transition vers l’état enfoncé; sinon `false`.
 def isMouseButtonPressed(button : MouseButton) : bool {
     return janus_graphics_is_mouse_button_pressed(int(button))
 }
 
-/// Fournit la sémantique de [[showCursor]].
+/// Rend visible le curseur de la fenêtre initialisée.
 def showCursor() : Unit {
     janus_graphics_show_cursor()
 }
 
-/// Fournit la sémantique de [[hideCursor]].
+/// Masque le curseur de la fenêtre initialisée.
 def hideCursor() : Unit {
     janus_graphics_hide_cursor()
 }
 
 /// Indique si le curseur est masqué.
 ///
-/// @return Résultat de type [[bool]].
+/// @return `true` si le curseur est actuellement masqué; sinon `false`.
 def isCursorHidden() : bool {
     return janus_graphics_is_cursor_hidden()
 }
 
-/// Fournit la sémantique de [[enableCursor]].
+/// Active le curseur et autorise son déplacement normal dans la fenêtre.
 def enableCursor() : Unit {
     janus_graphics_enable_cursor()
 }
 
-/// Fournit la sémantique de [[disableCursor]].
+/// Désactive le curseur dans la fenêtre et confie sa capture au backend.
 def disableCursor() : Unit {
     janus_graphics_disable_cursor()
 }
 
 /// Indique si la manette demandée est disponible.
 ///
-/// @param gamepad Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param gamepad Indice de la manette à interroger.
+/// @return `true` si cette manette est détectée par le backend; sinon `false`.
 def isGamepadAvailable(gamepad : int) : bool {
     return janus_graphics_is_gamepad_available(gamepad)
 }
 
-/// Fournit la sémantique de [[gamepadName]].
+/// Lit le nom attribué par le backend à une manette.
 ///
-/// @param gamepad Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Ptrbyte]].
+/// @param gamepad Indice de la manette.
+/// @return Pointeur emprunté vers le nom, ou un pointeur nul si le backend est indisponible; ne pas le libérer.
 def gamepadName(gamepad : int) : Ptr[byte] {
     return janus_graphics_gamepad_name(gamepad)
 }
 
 /// Indique si le bouton de manette est maintenu.
 ///
-/// @param gamepad Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param button Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param gamepad Indice de la manette.
+/// @param button Bouton à interroger.
+/// @return `true` tant que le bouton reste enfoncé; sinon `false`.
 def isGamepadButtonDown(gamepad : int, button : GamepadButton) : bool {
     return janus_graphics_is_gamepad_button_down(gamepad, int(button))
 }
 
-/// Indique si le bouton de manette vient d’être pressé.
+/// Indique si le bouton de manette a été pressé pendant le cadre courant.
 ///
-/// @param gamepad Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param button Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param gamepad Indice de la manette.
+/// @param button Bouton à interroger.
+/// @return `true` uniquement pour le cadre signalant la transition vers l’état enfoncé; sinon `false`.
 def isGamepadButtonPressed(gamepad : int, button : GamepadButton) : bool {
     return janus_graphics_is_gamepad_button_pressed(gamepad, int(button))
 }
 
-/// Indique si le bouton de manette vient d’être relâché.
+/// Indique si le bouton de manette a été relâché pendant le cadre courant.
 ///
-/// @param gamepad Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param button Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param gamepad Indice de la manette.
+/// @param button Bouton à interroger.
+/// @return `true` uniquement pour le cadre signalant la transition vers l’état relâché; sinon `false`.
 def isGamepadButtonReleased(gamepad : int, button : GamepadButton) : bool {
     return janus_graphics_is_gamepad_button_released(gamepad, int(button))
 }
 
-/// Fournit la sémantique de [[gamepadButtonPressed]].
+/// Lit le dernier bouton de manette pressé signalé par le backend.
 ///
-/// @return Résultat de type [[int]].
+/// @return Code du bouton, ou `0` si aucun bouton n’est signalé ou si le backend est indisponible.
 def gamepadButtonPressed() : int {
     return janus_graphics_gamepad_button_pressed()
 }
 
-/// Fournit la sémantique de [[gamepadAxisCount]].
+/// Lit le nombre d’axes exposés par une manette.
 ///
-/// @param gamepad Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[int]].
+/// @param gamepad Indice de la manette.
+/// @return Nombre d’axes, ou `0` si le backend est indisponible.
 def gamepadAxisCount(gamepad : int) : int {
     return janus_graphics_gamepad_axis_count(gamepad)
 }
 
-/// Fournit la sémantique de [[gamepadAxis]].
+/// Lit la position courante d’un axe de manette.
 ///
-/// @param gamepad Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param axis Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[float]].
+/// @param gamepad Indice de la manette.
+/// @param axis Axe à interroger.
+/// @return Valeur signée transmise par le backend, ou `0.0` si celui-ci est indisponible.
 def gamepadAxis(gamepad : int, axis : GamepadAxis) : float {
     return janus_graphics_gamepad_axis(gamepad, int(axis))
 }
 
 /// Règle les moteurs de vibration de la manette.
 ///
-/// @param gamepad Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param leftMotor Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param rightMotor Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param duration Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param gamepad Indice de la manette à faire vibrer.
+/// @param leftMotor Intensité transmise au moteur gauche.
+/// @param rightMotor Intensité transmise au moteur droit.
+/// @param duration Durée de vibration en secondes.
 def setGamepadVibration(
 gamepad : int,
 leftMotor : float,

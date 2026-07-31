@@ -9,351 +9,315 @@
 /// ```
 module std.graphics.types
 
-/// Énumère les valeurs de [[Key]] reconnues par le backend ou l’algorithme.
+/// Identifie une touche du clavier dans les événements et requêtes d’entrée.
 enum Key derives Copy, Equality, Debug {
-    /// Variante `Space`, correspondant à cette valeur précise.
+    /// Touche clavier Space.
     Space = 32,
-    /// Variante `Apostrophe`, correspondant à cette valeur précise.
+    /// Touche clavier Apostrophe.
     Apostrophe = 39,
-    /// Variante `Comma`, correspondant à cette valeur précise.
+    /// Touche clavier Comma.
     Comma = 44,
-    /// Variante `Minus`, correspondant à cette valeur précise.
+    /// Touche clavier Minus.
     Minus = 45,
-    /// Variante `Period`, correspondant à cette valeur précise.
+    /// Touche clavier Period.
     Period = 46,
-    /// Variante `Slash`, correspondant à cette valeur précise.
+    /// Touche clavier Slash.
     Slash = 47,
-    /// Variante `Digit0`, correspondant à cette valeur précise.
+    /// Touche du chiffre 0 sur la rangée principale.
     Digit0 = 48,
-    /// Variante `Digit1`, correspondant à cette valeur précise.
+    /// Touche du chiffre 1 sur la rangée principale.
     Digit1 = 49,
-    /// Variante `Digit2`, correspondant à cette valeur précise.
+    /// Touche du chiffre 2 sur la rangée principale.
     Digit2 = 50,
-    /// Variante `Digit3`, correspondant à cette valeur précise.
+    /// Touche du chiffre 3 sur la rangée principale.
     Digit3 = 51,
-    /// Variante `Digit4`, correspondant à cette valeur précise.
+    /// Touche du chiffre 4 sur la rangée principale.
     Digit4 = 52,
-    /// Variante `Digit5`, correspondant à cette valeur précise.
+    /// Touche du chiffre 5 sur la rangée principale.
     Digit5 = 53,
-    /// Variante `Digit6`, correspondant à cette valeur précise.
+    /// Touche du chiffre 6 sur la rangée principale.
     Digit6 = 54,
-    /// Variante `Digit7`, correspondant à cette valeur précise.
+    /// Touche du chiffre 7 sur la rangée principale.
     Digit7 = 55,
-    /// Variante `Digit8`, correspondant à cette valeur précise.
+    /// Touche du chiffre 8 sur la rangée principale.
     Digit8 = 56,
-    /// Variante `Digit9`, correspondant à cette valeur précise.
+    /// Touche du chiffre 9 sur la rangée principale.
     Digit9 = 57,
-    /// Variante `Semicolon`, correspondant à cette valeur précise.
+    /// Touche clavier Semicolon.
     Semicolon = 59,
-    /// Variante `Equal`, correspondant à cette valeur précise.
+    /// Touche clavier Equal.
     Equal = 61,
-    /// Variante `A`, correspondant à cette valeur précise.
+    /// Touche de lettre A.
     A = 65,
-    /// Variante `B`, correspondant à cette valeur précise.
+    /// Touche de lettre B.
     B = 66,
-    /// Variante `C`, correspondant à cette valeur précise.
+    /// Touche de lettre C.
     C = 67,
-    /// Variante `D`, correspondant à cette valeur précise.
+    /// Touche de lettre D.
     D = 68,
-    /// Variante `E`, correspondant à cette valeur précise.
+    /// Touche de lettre E.
     E = 69,
-    /// Variante `F`, correspondant à cette valeur précise.
+    /// Touche de lettre F.
     F = 70,
-    /// Variante `G`, correspondant à cette valeur précise.
+    /// Touche de lettre G.
     G = 71,
-    /// Variante `H`, correspondant à cette valeur précise.
+    /// Touche de lettre H.
     H = 72,
-    /// Variante `I`, correspondant à cette valeur précise.
+    /// Touche de lettre I.
     I = 73,
-    /// Variante `J`, correspondant à cette valeur précise.
+    /// Touche de lettre J.
     J = 74,
-    /// Variante `K`, correspondant à cette valeur précise.
+    /// Touche de lettre K.
     K = 75,
-    /// Variante `L`, correspondant à cette valeur précise.
+    /// Touche de lettre L.
     L = 76,
-    /// Variante `M`, correspondant à cette valeur précise.
+    /// Touche de lettre M.
     M = 77,
-    /// Variante `N`, correspondant à cette valeur précise.
+    /// Touche de lettre N.
     N = 78,
-    /// Variante `O`, correspondant à cette valeur précise.
+    /// Touche de lettre O.
     O = 79,
-    /// Variante `P`, correspondant à cette valeur précise.
+    /// Touche de lettre P.
     P = 80,
-    /// Variante `Q`, correspondant à cette valeur précise.
+    /// Touche de lettre Q.
     Q = 81,
-    /// Variante `R`, correspondant à cette valeur précise.
+    /// Touche de lettre R.
     R = 82,
-    /// Variante `S`, correspondant à cette valeur précise.
+    /// Touche de lettre S.
     S = 83,
-    /// Variante `T`, correspondant à cette valeur précise.
+    /// Touche de lettre T.
     T = 84,
-    /// Variante `U`, correspondant à cette valeur précise.
+    /// Touche de lettre U.
     U = 85,
-    /// Variante `V`, correspondant à cette valeur précise.
+    /// Touche de lettre V.
     V = 86,
-    /// Variante `W`, correspondant à cette valeur précise.
+    /// Touche de lettre W.
     W = 87,
-    /// Variante `X`, correspondant à cette valeur précise.
+    /// Touche de lettre X.
     X = 88,
-    /// Variante `Y`, correspondant à cette valeur précise.
+    /// Touche de lettre Y.
     Y = 89,
-    /// Variante `Z`, correspondant à cette valeur précise.
+    /// Touche de lettre Z.
     Z = 90,
-    /// Variante `LeftBracket`, correspondant à cette valeur précise.
+    /// Touche clavier LeftBracket.
     LeftBracket = 91,
-    /// Variante `Backslash`, correspondant à cette valeur précise.
+    /// Touche clavier Backslash.
     Backslash = 92,
-    /// Variante `RightBracket`, correspondant à cette valeur précise.
+    /// Touche clavier RightBracket.
     RightBracket = 93,
-    /// Variante `Grave`, correspondant à cette valeur précise.
+    /// Touche clavier Grave.
     Grave = 96,
-    /// Variante `Escape`, correspondant à cette valeur précise.
+    /// Touche clavier Escape.
     Escape = 256,
-    /// Variante `Enter`, correspondant à cette valeur précise.
+    /// Touche clavier Enter.
     Enter = 257,
-    /// Variante `Tab`, correspondant à cette valeur précise.
+    /// Touche clavier Tab.
     Tab = 258,
-    /// Variante `Backspace`, correspondant à cette valeur précise.
+    /// Touche clavier Backspace.
     Backspace = 259,
-    /// Variante `Insert`, correspondant à cette valeur précise.
+    /// Touche clavier Insert.
     Insert = 260,
-    /// Variante `Delete`, correspondant à cette valeur précise.
+    /// Touche clavier Delete.
     Delete = 261,
-    /// Variante `Right`, correspondant à cette valeur précise.
+    /// Touche clavier Right.
     Right = 262,
-    /// Variante `Left`, correspondant à cette valeur précise.
+    /// Touche clavier Left.
     Left = 263,
-    /// Variante `Down`, correspondant à cette valeur précise.
+    /// Touche clavier Down.
     Down = 264,
-    /// Variante `Up`, correspondant à cette valeur précise.
+    /// Touche clavier Up.
     Up = 265,
-    /// Variante `PageUp`, correspondant à cette valeur précise.
+    /// Touche clavier PageUp.
     PageUp = 266,
-    /// Variante `PageDown`, correspondant à cette valeur précise.
+    /// Touche clavier PageDown.
     PageDown = 267,
-    /// Variante `Home`, correspondant à cette valeur précise.
+    /// Touche clavier Home.
     Home = 268,
-    /// Variante `End`, correspondant à cette valeur précise.
+    /// Touche clavier End.
     End = 269,
-    /// Variante `CapsLock`, correspondant à cette valeur précise.
+    /// Touche clavier CapsLock.
     CapsLock = 280,
-    /// Variante `ScrollLock`, correspondant à cette valeur précise.
+    /// Touche clavier ScrollLock.
     ScrollLock = 281,
-    /// Variante `NumLock`, correspondant à cette valeur précise.
+    /// Touche clavier NumLock.
     NumLock = 282,
-    /// Variante `PrintScreen`, correspondant à cette valeur précise.
+    /// Touche clavier PrintScreen.
     PrintScreen = 283,
-    /// Variante `Pause`, correspondant à cette valeur précise.
+    /// Touche clavier Pause.
     Pause = 284,
-    /// Variante `F1`, correspondant à cette valeur précise.
+    /// Touche de fonction F1.
     F1 = 290,
-    /// Variante `F2`, correspondant à cette valeur précise.
+    /// Touche de fonction F2.
     F2 = 291,
-    /// Variante `F3`, correspondant à cette valeur précise.
+    /// Touche de fonction F3.
     F3 = 292,
-    /// Variante `F4`, correspondant à cette valeur précise.
+    /// Touche de fonction F4.
     F4 = 293,
-    /// Variante `F5`, correspondant à cette valeur précise.
+    /// Touche de fonction F5.
     F5 = 294,
-    /// Variante `F6`, correspondant à cette valeur précise.
+    /// Touche de fonction F6.
     F6 = 295,
-    /// Variante `F7`, correspondant à cette valeur précise.
+    /// Touche de fonction F7.
     F7 = 296,
-    /// Variante `F8`, correspondant à cette valeur précise.
+    /// Touche de fonction F8.
     F8 = 297,
-    /// Variante `F9`, correspondant à cette valeur précise.
+    /// Touche de fonction F9.
     F9 = 298,
-    /// Variante `F10`, correspondant à cette valeur précise.
+    /// Touche de fonction F10.
     F10 = 299,
-    /// Variante `F11`, correspondant à cette valeur précise.
+    /// Touche de fonction F11.
     F11 = 300,
-    /// Variante `F12`, correspondant à cette valeur précise.
+    /// Touche de fonction F12.
     F12 = 301,
-    /// Variante `Keypad0`, correspondant à cette valeur précise.
+    /// Touche 0 du pavé numérique.
     Keypad0 = 320,
-    /// Variante `Keypad1`, correspondant à cette valeur précise.
+    /// Touche 1 du pavé numérique.
     Keypad1 = 321,
-    /// Variante `Keypad2`, correspondant à cette valeur précise.
+    /// Touche 2 du pavé numérique.
     Keypad2 = 322,
-    /// Variante `Keypad3`, correspondant à cette valeur précise.
+    /// Touche 3 du pavé numérique.
     Keypad3 = 323,
-    /// Variante `Keypad4`, correspondant à cette valeur précise.
+    /// Touche 4 du pavé numérique.
     Keypad4 = 324,
-    /// Variante `Keypad5`, correspondant à cette valeur précise.
+    /// Touche 5 du pavé numérique.
     Keypad5 = 325,
-    /// Variante `Keypad6`, correspondant à cette valeur précise.
+    /// Touche 6 du pavé numérique.
     Keypad6 = 326,
-    /// Variante `Keypad7`, correspondant à cette valeur précise.
+    /// Touche 7 du pavé numérique.
     Keypad7 = 327,
-    /// Variante `Keypad8`, correspondant à cette valeur précise.
+    /// Touche 8 du pavé numérique.
     Keypad8 = 328,
-    /// Variante `Keypad9`, correspondant à cette valeur précise.
+    /// Touche 9 du pavé numérique.
     Keypad9 = 329,
-    /// Variante `KeypadDecimal`, correspondant à cette valeur précise.
+    /// Touche décimale du pavé numérique.
     KeypadDecimal = 330,
-    /// Variante `KeypadDivide`, correspondant à cette valeur précise.
+    /// Touche de division du pavé numérique.
     KeypadDivide = 331,
-    /// Variante `KeypadMultiply`, correspondant à cette valeur précise.
+    /// Touche de multiplication du pavé numérique.
     KeypadMultiply = 332,
-    /// Variante `KeypadSubtract`, correspondant à cette valeur précise.
+    /// Touche de soustraction du pavé numérique.
     KeypadSubtract = 333,
-    /// Variante `KeypadAdd`, correspondant à cette valeur précise.
+    /// Touche d’addition du pavé numérique.
     KeypadAdd = 334,
-    /// Variante `KeypadEnter`, correspondant à cette valeur précise.
+    /// Touche Entrée du pavé numérique.
     KeypadEnter = 335,
-    /// Variante `KeypadEqual`, correspondant à cette valeur précise.
+    /// Touche égal du pavé numérique.
     KeypadEqual = 336,
-    /// Variante `LeftShift`, correspondant à cette valeur précise.
+    /// Touche clavier LeftShift.
     LeftShift = 340,
-    /// Variante `LeftControl`, correspondant à cette valeur précise.
+    /// Touche clavier LeftControl.
     LeftControl = 341,
-    /// Variante `LeftAlt`, correspondant à cette valeur précise.
+    /// Touche clavier LeftAlt.
     LeftAlt = 342,
-    /// Variante `LeftSuper`, correspondant à cette valeur précise.
+    /// Touche clavier LeftSuper.
     LeftSuper = 343,
-    /// Variante `RightShift`, correspondant à cette valeur précise.
+    /// Touche clavier RightShift.
     RightShift = 344,
-    /// Variante `RightControl`, correspondant à cette valeur précise.
+    /// Touche clavier RightControl.
     RightControl = 345,
-    /// Variante `RightAlt`, correspondant à cette valeur précise.
+    /// Touche clavier RightAlt.
     RightAlt = 346,
-    /// Variante `RightSuper`, correspondant à cette valeur précise.
+    /// Touche clavier RightSuper.
     RightSuper = 347,
-    /// Variante `Menu`, correspondant à cette valeur précise.
+    /// Touche clavier Menu.
     Menu = 348
 }
 
-/// Énumère les valeurs de [[MouseButton]] reconnues par le backend ou l’algorithme.
+/// Identifie le bouton de souris dont l’état est interrogé.
 enum MouseButton derives Copy, Equality, Debug {
-    /// Variante `Left`, correspondant à cette valeur précise.
+    /// Bouton principal, généralement situé à gauche.
     Left,
-    /// Variante `Right`, correspondant à cette valeur précise.
+    /// Bouton secondaire, généralement situé à droite.
     Right,
-    /// Variante `Middle`, correspondant à cette valeur précise.
+    /// Bouton central, généralement actionné par la molette.
     Middle,
-    /// Variante `Side`, correspondant à cette valeur précise.
+    /// Premier bouton latéral de la souris.
     Side,
-    /// Variante `Extra`, correspondant à cette valeur précise.
+    /// Bouton supplémentaire de la souris.
     Extra,
-    /// Variante `Forward`, correspondant à cette valeur précise.
+    /// Bouton de navigation vers l’avant.
     Forward,
-    /// Variante `Back`, correspondant à cette valeur précise.
+    /// Bouton de navigation vers l’arrière.
     Back
 }
 
-/// Énumère les valeurs de [[TextureFilter]] reconnues par le backend ou l’algorithme.
+/// Sélectionne l’échantillonnage appliqué lorsqu’une texture change de taille à l’écran.
 enum TextureFilter derives Copy, Equality, Debug {
-    /// Variante `Point`, correspondant à cette valeur précise.
+    /// Choisit le texel le plus proche, ce qui conserve un aspect net et pixellisé.
     Point,
-    /// Variante `Bilinear`, correspondant à cette valeur précise.
+    /// Interpole les texels voisins dans le niveau de détail courant.
     Bilinear,
-    /// Variante `Trilinear`, correspondant à cette valeur précise.
+    /// Interpole les texels voisins et les niveaux de détail adjacents.
     Trilinear,
-    /// Variante `Anisotropic4x`, correspondant à cette valeur précise.
+    /// Réduit le flou des textures vues en biais avec un niveau anisotrope 4x.
     Anisotropic4x,
-    /// Variante `Anisotropic8x`, correspondant à cette valeur précise.
+    /// Réduit le flou des textures vues en biais avec un niveau anisotrope 8x.
     Anisotropic8x,
-    /// Variante `Anisotropic16x`, correspondant à cette valeur précise.
+    /// Réduit le flou des textures vues en biais avec un niveau anisotrope 16x.
     Anisotropic16x
 }
 
-/// Énumère les valeurs de [[BlendMode]] reconnues par le backend ou l’algorithme.
+/// Détermine comment la couleur dessinée se combine avec les pixels déjà présents.
 enum BlendMode derives Copy, Equality, Debug {
-    /// Variante `Alpha`, correspondant à cette valeur précise.
+    /// Compose la source selon son canal alpha pour produire la transparence ordinaire.
     Alpha,
-    /// Variante `Additive`, correspondant à cette valeur précise.
+    /// Additionne la contribution de la source à la destination, notamment pour les effets lumineux.
     Additive
 }
 
-/// Énumère les valeurs de [[GamepadButton]] reconnues par le backend ou l’algorithme.
+/// Identifie un bouton de manette indépendamment du libellé propre au fabricant.
 enum GamepadButton derives Copy, Equality, Debug {
-    /// Variante `Unknown`, correspondant à cette valeur précise.
+    /// Bouton non reconnu ou sans correspondance connue.
     Unknown,
-    /// Variante `LeftFaceUp`, correspondant à cette valeur précise.
+    /// Direction haute de la croix directionnelle.
     LeftFaceUp,
-    /// Variante `LeftFaceRight`, correspondant à cette valeur précise.
+    /// Direction droite de la croix directionnelle.
     LeftFaceRight,
-    /// Variante `LeftFaceDown`, correspondant à cette valeur précise.
+    /// Direction basse de la croix directionnelle.
     LeftFaceDown,
-    /// Variante `LeftFaceLeft`, correspondant à cette valeur précise.
+    /// Direction gauche de la croix directionnelle.
     LeftFaceLeft,
-    /// Variante `RightFaceUp`, correspondant à cette valeur précise.
+    /// Bouton supérieur du groupe situé à droite.
     RightFaceUp,
-    /// Variante `RightFaceRight`, correspondant à cette valeur précise.
+    /// Bouton droit du groupe situé à droite.
     RightFaceRight,
-    /// Variante `RightFaceDown`, correspondant à cette valeur précise.
+    /// Bouton inférieur du groupe situé à droite.
     RightFaceDown,
-    /// Variante `RightFaceLeft`, correspondant à cette valeur précise.
+    /// Bouton gauche du groupe situé à droite.
     RightFaceLeft,
-    /// Variante `LeftTrigger1`, correspondant à cette valeur précise.
+    /// Bouton supérieur de tranche gauche.
     LeftTrigger1,
-    /// Variante `LeftTrigger2`, correspondant à cette valeur précise.
+    /// Bouton inférieur ou gâchette de tranche gauche.
     LeftTrigger2,
-    /// Variante `RightTrigger1`, correspondant à cette valeur précise.
+    /// Bouton supérieur de tranche droite.
     RightTrigger1,
-    /// Variante `RightTrigger2`, correspondant à cette valeur précise.
+    /// Bouton inférieur ou gâchette de tranche droite.
     RightTrigger2,
-    /// Variante `MiddleLeft`, correspondant à cette valeur précise.
+    /// Bouton central situé à gauche.
     MiddleLeft,
-    /// Variante `Middle`, correspondant à cette valeur précise.
+    /// Bouton central de la manette.
     Middle,
-    /// Variante `MiddleRight`, correspondant à cette valeur précise.
+    /// Bouton central situé à droite.
     MiddleRight,
-    /// Variante `LeftThumb`, correspondant à cette valeur précise.
+    /// Clic du stick analogique gauche.
     LeftThumb,
-    /// Variante `RightThumb`, correspondant à cette valeur précise.
+    /// Clic du stick analogique droit.
     RightThumb
 }
 
-/// Énumère les valeurs de [[GamepadAxis]] reconnues par le backend ou l’algorithme.
+/// Identifie un axe analogique de manette dont la position peut être interrogée.
 enum GamepadAxis derives Copy, Equality, Debug {
-    /// Variante `LeftX`, correspondant à cette valeur précise.
-    ///
-    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @return Résultat de type [[uint]].
+    /// Déplacement horizontal du stick gauche.
     LeftX,
-    /// Variante `LeftY`, correspondant à cette valeur précise.
-    ///
-    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @return Résultat de type [[uint]].
+    /// Déplacement vertical du stick gauche.
     LeftY,
-    /// Variante `RightX`, correspondant à cette valeur précise.
-    ///
-    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @return Résultat de type [[uint]].
+    /// Déplacement horizontal du stick droit.
     RightX,
-    /// Variante `RightY`, correspondant à cette valeur précise.
-    ///
-    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @return Résultat de type [[uint]].
+    /// Déplacement vertical du stick droit.
     RightY,
-    /// Variante `LeftTrigger`, correspondant à cette valeur précise.
-    ///
-    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @return Résultat de type [[uint]].
+    /// Course analogique de la gâchette gauche.
     LeftTrigger,
-    /// Variante `RightTrigger`, correspondant à cette valeur précise.
-    ///
-    /// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @return Résultat de type [[uint]].
+    /// Course analogique de la gâchette droite.
     RightTrigger
 }
 private extern def janus_graphics_rgba(
@@ -362,75 +326,77 @@ green : ubyte,
 blue : ubyte,
 alpha : ubyte
 ) : uint
-/// Définit [[Vector2]], avec les garanties et la propriété décrites par ses méthodes.
+/// Paire de coordonnées flottantes pour une position, une dimension ou une direction en deux dimensions.
 struct Vector2(
-/// Expose le membre public `x`.
+/// Coordonnée horizontale dans l’unité attendue par l’opération graphique.
 val x : float,
-/// Expose le membre public `y`.
+/// Coordonnée verticale dans l’unité attendue par l’opération graphique.
 val y : float
 )
 derives Copy, Equality, Debug {}
 
-/// Définit [[Rectangle]], avec les garanties et la propriété décrites par ses méthodes.
+/// Zone rectangulaire décrite par son origine et ses dimensions flottantes.
 struct Rectangle(
-/// Expose le membre public `x`.
+/// Coordonnée horizontale du coin supérieur gauche.
 val x : float,
-/// Expose le membre public `y`.
+/// Coordonnée verticale du coin supérieur gauche.
 val y : float,
-/// Expose le membre public `width`.
+/// Largeur du rectangle dans l’unité attendue par l’opération graphique.
 val width : float,
-/// Expose le membre public `height`.
+/// Hauteur du rectangle dans l’unité attendue par l’opération graphique.
 val height : float
 ) derives Copy, Equality, Debug {}
 
-/// Définit [[Color]], avec les garanties et la propriété décrites par ses méthodes.
+/// Couleur RGBA stockée sous la représentation entière compacte produite par [[rgba]].
+///
+/// @param packedValue Représentation compacte transmise sans conversion aux opérations graphiques.
 struct Color(private val packedValue : uint)
 derives Copy, Equality, Debug {
-    /// Fournit la sémantique de [[packed]].
+    /// Lit la représentation entière compacte de la couleur, sans conversion.
     ///
-    /// @return Résultat de type [[uint]].
+    /// @return La valeur RGBA compacte conservée par cette couleur.
     def packed() : uint {
         return packedValue
     }
 }
-/// Fournit la sémantique de [[rgba]].
+/// Construit une couleur à partir de ses quatre canaux RGBA.
 ///
-/// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Color]].
+/// @param red Intensité rouge de 0 à 255.
+/// @param green Intensité verte de 0 à 255.
+/// @param blue Intensité bleue de 0 à 255.
+/// @param alpha Opacité de 0 (transparent) à 255 (opaque).
+/// @return Une couleur contenant les quatre canaux fournis.
 def rgba(red : ubyte, green : ubyte, blue : ubyte, alpha : ubyte) : Color {
     return new Color(janus_graphics_rgba(red, green, blue, alpha))
 }
 
-/// Fournit la sémantique de [[vector2]].
+/// Construit un vecteur sans modifier ses composantes.
 ///
-/// @param x Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param y Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Vector2]].
+/// @param x Composante horizontale.
+/// @param y Composante verticale.
+/// @return Un vecteur contenant les deux composantes fournies.
 def vector2(x : float, y : float) : Vector2 {
     return new Vector2(x, y)
 }
 
-/// Fournit la sémantique de [[rectangle]].
+/// Construit un rectangle sans normaliser son origine ni ses dimensions.
 ///
-/// @param x Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param y Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param width Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param height Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Rectangle]].
+/// @param x Coordonnée horizontale de l’origine.
+/// @param y Coordonnée verticale de l’origine.
+/// @param width Largeur conservée telle quelle.
+/// @param height Hauteur conservée telle quelle.
+/// @return Un rectangle contenant exactement les quatre valeurs fournies.
 def rectangle(x : float, y : float, width : float, height : float) : Rectangle {
     return new Rectangle(x, y, width, height)
 }
 
-/// Fournit la sémantique de [[colorRgba]].
+/// Alias de [[rgba]] pour construire une couleur RGBA.
 ///
-/// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param alpha Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Color]].
+/// @param red Intensité rouge de 0 à 255.
+/// @param green Intensité verte de 0 à 255.
+/// @param blue Intensité bleue de 0 à 255.
+/// @param alpha Opacité de 0 (transparent) à 255 (opaque).
+/// @return Une couleur contenant les quatre canaux fournis.
 def colorRgba(
 red : ubyte,
 green : ubyte,
@@ -440,78 +406,68 @@ alpha : ubyte
     return rgba(red, green, blue, alpha)
 }
 
-/// Fournit la sémantique de [[colorRgb]].
+/// Alias de [[rgb]] pour construire une couleur opaque.
 ///
-/// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Color]].
+/// @param red Intensité rouge de 0 à 255.
+/// @param green Intensité verte de 0 à 255.
+/// @param blue Intensité bleue de 0 à 255.
+/// @return Une couleur dont l’opacité vaut 255.
 def colorRgb(red : ubyte, green : ubyte, blue : ubyte) : Color {
     return rgb(red, green, blue)
 }
 
-/// Fournit la sémantique de [[rgb]].
+/// Construit une couleur opaque à partir de ses canaux rouge, vert et bleu.
 ///
-/// @param red Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param green Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param blue Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Color]].
+/// @param red Intensité rouge de 0 à 255.
+/// @param green Intensité verte de 0 à 255.
+/// @param blue Intensité bleue de 0 à 255.
+/// @return Une couleur dont l’opacité vaut 255.
 def rgb(red : ubyte, green : ubyte, blue : ubyte) : Color {
     return rgba(red, green, blue, 255)
 }
 
-/// Expose la valeur publique `Black`.
-///
-/// @return Résultat de type [[Color]].
+/// Couleur noire opaque prédéfinie.
 val Black : Color = new Color(255)
-/// Expose la valeur publique `White`.
-///
-/// @return Résultat de type [[Color]].
+/// Couleur blanche opaque prédéfinie.
 val White : Color = new Color(4294967295)
-/// Expose la valeur publique `Red`.
-///
-/// @return Résultat de type [[Color]].
+/// Couleur rouge opaque prédéfinie.
 val Red : Color = new Color(3861460991)
-/// Expose la valeur publique `Green`.
-///
-/// @return Résultat de type [[Color]].
+/// Couleur verte opaque prédéfinie.
 val Green : Color = new Color(14954751)
-/// Expose la valeur publique `Blue`.
-///
-/// @return Résultat de type [[Color]].
+/// Couleur bleue opaque prédéfinie.
 val Blue : Color = new Color(7991807)
 
-/// Fournit la sémantique de [[black]].
+/// Renvoie la couleur noire opaque prédéfinie.
 ///
-/// @return Résultat de type [[Color]].
+/// @return La constante de couleur noire.
 def black() : Color {
     return Black
 }
 
-/// Fournit la sémantique de [[white]].
+/// Renvoie la couleur blanche opaque prédéfinie.
 ///
-/// @return Résultat de type [[Color]].
+/// @return La constante de couleur blanche.
 def white() : Color {
     return White
 }
 
-/// Fournit la sémantique de [[red]].
+/// Renvoie la couleur rouge opaque prédéfinie.
 ///
-/// @return Résultat de type [[Color]].
+/// @return La constante de couleur rouge.
 def red() : Color {
     return Red
 }
 
-/// Fournit la sémantique de [[green]].
+/// Renvoie la couleur verte opaque prédéfinie.
 ///
-/// @return Résultat de type [[Color]].
+/// @return La constante de couleur verte.
 def green() : Color {
     return Green
 }
 
-/// Fournit la sémantique de [[blue]].
+/// Renvoie la couleur bleue opaque prédéfinie.
 ///
-/// @return Résultat de type [[Color]].
+/// @return La constante de couleur bleue.
 def blue() : Color {
     return Blue
 }
