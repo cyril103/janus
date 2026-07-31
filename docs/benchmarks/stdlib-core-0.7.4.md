@@ -45,5 +45,6 @@ cmake \
   -P tests/runtime/run_janus_example.cmake
 ```
 
-La CI exécute aussi `benchmarks.sequence_pipeline_smoke` afin de verrouiller
-le résultat et le passage sous ASan sur chaque évolution ultérieure.
+Ces temps restent une mesure historique de 0.7.4. La CI exécute
+`benchmarks.sequence_pipeline_smoke` afin de verrouiller le résultat et le
+passage sous ASan, sans réévaluer le budget de performance à chaque run.

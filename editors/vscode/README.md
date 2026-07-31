@@ -9,8 +9,8 @@ ambigus et les branches de `match` manquantes.
 
 ## Installation et mise à jour
 
-Après publication sur la Marketplace, rechercher **Janus Language**, puis
-choisir **Install**. VS Code installe ensuite les mises à jour normalement. Un
+Sur la Marketplace, rechercher **Janus Language**, puis choisir **Install**.
+VS Code installe ensuite les mises à jour normalement. Un
 VSIX tagué peut aussi être installé ou mis à jour sans Marketplace :
 
 ```bash
@@ -39,8 +39,8 @@ n'est trouvé, l'extension propose d'ouvrir directement le paramètre concerné.
 | Extension | `janus-lsp` | VS Code | Statut |
 | --- | --- | --- | --- |
 | 0.7.4 | 0.7.4 | 1.91 ou plus récent | VSIX historique du dépôt |
-| 0.7.6 | 0.7.5–0.7.6 | 1.91 ou plus récent | version Marketplace |
-| 0.8.0 | 0.8.0 | 1.91 ou plus récent | candidat public pré-1.0 |
+| 0.7.6 | 0.7.5–0.7.6 | 1.91 ou plus récent | ancienne version Marketplace |
+| 0.8.0 | 0.8.0 | 1.91 ou plus récent | version Marketplace courante, pré-1.0 |
 
 La version d'extension et la toolchain du même tag sont la combinaison
 recommandée. Les capacités LSP sont négociées à l'initialisation : une

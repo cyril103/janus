@@ -65,7 +65,7 @@ def main() : int {
     ```bash
     sudo apt update && sudo apt install build-essential curl
     curl --proto '=https' --tlsv1.2 -fsSL \
-      https://raw.githubusercontent.com/cyril103/janus/main/scripts/install.sh | sh
+      https://raw.githubusercontent.com/cyril103/janus/v0.8.0/scripts/install.sh | sh
     export PATH="$HOME/.janus/bin:$PATH"
     ```
 
@@ -74,13 +74,13 @@ def main() : int {
     ```bash
     xcode-select --install
     curl --proto '=https' --tlsv1.2 -fsSL \
-      https://raw.githubusercontent.com/cyril103/janus/main/scripts/install.sh | sh
+      https://raw.githubusercontent.com/cyril103/janus/v0.8.0/scripts/install.sh | sh
     ```
 
 === "Windows x86_64"
 
     ```powershell
-    irm https://raw.githubusercontent.com/cyril103/janus/main/scripts/install.ps1 | iex
+    irm https://raw.githubusercontent.com/cyril103/janus/v0.8.0/scripts/install.ps1 | iex
     ```
 
 ```bash

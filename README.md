@@ -250,7 +250,6 @@ Une extension VS Code est disponible dans
 - [Diagnostics structurés et codes](docs/diagnostics.md)
 - [Graphisme 2D](docs/graphics.md)
 - [Inventaire de la surface publique 0.5.x](docs/public-surface-0.5.json)
-- [Roadmap détaillée de Janus 0.5.1 à 0.8.0](ROADMAP.md)
 - [Contrat de stabilité proposé pour Janus 1.0](docs/stability-contract.md)
 - [Inventaire audité du candidat de stabilité 0.8](docs/stability-inventory-0.8.md)
 - [Migration de Janus 0.5 vers 0.8](docs/migration-0.5-to-0.8.md)

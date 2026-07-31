@@ -45,6 +45,7 @@ clang -O2 -fsanitize=address -fno-omit-frame-pointer \
 ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 build/stdlib-services
 ```
 
-La sortie attendue est `248072075`. La CI exécute aussi
-`benchmarks.stdlib_services_smoke` afin de verrouiller ce résultat, le
-nettoyage du fichier temporaire et le passage sous ASan.
+La sortie attendue est `248072075`. Ces temps restent une mesure historique de
+0.7.4. La CI exécute `benchmarks.stdlib_services_smoke` afin de verrouiller ce
+résultat, le nettoyage du fichier temporaire et le passage sous ASan, sans
+réévaluer le budget de performance à chaque run.

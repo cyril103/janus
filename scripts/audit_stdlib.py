@@ -380,6 +380,10 @@ def render_report(model: AuditModel) -> str:
         "python3 scripts/audit_stdlib.py --check",
         "```",
         "",
+        "Le titre et la date conservent la provenance du lot 0.7.4, mais ce "
+        "rapport est régénéré et vérifié contre les sources courantes à chaque "
+        "exécution du contrôle.",
+        "",
         "La source de vérité de la surface reste "
         "[`docs/public-surface-0.5.json`](../public-surface-0.5.json). "
         "Le générateur refuse une divergence entre cet inventaire et les sources.",

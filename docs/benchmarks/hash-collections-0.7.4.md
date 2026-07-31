@@ -41,5 +41,6 @@ clang -O2 -fsanitize=address -fno-omit-frame-pointer \
 ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 build/hash-collections
 ```
 
-La CI exécute aussi `benchmarks.hash_collections_smoke` afin de verrouiller le
-résultat déterministe et le passage sous ASan.
+Ces temps restent une mesure historique de 0.7.4. La CI exécute
+`benchmarks.hash_collections_smoke` afin de verrouiller le résultat déterministe
+et le passage sous ASan, sans réévaluer le budget de performance à chaque run.

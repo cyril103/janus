@@ -85,6 +85,9 @@ def main() : int {
 
 ### `std.hash_probe`
 
+Ce module est exercé ici comme détail d'implémentation des collections. Il ne
+fait pas partie du candidat public stable de Janus 0.8.
+
 ```janus
 // doctest: doctest name=stdlib-std-hash-probe
 import std.hash_probe

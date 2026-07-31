@@ -1,6 +1,6 @@
 # Documentation d’API
 
-Statut : contrat proposé pour Janus 0.7.2.
+Statut : lot 0.7.2 implémenté et publié avec Janus 0.7.4.
 
 ## Commentaires publics
 

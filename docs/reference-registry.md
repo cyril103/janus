@@ -1,6 +1,6 @@
 # Registre Janus de référence : exploitation et réponse à incident
 
-Statut : **référence déployable pour Janus 0.7.10**. Le service implémente le
+Statut : **référence déployable pour Janus 0.8.0**. Le service implémente le
 [protocole Registry v1](registry-protocol-v1.md) sans étendre ses objets JSON
 fermés. Les ressources de provenance et d'audit ci-dessous sont des extensions
 du service de référence, pas des champs du protocole v1.
@@ -67,7 +67,7 @@ le SBOM et l'attestation de build :
 
 ```sh
 docker buildx build registry \
-  --tag registry.example/janus/reference-registry:0.7.10 \
+  --tag registry.example/janus/reference-registry:0.8.0 \
   --provenance=mode=max --sbom=true --load
 ```
 

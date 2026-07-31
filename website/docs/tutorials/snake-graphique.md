@@ -22,13 +22,14 @@ Sous Linux, WSL ou macOS :
 janus-install-raylib
 ```
 
-Si la bibliothèque est ailleurs :
+Si la bibliothèque est ailleurs, indiquez son fichier partagé :
 
 ```bash
 export JANUS_RAYLIB_PATH=/chemin/vers/libraylib.so
 ```
 
-Sous Windows, définissez `JANUS_RAYLIB_PATH` vers `raylib.dll`.
+Utilisez `libraylib.so` sous Linux/WSL, `libraylib.dylib` sous macOS et
+`raylib.dll` sous Windows.
 
 ## 2. Lancer l’exemple exact
 

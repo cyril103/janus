@@ -63,6 +63,26 @@ coverage/
 .DS_Store
 Thumbs.db
 
-# Python helper scripts
+# Python helper scripts and local environments
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+
+# JavaScript/package-manager output
+node_modules/
+dist/
+
+# Local environment files (keep sanitized examples trackable)
+.env
+.env.*
+!.env.example
+!.env.*.example
