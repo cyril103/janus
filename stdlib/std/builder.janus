@@ -1,14 +1,22 @@
-/// Définit le contrat commun des constructeurs de collections.
+/// Décrit un accumulateur qui prend possession des valeurs ajoutées et produit une collection.
+///
+/// Le devenir de l’accumulateur après [[Builder.result]] dépend de son implémentation.
+/// @example
+/// ```janus
+/// val builder : ArrayBuilder[int] = new ArrayBuilder[int](usize(2))
+/// builder.add(7)
+/// val values : Array[int] = builder.result()
+/// ```
 module std.builder
 
-/// Définit le contrat public `Builder`.
+/// Relie le type d’élément `T` au type de collection produite `C`.
 trait Builder[T, C] {
-    /// Ajoute une valeur.
+    /// Transfère `value` à l’accumulateur.
     ///
-    /// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param value Élément dont l’accumulateur prend possession.
     def add(value : T) : Unit
-    /// Produit la collection construite.
+    /// Produit la collection à partir des éléments accumulés.
     ///
-    /// @return Résultat de type [[C]].
+    /// @return Collection construite; son ownership est transféré à l’appelant.
     def result() : C
 }

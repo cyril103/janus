@@ -15,22 +15,22 @@ private extern def janus_random_seed() : usize
 
 private var automaticState : usize = janus_random_seed()
 
-/// Définit [[Random]], avec les garanties et la propriété décrites par ses méthodes.
+/// Générateur mutable dont chaque tirage avance un état initialisé par `seed`.
 class Random(seed : usize) {
     private var state : usize = seed
 
-    /// Avance le parcours et retourne la prochaine valeur disponible.
+    /// Avance l’état une fois puis mélange sa nouvelle valeur.
     ///
-    /// @return Résultat de type [[usize]].
+    /// @return Prochaine valeur non signée de la suite déterminée par la graine.
     def nextUSize() : usize {
         state = janus_random_advance(state)
         return janus_random_mix(state)
     }
 
-    /// Avance le parcours et retourne la prochaine valeur disponible.
+    /// Tire dans un intervalle semi-ouvert en rejetant les valeurs qui créeraient un biais modulo.
     ///
-    /// @param upperExclusive Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-    /// @return Résultat de type [[usize]].
+    /// @param upperExclusive Borne supérieure exclue; zéro provoque une panique.
+    /// @return Entier compris entre zéro inclus et `upperExclusive` exclu.
     def nextBounded(upperExclusive : usize) : usize {
         if upperExclusive == usize(0) {
             panic("random upper bound must be positive\n")
@@ -45,18 +45,18 @@ class Random(seed : usize) {
     }
 }
 
-/// Fournit la sémantique de [[randomUSize]].
+/// Avance l’état automatique partagé puis mélange sa nouvelle valeur.
 ///
-/// @return Résultat de type [[usize]].
+/// @return Prochaine valeur de la suite globale initialisée par le système.
 def randomUSize() : usize {
     automaticState = janus_random_advance(automaticState)
     return janus_random_mix(automaticState)
 }
 
-/// Fournit la sémantique de [[randomBounded]].
+/// Tire dans un intervalle semi-ouvert en utilisant l’état automatique partagé.
 ///
-/// @param upperExclusive Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[usize]].
+/// @param upperExclusive Borne supérieure exclue; zéro provoque une panique.
+/// @return Entier compris entre zéro inclus et `upperExclusive` exclu, sans biais modulo.
 def randomBounded(upperExclusive : usize) : usize {
     if upperExclusive == usize(0) {
         panic("random upper bound must be positive\n")
@@ -70,9 +70,9 @@ def randomBounded(upperExclusive : usize) : usize {
     return value % upperExclusive
 }
 
-/// Fournit la sémantique de [[automaticRandom]].
+/// Crée un générateur indépendant avec une graine fournie par le système.
 ///
-/// @return Résultat de type [[Random]].
+/// @return Nouveau générateur propriétaire, distinct de l’état automatique partagé.
 def automaticRandom() : Random {
     return new Random(janus_random_seed())
 }

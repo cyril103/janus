@@ -10,11 +10,11 @@ module std.result
 
 import std.option
 
-/// Énumère les valeurs de [[Result]] reconnues par le backend ou l’algorithme.
+/// Représente une valeur de succès ou une erreur, chacune propriétaire.
 enum Result[T, E] {
-    /// Variante `Ok`, correspondant à cette valeur précise.
+    /// Contient la valeur produite en cas de succès.
     Ok(T),
-    /// Variante `Error`, correspondant à cette valeur précise.
+    /// Contient l’erreur produite en cas d’échec.
     Error(E)
 }
 
@@ -53,8 +53,8 @@ private def discardAndNone[T, E](error : E) : Option[T] {
 
 /// Indique si le résultat contient une valeur de succès.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param value Résultat inspecté sans déplacer sa branche.
+/// @return `true` pour `Ok`, `false` pour `Error`.
 def isOk[T, E](value : Result[T, E]) : bool {
     return match value {
         Ok(item) => true,
@@ -64,8 +64,8 @@ def isOk[T, E](value : Result[T, E]) : bool {
 
 /// Indique si le résultat contient une erreur.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param value Résultat inspecté sans déplacer sa branche.
+/// @return `true` pour `Error`, `false` pour `Ok`.
 def isError[T, E](value : Result[T, E]) : bool {
     return match value {
         Ok(item) => false,
@@ -73,11 +73,11 @@ def isError[T, E](value : Result[T, E]) : bool {
     }
 }
 
-/// Transforme la valeur ou la séquence avec la fonction fournie.
+/// Consomme le résultat et transforme uniquement sa valeur de succès.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param transform Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[ResultU,]].
+/// @param value Résultat consommé.
+/// @param transform Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.
+/// @return `Ok` transformé, ou l’erreur d’origine déplacée sans appeler `transform`.
 def map[T, U, E](
 value : Result[T, E],
 transform : (T) => U
@@ -89,11 +89,11 @@ transform : (T) => U
     }
 }
 
-/// Transforme la valeur ou la séquence avec la fonction fournie.
+/// Consomme le résultat et transforme uniquement son erreur.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param transform Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[ResultT,]].
+/// @param value Résultat consommé.
+/// @param transform Fonction propriétaire appelée avec l’erreur déplacée pour `Error`, puis détruite.
+/// @return Erreur transformée, ou valeur de succès d’origine déplacée sans appeler `transform`.
 def mapError[T, E, F](
 value : Result[T, E],
 transform : (E) => F
@@ -105,11 +105,11 @@ transform : (E) => F
     }
 }
 
-/// Fournit la sémantique de [[andThen]].
+/// Enchaîne une opération susceptible d’échouer sur la branche de succès.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param transform Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[ResultU,]].
+/// @param value Résultat consommé.
+/// @param transform Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.
+/// @return Résultat de `transform`, ou erreur d’origine déplacée sans appeler `transform`.
 def andThen[T, U, E](
 value : Result[T, E],
 transform : (T) => Result[U, E]
@@ -121,11 +121,11 @@ transform : (T) => Result[U, E]
     }
 }
 
-/// Fournit la sémantique de [[orElse]].
+/// Tente une récupération uniquement sur la branche d’erreur.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param transform Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[ResultT,]].
+/// @param value Résultat consommé.
+/// @param transform Fonction propriétaire appelée avec l’erreur déplacée pour `Error`, puis détruite.
+/// @return Résultat de `transform`, ou succès d’origine déplacé sans appeler `transform`.
 def orElse[T, E, F](
 value : Result[T, E],
 transform : (E) => Result[T, F]
@@ -137,11 +137,11 @@ transform : (E) => Result[T, F]
     }
 }
 
-/// Fournit la sémantique de [[unwrapOr]].
+/// Extrait la valeur de succès ou adopte une valeur de remplacement.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param fallback Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[T]].
+/// @param value Résultat consommé; son erreur est détruite si elle existe.
+/// @param fallback Valeur consommée et détruite pour `Ok`, retournée pour `Error`.
+/// @return Valeur déplacée de `Ok`, sinon `fallback`.
 def unwrapOr[T, E](value : Result[T, E], fallback : T) : T {
     val state : ResultFallback[T] =
     new ResultFallback[T](move fallback)
@@ -152,10 +152,10 @@ def unwrapOr[T, E](value : Result[T, E], fallback : T) : T {
     }
 }
 
-/// Fournit la sémantique de [[toOption]].
+/// Convertit un résultat consommé en option en supprimant l’information d’erreur.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[OptionT]].
+/// @param value Résultat consommé.
+/// @return `Some` avec la valeur déplacée pour `Ok`; `None` après destruction de l’erreur.
 def toOption[T, E](value : Result[T, E]) : Option[T] {
     return match move value {
         Ok(item) => Option.Some[T](move item),
@@ -163,11 +163,11 @@ def toOption[T, E](value : Result[T, E]) : Option[T] {
     }
 }
 
-/// Fournit la sémantique de [[fromOption]].
+/// Convertit une option consommée en résultat à l’aide d’une erreur de remplacement.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param error Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[ResultT,]].
+/// @param value Option consommée.
+/// @param error Erreur consommée et détruite pour `Some`, déplacée dans `Error` pour `None`.
+/// @return `Ok` avec le contenu déplacé de `Some`, sinon `Error(error)`.
 def fromOption[T, E](value : Option[T], error : E) : Result[T, E] {
     val state : ResultFallback[E] =
     new ResultFallback[E](move error)

@@ -13,45 +13,46 @@ import std.array
 import std.builder
 import std.iterator
 
-/// Définit [[ArrayBuilder]], avec les garanties et la propriété décrites par ses méthodes.
+/// Accumule des éléments propriétaires dans un tableau redimensionnable.
 class ArrayBuilder[T](
 initialCapacity : usize
 ) extends Builder[T, Array[T]] {
     private var values : Array[T] =
     new Array[T](initialCapacity)
 
-    /// Ajoute une valeur.
+    /// Déplace une valeur à la fin du tableau en construction.
     ///
-    /// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @param value Élément dont le constructeur prend possession.
     def add(value : T) : Unit {
         values.push(move value)
     }
 
-    /// Ajoute tous les éléments de la source.
+    /// Épuise la source et ajoute ses éléments dans leur ordre d’itération.
     ///
-    /// @param source Itérateur ou iterable source d’où chaque valeur est récupérée.
-    /// @return Résultat de type [[usize]].
+    /// @param source Source parcourue jusqu’à sa fin.
     def addAll[C <: Iterable[T]](source : C) : Unit {
         for value in source {
             this.add(value)
         }
     }
 
-    /// Retourne le nombre d’éléments accumulés.
+    /// Compte les éléments actuellement accumulés.
     ///
-    /// @return Résultat de type [[usize]].
+    /// @return Nombre d’éléments que produirait immédiatement [[result]].
     def size() : usize {
         return values.size()
     }
 
-    /// Réinitialise l’état.
+    /// Détruit les éléments accumulés et rend le constructeur vide.
     def clear() : Unit {
         values.clear()
     }
 
     /// Transfère les éléments accumulés dans un nouveau tableau.
     ///
-    /// @return Résultat de type [[ArrayT]].
+    /// Le constructeur reste utilisable et repart avec une capacité initiale nulle.
+    ///
+    /// @return Tableau propriétaire contenant les éléments dans leur ordre d’ajout.
     def result() : Array[T] {
         val completed : Array[T] = move values
         values = new Array[T](usize(0))
@@ -63,10 +64,10 @@ initialCapacity : usize
     }
 }
 
-/// Fournit la sémantique de [[collectArray]].
+/// Épuise un itérateur dans un nouveau tableau propriétaire.
 ///
-/// @param source Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[ArrayT]].
+/// @param source Itérateur consommé pendant la collecte.
+/// @return Tableau contenant les valeurs dans leur ordre d’itération.
 def collectArray[T](source : Iterator[T]) : Array[T] {
     val builder : ArrayBuilder[T] =
     new ArrayBuilder[T](usize(0))

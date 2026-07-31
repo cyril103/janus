@@ -10,11 +10,11 @@
 module std.math
 import std.array
 
-/// Fournit la sémantique de [[gcd]].
+/// Calcule le plus grand diviseur commun par l’algorithme d’Euclide.
 ///
-/// @param left Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param right Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[usize]].
+/// @param left Premier entier non signé, éventuellement nul.
+/// @param right Second entier non signé, éventuellement nul.
+/// @return Plus grand diviseur commun; zéro lorsque les deux arguments valent zéro.
 def gcd(left : usize, right : usize) : usize {
     var current : usize = left
     var next : usize = right
@@ -28,11 +28,11 @@ def gcd(left : usize, right : usize) : usize {
     return current
 }
 
-/// Fournit la sémantique de [[lcm]].
+/// Calcule le plus petit commun multiple sans faire déborder silencieusement le produit réduit.
 ///
-/// @param left Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @param right Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[usize]].
+/// @param left Premier entier non signé.
+/// @param right Second entier non signé.
+/// @return Zéro si un argument est nul, sinon leur plus petit commun multiple.
 def lcm(left : usize, right : usize) : usize {
     if left == usize(0) {
         return usize(0)
@@ -52,8 +52,8 @@ def lcm(left : usize, right : usize) : usize {
 
 /// Indique si la valeur est un nombre premier.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[bool]].
+/// @param value Entier à tester; zéro et un ne sont pas premiers.
+/// @return `true` exactement lorsque `value` n’a que 1 et lui-même comme diviseurs.
 def is_prime(value : usize) : bool {
     if value < usize(2) {
         return false
@@ -76,10 +76,10 @@ def is_prime(value : usize) : bool {
     return true
 }
 
-/// Fournit la sémantique de [[prime_factors]].
+/// Décompose un entier en facteurs premiers croissants, avec répétition des multiplicités.
 ///
-/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
-/// @return Résultat de type [[Arrayusize]].
+/// @param value Entier à factoriser.
+/// @return Tableau vide pour zéro ou un; sinon facteurs dont le produit vaut `value`.
 def prime_factors(value : usize) : Array[usize] {
     val factors : Array[usize] = new Array[usize](usize(8))
     var remaining : usize = value
