@@ -1,27 +1,43 @@
-/// Mesure le temps civil depuis l’époque Unix.
+/// Lit le temps civil écoulé depuis l’époque Unix.
+///
+/// Contrairement à [[Instant]], cette horloge peut refléter les corrections du système. Les
+/// conversions entières en secondes ou millisecondes tronquent leur fraction.
+/// @example
+/// ```janus
+/// val timestamp : WallTime = wallNow()
+/// println(timestamp.unixSeconds())
+/// ```
 module std.wall_time
 
 private extern def janus_wall_nanoseconds() : usize
 
-/// Représente le type public `WallTime`.
+/// Définit [[WallTime]], avec les garanties et la propriété décrites par ses méthodes.
 struct WallTime(private val value : usize) {
-    /// Exécute l’opération publique `unixNanoseconds`.
+    /// Fournit la sémantique de [[unixNanoseconds]].
+    ///
+    /// @return Résultat de type [[usize]].
     def unixNanoseconds() : usize {
         return value
     }
 
-    /// Exécute l’opération publique `unixMilliseconds`.
+    /// Fournit la sémantique de [[unixMilliseconds]].
+    ///
+    /// @return Résultat de type [[usize]].
     def unixMilliseconds() : usize {
         return value / usize(1000000)
     }
 
-    /// Exécute l’opération publique `unixSeconds`.
+    /// Fournit la sémantique de [[unixSeconds]].
+    ///
+    /// @return Résultat de type [[usize]].
     def unixSeconds() : usize {
         return value / usize(1000000000)
     }
 }
 
-/// Exécute l’opération publique `wallNow`.
+/// Fournit la sémantique de [[wallNow]].
+///
+/// @return Résultat de type [[WallTime]].
 def wallNow() : WallTime {
     return new WallTime(janus_wall_nanoseconds())
 }

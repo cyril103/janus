@@ -1,34 +1,53 @@
-/// Mesure les durées et le temps monotone.
+/// Mesure des durées en nanosecondes et des instants monotones.
+///
+/// Les conversions entières tronquent les fractions. Les constructeurs mis à l’échelle paniquent
+/// en cas de débordement; [[Instant.durationSince]] exige un instant antérieur ou égal.
+/// @example
+/// ```janus
+/// val started : Instant = monotonicNow()
+/// val elapsed : Duration = started.elapsed()
+/// ```
 module std.time
 
 private extern def janus_monotonic_nanoseconds() : usize
 
-/// Représente le type public `Duration`.
+/// Définit [[Duration]], avec les garanties et la propriété décrites par ses méthodes.
 struct Duration(private val value : usize) {
-    /// Exécute l’opération publique `nanoseconds`.
+    /// Fournit la sémantique de [[nanoseconds]].
+    ///
+    /// @return Résultat de type [[usize]].
     def nanoseconds() : usize {
         return value
     }
 
-    /// Exécute l’opération publique `microseconds`.
+    /// Fournit la sémantique de [[microseconds]].
+    ///
+    /// @return Résultat de type [[usize]].
     def microseconds() : usize {
         return value / usize(1000)
     }
 
-    /// Exécute l’opération publique `milliseconds`.
+    /// Fournit la sémantique de [[milliseconds]].
+    ///
+    /// @return Résultat de type [[usize]].
     def milliseconds() : usize {
         return value / usize(1000000)
     }
 
-    /// Exécute l’opération publique `seconds`.
+    /// Fournit la sémantique de [[seconds]].
+    ///
+    /// @return Résultat de type [[double]].
     def seconds() : double {
         return double(value) / double(1000000000.0)
     }
 }
 
-/// Représente le type public `Instant`.
+/// Définit [[Instant]], avec les garanties et la propriété décrites par ses méthodes.
 struct Instant(private val value : usize) {
-    /// Exécute l’opération publique `durationSince`.
+    /// Fournit la sémantique de [[durationSince]].
+    ///
+    /// @param earlier Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+    /// @return Résultat de type [[Duration]].
     def durationSince(earlier : Instant) : Duration {
         if value < earlier.value {
             panic("instant precedes earlier instant\n")
@@ -36,14 +55,19 @@ struct Instant(private val value : usize) {
         return new Duration(value - earlier.value)
     }
 
-    /// Exécute l’opération publique `elapsed`.
+    /// Fournit la sémantique de [[elapsed]].
+    ///
+    /// @return Résultat de type [[Duration]].
     def elapsed() : Duration {
         val current : Instant = monotonicNow()
         return new Duration(current.value - value)
     }
 }
 
-/// Exécute l’opération publique `nanoseconds`.
+/// Fournit la sémantique de [[nanoseconds]].
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Duration]].
 def nanoseconds(value : usize) : Duration {
     return new Duration(value)
 }
@@ -59,22 +83,33 @@ scale : usize
     return new Duration(value * scale)
 }
 
-/// Exécute l’opération publique `microseconds`.
+/// Fournit la sémantique de [[microseconds]].
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Duration]].
 def microseconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000))
 }
 
-/// Exécute l’opération publique `milliseconds`.
+/// Fournit la sémantique de [[milliseconds]].
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Duration]].
 def milliseconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000000))
 }
 
-/// Exécute l’opération publique `seconds`.
+/// Fournit la sémantique de [[seconds]].
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Duration]].
 def seconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000000000))
 }
 
-/// Exécute l’opération publique `monotonicNow`.
+/// Fournit la sémantique de [[monotonicNow]].
+///
+/// @return Résultat de type [[Instant]].
 def monotonicNow() : Instant {
     return new Instant(janus_monotonic_nanoseconds())
 }

@@ -1,11 +1,18 @@
-/// Représente une valeur éventuellement absente et ses combinateurs.
+/// Modélise une valeur présente avec [[Option.Some]] ou absente avec [[Option.None]].
+///
+/// Les combinateurs consomment leur option et transfèrent la propriété de la branche conservée.
+/// @example
+/// ```janus
+/// val item : Option[int] = Option.Some[int](42)
+/// val value : int = unwrapOr[int](move item, 0)
+/// ```
 module std.option
 
-/// Énumère les états publics de `Option`.
+/// Énumère les valeurs de [[Option]] reconnues par le backend ou l’algorithme.
 enum Option[T] {
-    /// Représente le cas `Some`.
+    /// Variante `Some`, correspondant à cette valeur précise.
     Some(T),
-    /// Représente le cas `None`.
+    /// Variante `None`, correspondant à cette valeur précise.
     None
 }
 
@@ -32,6 +39,9 @@ private class OptionFallback[T](private var value : T) {
 }
 
 /// Indique si l’option contient une valeur.
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[bool]].
 def isSome[T](value : Option[T]) : bool {
     return match value {
         Some(item) => true,
@@ -40,6 +50,9 @@ def isSome[T](value : Option[T]) : bool {
 }
 
 /// Indique si l’option est vide.
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[bool]].
 def isNone[T](value : Option[T]) : bool {
     return match value {
         Some(item) => false,
@@ -48,6 +61,10 @@ def isNone[T](value : Option[T]) : bool {
 }
 
 /// Transforme la valeur ou la séquence avec la fonction fournie.
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param transform Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[OptionU]].
 def map[T, U](
 value : Option[T],
 transform : (T) => U
@@ -59,7 +76,11 @@ transform : (T) => U
     }
 }
 
-/// Exécute l’opération publique `andThen`.
+/// Fournit la sémantique de [[andThen]].
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param transform Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[OptionU]].
 def andThen[T, U](
 value : Option[T],
 transform : (T) => Option[U]
@@ -71,7 +92,11 @@ transform : (T) => Option[U]
     }
 }
 
-/// Exécute l’opération publique `orElse`.
+/// Fournit la sémantique de [[orElse]].
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param fallback Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[OptionT]].
 def orElse[T](
 value : Option[T],
 fallback : Option[T]
@@ -87,7 +112,11 @@ fallback : Option[T]
     }
 }
 
-/// Exécute l’opération publique `unwrapOr`.
+/// Fournit la sémantique de [[unwrapOr]].
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param fallback Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[T]].
 def unwrapOr[T](value : Option[T], fallback : T) : T {
     val state : OptionFallback[T] =
     new OptionFallback[T](move fallback)

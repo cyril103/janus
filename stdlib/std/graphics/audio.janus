@@ -1,4 +1,16 @@
-/// Gère les périphériques, sons et flux musicaux du backend graphique.
+/// Pilote le périphérique audio et les ressources propriétaires [[Sound]] et [[Music]].
+///
+/// Appelez [[initAudio]] avant tout chargement, conservez les ressources pendant leur lecture,
+/// détruisez-les, puis terminez par [[closeAudio]].
+/// @example
+/// ```janus
+/// if initAudio() {
+///     val sound : Sound = loadSound("click.wav")
+///     sound.play()
+///     delete sound
+///     closeAudio()
+/// }
+/// ```
 module std.graphics.audio
 import std.c
 
@@ -42,39 +54,49 @@ private extern def janus_graphics_set_music_pan(
 handle : Ptr[byte],
 pan : float
 ) : Unit
-/// Représente le type public `Sound`.
+/// Définit [[Sound]], avec les garanties et la propriété décrites par ses méthodes.
 class Sound(private val handle : Ptr[byte]) {
     /// Indique si la ressource sonore est valide.
+    ///
+    /// @return Résultat de type [[bool]].
     def isValid() : bool {
         return janus_graphics_sound_is_valid(handle)
     }
 
-    /// Exécute l’opération publique `play`.
+    /// Fournit la sémantique de [[play]].
     def play() : Unit {
         janus_graphics_play_sound(handle)
     }
 
-    /// Exécute l’opération publique `stop`.
+    /// Fournit la sémantique de [[stop]].
     def stop() : Unit {
         janus_graphics_stop_sound(handle)
     }
 
     /// Indique si le son est en cours de lecture.
+    ///
+    /// @return Résultat de type [[bool]].
     def isPlaying() : bool {
         return janus_graphics_sound_is_playing(handle)
     }
 
     /// Règle le volume du son.
+    ///
+    /// @param volume Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
     def setVolume(volume : float) : Unit {
         janus_graphics_set_sound_volume(handle, volume)
     }
 
     /// Règle la hauteur du son.
+    ///
+    /// @param pitch Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
     def setPitch(pitch : float) : Unit {
         janus_graphics_set_sound_pitch(handle, pitch)
     }
 
     /// Règle la panoramique du son.
+    ///
+    /// @param pan Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
     def setPan(pan : float) : Unit {
         janus_graphics_set_sound_pan(handle, pan)
     }
@@ -84,19 +106,21 @@ class Sound(private val handle : Ptr[byte]) {
     }
 }
 
-/// Représente le type public `Music`.
+/// Définit [[Music]], avec les garanties et la propriété décrites par ses méthodes.
 class Music(private val handle : Ptr[byte]) {
     /// Indique si la ressource musicale est valide.
+    ///
+    /// @return Résultat de type [[bool]].
     def isValid() : bool {
         return janus_graphics_music_is_valid(handle)
     }
 
-    /// Exécute l’opération publique `play`.
+    /// Fournit la sémantique de [[play]].
     def play() : Unit {
         janus_graphics_play_music(handle)
     }
 
-    /// Exécute l’opération publique `stop`.
+    /// Fournit la sémantique de [[stop]].
     def stop() : Unit {
         janus_graphics_stop_music(handle)
     }
@@ -107,21 +131,29 @@ class Music(private val handle : Ptr[byte]) {
     }
 
     /// Indique si la musique est en cours de lecture.
+    ///
+    /// @return Résultat de type [[bool]].
     def isPlaying() : bool {
         return janus_graphics_music_is_playing(handle)
     }
 
     /// Règle le volume de la musique.
+    ///
+    /// @param volume Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
     def setVolume(volume : float) : Unit {
         janus_graphics_set_music_volume(handle, volume)
     }
 
     /// Règle la hauteur de la musique.
+    ///
+    /// @param pitch Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
     def setPitch(pitch : float) : Unit {
         janus_graphics_set_music_pitch(handle, pitch)
     }
 
     /// Règle la panoramique de la musique.
+    ///
+    /// @param pan Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
     def setPan(pan : float) : Unit {
         janus_graphics_set_music_pan(handle, pan)
     }
@@ -131,7 +163,9 @@ class Music(private val handle : Ptr[byte]) {
     }
 }
 
-/// Exécute l’opération publique `initAudio`.
+/// Fournit la sémantique de [[initAudio]].
+///
+/// @return Résultat de type [[bool]].
 def initAudio() : bool {
     return janus_graphics_init_audio()
 }
@@ -142,16 +176,24 @@ def closeAudio() : Unit {
 }
 
 /// Règle le volume audio principal.
+///
+/// @param volume Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
 def setMasterVolume(volume : float) : Unit {
     janus_graphics_set_master_volume(volume)
 }
 
 /// Charge un son depuis un fichier.
+///
+/// @param fileName Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Sound]].
 def loadSound(fileName : string) : Sound {
     return new Sound(janus_graphics_load_sound(cstr(fileName)))
 }
 
 /// Charge un flux musical depuis un fichier.
+///
+/// @param fileName Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Music]].
 def loadMusic(fileName : string) : Music {
     return new Music(janus_graphics_load_music(cstr(fileName)))
 }

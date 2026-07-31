@@ -4,7 +4,11 @@ module std.builder
 /// Définit le contrat public `Builder`.
 trait Builder[T, C] {
     /// Ajoute une valeur.
+    ///
+    /// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
     def add(value : T) : Unit
     /// Produit la collection construite.
+    ///
+    /// @return Résultat de type [[C]].
     def result() : C
 }

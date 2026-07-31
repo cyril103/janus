@@ -1,8 +1,20 @@
-/// Fournit les opérations arithmétiques et outils sur les nombres premiers.
+/// Fournit le PGCD, le PPCM et des outils sur les nombres premiers pour `usize`.
+///
+/// [[lcm]] renvoie zéro si un opérande est nul et panique si le produit réduit déborde.
+/// [[prime_factors]] renvoie les facteurs croissants avec leur multiplicité.
+/// @example
+/// ```janus
+/// val divisor : usize = gcd(usize(84), usize(30))
+/// val factors : Array[usize] = prime_factors(usize(84))
+/// ```
 module std.math
 import std.array
 
-/// Exécute l’opération publique `gcd`.
+/// Fournit la sémantique de [[gcd]].
+///
+/// @param left Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param right Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[usize]].
 def gcd(left : usize, right : usize) : usize {
     var current : usize = left
     var next : usize = right
@@ -16,7 +28,11 @@ def gcd(left : usize, right : usize) : usize {
     return current
 }
 
-/// Exécute l’opération publique `lcm`.
+/// Fournit la sémantique de [[lcm]].
+///
+/// @param left Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @param right Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[usize]].
 def lcm(left : usize, right : usize) : usize {
     if left == usize(0) {
         return usize(0)
@@ -35,6 +51,9 @@ def lcm(left : usize, right : usize) : usize {
 }
 
 /// Indique si la valeur est un nombre premier.
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[bool]].
 def is_prime(value : usize) : bool {
     if value < usize(2) {
         return false
@@ -57,7 +76,10 @@ def is_prime(value : usize) : bool {
     return true
 }
 
-/// Exécute l’opération publique `prime_factors`.
+/// Fournit la sémantique de [[prime_factors]].
+///
+/// @param value Valeur utilisée par cette opération; consultez le type de l’argument pour son domaine.
+/// @return Résultat de type [[Arrayusize]].
 def prime_factors(value : usize) : Array[usize] {
     val factors : Array[usize] = new Array[usize](usize(8))
     var remaining : usize = value
