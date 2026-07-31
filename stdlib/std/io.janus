@@ -1,4 +1,16 @@
-/// Fournit les tampons d’octets et flux d’entrée-sortie propriétaires.
+/// Fournit des tampons d’octets et des flux propriétaires avec buffering explicite.
+///
+/// [[InputStream]] et [[OutputStream]] ferment les fichiers qu’ils ouvrent, mais
+/// n’acquièrent pas les handles standard. Les chaînes sont traitées comme octets ;
+/// seule [[ByteBuffer.asText]] valide explicitement UTF-8.
+/// @example
+/// ```janus
+/// val opened = openInputStream("notes.txt")
+/// match opened {
+///     Ok(input) => input.readLine(),
+///     Error(error) => println(error.context)
+/// }
+/// ```
 module std.io
 
 import std.option
@@ -31,9 +43,9 @@ size : usize
 private extern def janus_io_last_error_code() : uint
 private extern def janus_io_last_error_category() : int
 
-/// Énumère les états publics de `TextDecodeError`.
+/// Décrit l’échec de conversion d’un [[ByteBuffer]] en texte.
 enum TextDecodeError derives Copy, Equality, Debug {
-    /// Représente le cas `InvalidUtf8`.
+    /// Le tampon contient au moins une séquence qui n’est pas un encodage UTF-8 valide.
     InvalidUtf8
 }
 
@@ -73,7 +85,11 @@ context : string
     )
 }
 
-/// Représente le type public `ByteBuffer`.
+/// Tampon binaire redimensionnable possédant son allocation.
+///
+/// Les pointeurs et vues empruntés sont invalidés par une croissance qui réalloue
+/// le stockage et par la destruction. [[clear]] conserve la capacité réservée.
+/// @param initialCapacity Nombre initial d’octets à réserver ; zéro est accepté.
 class ByteBuffer(initialCapacity : usize) {
     private var nativeData : Ptr[byte] =
     alloc[byte](initialCapacity)
@@ -109,32 +125,42 @@ class ByteBuffer(initialCapacity : usize) {
         return true
     }
 
-    /// Exécute l’opération publique `data`.
+    /// Emprunte le début du stockage alloué.
+    /// @return Pointeur lisible sur [[size]] octets, invalidable par une mutation ou la destruction.
     def data() : Ptr[byte] {
         return nativeData
     }
 
     /// Retourne le nombre d’octets stockés.
+    /// @return Longueur logique du contenu.
     def size() : usize {
         return nativeSize
     }
 
     /// Retourne la capacité actuellement réservée.
+    /// @return Nombre d’octets disponibles avant une nouvelle allocation.
     def capacity() : usize {
         return allocated
     }
 
     /// Indique si le tampon est vide.
+    /// @return `true` lorsque [[size]] vaut zéro.
     def isEmpty() : bool {
         return nativeSize == usize(0)
     }
 
-    /// Réinitialise l’état.
+    /// Vide le contenu sans libérer la capacité réservée.
     def clear() : Unit {
         nativeSize = usize(0)
     }
 
-    /// Ajoute une valeur.
+    /// Copie une zone d’octets à la fin du tampon.
+    ///
+    /// `source == data()` est pris en charge, mais aucun autre chevauchement n’est
+    /// explicitement garanti. L’échec laisse la taille logique inchangée.
+    /// @param source Zone lisible sur `count` octets, ou pointeur nul si `count` vaut zéro.
+    /// @param count Nombre d’octets à copier.
+    /// @return `true` après copie, `false` pour un pointeur nul non vide, un débordement de capacité ou un échec d’allocation.
     def append(
     source : Ptr[byte],
     count : usize
@@ -161,6 +187,8 @@ class ByteBuffer(initialCapacity : usize) {
     }
 
     /// Ajoute un octet au tampon.
+    /// @param value Octet à copier.
+    /// @return `true` après ajout, ou `false` si la croissance échoue.
     def appendByte(value : byte) : bool {
         if !this.ensure(usize(1)) {
             return false
@@ -170,7 +198,9 @@ class ByteBuffer(initialCapacity : usize) {
         return true
     }
 
-    /// Encode et ajoute le texte au tampon.
+    /// Ajoute les octets de la chaîne sans terminateur supplémentaire.
+    /// @param value Chaîne dont les octets sont copiés ; aucune validation UTF-8 n’est effectuée.
+    /// @return Le résultat booléen de [[append]].
     def appendText(value : string) : bool {
         return this.append(
         stringData(value),
@@ -179,6 +209,7 @@ class ByteBuffer(initialCapacity : usize) {
     }
 
     /// Indique si le contenu forme une séquence UTF-8 valide.
+    /// @return `true` si tous les octets constituent un UTF-8 valide, tampon vide compris.
     def isUtf8() : bool {
         return janus_io_valid_utf8(
         nativeData,
@@ -186,7 +217,8 @@ class ByteBuffer(initialCapacity : usize) {
         ) == 1
     }
 
-    /// Exécute l’opération publique `asText`.
+    /// Valide le contenu puis l’emprunte comme chaîne UTF-8.
+    /// @return `Ok(string)` empruntant le tampon jusqu’à sa mutation ou destruction, ou `Error(InvalidUtf8)`.
     def asText(
     ) : Result[string, TextDecodeError] {
         if !this.isUtf8() {
@@ -254,7 +286,10 @@ private class LineBufferState() {
     }
 }
 
-/// Représente le type public `InputStream`.
+/// Flux d’entrée tamponné, propriétaire ou empruntant un handle standard.
+///
+/// Les lectures consomment d’abord le tampon interne. La fin n’est connue qu’après
+/// une lecture native renvoyant zéro. Le destructeur ferme uniquement les handles possédés.
 class InputStream(
 private var nativeHandle : isize,
 private val ownsHandle : bool,
@@ -274,11 +309,13 @@ private val requestedCapacity : usize
     private var bufferOffset : usize = usize(0)
 
     /// Indique si le flux d’entrée est ouvert.
+    /// @return `true` tant que [[close]] n’a pas invalidé le handle.
     def isOpen() : bool {
         return nativeHandle >= isize(0)
     }
 
     /// Indique si la fin du flux a été atteinte.
+    /// @return `true` après observation de la fin native et consommation du tampon restant.
     def isEof() : bool {
         return ended && bufferOffset >= bufferSize
     }
@@ -299,7 +336,12 @@ private val requestedCapacity : usize
         return count
     }
 
-    /// Lit des octets dans le tampon fourni.
+    /// Copie au plus `capacity` octets depuis le tampon interne.
+    ///
+    /// Un appel réussi peut rendre moins d’octets que demandé sans signaler la fin.
+    /// @param target Zone inscriptible sur `capacity` octets, ou pointeur nul si la capacité vaut zéro.
+    /// @param capacity Maximum à copier.
+    /// @return `Ok(count)`, avec zéro pour une demande vide ou la fin, ou `Error(SystemError)` si le flux est fermé, le pointeur invalide, l’allocation absente ou la lecture native échoue.
     def read(
     target : Ptr[byte],
     capacity : usize
@@ -348,7 +390,11 @@ private val requestedCapacity : usize
         return Result.Ok[usize, SystemError](count)
     }
 
-    /// Lit une ligne de texte depuis le flux.
+    /// Lit les octets jusqu’au prochain LF ou jusqu’à la fin.
+    ///
+    /// Le LF est consommé mais non inclus ; un CR précédent est conservé. Le résultat
+    /// est binaire et doit être validé avec [[ByteBuffer.asText]] si du texte est attendu.
+    /// @return `Ok(Some(ByteBuffer))` pour une ligne, y compris vide avant LF, `Ok(None)` à la fin sans octet, ou `Error(SystemError)`.
     def readLine(
     ) : Result[Option[ByteBuffer], SystemError] {
         if nativeHandle < isize(0) {
@@ -395,7 +441,8 @@ private val requestedCapacity : usize
         )
     }
 
-    /// Ferme le flux d’entrée.
+    /// Invalide le flux et ferme son handle seulement s’il lui appartient.
+    /// @return `Ok(true)` en cas de succès, ou `Error(SystemError)` ; un second appel produit `InvalidInput`.
     def close() : Result[bool, SystemError] {
         if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
@@ -425,7 +472,10 @@ private val requestedCapacity : usize
     }
 }
 
-/// Représente le type public `OutputStream`.
+/// Flux de sortie tamponné qui possède éventuellement son handle natif.
+///
+/// [[write]] ne garantit pas que les octets ont atteint l’hôte ; appeler [[flush]]
+/// ou [[close]] pour vider le tampon. Le destructeur tente ces opérations sans exposer leurs erreurs.
 class OutputStream(
 private var nativeHandle : isize,
 private val ownsHandle : bool,
@@ -443,6 +493,7 @@ private val requestedCapacity : usize
     private var bufferSize : usize = usize(0)
 
     /// Indique si le flux de sortie est ouvert.
+    /// @return `true` tant que [[close]] n’a pas invalidé le handle.
     def isOpen() : bool {
         return nativeHandle >= isize(0)
     }
@@ -465,7 +516,10 @@ private val requestedCapacity : usize
         return 0
     }
 
-    /// Écrit les octets fournis dans le flux.
+    /// Copie tous les octets fournis dans le tampon, en le vidant au besoin.
+    /// @param source Zone lisible sur `size` octets, ou pointeur nul si `size` vaut zéro.
+    /// @param size Nombre d’octets à accepter.
+    /// @return `Ok(size)` lorsque tous les octets ont été acceptés, ou `Error(SystemError)` pour état fermé, entrée invalide, mémoire indisponible ou échec d’écriture native.
     def write(
     source : Ptr[byte],
     size : usize
@@ -516,7 +570,9 @@ private val requestedCapacity : usize
         return Result.Ok[usize, SystemError](size)
     }
 
-    /// Encode et écrit le texte fourni dans le flux.
+    /// Copie les octets d’une chaîne dans le flux sans terminateur ajouté.
+    /// @param value Chaîne à copier ; son encodage n’est pas transformé ni validé.
+    /// @return Le résultat de [[write]], exprimé en octets acceptés.
     def writeText(
     value : string
     ) : Result[usize, SystemError] {
@@ -526,7 +582,8 @@ private val requestedCapacity : usize
         )
     }
 
-    /// Exécute l’opération publique `flush`.
+    /// Vide le tampon puis demande le flush du handle natif.
+    /// @return `Ok(true)` après les deux étapes, ou `Error(SystemError)` si le flux est fermé ou une étape échoue.
     def flush() : Result[bool, SystemError] {
         if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
@@ -542,7 +599,10 @@ private val requestedCapacity : usize
         return Result.Ok[bool, SystemError](true)
     }
 
-    /// Ferme le flux de sortie.
+    /// Vide, flush et invalide le flux, puis ferme le handle s’il est possédé.
+    ///
+    /// La première erreur rencontrée est renvoyée ; le handle est invalidé même en cas d’échec.
+    /// @return `Ok(true)` si toutes les étapes réussissent, ou `Error(SystemError)` ; un second appel produit `InvalidInput`.
     def close() : Result[bool, SystemError] {
         if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
@@ -588,6 +648,9 @@ private val requestedCapacity : usize
 }
 
 /// Ouvre un flux d’entrée avec la capacité de tampon demandée.
+/// @param path Chemin natif ouvert en lecture.
+/// @param bufferCapacity Capacité du tampon interne ; zéro est converti en un octet.
+/// @return `Ok(InputStream)` propriétaire, ou `Error(SystemError)` avec l’opération `io.openInput`.
 def openInputStreamBuffered(
 path : string,
 bufferCapacity : usize
@@ -613,6 +676,8 @@ bufferCapacity : usize
 }
 
 /// Ouvre un flux d’entrée avec le tampon par défaut.
+/// @param path Chemin natif ouvert en lecture.
+/// @return Le résultat de [[openInputStreamBuffered]] avec une capacité de 4096 octets.
 def openInputStream(
 path : string
 ) : Result[InputStream, SystemError] {
@@ -620,6 +685,10 @@ path : string
 }
 
 /// Ouvre un flux de sortie avec la capacité de tampon demandée.
+/// @param path Chemin natif à ouvrir.
+/// @param append Si `true`, ouvre en ajout ; sinon utilise le mode d’écriture natif.
+/// @param bufferCapacity Capacité du tampon interne ; zéro est converti en un octet.
+/// @return `Ok(OutputStream)` propriétaire, ou `Error(SystemError)` avec l’opération `io.openOutput`.
 def openOutputStreamBuffered(
 path : string,
 append : bool,
@@ -652,6 +721,9 @@ bufferCapacity : usize
 }
 
 /// Ouvre un flux de sortie avec le tampon par défaut.
+/// @param path Chemin natif à ouvrir.
+/// @param append Sélectionne l’ajout (`true`) ou l’écriture (`false`).
+/// @return Le résultat de [[openOutputStreamBuffered]] avec une capacité de 4096 octets.
 def openOutputStream(
 path : string,
 append : bool
@@ -663,7 +735,8 @@ append : bool
     )
 }
 
-/// Exécute l’opération publique `standardInput`.
+/// Crée un flux tamponné empruntant l’entrée standard.
+/// @return `Ok(InputStream)` qui ne fermera pas le handle standard, ou `Error(SystemError)` si celui-ci est indisponible.
 def standardInput(
 ) : Result[InputStream, SystemError] {
     val handle : isize = janus_io_standard_handle(0)
@@ -692,13 +765,15 @@ context : string
     )
 }
 
-/// Exécute l’opération publique `standardOutput`.
+/// Crée un flux tamponné empruntant la sortie standard.
+/// @return `Ok(OutputStream)` qui flush mais ne ferme pas le handle standard, ou `Error(SystemError)`.
 def standardOutput(
 ) : Result[OutputStream, SystemError] {
     return standardOutputFor(1, "stdout")
 }
 
-/// Exécute l’opération publique `standardError`.
+/// Crée un flux tamponné empruntant la sortie d’erreur standard.
+/// @return `Ok(OutputStream)` qui flush mais ne ferme pas le handle standard, ou `Error(SystemError)`.
 def standardError(
 ) : Result[OutputStream, SystemError] {
     return standardOutputFor(2, "stderr")
@@ -727,7 +802,13 @@ result : Result[usize, SystemError]
     }
 }
 
-/// Exécute l’opération publique `copyStream`.
+/// Copie un flux d’entrée vers un flux de sortie jusqu’à la fin observée.
+///
+/// La fonction utilise un tampon temporaire de 4096 octets et laisse la sortie
+/// tamponnée : elle n’appelle pas [[OutputStream.flush]].
+/// @param input Flux source, consommé depuis sa position courante mais non fermé.
+/// @param output Flux destination, alimenté mais non fermé ni flushé.
+/// @return `Ok(total)` avec le nombre d’octets acceptés, ou `Error(SystemError)` en cas d’allocation, lecture, écriture, incohérence ou débordement.
 def copyStream(
 input : InputStream,
 output : OutputStream

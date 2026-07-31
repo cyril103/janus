@@ -1,4 +1,16 @@
-/// Expose les fichiers natifs et les erreurs système structurées.
+/// Expose des fichiers natifs non tamponnés et une représentation commune des erreurs système.
+///
+/// [[SystemFile]] possède son descripteur et le ferme à sa destruction. Les lectures
+/// et écritures peuvent être partielles ; leur interprétation et les chemins suivent
+/// la plateforme hôte.
+/// @example
+/// ```janus
+/// val opened = openSystemFile("journal.bin", SystemOpenMode.Read)
+/// match opened {
+///     Ok(file) => file.close(),
+///     Error(error) => println(error.context)
+/// }
+/// ```
 module std.system
 
 import std.result
@@ -26,52 +38,55 @@ length : usize
 private extern def janus_system_error_code() : uint
 private extern def janus_system_error_category() : int
 
-/// Énumère les états publics de `SystemErrorCategory`.
+/// Classe les erreurs natives en catégories portables utilisables par les services standard.
 enum SystemErrorCategory
 derives Copy, Equality, Debug {
-    /// Représente le cas `NotFound`.
+    /// La cible demandée ou un composant de son chemin est introuvable.
     NotFound,
-    /// Représente le cas `PermissionDenied`.
+    /// Les droits ou la politique de l’hôte refusent l’opération.
     PermissionDenied,
-    /// Représente le cas `AlreadyExists`.
+    /// Une ressource incompatible existe déjà à la destination.
     AlreadyExists,
-    /// Représente le cas `InvalidInput`.
+    /// Un argument, un chemin ou l’état de la ressource est invalide ; les appels sur un objet fermé utilisent aussi cette catégorie.
     InvalidInput,
-    /// Représente le cas `Interrupted`.
+    /// L’opération native a été interrompue avant son achèvement.
     Interrupted,
-    /// Représente le cas `WouldBlock`.
+    /// L’opération ne peut progresser immédiatement sur une ressource non bloquante.
     WouldBlock,
-    /// Représente le cas `OutOfSpace`.
+    /// Le support de stockage ne dispose plus de l’espace requis.
     OutOfSpace,
-    /// Représente le cas `TooLarge`.
+    /// La taille demandée dépasse une limite de la plateforme ou du système de fichiers.
     TooLarge,
-    /// Représente le cas `Unsupported`.
+    /// La plateforme ou la ressource ne prend pas l’opération en charge.
     Unsupported,
-    /// Représente le cas `ResourceExhausted`.
+    /// Une ressource de processus, telle que mémoire ou descripteurs, est épuisée.
     ResourceExhausted,
-    /// Représente le cas `Other`.
+    /// L’erreur native ne correspond à aucune catégorie portable précédente.
     Other
 }
 
-/// Énumère les états publics de `SystemOpenMode`.
+/// Sélectionne la politique d’ouverture appliquée par [[openSystemFile]].
 enum SystemOpenMode derives Copy, Equality, Debug {
-    /// Représente le cas `Read`.
+    /// Ouvre un fichier existant pour la lecture.
     Read,
-    /// Représente le cas `Write`.
+    /// Ouvre le fichier pour l’écriture selon la politique native de création et de troncature.
     Write,
-    /// Représente le cas `Append`.
+    /// Ouvre le fichier pour ajouter les écritures en fin de contenu selon la plateforme.
     Append
 }
 
-/// Représente le type public `SystemError`.
+/// Décrit un échec système sans perdre le code natif qui l’a provoqué.
+///
+/// `category` permet un traitement portable tandis que `nativeCode`, `operation`
+/// et `context` servent au diagnostic. Les chaînes sont des vues copiées dans la valeur.
 struct SystemError(
-/// Expose le membre public `operation`.
+/// Nom stable de l’opération Janus ayant échoué.
 val operation : string,
-/// Expose le membre public `category`.
+/// Classe portable de l’échec.
 val category : SystemErrorCategory,
-/// Expose le membre public `nativeCode`.
+/// Code brut fourni par la plateforme, ou zéro pour une erreur synthétique.
 val nativeCode : uint,
-/// Expose le membre public `context`.
+/// Ressource concernée, généralement un chemin ou un nom de flux.
 val context : string
 ) derives Copy, Equality, Debug {}
 
@@ -99,17 +114,24 @@ context : string
     )
 }
 
-/// Représente le type public `SystemFile`.
+/// Fichier natif propriétaire offrant des entrées-sorties directes non tamponnées.
+///
+/// [[close]] invalide immédiatement le descripteur, même si sa fermeture native
+/// échoue. Le destructeur ferme silencieusement tout descripteur encore ouvert.
 class SystemFile(
 private var nativeHandle : isize,
 private val fileContext : string
 ) {
     /// Indique si le fichier natif est ouvert.
+    /// @return `true` tant que [[close]] n’a pas été appelé.
     def isOpen() : bool {
         return nativeHandle >= isize(0)
     }
 
-    /// Lit des octets depuis le fichier natif.
+    /// Lit au plus `capacity` octets à la position courante du fichier.
+    /// @param data Zone inscriptible d’au moins `capacity` octets ; sa validité incombe à l’appelant.
+    /// @param capacity Nombre maximal d’octets à lire.
+    /// @return `Ok` avec le nombre effectivement lu, zéro pouvant signaler la fin, ou `Error(SystemError)` pour un fichier fermé ou un échec natif.
     def read(
     data : Ptr[byte],
     capacity : usize
@@ -129,7 +151,10 @@ private val fileContext : string
         return Result.Ok[usize, SystemError](usize(count))
     }
 
-    /// Écrit des octets dans le fichier natif.
+    /// Écrit jusqu’à `size` octets à la position courante du fichier.
+    /// @param data Zone lisible d’au moins `size` octets ; elle reste détenue par l’appelant.
+    /// @param size Nombre d’octets demandés.
+    /// @return `Ok` avec le nombre effectivement écrit, potentiellement inférieur à `size`, ou `Error(SystemError)`.
     def write(
     data : Ptr[byte],
     size : usize
@@ -149,7 +174,8 @@ private val fileContext : string
         return Result.Ok[usize, SystemError](usize(count))
     }
 
-    /// Ferme le fichier natif.
+    /// Ferme le descripteur et rend ce [[SystemFile]] inutilisable.
+    /// @return `Ok(true)` si la fermeture réussit, ou `Error(SystemError)` ; un second appel renvoie `InvalidInput`.
     def close() : Result[bool, SystemError] {
         if nativeHandle < isize(0) {
             return Result.Error[bool, SystemError](
@@ -175,7 +201,10 @@ private val fileContext : string
     }
 }
 
-/// Ouvre un fichier natif dans le mode demandé.
+/// Ouvre un fichier natif et transfère la propriété du descripteur à un [[SystemFile]].
+/// @param path Chemin interprété par la plateforme, sans normalisation préalable par ce module.
+/// @param mode Politique de lecture, écriture ou ajout.
+/// @return `Ok(SystemFile)` si l’ouverture réussit, ou `Error(SystemError)` avec l’opération `open`.
 def openSystemFile(
 path : string,
 mode : SystemOpenMode
@@ -195,7 +224,9 @@ mode : SystemOpenMode
     )
 }
 
-/// Supprime un fichier natif.
+/// Demande à la plateforme de supprimer le fichier désigné.
+/// @param path Chemin natif du fichier ; les répertoires ne sont pas pris en charge par cette fonction.
+/// @return `Ok(true)` après succès natif, ou `Error(SystemError)` avec l’opération `remove`.
 def removeSystemFile(
 path : string
 ) : Result[bool, SystemError] {
