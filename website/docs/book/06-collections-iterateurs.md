@@ -72,4 +72,4 @@ Créez un tableau contenant `2`, `4`, `6`, parcourez-le et affichez leur somme.
     }
     ```
 
-<div class="lesson-nav"><a href="../05-erreurs-propriete/">← Erreurs et propriété</a><a href="../07-projets-tests-outils/">Projets, tests et outils →</a></div>
+<div class="lesson-nav"><a href="../05-erreurs-propriete/">← Erreurs et propriété</a><a href="../07-generiques-closures/">Génériques et closures →</a></div>

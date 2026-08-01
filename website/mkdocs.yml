@@ -18,13 +18,23 @@ nav:
       - "4. Modéliser les données": book/04-modeliser-donnees.md
       - "5. Erreurs et propriété": book/05-erreurs-propriete.md
       - "6. Collections et itérateurs": book/06-collections-iterateurs.md
-      - "7. Projets, tests et outils": book/07-projets-tests-outils.md
-      - "8. Projet final": book/08-projet-final.md
+      - "7. Génériques et closures": book/07-generiques-closures.md
+      - "8. Traits et dérivations": book/08-traits-derivations.md
+      - "9. Propriété avancée": book/09-propriete-avancee.md
+      - "10. Modules, visibilité et C": book/10-modules-visibilite-ffi.md
+      - "11. Bibliothèque standard": book/11-bibliotheque-standard.md
+      - "12. Graphisme 2D et audio": book/12-graphisme-audio.md
+      - "13. Projets, tests et outils": book/13-projets-tests-outils.md
+      - "14. Tous les mots-clés": book/14-reference-mots-cles.md
+      - "15. Projet final": book/15-projet-final.md
   - Tutoriels:
       - Tous les tutoriels: tutorials/index.md
       - Compteur CLI: tutorials/cli-compteur.md
       - Collections typées: tutorials/collections.md
       - Gestion des erreurs: tutorials/gestion-erreurs.md
+      - Comprendre derives: tutorials/derives-copy-debug.md
+      - Maîtriser move et consume: tutorials/propriete-move-consume.md
+      - Atelier graphisme 2D: tutorials/atelier-graphisme-2d.md
       - Snake graphique: tutorials/snake-graphique.md
   - Référence:
       - Vue d’ensemble: reference/index.md

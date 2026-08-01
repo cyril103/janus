@@ -77,7 +77,40 @@ EXPECTED_COMMANDS = {
     "search",
     "test",
 }
-BOOK = [f"{number:02d}-" for number in range(1, 9)]
+BOOK = [f"{number:02d}-" for number in range(1, 16)]
+EXPECTED_KEYWORDS = {
+    "module",
+    "import",
+    "extern",
+    "def",
+    "trait",
+    "extends",
+    "enum",
+    "class",
+    "struct",
+    "derives",
+    "new",
+    "move",
+    "consume",
+    "defer",
+    "delete",
+    "destructor",
+    "private",
+    "internal",
+    "if",
+    "else",
+    "match",
+    "for",
+    "in",
+    "while",
+    "break",
+    "continue",
+    "return",
+    "val",
+    "var",
+    "true",
+    "false",
+}
 
 
 def load_sync_module():
@@ -113,6 +146,9 @@ class SiteStructureTests(unittest.TestCase):
             "docs/tutorials/cli-compteur.md",
             "docs/tutorials/collections.md",
             "docs/tutorials/gestion-erreurs.md",
+            "docs/tutorials/derives-copy-debug.md",
+            "docs/tutorials/propriete-move-consume.md",
+            "docs/tutorials/atelier-graphisme-2d.md",
             "docs/tutorials/snake-graphique.md",
             "docs/reference/index.md",
             "docs/reference/stdlib/api-index.json",
@@ -126,7 +162,7 @@ class SiteStructureTests(unittest.TestCase):
         self.assertEqual([], missing)
 
         chapters = list((WEBSITE / "docs" / "book").glob("[0-9][0-9]-*.md"))
-        self.assertEqual(8, len(chapters))
+        self.assertEqual(15, len(chapters))
         names = [chapter.name for chapter in chapters]
         for prefix in BOOK:
             self.assertTrue(any(name.startswith(prefix) for name in names), prefix)
@@ -154,6 +190,13 @@ class SiteStructureTests(unittest.TestCase):
                 self.assertIn("## Exercice", text)
                 self.assertIn("??? success \"Correction\"", text)
                 self.assertIn("```janus", text)
+
+    def test_keyword_reference_covers_every_reserved_word(self):
+        reference = (
+            WEBSITE / "docs" / "book" / "14-reference-mots-cles.md"
+        ).read_text(encoding="utf-8")
+        documented = set(re.findall(r"\| `([a-z]+)` \|", reference))
+        self.assertEqual(EXPECTED_KEYWORDS, documented)
 
     def test_lesson_navigation_uses_output_relative_urls(self):
         chapters = sorted((WEBSITE / "docs" / "book").glob("[0-9][0-9]-*.md"))

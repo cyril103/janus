@@ -7,7 +7,10 @@ Des parcours indépendants, orientés vers un résultat observable. Ils décrive
 | [Compteur CLI](cli-compteur.md) | 15 min | une progression imprimée | projet, boucle, sortie |
 | [Collections](collections.md) | 25 min | un pipeline matérialisé | `Array`, closures, itérateurs |
 | [Gestion d’erreurs](gestion-erreurs.md) | 20 min | propagation typée | `Option`, `Result`, `?` |
+| [`derives`, de `Copy` à `Debug`](derives-copy-debug.md) | 25 min | un type comparable et hachable | `derives`, égalité, hash, debug |
+| [Propriété explicite](propriete-move-consume.md) | 30 min | un cycle de vie sans double destruction | `move`, `consume`, `defer`, destructeur |
+| [Atelier graphisme 2D](atelier-graphisme-2d.md) | 35 min | une scène interactive et une texture générée | formes, collisions, image, texture |
 | [Snake graphique](snake-graphique.md) | 35 min | le vrai Snake néon du dépôt | raylib 6, rendu, temps, entrées |
 
 !!! tip "Vous préférez un cursus ?"
-    Le [livre en huit chapitres](../book/index.md) introduit les concepts dans l’ordre et termine par un projet consolidé.
+    Le [livre complet en quinze chapitres](../book/index.md) introduit les concepts dans l’ordre et termine par un projet consolidé.

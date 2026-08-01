@@ -100,7 +100,7 @@ Créez un projet, lisez les diagnostics et exécutez un compteur sans absorber t
 [Suivre le tutoriel compteur →](tutorials/cli-compteur.md)
 
 ### 02 — Apprendre dans l’ordre
-Huit chapitres vont des valeurs et fonctions à un projet CLI structuré, avec exercices et corrections.
+Quinze chapitres vont des valeurs et fonctions à la propriété, aux dérivations, à la stdlib et au graphisme 2D, avec exercices et corrections.
 
 [Consulter le livre →](book/index.md)
 
@@ -117,5 +117,5 @@ frontière LLVM/runtime, y compris dans une struct retournée par une fonction
 et affichée au sein d'une boucle. Cette version reste compatible avec 0.8.0
 et explicitement pré-1.0.
 [Lire le changelog](https://github.com/cyril103/janus/blob/v0.8.1/CHANGELOG.md)
-ou [la référence de la stdlib](reference/stdlib/).
+ou [la référence de la stdlib](reference/stdlib/index.html).
 </div>
