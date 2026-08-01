@@ -13,9 +13,9 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **28 modules**, **7789 lignes** et **637 symboles publics** inventoriés ;
-- **645 blocs `///` publics pour 637 symboles** (couverture source du lot #115 : 100 %) ;
-- **134 sites d'allocation**, **203 marqueurs de nettoyage**, **179/14/35** occurrences `move`/`consume`/destructeur ;
+- **28 modules**, **9281 lignes** et **811 symboles publics** inventoriés ;
+- **819 blocs `///` publics pour 811 symboles** (couverture source du lot #115 : 100 %) ;
+- **153 sites d'allocation**, **204 marqueurs de nettoyage**, **179/14/36** occurrences `move`/`consume`/destructeur ;
 - **21/28 modules** importés directement par au moins une fixture ou un test, soit **95 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
@@ -52,10 +52,10 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.c` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 5 | 39 | 5 | 0/0/0 | 0/0/0 | 0 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.graphics` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 0 | 12 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.audio`, `std.graphics.drawing`, `std.graphics.input`, `std.graphics.resources`, `std.graphics.types` | 4 | `docs/graphics.md`, `docs/stability-contract.md` |
 | `std.graphics.audio` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 22 | 205 | 22 | 0/0/2 | 0/0/0 | 2 | 3 | `std.c` | 0 | `docs/graphics.md` |
-| `std.graphics.drawing` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 51 | 576 | 51 | 0/0/0 | 0/0/0 | 0 | 0 | `std.c`, `std.graphics.types`, `std.time` | 0 | `docs/graphics.md` |
+| `std.graphics.drawing` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 105 | 1232 | 105 | 0/0/0 | 0/0/0 | 0 | 0 | `std.c`, `std.graphics.types`, `std.time` | 0 | `docs/graphics.md` |
 | `std.graphics.input` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 23 | 231 | 23 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.types` | 0 | `docs/graphics.md` |
-| `std.graphics.resources` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 45 | 621 | 45 | 0/0/4 | 0/0/0 | 6 | 5 | `std.c`, `std.graphics.types` | 0 | `docs/graphics.md` |
-| `std.graphics.types` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 176 | 473 | 176 | 0/0/0 | 0/0/0 | 8 | 2 | — | 0 | `docs/graphics.md` |
+| `std.graphics.resources` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 118 | 1355 | 118 | 0/0/5 | 0/0/0 | 25 | 6 | `std.c`, `std.graphics.types` | 0 | `docs/graphics.md` |
+| `std.graphics.types` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 223 | 575 | 223 | 0/0/0 | 0/0/0 | 8 | 2 | — | 0 | `docs/graphics.md` |
 | `std.fs` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 24 | 437 | 24 | 0/0/2 | 11/5/3 | 10 | 22 | `std.option`, `std.path`, `std.result`, `std.system` | 3 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
 | `std.hash_probe` | `internal-detail` | `refonte-interne` | [#112 / R074-3](https://github.com/cyril103/janus/issues/112) | 6 | 83 | 6 | 0/0/0 | 0/0/0 | 1 | 0 | — | 0 | `docs/public-surface-0.5.json` |
 | `std.hashing` | `stable-proposed` | `conservation` | [#112 / R074-3](https://github.com/cyril103/janus/issues/112) | 21 | 161 | 21 | 0/0/0 | 0/0/0 | 1 | 0 | — | 8 | `docs/language-guide.md`, `docs/stability-contract.md` |
@@ -273,6 +273,8 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `setTargetFps` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `beginBlend` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `endBlend` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `beginScissor` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `endScissor` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `frameTime` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `elapsedTime` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `beginDrawing` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
@@ -293,6 +295,58 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `drawRectangleArea` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `drawText` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `drawTextAt` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawLineEx` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawLineBezier` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawLineDashed` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawCircleGradient` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawCircleSector` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawCircleSectorLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawCircleLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawEllipse` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawEllipseLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawRing` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawRingLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawRectanglePro` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawRectangleGradientVertical` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawRectangleGradientHorizontal` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawRectangleGradient` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawRectangleLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawRectangleRounded` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawRectangleRoundedLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawTriangle` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawTriangleLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawPolygon` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawPolygonLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawLineStrip` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawTriangleFan` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawTriangleStrip` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawSplineLinear` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawSplineBasis` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawSplineCatmullRom` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawSplineBezierQuadratic` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawSplineBezierCubic` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawSplineSegmentLinear` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawSplineSegmentBasis` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawSplineSegmentCatmullRom` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawSplineSegmentBezierQuadratic` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `drawSplineSegmentBezierCubic` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `splinePointLinear` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `splinePointBasis` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `splinePointCatmullRom` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `splinePointBezierQuadratic` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `splinePointBezierCubic` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionRectangles` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionCircles` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionCircleRectangle` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionCircleLine` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionPointRectangle` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionPointCircle` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionPointTriangle` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionPointLine` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionPointPolygon` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionLinesPoint` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `collisionRectangle` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 
 ### `std.graphics.input`
 
@@ -326,15 +380,74 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 
 | Symbole | Surface actuelle | Décision 0.7.4 | Propriétaire de migration |
 | --- | --- | --- | --- |
+| `Image` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.isValid` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.width` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.height` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.mipmaps` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.formatValue` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.export` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.exportAsCode` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.copy` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.region` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.channel` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.convert` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.toPowerOfTwo` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.crop` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.alphaCrop` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.alphaClear` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.alphaMask` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.alphaPremultiply` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.blurGaussian` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.convolve` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.resize` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.resizeNearest` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.resizeCanvas` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.generateMipmaps` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.dither` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.flipVertical` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.flipHorizontal` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.rotate` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.rotateClockwise` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.rotateCounterClockwise` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.tint` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.invert` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.grayscale` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.contrast` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.brightness` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.replaceColor` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.alphaBorder` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.colorAt` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.clear` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawPixel` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawLine` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawCircle` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawCircleLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawRectangle` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawRectangleLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawTriangle` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawTriangleColors` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawTriangleLines` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawTriangleFan` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawTriangleStrip` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawImage` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.drawText` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Image.toTexture` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Texture` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Texture.isValid` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Texture.width` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Texture.height` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Texture.draw` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Texture.drawAt` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Texture.drawEx` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Texture.drawRegion` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Texture.drawPro` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Texture.drawNPatch` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Texture.useForShapes` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Texture.drawFrame` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Texture.setFilter` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Texture.setWrap` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `Texture.generateMipmaps` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Font` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Font.isValid` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Font.draw` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
@@ -363,6 +476,20 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `SpriteAnimation.advance` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `SpriteAnimation.reset` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `SpriteAnimation.draw` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `loadImage` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `loadRawImage` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `loadImageFromMemory` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `loadImageFromScreen` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `imageText` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `generateImageColor` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `generateImageGradientLinear` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `generateImageGradientRadial` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `generateImageGradientSquare` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `generateImageChecked` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `generateImageWhiteNoise` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `generateImagePerlinNoise` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `generateImageCellular` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `generateImageText` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `loadTexture` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `loadFont` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `loadFontUtf8` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
@@ -500,6 +627,46 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `BlendMode` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `BlendMode.Alpha` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `BlendMode.Additive` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `BlendMode.Multiplied` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `BlendMode.AddColors` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `BlendMode.SubtractColors` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `BlendMode.AlphaPremultiply` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `BlendMode.Custom` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `BlendMode.CustomSeparate` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `TextureWrap` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `TextureWrap.Repeat` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `TextureWrap.Clamp` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `TextureWrap.MirrorRepeat` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `TextureWrap.MirrorClamp` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedGrayscale` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedGrayAlpha` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR5G6B5` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR8G8B8` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR5G5B5A1` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR4G4B4A4` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR8G8B8A8` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR32` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR32G32B32` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR32G32B32A32` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR16` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR16G16B16` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.UncompressedR16G16B16A16` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedDxt1Rgb` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedDxt1Rgba` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedDxt3Rgba` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedDxt5Rgba` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedEtc1Rgb` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedEtc2Rgb` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedEtc2EacRgba` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedPvrtRgb` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedPvrtRgba` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedAstc4x4Rgba` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `PixelFormat.CompressedAstc8x8Rgba` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchLayout` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchLayout.NinePatch` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchLayout.ThreePatchVertical` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchLayout.ThreePatchHorizontal` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `GamepadButton` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `GamepadButton.Unknown` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `GamepadButton.LeftFaceUp` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
@@ -534,6 +701,13 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `Rectangle.y` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Rectangle.width` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Rectangle.height` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchInfo` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchInfo.source` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchInfo.left` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchInfo.top` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchInfo.right` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchInfo.bottom` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `NPatchInfo.layout` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Color` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `Color.packed` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `rgba` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |

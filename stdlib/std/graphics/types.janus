@@ -262,7 +262,93 @@ enum BlendMode derives Copy, Equality, Debug {
     /// Compose la source selon son canal alpha pour produire la transparence ordinaire.
     Alpha,
     /// Additionne la contribution de la source à la destination, notamment pour les effets lumineux.
-    Additive
+    Additive,
+    /// Multiplie source et destination.
+    Multiplied,
+    /// Additionne séparément les canaux de couleur.
+    AddColors,
+    /// Soustrait les canaux de couleur source.
+    SubtractColors,
+    /// Compose une source dont l’alpha est déjà prémultiplié.
+    AlphaPremultiply,
+    /// Utilise les facteurs de blend personnalisés configurés côté raylib.
+    Custom,
+    /// Utilise des facteurs personnalisés distincts pour couleur et alpha.
+    CustomSeparate
+}
+
+/// Sélectionne la répétition des coordonnées hors de la texture.
+enum TextureWrap derives Copy, Equality, Debug {
+    /// Répète la texture.
+    Repeat,
+    /// Bloque les coordonnées sur les texels de bord.
+    Clamp,
+    /// Répète la texture en miroir.
+    MirrorRepeat,
+    /// Répète en miroir avec blocage sur les bords.
+    MirrorClamp
+}
+
+/// Format mémoire des pixels d’une image ou d’une texture raylib 6.
+enum PixelFormat derives Copy, Equality, Debug {
+    /// Un canal de luminance sur 8 bits.
+    UncompressedGrayscale = 1,
+    /// Luminance et alpha sur 8 bits chacun.
+    UncompressedGrayAlpha = 2,
+    /// Rouge, vert et bleu non compressés sur 16 bits.
+    UncompressedR5G6B5 = 3,
+    /// Rouge, vert et bleu non compressés sur 24 bits.
+    UncompressedR8G8B8 = 4,
+    /// Couleur 16 bits avec un bit alpha.
+    UncompressedR5G5B5A1 = 5,
+    /// Quatre canaux non compressés de 4 bits.
+    UncompressedR4G4B4A4 = 6,
+    /// Quatre canaux non compressés de 8 bits.
+    UncompressedR8G8B8A8 = 7,
+    /// Un canal flottant de 32 bits.
+    UncompressedR32 = 8,
+    /// Trois canaux flottants de 32 bits.
+    UncompressedR32G32B32 = 9,
+    /// Quatre canaux flottants de 32 bits.
+    UncompressedR32G32B32A32 = 10,
+    /// Un canal flottant de 16 bits.
+    UncompressedR16 = 11,
+    /// Trois canaux flottants de 16 bits.
+    UncompressedR16G16B16 = 12,
+    /// Quatre canaux flottants de 16 bits.
+    UncompressedR16G16B16A16 = 13,
+    /// Compression DXT1 sans canal alpha.
+    CompressedDxt1Rgb = 14,
+    /// Compression DXT1 avec canal alpha.
+    CompressedDxt1Rgba = 15,
+    /// Compression DXT3 avec canal alpha.
+    CompressedDxt3Rgba = 16,
+    /// Compression DXT5 avec canal alpha.
+    CompressedDxt5Rgba = 17,
+    /// Compression ETC1 sans canal alpha.
+    CompressedEtc1Rgb = 18,
+    /// Compression ETC2 sans canal alpha.
+    CompressedEtc2Rgb = 19,
+    /// Compression ETC2 EAC avec canal alpha.
+    CompressedEtc2EacRgba = 20,
+    /// Compression PowerVR sans canal alpha.
+    CompressedPvrtRgb = 21,
+    /// Compression PowerVR avec canal alpha.
+    CompressedPvrtRgba = 22,
+    /// Compression ASTC en blocs de 4 par 4 pixels.
+    CompressedAstc4x4Rgba = 23,
+    /// Compression ASTC en blocs de 8 par 8 pixels.
+    CompressedAstc8x8Rgba = 24
+}
+
+/// Sélectionne l’axe extensible d’une texture neuf-patch.
+enum NPatchLayout derives Copy, Equality, Debug {
+    /// Découpage complet en neuf zones.
+    NinePatch,
+    /// Trois zones superposées dont la zone centrale s’étire verticalement.
+    ThreePatchVertical,
+    /// Trois zones côte à côte dont la zone centrale s’étire horizontalement.
+    ThreePatchHorizontal
 }
 
 /// Identifie un bouton de manette indépendamment du libellé propre au fabricant.
@@ -345,6 +431,22 @@ val y : float,
 val width : float,
 /// Hauteur du rectangle dans l’unité attendue par l’opération graphique.
 val height : float
+) derives Copy, Equality, Debug {}
+
+/// Décrit les bordures fixes d’une texture neuf-patch.
+struct NPatchInfo(
+/// Région source découpée dans la texture.
+val source : Rectangle,
+/// Largeur fixe de la bordure gauche.
+val left : int,
+/// Hauteur fixe de la bordure supérieure.
+val top : int,
+/// Largeur fixe de la bordure droite.
+val right : int,
+/// Hauteur fixe de la bordure inférieure.
+val bottom : int,
+/// Organisation des zones fixes et extensibles.
+val layout : NPatchLayout
 ) derives Copy, Equality, Debug {}
 
 /// Couleur RGBA stockée sous la représentation entière compacte produite par [[rgba]].

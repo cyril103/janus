@@ -3,7 +3,8 @@
 #include <stdio.h>
 
 extern bool janus_graphics_available(void);
-extern bool janus_graphics_init_window(int width, int height, const void *title);
+extern bool janus_graphics_init_window(int width, int height,
+                                       const void *title);
 extern bool janus_graphics_window_should_close(void);
 extern void janus_graphics_close_window(void);
 extern bool janus_graphics_is_window_fullscreen(void);
@@ -22,24 +23,30 @@ extern int janus_graphics_screen_height(void);
 extern void janus_graphics_set_target_fps(int frames_per_second);
 extern void janus_graphics_begin_blend(int mode);
 extern void janus_graphics_end_blend(void);
+extern void janus_graphics_begin_scissor(int x, int y, int width, int height);
+extern void janus_graphics_end_scissor(void);
 extern void janus_graphics_begin_drawing(void);
 extern void janus_graphics_end_drawing(void);
 extern void janus_graphics_begin_camera(float offset_x, float offset_y,
                                         float target_x, float target_y,
                                         float rotation, float zoom);
 extern void janus_graphics_end_camera(void);
-extern float janus_graphics_screen_to_world_x(
-    float x, float y, float offset_x, float offset_y, float target_x,
-    float target_y, float rotation, float zoom);
-extern float janus_graphics_screen_to_world_y(
-    float x, float y, float offset_x, float offset_y, float target_x,
-    float target_y, float rotation, float zoom);
-extern float janus_graphics_world_to_screen_x(
-    float x, float y, float offset_x, float offset_y, float target_x,
-    float target_y, float rotation, float zoom);
-extern float janus_graphics_world_to_screen_y(
-    float x, float y, float offset_x, float offset_y, float target_x,
-    float target_y, float rotation, float zoom);
+extern float janus_graphics_screen_to_world_x(float x, float y, float offset_x,
+                                              float offset_y, float target_x,
+                                              float target_y, float rotation,
+                                              float zoom);
+extern float janus_graphics_screen_to_world_y(float x, float y, float offset_x,
+                                              float offset_y, float target_x,
+                                              float target_y, float rotation,
+                                              float zoom);
+extern float janus_graphics_world_to_screen_x(float x, float y, float offset_x,
+                                              float offset_y, float target_x,
+                                              float target_y, float rotation,
+                                              float zoom);
+extern float janus_graphics_world_to_screen_y(float x, float y, float offset_x,
+                                              float offset_y, float target_x,
+                                              float target_y, float rotation,
+                                              float zoom);
 extern void janus_graphics_clear_background(uint32_t color);
 extern void janus_graphics_draw_pixel(int x, int y, uint32_t color);
 extern void janus_graphics_draw_line(int start_x, int start_y, int end_x,
@@ -64,6 +71,33 @@ extern float janus_graphics_measure_text_width(const void *handle,
 extern float janus_graphics_measure_text_height(const void *handle,
                                                 const void *text,
                                                 float font_size, float spacing);
+extern void *janus_graphics_load_image(const void *file_name);
+extern void *janus_graphics_generate_image(int width, int height, int kind,
+                                           int first, int second, float amount,
+                                           uint32_t first_color,
+                                           uint32_t second_color,
+                                           const void *text);
+extern bool janus_graphics_image_is_valid(const void *handle);
+extern int janus_graphics_image_width(const void *handle);
+extern int janus_graphics_image_height(const void *handle);
+extern int janus_graphics_image_mipmaps(const void *handle);
+extern int janus_graphics_image_format(const void *handle);
+extern void janus_graphics_unload_image(void *handle);
+extern bool janus_graphics_export_image(const void *handle,
+                                        const void *file_name);
+extern void *janus_graphics_copy_image(const void *handle, float x, float y,
+                                       float width, float height, bool region);
+extern void janus_graphics_transform_image(void *handle, int kind, int first,
+                                           int second, int third, int fourth,
+                                           float x, float y, float width,
+                                           float height, float amount,
+                                           uint32_t first_color,
+                                           uint32_t second_color);
+extern uint32_t janus_graphics_image_color(const void *handle, int x, int y);
+extern void janus_graphics_draw_on_image(void *handle, int kind, float x1,
+                                         float y1, float x2, float y2, float x3,
+                                         float y3, int thickness,
+                                         uint32_t color);
 extern void *janus_graphics_load_texture(const void *file_name);
 extern bool janus_graphics_texture_is_valid(const void *handle);
 extern int janus_graphics_texture_width(const void *handle);
@@ -71,12 +105,23 @@ extern int janus_graphics_texture_height(const void *handle);
 extern void janus_graphics_unload_texture(void *handle);
 extern void janus_graphics_draw_texture(const void *handle, int x, int y,
                                         uint32_t tint);
+extern void janus_graphics_draw_texture_at(const void *handle, float x, float y,
+                                           uint32_t tint);
+extern void janus_graphics_draw_texture_ex(const void *handle, float x, float y,
+                                           float rotation, float scale,
+                                           uint32_t tint);
+extern void janus_graphics_draw_texture_rec(const void *handle, float source_x,
+                                            float source_y, float source_width,
+                                            float source_height, float x,
+                                            float y, uint32_t tint);
 extern void janus_graphics_draw_texture_pro(
     const void *handle, float source_x, float source_y, float source_width,
     float source_height, float destination_x, float destination_y,
     float destination_width, float destination_height, float origin_x,
     float origin_y, float rotation, uint32_t tint);
 extern void janus_graphics_set_texture_filter(const void *handle, int filter);
+extern void janus_graphics_set_texture_wrap(const void *handle, int wrap);
+extern void janus_graphics_generate_texture_mipmaps(void *handle);
 extern void *janus_graphics_load_render_texture(int width, int height);
 extern bool janus_graphics_render_texture_is_valid(const void *handle);
 extern int janus_graphics_render_texture_width(const void *handle);
@@ -139,8 +184,9 @@ extern bool janus_graphics_is_gamepad_button_released(int gamepad, int button);
 extern int janus_graphics_gamepad_button_pressed(void);
 extern int janus_graphics_gamepad_axis_count(int gamepad);
 extern float janus_graphics_gamepad_axis(int gamepad, int axis);
-extern void janus_graphics_set_gamepad_vibration(
-    int gamepad, float left_motor, float right_motor, float duration);
+extern void janus_graphics_set_gamepad_vibration(int gamepad, float left_motor,
+                                                 float right_motor,
+                                                 float duration);
 
 int main(void) {
   if (!janus_graphics_available() ||
@@ -179,17 +225,19 @@ int main(void) {
   janus_graphics_end_blend();
   janus_graphics_end_blend();
   janus_graphics_begin_drawing();
+  janus_graphics_begin_scissor(0, 0, 100, 100);
+  janus_graphics_end_scissor();
   janus_graphics_begin_drawing();
   janus_graphics_begin_camera(400.0f, 225.0f, 100.0f, 50.0f, 0.0f, 2.0f);
   janus_graphics_begin_camera(400.0f, 225.0f, 100.0f, 50.0f, 0.0f, 2.0f);
-  if (janus_graphics_screen_to_world_x(420.0f, 245.0f, 400.0f, 225.0f,
-                                       100.0f, 50.0f, 0.0f, 2.0f) != 110.0f ||
-      janus_graphics_screen_to_world_y(420.0f, 245.0f, 400.0f, 225.0f,
-                                       100.0f, 50.0f, 0.0f, 2.0f) != 60.0f ||
-      janus_graphics_world_to_screen_x(110.0f, 60.0f, 400.0f, 225.0f,
-                                       100.0f, 50.0f, 0.0f, 2.0f) != 420.0f ||
-      janus_graphics_world_to_screen_y(110.0f, 60.0f, 400.0f, 225.0f,
-                                       100.0f, 50.0f, 0.0f, 2.0f) != 245.0f) {
+  if (janus_graphics_screen_to_world_x(420.0f, 245.0f, 400.0f, 225.0f, 100.0f,
+                                       50.0f, 0.0f, 2.0f) != 110.0f ||
+      janus_graphics_screen_to_world_y(420.0f, 245.0f, 400.0f, 225.0f, 100.0f,
+                                       50.0f, 0.0f, 2.0f) != 60.0f ||
+      janus_graphics_world_to_screen_x(110.0f, 60.0f, 400.0f, 225.0f, 100.0f,
+                                       50.0f, 0.0f, 2.0f) != 420.0f ||
+      janus_graphics_world_to_screen_y(110.0f, 60.0f, 400.0f, 225.0f, 100.0f,
+                                       50.0f, 0.0f, 2.0f) != 245.0f) {
     fputs("graphics backend did not forward camera transforms\n", stderr);
     return 1;
   }
@@ -211,8 +259,7 @@ int main(void) {
   janus_graphics_draw_text_font(font, "Hé Janus", 10.0f, 20.0f, 24.0f, 1.0f,
                                 UINT32_C(0xffffffff));
   janus_graphics_unload_font(font);
-  void *unicode_font =
-      janus_graphics_load_font_utf8("font.ttf", 24, "Hé 世界");
+  void *unicode_font = janus_graphics_load_font_utf8("font.ttf", 24, "Hé 世界");
   if (!janus_graphics_font_is_valid(unicode_font)) {
     fputs("graphics backend did not load requested UTF-8 glyphs\n", stderr);
     return 1;
@@ -224,6 +271,40 @@ int main(void) {
     return 1;
   }
   janus_graphics_unload_font(missing_font);
+  void *image = janus_graphics_load_image("sprite.png");
+  if (!janus_graphics_image_is_valid(image) ||
+      janus_graphics_image_width(image) != 64 ||
+      janus_graphics_image_height(image) != 32 ||
+      janus_graphics_image_mipmaps(image) != 1 ||
+      janus_graphics_image_format(image) != 7 ||
+      !janus_graphics_export_image(image, "copy.png") ||
+      janus_graphics_image_color(image, 0, 0) != UINT32_C(0x010203ff)) {
+    fputs("graphics backend did not expose image metadata\n", stderr);
+    return 1;
+  }
+  janus_graphics_transform_image(image, 7, 32, 16, 0, 0, 0.0f, 0.0f, 0.0f, 0.0f,
+                                 0.0f, 0, 0);
+  janus_graphics_transform_image(image, 10, 0, 0, 0, 0, 0.0f, 0.0f, 0.0f, 0.0f,
+                                 0.0f, 0, 0);
+  janus_graphics_draw_on_image(image, 2, 0.0f, 0.0f, 10.0f, 10.0f, 0.0f, 0.0f,
+                               2, UINT32_C(0xffffffff));
+  void *region = janus_graphics_copy_image(image, 0.0f, 0.0f, 8.0f, 8.0f, true);
+  void *generated = janus_graphics_generate_image(
+      16, 16, 4, 4, 4, 0.0f, UINT32_C(0xffffffff), UINT32_C(0x000000ff), "");
+  if (!janus_graphics_image_is_valid(region) ||
+      !janus_graphics_image_is_valid(generated)) {
+    fputs("graphics backend did not create derived images\n", stderr);
+    return 1;
+  }
+  janus_graphics_unload_image(generated);
+  janus_graphics_unload_image(region);
+  janus_graphics_unload_image(image);
+  void *missing_image = janus_graphics_load_image("missing-image.png");
+  if (janus_graphics_image_is_valid(missing_image)) {
+    fputs("graphics backend accepted an invalid image\n", stderr);
+    return 1;
+  }
+  janus_graphics_unload_image(missing_image);
   void *texture = janus_graphics_load_texture("sprite.png");
   if (!janus_graphics_texture_is_valid(texture) ||
       janus_graphics_texture_width(texture) != 64 ||
@@ -232,13 +313,19 @@ int main(void) {
     return 1;
   }
   janus_graphics_draw_texture(texture, 15, 16, UINT32_C(0xffffffff));
-  janus_graphics_draw_texture_pro(
-      texture, 0.0f, 0.0f, -16.0f, 16.0f, 100.0f, 120.0f, 32.0f, 32.0f,
-      16.0f, 16.0f, 45.0f, UINT32_C(0xffffffff));
+  janus_graphics_draw_texture_at(texture, 15.5f, 16.5f, UINT32_C(0xffffffff));
+  janus_graphics_draw_texture_ex(texture, 15.5f, 16.5f, 20.0f, 2.0f,
+                                 UINT32_C(0xffffffff));
+  janus_graphics_draw_texture_rec(texture, 0.0f, 0.0f, 16.0f, 16.0f, 15.5f,
+                                  16.5f, UINT32_C(0xffffffff));
+  janus_graphics_draw_texture_pro(texture, 0.0f, 0.0f, -16.0f, 16.0f, 100.0f,
+                                  120.0f, 32.0f, 32.0f, 16.0f, 16.0f, 45.0f,
+                                  UINT32_C(0xffffffff));
   janus_graphics_set_texture_filter(texture, 1);
+  janus_graphics_set_texture_wrap(texture, 2);
+  janus_graphics_generate_texture_mipmaps(texture);
   janus_graphics_unload_texture(texture);
-  void *missing_texture =
-      janus_graphics_load_texture("missing-texture.png");
+  void *missing_texture = janus_graphics_load_texture("missing-texture.png");
   if (janus_graphics_texture_is_valid(missing_texture)) {
     fputs("graphics backend accepted an invalid texture\n", stderr);
     return 1;
@@ -263,9 +350,9 @@ int main(void) {
   janus_graphics_set_shader_int(shader, location, 2);
   janus_graphics_begin_shader(shader);
   janus_graphics_begin_shader(shader);
-  janus_graphics_draw_render_texture_pro(
-      target, 0.0f, 0.0f, 320.0f, -180.0f, 0.0f, 0.0f, 640.0f, 360.0f,
-      0.0f, 0.0f, 0.0f, UINT32_C(0xffffffff));
+  janus_graphics_draw_render_texture_pro(target, 0.0f, 0.0f, 320.0f, -180.0f,
+                                         0.0f, 0.0f, 640.0f, 360.0f, 0.0f, 0.0f,
+                                         0.0f, UINT32_C(0xffffffff));
   janus_graphics_end_shader();
   janus_graphics_unload_shader(shader);
   janus_graphics_unload_render_texture(target);
@@ -312,10 +399,9 @@ int main(void) {
   janus_graphics_unload_music(missing_music);
   janus_graphics_close_audio();
 
-  if (!janus_graphics_is_key_down(263) ||
-      !janus_graphics_is_key_pressed(256) ||
-      janus_graphics_key_pressed() != 65 ||
-      janus_graphics_mouse_x() != 123 || janus_graphics_mouse_y() != 234 ||
+  if (!janus_graphics_is_key_down(263) || !janus_graphics_is_key_pressed(256) ||
+      janus_graphics_key_pressed() != 65 || janus_graphics_mouse_x() != 123 ||
+      janus_graphics_mouse_y() != 234 ||
       janus_graphics_mouse_wheel_move() != 1.5f ||
       !janus_graphics_is_mouse_button_down(0) ||
       !janus_graphics_is_mouse_button_pressed(1)) {

@@ -1,5 +1,11 @@
 import std.graphics
 
+def releaseImage(image : Image) : bool {
+    val valid : bool = image.isValid()
+    delete image
+    return valid
+}
+
 def releaseTexture(texture : Texture) : bool {
     val valid : bool = texture.isValid()
     delete texture
@@ -92,12 +98,14 @@ def main() : int {
     endDrawing()
     endDrawing()
 
+    val missingImage : Image = loadImage("missing-image.png")
     val missingTexture : Texture = loadTexture("missing-texture.png")
     val missingFont : Font = loadFont("missing-font.ttf", 16)
     val missingTarget : RenderTexture = loadRenderTexture(0, 0)
     val missingShader : Shader =
     loadFragmentShader("missing-shader.fs")
     if !(
+        !missingImage.isValid() &&
         !missingTexture.isValid() &&
         !missingFont.isValid() &&
         !missingTarget.isValid() &&
@@ -105,11 +113,13 @@ def main() : int {
     ) {
         return 5
     }
+    delete missingImage
     delete missingTexture
     delete missingFont
     delete missingTarget
     delete missingShader
 
+    val image : Image = generateImageColor(8, 8, White)
     val texture : Texture = loadTexture("sprite.png")
     val secondFont : Font = loadFontUtf8("font.ttf", 16, "Hé 世界")
     val shader : Shader = loadFragmentShader("post.fs")
@@ -118,6 +128,7 @@ def main() : int {
     endShader()
     endShader()
     if !(
+        releaseImage(move image) &&
         releaseTexture(move texture) &&
         scopedFont() &&
         releaseFont(move secondFont) &&

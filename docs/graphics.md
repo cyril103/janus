@@ -96,9 +96,11 @@ ne remplacent pas l'association locale d'un `begin` avec son `end` ou un
 
 ## Modes de fusion
 
-`beginBlend()` accepte un `BlendMode` typé. `BlendMode.Alpha` conserve la
-composition transparente habituelle et `BlendMode.Additive` additionne la
-lumière des sprites, par exemple pour un halo. Associez toujours l'ouverture à
+`beginBlend()` accepte les huit modes de raylib 6 : alpha, additif,
+multiplication, addition ou soustraction des couleurs, alpha prémultiplié et
+les deux variantes personnalisées. `BlendMode.Alpha` conserve la composition
+transparente habituelle et `BlendMode.Additive` additionne la lumière des
+sprites, par exemple pour un halo. Associez toujours l'ouverture à
 un `defer endBlend()` dans la même portée : le mode précédent est alors
 restauré à la sortie normale, lors d'un `return` et même lorsque les portées
 sont imbriquées.
@@ -130,11 +132,26 @@ Les couleurs prédéfinies sont les valeurs globales typées `Black`, `White`,
 
 ## Dessin et entrées
 
-Commandes de dessin disponibles :
+Les primitives 2D scalaires de raylib 6 sont disponibles :
 
-- `clearBackground`, `drawPixel` et `drawLine` ;
-- `drawCircle` et `drawRectangle` ;
-- `drawText`.
+- pixels et segments ordinaires, épais, courbes ou discontinus ;
+- disques, secteurs, ellipses et anneaux, pleins ou en contour ;
+- rectangles simples, pivotés, en dégradé, arrondis ou en contour ;
+- triangles, éventails, bandes et polygones réguliers ;
+- lignes brisées et cinq familles de splines, avec dessin par tableaux,
+  segments unitaires et évaluation d’un point de courbe ;
+- texte avec la police par défaut ou une `Font` chargée.
+
+Les fonctions `collisionRectangles`, `collisionCircles`,
+`collisionCircleRectangle`, `collisionCircleLine` et les variantes
+`collisionPoint*` exposent les tests de collision correspondants.
+`collisionLines` teste deux segments, `collisionLinesPoint` renvoie leur point
+d’intersection et `collisionRectangle` renvoie la zone commune à deux
+rectangles. Les opérations par tableaux reçoivent un `Ptr[Vector2]` vers
+`count` valeurs contiguës ; l’appelant reste propriétaire de cette mémoire.
+
+`beginScissor(area)` limite temporairement le dessin à une zone écran ;
+associez-le à `endScissor()` dans la même portée.
 
 Les textures sont des ressources possédées et doivent être libérées :
 
@@ -153,10 +170,41 @@ BMP, TGA et QOI dans la configuration standard.
 
 ### Sprites avancés
 
-`Texture.drawPro` dessine une région source dans un rectangle destination avec
-une origine et une rotation. Une largeur ou hauteur source négative retourne le
-sprite. `Texture.setFilter` sélectionne notamment le filtrage `Point` pour le
-pixel art ou `Bilinear` pour un redimensionnement lissé.
+`Texture.drawEx`, `drawRegion` et `drawPro` couvrent respectivement la
+rotation/échelle, une région source et le dessin complet dans un rectangle de
+destination. Une largeur ou hauteur source négative retourne le sprite.
+`Texture.generateMipmaps` génère les niveaux GPU, `setWrap` contrôle la
+répétition hors limites et `setFilter` sélectionne notamment le filtrage
+`Point` pour le pixel art ou `Bilinear` pour un redimensionnement lissé.
+`drawNPatch` réalise le redimensionnement neuf-patch et `useForShapes` choisit
+la région de texture employée par les primitives géométriques.
+
+### Images CPU
+
+`Image` est la ressource propriétaire correspondant aux pixels conservés en
+RAM par raylib. Elle peut être chargée depuis un fichier, un tampon mémoire ou
+le framebuffer, ou générée comme couleur unie, dégradé, damier, bruit blanc,
+bruit de Perlin, cellules ou texte. `PixelFormat` expose les 24 formats raylib
+6 non compressés et compressés.
+
+```janus
+val image : Image = generateImageChecked(128, 128, 8, 8, White, Blue)
+defer delete image
+
+image.drawCircle(vector2(float(64.0), float(64.0)), 24, Red)
+image.flipVertical()
+image.generateMipmaps()
+
+val texture : Texture = image.toTexture()
+defer delete texture
+```
+
+Les transformations couvrent format, puissance de deux, recadrage et alpha,
+masque, prémultiplication, flou et convolution, redimensionnement, mipmaps,
+dithering, retournement, rotation et corrections colorimétriques. Le dessin
+logiciel couvre pixels, lignes, cercles, rectangles, triangles, éventails,
+bandes, composition d’images et texte. `copy`, `region` et `channel` créent une
+nouvelle image propriétaire ; `export` et `exportAsCode` écrivent le résultat.
 
 Une spritesheet régulière peut être animée avec `SpriteAnimation` :
 
@@ -408,7 +456,8 @@ UTF-8, les manettes, les durées de frame et les modes de fusion. Il ne fournit
 pas encore :
 
 - d'API 3D ;
-- de capture d'écran ou de contrôle explicite du wrapping des textures ;
+- de façade sûre pour les séquences d’images animées, les palettes retournées
+  par pointeur ou l’export d’image vers un tampon natif ;
 - de diagnostic distinct entre un shader invalide et le shader de repli ;
 - d'installation automatique de raylib par le gestionnaire de paquets.
 
@@ -431,7 +480,7 @@ Les alias historiques sont conservés :
 | `clearColor` | `clearBackground` | compatible |
 | helpers `*At`, `*Between` et `*Area` | primitives scalaires correspondantes | compatibles et recommandés pour les types structurés |
 
-`Texture`, `Font`, `RenderTexture`, `Shader`, `Sound` et `Music` restent des
+`Image`, `Texture`, `Font`, `RenderTexture`, `Shader`, `Sound` et `Music` restent des
 classes propriétaires non copiables. Un `move` transfère leur unique handle ;
 le destructeur libère le handle une fois, et un chargement invalide produit un
 objet dont `isValid()` vaut `false` et dont la destruction est sans effet

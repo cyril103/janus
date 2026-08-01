@@ -44,6 +44,10 @@ private extern def janus_graphics_screen_height() : int
 private extern def janus_graphics_set_target_fps(framesPerSecond : int) : Unit
 private extern def janus_graphics_begin_blend(mode : int) : Unit
 private extern def janus_graphics_end_blend() : Unit
+private extern def janus_graphics_begin_scissor(
+x : int, y : int, width : int, height : int
+) : Unit
+private extern def janus_graphics_end_scissor() : Unit
 private extern def janus_graphics_begin_drawing() : Unit
 private extern def janus_graphics_end_drawing() : Unit
 private extern def janus_graphics_begin_camera(
@@ -124,6 +128,137 @@ y : int,
 fontSize : int,
 color : uint
 ) : Unit
+private extern def janus_graphics_draw_line_ex(
+startX : float, startY : float, endX : float, endY : float,
+thickness : float, color : uint
+) : Unit
+private extern def janus_graphics_draw_line_bezier(
+startX : float, startY : float, endX : float, endY : float,
+thickness : float, color : uint
+) : Unit
+private extern def janus_graphics_draw_line_dashed(
+startX : float, startY : float, endX : float, endY : float,
+dashSize : int, spaceSize : int, color : uint
+) : Unit
+private extern def janus_graphics_draw_circle_gradient(
+x : float, y : float, radius : float, inner : uint, outer : uint
+) : Unit
+private extern def janus_graphics_draw_circle_sector(
+x : float, y : float, radius : float, startAngle : float,
+endAngle : float, segments : int, color : uint, lines : bool
+) : Unit
+private extern def janus_graphics_draw_circle_lines(
+x : int, y : int, radius : float, color : uint
+) : Unit
+private extern def janus_graphics_draw_ellipse(
+x : int, y : int, radiusX : float, radiusY : float,
+color : uint, lines : bool
+) : Unit
+private extern def janus_graphics_draw_ring(
+x : float, y : float, innerRadius : float, outerRadius : float,
+startAngle : float, endAngle : float, segments : int,
+color : uint, lines : bool
+) : Unit
+private extern def janus_graphics_draw_rectangle_pro(
+x : float, y : float, width : float, height : float,
+originX : float, originY : float, rotation : float, color : uint
+) : Unit
+private extern def janus_graphics_draw_rectangle_gradient(
+x : int, y : int, width : int, height : int,
+first : uint, second : uint, horizontal : bool
+) : Unit
+private extern def janus_graphics_draw_rectangle_gradient_ex(
+x : float, y : float, width : float, height : float,
+topLeft : uint, bottomLeft : uint, bottomRight : uint, topRight : uint
+) : Unit
+private extern def janus_graphics_draw_rectangle_lines(
+x : float, y : float, width : float, height : float,
+thickness : float, color : uint
+) : Unit
+private extern def janus_graphics_draw_rectangle_rounded(
+x : float, y : float, width : float, height : float,
+roundness : float, segments : int, thickness : float,
+color : uint, lines : bool
+) : Unit
+private extern def janus_graphics_draw_triangle(
+x1 : float, y1 : float, x2 : float, y2 : float,
+x3 : float, y3 : float, color : uint, lines : bool
+) : Unit
+private extern def janus_graphics_draw_polygon(
+x : float, y : float, sides : int, radius : float,
+rotation : float, thickness : float, color : uint, lines : bool
+) : Unit
+private extern def janus_graphics_draw_point_sequence(
+points : Ptr[Vector2], count : int, thickness : float, color : uint, kind : int
+) : Unit
+private extern def janus_graphics_draw_spline_segment(
+x1 : float, y1 : float, x2 : float, y2 : float,
+x3 : float, y3 : float, x4 : float, y4 : float,
+thickness : float, color : uint, kind : int
+) : Unit
+private extern def janus_graphics_spline_point_component(
+x1 : float, y1 : float, x2 : float, y2 : float,
+x3 : float, y3 : float, x4 : float, y4 : float,
+amount : float, kind : int, yComponent : bool
+) : float
+private extern def janus_graphics_collision_rectangles(
+x1 : float, y1 : float, width1 : float, height1 : float,
+x2 : float, y2 : float, width2 : float, height2 : float
+) : bool
+private extern def janus_graphics_collision_circles(
+x1 : float, y1 : float, radius1 : float,
+x2 : float, y2 : float, radius2 : float
+) : bool
+private extern def janus_graphics_collision_circle_rectangle(
+x : float, y : float, radius : float, rectangleX : float,
+rectangleY : float, width : float, height : float
+) : bool
+private extern def janus_graphics_collision_circle_line(
+x : float, y : float, radius : float,
+x1 : float, y1 : float, x2 : float, y2 : float
+) : bool
+private extern def janus_graphics_collision_point_rectangle(
+x : float, y : float, rectangleX : float, rectangleY : float,
+width : float, height : float
+) : bool
+private extern def janus_graphics_collision_point_circle(
+x : float, y : float, centerX : float, centerY : float, radius : float
+) : bool
+private extern def janus_graphics_collision_point_triangle(
+x : float, y : float, x1 : float, y1 : float,
+x2 : float, y2 : float, x3 : float, y3 : float
+) : bool
+private extern def janus_graphics_collision_point_line(
+x : float, y : float, x1 : float, y1 : float,
+x2 : float, y2 : float, threshold : int
+) : bool
+private extern def janus_graphics_collision_point_polygon(
+x : float, y : float, points : Ptr[Vector2], count : int
+) : bool
+private extern def janus_graphics_collision_lines(
+x1 : float, y1 : float, x2 : float, y2 : float,
+x3 : float, y3 : float, x4 : float, y4 : float
+) : bool
+private extern def janus_graphics_collision_lines_component(
+x1 : float, y1 : float, x2 : float, y2 : float,
+x3 : float, y3 : float, x4 : float, y4 : float, yComponent : bool
+) : float
+private extern def janus_graphics_collision_rectangle_x(
+x1 : float, y1 : float, width1 : float, height1 : float,
+x2 : float, y2 : float, width2 : float, height2 : float
+) : float
+private extern def janus_graphics_collision_rectangle_y(
+x1 : float, y1 : float, width1 : float, height1 : float,
+x2 : float, y2 : float, width2 : float, height2 : float
+) : float
+private extern def janus_graphics_collision_rectangle_width(
+x1 : float, y1 : float, width1 : float, height1 : float,
+x2 : float, y2 : float, width2 : float, height2 : float
+) : float
+private extern def janus_graphics_collision_rectangle_height(
+x1 : float, y1 : float, width1 : float, height1 : float,
+x2 : float, y2 : float, width2 : float, height2 : float
+) : float
 
 private val graphicsStartTime : Instant = monotonicNow()
 private var graphicsPreviousFrameTime : Instant = graphicsStartTime
@@ -304,6 +439,17 @@ def beginBlend(mode : BlendMode) : Unit {
 /// Termine le dernier mode ouvert par [[beginBlend]] et restaure le mode précédent.
 def endBlend() : Unit {
     janus_graphics_end_blend()
+}
+
+/// Limite les dessins suivants à un rectangle écran.
+/// @param area Zone rectangulaire concernée.
+def beginScissor(area : Rectangle) : Unit {
+    janus_graphics_begin_scissor(int(area.x), int(area.y), int(area.width), int(area.height))
+}
+
+/// Termine la limitation rectangulaire active.
+def endScissor() : Unit {
+    janus_graphics_end_scissor()
 }
 
 /// Mesure le temps monotone écoulé depuis le précédent appel à cette fonction.
@@ -572,5 +718,515 @@ color : Color
     int(position.y),
     fontSize,
     color
+    )
+}
+
+/// Trace un segment flottant avec une épaisseur donnée.
+/// @param start Point ou couleur initiale.
+/// @param end Point ou couleur finale.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawLineEx(start : Vector2, end : Vector2, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_line_ex(start.x, start.y, end.x, end.y, thickness, color.packed())
+}
+
+/// Trace l’interpolation cubique de raylib entre deux points.
+/// @param start Point ou couleur initiale.
+/// @param end Point ou couleur finale.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawLineBezier(start : Vector2, end : Vector2, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_line_bezier(start.x, start.y, end.x, end.y, thickness, color.packed())
+}
+
+/// Trace un segment discontinu avec les tailles de tiret et d’espace indiquées.
+/// @param start Point ou couleur initiale.
+/// @param end Point ou couleur finale.
+/// @param dashSize Longueur des tirets.
+/// @param spaceSize Longueur des espaces.
+/// @param color Couleur appliquée.
+def drawLineDashed(start : Vector2, end : Vector2, dashSize : int, spaceSize : int, color : Color) : Unit {
+    janus_graphics_draw_line_dashed(start.x, start.y, end.x, end.y, dashSize, spaceSize, color.packed())
+}
+
+/// Dessine un disque avec un dégradé radial entre deux couleurs.
+/// @param center Centre dans le repère actif.
+/// @param radius Rayon de la forme.
+/// @param inner Couleur centrale.
+/// @param outer Couleur périphérique.
+def drawCircleGradient(center : Vector2, radius : float, inner : Color, outer : Color) : Unit {
+    janus_graphics_draw_circle_gradient(center.x, center.y, radius, inner.packed(), outer.packed())
+}
+
+/// Dessine un secteur de disque rempli.
+/// @param center Centre dans le repère actif.
+/// @param radius Rayon de la forme.
+/// @param startAngle Angle initial en degrés.
+/// @param endAngle Angle final en degrés.
+/// @param segments Nombre de segments de l’approximation.
+/// @param color Couleur appliquée.
+def drawCircleSector(center : Vector2, radius : float, startAngle : float, endAngle : float, segments : int, color : Color) : Unit {
+    janus_graphics_draw_circle_sector(center.x, center.y, radius, startAngle, endAngle, segments, color.packed(), false)
+}
+
+/// Trace le contour d’un secteur de disque.
+/// @param center Centre dans le repère actif.
+/// @param radius Rayon de la forme.
+/// @param startAngle Angle initial en degrés.
+/// @param endAngle Angle final en degrés.
+/// @param segments Nombre de segments de l’approximation.
+/// @param color Couleur appliquée.
+def drawCircleSectorLines(center : Vector2, radius : float, startAngle : float, endAngle : float, segments : int, color : Color) : Unit {
+    janus_graphics_draw_circle_sector(center.x, center.y, radius, startAngle, endAngle, segments, color.packed(), true)
+}
+
+/// Trace le contour d’un cercle.
+/// @param center Centre dans le repère actif.
+/// @param radius Rayon de la forme.
+/// @param color Couleur appliquée.
+def drawCircleLines(center : Vector2, radius : float, color : Color) : Unit {
+    janus_graphics_draw_circle_lines(int(center.x), int(center.y), radius, color.packed())
+}
+
+/// Dessine une ellipse pleine.
+/// @param center Centre dans le repère actif.
+/// @param radiusX Demi-largeur de l’ellipse.
+/// @param radiusY Demi-hauteur de l’ellipse.
+/// @param color Couleur appliquée.
+def drawEllipse(center : Vector2, radiusX : float, radiusY : float, color : Color) : Unit {
+    janus_graphics_draw_ellipse(int(center.x), int(center.y), radiusX, radiusY, color.packed(), false)
+}
+
+/// Trace le contour d’une ellipse.
+/// @param center Centre dans le repère actif.
+/// @param radiusX Demi-largeur de l’ellipse.
+/// @param radiusY Demi-hauteur de l’ellipse.
+/// @param color Couleur appliquée.
+def drawEllipseLines(center : Vector2, radiusX : float, radiusY : float, color : Color) : Unit {
+    janus_graphics_draw_ellipse(int(center.x), int(center.y), radiusX, radiusY, color.packed(), true)
+}
+
+/// Dessine un anneau ou une portion d’anneau.
+/// @param center Centre dans le repère actif.
+/// @param innerRadius Rayon intérieur.
+/// @param outerRadius Rayon extérieur.
+/// @param startAngle Angle initial en degrés.
+/// @param endAngle Angle final en degrés.
+/// @param segments Nombre de segments de l’approximation.
+/// @param color Couleur appliquée.
+def drawRing(center : Vector2, innerRadius : float, outerRadius : float, startAngle : float, endAngle : float, segments : int, color : Color) : Unit {
+    janus_graphics_draw_ring(center.x, center.y, innerRadius, outerRadius, startAngle, endAngle, segments, color.packed(), false)
+}
+
+/// Trace le contour d’un anneau ou d’une portion d’anneau.
+/// @param center Centre dans le repère actif.
+/// @param innerRadius Rayon intérieur.
+/// @param outerRadius Rayon extérieur.
+/// @param startAngle Angle initial en degrés.
+/// @param endAngle Angle final en degrés.
+/// @param segments Nombre de segments de l’approximation.
+/// @param color Couleur appliquée.
+def drawRingLines(center : Vector2, innerRadius : float, outerRadius : float, startAngle : float, endAngle : float, segments : int, color : Color) : Unit {
+    janus_graphics_draw_ring(center.x, center.y, innerRadius, outerRadius, startAngle, endAngle, segments, color.packed(), true)
+}
+
+/// Dessine un rectangle avec origine et rotation.
+/// @param area Zone rectangulaire concernée.
+/// @param origin Point de pivot.
+/// @param rotation Rotation en degrés.
+/// @param color Couleur appliquée.
+def drawRectanglePro(area : Rectangle, origin : Vector2, rotation : float, color : Color) : Unit {
+    janus_graphics_draw_rectangle_pro(area.x, area.y, area.width, area.height, origin.x, origin.y, rotation, color.packed())
+}
+
+/// Dessine un rectangle avec un dégradé vertical.
+/// @param area Zone rectangulaire concernée.
+/// @param top Couleur supérieure.
+/// @param bottom Couleur inférieure.
+def drawRectangleGradientVertical(area : Rectangle, top : Color, bottom : Color) : Unit {
+    janus_graphics_draw_rectangle_gradient(int(area.x), int(area.y), int(area.width), int(area.height), top.packed(), bottom.packed(), false)
+}
+
+/// Dessine un rectangle avec un dégradé horizontal.
+/// @param area Zone rectangulaire concernée.
+/// @param left Couleur gauche.
+/// @param right Couleur droite.
+def drawRectangleGradientHorizontal(area : Rectangle, left : Color, right : Color) : Unit {
+    janus_graphics_draw_rectangle_gradient(int(area.x), int(area.y), int(area.width), int(area.height), left.packed(), right.packed(), true)
+}
+
+/// Dessine un rectangle avec une couleur distincte à chaque sommet.
+/// @param area Zone rectangulaire concernée.
+/// @param topLeft Couleur du sommet supérieur gauche.
+/// @param bottomLeft Couleur du sommet inférieur gauche.
+/// @param bottomRight Couleur du sommet inférieur droit.
+/// @param topRight Couleur du sommet supérieur droit.
+def drawRectangleGradient(area : Rectangle, topLeft : Color, bottomLeft : Color, bottomRight : Color, topRight : Color) : Unit {
+    janus_graphics_draw_rectangle_gradient_ex(area.x, area.y, area.width, area.height, topLeft.packed(), bottomLeft.packed(), bottomRight.packed(), topRight.packed())
+}
+
+/// Trace le contour d’un rectangle avec une épaisseur flottante.
+/// @param area Zone rectangulaire concernée.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawRectangleLines(area : Rectangle, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_rectangle_lines(area.x, area.y, area.width, area.height, thickness, color.packed())
+}
+
+/// Dessine un rectangle à coins arrondis.
+/// @param area Zone rectangulaire concernée.
+/// @param roundness Rapport du rayon des coins.
+/// @param segments Nombre de segments de l’approximation.
+/// @param color Couleur appliquée.
+def drawRectangleRounded(area : Rectangle, roundness : float, segments : int, color : Color) : Unit {
+    janus_graphics_draw_rectangle_rounded(area.x, area.y, area.width, area.height, roundness, segments, float(0.0), color.packed(), false)
+}
+
+/// Trace le contour d’un rectangle à coins arrondis.
+/// @param area Zone rectangulaire concernée.
+/// @param roundness Rapport du rayon des coins.
+/// @param segments Nombre de segments de l’approximation.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawRectangleRoundedLines(area : Rectangle, roundness : float, segments : int, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_rectangle_rounded(area.x, area.y, area.width, area.height, roundness, segments, thickness, color.packed(), true)
+}
+
+/// Dessine un triangle plein; les sommets sont attendus dans le sens antihoraire.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @param third Troisième point.
+/// @param color Couleur appliquée.
+def drawTriangle(first : Vector2, second : Vector2, third : Vector2, color : Color) : Unit {
+    janus_graphics_draw_triangle(first.x, first.y, second.x, second.y, third.x, third.y, color.packed(), false)
+}
+
+/// Trace le contour d’un triangle.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @param third Troisième point.
+/// @param color Couleur appliquée.
+def drawTriangleLines(first : Vector2, second : Vector2, third : Vector2, color : Color) : Unit {
+    janus_graphics_draw_triangle(first.x, first.y, second.x, second.y, third.x, third.y, color.packed(), true)
+}
+
+/// Dessine un polygone régulier.
+/// @param center Centre dans le repère actif.
+/// @param sides Nombre de côtés.
+/// @param radius Rayon de la forme.
+/// @param rotation Rotation en degrés.
+/// @param color Couleur appliquée.
+def drawPolygon(center : Vector2, sides : int, radius : float, rotation : float, color : Color) : Unit {
+    janus_graphics_draw_polygon(center.x, center.y, sides, radius, rotation, float(0.0), color.packed(), false)
+}
+
+/// Trace le contour d’un polygone régulier.
+/// @param center Centre dans le repère actif.
+/// @param sides Nombre de côtés.
+/// @param radius Rayon de la forme.
+/// @param rotation Rotation en degrés.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawPolygonLines(center : Vector2, sides : int, radius : float, rotation : float, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_polygon(center.x, center.y, sides, radius, rotation, thickness, color.packed(), true)
+}
+
+/// Trace une ligne brisée depuis `count` vecteurs contigus.
+/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+/// @param count Nombre de vecteurs lisibles.
+/// @param color Couleur appliquée.
+def drawLineStrip(points : Ptr[Vector2], count : int, color : Color) : Unit {
+    janus_graphics_draw_point_sequence(points, count, float(0.0), color.packed(), 0)
+}
+
+/// Dessine un éventail de triangles depuis `count` vecteurs contigus.
+/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+/// @param count Nombre de vecteurs lisibles.
+/// @param color Couleur appliquée.
+def drawTriangleFan(points : Ptr[Vector2], count : int, color : Color) : Unit {
+    janus_graphics_draw_point_sequence(points, count, float(0.0), color.packed(), 1)
+}
+
+/// Dessine une bande de triangles depuis `count` vecteurs contigus.
+/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+/// @param count Nombre de vecteurs lisibles.
+/// @param color Couleur appliquée.
+def drawTriangleStrip(points : Ptr[Vector2], count : int, color : Color) : Unit {
+    janus_graphics_draw_point_sequence(points, count, float(0.0), color.packed(), 2)
+}
+
+/// Trace une spline linéaire depuis `count` vecteurs contigus.
+/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+/// @param count Nombre de vecteurs lisibles.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawSplineLinear(points : Ptr[Vector2], count : int, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_point_sequence(points, count, thickness, color.packed(), 3)
+}
+
+/// Trace une B-spline cubique depuis `count` vecteurs contigus.
+/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+/// @param count Nombre de vecteurs lisibles.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawSplineBasis(points : Ptr[Vector2], count : int, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_point_sequence(points, count, thickness, color.packed(), 4)
+}
+
+/// Trace une spline Catmull-Rom depuis `count` vecteurs contigus.
+/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+/// @param count Nombre de vecteurs lisibles.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawSplineCatmullRom(points : Ptr[Vector2], count : int, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_point_sequence(points, count, thickness, color.packed(), 5)
+}
+
+/// Trace une spline de Bézier quadratique depuis `count` vecteurs contigus.
+/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+/// @param count Nombre de vecteurs lisibles.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawSplineBezierQuadratic(points : Ptr[Vector2], count : int, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_point_sequence(points, count, thickness, color.packed(), 6)
+}
+
+/// Trace une spline de Bézier cubique depuis `count` vecteurs contigus.
+/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+/// @param count Nombre de vecteurs lisibles.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawSplineBezierCubic(points : Ptr[Vector2], count : int, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_point_sequence(points, count, thickness, color.packed(), 7)
+}
+
+/// Trace un segment de spline linéaire.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawSplineSegmentLinear(first : Vector2, second : Vector2, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_spline_segment(first.x, first.y, second.x, second.y, float(0.0), float(0.0), float(0.0), float(0.0), thickness, color.packed(), 0)
+}
+
+/// Trace un segment de B-spline cubique.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @param third Troisième point.
+/// @param fourth Quatrième point.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawSplineSegmentBasis(first : Vector2, second : Vector2, third : Vector2, fourth : Vector2, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_spline_segment(first.x, first.y, second.x, second.y, third.x, third.y, fourth.x, fourth.y, thickness, color.packed(), 1)
+}
+
+/// Trace un segment de spline Catmull-Rom.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @param third Troisième point.
+/// @param fourth Quatrième point.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawSplineSegmentCatmullRom(first : Vector2, second : Vector2, third : Vector2, fourth : Vector2, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_spline_segment(first.x, first.y, second.x, second.y, third.x, third.y, fourth.x, fourth.y, thickness, color.packed(), 2)
+}
+
+/// Trace un segment de Bézier quadratique.
+/// @param first Premier point ou rectangle.
+/// @param control Point de contrôle.
+/// @param end Point ou couleur finale.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawSplineSegmentBezierQuadratic(first : Vector2, control : Vector2, end : Vector2, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_spline_segment(first.x, first.y, control.x, control.y, end.x, end.y, float(0.0), float(0.0), thickness, color.packed(), 3)
+}
+
+/// Trace un segment de Bézier cubique.
+/// @param first Premier point ou rectangle.
+/// @param control1 Premier point de contrôle.
+/// @param control2 Second point de contrôle.
+/// @param end Point ou couleur finale.
+/// @param thickness Épaisseur du trait en pixels.
+/// @param color Couleur appliquée.
+def drawSplineSegmentBezierCubic(first : Vector2, control1 : Vector2, control2 : Vector2, end : Vector2, thickness : float, color : Color) : Unit {
+    janus_graphics_draw_spline_segment(first.x, first.y, control1.x, control1.y, control2.x, control2.y, end.x, end.y, thickness, color.packed(), 4)
+}
+
+private def splinePoint(first : Vector2, second : Vector2, third : Vector2, fourth : Vector2, amount : float, kind : int) : Vector2 {
+    return vector2(
+    janus_graphics_spline_point_component(first.x, first.y, second.x, second.y, third.x, third.y, fourth.x, fourth.y, amount, kind, false),
+    janus_graphics_spline_point_component(first.x, first.y, second.x, second.y, third.x, third.y, fourth.x, fourth.y, amount, kind, true)
+    )
+}
+
+/// Évalue un segment de spline linéaire pour `amount` compris entre 0 et 1.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @param amount Position normalisée sur la courbe.
+/// @return Position calculée dans le repère de l’appel.
+def splinePointLinear(first : Vector2, second : Vector2, amount : float) : Vector2 {
+    val empty : Vector2 = vector2(float(0.0), float(0.0))
+    return splinePoint(first, second, empty, empty, amount, 0)
+}
+
+/// Évalue un segment de B-spline cubique.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @param third Troisième point.
+/// @param fourth Quatrième point.
+/// @param amount Position normalisée sur la courbe.
+/// @return Position calculée dans le repère de l’appel.
+def splinePointBasis(first : Vector2, second : Vector2, third : Vector2, fourth : Vector2, amount : float) : Vector2 {
+    return splinePoint(first, second, third, fourth, amount, 1)
+}
+
+/// Évalue un segment de spline Catmull-Rom.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @param third Troisième point.
+/// @param fourth Quatrième point.
+/// @param amount Position normalisée sur la courbe.
+/// @return Position calculée dans le repère de l’appel.
+def splinePointCatmullRom(first : Vector2, second : Vector2, third : Vector2, fourth : Vector2, amount : float) : Vector2 {
+    return splinePoint(first, second, third, fourth, amount, 2)
+}
+
+/// Évalue une courbe de Bézier quadratique.
+/// @param first Premier point ou rectangle.
+/// @param control Point de contrôle.
+/// @param end Point ou couleur finale.
+/// @param amount Position normalisée sur la courbe.
+/// @return Position calculée dans le repère de l’appel.
+def splinePointBezierQuadratic(first : Vector2, control : Vector2, end : Vector2, amount : float) : Vector2 {
+    return splinePoint(first, control, end, vector2(float(0.0), float(0.0)), amount, 3)
+}
+
+/// Évalue une courbe de Bézier cubique.
+/// @param first Premier point ou rectangle.
+/// @param control1 Premier point de contrôle.
+/// @param control2 Second point de contrôle.
+/// @param end Point ou couleur finale.
+/// @param amount Position normalisée sur la courbe.
+/// @return Position calculée dans le repère de l’appel.
+def splinePointBezierCubic(first : Vector2, control1 : Vector2, control2 : Vector2, end : Vector2, amount : float) : Vector2 {
+    return splinePoint(first, control1, control2, end, amount, 4)
+}
+
+/// Teste le chevauchement de deux rectangles.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @return `true` lorsque le test ou l’opération réussit.
+def collisionRectangles(first : Rectangle, second : Rectangle) : bool {
+    return janus_graphics_collision_rectangles(first.x, first.y, first.width, first.height, second.x, second.y, second.width, second.height)
+}
+
+/// Teste le chevauchement de deux cercles.
+/// @param firstCenter Centre du premier cercle.
+/// @param firstRadius Rayon du premier cercle.
+/// @param secondCenter Centre du second cercle.
+/// @param secondRadius Rayon du second cercle.
+/// @return `true` lorsque le test ou l’opération réussit.
+def collisionCircles(firstCenter : Vector2, firstRadius : float, secondCenter : Vector2, secondRadius : float) : bool {
+    return janus_graphics_collision_circles(firstCenter.x, firstCenter.y, firstRadius, secondCenter.x, secondCenter.y, secondRadius)
+}
+
+/// Teste le chevauchement d’un cercle et d’un rectangle.
+/// @param center Centre dans le repère actif.
+/// @param radius Rayon de la forme.
+/// @param area Zone rectangulaire concernée.
+/// @return `true` lorsque le test ou l’opération réussit.
+def collisionCircleRectangle(center : Vector2, radius : float, area : Rectangle) : bool {
+    return janus_graphics_collision_circle_rectangle(center.x, center.y, radius, area.x, area.y, area.width, area.height)
+}
+
+/// Teste le chevauchement d’un cercle et d’un segment.
+/// @param center Centre dans le repère actif.
+/// @param radius Rayon de la forme.
+/// @param start Point ou couleur initiale.
+/// @param end Point ou couleur finale.
+/// @return `true` lorsque le test ou l’opération réussit.
+def collisionCircleLine(center : Vector2, radius : float, start : Vector2, end : Vector2) : bool {
+    return janus_graphics_collision_circle_line(center.x, center.y, radius, start.x, start.y, end.x, end.y)
+}
+
+/// Teste si un point appartient à un rectangle.
+/// @param point Position soumise au calcul.
+/// @param area Zone rectangulaire concernée.
+/// @return `true` lorsque le test ou l’opération réussit.
+def collisionPointRectangle(point : Vector2, area : Rectangle) : bool {
+    return janus_graphics_collision_point_rectangle(point.x, point.y, area.x, area.y, area.width, area.height)
+}
+
+/// Teste si un point appartient à un cercle.
+/// @param point Position soumise au calcul.
+/// @param center Centre dans le repère actif.
+/// @param radius Rayon de la forme.
+/// @return `true` lorsque le test ou l’opération réussit.
+def collisionPointCircle(point : Vector2, center : Vector2, radius : float) : bool {
+    return janus_graphics_collision_point_circle(point.x, point.y, center.x, center.y, radius)
+}
+
+/// Teste si un point appartient à un triangle.
+/// @param point Position soumise au calcul.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @param third Troisième point.
+/// @return `true` lorsque le test ou l’opération réussit.
+def collisionPointTriangle(point : Vector2, first : Vector2, second : Vector2, third : Vector2) : bool {
+    return janus_graphics_collision_point_triangle(point.x, point.y, first.x, first.y, second.x, second.y, third.x, third.y)
+}
+
+/// Teste si un point se trouve près d’un segment selon une marge en pixels.
+/// @param point Position soumise au calcul.
+/// @param start Point ou couleur initiale.
+/// @param end Point ou couleur finale.
+/// @param threshold Seuil du test.
+/// @return `true` lorsque le test ou l’opération réussit.
+def collisionPointLine(point : Vector2, start : Vector2, end : Vector2, threshold : int) : bool {
+    return janus_graphics_collision_point_line(point.x, point.y, start.x, start.y, end.x, end.y, threshold)
+}
+
+/// Teste si un point appartient au polygone défini par `count` vecteurs contigus.
+/// @param point Position soumise au calcul.
+/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+/// @param count Nombre de vecteurs lisibles.
+/// @return `true` lorsque le test ou l’opération réussit.
+def collisionPointPolygon(point : Vector2, points : Ptr[Vector2], count : int) : bool {
+    return janus_graphics_collision_point_polygon(point.x, point.y, points, count)
+}
+
+/// Teste l’intersection de deux segments.
+/// @param firstStart Origine du premier segment.
+/// @param firstEnd Extrémité du premier segment.
+/// @param secondStart Origine du second segment.
+/// @param secondEnd Extrémité du second segment.
+/// @return `true` lorsque le test ou l’opération réussit.
+def collisionLines(firstStart : Vector2, firstEnd : Vector2, secondStart : Vector2, secondEnd : Vector2) : bool {
+    return janus_graphics_collision_lines(firstStart.x, firstStart.y, firstEnd.x, firstEnd.y, secondStart.x, secondStart.y, secondEnd.x, secondEnd.y)
+}
+
+/// Renvoie le point d’intersection de deux segments, ou `(0, 0)` s’ils ne se croisent pas.
+/// @param firstStart Origine du premier segment.
+/// @param firstEnd Extrémité du premier segment.
+/// @param secondStart Origine du second segment.
+/// @param secondEnd Extrémité du second segment.
+/// @return Position calculée dans le repère de l’appel.
+def collisionLinesPoint(firstStart : Vector2, firstEnd : Vector2, secondStart : Vector2, secondEnd : Vector2) : Vector2 {
+    return vector2(
+    janus_graphics_collision_lines_component(firstStart.x, firstStart.y, firstEnd.x, firstEnd.y, secondStart.x, secondStart.y, secondEnd.x, secondEnd.y, false),
+    janus_graphics_collision_lines_component(firstStart.x, firstStart.y, firstEnd.x, firstEnd.y, secondStart.x, secondStart.y, secondEnd.x, secondEnd.y, true)
+    )
+}
+
+/// Calcule le rectangle d’intersection de deux rectangles.
+/// @param first Premier point ou rectangle.
+/// @param second Deuxième point ou rectangle.
+/// @return Rectangle calculé, nul lorsqu’aucune zone ne convient.
+def collisionRectangle(first : Rectangle, second : Rectangle) : Rectangle {
+    return rectangle(
+    janus_graphics_collision_rectangle_x(first.x, first.y, first.width, first.height, second.x, second.y, second.width, second.height),
+    janus_graphics_collision_rectangle_y(first.x, first.y, first.width, first.height, second.x, second.y, second.width, second.height),
+    janus_graphics_collision_rectangle_width(first.x, first.y, first.width, first.height, second.x, second.y, second.width, second.height),
+    janus_graphics_collision_rectangle_height(first.x, first.y, first.width, first.height, second.x, second.y, second.width, second.height)
     )
 }
