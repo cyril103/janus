@@ -6,7 +6,7 @@ hide:
 
 <div class="home-shell">
   <section class="home-hero">
-    <div class="eyebrow">JANUS / VERSION 0.8.0 / PRÉ-1.0</div>
+    <div class="eyebrow">JANUS / VERSION 0.8.1 / PRÉ-1.0</div>
     <h1>Décider si Janus vous convient.<br><em>Puis apprendre en construisant.</em></h1>
     <p class="hero-lede">Un langage compilé, fortement typé et natif, où les abstractions de haut niveau côtoient la propriété explicite, LLVM et l’interopérabilité C.</p>
     <div class="hero-actions">
@@ -65,7 +65,7 @@ def main() : int {
     ```bash
     sudo apt update && sudo apt install build-essential curl
     curl --proto '=https' --tlsv1.2 -fsSL \
-      https://raw.githubusercontent.com/cyril103/janus/v0.8.0/scripts/install.sh | sh
+      https://raw.githubusercontent.com/cyril103/janus/v0.8.1/scripts/install.sh | sh
     export PATH="$HOME/.janus/bin:$PATH"
     ```
 
@@ -74,13 +74,13 @@ def main() : int {
     ```bash
     xcode-select --install
     curl --proto '=https' --tlsv1.2 -fsSL \
-      https://raw.githubusercontent.com/cyril103/janus/v0.8.0/scripts/install.sh | sh
+      https://raw.githubusercontent.com/cyril103/janus/v0.8.1/scripts/install.sh | sh
     ```
 
 === "Windows x86_64"
 
     ```powershell
-    irm https://raw.githubusercontent.com/cyril103/janus/v0.8.0/scripts/install.ps1 | iex
+    irm https://raw.githubusercontent.com/cyril103/janus/v0.8.1/scripts/install.ps1 | iex
     ```
 
 ```bash
@@ -105,17 +105,17 @@ Huit chapitres vont des valeurs et fonctions à un projet CLI structuré, avec e
 [Consulter le livre →](book/index.md)
 
 ### 03 — Approfondir sans intermédiaire
-La documentation canonique décrit précisément le langage 0.8.0, les outils, le texte et le graphisme.
+La documentation canonique décrit précisément le langage 0.8.1, les outils, le texte et le graphisme.
 
 [Entrer dans la référence →](reference/index.md)
 
 </div>
 
 <div class="release-note" markdown>
-**Ce que 0.8.0 apporte.** Toute la surface publique est auditée et classée
-`stable-candidate` ou `experimental`, avec compatibilité N/N+1, corpus de
-fuzzing sanitizer, migration depuis 0.5 et limites connues. Janus reste
-explicitement pré-1.0.
-[Lire le changelog](https://github.com/cyril103/janus/blob/v0.8.0/CHANGELOG.md)
+**Ce que 0.8.1 corrige.** L'affichage de `bool` est désormais stable à la
+frontière LLVM/runtime, y compris dans une struct retournée par une fonction
+et affichée au sein d'une boucle. Cette version reste compatible avec 0.8.0
+et explicitement pré-1.0.
+[Lire le changelog](https://github.com/cyril103/janus/blob/v0.8.1/CHANGELOG.md)
 ou [la référence de la stdlib](reference/stdlib/).
 </div>

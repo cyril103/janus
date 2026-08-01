@@ -4,7 +4,7 @@
 
 - savoir créer et exécuter un projet Janus ;
 - connaître `defer delete` ;
-- Janus 0.8.0, sans paquet additionnel.
+- Janus 0.8.1, sans paquet additionnel.
 
 ## Résultat
 
@@ -27,7 +27,7 @@ La capacité est un `usize`. Le `defer` garantit la libération de l’allocatio
 
 ## 2. Composer sans matérialiser à chaque étape
 
-Le code suivant est celui de l’exemple réel [`examples/iterator_pipeline.janus`](https://github.com/cyril103/janus/blob/v0.8.0/examples/iterator_pipeline.janus) :
+Le code suivant est celui de l’exemple réel [`examples/iterator_pipeline.janus`](https://github.com/cyril103/janus/blob/v0.8.1/examples/iterator_pipeline.janus) :
 
 ```janus
 val collected : Array[int] = collectArray[int](
