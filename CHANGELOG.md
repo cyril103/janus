@@ -3,6 +3,24 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.8.1] - 2026-08-01
+
+Cette version corrective stabilise l'affichage des booléens à la frontière
+entre le code LLVM généré et le runtime C.
+
+### Backend LLVM et runtime
+
+- alignement de l'ABI de `janus_print_bool` sur une représentation 8 bits
+  explicite et extension des valeurs LLVM `i1` avant `debug`, `print` et
+  `println` ;
+- ajout d'une régression couvrant une struct contenant un `bool`, retournée par
+  une fonction puis affichée dans une boucle `for`.
+
+### Documentation
+
+- finalisation de la référence francophone avec des mini-exemples d'utilisation
+  pour les API publiques.
+
 ## [0.8.0] - 2026-07-31
 
 Cette version cumulative publie les travaux menés depuis 0.7.6 sur les
@@ -498,6 +516,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.8.1]: https://github.com/cyril103/janus/releases/tag/v0.8.1
 [0.8.0]: https://github.com/cyril103/janus/releases/tag/v0.8.0
 [0.7.6]: https://github.com/cyril103/janus/releases/tag/v0.7.6
 [0.7.4-hotfix.1]: https://github.com/cyril103/janus/compare/v0.7.4...v0.7.4-hotfix.1
