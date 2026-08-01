@@ -2448,6 +2448,7 @@ private:
         function_name = "janus_print_float";
         break;
       case janus::TypeKind::Bool:
+        argument = builder.CreateZExt(value, builder.getInt8Ty(), "debug.bool");
         function_name = "janus_print_bool";
         break;
       case janus::TypeKind::Char:
@@ -2778,7 +2779,9 @@ private:
                 ::llvm::FunctionCallee function = module_->getOrInsertFunction(
                     "janus_print_bool",
                     ::llvm::FunctionType::get(builder.getVoidTy(),
-                                              {builder.getInt1Ty()}, false));
+                                              {builder.getInt8Ty()}, false));
+                argument = builder.CreateZExt(argument, builder.getInt8Ty(),
+                                              "print.bool");
                 result = builder.CreateCall(function, {argument});
                 break;
               }

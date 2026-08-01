@@ -16,7 +16,7 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 - **28 modules**, **7789 lignes** et **637 symboles publics** inventoriés ;
 - **645 blocs `///` publics pour 637 symboles** (couverture source du lot #115 : 100 %) ;
 - **134 sites d'allocation**, **203 marqueurs de nettoyage**, **179/14/35** occurrences `move`/`consume`/destructeur ;
-- **21/28 modules** importés directement par au moins une fixture ou un test, soit **94 couples module-fichier de test** ;
+- **21/28 modules** importés directement par au moins une fixture ou un test, soit **95 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
 Ces métriques sont des indicateurs de risque et non des objectifs d'optimisation isolés. Un marqueur de nettoyage peut apparaître dans un nom d'API ; les tests sanitizers restent l'autorité sur les fuites et doubles destructions.
@@ -68,7 +68,7 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.path` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 8 | 224 | 8 | 0/0/1 | 3/0/2 | 6 | 13 | `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
 | `std.random` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 6 | 80 | 6 | 0/0/0 | 0/0/2 | 2 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.process` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 13 | 248 | 13 | 0/0/2 | 2/5/0 | 7 | 6 | `std.array`, `std.option`, `std.result`, `std.system` | 1 | `docs/language-guide.md`, `docs/design/process-runtime.md`, `docs/stability-contract.md` |
-| `std.range` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 1 | 44 | 1 | 0/0/0 | 0/1/0 | 2 | 1 | `std.iterator`, `std.option` | 2 | `docs/language-guide.md` |
+| `std.range` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 1 | 44 | 1 | 0/0/0 | 0/1/0 | 2 | 1 | `std.iterator`, `std.option` | 3 | `docs/language-guide.md` |
 | `std.result` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 12 | 181 | 12 | 27/0/1 | 18/3/0 | 2 | 17 | `std.option` | 10 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.system` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 28 | 244 | 28 | 0/0/1 | 5/0/0 | 3 | 7 | `std.result` | 2 | `docs/language-guide.md`, `docs/design/system-runtime.md`, `docs/stability-contract.md` |
 | `std.text` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 42 | 441 | 42 | 0/0/1 | 14/0/5 | 4 | 15 | `std.result` | 2 | `docs/text.md`, `docs/stability-contract.md` |
@@ -115,7 +115,7 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 | `std.path` | `tests/fixtures/runtime/io_streams.janus`, `tests/fixtures/runtime/path_fs_result.janus` |
 | `std.random` | `tests/fixtures/runtime/random_zero_bound.janus`, `tests/fixtures/runtime/time_random.janus` |
 | `std.process` | `tests/fixtures/runtime/processes.janus` |
-| `std.range` | `tests/fixtures/project-euler/production/problem1.janus`, `tests/fixtures/project-euler/production/problem5.janus` |
+| `std.range` | `tests/fixtures/project-euler/production/problem1.janus`, `tests/fixtures/project-euler/production/problem5.janus`, `tests/fixtures/runtime/debug_struct_bool.janus` |
 | `std.result` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/owned_result_combinators.janus`, `tests/fixtures/runtime/owned_result_move_error.janus`, `tests/fixtures/runtime/owned_result_observe_temporary_error.janus`, `tests/fixtures/runtime/owned_result_try.janus`, `tests/fixtures/runtime/owned_result_try_move_error.janus`, `tests/fixtures/runtime/owned_result_try_reuse_error.janus`, `tests/fixtures/runtime/result_combinators.janus`, `tests/fixtures/runtime/text_api.janus` |
 | `std.system` | `tests/fixtures/runtime/processes.janus`, `tests/fixtures/runtime/system_result.janus` |
 | `std.text` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/text_api.janus` |

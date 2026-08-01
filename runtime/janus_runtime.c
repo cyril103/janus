@@ -103,7 +103,7 @@ void janus_print_float(float value) {
   (void)fprintf(stdout, "%.9g", (double)value);
 }
 
-void janus_print_bool(bool value) {
+void janus_print_bool(uint8_t value) {
   const char *text = value ? "true" : "false";
   janus_write_stdout(text, value ? 4 : 5);
 }
