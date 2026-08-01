@@ -1,0 +1,16 @@
+import std.range
+
+struct Item(val value : long, val enabled : bool, val message : string)
+derives Copy, Debug {}
+
+def buildItem(enabled : bool, index : long) : Item {
+    return new Item(index, enabled, "")
+}
+
+def main() : int {
+    for index in range(0, 4) {
+        val item : Item = buildItem(index % 2 == 0, long(index))
+        debug(item)
+    }
+    return 0
+}
