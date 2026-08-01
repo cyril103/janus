@@ -415,7 +415,8 @@ std::filesystem::path unique_temporary_path(
 
 void publish_immutable(const std::filesystem::path &temporary,
                        const std::filesystem::path &destination,
-                       std::string_view description) {
+                       std::string_view description,
+                       bool accept_existing = false) {
   std::error_code error;
 #ifdef _WIN32
   if (!MoveFileExW(temporary.c_str(), destination.c_str(),
@@ -431,7 +432,7 @@ void publish_immutable(const std::filesystem::path &temporary,
 #endif
   if (error && std::filesystem::is_regular_file(destination)) {
     const bool identical = file_digest(temporary) == file_digest(destination);
-    if (identical) {
+    if (identical || accept_existing) {
       error.clear();
       std::error_code remove_error;
       std::filesystem::remove(temporary, remove_error);
@@ -474,9 +475,8 @@ std::string atomic_copy_immutable(const std::filesystem::path &source,
   const auto temporary = unique_temporary_path(destination);
   try {
     std::filesystem::copy_file(source, temporary);
-    const std::string digest = file_digest(temporary);
-    publish_immutable(temporary, destination, "cached artifact");
-    return digest;
+    publish_immutable(temporary, destination, "cached artifact", true);
+    return file_digest(destination);
   } catch (...) {
     std::error_code ignored;
     std::filesystem::remove_all(temporary.parent_path(), ignored);
@@ -823,6 +823,9 @@ void IncrementalCache::store(std::string_view key, std::string_view identity,
   const auto cached_artifact = artifact_path(key);
   const std::string digest =
       atomic_copy_immutable(artifact, cached_artifact);
+  if (file_digest(artifact) != digest &&
+      !atomic_replace_copy_if_digest(cached_artifact, artifact, digest))
+    throw std::runtime_error{"cannot converge output on cached artifact"};
   std::string metadata = "schema=1\nidentity=" + std::string{identity} +
                          "\ndigest=" + digest + "\n";
   atomic_write(entry_path(key), metadata);

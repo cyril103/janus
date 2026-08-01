@@ -211,14 +211,13 @@ void test_store_is_atomic_concurrent_and_validated() {
 
   const auto conflicting = root / "conflicting.bin";
   std::ofstream{conflicting, std::ios::binary} << "different-artifact";
-  bool conflicting_publish_rejected = false;
-  try {
-    cache.store(key, identity, conflicting, consumer);
-  } catch (const std::exception &) {
-    conflicting_publish_rejected = true;
-  }
-  require(conflicting_publish_rejected,
-          "a conflicting immutable cache publication was accepted");
+  cache.store(key, identity, conflicting, consumer);
+  std::ifstream converged{conflicting, std::ios::binary};
+  require(std::string{std::istreambuf_iterator<char>{converged},
+                      std::istreambuf_iterator<char>{}} ==
+              "known-good-artifact",
+          "a competing cache writer did not converge on the winning artifact");
+  converged.close();
 
   require(cache.restore(key, identity + "-collision", restored) ==
               janus::driver::CacheLookup::Miss,

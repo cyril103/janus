@@ -112,9 +112,11 @@ void validate(const janus::driver::Manifest &manifest) {
           std::regex{R"([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)"}))
     throw std::runtime_error{
         "janus.toml: package.version must use semantic versioning"};
-  if (manifest.entry.empty() || manifest.entry.is_absolute() ||
-      manifest.entry.extension() != ".janus" ||
-      (!manifest.entry.empty() && *manifest.entry.begin() == ".."))
+  const std::filesystem::path normalized_entry =
+      manifest.entry.lexically_normal();
+  if (manifest.entry.empty() || manifest.entry.has_root_path() ||
+      normalized_entry.extension() != ".janus" ||
+      (!normalized_entry.empty() && *normalized_entry.begin() == ".."))
     throw std::runtime_error{
         "janus.toml: package.entry must be a relative .janus path"};
   for (const janus::driver::Dependency &dependency : manifest.dependencies) {

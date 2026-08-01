@@ -273,7 +273,7 @@ jobs:
         run: scripts/smoke-test-package.sh dist/janus-*.tar.gz
 
   release-compatibility:
-    name: Published 0.7.6 to current compatibility
+    name: Latest published to current compatibility
     needs: toolchain
     runs-on: ubuntu-24.04
     env:
@@ -289,11 +289,33 @@ jobs:
           name: janus-Linux-X64
           path: dist/current
 
+      - name: Resolve latest published baseline
+        id: baseline
+        shell: bash
+        run: |
+          current_tag="v$(python3 -c \
+            'import json; print(json.load(open("editors/vscode/package.json"))["version"])')"
+          baseline_tag="$(
+            gh release list --limit 50 \
+              --json tagName,isDraft,isPrerelease \
+              --jq '.[] | select(.isDraft == false and .isPrerelease == false) | .tagName' \
+              | awk -v current="$current_tag" '$0 != current { print; exit }'
+          )"
+          if [[ ! "$baseline_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Could not resolve the latest stable Janus baseline" >&2
+            exit 1
+          fi
+          echo "tag=$baseline_tag" >> "$GITHUB_OUTPUT"
+          echo "version=${baseline_tag#v}" >> "$GITHUB_OUTPUT"
+
       - name: Download published baseline
-        run: >
-          gh release download v0.7.6
-          --pattern 'janus-0.7.6-Linux-x86_64.tar.gz*'
-          --dir dist/previous
+        env:
+          BASELINE_TAG: ${{ steps.baseline.outputs.tag }}
+          BASELINE_VERSION: ${{ steps.baseline.outputs.version }}
+        run: |
+          gh release download "$BASELINE_TAG" \
+            --pattern "janus-$BASELINE_VERSION-Linux-x86_64.tar.gz*" \
+            --dir dist/previous
 
       - name: Verify and extract distributions
         shell: bash

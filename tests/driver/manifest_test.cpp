@@ -71,6 +71,21 @@ int main() {
       rejected = true;
     }
     require(rejected, "invalid package metadata was accepted");
+
+    {
+      std::ofstream output{path};
+      output << "[package]\n"
+             << "name = \"escape\"\n"
+             << "version = \"1.0.0\"\n"
+             << "entry = \"src/../../outside.janus\"\n";
+    }
+    rejected = false;
+    try {
+      static_cast<void>(janus::driver::load_manifest(path));
+    } catch (const std::runtime_error &) {
+      rejected = true;
+    }
+    require(rejected, "package entry escaped the manifest root");
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';
     return 1;

@@ -108,7 +108,15 @@ void janus_print_bool(uint8_t value) {
   janus_write_stdout(text, value ? 4 : 5);
 }
 
+static uint32_t janus_valid_codepoint(uint32_t codepoint) {
+  if (codepoint > UINT32_C(0x10ffff) ||
+      (codepoint >= UINT32_C(0xd800) && codepoint <= UINT32_C(0xdfff)))
+    return UINT32_C(0xfffd);
+  return codepoint;
+}
+
 void janus_print_char(uint32_t codepoint) {
+  codepoint = janus_valid_codepoint(codepoint);
   char bytes[4];
   size_t size;
   if (codepoint <= 0x7f) {
@@ -178,9 +186,7 @@ uint64_t janus_text_char(char *buffer, uint64_t capacity, uint64_t offset,
                          uint32_t codepoint) {
   char bytes[4];
   uint64_t size;
-  if (codepoint > UINT32_C(0x10ffff) ||
-      (codepoint >= UINT32_C(0xd800) && codepoint <= UINT32_C(0xdfff)))
-    codepoint = UINT32_C(0xfffd);
+  codepoint = janus_valid_codepoint(codepoint);
   if (codepoint <= 0x7f) {
     bytes[0] = (char)codepoint; size = 1;
   } else if (codepoint <= 0x7ff) {
