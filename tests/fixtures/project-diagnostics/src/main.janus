@@ -1,0 +1,4 @@
+import left
+import right
+
+def main() : int { return 0 }
