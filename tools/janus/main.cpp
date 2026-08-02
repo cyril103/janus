@@ -79,6 +79,8 @@ struct Options {
   bool locked{};
   bool offline{};
   bool no_cache{};
+  bool check_all_modules{};
+  bool deny_warnings{};
   bool format_check{};
   bool doc_open{};
   bool doc_stdlib{};
@@ -197,11 +199,12 @@ void print_usage(std::ostream &output) {
          << "  janus publish [--registry <url>]\n"
          << "  janus clean\n"
          << "  janus check [source.janus] "
+            "[--all] [--deny-warnings] "
             "[--diagnostic-format human|json]\n"
          << "  janus build [source.janus] [-o output] [--release] "
             "[--emit llvm-ir|object] [--panic-trace full|short|off] "
             "[--diagnostic-format human|json] [--timings[=human|json]] "
-            "[--no-cache]\n"
+            "[--no-cache] [--deny-warnings]\n"
          << "  janus run [source.janus] [--release] "
             "[--panic-trace full|short|off]\n"
          << "  janus test [filter] [--doc] [--doc-path <path>] "
@@ -222,7 +225,7 @@ void print_command_usage(std::ostream &output, std::string_view command) {
   output << "usage: janus " << command;
   if (command == "check")
     output << " [source.janus] [--locked] [--offline] "
-              "[--warn-high-growth-loops] "
+              "[--all] [--deny-warnings] [--warn-high-growth-loops] "
               "[--diagnostic-format human|json]\n";
   else if (command == "build")
     output << " [source.janus] [-o output] [--release] "
@@ -230,7 +233,7 @@ void print_command_usage(std::ostream &output, std::string_view command) {
               "[--panic-trace full|short|off] "
               "[--warn-high-growth-loops] "
               "[--diagnostic-format human|json] "
-              "[--timings[=human|json]] [--no-cache]\n";
+              "[--timings[=human|json]] [--no-cache] [--deny-warnings]\n";
   else if (command == "run")
     output << " [source.janus] [--release] [--locked] [--offline] "
               "[--panic-trace full|short|off] [--warn-high-growth-loops]\n";
@@ -431,6 +434,10 @@ Options parse_options(int argc, char **argv) {
       options.offline = true;
     } else if (argument == "--no-cache") {
       options.no_cache = true;
+    } else if (argument == "--all") {
+      options.check_all_modules = true;
+    } else if (argument == "--deny-warnings") {
+      options.deny_warnings = true;
     } else if (argument == "--check" && options.command == "fmt") {
       options.format_check = true;
     } else if (argument == "--open" && options.command == "doc") {
@@ -629,6 +636,12 @@ Options parse_options(int argc, char **argv) {
     throw UsageError{options.command, "--timings is only available for build"};
   if (options.no_cache && options.command != "build")
     throw UsageError{options.command, "--no-cache is only available for build"};
+  if (options.check_all_modules && options.command != "check")
+    throw UsageError{options.command, "--all is only available for check"};
+  if (options.deny_warnings && options.command != "check" &&
+      options.command != "build")
+    throw UsageError{options.command,
+                     "--deny-warnings is only available for check and build"};
   if (options.command == "clean" &&
       (!options.source.empty() || !options.output.empty() || options.release ||
        options.locked || options.offline || options.no_cache ||
@@ -641,6 +654,7 @@ Options parse_options(int argc, char **argv) {
        options.warn_high_growth_loops ||
        options.timings_format != Options::TimingsFormat::None ||
        options.diagnostic_format_set || options.panic_trace_set ||
+       options.check_all_modules || options.deny_warnings ||
        options.emit_llvm || options.emit_object))
     throw UsageError{options.command, "clean does not accept arguments"};
   if (options.release && !options.panic_trace_set)
@@ -650,6 +664,14 @@ Options parse_options(int argc, char **argv) {
     options.manifest = janus::driver::load_manifest(
         janus::driver::find_manifest(std::filesystem::current_path()));
     options.source = options.manifest->entry_path();
+  } else if (!options.source.empty() &&
+             (options.command == "check" || options.command == "build" ||
+              options.command == "run")) {
+    try {
+      options.manifest = janus::driver::load_manifest(
+          janus::driver::find_manifest(options.source));
+    } catch (const std::runtime_error &) {
+    }
   }
   return options;
 }
@@ -712,7 +734,9 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
                                   ? CompilationTimings::Clock::time_point{}
                                   : CompilationTimings::Clock::now();
   janus::semantic::Analyzer analyzer;
-  const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
+  const janus::semantic::AnalysisResult analysis = analyzer.analyze(
+      program,
+      janus::semantic::AnalysisOptions{!program.module_name.has_value()});
   if (timings != nullptr)
     timings->analysis += std::chrono::steady_clock::now() - analysis_start;
   const std::string source_name = source_name_override.empty()
@@ -743,6 +767,129 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
     timings->llvm_generation +=
         std::chrono::steady_clock::now() - generation_start;
   return module;
+}
+
+struct DiagnosticBatch {
+  std::filesystem::path path;
+  std::string source;
+  std::vector<janus::Diagnostic> diagnostics;
+};
+
+std::vector<std::filesystem::path>
+project_sources(const Options &options, bool exhaustive) {
+  std::vector<std::filesystem::path> paths;
+  const auto add = [&paths](const std::filesystem::path &path) {
+    const std::filesystem::path normalized =
+        std::filesystem::absolute(path).lexically_normal();
+    if (std::filesystem::is_regular_file(normalized) &&
+        std::find(paths.begin(), paths.end(), normalized) == paths.end())
+      paths.push_back(normalized);
+  };
+  add(options.source);
+  if (exhaustive && options.manifest.has_value()) {
+    const std::filesystem::path source_root = options.manifest->root() / "src";
+    std::error_code error;
+    for (std::filesystem::recursive_directory_iterator iterator{
+             source_root,
+             std::filesystem::directory_options::skip_permission_denied, error},
+         end;
+         iterator != end; iterator.increment(error)) {
+      if (error) {
+        error.clear();
+        continue;
+      }
+      if (iterator->is_regular_file(error) &&
+          iterator->path().extension() == ".janus")
+        add(iterator->path());
+      error.clear();
+    }
+  }
+  std::sort(paths.begin(), paths.end());
+  return paths;
+}
+
+int check_sources(const Options &options, const Toolchain &toolchain,
+                  bool exhaustive) {
+  std::vector<DiagnosticBatch> batches;
+  bool has_error = false;
+  bool has_warning = false;
+  for (const std::filesystem::path &path :
+       project_sources(options, exhaustive)) {
+    DiagnosticBatch batch;
+    batch.path = path;
+    try {
+      std::ifstream input{path, std::ios::binary};
+      if (!input)
+        throw std::runtime_error{"cannot read '" + path.string() + "'"};
+      batch.source.assign(std::istreambuf_iterator<char>{input},
+                          std::istreambuf_iterator<char>{});
+      std::vector<std::filesystem::path> search_paths{toolchain.stdlib};
+      search_paths.insert(search_paths.end(), options.dependency_paths.begin(),
+                          options.dependency_paths.end());
+      janus::frontend::ModuleLoader loader{std::move(search_paths)};
+      const janus::ast::Program program = loader.load(path);
+      const janus::semantic::AnalysisResult analysis =
+          janus::semantic::Analyzer{}.analyze(
+              program, janus::semantic::AnalysisOptions{
+                           !program.module_name.has_value()});
+      batch.diagnostics = analysis.diagnostics;
+      if (options.warn_high_growth_loops)
+        for (const janus::diagnostics::HighGrowthLoopWarning &warning :
+             janus::diagnostics::find_high_growth_loop_warnings(program))
+          batch.diagnostics.push_back(janus::Diagnostic{
+              janus::DiagnosticSeverity::Warning,
+              janus::DiagnosticCode::Unclassified,
+              "high-growth loop pattern may cause integer overflow or "
+              "excessive running time; add an explicit bound, use a safe "
+              "numeric type, or enforce a time budget",
+              warning.location,
+              {},
+              {},
+              {},
+          });
+    } catch (const janus::CompileError &error) {
+      batch.diagnostics = error.diagnostics();
+    } catch (const std::exception &error) {
+      batch.diagnostics.push_back(janus::Diagnostic{
+          janus::DiagnosticSeverity::Error,
+          janus::DiagnosticCode::Unclassified,
+          error.what(),
+          janus::SourceLocation{},
+          {},
+          {},
+          {},
+      });
+    }
+    for (janus::Diagnostic &diagnostic : batch.diagnostics) {
+      diagnostic.source_path = path;
+      has_error =
+          has_error ||
+          diagnostic.severity == janus::DiagnosticSeverity::Error;
+      has_warning =
+          has_warning ||
+          diagnostic.severity == janus::DiagnosticSeverity::Warning;
+    }
+    if (!batch.diagnostics.empty())
+      batches.push_back(std::move(batch));
+  }
+
+  if (options.diagnostic_format ==
+      janus::diagnostics::DiagnosticFormat::Json) {
+    std::vector<janus::Diagnostic> diagnostics;
+    for (DiagnosticBatch &batch : batches)
+      diagnostics.insert(diagnostics.end(),
+                         std::make_move_iterator(batch.diagnostics.begin()),
+                         std::make_move_iterator(batch.diagnostics.end()));
+    if (!diagnostics.empty())
+      std::cerr << janus::diagnostics::render_diagnostics(
+          {}, {}, diagnostics, options.diagnostic_format);
+  } else {
+    for (const DiagnosticBatch &batch : batches)
+      std::cerr << janus::diagnostics::render_diagnostics(
+          batch.path, batch.source, batch.diagnostics,
+          options.diagnostic_format);
+  }
+  return has_error || (options.deny_warnings && has_warning) ? 1 : 0;
 }
 
 double milliseconds(CompilationTimings::Duration duration) {
@@ -2076,15 +2223,24 @@ int main(int argc, char **argv) {
       return 0;
     }
     const Toolchain toolchain = locate_toolchain(argv[0]);
-    if (options.manifest.has_value())
+    if (options.manifest.has_value()) {
       options.dependency_paths = janus::driver::resolve_dependencies(
           *options.manifest, {options.locked, options.offline});
-    if (options.command == "test") {
       options.dependency_paths.push_back(options.manifest->root() / "src");
+    }
+    if (options.command == "test") {
       return run_tests(options, toolchain);
     }
     diagnostic_path = options.source;
     if (options.command == "check") {
+      if (options.check_all_modules || options.deny_warnings) {
+        const int status = check_sources(
+            options, toolchain,
+            options.check_all_modules || options.deny_warnings);
+        if (status == 0)
+          std::cout << "checked " << options.source.string() << '\n';
+        return status;
+      }
       llvm::LLVMContext context;
       static_cast<void>(
           compile(options.source, context, toolchain, options.dependency_paths,
@@ -2094,6 +2250,11 @@ int main(int argc, char **argv) {
       return 0;
     }
     if (options.command == "build") {
+      if (options.deny_warnings) {
+        const int status = check_sources(options, toolchain, true);
+        if (status != 0)
+          return status;
+      }
       CompilationTimings timings;
       const int status = build(
           options, default_output(options), toolchain,
