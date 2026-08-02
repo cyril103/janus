@@ -3,27 +3,25 @@ class Box[T](var value : T) {
         return value
     }
 
-    def set(next : T) : T {
-        value = next
-        return value
+    def set(next : T) : Unit {
+        delete value
+        value = move next
     }
 
     destructor {
+        delete value
     }
 }
 
 def main() : int {
     val integers : Box[int] = new Box[int](41)
     defer delete integers
-    val result : int = integers.set(42)
+    integers.set(42)
+    val result : int = integers.get()
 
     val text : Box[string] = new Box[string]("Janus")
     defer delete text
-    val message : string = text.get()
-
-    val nested : Box[Box[int]] = new Box[Box[int]](integers)
-    defer delete nested
-    val inner : Box[int] = nested.get()
+    val _message : string = text.get()
 
     return result
 }

@@ -512,6 +512,14 @@ if(BUILD_TESTING)
         COMMAND janus check
                 "${PROJECT_SOURCE_DIR}/examples/snake/main.janus"
     )
+    add_test(
+        NAME examples.warning_free
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUS=$<TARGET_FILE:janus>"
+            "-DEXAMPLES_DIR=${PROJECT_SOURCE_DIR}/examples"
+            -P "${PROJECT_SOURCE_DIR}/tests/driver/check_examples_warning_free.cmake"
+    )
     add_test(NAME lsp.version COMMAND janus-lsp --version)
     add_executable(parser_top_level_declaration_test
         tests/frontend/parser_top_level_declaration_test.cpp

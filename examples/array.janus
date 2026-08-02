@@ -15,18 +15,18 @@ def main() : int {
     new ArrayBuilder[int](usize(3))
     defer delete builder
     builder.addAll[Array[int]](values)
-    val pendingSize : int = int(builder.size())
+    val pendingSize : int = numericCast[int](builder.size())
     builder.clear()
     builder.addAll[Array[int]](values)
     builder.add(30)
     val built : Array[int] = builder.result()
     defer delete built
-    val builtSize : int = int(built.size())
+    val builtSize : int = numericCast[int](built.size())
 
     val hashing : IntHashing = new IntHashing()
     defer delete hashing
     val hashSample : int =
-    int(hashing.hash(42) % usize(10))
+    numericCast[int](hashing.hash(42) % usize(10))
     val hashMatches : bool = hashing.equals(42, 42)
 
     val unique : HashSet[int, IntHashing] =
@@ -59,13 +59,13 @@ def main() : int {
     val numbers : HashMap[int, int, IntHashing] =
     new HashMap[int, int, IntHashing](usize(4), hashing)
     defer delete numbers
-    numbers.put(1, 10)
-    numbers.put(2, 20)
-    numbers.put(3, 30)
-    numbers.put(4, 40)
-    numbers.put(5, 50)
-    numbers.put(6, 60)
-    numbers.put(7, 70)
+    val _insertedOne : Option[int] = numbers.put(1, 10)
+    val _insertedTwo : Option[int] = numbers.put(2, 20)
+    val _insertedThree : Option[int] = numbers.put(3, 30)
+    val _insertedFour : Option[int] = numbers.put(4, 40)
+    val _insertedFive : Option[int] = numbers.put(5, 50)
+    val _insertedSix : Option[int] = numbers.put(6, 60)
+    val _insertedSeven : Option[int] = numbers.put(7, 70)
     val replaced : Option[int] = numbers.put(1, 11)
     val fetched : Option[int] = numbers.getOption(1)
     val removedFromMap : Option[int] = numbers.remove(2)
@@ -161,16 +161,16 @@ def main() : int {
         None => 0
     }
 
-    val result : int = sum + int(halved.get(usize(0))) +
-    int(hasTwenty) + int(allPositive) + int(largeCount) +
-    int(filtered.size()) + foundValue + missingValue + poppedValue +
+    val result : int = sum + numericCast[int](halved.get(usize(0))) +
+    int(hasTwenty) + int(allPositive) + numericCast[int](largeCount) +
+    numericCast[int](filtered.size()) + foundValue + missingValue + poppedValue +
     int(values.isEmpty()) + firstValue + loopSum + builtSize +
     pendingSize + hashSample + int(hashMatches) +
     int(removedFromSet) + int(setContainsTen) +
-    int(unique.size()) + int(builtSet.size()) + setSum +
+    numericCast[int](unique.size()) + numericCast[int](builtSet.size()) + setSum +
     replacedValue + fetchedValue + removedMapValue +
     int(mapContainsOne) + keySum + valueSum + entrySum +
-    int(builtMap.size())
+    numericCast[int](builtMap.size())
 
     return result
 }

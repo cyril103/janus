@@ -41,7 +41,9 @@ def placeFood(snake : Array[Cell], random : Random) : Cell {
     var occupied : bool = true
     var attempts : int = 0
     val start : int =
-        int(random.nextBounded(usize(columns * rows)))
+        numericCast[int](
+        random.nextBounded(numericCast[usize](columns * rows))
+        )
 
     while occupied && attempts < columns * rows {
         val candidate : int = (start + attempts) % (columns * rows)
@@ -167,7 +169,12 @@ def drawGame(food : Cell, score : int, scoreText : TextBuilder) : Unit {
 
     val foodCenterX : int = boardX + food.x * cellSize + cellSize / 2
     val foodCenterY : int = boardY + food.y * cellSize + cellSize / 2
-    drawCircle(foodCenterX, foodCenterY, float(9.0), rgb(255, 91, 105))
+    drawCircle(
+    foodCenterX,
+    foodCenterY,
+    numericCast[float](9.0),
+    rgb(255, 91, 105)
+    )
     drawRectangle(foodCenterX, foodCenterY - 13, 3, 6, rgb(115, 231, 155))
 
     drawText("ESPACE : PAUSE   |   ECHAP : QUITTER", 214, 574, 16,
@@ -217,7 +224,8 @@ def main() : int {
     vector2(float(screenWidth), float(screenHeight))
     )
 
-    val snake : Array[Cell] = new Array[Cell](usize(columns * rows))
+    val snake : Array[Cell] =
+    new Array[Cell](numericCast[usize](columns * rows))
     defer delete snake
     val scoreText : TextBuilder = new TextBuilder()
     defer delete scoreText
@@ -238,7 +246,8 @@ def main() : int {
     while !windowShouldClose() && !isKeyPressed(Key.Escape) {
         val frameDuration : Duration = frameTime()
         val elapsedDuration : Duration = elapsedTime()
-        val elapsed : float = float(elapsedDuration.seconds())
+        val elapsed : float =
+        numericCast[float](elapsedDuration.seconds())
         if isKeyPressed(Key.Space) && !gameOver {
             paused = !paused
         }
@@ -346,19 +355,22 @@ def main() : int {
             defer endBlend()
             snakeLayer.drawPro(
             rectangle(
-            float(0.0),
-            float(0.0),
-            float(screenWidth),
-            float(-screenHeight)
+            numericCast[float](0.0),
+            numericCast[float](0.0),
+            numericCast[float](screenWidth),
+            numericCast[float](-screenHeight)
             ),
             rectangle(
-            float(0.0),
-            float(0.0),
-            float(screenWidth),
-            float(screenHeight)
+            numericCast[float](0.0),
+            numericCast[float](0.0),
+            numericCast[float](screenWidth),
+            numericCast[float](screenHeight)
             ),
-            vector2(float(0.0), float(0.0)),
-            float(0.0),
+            vector2(
+            numericCast[float](0.0),
+            numericCast[float](0.0)
+            ),
+            numericCast[float](0.0),
             White
             )
             endShader()

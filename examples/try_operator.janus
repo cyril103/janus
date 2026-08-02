@@ -28,11 +28,11 @@ def main() : int {
     convertResult(Result.Error[int, string]("failure"))
 
     val optionValue : int = match option {
-        Some(value) => int(value),
+        Some(value) => numericCast[int](value),
         None => 0
     }
     val resultValue : int = match result {
-        Ok(value) => int(value),
+        Ok(value) => numericCast[int](value),
         Error(message) => 0
     }
     val propagated : int = match failed {

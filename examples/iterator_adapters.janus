@@ -8,7 +8,7 @@ def main() : int {
     }
 
     for indexed in range(5, 8).enumerate() {
-        total = total + int(indexed.index) + indexed.value
+        total = total + numericCast[int](indexed.index) + indexed.value
     }
 
     for value in range(1, 4).flatMap[int](

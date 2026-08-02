@@ -3,6 +3,13 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## Non publié
+
+### Exemples
+
+- suppression des avertissements de sûreté dans les 36 exemples Janus et
+  ajout d'une gate CI qui refuse toute nouvelle régression.
+
 ## [0.9.0] - 2026-08-02
 
 Cette version mineure renforce l'analyse de sûreté et les contrats de

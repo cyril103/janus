@@ -1,9 +1,9 @@
 def main() : int {
-    val ratio : double = 3.5
-    val small : byte = 127
-    val glyph : char = '😀'
-    val ready : bool = true
-    val stopped : bool = false
-    val message : string = "Bonjour 🌍"
+    val _ratio : double = 3.5
+    val _small : byte = 127
+    val _glyph : char = '😀'
+    val _ready : bool = true
+    val _stopped : bool = false
+    val _message : string = "Bonjour 🌍"
     return 0
 }

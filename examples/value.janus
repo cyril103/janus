@@ -1,4 +1,4 @@
 def main() : int {
-    val x : int = 5
+    val _x : int = 5
     return 0
 }

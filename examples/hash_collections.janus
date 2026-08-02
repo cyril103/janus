@@ -16,12 +16,12 @@ def main() : int {
     val values : HashMap[int, int, IntHashing] =
     new HashMap[int, int, IntHashing](usize(8), hashing)
     defer delete values
-    values.put(1, 10)
-    values.put(2, 20)
+    val _insertedOne : Option[int] = values.put(1, 10)
+    val _insertedTwo : Option[int] = values.put(2, 20)
 
     val fetched : Option[int] = values.getOption(2)
     return match fetched {
-        Some(value) => value + int(unique.size()),
+        Some(value) => value + numericCast[int](unique.size()),
         None => 0
     }
 }
