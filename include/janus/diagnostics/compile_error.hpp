@@ -28,6 +28,8 @@ enum class DiagnosticCode {
   ParserExpectedExpression,
   AnalyzerUnknownValue,
   AnalyzerPotentialMemoryLeak,
+  AnalyzerOwningValueOverwritten,
+  AnalyzerOwningResultDiscarded,
   ModuleNotFound,
   BackendCyclicGlobalConstant,
 };
@@ -45,6 +47,10 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0001";
   case DiagnosticCode::AnalyzerPotentialMemoryLeak:
     return "JANA0002";
+  case DiagnosticCode::AnalyzerOwningValueOverwritten:
+    return "JANA0003";
+  case DiagnosticCode::AnalyzerOwningResultDiscarded:
+    return "JANA0004";
   case DiagnosticCode::ModuleNotFound:
     return "JMOD0001";
   case DiagnosticCode::BackendCyclicGlobalConstant:

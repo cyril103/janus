@@ -2331,6 +2331,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (!pointer.is_pointer())
                   throw CompileError{node.location,
                                      "free requires a Ptr[T] argument"};
+                if (const auto *identifier =
+                        std::get_if<ast::IdentifierExpression>(
+                            &node.arguments.front()->value)) {
+                  if (deferred_values.contains(identifier->name))
+                    throw CompileError{
+                        node.location,
+                        "owning value '" + identifier->name +
+                            "' is scheduled for deferred cleanup"};
+                  if (active_symbols->contains(identifier->name)) {
+                    active_symbols->at(identifier->name).is_initialized =
+                        false;
+                    active_symbols->at(identifier->name).may_be_initialized =
+                        false;
+                  }
+                }
                 return SemanticType{&Type::unit_type()};
               }
               const bool is_builtin_cast = builtin_type(node.callee) != nullptr;
@@ -3541,6 +3556,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           },
           statement);
     };
+    const auto is_null_pointer_expression = [](const ast::Expression &value) {
+      const auto *call = std::get_if<ast::CallExpression>(&value.value);
+      return call != nullptr && call->callee == "null";
+    };
 
     std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
         validate_block;
@@ -3698,6 +3717,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           block_symbols.emplace(declaration->name,
                                 Symbol{declared_type, declaration->is_mutable,
                                        declaration->initializer.has_value()});
+          if (declaration->initializer.has_value() &&
+              is_null_pointer_expression(*declaration->initializer))
+            block_symbols.at(declaration->name).may_be_initialized = false;
           local_declarations.insert_or_assign(declaration->name,
                                                declaration->location);
           scope_declarations.emplace_back(declaration->name,
@@ -3807,10 +3829,30 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{assignment->location,
                                "cannot assign to immutable value '" +
                                    assignment->name + "'"};
+          const bool may_overwrite_owner =
+              report_local_warnings &&
+              iterator->second.may_be_initialized &&
+              potentially_owns_value(iterator->second.type);
           validate_expression(assignment->expression, iterator->second.type,
                               assignment->location);
+          if (may_overwrite_owner &&
+              iterator->second.may_be_initialized) {
+            result.diagnostics.push_back(Diagnostic{
+                DiagnosticSeverity::Warning,
+                DiagnosticCode::AnalyzerOwningValueOverwritten,
+                "assignment to '" + assignment->name +
+                    "' may overwrite a live owning value of type '" +
+                    iterator->second.type.name() + "'",
+                assignment->location,
+                {"delete or move the current value before assigning its "
+                 "replacement"},
+                {},
+                {},
+            });
+          }
           iterator->second.is_initialized = true;
-          iterator->second.may_be_initialized = true;
+          iterator->second.may_be_initialized =
+              !is_null_pointer_expression(assignment->expression);
           continue;
         }
 
@@ -3949,7 +3991,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{
                 expression_statement->location,
                 "only function and method calls can be used as statements"};
-          static_cast<void>(expression_type(expression_statement->expression));
+          const SemanticType discarded_type =
+              expression_type(expression_statement->expression);
+          if (report_local_warnings &&
+              potentially_owns_value(discarded_type) &&
+              !is_null_pointer_expression(
+                  expression_statement->expression)) {
+            result.diagnostics.push_back(Diagnostic{
+                DiagnosticSeverity::Warning,
+                DiagnosticCode::AnalyzerOwningResultDiscarded,
+                "call result has owning type '" + discarded_type.name() +
+                    "' and is discarded",
+                expression_statement->location,
+                {"bind the result and delete or move it if ownership was "
+                 "transferred; borrowed results need an ownership-explicit "
+                 "API"},
+                {},
+                {},
+            });
+          }
           if (const auto *call = std::get_if<ast::CallExpression>(
                   &expression_statement->expression.value);
               call != nullptr && call->callee == "panic") {

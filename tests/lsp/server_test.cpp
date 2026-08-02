@@ -85,6 +85,14 @@ int main() {
   assert(leak_warning.front().find("may reach the end of its scope") !=
          std::string::npos);
 
+  const std::vector<std::string> ownership_warnings = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///ownership-warnings.janus","text":"class Resource() {}\ndef make() : Resource { return new Resource() }\ndef main() : int {\n    var resource : Resource = new Resource()\n    resource = new Resource()\n    delete resource\n    make()\n    return 0\n}"}}})");
+  assert(ownership_warnings.size() == 1);
+  assert(ownership_warnings.front().find("\"code\":\"JANA0003\"") !=
+         std::string::npos);
+  assert(ownership_warnings.front().find("\"code\":\"JANA0004\"") !=
+         std::string::npos);
+
   const std::vector<std::string> safe_correction_diagnostic = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///safe-correction.janus","text":"def main() : int { return @0 }"}}})");
   assert(safe_correction_diagnostic.size() == 1);

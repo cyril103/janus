@@ -35,6 +35,16 @@ bool warns_about(const janus::semantic::AnalysisResult &analysis,
       });
 }
 
+bool warns_with_code(const janus::semantic::AnalysisResult &analysis,
+                     janus::DiagnosticCode code) {
+  return std::any_of(
+      analysis.diagnostics.begin(), analysis.diagnostics.end(),
+      [code](const janus::Diagnostic &diagnostic) {
+        return diagnostic.severity == janus::DiagnosticSeverity::Warning &&
+               diagnostic.code == code;
+      });
+}
+
 } // namespace
 
 int main() {
@@ -137,6 +147,79 @@ def main() : int { return 0 }
 )");
   expect(warns_about(propagation, "guard"),
          "an owner live across a propagating question mark warns");
+
+  const auto overwritten = analyze(R"(
+class Resource() {}
+def main() : int {
+    var resource : Resource = new Resource()
+    resource = new Resource()
+    delete resource
+    return 0
+}
+)");
+  expect(warns_with_code(
+             overwritten,
+             janus::DiagnosticCode::AnalyzerOwningValueOverwritten),
+         "overwriting a live owner produces a dedicated warning");
+  expect(!warns_with_code(
+             overwritten,
+             janus::DiagnosticCode::AnalyzerPotentialMemoryLeak),
+         "cleaning the replacement avoids a scope-exit leak warning");
+
+  const auto consumed_before_assignment = analyze(R"(
+class Resource() {}
+def renew(resource : Resource) : Resource {
+    delete resource
+    return new Resource()
+}
+def main() : int {
+    var resource : Resource = new Resource()
+    resource = renew(move resource)
+    delete resource
+    return 0
+}
+)");
+  expect(consumed_before_assignment.diagnostics.empty(),
+         "an assignment whose expression consumes the old owner does not warn");
+
+  const auto discarded = analyze(R"(
+class Resource() {}
+def make() : Resource { return new Resource() }
+def main() : int {
+    make()
+    return 0
+}
+)");
+  expect(warns_with_code(
+             discarded,
+             janus::DiagnosticCode::AnalyzerOwningResultDiscarded),
+         "discarding an owning call result produces a dedicated warning");
+
+  const auto unit_result = analyze(R"(
+class Resource() {}
+def dispose(resource : Resource) : Unit { delete resource }
+def main() : int {
+    dispose(new Resource())
+    return 0
+}
+)");
+  expect(unit_result.diagnostics.empty(),
+         "discarding a Unit call result does not warn");
+
+  const auto freed_pointers = analyze(R"(
+def main() : int {
+    val direct : Ptr[int] = alloc[int](usize(1))
+    free(direct)
+    val deferred : Ptr[int] = alloc[int](usize(1))
+    defer free(deferred)
+    val missing : Ptr[int] = null[int]()
+    if missing != null[int]() { return 1 }
+    null[int]()
+    return 0
+}
+)");
+  expect(freed_pointers.diagnostics.empty(),
+         "free consumes pointers and discarding null does not warn");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
