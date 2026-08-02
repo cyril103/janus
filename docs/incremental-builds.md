@@ -34,6 +34,10 @@ Les sources sont compilées depuis un instantané des contenus empreintés, puis
 revérifiées avant publication pour refuser une modification concurrente. Ces
 règles s'appliquent aussi aux builds `--offline`.
 
+`janus build --deny-warnings` exécute l'analyse exhaustive du projet avant la
+restauration éventuelle de l'artefact. Les avertissements restent donc visibles
+et bloquants de façon identique après un hit ou un miss du cache.
+
 Pour diagnostiquer un problème ou forcer une compilation indépendante du
 cache :
 
