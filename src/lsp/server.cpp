@@ -991,8 +991,9 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
       program = parser.parse_program();
     }
     const bool is_module = program.module_name.has_value();
-    static_cast<void>(semantic::Analyzer{}.analyze(
-        program, semantic::AnalysisOptions{!is_module}));
+    return semantic::Analyzer{}
+        .analyze(program, semantic::AnalysisOptions{!is_module})
+        .diagnostics;
   } catch (const CompileError &error) {
     return error.diagnostics();
   } catch (const std::exception &error) {

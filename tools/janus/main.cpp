@@ -586,6 +586,7 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
         const Toolchain &toolchain,
         const std::vector<std::filesystem::path> &dependency_paths,
         bool warn_high_growth_loops,
+        janus::diagnostics::DiagnosticFormat diagnostic_format,
         janus::backend::llvm::PanicTraceMode panic_trace,
         CompilationTimings *timings = nullptr,
         bool dependencies_only = false,
@@ -605,12 +606,15 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
       timings == nullptr ? CompilationTimings::Clock::time_point{}
                          : CompilationTimings::Clock::now();
   janus::semantic::Analyzer analyzer;
-  static_cast<void>(analyzer.analyze(program));
+  const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
   if (timings != nullptr)
     timings->analysis += std::chrono::steady_clock::now() - analysis_start;
   const std::string source_name = source_name_override.empty()
                                       ? source.string()
                                       : std::string{source_name_override};
+  if (!analysis.diagnostics.empty())
+    std::cerr << janus::diagnostics::render_diagnostics(
+        source_name, {}, analysis.diagnostics, diagnostic_format);
   if (warn_high_growth_loops) {
     for (const janus::diagnostics::HighGrowthLoopWarning &warning :
          janus::diagnostics::find_high_growth_loop_warnings(program)) {
@@ -1053,8 +1057,9 @@ int build(const Options &options, const std::filesystem::path &output,
         std::unique_ptr<llvm::Module> dependencies =
             compile(compilation_source, context, compilation_toolchain,
                     compilation_dependency_paths,
-                    options.warn_high_growth_loops, options.panic_trace, timings,
-                    true, options.source.string());
+                    options.warn_high_growth_loops, options.diagnostic_format,
+                    options.panic_trace, timings, true,
+                    options.source.string());
         if (const llvm::Function *entry = dependencies->getFunction("main");
             entry != nullptr && !entry->isDeclaration())
           throw std::runtime_error{
@@ -1105,8 +1110,9 @@ int build(const Options &options, const std::filesystem::path &output,
   if (!module)
     module = compile(compilation_source, context, compilation_toolchain,
                      compilation_dependency_paths,
-                     options.warn_high_growth_loops, options.panic_trace,
-                     timings, false, options.source.string());
+                     options.warn_high_growth_loops, options.diagnostic_format,
+                     options.panic_trace, timings, false,
+                     options.source.string());
   std::optional<std::filesystem::path> pending_consumer_bitcode;
   std::vector<std::string> pending_consumer_definitions;
   if (cache.has_value() && !reused_consumer) {
@@ -1154,8 +1160,9 @@ int build(const Options &options, const std::filesystem::path &output,
     cache->invalidate_consumer(consumer_key);
     module = compile(compilation_source, context, compilation_toolchain,
                      compilation_dependency_paths,
-                     options.warn_high_growth_loops, options.panic_trace,
-                     timings, false, options.source.string());
+                     options.warn_high_growth_loops, options.diagnostic_format,
+                     options.panic_trace, timings, false,
+                     options.source.string());
     reused_consumer = false;
     const auto bitcode = consumer_directory->path() / "consumer.bc";
     pending_consumer_definitions = consumer_definition_manifest(*module);
@@ -1275,6 +1282,7 @@ int run_tests(const Options &options, const Toolchain &toolchain) {
       llvm::LLVMContext context;
       static_cast<void>(compile(source, context, toolchain,
                                 options.dependency_paths, false,
+                                options.diagnostic_format,
                                 options.panic_trace));
       if (test.expectation == janus::driver::DoctestExpectation::CompilePass) {
         ++passed;
@@ -1474,7 +1482,8 @@ int main(int argc, char **argv) {
       llvm::LLVMContext context;
       static_cast<void>(
           compile(options.source, context, toolchain, options.dependency_paths,
-                  options.warn_high_growth_loops, options.panic_trace));
+                  options.warn_high_growth_loops, options.diagnostic_format,
+                  options.panic_trace));
       std::cout << "checked " << options.source.string() << '\n';
       return 0;
     }

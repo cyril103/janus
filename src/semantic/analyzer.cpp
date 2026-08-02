@@ -1737,6 +1737,40 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> transfer_protected_values;
     std::unordered_set<std::string> deferred_values;
     std::unordered_set<std::string> borrowed_values;
+    std::unordered_map<std::string, SourceLocation> local_declarations;
+    std::unordered_set<std::size_t> warned_leak_locations;
+    const bool report_local_warnings = context_module == program.module_name;
+    const auto warn_live_owner = [&](std::string_view name,
+                                     const Symbol &symbol,
+                                     SourceLocation location) {
+      if (!report_local_warnings || !symbol.may_be_initialized ||
+          deferred_values.contains(std::string{name}) ||
+          !potentially_owns_value(symbol.type) ||
+          !warned_leak_locations.insert(location.offset).second)
+        return;
+      result.diagnostics.push_back(Diagnostic{
+          DiagnosticSeverity::Warning,
+          DiagnosticCode::AnalyzerPotentialMemoryLeak,
+          "value '" + std::string{name} + "' has owning type '" +
+              symbol.type.name() +
+              "' and may reach the end of its scope without being deleted "
+              "or moved",
+          location,
+          {"if ownership was transferred, schedule cleanup with 'defer "
+           "delete " +
+           std::string{name} +
+           "'; borrowed aliases need an ownership-explicit API"},
+          {},
+          {},
+      });
+    };
+    const auto warn_all_live_owners = [&](const SymbolTable &active) {
+      for (const auto &[name, location] : local_declarations) {
+        const auto symbol = active.find(name);
+        if (symbol != active.end())
+          warn_live_owner(name, symbol->second, location);
+      }
+    };
     if (!is_destructor && owner != nullptr &&
         (context.function->name == "hash" ||
          context.function->name == "equals") &&
@@ -3105,6 +3139,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                            identifier->name +
                                            "' cannot be consumed"};
                   active_symbols->at(identifier->name).is_initialized = false;
+                  active_symbols->at(identifier->name).may_be_initialized =
+                      false;
                 } else if (!std::holds_alternative<ast::MoveExpression>(
                                node.object->value) &&
                            !std::holds_alternative<ast::NewExpression>(
@@ -3331,6 +3367,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "move requires an owning class, function, pointer, or "
                     "aggregate value"};
               active_symbols->at(identifier->name).is_initialized = false;
+              active_symbols->at(identifier->name).may_be_initialized = false;
               return moved_type;
             } else if constexpr (std::is_same_v<Node, ast::TryExpression>) {
               if (inside_lambda)
@@ -3370,6 +3407,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "propagating owning aggregate '" +
                                        operand_type.name() +
                                        "' requires an explicit move"};
+              warn_all_live_owners(*active_symbols);
               return operand_type.type_arguments.front();
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
@@ -3510,6 +3548,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                          SymbolTable &block_symbols) {
       SymbolTable *previous_symbols = active_symbols;
       const auto previous_deferred_values = deferred_values;
+      std::vector<std::pair<std::string, SourceLocation>> scope_declarations;
       active_symbols = &block_symbols;
       bool has_terminator = false;
       for (const ast::Statement &statement : statements) {
@@ -3532,13 +3571,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               validate_block((*conditional)->else_body, else_symbols);
           active_symbols = &block_symbols;
           for (auto &[name, symbol] : block_symbols) {
-            if (then_returns && !else_returns)
+            if (then_returns && !else_returns) {
               symbol.is_initialized = else_symbols.at(name).is_initialized;
-            else if (else_returns && !then_returns)
+              symbol.may_be_initialized =
+                  else_symbols.at(name).may_be_initialized;
+            } else if (else_returns && !then_returns) {
               symbol.is_initialized = then_symbols.at(name).is_initialized;
-            else
+              symbol.may_be_initialized =
+                  then_symbols.at(name).may_be_initialized;
+            } else {
               symbol.is_initialized = then_symbols.at(name).is_initialized &&
                                       else_symbols.at(name).is_initialized;
+              symbol.may_be_initialized =
+                  then_symbols.at(name).may_be_initialized ||
+                  else_symbols.at(name).may_be_initialized;
+            }
           }
           has_terminator = then_returns && else_returns;
           continue;
@@ -3628,6 +3675,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "owning value '" + identifier->name +
                                        "' is scheduled for deferred cleanup"};
               block_symbols.at(identifier->name).is_initialized = false;
+              block_symbols.at(identifier->name).may_be_initialized = false;
             }
           continue;
         }
@@ -3650,6 +3698,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           block_symbols.emplace(declaration->name,
                                 Symbol{declared_type, declaration->is_mutable,
                                        declaration->initializer.has_value()});
+          local_declarations.insert_or_assign(declaration->name,
+                                               declaration->location);
+          scope_declarations.emplace_back(declaration->name,
+                                          declaration->location);
           continue;
         }
 
@@ -3758,6 +3810,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           validate_expression(assignment->expression, iterator->second.type,
                               assignment->location);
           iterator->second.is_initialized = true;
+          iterator->second.may_be_initialized = true;
           continue;
         }
 
@@ -3801,6 +3854,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value))
             block_symbols.at(identifier->name).is_initialized = false;
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &deletion->expression.value))
+            block_symbols.at(identifier->name).may_be_initialized = false;
           continue;
         }
 
@@ -3896,8 +3952,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           static_cast<void>(expression_type(expression_statement->expression));
           if (const auto *call = std::get_if<ast::CallExpression>(
                   &expression_statement->expression.value);
-              call != nullptr && call->callee == "panic")
+              call != nullptr && call->callee == "panic") {
+            warn_all_live_owners(block_symbols);
             has_terminator = true;
+          }
           continue;
         }
 
@@ -3929,8 +3987,35 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "borrowed value '" + identifier->name +
                                    "' cannot escape by return"};
           validate_return_expression(return_statement);
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &return_statement.expression->value);
+              identifier != nullptr &&
+              local_declarations.contains(identifier->name) &&
+              potentially_owns_value(return_type)) {
+            block_symbols.at(identifier->name).is_initialized = false;
+            block_symbols.at(identifier->name).may_be_initialized = false;
+          }
         }
+        warn_all_live_owners(block_symbols);
         has_terminator = true;
+      }
+      for (const std::string &name : deferred_values) {
+        if (previous_deferred_values.contains(name))
+          continue;
+        const auto symbol = block_symbols.find(name);
+        if (symbol != block_symbols.end()) {
+          symbol->second.is_initialized = false;
+          symbol->second.may_be_initialized = false;
+        }
+      }
+      for (const auto &[name, location] : scope_declarations) {
+        const auto symbol = block_symbols.find(name);
+        if (symbol != block_symbols.end())
+          warn_live_owner(name, symbol->second, location);
+      }
+      for (const auto &[name, location] : scope_declarations) {
+        static_cast<void>(location);
+        local_declarations.erase(name);
       }
       active_symbols = previous_symbols;
       deferred_values = previous_deferred_values;

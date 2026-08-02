@@ -1,5 +1,6 @@
 #include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/diagnostics/renderer.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
 
@@ -25,8 +26,11 @@ int main(int argc, char **argv) {
     const janus::ast::Program program = loader.load(path);
 
     janus::semantic::Analyzer analyzer;
-    [[maybe_unused]] const janus::semantic::AnalysisResult analysis =
-        analyzer.analyze(program);
+    const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
+    if (!analysis.diagnostics.empty())
+      std::cerr << janus::diagnostics::render_diagnostics(
+          path, {}, analysis.diagnostics,
+          janus::diagnostics::DiagnosticFormat::Human);
 
     llvm::LLVMContext context;
     janus::backend::llvm::IrGenerator generator{context};

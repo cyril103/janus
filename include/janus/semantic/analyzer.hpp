@@ -40,9 +40,15 @@ struct SemanticType {
 };
 
 struct Symbol {
+  Symbol() = default;
+  Symbol(SemanticType symbol_type, bool mutable_value, bool initialized)
+      : type{std::move(symbol_type)}, is_mutable{mutable_value},
+        is_initialized{initialized}, may_be_initialized{initialized} {}
+
   SemanticType type;
-  bool is_mutable;
-  bool is_initialized;
+  bool is_mutable{};
+  bool is_initialized{};
+  bool may_be_initialized{};
 };
 
 using SymbolTable = std::unordered_map<std::string, Symbol>;
@@ -50,6 +56,7 @@ using SymbolTable = std::unordered_map<std::string, Symbol>;
 struct AnalysisResult {
   SymbolTable globals;
   std::unordered_map<std::string, SymbolTable> functions;
+  std::vector<Diagnostic> diagnostics;
 };
 
 struct AnalysisOptions {

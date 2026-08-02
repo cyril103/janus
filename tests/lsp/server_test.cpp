@@ -76,6 +76,15 @@ int main() {
   assert(invalid.front().find("\"code\":\"JANA0001\"") != std::string::npos);
   assert(invalid.front().find("\"severity\":1") != std::string::npos);
 
+  const std::vector<std::string> leak_warning = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///leak-warning.janus","text":"class Resource() {}\ndef main() : int {\n    val resource : Resource = new Resource()\n    return 0\n}"}}})");
+  assert(leak_warning.size() == 1);
+  assert(leak_warning.front().find("\"code\":\"JANA0002\"") !=
+         std::string::npos);
+  assert(leak_warning.front().find("\"severity\":2") != std::string::npos);
+  assert(leak_warning.front().find("may reach the end of its scope") !=
+         std::string::npos);
+
   const std::vector<std::string> safe_correction_diagnostic = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///safe-correction.janus","text":"def main() : int { return @0 }"}}})");
   assert(safe_correction_diagnostic.size() == 1);

@@ -27,6 +27,7 @@ enum class DiagnosticCode {
   LexerUnexpectedCharacter,
   ParserExpectedExpression,
   AnalyzerUnknownValue,
+  AnalyzerPotentialMemoryLeak,
   ModuleNotFound,
   BackendCyclicGlobalConstant,
 };
@@ -42,6 +43,8 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JPAR0001";
   case DiagnosticCode::AnalyzerUnknownValue:
     return "JANA0001";
+  case DiagnosticCode::AnalyzerPotentialMemoryLeak:
+    return "JANA0002";
   case DiagnosticCode::ModuleNotFound:
     return "JMOD0001";
   case DiagnosticCode::BackendCyclicGlobalConstant:

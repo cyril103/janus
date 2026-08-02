@@ -197,6 +197,7 @@ target_link_libraries(janusc
     PRIVATE
         janus_semantic
         janus_llvm_backend
+        janus_diagnostics
 )
 target_compile_options(janusc
     PRIVATE
@@ -1893,6 +1894,22 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.move_semantics COMMAND move_semantics_test)
+
+    add_executable(ownership_leak_warning_test
+        tests/language/ownership_leak_warning_test.cpp
+    )
+    target_link_libraries(ownership_leak_warning_test
+        PRIVATE
+            janus_semantic
+    )
+    target_compile_options(ownership_leak_warning_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.ownership_leak_warning
+        COMMAND ownership_leak_warning_test)
 
     add_executable(control_flow_test
         tests/language/control_flow_test.cpp
