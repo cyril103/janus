@@ -121,6 +121,14 @@ int main() {
   assert(extern_contract_hover.front().find(
              "inspect(borrow data : Ptr[int]) : Unit") != std::string::npos);
 
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///extern-return.janus","text":"extern def data() : borrow Ptr[byte]\ndef main() : int {\n    val result : Ptr[byte] = data()\n    return 0\n}"}}})"));
+  const std::vector<std::string> extern_return_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":55,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///extern-return.janus"},"position":{"line":2,"character":33}}})");
+  assert(extern_return_hover.size() == 1);
+  assert(extern_return_hover.front().find("data() : borrow Ptr[byte]") !=
+         std::string::npos);
+
   const std::vector<std::string> safe_correction_diagnostic = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///safe-correction.janus","text":"def main() : int { return @0 }"}}})");
   assert(safe_correction_diagnostic.size() == 1);

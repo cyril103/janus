@@ -17,13 +17,13 @@ import std.result
 import std.system
 
 private extern def janus_process_argument_count() : usize
-private extern def janus_process_argument_data(index : usize) : Ptr[byte]
+private extern def janus_process_argument_data(index : usize) : borrow Ptr[byte]
 private extern def janus_process_argument_size(index : usize) : usize
 private extern def janus_process_environment(
 name : Ptr[byte],
 length : usize
 ) : isize
-private extern def janus_process_text_data(text : isize) : Ptr[byte]
+private extern def janus_process_text_data(text : isize) : borrow Ptr[byte]
 private extern def janus_process_text_size(text : isize) : usize
 private extern def janus_process_text_destroy(text : isize) : Unit
 private extern def janus_process_run(
@@ -40,13 +40,13 @@ captureStderr : bool
 private extern def janus_process_result_exit_code(result : isize) : int
 private extern def janus_process_result_stdout_data(
 result : isize
-) : Ptr[byte]
+) : borrow Ptr[byte]
 private extern def janus_process_result_stdout_size(
 result : isize
 ) : usize
 private extern def janus_process_result_stderr_data(
 result : isize
-) : Ptr[byte]
+) : borrow Ptr[byte]
 private extern def janus_process_result_stderr_size(
 result : isize
 ) : usize

@@ -300,7 +300,12 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
       signature += ", ";
     signature += "...";
   }
-  signature += ") : " + type_name(value.return_type);
+  signature += ") : ";
+  if (value.return_ownership == janus::ast::ReturnOwnership::Borrow)
+    signature += "borrow ";
+  else if (value.return_ownership == janus::ast::ReturnOwnership::Owned)
+    signature += "owned ";
+  signature += type_name(value.return_type);
   return signature;
 }
 

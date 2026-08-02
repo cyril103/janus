@@ -90,6 +90,14 @@ void test_external_ownership_contract_changes_public_interface() {
   require(borrowed != consumed,
           "external ownership qualifiers are absent from the public "
           "interface fingerprint");
+  const std::string borrowed_return =
+      janus::driver::public_interface_fingerprint(
+          "extern def data() : borrow Ptr[byte]");
+  const std::string owned_return = janus::driver::public_interface_fingerprint(
+      "extern def data() : owned Ptr[byte]");
+  require(borrowed_return != owned_return,
+          "external return ownership qualifiers are absent from the public "
+          "interface fingerprint");
 }
 
 void test_consumer_invalidation_uses_only_public_interface() {

@@ -16,7 +16,7 @@ import std.c
 import std.graphics.types
 import std.time
 
-private extern def janus_graphics_last_error() : Ptr[byte]
+private extern def janus_graphics_last_error() : borrow Ptr[byte]
 private extern def janus_graphics_available() : bool
 private extern def janus_graphics_init_window(
 width : int,

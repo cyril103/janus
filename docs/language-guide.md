@@ -785,6 +785,8 @@ de propriété :
 ```janus
 extern def inspect(borrow data : Ptr[byte]) : Unit
 extern def release(consume data : Ptr[byte]) : Unit
+extern def lastError() : borrow Ptr[byte]
+extern def allocateBuffer() : owned Ptr[byte]
 ```
 
 `borrow` déclare que le code natif ne conserve ni ne libère le pointeur :
@@ -794,6 +796,13 @@ invalide immédiatement la valeur locale côté Janus. Sans l’un de ces
 qualificateurs, le compilateur émet `JANA0020`, car le contrat de propriété ne
 peut pas être vérifié. Ces qualificateurs sont actuellement limités aux
 paramètres `Ptr[T]` des déclarations `extern def`.
+
+Un retour pointeur externe utilise `borrow` lorsque le stockage reste détenu
+par le code natif, et `owned` lorsque Janus doit le libérer ou le transférer.
+Une valeur retournée `borrow` ne peut pas être passée à `free`, `delete` ou à
+un paramètre `consume`. Sans contrat sur un retour `Ptr[T]`, le compilateur
+émet `JANA0022`. Les qualificateurs de retour sont limités aux déclarations
+`extern def` et aux types `Ptr[T]`.
 
 Ces opérations peuvent produire des adresses invalides, des fuites ou des
 accès mémoire incorrects. Elles sont volontairement réservées au code qui doit

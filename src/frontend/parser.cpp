@@ -821,6 +821,20 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
   }
   static_cast<void>(expect(TokenKind::RightParen));
   static_cast<void>(expect(TokenKind::Colon));
+  ast::ReturnOwnership return_ownership = ast::ReturnOwnership::Unspecified;
+  const bool has_owned_return =
+      current_.kind == TokenKind::Identifier && current_.lexeme == "owned";
+  if (current_.kind == TokenKind::Borrow || has_owned_return) {
+    if (!is_external)
+      throw CompileError{
+          current_.location,
+          "borrow and owned return qualifiers are only supported on external "
+          "functions"};
+    return_ownership = current_.kind == TokenKind::Borrow
+                           ? ast::ReturnOwnership::Borrow
+                           : ast::ReturnOwnership::Owned;
+    advance();
+  }
   ast::TypeReference return_type = parse_type();
   std::vector<ast::Statement> body;
   if (!is_external)
@@ -841,7 +855,8 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
                                        is_variadic,
                                        std::nullopt,
                                        false,
-                                       {}};
+                                       {},
+                                       return_ownership};
   return declaration;
 }
 

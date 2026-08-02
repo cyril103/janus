@@ -136,6 +136,8 @@ void append_function(std::string &output,
     output += ',';
   }
   output += ")->";
+  output += std::to_string(static_cast<int>(function.return_ownership));
+  output += ':';
   append_type(output, function.return_type);
   output += function.is_consuming ? ":consuming" : "";
   output += function.is_external ? ":external" : "";

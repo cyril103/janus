@@ -88,6 +88,23 @@ int main() {
   expect(!has_unannotated_warning,
          "borrow and consume suppress the unannotated extern warning");
 
+  janus::frontend::Parser return_ownership_parser{
+      "extern def view() : borrow Ptr[byte] "
+      "extern def create() : owned Ptr[byte] "
+      "def main() : int { val data : Ptr[byte] = view() return 0 }"};
+  const janus::ast::Program return_ownership_program =
+      return_ownership_parser.parse_program();
+  expect(return_ownership_program.functions[0].return_ownership ==
+             janus::ast::ReturnOwnership::Borrow,
+         "borrow is preserved on an external return");
+  expect(return_ownership_program.functions[1].return_ownership ==
+             janus::ast::ReturnOwnership::Owned,
+         "owned is preserved on an external return");
+  const janus::semantic::AnalysisResult return_ownership_analysis =
+      analyzer.analyze(return_ownership_program);
+  expect(return_ownership_analysis.diagnostics.empty(),
+         "a borrowed external return does not create a false leak warning");
+
   llvm::LLVMContext context;
   janus::backend::llvm::IrGenerator generator{context};
   const std::unique_ptr<llvm::Module> module =
@@ -275,6 +292,17 @@ int main() {
       "extern def inspect(borrow value : int) : Unit "
       "def main() : int { return 0 }",
       "require a Ptr[T] type");
+  expect_compile_error(
+      "def invalid() : borrow Ptr[int] { return null[int]() } "
+      "def main() : int { return 0 }",
+      "only supported on external functions");
+  expect_compile_error(
+      "extern def invalid() : owned int def main() : int { return 0 }",
+      "require a Ptr[T] type");
+  expect_compile_error(
+      "extern def view() : borrow Ptr[int] "
+      "def main() : int { val data : Ptr[int] = view() free(data) return 0 }",
+      "borrowed pointer cannot be released");
   expect_compile_error(
       "extern def inspect(borrow data : Ptr[int]) : Unit "
       "def main() : int { val data : Ptr[int] = alloc[int](usize(1)) "

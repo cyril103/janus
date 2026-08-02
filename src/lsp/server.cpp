@@ -410,7 +410,12 @@ function_signature(const janus::ast::FunctionDeclaration &function) {
     result += function.parameters[index].name + " : " +
               type_reference(function.parameters[index].type);
   }
-  return result + ") : " + type_reference(function.return_type);
+  result += ") : ";
+  if (function.return_ownership == janus::ast::ReturnOwnership::Borrow)
+    result += "borrow ";
+  else if (function.return_ownership == janus::ast::ReturnOwnership::Owned)
+    result += "owned ";
+  return result + type_reference(function.return_type);
 }
 
 struct CallSite {
@@ -2426,7 +2431,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
              {"val",    "var",    "def",  "class",  "struct",  "trait",
-              "enum",   "new",    "move", "borrow", "consume", "derives",
+              "enum",   "new",    "move", "borrow", "consume", "owned", "derives",
               "delete", "defer",  "if",   "else",   "match",   "for",
               "while",  "return", "true", "false"})
           add_item(std::string{keyword}, "Janus keyword", 14);

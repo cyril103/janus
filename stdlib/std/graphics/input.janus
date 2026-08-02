@@ -26,7 +26,7 @@ private extern def janus_graphics_is_cursor_hidden() : bool
 private extern def janus_graphics_enable_cursor() : Unit
 private extern def janus_graphics_disable_cursor() : Unit
 private extern def janus_graphics_is_gamepad_available(gamepad : int) : bool
-private extern def janus_graphics_gamepad_name(gamepad : int) : Ptr[byte]
+private extern def janus_graphics_gamepad_name(gamepad : int) : borrow Ptr[byte]
 private extern def janus_graphics_is_gamepad_button_down(
 gamepad : int,
 button : int

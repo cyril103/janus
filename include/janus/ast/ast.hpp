@@ -273,6 +273,12 @@ enum class ParameterOwnership {
   Consume,
 };
 
+enum class ReturnOwnership {
+  Unspecified,
+  Borrow,
+  Owned,
+};
+
 struct FunctionDeclaration {
   struct Parameter {
     std::string name;
@@ -296,6 +302,7 @@ struct FunctionDeclaration {
   std::optional<std::string> module_name;
   bool is_internal{};
   std::string documentation;
+  ReturnOwnership return_ownership{ReturnOwnership::Unspecified};
 };
 
 struct DestructorDeclaration {

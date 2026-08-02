@@ -14,21 +14,21 @@ module std.graphics.resources
 import std.c
 import std.graphics.types
 
-private extern def janus_graphics_load_image(fileName : Ptr[byte]) : Ptr[byte]
+private extern def janus_graphics_load_image(fileName : Ptr[byte]) : owned Ptr[byte]
 private extern def janus_graphics_load_raw_image(
 fileName : Ptr[byte], width : int, height : int, format : int, headerSize : int
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_load_image_memory(
 fileType : Ptr[byte], data : Ptr[byte], dataSize : int
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_load_image_texture(
 texture : Ptr[byte]
-) : Ptr[byte]
-private extern def janus_graphics_load_image_screen() : Ptr[byte]
+) : owned Ptr[byte]
+private extern def janus_graphics_load_image_screen() : owned Ptr[byte]
 private extern def janus_graphics_generate_image(
 width : int, height : int, kind : int, first : int, second : int,
 amount : float, firstColor : uint, secondColor : uint, text : Ptr[byte]
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_image_is_valid(handle : Ptr[byte]) : bool
 private extern def janus_graphics_image_width(handle : Ptr[byte]) : int
 private extern def janus_graphics_image_height(handle : Ptr[byte]) : int
@@ -44,13 +44,13 @@ handle : Ptr[byte], fileName : Ptr[byte]
 private extern def janus_graphics_copy_image(
 handle : Ptr[byte], x : float, y : float, width : float, height : float,
 region : bool
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_image_channel(
 handle : Ptr[byte], channel : int
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_image_text(
 text : Ptr[byte], fontSize : int, color : uint
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_image_alpha_mask(
 handle : Ptr[byte], mask : Ptr[byte]
 ) : Unit
@@ -103,7 +103,7 @@ fontSize : int, color : uint
 ) : Unit
 private extern def janus_graphics_texture_from_image(
 handle : Ptr[byte]
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_update_texture_from_image(
 texture : Ptr[byte], image : Ptr[byte], x : float, y : float,
 width : float, height : float, region : bool
@@ -112,12 +112,12 @@ width : float, height : float, region : bool
 private extern def janus_graphics_load_font(
 fileName : Ptr[byte],
 fontSize : int
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_load_font_utf8(
 fileName : Ptr[byte],
 fontSize : int,
 characters : Ptr[byte]
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_font_is_valid(handle : Ptr[byte]) : bool
 private extern def janus_graphics_unload_font(handle : Ptr[byte]) : Unit
 private extern def janus_graphics_draw_text_font(
@@ -141,7 +141,7 @@ text : Ptr[byte],
 fontSize : float,
 spacing : float
 ) : float
-private extern def janus_graphics_load_texture(fileName : Ptr[byte]) : Ptr[byte]
+private extern def janus_graphics_load_texture(fileName : Ptr[byte]) : owned Ptr[byte]
 private extern def janus_graphics_texture_is_valid(handle : Ptr[byte]) : bool
 private extern def janus_graphics_texture_width(handle : Ptr[byte]) : int
 private extern def janus_graphics_texture_height(handle : Ptr[byte]) : int
@@ -203,7 +203,7 @@ handle : Ptr[byte]
 private extern def janus_graphics_load_render_texture(
 width : int,
 height : int
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_render_texture_is_valid(
 handle : Ptr[byte]
 ) : bool
@@ -229,11 +229,11 @@ tint : uint
 ) : Unit
 private extern def janus_graphics_load_fragment_shader(
 fragmentFile : Ptr[byte]
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_load_shader(
 vertexFile : Ptr[byte],
 fragmentFile : Ptr[byte]
-) : Ptr[byte]
+) : owned Ptr[byte]
 private extern def janus_graphics_shader_is_valid(handle : Ptr[byte]) : bool
 private extern def janus_graphics_unload_shader(handle : Ptr[byte]) : Unit
 private extern def janus_graphics_begin_shader(handle : Ptr[byte]) : Unit

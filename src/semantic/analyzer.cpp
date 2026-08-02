@@ -1662,6 +1662,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                    "' is already declared"};
       }
     }
+    if (!is_destructor &&
+        context.function->return_ownership !=
+            ast::ReturnOwnership::Unspecified &&
+        !context.function->is_external)
+      throw CompileError{
+          context.function->return_type.location,
+          "borrow and owned return qualifiers are only supported on external "
+          "functions"};
+    if (!is_destructor &&
+        context.function->return_ownership !=
+            ast::ReturnOwnership::Unspecified &&
+        !return_type.is_pointer())
+      throw CompileError{
+          context.function->return_type.location,
+          "borrow and owned external returns require a Ptr[T] type"};
     if (!is_destructor && context.function->is_external) {
       if (!is_c_abi_type(return_type, true))
         throw CompileError{context.function->return_type.location,
@@ -1893,6 +1908,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     bool inside_defer = false;
     bool contextual_borrow_lambda_parameters = false;
     bool contextual_borrow_expression = false;
+    bool contextual_borrow_pointer_expression = false;
     std::string_view contextual_borrow_enum_name;
     std::size_t loop_depth = 0;
     std::unordered_set<std::string> transfer_protected_values;
@@ -1900,6 +1916,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> borrowed_values;
     std::unordered_map<std::string, SourceLocation> local_declarations;
     std::unordered_set<std::size_t> warned_leak_locations;
+    std::unordered_set<std::size_t> warned_unannotated_return_locations;
     std::unordered_set<std::size_t> used_local_declarations;
     std::unordered_map<std::size_t, std::vector<std::string>> lambda_captures;
     std::unordered_map<std::string, std::size_t> local_lambda_locations;
@@ -1926,6 +1943,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      SourceLocation location) {
       if (!report_local_warnings || !symbol.may_be_initialized ||
           deferred_values.contains(std::string{name}) ||
+          borrowed_values.contains(std::string{name}) ||
           !potentially_owns_value(symbol.type) ||
           !warned_leak_locations.insert(location.offset).second)
         return;
@@ -1980,13 +1998,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::function<void(const ast::Expression &, const SemanticType &,
                        SourceLocation)>
         validate_expression;
-    const auto is_known_borrowed_pointer_expression =
-        [](const ast::Expression &expression) {
+    const auto is_borrowed_pointer_expression =
+        [&](const ast::Expression &expression) {
+          if (const auto *identifier =
+                  std::get_if<ast::IdentifierExpression>(&expression.value))
+            return borrowed_values.contains(identifier->name);
           const auto *call =
               std::get_if<ast::CallExpression>(&expression.value);
-          return call != nullptr &&
-                 (call->callee == "cstr" || call->callee == "stringData" ||
-                  call->callee == "null");
+          if (call == nullptr)
+            return false;
+          if (call->callee == "cstr" || call->callee == "stringData" ||
+              call->callee == "null")
+            return true;
+          const auto callee = functions.find(call->callee);
+          return callee != functions.end() && callee->second->is_external &&
+                 callee->second->return_ownership ==
+                     ast::ReturnOwnership::Borrow;
         };
     const auto apply_external_ownership_contract =
         [&](const ast::FunctionDeclaration &callee,
@@ -2027,14 +2054,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             return;
           }
 
-          if (is_known_borrowed_pointer_expression(argument)) {
-            const auto &call = std::get<ast::CallExpression>(argument.value);
+          if (is_borrowed_pointer_expression(argument)) {
+            const auto *call =
+                std::get_if<ast::CallExpression>(&argument.value);
+            const std::string expression_name =
+                call == nullptr ? "borrowed local" : "'" + call->callee + "'";
             throw CompileError{
                 expression_location(argument),
                 "consume parameter '" + parameter.name +
                     "' cannot take ownership of borrowed or null pointer "
-                    "expression '" +
-                    call.callee + "'"};
+                    "expression " + expression_name};
           }
           if (const auto *identifier =
                   std::get_if<ast::IdentifierExpression>(&argument.value)) {
@@ -2133,7 +2162,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "variadic C argument has incompatible type '" +
                         argument_type.name() + "'"};
               if (callee.is_external &&
-                  !is_known_borrowed_pointer_expression(*arguments[index]) &&
+                  !is_borrowed_pointer_expression(*arguments[index]) &&
                   (argument_type.is_pointer() ||
                    potentially_owns_value(argument_type)))
                 emit_warning(
@@ -2219,7 +2248,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 std::get_if<ast::IdentifierExpression>(&expression.value);
             identifier != nullptr &&
             borrowed_values.contains(identifier->name) &&
-            potentially_owns_value(expected) && !contextual_borrow_expression)
+            potentially_owns_value(expected) && !contextual_borrow_expression &&
+            !contextual_borrow_pointer_expression)
           throw CompileError{location,
                              "borrowed value '" + identifier->name +
                                  "' cannot be passed to an owning parameter"};
@@ -2511,8 +2541,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     false,
                     {SemanticType{&Type::byte_type()}},
                     true};
+                const bool previous_contextual_borrow_pointer_expression =
+                    contextual_borrow_pointer_expression;
+                contextual_borrow_pointer_expression = true;
                 validate_expression(*node.arguments[0], byte_pointer,
                                     expression_location(*node.arguments[0]));
+                contextual_borrow_pointer_expression =
+                    previous_contextual_borrow_pointer_expression;
                 validate_expression(*node.arguments[1],
                                     SemanticType{&Type::usize_type()},
                                     expression_location(*node.arguments[1]));
@@ -2634,6 +2669,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   throw CompileError{
                       node.location,
                       "free expects one pointer argument and no type argument"};
+                if (is_borrowed_pointer_expression(*node.arguments.front()))
+                  throw CompileError{
+                      node.location,
+                      "borrowed pointer cannot be released with free"};
                 const SemanticType pointer =
                     expression_type(*node.arguments.front());
                 if (!pointer.is_pointer())
@@ -2848,7 +2887,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "variadic C argument has incompatible type '" +
                             argument_type.name() + "'"};
                   if (callee.is_external &&
-                      !is_known_borrowed_pointer_expression(
+                      !is_borrowed_pointer_expression(
                           *node.arguments[index]) &&
                       (argument_type.is_pointer() ||
                        potentially_owns_value(argument_type)))
@@ -2895,9 +2934,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 contextual_borrow_enum_name =
                     previous_contextual_borrow_enum_name;
               }
-              return substitute(resolve_type(callee.return_type,
-                                             callee_parameters, &class_arities),
-                                substitutions);
+              SemanticType call_return = substitute(
+                  resolve_type(callee.return_type, callee_parameters,
+                               &class_arities),
+                  substitutions);
+              if (callee.is_external && call_return.is_pointer() &&
+                  callee.return_ownership ==
+                      ast::ReturnOwnership::Unspecified &&
+                  warned_unannotated_return_locations
+                      .insert(node.location.offset)
+                      .second)
+                emit_warning(
+                    DiagnosticCode::AnalyzerUnannotatedExternReturn,
+                    node.location,
+                    "external function '" + node.callee +
+                        "' returns a pointer without a borrow or owned "
+                        "ownership qualifier",
+                    {"declare this external return as borrow or owned"});
+              return call_return;
             } else if constexpr (std::is_same_v<Node, ast::NewExpression>) {
               const auto iterator = classes.find(node.class_name);
               if (iterator == classes.end())
@@ -4149,6 +4203,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (declaration->initializer.has_value() &&
               is_null_pointer_expression(*declaration->initializer))
             block_symbols.at(declaration->name).may_be_initialized = false;
+          if (declaration->initializer.has_value() &&
+              is_borrowed_pointer_expression(*declaration->initializer))
+            borrowed_values.insert(declaration->name);
           if (declaration->initializer.has_value())
             if (const auto *lambda = std::get_if<ast::LambdaExpression>(
                     &declaration->initializer->value))
@@ -4316,11 +4373,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           iterator->second.is_initialized = true;
           iterator->second.may_be_initialized =
               !is_null_pointer_expression(assignment->expression);
+          if (is_borrowed_pointer_expression(assignment->expression))
+            borrowed_values.insert(assignment->name);
+          else
+            borrowed_values.erase(assignment->name);
           continue;
         }
 
         if (const auto *deletion =
                 std::get_if<ast::DeleteStatement>(&statement)) {
+          if (!std::holds_alternative<ast::IdentifierExpression>(
+                  deletion->expression.value) &&
+              is_borrowed_pointer_expression(deletion->expression))
+            throw CompileError{deletion->location,
+                               "borrowed pointer cannot be deleted"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value);
               identifier != nullptr &&
@@ -4469,6 +4535,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                  "named value"});
           else if (report_local_warnings &&
                    potentially_owns_value(discarded_type) &&
+                   !is_borrowed_pointer_expression(
+                       expression_statement->expression) &&
                    !is_null_pointer_expression(
                        expression_statement->expression)) {
             result.diagnostics.push_back(Diagnostic{
@@ -4625,6 +4693,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         static_cast<void>(location);
         local_declarations.erase(name);
         local_lambda_locations.erase(name);
+        borrowed_values.erase(name);
       }
       active_symbols = previous_symbols;
       deferred_values = previous_deferred_values;

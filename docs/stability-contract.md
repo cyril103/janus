@@ -160,6 +160,9 @@ Un paramètre pointeur externe peut être qualifié `borrow` lorsque le code nat
 ne conserve ni ne libère le pointeur, ou `consume` lorsque sa propriété lui est
 transférée. Un appel `consume` invalide la valeur locale Janus. Les pointeurs
 externes non qualifiés restent acceptés avec le diagnostic `JANA0020`.
+Un retour `Ptr[T]` externe peut être qualifié `borrow` lorsque le stockage
+reste natif, ou `owned` lorsque sa propriété est transférée à Janus. Un retour
+pointeur non qualifié reste accepté avec le diagnostic `JANA0022`.
 
 Le nom fourni par `extern("symbol")` est le nom de liaison. La disposition des
 agrégats Janus, le nom des fonctions Janus non exportées et les symboles

@@ -48,6 +48,32 @@ bool warns_with_code(const janus::semantic::AnalysisResult &analysis,
 } // namespace
 
 int main() {
+  const auto unannotated_extern_return = analyze(R"(
+extern def acquire() : Ptr[byte]
+def main() : int {
+    val data : Ptr[byte] = acquire()
+    free(data)
+    return 0
+}
+)");
+  expect(warns_with_code(
+             unannotated_extern_return,
+             janus::DiagnosticCode::AnalyzerUnannotatedExternReturn),
+         "an unannotated external pointer return warns");
+
+  const auto owned_extern_return = analyze(R"(
+extern def acquire() : owned Ptr[byte]
+def main() : int {
+    val data : Ptr[byte] = acquire()
+    free(data)
+    return 0
+}
+)");
+  expect(!warns_with_code(
+             owned_extern_return,
+             janus::DiagnosticCode::AnalyzerUnannotatedExternReturn),
+         "an owned external pointer return suppresses JANA0022");
+
   const auto simple_leak = analyze(R"(
 class Resource() {}
 def main() : int {
