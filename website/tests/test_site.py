@@ -58,6 +58,7 @@ EXPECTED_MODULES = {
     "std.result",
     "std.system",
     "std.text",
+    "std.testing",
     "std.time",
     "std.wall_time",
 }

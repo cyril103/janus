@@ -103,6 +103,7 @@ symbole source non inventorié.
 | `std.result` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.system` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.text` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
+| `std.testing` | `experimental` | [Tests unitaires natifs](testing.md) | Nouvelle surface de test, hors gel 1.0 initial. |
 | `std.time` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.wall_time` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 

@@ -20,6 +20,7 @@ DOCUMENTS = (
     "compiler-performance.md",
     "api-documentation.md",
     "doctests.md",
+    "testing.md",
     "diagnostics.md",
     "stdlib-reference.md",
     "graphics.md",

@@ -127,6 +127,7 @@ janus build --timings=json  # produire un rapport exploitable par CI
 janus clean                 # supprimer target/ et le cache incrémental
 janus test           # exécuter les tests et les doctests documentaires
 janus test --doc     # exécuter uniquement les doctests
+janus test --jobs 8 --format json  # rapport parallèle pour la CI
 janus fmt            # formater les fichiers Janus
 janus fmt --check    # vérifier le formatage sans modifier les fichiers
 janus doc            # générer la documentation d'API dans target/doc/
@@ -139,6 +140,8 @@ sont décrits dans [Construction incrémentale](docs/incremental-builds.md).
 Les blocs Markdown marqués `// doctest: doctest` sont compilés avec le contexte
 du paquet. Consultez le [contrat des doctests](docs/doctests.md) pour les
 exemples incomplets, les attentes `compile_fail` et le filtrage.
+Les fonctions `/// @test`, les assertions et les rapports JSON/JUnit sont
+décrits dans [le guide des tests natifs](docs/testing.md).
 
 ## Aperçu du langage
 

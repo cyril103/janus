@@ -127,15 +127,30 @@ def main() : int {
       "val copied : Owned = duplicate[Owned](move owned) "
       "delete copied return 0 }",
       "does not satisfy constraint 'Copy'");
-  expect_compile_error(
-      "trait Copy {} def main() : int { return 0 }",
-      "trait 'Copy' is intrinsic");
+  expect_compile_error("trait Copy {} def main() : int { return 0 }",
+                       "trait 'Copy' is intrinsic");
   expect_compile_error(
       "class Store[T <: Copy]() {} class Resource() {} "
       "struct Owned(val resource : Resource) {} def main() : int { "
       "val store : Store[Owned] = new Store[Owned]() "
       "delete store return 0 }",
       "does not satisfy constraint 'Copy'");
+  janus::frontend::Parser capability_parser{
+      "struct Token(val value : int) derives Equality, Debug {} "
+      "def same[T <: Equality & Debug](left : T, right : T) : bool { "
+      "debug(left) return left == right } "
+      "def main() : int { val first : Token = new Token(1) "
+      "val second : Token = new Token(1) "
+      "return if same[Token](first, second) { 0 } else { 1 } }"};
+  static_cast<void>(analyzer.analyze(capability_parser.parse_program()));
+  expect_compile_error(
+      "class Resource() {} "
+      "def same[T <: Equality](left : T, right : T) : bool { "
+      "return left == right } "
+      "def main() : int { val value : Resource = new Resource() "
+      "val result : bool = same[Resource](value, value) delete value "
+      "return if result { 0 } else { 1 } }",
+      "does not satisfy constraint 'Equality'");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

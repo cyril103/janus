@@ -69,7 +69,7 @@ execute_process(
     ERROR_VARIABLE FILTER_ERR
 )
 if(NOT FILTER_STATUS EQUAL 0 OR NOT FILTER_OUT MATCHES "1 passed; 0 failed"
-   OR FILTER_OUT MATCHES "unknown-value|unit")
+   OR FILTER_OUT MATCHES "unknown-value|test unit")
     message(FATAL_ERROR
         "doctest filter contract failed: status=${FILTER_STATUS}\nstdout=[${FILTER_OUT}]\nstderr=[${FILTER_ERR}]")
 endif()

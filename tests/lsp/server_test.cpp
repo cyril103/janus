@@ -171,7 +171,7 @@ int main() {
   assert(valid.front().find("\"diagnostics\":[]") != std::string::npos);
 
   const std::vector<std::string> imported = server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///array.janus","text":"import std.array\n\ndef main() : int {\n    val values : Array[int] = new Array[int](usize(1))\n    return int(values.size())\n}\n"}}})");
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///array.janus","text":"import std.array\n\ndef main() : int {\n    val values : Array[int] = new Array[int](usize(1))\n    defer delete values\n    return numericCast[int](values.size())\n}\n"}}})");
   assert(imported.size() == 1);
   assert(imported.front().find("\"diagnostics\":[]") != std::string::npos);
   const std::vector<std::string> imported_definition = server.handle(
