@@ -263,6 +263,19 @@ x2 : float, y2 : float, width2 : float, height2 : float
 private val graphicsStartTime : Instant = monotonicNow()
 private var graphicsPreviousFrameTime : Instant = graphicsStartTime
 
+private def pixelCoordinate(value : float) : int {
+    if value != value {
+        return 0
+    }
+    if value <= numericCast[float](-2147483648.0) {
+        return -2147483648
+    }
+    if value >= numericCast[float](2147483520.0) {
+        return 2147483647
+    }
+    return numericCast[int](value)
+}
+
 /// Décrit la transformation entre l’espace monde et l’écran utilisée par [[beginCamera]].
 class Camera2D(
 /// Décalage horizontal de la caméra dans l’espace écran, exprimé en pixels.
@@ -444,7 +457,7 @@ def endBlend() : Unit {
 /// Limite les dessins suivants à un rectangle écran.
 /// @param area Zone rectangulaire concernée.
 def beginScissor(area : Rectangle) : Unit {
-    janus_graphics_begin_scissor(int(area.x), int(area.y), int(area.width), int(area.height))
+    janus_graphics_begin_scissor(pixelCoordinate(area.x), pixelCoordinate(area.y), pixelCoordinate(area.width), pixelCoordinate(area.height))
 }
 
 /// Termine la limitation rectangulaire active.
@@ -593,7 +606,7 @@ def drawPixel(x : int, y : int, color : Color) : Unit {
 /// @param position Position dans l’espace de rendu actif.
 /// @param color Couleur du pixel.
 def drawPixelAt(position : Vector2, color : Color) : Unit {
-    drawPixel(int(position.x), int(position.y), color)
+    drawPixel(pixelCoordinate(position.x), pixelCoordinate(position.y), color)
 }
 
 /// Trace un segment entre deux positions entières du cadre courant.
@@ -620,10 +633,10 @@ color : Color
 /// @param color Couleur du segment.
 def drawLineBetween(start : Vector2, end : Vector2, color : Color) : Unit {
     drawLine(
-    int(start.x),
-    int(start.y),
-    int(end.x),
-    int(end.y),
+    pixelCoordinate(start.x),
+    pixelCoordinate(start.y),
+    pixelCoordinate(end.x),
+    pixelCoordinate(end.y),
     color
     )
 }
@@ -649,7 +662,7 @@ color : Color
 /// @param radius Rayon dans l’unité de cet espace.
 /// @param color Couleur de remplissage.
 def drawCircleAt(center : Vector2, radius : float, color : Color) : Unit {
-    drawCircle(int(center.x), int(center.y), radius, color)
+    drawCircle(pixelCoordinate(center.x), pixelCoordinate(center.y), radius, color)
 }
 
 /// Dessine un rectangle plein dans le cadre courant.
@@ -675,10 +688,10 @@ color : Color
 /// @param color Couleur de remplissage.
 def drawRectangleArea(area : Rectangle, color : Color) : Unit {
     drawRectangle(
-    int(area.x),
-    int(area.y),
-    int(area.width),
-    int(area.height),
+    pixelCoordinate(area.x),
+    pixelCoordinate(area.y),
+    pixelCoordinate(area.width),
+    pixelCoordinate(area.height),
     color
     )
 }
@@ -714,8 +727,8 @@ color : Color
 ) : Unit {
     drawText(
     text,
-    int(position.x),
-    int(position.y),
+    pixelCoordinate(position.x),
+    pixelCoordinate(position.y),
     fontSize,
     color
     )
@@ -785,7 +798,7 @@ def drawCircleSectorLines(center : Vector2, radius : float, startAngle : float, 
 /// @param radius Rayon de la forme.
 /// @param color Couleur appliquée.
 def drawCircleLines(center : Vector2, radius : float, color : Color) : Unit {
-    janus_graphics_draw_circle_lines(int(center.x), int(center.y), radius, color.packed())
+    janus_graphics_draw_circle_lines(pixelCoordinate(center.x), pixelCoordinate(center.y), radius, color.packed())
 }
 
 /// Dessine une ellipse pleine.
@@ -794,7 +807,7 @@ def drawCircleLines(center : Vector2, radius : float, color : Color) : Unit {
 /// @param radiusY Demi-hauteur de l’ellipse.
 /// @param color Couleur appliquée.
 def drawEllipse(center : Vector2, radiusX : float, radiusY : float, color : Color) : Unit {
-    janus_graphics_draw_ellipse(int(center.x), int(center.y), radiusX, radiusY, color.packed(), false)
+    janus_graphics_draw_ellipse(pixelCoordinate(center.x), pixelCoordinate(center.y), radiusX, radiusY, color.packed(), false)
 }
 
 /// Trace le contour d’une ellipse.
@@ -803,7 +816,7 @@ def drawEllipse(center : Vector2, radiusX : float, radiusY : float, color : Colo
 /// @param radiusY Demi-hauteur de l’ellipse.
 /// @param color Couleur appliquée.
 def drawEllipseLines(center : Vector2, radiusX : float, radiusY : float, color : Color) : Unit {
-    janus_graphics_draw_ellipse(int(center.x), int(center.y), radiusX, radiusY, color.packed(), true)
+    janus_graphics_draw_ellipse(pixelCoordinate(center.x), pixelCoordinate(center.y), radiusX, radiusY, color.packed(), true)
 }
 
 /// Dessine un anneau ou une portion d’anneau.
@@ -844,7 +857,7 @@ def drawRectanglePro(area : Rectangle, origin : Vector2, rotation : float, color
 /// @param top Couleur supérieure.
 /// @param bottom Couleur inférieure.
 def drawRectangleGradientVertical(area : Rectangle, top : Color, bottom : Color) : Unit {
-    janus_graphics_draw_rectangle_gradient(int(area.x), int(area.y), int(area.width), int(area.height), top.packed(), bottom.packed(), false)
+    janus_graphics_draw_rectangle_gradient(pixelCoordinate(area.x), pixelCoordinate(area.y), pixelCoordinate(area.width), pixelCoordinate(area.height), top.packed(), bottom.packed(), false)
 }
 
 /// Dessine un rectangle avec un dégradé horizontal.
@@ -852,7 +865,7 @@ def drawRectangleGradientVertical(area : Rectangle, top : Color, bottom : Color)
 /// @param left Couleur gauche.
 /// @param right Couleur droite.
 def drawRectangleGradientHorizontal(area : Rectangle, left : Color, right : Color) : Unit {
-    janus_graphics_draw_rectangle_gradient(int(area.x), int(area.y), int(area.width), int(area.height), left.packed(), right.packed(), true)
+    janus_graphics_draw_rectangle_gradient(pixelCoordinate(area.x), pixelCoordinate(area.y), pixelCoordinate(area.width), pixelCoordinate(area.height), left.packed(), right.packed(), true)
 }
 
 /// Dessine un rectangle avec une couleur distincte à chaque sommet.
@@ -879,7 +892,7 @@ def drawRectangleLines(area : Rectangle, thickness : float, color : Color) : Uni
 /// @param segments Nombre de segments de l’approximation.
 /// @param color Couleur appliquée.
 def drawRectangleRounded(area : Rectangle, roundness : float, segments : int, color : Color) : Unit {
-    janus_graphics_draw_rectangle_rounded(area.x, area.y, area.width, area.height, roundness, segments, float(0.0), color.packed(), false)
+    janus_graphics_draw_rectangle_rounded(area.x, area.y, area.width, area.height, roundness, segments, numericCast[float](0.0), color.packed(), false)
 }
 
 /// Trace le contour d’un rectangle à coins arrondis.
@@ -917,7 +930,7 @@ def drawTriangleLines(first : Vector2, second : Vector2, third : Vector2, color 
 /// @param rotation Rotation en degrés.
 /// @param color Couleur appliquée.
 def drawPolygon(center : Vector2, sides : int, radius : float, rotation : float, color : Color) : Unit {
-    janus_graphics_draw_polygon(center.x, center.y, sides, radius, rotation, float(0.0), color.packed(), false)
+    janus_graphics_draw_polygon(center.x, center.y, sides, radius, rotation, numericCast[float](0.0), color.packed(), false)
 }
 
 /// Trace le contour d’un polygone régulier.
@@ -936,7 +949,7 @@ def drawPolygonLines(center : Vector2, sides : int, radius : float, rotation : f
 /// @param count Nombre de vecteurs lisibles.
 /// @param color Couleur appliquée.
 def drawLineStrip(points : Ptr[Vector2], count : int, color : Color) : Unit {
-    janus_graphics_draw_point_sequence(points, count, float(0.0), color.packed(), 0)
+    janus_graphics_draw_point_sequence(points, count, numericCast[float](0.0), color.packed(), 0)
 }
 
 /// Dessine un éventail de triangles depuis `count` vecteurs contigus.
@@ -944,7 +957,7 @@ def drawLineStrip(points : Ptr[Vector2], count : int, color : Color) : Unit {
 /// @param count Nombre de vecteurs lisibles.
 /// @param color Couleur appliquée.
 def drawTriangleFan(points : Ptr[Vector2], count : int, color : Color) : Unit {
-    janus_graphics_draw_point_sequence(points, count, float(0.0), color.packed(), 1)
+    janus_graphics_draw_point_sequence(points, count, numericCast[float](0.0), color.packed(), 1)
 }
 
 /// Dessine une bande de triangles depuis `count` vecteurs contigus.
@@ -952,7 +965,7 @@ def drawTriangleFan(points : Ptr[Vector2], count : int, color : Color) : Unit {
 /// @param count Nombre de vecteurs lisibles.
 /// @param color Couleur appliquée.
 def drawTriangleStrip(points : Ptr[Vector2], count : int, color : Color) : Unit {
-    janus_graphics_draw_point_sequence(points, count, float(0.0), color.packed(), 2)
+    janus_graphics_draw_point_sequence(points, count, numericCast[float](0.0), color.packed(), 2)
 }
 
 /// Trace une spline linéaire depuis `count` vecteurs contigus.
@@ -1006,7 +1019,7 @@ def drawSplineBezierCubic(points : Ptr[Vector2], count : int, thickness : float,
 /// @param thickness Épaisseur du trait en pixels.
 /// @param color Couleur appliquée.
 def drawSplineSegmentLinear(first : Vector2, second : Vector2, thickness : float, color : Color) : Unit {
-    janus_graphics_draw_spline_segment(first.x, first.y, second.x, second.y, float(0.0), float(0.0), float(0.0), float(0.0), thickness, color.packed(), 0)
+    janus_graphics_draw_spline_segment(first.x, first.y, second.x, second.y, numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), thickness, color.packed(), 0)
 }
 
 /// Trace un segment de B-spline cubique.
@@ -1038,7 +1051,7 @@ def drawSplineSegmentCatmullRom(first : Vector2, second : Vector2, third : Vecto
 /// @param thickness Épaisseur du trait en pixels.
 /// @param color Couleur appliquée.
 def drawSplineSegmentBezierQuadratic(first : Vector2, control : Vector2, end : Vector2, thickness : float, color : Color) : Unit {
-    janus_graphics_draw_spline_segment(first.x, first.y, control.x, control.y, end.x, end.y, float(0.0), float(0.0), thickness, color.packed(), 3)
+    janus_graphics_draw_spline_segment(first.x, first.y, control.x, control.y, end.x, end.y, numericCast[float](0.0), numericCast[float](0.0), thickness, color.packed(), 3)
 }
 
 /// Trace un segment de Bézier cubique.
@@ -1065,7 +1078,7 @@ private def splinePoint(first : Vector2, second : Vector2, third : Vector2, four
 /// @param amount Position normalisée sur la courbe.
 /// @return Position calculée dans le repère de l’appel.
 def splinePointLinear(first : Vector2, second : Vector2, amount : float) : Vector2 {
-    val empty : Vector2 = vector2(float(0.0), float(0.0))
+    val empty : Vector2 = vector2(numericCast[float](0.0), numericCast[float](0.0))
     return splinePoint(first, second, empty, empty, amount, 0)
 }
 
@@ -1098,7 +1111,7 @@ def splinePointCatmullRom(first : Vector2, second : Vector2, third : Vector2, fo
 /// @param amount Position normalisée sur la courbe.
 /// @return Position calculée dans le repère de l’appel.
 def splinePointBezierQuadratic(first : Vector2, control : Vector2, end : Vector2, amount : float) : Vector2 {
-    return splinePoint(first, control, end, vector2(float(0.0), float(0.0)), amount, 3)
+    return splinePoint(first, control, end, vector2(numericCast[float](0.0), numericCast[float](0.0)), amount, 3)
 }
 
 /// Évalue une courbe de Bézier cubique.

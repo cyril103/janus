@@ -13,9 +13,9 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **28 modules**, **9370 lignes** et **811 symboles publics** inventoriés ;
+- **28 modules**, **9394 lignes** et **811 symboles publics** inventoriés ;
 - **819 blocs `///` publics pour 811 symboles** (couverture source du lot #115 : 100 %) ;
-- **150 sites d'allocation**, **211 marqueurs de nettoyage**, **199/14/37** occurrences `move`/`consume`/destructeur ;
+- **151 sites d'allocation**, **211 marqueurs de nettoyage**, **199/14/37** occurrences `move`/`consume`/destructeur ;
 - **21/28 modules** importés directement par au moins une fixture ou un test, soit **95 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
@@ -52,7 +52,7 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.c` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 5 | 39 | 5 | 0/0/0 | 0/0/0 | 0 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.graphics` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 0 | 12 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.audio`, `std.graphics.drawing`, `std.graphics.input`, `std.graphics.resources`, `std.graphics.types` | 4 | `docs/graphics.md`, `docs/stability-contract.md` |
 | `std.graphics.audio` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 22 | 205 | 22 | 0/0/2 | 0/0/0 | 2 | 3 | `std.c` | 0 | `docs/graphics.md` |
-| `std.graphics.drawing` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 105 | 1232 | 105 | 0/0/0 | 0/0/0 | 0 | 0 | `std.c`, `std.graphics.types`, `std.time` | 0 | `docs/graphics.md` |
+| `std.graphics.drawing` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 105 | 1245 | 105 | 0/0/0 | 0/0/0 | 0 | 0 | `std.c`, `std.graphics.types`, `std.time` | 0 | `docs/graphics.md` |
 | `std.graphics.input` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 23 | 231 | 23 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.types` | 0 | `docs/graphics.md` |
 | `std.graphics.resources` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 118 | 1359 | 118 | 0/0/6 | 0/0/0 | 25 | 8 | `std.c`, `std.graphics.types` | 0 | `docs/graphics.md` |
 | `std.graphics.types` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 223 | 575 | 223 | 0/0/0 | 0/0/0 | 8 | 2 | — | 0 | `docs/graphics.md` |
@@ -65,7 +65,7 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.iterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 18 | 432 | 18 | 36/8/7 | 0/25/0 | 14 | 32 | `std.builder`, `std.option` | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.math` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 4 | 106 | 4 | 0/0/0 | 0/0/1 | 1 | 0 | `std.array` | 5 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.option` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 9 | 134 | 9 | 16/0/1 | 0/22/0 | 2 | 11 | — | 8 | `docs/language-guide.md`, `docs/stability-contract.md` |
-| `std.path` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 8 | 226 | 8 | 0/0/1 | 3/0/2 | 6 | 11 | `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
+| `std.path` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 8 | 237 | 8 | 0/0/1 | 3/0/2 | 7 | 11 | `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
 | `std.random` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 6 | 80 | 6 | 0/0/0 | 0/0/2 | 2 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.process` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 13 | 248 | 13 | 0/0/2 | 2/5/0 | 7 | 5 | `std.array`, `std.option`, `std.result`, `std.system` | 1 | `docs/language-guide.md`, `docs/design/process-runtime.md`, `docs/stability-contract.md` |
 | `std.range` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 1 | 44 | 1 | 0/0/0 | 0/1/0 | 2 | 1 | `std.iterator`, `std.option` | 3 | `docs/language-guide.md` |
@@ -131,13 +131,13 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 | `state, () => state.dispose()` | `std.array`, `std.hashmap`, `std.hashset`, `std.iterator` | 14 |
 | `borrow path : Ptr[byte],` | `std.fs`, `std.io`, `std.path`, `std.system` | 13 |
 | `private var index : usize` | `std.array`, `std.hashmap`, `std.hashset`, `std.iterator` | 9 |
+| `SystemErrorCategory.InvalidInput,` | `std.fs`, `std.io`, `std.path`, `std.system` | 4 |
 | `private var length : usize = usize(0)` | `std.array`, `std.hashmap`, `std.hashset`, `std.text` | 4 |
 | `return match move value {` | `std.iterator`, `std.option`, `std.result` | 14 |
 | `return Result.Error[bool, SystemError](` | `std.fs`, `std.io`, `std.system` | 13 |
 | `if nativeHandle < isize(0) {` | `std.fs`, `std.io`, `std.system` | 11 |
 | `return Result.Ok[bool, SystemError](true)` | `std.fs`, `std.io`, `std.system` | 9 |
 | `length = length - usize(1)` | `std.array`, `std.hashmap`, `std.hashset` | 8 |
-| `nativeHandle = isize(-1)` | `std.fs`, `std.io`, `std.system` | 8 |
 
 Ces répétitions orientent les lots sans autoriser une abstraction aveugle : #111 mutualise parcours et fallbacks, #112 les sondes et croissances de tables, #113 les conversions d'erreurs/buffers/handles et #114 les wrappers de ressources et paires begin/end.
 

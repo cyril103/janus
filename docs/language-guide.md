@@ -823,6 +823,12 @@ qui doit effectivement le capturer. Ces opérations suppriment uniquement les
 warnings correspondant au contrat affirmé; leur précondition reste à la charge
 du code appelant.
 
+La primitive numericCast[T](value) rend explicite une conversion numérique dont la perte
+éventuelle a été contrôlée ou volontairement acceptée. Contrairement au cast
+ordinaire `T(value)`, il n’émet pas `JANA0013`; il conserve cependant exactement
+la même représentation et ne vérifie aucune borne à l’exécution. Le code qui
+reçoit une valeur externe doit donc tester sa plage avant de l’utiliser.
+
 Ces opérations peuvent produire des adresses invalides, des fuites ou des
 accès mémoire incorrects. Elles sont volontairement réservées au code qui doit
 contrôler précisément sa représentation et sa mémoire.

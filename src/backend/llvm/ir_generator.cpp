@@ -828,6 +828,8 @@ private:
   }
 
   bool is_explicit_cast(const janus::ast::CallExpression &call) const {
+    if (call.callee == "numericCast")
+      return true;
     const janus::Type *type = builtin_type(call.callee);
     if (type != nullptr)
       return type->kind() != janus::TypeKind::String &&
@@ -838,6 +840,8 @@ private:
 
   const janus::Type &cast_destination(const janus::ast::CallExpression &call,
                                       const Substitutions &substitutions) {
+    if (call.callee == "numericCast")
+      return resolve(call.type_arguments.front(), substitutions);
     return resolve(janus::ast::TypeReference{call.callee, call.location,
                                              call.type_arguments},
                    substitutions);

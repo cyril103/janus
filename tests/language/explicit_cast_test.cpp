@@ -6,6 +6,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -100,6 +101,28 @@ def main() : int {
       "cannot be used as an explicit cast target");
   expect_compile_error("def main() : int { val value : int = int() return 0 }",
                        "expects exactly one argument");
+
+  janus::frontend::Parser acknowledged_parser{R"(
+def main() : int {
+    val source : double = 12.75
+    val value : float = numericCast[float](source)
+    println(value)
+    return 0
+}
+)"};
+  const janus::semantic::AnalysisResult acknowledged =
+      analyzer.analyze(acknowledged_parser.parse_program());
+  expect(std::none_of(
+             acknowledged.diagnostics.begin(), acknowledged.diagnostics.end(),
+             [](const janus::Diagnostic &diagnostic) {
+               return diagnostic.code ==
+                      janus::DiagnosticCode::AnalyzerLossyNumericCast;
+             }),
+         "numericCast explicitly acknowledges a potentially lossy conversion");
+  expect_compile_error(
+      "def main() : int { val value : int = numericCast[int](\"12\") return "
+      "value }",
+      "requires compatible numeric source and destination types");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

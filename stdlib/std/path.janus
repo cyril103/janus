@@ -124,7 +124,7 @@ private val nativeLength : usize
         if count < 0 {
             return usize(0)
         }
-        return usize(count)
+        return numericCast[usize](count)
     }
 
     /// Copie un composant du chemin dans un nouveau [[Path]] propriétaire.
@@ -133,6 +133,17 @@ private val nativeLength : usize
     def component(
     index : usize
     ) : Result[Path, SystemError] {
+        val maximumNativeIndex : usize = 4294967295
+        if index > maximumNativeIndex {
+            return Result.Error[Path, SystemError](
+            new SystemError(
+            "path.component",
+            SystemErrorCategory.InvalidInput,
+            uint(0),
+            this.view()
+            )
+            )
+        }
         val output : Ptr[Ptr[byte]] = pathOutput()
         defer freeStorage(output)
         val outputLength : Ptr[usize] = lengthOutput()
@@ -140,7 +151,7 @@ private val nativeLength : usize
         if janus_path_component(
         nativeData,
         nativeLength,
-        uint(index),
+        numericCast[uint](index),
         output,
         outputLength
         ) != 0 {

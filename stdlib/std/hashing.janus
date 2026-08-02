@@ -64,7 +64,7 @@ class IntHashing() extends Hashing[int] {
     /// @param value Entier à hacher.
     /// @return Hachage mélangé de `value`.
     def hash(value : int) : usize {
-        return mixHash(usize(value))
+        return mixHash(numericCast[usize](value))
     }
 
     /// Compare deux entiers par égalité dérivée.
@@ -106,7 +106,7 @@ class ByteHashing() extends Hashing[byte] {
     /// @param value Octet à hacher.
     /// @return Hachage mélangé de `value`.
     def hash(value : byte) : usize {
-        return mixHash(usize(value))
+        return mixHash(numericCast[usize](value))
     }
 
     /// Compare deux octets par égalité dérivée.

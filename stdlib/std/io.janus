@@ -351,7 +351,7 @@ private val requestedCapacity : usize
         bufferCapacity
         )
         if count >= isize(0) {
-            bufferSize = usize(count)
+            bufferSize = numericCast[usize](count)
             bufferOffset = usize(0)
             if count == isize(0) {
                 ended = true
@@ -540,7 +540,7 @@ private val requestedCapacity : usize
             if count <= isize(0) {
                 return -1
             }
-            offset = offset + usize(count)
+            offset = offset + numericCast[usize](count)
         }
         bufferSize = usize(0)
         return 0

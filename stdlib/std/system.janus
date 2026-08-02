@@ -150,7 +150,7 @@ private val fileContext : string
             currentSystemError("read", fileContext)
             )
         }
-        return Result.Ok[usize, SystemError](usize(count))
+        return Result.Ok[usize, SystemError](numericCast[usize](count))
     }
 
     /// Écrit jusqu’à `size` octets à la position courante du fichier.
@@ -173,7 +173,7 @@ private val fileContext : string
             currentSystemError("write", fileContext)
             )
         }
-        return Result.Ok[usize, SystemError](usize(count))
+        return Result.Ok[usize, SystemError](numericCast[usize](count))
     }
 
     /// Ferme le descripteur et rend ce [[SystemFile]] inutilisable.

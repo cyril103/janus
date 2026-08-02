@@ -315,7 +315,7 @@ class Image(private val handle : Ptr[byte]) {
     /// @return Nouvelle image propriétaire, invalide si le backend échoue.
     def copy() : Image {
         return new Image(janus_graphics_copy_image(
-        handle, float(0.0), float(0.0), float(0.0), float(0.0), false
+        handle, numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), false
         ))
     }
 
@@ -339,28 +339,28 @@ class Image(private val handle : Ptr[byte]) {
     /// @param format Format de pixels demandé.
     def convert(format : PixelFormat) : Unit {
         janus_graphics_transform_image(handle, 0, int(format), 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Agrandit le canevas aux dimensions puissances de deux.
     /// @param fill Couleur des pixels nouvellement créés.
     def toPowerOfTwo(fill : Color) : Unit {
         janus_graphics_transform_image(handle, 1, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), fill.packed(), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), fill.packed(), uint(0))
     }
 
     /// Réduit l’image à une région.
     /// @param area Zone rectangulaire concernée.
     def crop(area : Rectangle) : Unit {
         janus_graphics_transform_image(handle, 2, 0, 0, 0, 0,
-        area.x, area.y, area.width, area.height, float(0.0), uint(0), uint(0))
+        area.x, area.y, area.width, area.height, numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Recadre autour des pixels assez opaques.
     /// @param threshold Seuil du test.
     def alphaCrop(threshold : float) : Unit {
         janus_graphics_transform_image(handle, 3, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), threshold, uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), threshold, uint(0), uint(0))
     }
 
     /// Remplace les pixels sous le seuil alpha.
@@ -368,7 +368,7 @@ class Image(private val handle : Ptr[byte]) {
     /// @param threshold Seuil du test.
     def alphaClear(color : Color, threshold : float) : Unit {
         janus_graphics_transform_image(handle, 4, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), threshold, color.packed(), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), threshold, color.packed(), uint(0))
     }
 
     /// Applique le canal alpha d’une autre image.
@@ -380,14 +380,14 @@ class Image(private val handle : Ptr[byte]) {
     /// Prémultiplie les couleurs par leur alpha.
     def alphaPremultiply() : Unit {
         janus_graphics_transform_image(handle, 5, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Applique un flou gaussien approché.
     /// @param size Taille du voisinage.
     def blurGaussian(size : int) : Unit {
         janus_graphics_transform_image(handle, 6, size, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Applique un noyau carré contenant `kernelSize * kernelSize` flottants contigus.
@@ -402,7 +402,7 @@ class Image(private val handle : Ptr[byte]) {
     /// @param height Hauteur en pixels.
     def resize(width : int, height : int) : Unit {
         janus_graphics_transform_image(handle, 7, width, height, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Redimensionne au voisin le plus proche.
@@ -410,7 +410,7 @@ class Image(private val handle : Ptr[byte]) {
     /// @param height Hauteur en pixels.
     def resizeNearest(width : int, height : int) : Unit {
         janus_graphics_transform_image(handle, 8, width, height, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Change le canevas sans étirer les pixels.
@@ -421,13 +421,13 @@ class Image(private val handle : Ptr[byte]) {
     /// @param fill Couleur des pixels nouvellement créés.
     def resizeCanvas(width : int, height : int, offsetX : int, offsetY : int, fill : Color) : Unit {
         janus_graphics_transform_image(handle, 9, width, height, offsetX, offsetY,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), fill.packed(), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), fill.packed(), uint(0))
     }
 
     /// Calcule les niveaux de mipmap.
     def generateMipmaps() : Unit {
         janus_graphics_transform_image(handle, 10, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Réduit la profondeur des canaux par diffusion d’erreur.
@@ -437,71 +437,71 @@ class Image(private val handle : Ptr[byte]) {
     /// @param alphaBits Bits alpha conservés.
     def dither(redBits : int, greenBits : int, blueBits : int, alphaBits : int) : Unit {
         janus_graphics_transform_image(handle, 11, redBits, greenBits, blueBits, alphaBits,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Retourne verticalement les pixels.
     def flipVertical() : Unit {
         janus_graphics_transform_image(handle, 12, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Retourne horizontalement les pixels.
     def flipHorizontal() : Unit {
         janus_graphics_transform_image(handle, 13, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Fait pivoter les pixels.
     /// @param degrees Angle entier de rotation.
     def rotate(degrees : int) : Unit {
         janus_graphics_transform_image(handle, 14, degrees, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Fait pivoter de 90 degrés dans le sens horaire.
     def rotateClockwise() : Unit {
         janus_graphics_transform_image(handle, 15, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Fait pivoter de 90 degrés dans le sens antihoraire.
     def rotateCounterClockwise() : Unit {
         janus_graphics_transform_image(handle, 16, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Multiplie les pixels par une couleur.
     /// @param color Couleur appliquée.
     def tint(color : Color) : Unit {
         janus_graphics_transform_image(handle, 17, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), color.packed(), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), color.packed(), uint(0))
     }
 
     /// Inverse les canaux colorés.
     def invert() : Unit {
         janus_graphics_transform_image(handle, 18, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Convertit les pixels en niveaux de gris.
     def grayscale() : Unit {
         janus_graphics_transform_image(handle, 19, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Corrige le contraste.
     /// @param value Intensité de correction.
     def contrast(value : float) : Unit {
         janus_graphics_transform_image(handle, 20, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), value, uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), value, uint(0), uint(0))
     }
 
     /// Corrige la luminosité.
     /// @param value Intensité de correction.
     def brightness(value : int) : Unit {
         janus_graphics_transform_image(handle, 21, value, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), uint(0), uint(0))
     }
 
     /// Remplace une couleur exacte.
@@ -509,7 +509,7 @@ class Image(private val handle : Ptr[byte]) {
     /// @param replacement Couleur de remplacement.
     def replaceColor(color : Color, replacement : Color) : Unit {
         janus_graphics_transform_image(handle, 22, 0, 0, 0, 0,
-        float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), color.packed(), replacement.packed())
+        numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), color.packed(), replacement.packed())
     }
 
     /// Calcule les limites des pixels assez opaques.
@@ -535,7 +535,7 @@ class Image(private val handle : Ptr[byte]) {
     /// Remplit toute l’image.
     /// @param color Couleur appliquée.
     def clear(color : Color) : Unit {
-        janus_graphics_draw_on_image(handle, 0, float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), 0, color.packed())
+        janus_graphics_draw_on_image(handle, 0, numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
     }
 
     /// Écrit un pixel dans l’image CPU.
@@ -543,7 +543,7 @@ class Image(private val handle : Ptr[byte]) {
     /// @param y Coordonnée verticale.
     /// @param color Couleur appliquée.
     def drawPixel(x : int, y : int, color : Color) : Unit {
-        janus_graphics_draw_on_image(handle, 1, float(x), float(y), float(0.0), float(0.0), float(0.0), float(0.0), 0, color.packed())
+        janus_graphics_draw_on_image(handle, 1, float(x), float(y), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
     }
 
     /// Trace un segment dans l’image CPU.
@@ -552,7 +552,7 @@ class Image(private val handle : Ptr[byte]) {
     /// @param thickness Épaisseur du trait en pixels.
     /// @param color Couleur appliquée.
     def drawLine(start : Vector2, end : Vector2, thickness : int, color : Color) : Unit {
-        janus_graphics_draw_on_image(handle, 2, start.x, start.y, end.x, end.y, float(0.0), float(0.0), thickness, color.packed())
+        janus_graphics_draw_on_image(handle, 2, start.x, start.y, end.x, end.y, numericCast[float](0.0), numericCast[float](0.0), thickness, color.packed())
     }
 
     /// Dessine un disque dans l’image CPU.
@@ -560,7 +560,7 @@ class Image(private val handle : Ptr[byte]) {
     /// @param radius Rayon de la forme.
     /// @param color Couleur appliquée.
     def drawCircle(center : Vector2, radius : int, color : Color) : Unit {
-        janus_graphics_draw_on_image(handle, 3, center.x, center.y, float(radius), float(0.0), float(0.0), float(0.0), 0, color.packed())
+        janus_graphics_draw_on_image(handle, 3, center.x, center.y, float(radius), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
     }
 
     /// Trace un cercle dans l’image CPU.
@@ -568,14 +568,14 @@ class Image(private val handle : Ptr[byte]) {
     /// @param radius Rayon de la forme.
     /// @param color Couleur appliquée.
     def drawCircleLines(center : Vector2, radius : int, color : Color) : Unit {
-        janus_graphics_draw_on_image(handle, 4, center.x, center.y, float(radius), float(0.0), float(0.0), float(0.0), 0, color.packed())
+        janus_graphics_draw_on_image(handle, 4, center.x, center.y, float(radius), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
     }
 
     /// Dessine un rectangle dans l’image CPU.
     /// @param area Zone rectangulaire concernée.
     /// @param color Couleur appliquée.
     def drawRectangle(area : Rectangle, color : Color) : Unit {
-        janus_graphics_draw_on_image(handle, 5, area.x, area.y, area.width, area.height, float(0.0), float(0.0), 0, color.packed())
+        janus_graphics_draw_on_image(handle, 5, area.x, area.y, area.width, area.height, numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
     }
 
     /// Trace un rectangle dans l’image CPU.
@@ -583,7 +583,7 @@ class Image(private val handle : Ptr[byte]) {
     /// @param thickness Épaisseur du trait en pixels.
     /// @param color Couleur appliquée.
     def drawRectangleLines(area : Rectangle, thickness : int, color : Color) : Unit {
-        janus_graphics_draw_on_image(handle, 6, area.x, area.y, area.width, area.height, float(0.0), float(0.0), thickness, color.packed())
+        janus_graphics_draw_on_image(handle, 6, area.x, area.y, area.width, area.height, numericCast[float](0.0), numericCast[float](0.0), thickness, color.packed())
     }
 
     /// Dessine un triangle dans l’image CPU.
@@ -830,8 +830,8 @@ class Texture(private val handle : Ptr[byte]) {
         position.y,
         float(frameWidth) * scale,
         float(frameHeight) * scale,
-        float(0.0),
-        float(0.0),
+        numericCast[float](0.0),
+        numericCast[float](0.0),
         rotation,
         tint.packed()
         )
@@ -1179,7 +1179,7 @@ def imageText(text : string, fontSize : int, color : Color) : Image {
 /// @return Nouvelle image propriétaire, invalide si le backend échoue.
 def generateImageColor(width : int, height : int, color : Color) : Image {
     return new Image(janus_graphics_generate_image(
-    width, height, 0, 0, 0, float(0.0), color.packed(), uint(0), cstr("")
+    width, height, 0, 0, 0, numericCast[float](0.0), color.packed(), uint(0), cstr("")
     ))
 }
 
@@ -1192,7 +1192,7 @@ def generateImageColor(width : int, height : int, color : Color) : Image {
 /// @return Nouvelle image propriétaire, invalide si le backend échoue.
 def generateImageGradientLinear(width : int, height : int, direction : int, start : Color, end : Color) : Image {
     return new Image(janus_graphics_generate_image(
-    width, height, 1, direction, 0, float(0.0), start.packed(), end.packed(), cstr("")
+    width, height, 1, direction, 0, numericCast[float](0.0), start.packed(), end.packed(), cstr("")
     ))
 }
 
@@ -1232,7 +1232,7 @@ def generateImageGradientSquare(width : int, height : int, density : float, inne
 /// @return Nouvelle image propriétaire, invalide si le backend échoue.
 def generateImageChecked(width : int, height : int, checksX : int, checksY : int, first : Color, second : Color) : Image {
     return new Image(janus_graphics_generate_image(
-    width, height, 4, checksX, checksY, float(0.0), first.packed(), second.packed(), cstr("")
+    width, height, 4, checksX, checksY, numericCast[float](0.0), first.packed(), second.packed(), cstr("")
     ))
 }
 
@@ -1267,7 +1267,7 @@ def generateImagePerlinNoise(width : int, height : int, offsetX : int, offsetY :
 /// @return Nouvelle image propriétaire, invalide si le backend échoue.
 def generateImageCellular(width : int, height : int, tileSize : int) : Image {
     return new Image(janus_graphics_generate_image(
-    width, height, 7, tileSize, 0, float(0.0), uint(0), uint(0), cstr("")
+    width, height, 7, tileSize, 0, numericCast[float](0.0), uint(0), uint(0), cstr("")
     ))
 }
 
@@ -1278,7 +1278,7 @@ def generateImageCellular(width : int, height : int, tileSize : int) : Image {
 /// @return Nouvelle image propriétaire, invalide si le backend échoue.
 def generateImageText(width : int, height : int, text : string) : Image {
     return new Image(janus_graphics_generate_image(
-    width, height, 8, 0, 0, float(0.0), uint(0), uint(0), cstr(text)
+    width, height, 8, 0, 0, numericCast[float](0.0), uint(0), uint(0), cstr(text)
     ))
 }
 

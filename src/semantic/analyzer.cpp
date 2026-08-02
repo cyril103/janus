@@ -2809,6 +2809,38 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 return SemanticType{&Type::unit_type()};
               }
+              if (node.callee == "numericCast") {
+                if (node.type_arguments.size() != 1 ||
+                    node.arguments.size() != 1)
+                  throw CompileError{
+                      node.location,
+                      "numericCast expects one destination type and one "
+                      "value argument"};
+                SemanticType destination_type = resolve_type(
+                    node.type_arguments.front(), *active_type_parameters,
+                    &class_arities);
+                if (active_type_substitutions != nullptr)
+                  destination_type = substitute(
+                      std::move(destination_type),
+                      *active_type_substitutions);
+                const SemanticType source_type =
+                    expression_type(*node.arguments.front());
+                const bool source_numeric =
+                    source_type.is_concrete() &&
+                    (source_type.concrete->is_integer() ||
+                     source_type.concrete->is_floating_point());
+                const bool destination_numeric =
+                    destination_type.is_concrete() &&
+                    (destination_type.concrete->is_integer() ||
+                     destination_type.concrete->is_floating_point());
+                if (!source_numeric || !destination_numeric ||
+                    !can_explicitly_cast(source_type, destination_type))
+                  throw CompileError{
+                      node.location,
+                      "numericCast requires compatible numeric source and "
+                      "destination types"};
+                return destination_type;
+              }
               const bool is_builtin_cast = builtin_type(node.callee) != nullptr;
               const bool is_reference_cast =
                   node.callee == "Ptr" || classes.contains(node.callee);
