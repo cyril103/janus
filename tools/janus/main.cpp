@@ -1341,19 +1341,76 @@ ChildResult run_child(const std::filesystem::path &executable,
       janus::driver::TemporaryDirectory::create("janus-test-output");
   const auto out = directory.path() / "stdout.txt";
   const auto err = directory.path() / "stderr.txt";
-  const std::string command = shell_quote(executable) + " >" +
-                              shell_quote(out) + " 2>" + shell_quote(err);
-  const auto previous = std::filesystem::current_path();
-  std::filesystem::current_path(working_directory);
-  const std::string command_line = '"' + command + '"';
-  const int raw_status = std::system(command_line.c_str());
-  std::filesystem::current_path(previous);
+  SECURITY_ATTRIBUTES attributes{};
+  attributes.nLength = sizeof(attributes);
+  attributes.bInheritHandle = TRUE;
+  const HANDLE stdout_handle =
+      CreateFileW(out.c_str(), GENERIC_WRITE, FILE_SHARE_READ, &attributes,
+                  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (stdout_handle == INVALID_HANDLE_VALUE)
+    throw std::system_error{static_cast<int>(GetLastError()),
+                            std::system_category(),
+                            "cannot create test stdout capture"};
+  const HANDLE stderr_handle =
+      CreateFileW(err.c_str(), GENERIC_WRITE, FILE_SHARE_READ, &attributes,
+                  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (stderr_handle == INVALID_HANDLE_VALUE) {
+    CloseHandle(stdout_handle);
+    throw std::system_error{static_cast<int>(GetLastError()),
+                            std::system_category(),
+                            "cannot create test stderr capture"};
+  }
+  STARTUPINFOW startup{};
+  startup.cb = sizeof(startup);
+  startup.dwFlags = STARTF_USESTDHANDLES;
+  startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+  startup.hStdOutput = stdout_handle;
+  startup.hStdError = stderr_handle;
+  PROCESS_INFORMATION process{};
+  std::wstring command_line = L"\"" + executable.wstring() + L"\"";
+  const BOOL created = CreateProcessW(
+      executable.c_str(), command_line.data(), nullptr, nullptr, TRUE,
+      CREATE_NO_WINDOW, nullptr, working_directory.c_str(), &startup, &process);
+  const DWORD create_error = created ? ERROR_SUCCESS : GetLastError();
+  CloseHandle(stdout_handle);
+  CloseHandle(stderr_handle);
+  if (!created)
+    throw std::system_error{static_cast<int>(create_error),
+                            std::system_category(),
+                            "cannot create test process"};
+  CloseHandle(process.hThread);
+  const DWORD wait_timeout =
+      timeout.count() == 0
+          ? INFINITE
+          : static_cast<DWORD>(std::min<std::int64_t>(
+                timeout.count(), static_cast<std::int64_t>(INFINITE - 1)));
+  const DWORD wait_status = WaitForSingleObject(process.hProcess, wait_timeout);
+  const bool timed_out = wait_status == WAIT_TIMEOUT;
+  if (timed_out) {
+    TerminateProcess(process.hProcess, 1);
+    WaitForSingleObject(process.hProcess, INFINITE);
+  } else if (wait_status == WAIT_FAILED) {
+    const DWORD wait_error = GetLastError();
+    CloseHandle(process.hProcess);
+    throw std::system_error{static_cast<int>(wait_error),
+                            std::system_category(),
+                            "cannot wait for test process"};
+  }
+  DWORD exit_code = 1;
+  if (!GetExitCodeProcess(process.hProcess, &exit_code)) {
+    const DWORD exit_error = GetLastError();
+    CloseHandle(process.hProcess);
+    throw std::system_error{static_cast<int>(exit_error),
+                            std::system_category(),
+                            "cannot read test process status"};
+  }
+  CloseHandle(process.hProcess);
   const auto read_output = [](const std::filesystem::path &path) {
     std::ifstream input{path, std::ios::binary};
     return std::string{std::istreambuf_iterator<char>{input},
                        std::istreambuf_iterator<char>{}};
   };
-  return {command_status(raw_status), false, false, read_output(out),
+  return {static_cast<int>(exit_code), false, timed_out, read_output(out),
           read_output(err)};
 #else
   int stdout_pipe[2]{};
