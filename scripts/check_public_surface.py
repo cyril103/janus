@@ -17,7 +17,7 @@ TYPE_RE = re.compile(
     r"(?:(private|internal)\s+)?(class|struct|enum|trait)\s+([A-Za-z_]\w*)"
 )
 FUNCTION_RE = re.compile(
-    r"(?:(private|internal)\s+)?(?:(extern)\s+)?(?:(consume)\s+)?"
+    r"(?:(private|internal)\s+)?(?:(extern(?:\(\"[^\"]+\"\))?)\s+)?(?:(consume)\s+)?"
     r"def\s+([A-Za-z_]\w*)"
 )
 VALUE_RE = re.compile(

@@ -3,6 +3,15 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## Non publié
+
+### Bibliothèque standard
+
+- extension de `std.math` avec le noyau scalaire C99 en `double` et `float`,
+  des constantes usuelles, la classification IEEE, `clamp` et `lerp` ;
+- ajout d’une ABI mathématique propre au runtime et du lien automatique avec
+  `libm` sur les plateformes Unix qui la séparent de la libc.
+
 ## [0.8.1] - 2026-08-01
 
 Cette version corrective stabilise l'affichage des booléens à la frontière

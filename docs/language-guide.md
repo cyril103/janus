@@ -611,7 +611,37 @@ les tables de hachage et les pipelines paresseux.
 
 ## Mathématiques
 
-Le module `std.math` fournit des helpers entiers non signés :
+Le module `std.math` expose d’abord le noyau scalaire portable de la
+bibliothèque mathématique C. Les fonctions sans suffixe prennent et retournent
+un `double`; leur variante suffixée par `f` travaille exclusivement en
+`float`. Janus ne réalise pas de conversion implicite entre ces deux familles.
+
+- constantes : `PI`, `E`, `TAU` et leurs variantes `PIF`, `EF`, `TAUF` ;
+- arrondis : `ceil`, `floor`, `trunc`, `round` ;
+- puissances et logarithmes : `sqrt`, `cbrt`, `pow`, `hypot`, `exp`, `exp2`,
+  `expm1`, `log`, `log2`, `log10`, `log1p` ;
+- trigonométrie circulaire et hyperbolique, avec fonctions inverses ;
+- restes, bornes et interpolation : `fmin`, `fmax`, `fdim`, `fmod`,
+  `remainder`, `clamp`, `lerp` ;
+- classification IEEE : `isfinite`, `isinf`, `isnan`, `isnormal`, `signbit`,
+  ainsi que `copysign` et `nextafter` ;
+- fonctions spéciales C99 : `erf`, `erfc`, `tgamma`, `lgamma`.
+
+Les erreurs de domaine et de plage suivent la plateforme C : elles produisent
+notamment des NaN ou des infinis. `std.math` ne publie pas `errno` et ne promet
+pas une représentation textuelle identique des derniers bits entre toutes les
+libc. Les prédicats de classification permettent de traiter ces résultats sans
+les convertir en texte.
+
+```janus
+import std.math
+
+val diagonal : double = hypot(3.0, 4.0)
+val angle : double = atan2(1.0, 1.0)
+val bounded : double = clamp(angle, 0.0, PI)
+```
+
+Le module conserve en parallèle ses helpers entiers non signés :
 
 ```janus
 import std.math

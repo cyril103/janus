@@ -421,32 +421,32 @@ Les destructeurs Janus de portée automatique ne sont pas garantis exécutés.
 <div class="doc-details"><p>Les destructeurs Janus de portée automatique ne sont pas garantis exécutés.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>status</code></td><td><code>int</code></td><td>Code transmis à l’environnement hôte.</td></tr></tbody></table></section>
 <div class="qualified">std.c.exit</div></div><a class="permalink" href="#std-c-exit" aria-label="Permanent link to std.c.exit">#</a></article>
-<article class="symbol-card kind-function" id="std-c-memcmp" data-symbol data-search="std.c.memcmp function def memcmp(left : Ptr[byte], right : Ptr[byte], size : usize) : int Compare lexicographiquement deux zones mémoire octet par octet.
+<article class="symbol-card kind-function" id="std-c-memcmp" data-symbol data-search="std.c.memcmp function def memcmp(borrow left : Ptr[byte], borrow right : Ptr[byte], size : usize) : int Compare lexicographiquement deux zones mémoire octet par octet.
 @param left Début de la première zone, lisible sur `size` octets.
 @param right Début de la seconde zone, lisible sur `size` octets.
 @param size Nombre d’octets à comparer.
-@return Entier négatif, nul ou positif selon que la première zone est inférieure, égale ou supérieure à la seconde."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def memcmp(left : Ptr[byte], right : Ptr[byte], size : usize) : int</code></h3>
+@return Entier négatif, nul ou positif selon que la première zone est inférieure, égale ou supérieure à la seconde."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def memcmp(borrow left : Ptr[byte], borrow right : Ptr[byte], size : usize) : int</code></h3>
 <p class="doc-summary">Compare lexicographiquement deux zones mémoire octet par octet.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>Ptr[byte]</code></td><td>Début de la première zone, lisible sur `size` octets.</td></tr><tr><td><code>right</code></td><td><code>Ptr[byte]</code></td><td>Début de la seconde zone, lisible sur `size` octets.</td></tr><tr><td><code>size</code></td><td><code>usize</code></td><td>Nombre d’octets à comparer.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Entier négatif, nul ou positif selon que la première zone est inférieure, égale ou supérieure à la seconde.</p></section>
 <div class="qualified">std.c.memcmp</div></div><a class="permalink" href="#std-c-memcmp" aria-label="Permanent link to std.c.memcmp">#</a></article>
-<article class="symbol-card kind-function" id="std-c-printf" data-symbol data-search="std.c.printf function def printf(format : Ptr[byte], ...) : int Formate des arguments variadiques sur la sortie standard selon une chaîne C.
+<article class="symbol-card kind-function" id="std-c-printf" data-symbol data-search="std.c.printf function def printf(borrow format : Ptr[byte], ...) : int Formate des arguments variadiques sur la sortie standard selon une chaîne C.
 @param format Chaîne C terminée par NUL ; chaque conversion doit correspondre exactement au type de son argument variadique.
-@return Nombre de caractères écrits, ou une valeur négative en cas d’échec d’écriture ou d’encodage."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def printf(format : Ptr[byte], ...) : int</code></h3>
+@return Nombre de caractères écrits, ou une valeur négative en cas d’échec d’écriture ou d’encodage."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def printf(borrow format : Ptr[byte], ...) : int</code></h3>
 <p class="doc-summary">Formate des arguments variadiques sur la sortie standard selon une chaîne C.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>format</code></td><td><code>Ptr[byte]</code></td><td>Chaîne C terminée par NUL ; chaque conversion doit correspondre exactement au type de son argument variadique.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Nombre de caractères écrits, ou une valeur négative en cas d’échec d’écriture ou d’encodage.</p></section>
 <div class="qualified">std.c.printf</div></div><a class="permalink" href="#std-c-printf" aria-label="Permanent link to std.c.printf">#</a></article>
-<article class="symbol-card kind-function" id="std-c-puts" data-symbol data-search="std.c.puts function def puts(text : Ptr[byte]) : int Écrit une chaîne C suivie d’un saut de ligne sur la sortie standard.
+<article class="symbol-card kind-function" id="std-c-puts" data-symbol data-search="std.c.puts function def puts(borrow text : Ptr[byte]) : int Écrit une chaîne C suivie d’un saut de ligne sur la sortie standard.
 @param text Pointeur vers une chaîne valide terminée par NUL.
-@return Valeur non négative en cas de succès, ou `EOF` selon la bibliothèque C en cas d’échec."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def puts(text : Ptr[byte]) : int</code></h3>
+@return Valeur non négative en cas de succès, ou `EOF` selon la bibliothèque C en cas d’échec."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def puts(borrow text : Ptr[byte]) : int</code></h3>
 <p class="doc-summary">Écrit une chaîne C suivie d’un saut de ligne sur la sortie standard.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>text</code></td><td><code>Ptr[byte]</code></td><td>Pointeur vers une chaîne valide terminée par NUL.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Valeur non négative en cas de succès, ou `EOF` selon la bibliothèque C en cas d’échec.</p></section>
 <div class="qualified">std.c.puts</div></div><a class="permalink" href="#std-c-puts" aria-label="Permanent link to std.c.puts">#</a></article>
-<article class="symbol-card kind-function" id="std-c-strlen" data-symbol data-search="std.c.strlen function def strlen(text : Ptr[byte]) : usize Mesure une chaîne C sans compter son octet NUL final.
+<article class="symbol-card kind-function" id="std-c-strlen" data-symbol data-search="std.c.strlen function def strlen(borrow text : Ptr[byte]) : usize Mesure une chaîne C sans compter son octet NUL final.
 @param text Pointeur vers une chaîne valide terminée par NUL.
-@return Nombre d’octets précédant le premier octet NUL."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def strlen(text : Ptr[byte]) : usize</code></h3>
+@return Nombre d’octets précédant le premier octet NUL."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def strlen(borrow text : Ptr[byte]) : usize</code></h3>
 <p class="doc-summary">Mesure une chaîne C sans compter son octet NUL final.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>text</code></td><td><code>Ptr[byte]</code></td><td>Pointeur vers une chaîne valide terminée par NUL.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets précédant le premier octet NUL.</p></section>
@@ -3602,24 +3602,24 @@ delete scores.put(7, 42)<br>
 val score : Option[int] = scores.getOption(7)<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">22</span></h3>
 <div class="symbol-list">
-<article class="symbol-card kind-class" id="std-hashmap-hashmap" data-symbol data-search="std.hashmap.HashMap class class HashMap[K, V, H](initialCapacity : usize, val hashing : H) Table associative propriétaire à adressage ouvert et sondage linéaire.
+<article class="symbol-card kind-class" id="std-hashmap-hashmap" data-symbol data-search="std.hashmap.HashMap class class HashMap[K, V, H](initialCapacity : usize, borrow val hashing : H) Table associative propriétaire à adressage ouvert et sondage linéaire.
 
-La table possède ses clés, ses valeurs et la stratégie `hashing`. Une clé
+La table possède ses clés et ses valeurs, et emprunte la stratégie `hashing`. Une clé
 existante est reconnue par [[Hashing.equals]] au sein de sa chaîne de sondage.
 La capacité minimale est 8 et la table se réorganise lorsque valeurs et
 tombstones approchent 75 % des cases. Les méthodes d’observation copient les
 résultats concernés; [[HashMap.intoEntries]] transfère au contraire tout le
 contenu sans copie.
 @param initialCapacity Capacité souhaitée, normalisée à un minimum de 8.
-@param hashing Stratégie d’égalité et de hachage conservée par la table."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class HashMap[K, V, H](initialCapacity : usize, val hashing : H)</code></h3>
+@param hashing Stratégie d’égalité et de hachage empruntée par la table; elle doit rester vivante aussi longtemps qu’elle."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class HashMap[K, V, H](initialCapacity : usize, borrow val hashing : H)</code></h3>
 <p class="doc-summary">Table associative propriétaire à adressage ouvert et sondage linéaire.</p>
-<div class="doc-details"><p>La table possède ses clés, ses valeurs et la stratégie `hashing`. Une clé<br>
+<div class="doc-details"><p>La table possède ses clés et ses valeurs, et emprunte la stratégie `hashing`. Une clé<br>
 existante est reconnue par <a href="#std-hashing-hashing-equals"><code>Hashing.equals</code></a> au sein de sa chaîne de sondage.<br>
 La capacité minimale est 8 et la table se réorganise lorsque valeurs et<br>
 tombstones approchent 75 % des cases. Les méthodes d’observation copient les<br>
 résultats concernés; <a href="#std-hashmap-hashmap-intoentries"><code>HashMap.intoEntries</code></a> transfère au contraire tout le<br>
 contenu sans copie.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Capacité souhaitée, normalisée à un minimum de 8.</td></tr><tr><td><code>hashing</code></td><td><code>H</code></td><td>Stratégie d’égalité et de hachage conservée par la table.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Capacité souhaitée, normalisée à un minimum de 8.</td></tr><tr><td><code>hashing</code></td><td><code>H</code></td><td>Stratégie d’égalité et de hachage empruntée par la table; elle doit rester vivante aussi longtemps qu’elle.</td></tr></tbody></table></section>
 <div class="qualified">std.hashmap.HashMap</div></div><a class="permalink" href="#std-hashmap-hashmap" aria-label="Permanent link to std.hashmap.HashMap">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashmap-hashmap-clear" data-symbol data-search="std.hashmap.HashMap.clear method def clear() : Unit Détruit toutes les clés et valeurs tout en conservant la capacité.
 
@@ -3738,18 +3738,18 @@ valeurs suivent l’ordre interne des cases de leurs clés.
 valeurs suivent l’ordre interne des cases de leurs clés.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[V]</code> — Un <a href="#std-iterator-iterator"><code>Iterator</code></a> de valeurs copiées; exige `V &lt;: Copy`.</p></section>
 <div class="qualified">std.hashmap.HashMap.values</div></div><a class="permalink" href="#std-hashmap-hashmap-values" aria-label="Permanent link to std.hashmap.HashMap.values">#</a></article>
-<article class="symbol-card kind-class" id="std-hashmap-mapbuilder" data-symbol data-search="std.hashmap.MapBuilder class class MapBuilder[K, V, H](initialCapacity : usize, val hashing : H) Constructeur mutable de [[HashMap]] à partir de [[MapEntry]].
+<article class="symbol-card kind-class" id="std-hashmap-mapbuilder" data-symbol data-search="std.hashmap.MapBuilder class class MapBuilder[K, V, H](initialCapacity : usize, borrow val hashing : H) Constructeur mutable de [[HashMap]] à partir de [[MapEntry]].
 
 Le constructeur possède la table en cours. `add` consomme chaque entrée et
 détruit toute valeur remplacée. [[MapBuilder.result]] transfère la table
 terminée puis réinitialise le constructeur avec une capacité de 8.
 @param initialCapacity Capacité initiale souhaitée pour la table accumulée.
-@param hashing Stratégie conservée et réutilisée après chaque résultat."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class MapBuilder[K, V, H](initialCapacity : usize, val hashing : H)</code></h3>
+@param hashing Stratégie empruntée et réutilisée après chaque résultat."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class MapBuilder[K, V, H](initialCapacity : usize, borrow val hashing : H)</code></h3>
 <p class="doc-summary">Constructeur mutable de <a href="#std-hashmap-hashmap"><code>HashMap</code></a> à partir de <a href="#std-hashmap-mapentry"><code>MapEntry</code></a>.</p>
 <div class="doc-details"><p>Le constructeur possède la table en cours. `add` consomme chaque entrée et<br>
 détruit toute valeur remplacée. <a href="#std-hashmap-mapbuilder-result"><code>MapBuilder.result</code></a> transfère la table<br>
 terminée puis réinitialise le constructeur avec une capacité de 8.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Capacité initiale souhaitée pour la table accumulée.</td></tr><tr><td><code>hashing</code></td><td><code>H</code></td><td>Stratégie conservée et réutilisée après chaque résultat.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Capacité initiale souhaitée pour la table accumulée.</td></tr><tr><td><code>hashing</code></td><td><code>H</code></td><td>Stratégie empruntée et réutilisée après chaque résultat.</td></tr></tbody></table></section>
 <div class="qualified">std.hashmap.MapBuilder</div></div><a class="permalink" href="#std-hashmap-mapbuilder" aria-label="Permanent link to std.hashmap.MapBuilder">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashmap-mapbuilder-add" data-symbol data-search="std.hashmap.MapBuilder.add method def add(entry : MapEntry[K, V]) : Unit Ajoute une valeur.
 
@@ -3836,22 +3836,22 @@ val inserted : bool = ids.add(42)<br>
 val present : bool = ids.contains(42)<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">15</span></h3>
 <div class="symbol-list">
-<article class="symbol-card kind-class" id="std-hashset-hashset" data-symbol data-search="std.hashset.HashSet class class HashSet[T, H](initialCapacity : usize, val hashing : H) Ensemble propriétaire à adressage ouvert et sondage linéaire.
+<article class="symbol-card kind-class" id="std-hashset-hashset" data-symbol data-search="std.hashset.HashSet class class HashSet[T, H](initialCapacity : usize, borrow val hashing : H) Ensemble propriétaire à adressage ouvert et sondage linéaire.
 
-L’ensemble possède ses valeurs et la stratégie `hashing`. La capacité est au
+L’ensemble possède ses valeurs et emprunte la stratégie `hashing`. La capacité est au
 minimum 8 et une insertion réorganise la table lorsque membres et tombstones
 approchent 75 % des cases. Les observations copient les valeurs et nécessitent
 donc `Copy`; [[HashSet.intoIterator]] consomme l’ensemble pour transférer des
 valeurs de tout type.
 @param initialCapacity Capacité souhaitée, normalisée à un minimum de 8.
-@param hashing Stratégie d’égalité et de hachage conservée par l’ensemble."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class HashSet[T, H](initialCapacity : usize, val hashing : H)</code></h3>
+@param hashing Stratégie d’égalité et de hachage empruntée par l’ensemble; elle doit rester vivante aussi longtemps que lui."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class HashSet[T, H](initialCapacity : usize, borrow val hashing : H)</code></h3>
 <p class="doc-summary">Ensemble propriétaire à adressage ouvert et sondage linéaire.</p>
-<div class="doc-details"><p>L’ensemble possède ses valeurs et la stratégie `hashing`. La capacité est au<br>
+<div class="doc-details"><p>L’ensemble possède ses valeurs et emprunte la stratégie `hashing`. La capacité est au<br>
 minimum 8 et une insertion réorganise la table lorsque membres et tombstones<br>
 approchent 75 % des cases. Les observations copient les valeurs et nécessitent<br>
 donc `Copy`; <a href="#std-hashset-hashset-intoiterator"><code>HashSet.intoIterator</code></a> consomme l’ensemble pour transférer des<br>
 valeurs de tout type.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Capacité souhaitée, normalisée à un minimum de 8.</td></tr><tr><td><code>hashing</code></td><td><code>H</code></td><td>Stratégie d’égalité et de hachage conservée par l’ensemble.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Capacité souhaitée, normalisée à un minimum de 8.</td></tr><tr><td><code>hashing</code></td><td><code>H</code></td><td>Stratégie d’égalité et de hachage empruntée par l’ensemble; elle doit rester vivante aussi longtemps que lui.</td></tr></tbody></table></section>
 <div class="qualified">std.hashset.HashSet</div></div><a class="permalink" href="#std-hashset-hashset" aria-label="Permanent link to std.hashset.HashSet">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashset-hashset-add" data-symbol data-search="std.hashset.HashSet.add method def add(value : T) : bool Ajoute une valeur.
 
@@ -3931,18 +3931,18 @@ détruit lorsqu’il est trouvé et sa case devient un tombstone.</p></div>
 <p class="doc-summary">Retourne le nombre de valeurs stockées.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de cases occupées, hors tombstones.</p></section>
 <div class="qualified">std.hashset.HashSet.size</div></div><a class="permalink" href="#std-hashset-hashset-size" aria-label="Permanent link to std.hashset.HashSet.size">#</a></article>
-<article class="symbol-card kind-class" id="std-hashset-setbuilder" data-symbol data-search="std.hashset.SetBuilder class class SetBuilder[T, H](initialCapacity : usize, val hashing : H) Constructeur mutable de [[HashSet]] à partir d’une suite de valeurs.
+<article class="symbol-card kind-class" id="std-hashset-setbuilder" data-symbol data-search="std.hashset.SetBuilder class class SetBuilder[T, H](initialCapacity : usize, borrow val hashing : H) Constructeur mutable de [[HashSet]] à partir d’une suite de valeurs.
 
 Il possède l’ensemble en cours et consomme chaque valeur ajoutée. Les doublons
 sont détruits conformément à [[HashSet.add]]. [[SetBuilder.result]] transfère
 le résultat puis réinitialise le constructeur à une capacité de 8.
 @param initialCapacity Capacité initiale souhaitée pour l’ensemble accumulé.
-@param hashing Stratégie conservée et réutilisée après chaque résultat."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class SetBuilder[T, H](initialCapacity : usize, val hashing : H)</code></h3>
+@param hashing Stratégie empruntée et réutilisée après chaque résultat."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class SetBuilder[T, H](initialCapacity : usize, borrow val hashing : H)</code></h3>
 <p class="doc-summary">Constructeur mutable de <a href="#std-hashset-hashset"><code>HashSet</code></a> à partir d’une suite de valeurs.</p>
 <div class="doc-details"><p>Il possède l’ensemble en cours et consomme chaque valeur ajoutée. Les doublons<br>
 sont détruits conformément à <a href="#std-hashset-hashset-add"><code>HashSet.add</code></a>. <a href="#std-hashset-setbuilder-result"><code>SetBuilder.result</code></a> transfère<br>
 le résultat puis réinitialise le constructeur à une capacité de 8.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Capacité initiale souhaitée pour l’ensemble accumulé.</td></tr><tr><td><code>hashing</code></td><td><code>H</code></td><td>Stratégie conservée et réutilisée après chaque résultat.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Capacité initiale souhaitée pour l’ensemble accumulé.</td></tr><tr><td><code>hashing</code></td><td><code>H</code></td><td>Stratégie empruntée et réutilisée après chaque résultat.</td></tr></tbody></table></section>
 <div class="qualified">std.hashset.SetBuilder</div></div><a class="permalink" href="#std-hashset-setbuilder" aria-label="Permanent link to std.hashset.SetBuilder">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashset-setbuilder-add" data-symbol data-search="std.hashset.SetBuilder.add method def add(value : T) : Unit Ajoute une valeur.
 
@@ -4446,8 +4446,11 @@ valeurs qu’elle contient lorsque leur type le requiert.</p></div>
 <p class="doc-summary">Valeur provenant de l’itérateur de droite.</p>
 <div class="qualified">std.iterator.ZipItem.right</div></div><a class="permalink" href="#std-iterator-zipitem-right" aria-label="Permanent link to std.iterator.ZipItem.right">#</a></article>
 </div></section>
-<section class="module" id="module-std-math" data-module data-search="std.math Fournit le PGCD, le PPCM et des outils sur les nombres premiers pour `usize`.
+<section class="module" id="module-std-math" data-module data-search="std.math Fournit les mathématiques scalaires usuelles pour `double`, `float` et `usize`.
 
+Les fonctions flottantes suivent la sémantique de la bibliothèque mathématique C.
+Une variante terminée par `f` travaille en `float`; la variante sans suffixe
+travaille en `double`.
 [[lcm]] renvoie zéro si un opérande est nul et panique si le produit réduit déborde.
 [[prime_factors]] renvoie les facteurs croissants avec leur multiplicité.
 @example
@@ -4456,11 +4459,384 @@ val divisor : usize = gcd(usize(84), usize(30))
 val factors : Array[usize] = prime_factors(usize(84))
 ```">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.math</h2></header>
-<div class="module-summary"><p class="doc-summary">Fournit le PGCD, le PPCM et des outils sur les nombres premiers pour `usize`.</p><div class="doc-details"><p><a href="#std-math-lcm"><code>lcm</code></a> renvoie zéro si un opérande est nul et panique si le produit réduit déborde.<br>
+<div class="module-summary"><p class="doc-summary">Fournit les mathématiques scalaires usuelles pour `double`, `float` et `usize`.</p><div class="doc-details"><p>Les fonctions flottantes suivent la sémantique de la bibliothèque mathématique C.<br>
+Une variante terminée par `f` travaille en `float`; la variante sans suffixe<br>
+travaille en `double`.<br>
+<a href="#std-math-lcm"><code>lcm</code></a> renvoie zéro si un opérande est nul et panique si le produit réduit déborde.<br>
 <a href="#std-math-prime-factors"><code>prime_factors</code></a> renvoie les facteurs croissants avec leur multiplicité.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val divisor : usize = gcd(usize(84), usize(30))<br>
 val factors : Array[usize] = prime_factors(usize(84))<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">4</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">104</span></h3>
 <div class="symbol-list">
+<article class="symbol-card kind-global" id="std-math-e" data-symbol data-search="std.math.E global val E : double Constante d’Euler, base du logarithme naturel, en double précision."><span class="kind-icon" aria-hidden="true">g</span><div><span class="kind">global</span><h3><code>val E : double</code></h3>
+<p class="doc-summary">Constante d’Euler, base du logarithme naturel, en double précision.</p>
+<div class="qualified">std.math.E</div></div><a class="permalink" href="#std-math-e" aria-label="Permanent link to std.math.E">#</a></article>
+<article class="symbol-card kind-global" id="std-math-ef" data-symbol data-search="std.math.EF global val EF : float Variante simple précision de [[E]]."><span class="kind-icon" aria-hidden="true">g</span><div><span class="kind">global</span><h3><code>val EF : float</code></h3>
+<p class="doc-summary">Variante simple précision de <code class="unresolved">E</code>.</p>
+<div class="qualified">std.math.EF</div></div><a class="permalink" href="#std-math-ef" aria-label="Permanent link to std.math.EF">#</a></article>
+<article class="symbol-card kind-global" id="std-math-pi" data-symbol data-search="std.math.PI global val PI : double Rapport de la circonférence d’un cercle à son diamètre, en double précision."><span class="kind-icon" aria-hidden="true">g</span><div><span class="kind">global</span><h3><code>val PI : double</code></h3>
+<p class="doc-summary">Rapport de la circonférence d’un cercle à son diamètre, en double précision.</p>
+<div class="qualified">std.math.PI</div></div><a class="permalink" href="#std-math-pi" aria-label="Permanent link to std.math.PI">#</a></article>
+<article class="symbol-card kind-global" id="std-math-pif" data-symbol data-search="std.math.PIF global val PIF : float Variante simple précision de [[PI]]."><span class="kind-icon" aria-hidden="true">g</span><div><span class="kind">global</span><h3><code>val PIF : float</code></h3>
+<p class="doc-summary">Variante simple précision de <a href="#std-math-pi"><code>PI</code></a>.</p>
+<div class="qualified">std.math.PIF</div></div><a class="permalink" href="#std-math-pif" aria-label="Permanent link to std.math.PIF">#</a></article>
+<article class="symbol-card kind-global" id="std-math-tau" data-symbol data-search="std.math.TAU global val TAU : double Tour complet en radians, égal à deux fois [[PI]]."><span class="kind-icon" aria-hidden="true">g</span><div><span class="kind">global</span><h3><code>val TAU : double</code></h3>
+<p class="doc-summary">Tour complet en radians, égal à deux fois <a href="#std-math-pi"><code>PI</code></a>.</p>
+<div class="qualified">std.math.TAU</div></div><a class="permalink" href="#std-math-tau" aria-label="Permanent link to std.math.TAU">#</a></article>
+<article class="symbol-card kind-global" id="std-math-tauf" data-symbol data-search="std.math.TAUF global val TAUF : float Variante simple précision de [[TAU]]."><span class="kind-icon" aria-hidden="true">g</span><div><span class="kind">global</span><h3><code>val TAUF : float</code></h3>
+<p class="doc-summary">Variante simple précision de <a href="#std-math-tau"><code>TAU</code></a>.</p>
+<div class="qualified">std.math.TAUF</div></div><a class="permalink" href="#std-math-tauf" aria-label="Permanent link to std.math.TAUF">#</a></article>
+<article class="symbol-card kind-function" id="std-math-acos" data-symbol data-search="std.math.acos function def acos(value : double) : double Calcule l’arc cosinus en radians.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def acos(value : double) : double</code></h3>
+<p class="doc-summary">Calcule l’arc cosinus en radians.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.acos</div></div><a class="permalink" href="#std-math-acos" aria-label="Permanent link to std.math.acos">#</a></article>
+<article class="symbol-card kind-function" id="std-math-acosf" data-symbol data-search="std.math.acosf function def acosf(value : float) : float Variante `float` de [[acos]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def acosf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-acos"><code>acos</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.acosf</div></div><a class="permalink" href="#std-math-acosf" aria-label="Permanent link to std.math.acosf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-acosh" data-symbol data-search="std.math.acosh function def acosh(value : double) : double Calcule l’argument cosinus hyperbolique.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def acosh(value : double) : double</code></h3>
+<p class="doc-summary">Calcule l’argument cosinus hyperbolique.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.acosh</div></div><a class="permalink" href="#std-math-acosh" aria-label="Permanent link to std.math.acosh">#</a></article>
+<article class="symbol-card kind-function" id="std-math-acoshf" data-symbol data-search="std.math.acoshf function def acoshf(value : float) : float Variante `float` de [[acosh]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def acoshf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-acosh"><code>acosh</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.acoshf</div></div><a class="permalink" href="#std-math-acoshf" aria-label="Permanent link to std.math.acoshf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-asin" data-symbol data-search="std.math.asin function def asin(value : double) : double Calcule l’arc sinus en radians.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def asin(value : double) : double</code></h3>
+<p class="doc-summary">Calcule l’arc sinus en radians.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.asin</div></div><a class="permalink" href="#std-math-asin" aria-label="Permanent link to std.math.asin">#</a></article>
+<article class="symbol-card kind-function" id="std-math-asinf" data-symbol data-search="std.math.asinf function def asinf(value : float) : float Variante `float` de [[asin]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def asinf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-asin"><code>asin</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.asinf</div></div><a class="permalink" href="#std-math-asinf" aria-label="Permanent link to std.math.asinf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-asinh" data-symbol data-search="std.math.asinh function def asinh(value : double) : double Calcule l’argument sinus hyperbolique.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def asinh(value : double) : double</code></h3>
+<p class="doc-summary">Calcule l’argument sinus hyperbolique.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.asinh</div></div><a class="permalink" href="#std-math-asinh" aria-label="Permanent link to std.math.asinh">#</a></article>
+<article class="symbol-card kind-function" id="std-math-asinhf" data-symbol data-search="std.math.asinhf function def asinhf(value : float) : float Variante `float` de [[asinh]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def asinhf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-asinh"><code>asinh</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.asinhf</div></div><a class="permalink" href="#std-math-asinhf" aria-label="Permanent link to std.math.asinhf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-atan" data-symbol data-search="std.math.atan function def atan(value : double) : double Calcule l’arc tangente en radians.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def atan(value : double) : double</code></h3>
+<p class="doc-summary">Calcule l’arc tangente en radians.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.atan</div></div><a class="permalink" href="#std-math-atan" aria-label="Permanent link to std.math.atan">#</a></article>
+<article class="symbol-card kind-function" id="std-math-atan2" data-symbol data-search="std.math.atan2 function def atan2(y : double, x : double) : double Calcule l’angle du vecteur `(x, y)` dans le quadrant correct.
+@param y Valeur transmise au calcul.
+@param x Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def atan2(y : double, x : double) : double</code></h3>
+<p class="doc-summary">Calcule l’angle du vecteur `(x, y)` dans le quadrant correct.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>y</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>x</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.atan2</div></div><a class="permalink" href="#std-math-atan2" aria-label="Permanent link to std.math.atan2">#</a></article>
+<article class="symbol-card kind-function" id="std-math-atan2f" data-symbol data-search="std.math.atan2f function def atan2f(y : float, x : float) : float Variante `float` de [[atan2]].
+@param y Valeur transmise au calcul.
+@param x Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def atan2f(y : float, x : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-atan2"><code>atan2</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>y</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>x</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.atan2f</div></div><a class="permalink" href="#std-math-atan2f" aria-label="Permanent link to std.math.atan2f">#</a></article>
+<article class="symbol-card kind-function" id="std-math-atanf" data-symbol data-search="std.math.atanf function def atanf(value : float) : float Variante `float` de [[atan]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def atanf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-atan"><code>atan</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.atanf</div></div><a class="permalink" href="#std-math-atanf" aria-label="Permanent link to std.math.atanf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-atanh" data-symbol data-search="std.math.atanh function def atanh(value : double) : double Calcule l’argument tangente hyperbolique.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def atanh(value : double) : double</code></h3>
+<p class="doc-summary">Calcule l’argument tangente hyperbolique.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.atanh</div></div><a class="permalink" href="#std-math-atanh" aria-label="Permanent link to std.math.atanh">#</a></article>
+<article class="symbol-card kind-function" id="std-math-atanhf" data-symbol data-search="std.math.atanhf function def atanhf(value : float) : float Variante `float` de [[atanh]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def atanhf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-atanh"><code>atanh</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.atanhf</div></div><a class="permalink" href="#std-math-atanhf" aria-label="Permanent link to std.math.atanhf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-cbrt" data-symbol data-search="std.math.cbrt function def cbrt(value : double) : double Calcule la racine cubique.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def cbrt(value : double) : double</code></h3>
+<p class="doc-summary">Calcule la racine cubique.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.cbrt</div></div><a class="permalink" href="#std-math-cbrt" aria-label="Permanent link to std.math.cbrt">#</a></article>
+<article class="symbol-card kind-function" id="std-math-cbrtf" data-symbol data-search="std.math.cbrtf function def cbrtf(value : float) : float Variante `float` de [[cbrt]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def cbrtf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-cbrt"><code>cbrt</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.cbrtf</div></div><a class="permalink" href="#std-math-cbrtf" aria-label="Permanent link to std.math.cbrtf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-ceil" data-symbol data-search="std.math.ceil function def ceil(value : double) : double Arrondit vers l’infini positif.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def ceil(value : double) : double</code></h3>
+<p class="doc-summary">Arrondit vers l’infini positif.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.ceil</div></div><a class="permalink" href="#std-math-ceil" aria-label="Permanent link to std.math.ceil">#</a></article>
+<article class="symbol-card kind-function" id="std-math-ceilf" data-symbol data-search="std.math.ceilf function def ceilf(value : float) : float Variante `float` de [[ceil]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def ceilf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-ceil"><code>ceil</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.ceilf</div></div><a class="permalink" href="#std-math-ceilf" aria-label="Permanent link to std.math.ceilf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-clamp" data-symbol data-search="std.math.clamp function def clamp(value : double, lower : double, upper : double) : double Borne une valeur dans l’intervalle fermé `[lower, upper]`.
+@param value Valeur transmise au calcul.
+@param lower Valeur transmise au calcul.
+@param upper Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def clamp(value : double, lower : double, upper : double) : double</code></h3>
+<p class="doc-summary">Borne une valeur dans l’intervalle fermé `[lower, upper]`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>lower</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>upper</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.clamp</div></div><a class="permalink" href="#std-math-clamp" aria-label="Permanent link to std.math.clamp">#</a></article>
+<article class="symbol-card kind-function" id="std-math-clampf" data-symbol data-search="std.math.clampf function def clampf(value : float, lower : float, upper : float) : float Variante `float` de [[clamp]].
+@param value Valeur transmise au calcul.
+@param lower Valeur transmise au calcul.
+@param upper Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def clampf(value : float, lower : float, upper : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-clamp"><code>clamp</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>lower</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>upper</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.clampf</div></div><a class="permalink" href="#std-math-clampf" aria-label="Permanent link to std.math.clampf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-copysign" data-symbol data-search="std.math.copysign function def copysign(value : double, sign : double) : double Copie le signe de `sign` sur la magnitude de `value`.
+@param value Valeur transmise au calcul.
+@param sign Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def copysign(value : double, sign : double) : double</code></h3>
+<p class="doc-summary">Copie le signe de `sign` sur la magnitude de `value`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>sign</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.copysign</div></div><a class="permalink" href="#std-math-copysign" aria-label="Permanent link to std.math.copysign">#</a></article>
+<article class="symbol-card kind-function" id="std-math-copysignf" data-symbol data-search="std.math.copysignf function def copysignf(value : float, sign : float) : float Variante `float` de [[copysign]].
+@param value Valeur transmise au calcul.
+@param sign Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def copysignf(value : float, sign : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-copysign"><code>copysign</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>sign</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.copysignf</div></div><a class="permalink" href="#std-math-copysignf" aria-label="Permanent link to std.math.copysignf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-cos" data-symbol data-search="std.math.cos function def cos(value : double) : double Calcule le cosinus d’un angle en radians.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def cos(value : double) : double</code></h3>
+<p class="doc-summary">Calcule le cosinus d’un angle en radians.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.cos</div></div><a class="permalink" href="#std-math-cos" aria-label="Permanent link to std.math.cos">#</a></article>
+<article class="symbol-card kind-function" id="std-math-cosf" data-symbol data-search="std.math.cosf function def cosf(value : float) : float Variante `float` de [[cos]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def cosf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-cos"><code>cos</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.cosf</div></div><a class="permalink" href="#std-math-cosf" aria-label="Permanent link to std.math.cosf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-cosh" data-symbol data-search="std.math.cosh function def cosh(value : double) : double Calcule le cosinus hyperbolique.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def cosh(value : double) : double</code></h3>
+<p class="doc-summary">Calcule le cosinus hyperbolique.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.cosh</div></div><a class="permalink" href="#std-math-cosh" aria-label="Permanent link to std.math.cosh">#</a></article>
+<article class="symbol-card kind-function" id="std-math-coshf" data-symbol data-search="std.math.coshf function def coshf(value : float) : float Variante `float` de [[cosh]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def coshf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-cosh"><code>cosh</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.coshf</div></div><a class="permalink" href="#std-math-coshf" aria-label="Permanent link to std.math.coshf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-erf" data-symbol data-search="std.math.erf function def erf(value : double) : double Calcule la fonction d’erreur.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def erf(value : double) : double</code></h3>
+<p class="doc-summary">Calcule la fonction d’erreur.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.erf</div></div><a class="permalink" href="#std-math-erf" aria-label="Permanent link to std.math.erf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-erfc" data-symbol data-search="std.math.erfc function def erfc(value : double) : double Calcule la fonction d’erreur complémentaire.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def erfc(value : double) : double</code></h3>
+<p class="doc-summary">Calcule la fonction d’erreur complémentaire.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.erfc</div></div><a class="permalink" href="#std-math-erfc" aria-label="Permanent link to std.math.erfc">#</a></article>
+<article class="symbol-card kind-function" id="std-math-erfcf" data-symbol data-search="std.math.erfcf function def erfcf(value : float) : float Variante `float` de [[erfc]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def erfcf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-erfc"><code>erfc</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.erfcf</div></div><a class="permalink" href="#std-math-erfcf" aria-label="Permanent link to std.math.erfcf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-erff" data-symbol data-search="std.math.erff function def erff(value : float) : float Variante `float` de [[erf]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def erff(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-erf"><code>erf</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.erff</div></div><a class="permalink" href="#std-math-erff" aria-label="Permanent link to std.math.erff">#</a></article>
+<article class="symbol-card kind-function" id="std-math-exp" data-symbol data-search="std.math.exp function def exp(value : double) : double Calcule l’exponentielle naturelle.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def exp(value : double) : double</code></h3>
+<p class="doc-summary">Calcule l’exponentielle naturelle.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.exp</div></div><a class="permalink" href="#std-math-exp" aria-label="Permanent link to std.math.exp">#</a></article>
+<article class="symbol-card kind-function" id="std-math-exp2" data-symbol data-search="std.math.exp2 function def exp2(value : double) : double Calcule deux élevé à la puissance `value`.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def exp2(value : double) : double</code></h3>
+<p class="doc-summary">Calcule deux élevé à la puissance `value`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.exp2</div></div><a class="permalink" href="#std-math-exp2" aria-label="Permanent link to std.math.exp2">#</a></article>
+<article class="symbol-card kind-function" id="std-math-exp2f" data-symbol data-search="std.math.exp2f function def exp2f(value : float) : float Variante `float` de [[exp2]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def exp2f(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-exp2"><code>exp2</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.exp2f</div></div><a class="permalink" href="#std-math-exp2f" aria-label="Permanent link to std.math.exp2f">#</a></article>
+<article class="symbol-card kind-function" id="std-math-expf" data-symbol data-search="std.math.expf function def expf(value : float) : float Variante `float` de [[exp]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def expf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-exp"><code>exp</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.expf</div></div><a class="permalink" href="#std-math-expf" aria-label="Permanent link to std.math.expf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-expm1" data-symbol data-search="std.math.expm1 function def expm1(value : double) : double Calcule `exp(value) - 1` avec précision près de zéro.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def expm1(value : double) : double</code></h3>
+<p class="doc-summary">Calcule `exp(value) - 1` avec précision près de zéro.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.expm1</div></div><a class="permalink" href="#std-math-expm1" aria-label="Permanent link to std.math.expm1">#</a></article>
+<article class="symbol-card kind-function" id="std-math-expm1f" data-symbol data-search="std.math.expm1f function def expm1f(value : float) : float Variante `float` de [[expm1]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def expm1f(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-expm1"><code>expm1</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.expm1f</div></div><a class="permalink" href="#std-math-expm1f" aria-label="Permanent link to std.math.expm1f">#</a></article>
+<article class="symbol-card kind-function" id="std-math-fabs" data-symbol data-search="std.math.fabs function def fabs(value : double) : double Retourne la valeur absolue flottante.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fabs(value : double) : double</code></h3>
+<p class="doc-summary">Retourne la valeur absolue flottante.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.fabs</div></div><a class="permalink" href="#std-math-fabs" aria-label="Permanent link to std.math.fabs">#</a></article>
+<article class="symbol-card kind-function" id="std-math-fabsf" data-symbol data-search="std.math.fabsf function def fabsf(value : float) : float Variante `float` de [[fabs]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fabsf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-fabs"><code>fabs</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.fabsf</div></div><a class="permalink" href="#std-math-fabsf" aria-label="Permanent link to std.math.fabsf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-fdim" data-symbol data-search="std.math.fdim function def fdim(left : double, right : double) : double Retourne la différence positive `max(left - right, 0)`.
+@param left Valeur transmise au calcul.
+@param right Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fdim(left : double, right : double) : double</code></h3>
+<p class="doc-summary">Retourne la différence positive `max(left - right, 0)`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>right</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.fdim</div></div><a class="permalink" href="#std-math-fdim" aria-label="Permanent link to std.math.fdim">#</a></article>
+<article class="symbol-card kind-function" id="std-math-fdimf" data-symbol data-search="std.math.fdimf function def fdimf(left : float, right : float) : float Variante `float` de [[fdim]].
+@param left Valeur transmise au calcul.
+@param right Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fdimf(left : float, right : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-fdim"><code>fdim</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>right</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.fdimf</div></div><a class="permalink" href="#std-math-fdimf" aria-label="Permanent link to std.math.fdimf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-floor" data-symbol data-search="std.math.floor function def floor(value : double) : double Arrondit vers l’infini négatif.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def floor(value : double) : double</code></h3>
+<p class="doc-summary">Arrondit vers l’infini négatif.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.floor</div></div><a class="permalink" href="#std-math-floor" aria-label="Permanent link to std.math.floor">#</a></article>
+<article class="symbol-card kind-function" id="std-math-floorf" data-symbol data-search="std.math.floorf function def floorf(value : float) : float Variante `float` de [[floor]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def floorf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-floor"><code>floor</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.floorf</div></div><a class="permalink" href="#std-math-floorf" aria-label="Permanent link to std.math.floorf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-fmax" data-symbol data-search="std.math.fmax function def fmax(left : double, right : double) : double Retourne le plus grand des deux nombres selon la sémantique C de `fmax`.
+@param left Valeur transmise au calcul.
+@param right Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fmax(left : double, right : double) : double</code></h3>
+<p class="doc-summary">Retourne le plus grand des deux nombres selon la sémantique C de `fmax`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>right</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.fmax</div></div><a class="permalink" href="#std-math-fmax" aria-label="Permanent link to std.math.fmax">#</a></article>
+<article class="symbol-card kind-function" id="std-math-fmaxf" data-symbol data-search="std.math.fmaxf function def fmaxf(left : float, right : float) : float Variante `float` de [[fmax]].
+@param left Valeur transmise au calcul.
+@param right Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fmaxf(left : float, right : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-fmax"><code>fmax</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>right</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.fmaxf</div></div><a class="permalink" href="#std-math-fmaxf" aria-label="Permanent link to std.math.fmaxf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-fmin" data-symbol data-search="std.math.fmin function def fmin(left : double, right : double) : double Retourne le plus petit des deux nombres selon la sémantique C de `fmin`.
+@param left Valeur transmise au calcul.
+@param right Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fmin(left : double, right : double) : double</code></h3>
+<p class="doc-summary">Retourne le plus petit des deux nombres selon la sémantique C de `fmin`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>right</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.fmin</div></div><a class="permalink" href="#std-math-fmin" aria-label="Permanent link to std.math.fmin">#</a></article>
+<article class="symbol-card kind-function" id="std-math-fminf" data-symbol data-search="std.math.fminf function def fminf(left : float, right : float) : float Variante `float` de [[fmin]].
+@param left Valeur transmise au calcul.
+@param right Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fminf(left : float, right : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-fmin"><code>fmin</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>right</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.fminf</div></div><a class="permalink" href="#std-math-fminf" aria-label="Permanent link to std.math.fminf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-fmod" data-symbol data-search="std.math.fmod function def fmod(left : double, right : double) : double Calcule le reste de division tronquée.
+@param left Valeur transmise au calcul.
+@param right Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fmod(left : double, right : double) : double</code></h3>
+<p class="doc-summary">Calcule le reste de division tronquée.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>right</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.fmod</div></div><a class="permalink" href="#std-math-fmod" aria-label="Permanent link to std.math.fmod">#</a></article>
+<article class="symbol-card kind-function" id="std-math-fmodf" data-symbol data-search="std.math.fmodf function def fmodf(left : float, right : float) : float Variante `float` de [[fmod]].
+@param left Valeur transmise au calcul.
+@param right Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fmodf(left : float, right : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-fmod"><code>fmod</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>right</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.fmodf</div></div><a class="permalink" href="#std-math-fmodf" aria-label="Permanent link to std.math.fmodf">#</a></article>
 <article class="symbol-card kind-function" id="std-math-gcd" data-symbol data-search="std.math.gcd function def gcd(left : usize, right : usize) : usize Calcule le plus grand diviseur commun par l’algorithme d’Euclide.
 
 @param left Premier entier non signé, éventuellement nul.
@@ -4470,6 +4846,22 @@ val factors : Array[usize] = prime_factors(usize(84))<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>usize</code></td><td>Premier entier non signé, éventuellement nul.</td></tr><tr><td><code>right</code></td><td><code>usize</code></td><td>Second entier non signé, éventuellement nul.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Plus grand diviseur commun; zéro lorsque les deux arguments valent zéro.</p></section>
 <div class="qualified">std.math.gcd</div></div><a class="permalink" href="#std-math-gcd" aria-label="Permanent link to std.math.gcd">#</a></article>
+<article class="symbol-card kind-function" id="std-math-hypot" data-symbol data-search="std.math.hypot function def hypot(x : double, y : double) : double Calcule une hypoténuse sans overflow intermédiaire inutile.
+@param x Valeur transmise au calcul.
+@param y Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def hypot(x : double, y : double) : double</code></h3>
+<p class="doc-summary">Calcule une hypoténuse sans overflow intermédiaire inutile.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>x</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>y</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.hypot</div></div><a class="permalink" href="#std-math-hypot" aria-label="Permanent link to std.math.hypot">#</a></article>
+<article class="symbol-card kind-function" id="std-math-hypotf" data-symbol data-search="std.math.hypotf function def hypotf(x : float, y : float) : float Variante `float` de [[hypot]].
+@param x Valeur transmise au calcul.
+@param y Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def hypotf(x : float, y : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-hypot"><code>hypot</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>x</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>y</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.hypotf</div></div><a class="permalink" href="#std-math-hypotf" aria-label="Permanent link to std.math.hypotf">#</a></article>
 <article class="symbol-card kind-function" id="std-math-is-prime" data-symbol data-search="std.math.is_prime function def is_prime(value : usize) : bool Indique si la valeur est un nombre premier.
 
 @param value Entier à tester; zéro et un ne sont pas premiers.
@@ -4478,6 +4870,62 @@ val factors : Array[usize] = prime_factors(usize(84))<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>usize</code></td><td>Entier à tester; zéro et un ne sont pas premiers.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` exactement lorsque `value` n’a que 1 et lui-même comme diviseurs.</p></section>
 <div class="qualified">std.math.is_prime</div></div><a class="permalink" href="#std-math-is-prime" aria-label="Permanent link to std.math.is_prime">#</a></article>
+<article class="symbol-card kind-function" id="std-math-isfinite" data-symbol data-search="std.math.isfinite function def isfinite(value : double) : bool Indique si la valeur n’est ni infinie ni NaN.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isfinite(value : double) : bool</code></h3>
+<p class="doc-summary">Indique si la valeur n’est ni infinie ni NaN.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.isfinite</div></div><a class="permalink" href="#std-math-isfinite" aria-label="Permanent link to std.math.isfinite">#</a></article>
+<article class="symbol-card kind-function" id="std-math-isfinitef" data-symbol data-search="std.math.isfinitef function def isfinitef(value : float) : bool Variante `float` de [[isfinite]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isfinitef(value : float) : bool</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-isfinite"><code>isfinite</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.isfinitef</div></div><a class="permalink" href="#std-math-isfinitef" aria-label="Permanent link to std.math.isfinitef">#</a></article>
+<article class="symbol-card kind-function" id="std-math-isinf" data-symbol data-search="std.math.isinf function def isinf(value : double) : bool Indique si la valeur est une infinité positive ou négative.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isinf(value : double) : bool</code></h3>
+<p class="doc-summary">Indique si la valeur est une infinité positive ou négative.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.isinf</div></div><a class="permalink" href="#std-math-isinf" aria-label="Permanent link to std.math.isinf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-isinff" data-symbol data-search="std.math.isinff function def isinff(value : float) : bool Variante `float` de [[isinf]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isinff(value : float) : bool</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-isinf"><code>isinf</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.isinff</div></div><a class="permalink" href="#std-math-isinff" aria-label="Permanent link to std.math.isinff">#</a></article>
+<article class="symbol-card kind-function" id="std-math-isnan" data-symbol data-search="std.math.isnan function def isnan(value : double) : bool Indique si la valeur est un NaN.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isnan(value : double) : bool</code></h3>
+<p class="doc-summary">Indique si la valeur est un NaN.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.isnan</div></div><a class="permalink" href="#std-math-isnan" aria-label="Permanent link to std.math.isnan">#</a></article>
+<article class="symbol-card kind-function" id="std-math-isnanf" data-symbol data-search="std.math.isnanf function def isnanf(value : float) : bool Variante `float` de [[isnan]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isnanf(value : float) : bool</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-isnan"><code>isnan</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.isnanf</div></div><a class="permalink" href="#std-math-isnanf" aria-label="Permanent link to std.math.isnanf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-isnormal" data-symbol data-search="std.math.isnormal function def isnormal(value : double) : bool Indique si la valeur est finie, non nulle et non sous-normale.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isnormal(value : double) : bool</code></h3>
+<p class="doc-summary">Indique si la valeur est finie, non nulle et non sous-normale.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.isnormal</div></div><a class="permalink" href="#std-math-isnormal" aria-label="Permanent link to std.math.isnormal">#</a></article>
+<article class="symbol-card kind-function" id="std-math-isnormalf" data-symbol data-search="std.math.isnormalf function def isnormalf(value : float) : bool Variante `float` de [[isnormal]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isnormalf(value : float) : bool</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-isnormal"><code>isnormal</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.isnormalf</div></div><a class="permalink" href="#std-math-isnormalf" aria-label="Permanent link to std.math.isnormalf">#</a></article>
 <article class="symbol-card kind-function" id="std-math-lcm" data-symbol data-search="std.math.lcm function def lcm(left : usize, right : usize) : usize Calcule le plus petit commun multiple sans faire déborder silencieusement le produit réduit.
 
 @param left Premier entier non signé.
@@ -4487,6 +4935,126 @@ val factors : Array[usize] = prime_factors(usize(84))<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>usize</code></td><td>Premier entier non signé.</td></tr><tr><td><code>right</code></td><td><code>usize</code></td><td>Second entier non signé.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Zéro si un argument est nul, sinon leur plus petit commun multiple.</p></section>
 <div class="qualified">std.math.lcm</div></div><a class="permalink" href="#std-math-lcm" aria-label="Permanent link to std.math.lcm">#</a></article>
+<article class="symbol-card kind-function" id="std-math-lerp" data-symbol data-search="std.math.lerp function def lerp(start : double, end : double, amount : double) : double Interpole linéairement de `start` à `end`; `amount` n’est pas borné.
+@param start Valeur transmise au calcul.
+@param end Valeur transmise au calcul.
+@param amount Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def lerp(start : double, end : double, amount : double) : double</code></h3>
+<p class="doc-summary">Interpole linéairement de `start` à `end`; `amount` n’est pas borné.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>start</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>end</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>amount</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.lerp</div></div><a class="permalink" href="#std-math-lerp" aria-label="Permanent link to std.math.lerp">#</a></article>
+<article class="symbol-card kind-function" id="std-math-lerpf" data-symbol data-search="std.math.lerpf function def lerpf(start : float, end : float, amount : float) : float Variante `float` de [[lerp]].
+@param start Valeur transmise au calcul.
+@param end Valeur transmise au calcul.
+@param amount Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def lerpf(start : float, end : float, amount : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-lerp"><code>lerp</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>start</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>end</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>amount</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.lerpf</div></div><a class="permalink" href="#std-math-lerpf" aria-label="Permanent link to std.math.lerpf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-lgamma" data-symbol data-search="std.math.lgamma function def lgamma(value : double) : double Calcule le logarithme de la valeur absolue de gamma.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def lgamma(value : double) : double</code></h3>
+<p class="doc-summary">Calcule le logarithme de la valeur absolue de gamma.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.lgamma</div></div><a class="permalink" href="#std-math-lgamma" aria-label="Permanent link to std.math.lgamma">#</a></article>
+<article class="symbol-card kind-function" id="std-math-lgammaf" data-symbol data-search="std.math.lgammaf function def lgammaf(value : float) : float Variante `float` de [[lgamma]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def lgammaf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-lgamma"><code>lgamma</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.lgammaf</div></div><a class="permalink" href="#std-math-lgammaf" aria-label="Permanent link to std.math.lgammaf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-log" data-symbol data-search="std.math.log function def log(value : double) : double Calcule le logarithme naturel.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def log(value : double) : double</code></h3>
+<p class="doc-summary">Calcule le logarithme naturel.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.log</div></div><a class="permalink" href="#std-math-log" aria-label="Permanent link to std.math.log">#</a></article>
+<article class="symbol-card kind-function" id="std-math-log10" data-symbol data-search="std.math.log10 function def log10(value : double) : double Calcule le logarithme décimal.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def log10(value : double) : double</code></h3>
+<p class="doc-summary">Calcule le logarithme décimal.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.log10</div></div><a class="permalink" href="#std-math-log10" aria-label="Permanent link to std.math.log10">#</a></article>
+<article class="symbol-card kind-function" id="std-math-log10f" data-symbol data-search="std.math.log10f function def log10f(value : float) : float Variante `float` de [[log10]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def log10f(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-log10"><code>log10</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.log10f</div></div><a class="permalink" href="#std-math-log10f" aria-label="Permanent link to std.math.log10f">#</a></article>
+<article class="symbol-card kind-function" id="std-math-log1p" data-symbol data-search="std.math.log1p function def log1p(value : double) : double Calcule `log(1 + value)` avec précision près de zéro.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def log1p(value : double) : double</code></h3>
+<p class="doc-summary">Calcule `log(1 + value)` avec précision près de zéro.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.log1p</div></div><a class="permalink" href="#std-math-log1p" aria-label="Permanent link to std.math.log1p">#</a></article>
+<article class="symbol-card kind-function" id="std-math-log1pf" data-symbol data-search="std.math.log1pf function def log1pf(value : float) : float Variante `float` de [[log1p]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def log1pf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-log1p"><code>log1p</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.log1pf</div></div><a class="permalink" href="#std-math-log1pf" aria-label="Permanent link to std.math.log1pf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-log2" data-symbol data-search="std.math.log2 function def log2(value : double) : double Calcule le logarithme en base deux.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def log2(value : double) : double</code></h3>
+<p class="doc-summary">Calcule le logarithme en base deux.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.log2</div></div><a class="permalink" href="#std-math-log2" aria-label="Permanent link to std.math.log2">#</a></article>
+<article class="symbol-card kind-function" id="std-math-log2f" data-symbol data-search="std.math.log2f function def log2f(value : float) : float Variante `float` de [[log2]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def log2f(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-log2"><code>log2</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.log2f</div></div><a class="permalink" href="#std-math-log2f" aria-label="Permanent link to std.math.log2f">#</a></article>
+<article class="symbol-card kind-function" id="std-math-logf" data-symbol data-search="std.math.logf function def logf(value : float) : float Variante `float` de [[log]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def logf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-log"><code>log</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.logf</div></div><a class="permalink" href="#std-math-logf" aria-label="Permanent link to std.math.logf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-nextafter" data-symbol data-search="std.math.nextafter function def nextafter(value : double, toward : double) : double Retourne la valeur représentable suivante en direction de `toward`.
+@param value Valeur transmise au calcul.
+@param toward Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def nextafter(value : double, toward : double) : double</code></h3>
+<p class="doc-summary">Retourne la valeur représentable suivante en direction de `toward`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>toward</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.nextafter</div></div><a class="permalink" href="#std-math-nextafter" aria-label="Permanent link to std.math.nextafter">#</a></article>
+<article class="symbol-card kind-function" id="std-math-nextafterf" data-symbol data-search="std.math.nextafterf function def nextafterf(value : float, toward : float) : float Variante `float` de [[nextafter]].
+@param value Valeur transmise au calcul.
+@param toward Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def nextafterf(value : float, toward : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-nextafter"><code>nextafter</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>toward</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.nextafterf</div></div><a class="permalink" href="#std-math-nextafterf" aria-label="Permanent link to std.math.nextafterf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-pow" data-symbol data-search="std.math.pow function def pow(base : double, exponent : double) : double Élève `base` à la puissance `exponent`.
+@param base Valeur transmise au calcul.
+@param exponent Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def pow(base : double, exponent : double) : double</code></h3>
+<p class="doc-summary">Élève `base` à la puissance `exponent`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>base</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>exponent</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.pow</div></div><a class="permalink" href="#std-math-pow" aria-label="Permanent link to std.math.pow">#</a></article>
+<article class="symbol-card kind-function" id="std-math-powf" data-symbol data-search="std.math.powf function def powf(base : float, exponent : float) : float Variante `float` de [[pow]].
+@param base Valeur transmise au calcul.
+@param exponent Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def powf(base : float, exponent : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-pow"><code>pow</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>base</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>exponent</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.powf</div></div><a class="permalink" href="#std-math-powf" aria-label="Permanent link to std.math.powf">#</a></article>
 <article class="symbol-card kind-function" id="std-math-prime-factors" data-symbol data-search="std.math.prime_factors function def prime_factors(value : usize) : Array[usize] Décompose un entier en facteurs premiers croissants, avec répétition des multiplicités.
 
 @param value Entier à factoriser.
@@ -4495,6 +5063,148 @@ val factors : Array[usize] = prime_factors(usize(84))<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>usize</code></td><td>Entier à factoriser.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Array[usize]</code> — Tableau vide pour zéro ou un; sinon facteurs dont le produit vaut `value`.</p></section>
 <div class="qualified">std.math.prime_factors</div></div><a class="permalink" href="#std-math-prime-factors" aria-label="Permanent link to std.math.prime_factors">#</a></article>
+<article class="symbol-card kind-function" id="std-math-remainder" data-symbol data-search="std.math.remainder function def remainder(left : double, right : double) : double Calcule le reste IEEE de la division.
+@param left Valeur transmise au calcul.
+@param right Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def remainder(left : double, right : double) : double</code></h3>
+<p class="doc-summary">Calcule le reste IEEE de la division.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>right</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.remainder</div></div><a class="permalink" href="#std-math-remainder" aria-label="Permanent link to std.math.remainder">#</a></article>
+<article class="symbol-card kind-function" id="std-math-remainderf" data-symbol data-search="std.math.remainderf function def remainderf(left : float, right : float) : float Variante `float` de [[remainder]].
+@param left Valeur transmise au calcul.
+@param right Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def remainderf(left : float, right : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-remainder"><code>remainder</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr><tr><td><code>right</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.remainderf</div></div><a class="permalink" href="#std-math-remainderf" aria-label="Permanent link to std.math.remainderf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-round" data-symbol data-search="std.math.round function def round(value : double) : double Arrondit à l’entier le plus proche, les demis s’éloignant de zéro.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def round(value : double) : double</code></h3>
+<p class="doc-summary">Arrondit à l’entier le plus proche, les demis s’éloignant de zéro.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.round</div></div><a class="permalink" href="#std-math-round" aria-label="Permanent link to std.math.round">#</a></article>
+<article class="symbol-card kind-function" id="std-math-roundf" data-symbol data-search="std.math.roundf function def roundf(value : float) : float Variante `float` de [[round]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def roundf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-round"><code>round</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.roundf</div></div><a class="permalink" href="#std-math-roundf" aria-label="Permanent link to std.math.roundf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-signbit" data-symbol data-search="std.math.signbit function def signbit(value : double) : bool Indique si le bit de signe est positionné, y compris pour `-0.0`.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def signbit(value : double) : bool</code></h3>
+<p class="doc-summary">Indique si le bit de signe est positionné, y compris pour `-0.0`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.signbit</div></div><a class="permalink" href="#std-math-signbit" aria-label="Permanent link to std.math.signbit">#</a></article>
+<article class="symbol-card kind-function" id="std-math-signbitf" data-symbol data-search="std.math.signbitf function def signbitf(value : float) : bool Variante `float` de [[signbit]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def signbitf(value : float) : bool</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-signbit"><code>signbit</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.signbitf</div></div><a class="permalink" href="#std-math-signbitf" aria-label="Permanent link to std.math.signbitf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-sin" data-symbol data-search="std.math.sin function def sin(value : double) : double Calcule le sinus d’un angle en radians.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def sin(value : double) : double</code></h3>
+<p class="doc-summary">Calcule le sinus d’un angle en radians.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.sin</div></div><a class="permalink" href="#std-math-sin" aria-label="Permanent link to std.math.sin">#</a></article>
+<article class="symbol-card kind-function" id="std-math-sinf" data-symbol data-search="std.math.sinf function def sinf(value : float) : float Variante `float` de [[sin]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def sinf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-sin"><code>sin</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.sinf</div></div><a class="permalink" href="#std-math-sinf" aria-label="Permanent link to std.math.sinf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-sinh" data-symbol data-search="std.math.sinh function def sinh(value : double) : double Calcule le sinus hyperbolique.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def sinh(value : double) : double</code></h3>
+<p class="doc-summary">Calcule le sinus hyperbolique.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.sinh</div></div><a class="permalink" href="#std-math-sinh" aria-label="Permanent link to std.math.sinh">#</a></article>
+<article class="symbol-card kind-function" id="std-math-sinhf" data-symbol data-search="std.math.sinhf function def sinhf(value : float) : float Variante `float` de [[sinh]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def sinhf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-sinh"><code>sinh</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.sinhf</div></div><a class="permalink" href="#std-math-sinhf" aria-label="Permanent link to std.math.sinhf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-sqrt" data-symbol data-search="std.math.sqrt function def sqrt(value : double) : double Calcule la racine carrée.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def sqrt(value : double) : double</code></h3>
+<p class="doc-summary">Calcule la racine carrée.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.sqrt</div></div><a class="permalink" href="#std-math-sqrt" aria-label="Permanent link to std.math.sqrt">#</a></article>
+<article class="symbol-card kind-function" id="std-math-sqrtf" data-symbol data-search="std.math.sqrtf function def sqrtf(value : float) : float Variante `float` de [[sqrt]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def sqrtf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-sqrt"><code>sqrt</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.sqrtf</div></div><a class="permalink" href="#std-math-sqrtf" aria-label="Permanent link to std.math.sqrtf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-tan" data-symbol data-search="std.math.tan function def tan(value : double) : double Calcule la tangente d’un angle en radians.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def tan(value : double) : double</code></h3>
+<p class="doc-summary">Calcule la tangente d’un angle en radians.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.tan</div></div><a class="permalink" href="#std-math-tan" aria-label="Permanent link to std.math.tan">#</a></article>
+<article class="symbol-card kind-function" id="std-math-tanf" data-symbol data-search="std.math.tanf function def tanf(value : float) : float Variante `float` de [[tan]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def tanf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-tan"><code>tan</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.tanf</div></div><a class="permalink" href="#std-math-tanf" aria-label="Permanent link to std.math.tanf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-tanh" data-symbol data-search="std.math.tanh function def tanh(value : double) : double Calcule la tangente hyperbolique.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def tanh(value : double) : double</code></h3>
+<p class="doc-summary">Calcule la tangente hyperbolique.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.tanh</div></div><a class="permalink" href="#std-math-tanh" aria-label="Permanent link to std.math.tanh">#</a></article>
+<article class="symbol-card kind-function" id="std-math-tanhf" data-symbol data-search="std.math.tanhf function def tanhf(value : float) : float Variante `float` de [[tanh]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def tanhf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-tanh"><code>tanh</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.tanhf</div></div><a class="permalink" href="#std-math-tanhf" aria-label="Permanent link to std.math.tanhf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-tgamma" data-symbol data-search="std.math.tgamma function def tgamma(value : double) : double Calcule la fonction gamma.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def tgamma(value : double) : double</code></h3>
+<p class="doc-summary">Calcule la fonction gamma.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.tgamma</div></div><a class="permalink" href="#std-math-tgamma" aria-label="Permanent link to std.math.tgamma">#</a></article>
+<article class="symbol-card kind-function" id="std-math-tgammaf" data-symbol data-search="std.math.tgammaf function def tgammaf(value : float) : float Variante `float` de [[tgamma]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def tgammaf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-tgamma"><code>tgamma</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.tgammaf</div></div><a class="permalink" href="#std-math-tgammaf" aria-label="Permanent link to std.math.tgammaf">#</a></article>
+<article class="symbol-card kind-function" id="std-math-trunc" data-symbol data-search="std.math.trunc function def trunc(value : double) : double Tronque la partie fractionnaire en direction de zéro.
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def trunc(value : double) : double</code></h3>
+<p class="doc-summary">Tronque la partie fractionnaire en direction de zéro.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>double</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>double</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.trunc</div></div><a class="permalink" href="#std-math-trunc" aria-label="Permanent link to std.math.trunc">#</a></article>
+<article class="symbol-card kind-function" id="std-math-truncf" data-symbol data-search="std.math.truncf function def truncf(value : float) : float Variante `float` de [[trunc]].
+@param value Valeur transmise au calcul.
+@return Résultat du calcul."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def truncf(value : float) : float</code></h3>
+<p class="doc-summary">Variante `float` de <a href="#std-math-trunc"><code>trunc</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>float</code></td><td>Valeur transmise au calcul.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>float</code> — Résultat du calcul.</p></section>
+<div class="qualified">std.math.truncf</div></div><a class="permalink" href="#std-math-truncf" aria-label="Permanent link to std.math.truncf">#</a></article>
 </div></section>
 <section class="module" id="module-std-option" data-module data-search="std.option Modélise une valeur présente avec [[Option.Some]] ou absente avec [[Option.None]].
 

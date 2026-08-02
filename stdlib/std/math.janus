@@ -1,5 +1,8 @@
-/// Fournit le PGCD, le PPCM et des outils sur les nombres premiers pour `usize`.
+/// Fournit les mathématiques scalaires usuelles pour `double`, `float` et `usize`.
 ///
+/// Les fonctions flottantes suivent la sémantique de la bibliothèque mathématique C.
+/// Une variante terminée par `f` travaille en `float`; la variante sans suffixe
+/// travaille en `double`.
 /// [[lcm]] renvoie zéro si un opérande est nul et panique si le produit réduit déborde.
 /// [[prime_factors]] renvoie les facteurs croissants avec leur multiplicité.
 /// @example
@@ -9,6 +12,443 @@
 /// ```
 module std.math
 import std.array
+
+/// Rapport de la circonférence d’un cercle à son diamètre, en double précision.
+val PI : double = 3.14159265358979323846264338327950288
+/// Constante d’Euler, base du logarithme naturel, en double précision.
+val E : double = 2.71828182845904523536028747135266250
+/// Tour complet en radians, égal à deux fois [[PI]].
+val TAU : double = 6.28318530717958647692528676655900576
+/// Variante simple précision de [[PI]].
+val PIF : float = float(3.14159265358979323846264338327950288)
+/// Variante simple précision de [[E]].
+val EF : float = float(2.71828182845904523536028747135266250)
+/// Variante simple précision de [[TAU]].
+val TAUF : float = float(6.28318530717958647692528676655900576)
+
+/// Retourne la valeur absolue flottante.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_fabs") def fabs(value : double) : double
+/// Variante `float` de [[fabs]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_fabsf") def fabsf(value : float) : float
+/// Arrondit vers l’infini positif.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_ceil") def ceil(value : double) : double
+/// Variante `float` de [[ceil]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_ceilf") def ceilf(value : float) : float
+/// Arrondit vers l’infini négatif.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_floor") def floor(value : double) : double
+/// Variante `float` de [[floor]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_floorf") def floorf(value : float) : float
+/// Tronque la partie fractionnaire en direction de zéro.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_trunc") def trunc(value : double) : double
+/// Variante `float` de [[trunc]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_truncf") def truncf(value : float) : float
+/// Arrondit à l’entier le plus proche, les demis s’éloignant de zéro.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_round") def round(value : double) : double
+/// Variante `float` de [[round]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_roundf") def roundf(value : float) : float
+
+/// Calcule la racine carrée.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_sqrt") def sqrt(value : double) : double
+/// Variante `float` de [[sqrt]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_sqrtf") def sqrtf(value : float) : float
+/// Calcule la racine cubique.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_cbrt") def cbrt(value : double) : double
+/// Variante `float` de [[cbrt]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_cbrtf") def cbrtf(value : float) : float
+/// Élève `base` à la puissance `exponent`.
+/// @param base Valeur transmise au calcul.
+/// @param exponent Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_pow") def pow(base : double, exponent : double) : double
+/// Variante `float` de [[pow]].
+/// @param base Valeur transmise au calcul.
+/// @param exponent Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_powf") def powf(base : float, exponent : float) : float
+/// Calcule une hypoténuse sans overflow intermédiaire inutile.
+/// @param x Valeur transmise au calcul.
+/// @param y Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_hypot") def hypot(x : double, y : double) : double
+/// Variante `float` de [[hypot]].
+/// @param x Valeur transmise au calcul.
+/// @param y Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_hypotf") def hypotf(x : float, y : float) : float
+
+/// Calcule l’exponentielle naturelle.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_exp") def exp(value : double) : double
+/// Variante `float` de [[exp]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_expf") def expf(value : float) : float
+/// Calcule deux élevé à la puissance `value`.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_exp2") def exp2(value : double) : double
+/// Variante `float` de [[exp2]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_exp2f") def exp2f(value : float) : float
+/// Calcule `exp(value) - 1` avec précision près de zéro.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_expm1") def expm1(value : double) : double
+/// Variante `float` de [[expm1]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_expm1f") def expm1f(value : float) : float
+/// Calcule le logarithme naturel.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_log") def log(value : double) : double
+/// Variante `float` de [[log]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_logf") def logf(value : float) : float
+/// Calcule le logarithme en base deux.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_log2") def log2(value : double) : double
+/// Variante `float` de [[log2]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_log2f") def log2f(value : float) : float
+/// Calcule le logarithme décimal.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_log10") def log10(value : double) : double
+/// Variante `float` de [[log10]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_log10f") def log10f(value : float) : float
+/// Calcule `log(1 + value)` avec précision près de zéro.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_log1p") def log1p(value : double) : double
+/// Variante `float` de [[log1p]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_log1pf") def log1pf(value : float) : float
+
+/// Calcule le sinus d’un angle en radians.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_sin") def sin(value : double) : double
+/// Variante `float` de [[sin]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_sinf") def sinf(value : float) : float
+/// Calcule le cosinus d’un angle en radians.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_cos") def cos(value : double) : double
+/// Variante `float` de [[cos]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_cosf") def cosf(value : float) : float
+/// Calcule la tangente d’un angle en radians.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_tan") def tan(value : double) : double
+/// Variante `float` de [[tan]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_tanf") def tanf(value : float) : float
+/// Calcule l’arc sinus en radians.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_asin") def asin(value : double) : double
+/// Variante `float` de [[asin]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_asinf") def asinf(value : float) : float
+/// Calcule l’arc cosinus en radians.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_acos") def acos(value : double) : double
+/// Variante `float` de [[acos]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_acosf") def acosf(value : float) : float
+/// Calcule l’arc tangente en radians.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_atan") def atan(value : double) : double
+/// Variante `float` de [[atan]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_atanf") def atanf(value : float) : float
+/// Calcule l’angle du vecteur `(x, y)` dans le quadrant correct.
+/// @param y Valeur transmise au calcul.
+/// @param x Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_atan2") def atan2(y : double, x : double) : double
+/// Variante `float` de [[atan2]].
+/// @param y Valeur transmise au calcul.
+/// @param x Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_atan2f") def atan2f(y : float, x : float) : float
+
+/// Calcule le sinus hyperbolique.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_sinh") def sinh(value : double) : double
+/// Variante `float` de [[sinh]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_sinhf") def sinhf(value : float) : float
+/// Calcule le cosinus hyperbolique.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_cosh") def cosh(value : double) : double
+/// Variante `float` de [[cosh]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_coshf") def coshf(value : float) : float
+/// Calcule la tangente hyperbolique.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_tanh") def tanh(value : double) : double
+/// Variante `float` de [[tanh]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_tanhf") def tanhf(value : float) : float
+/// Calcule l’argument sinus hyperbolique.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_asinh") def asinh(value : double) : double
+/// Variante `float` de [[asinh]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_asinhf") def asinhf(value : float) : float
+/// Calcule l’argument cosinus hyperbolique.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_acosh") def acosh(value : double) : double
+/// Variante `float` de [[acosh]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_acoshf") def acoshf(value : float) : float
+/// Calcule l’argument tangente hyperbolique.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_atanh") def atanh(value : double) : double
+/// Variante `float` de [[atanh]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_atanhf") def atanhf(value : float) : float
+
+/// Retourne le plus petit des deux nombres selon la sémantique C de `fmin`.
+/// @param left Valeur transmise au calcul.
+/// @param right Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_fmin") def fmin(left : double, right : double) : double
+/// Variante `float` de [[fmin]].
+/// @param left Valeur transmise au calcul.
+/// @param right Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_fminf") def fminf(left : float, right : float) : float
+/// Retourne le plus grand des deux nombres selon la sémantique C de `fmax`.
+/// @param left Valeur transmise au calcul.
+/// @param right Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_fmax") def fmax(left : double, right : double) : double
+/// Variante `float` de [[fmax]].
+/// @param left Valeur transmise au calcul.
+/// @param right Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_fmaxf") def fmaxf(left : float, right : float) : float
+/// Retourne la différence positive `max(left - right, 0)`.
+/// @param left Valeur transmise au calcul.
+/// @param right Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_fdim") def fdim(left : double, right : double) : double
+/// Variante `float` de [[fdim]].
+/// @param left Valeur transmise au calcul.
+/// @param right Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_fdimf") def fdimf(left : float, right : float) : float
+/// Calcule le reste de division tronquée.
+/// @param left Valeur transmise au calcul.
+/// @param right Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_fmod") def fmod(left : double, right : double) : double
+/// Variante `float` de [[fmod]].
+/// @param left Valeur transmise au calcul.
+/// @param right Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_fmodf") def fmodf(left : float, right : float) : float
+/// Calcule le reste IEEE de la division.
+/// @param left Valeur transmise au calcul.
+/// @param right Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_remainder") def remainder(left : double, right : double) : double
+/// Variante `float` de [[remainder]].
+/// @param left Valeur transmise au calcul.
+/// @param right Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_remainderf") def remainderf(left : float, right : float) : float
+/// Copie le signe de `sign` sur la magnitude de `value`.
+/// @param value Valeur transmise au calcul.
+/// @param sign Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_copysign") def copysign(value : double, sign : double) : double
+/// Variante `float` de [[copysign]].
+/// @param value Valeur transmise au calcul.
+/// @param sign Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_copysignf") def copysignf(value : float, sign : float) : float
+/// Retourne la valeur représentable suivante en direction de `toward`.
+/// @param value Valeur transmise au calcul.
+/// @param toward Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_nextafter") def nextafter(value : double, toward : double) : double
+/// Variante `float` de [[nextafter]].
+/// @param value Valeur transmise au calcul.
+/// @param toward Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_nextafterf") def nextafterf(value : float, toward : float) : float
+
+/// Calcule la fonction d’erreur.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_erf") def erf(value : double) : double
+/// Variante `float` de [[erf]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_erff") def erff(value : float) : float
+/// Calcule la fonction d’erreur complémentaire.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_erfc") def erfc(value : double) : double
+/// Variante `float` de [[erfc]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_erfcf") def erfcf(value : float) : float
+/// Calcule la fonction gamma.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_tgamma") def tgamma(value : double) : double
+/// Variante `float` de [[tgamma]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_tgammaf") def tgammaf(value : float) : float
+/// Calcule le logarithme de la valeur absolue de gamma.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_lgamma") def lgamma(value : double) : double
+/// Variante `float` de [[lgamma]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_lgammaf") def lgammaf(value : float) : float
+
+/// Indique si la valeur n’est ni infinie ni NaN.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_isfinite") def isfinite(value : double) : bool
+/// Variante `float` de [[isfinite]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_isfinitef") def isfinitef(value : float) : bool
+/// Indique si la valeur est une infinité positive ou négative.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_isinf") def isinf(value : double) : bool
+/// Variante `float` de [[isinf]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_isinff") def isinff(value : float) : bool
+/// Indique si la valeur est un NaN.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_isnan") def isnan(value : double) : bool
+/// Variante `float` de [[isnan]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_isnanf") def isnanf(value : float) : bool
+/// Indique si la valeur est finie, non nulle et non sous-normale.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_isnormal") def isnormal(value : double) : bool
+/// Variante `float` de [[isnormal]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_isnormalf") def isnormalf(value : float) : bool
+/// Indique si le bit de signe est positionné, y compris pour `-0.0`.
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_signbit") def signbit(value : double) : bool
+/// Variante `float` de [[signbit]].
+/// @param value Valeur transmise au calcul.
+/// @return Résultat du calcul.
+extern("janus_math_signbitf") def signbitf(value : float) : bool
+
+/// Borne une valeur dans l’intervalle fermé `[lower, upper]`.
+/// @param value Valeur transmise au calcul.
+/// @param lower Valeur transmise au calcul.
+/// @param upper Valeur transmise au calcul.
+/// @return Résultat du calcul.
+def clamp(value : double, lower : double, upper : double) : double {
+    return fmin(fmax(value, lower), upper)
+}
+
+/// Variante `float` de [[clamp]].
+/// @param value Valeur transmise au calcul.
+/// @param lower Valeur transmise au calcul.
+/// @param upper Valeur transmise au calcul.
+/// @return Résultat du calcul.
+def clampf(value : float, lower : float, upper : float) : float {
+    return fminf(fmaxf(value, lower), upper)
+}
+
+/// Interpole linéairement de `start` à `end`; `amount` n’est pas borné.
+/// @param start Valeur transmise au calcul.
+/// @param end Valeur transmise au calcul.
+/// @param amount Valeur transmise au calcul.
+/// @return Résultat du calcul.
+def lerp(start : double, end : double, amount : double) : double {
+    return start + (end - start) * amount
+}
+
+/// Variante `float` de [[lerp]].
+/// @param start Valeur transmise au calcul.
+/// @param end Valeur transmise au calcul.
+/// @param amount Valeur transmise au calcul.
+/// @return Résultat du calcul.
+def lerpf(start : float, end : float, amount : float) : float {
+    return start + (end - start) * amount
+}
 
 /// Calcule le plus grand diviseur commun par l’algorithme d’Euclide.
 ///

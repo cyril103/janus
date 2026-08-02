@@ -153,8 +153,8 @@
       "source": "stdlib/std/math.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "0743cb06ac146533b91482bd079d34e530f4a64469817f2cdaa6eef718fe65ec",
-      "symbols": ["gcd", "lcm", "is_prime", "prime_factors"]
+      "signature_digest": "d3ae749d2504e7b8747b5003456ed748c49531cf4732df14431b2c065346284c",
+      "symbols": ["gcd","lcm","is_prime","prime_factors","E","EF","PI","PIF","TAU","TAUF","acos","acosf","acosh","acoshf","asin","asinf","asinh","asinhf","atan","atan2","atan2f","atanf","atanh","atanhf","cbrt","cbrtf","ceil","ceilf","clamp","clampf","copysign","copysignf","cos","cosf","cosh","coshf","erf","erfc","erfcf","erff","exp","exp2","exp2f","expf","expm1","expm1f","fabs","fabsf","fdim","fdimf","floor","floorf","fmax","fmaxf","fmin","fminf","fmod","fmodf","hypot","hypotf","isfinite","isfinitef","isinf","isinff","isnan","isnanf","isnormal","isnormalf","lerp","lerpf","lgamma","lgammaf","log","log10","log10f","log1p","log1pf","log2","log2f","logf","nextafter","nextafterf","pow","powf","remainder","remainderf","round","roundf","signbit","signbitf","sin","sinf","sinh","sinhf","sqrt","sqrtf","tan","tanf","tanh","tanhf","tgamma","tgammaf","trunc","truncf"]
     },
     {
       "name": "std.option",

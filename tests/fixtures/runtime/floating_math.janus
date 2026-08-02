@@ -1,0 +1,39 @@
+import std.math
+
+def close(actual : double, expected : double, tolerance : double) : bool {
+    return fabs(actual - expected) <= tolerance
+}
+
+def main() : int {
+    println(close(PI, acos(-1.0), 0.000000000000001))
+    println(close(E, exp(1.0), 0.000000000000001))
+    println(close(TAU, PI * 2.0, 0.000000000000001))
+    println(sqrt(81.0))
+    println(close(cbrt(27.0), 3.0, 0.000000000000001))
+    println(pow(2.0, 10.0))
+    println(hypot(3.0, 4.0))
+    println(floor(-1.2))
+    println(ceil(-1.2))
+    println(trunc(-1.8))
+    println(round(-1.5))
+    println(close(sin(PI / 2.0), 1.0, 0.000000000000001))
+    println(close(log(exp(2.0)), 2.0, 0.000000000000001))
+    println(fmin(4.0, 3.0))
+    println(fmax(4.0, 3.0))
+    println(fdim(7.0, 2.0))
+    println(fmod(7.0, 4.0))
+    println(remainder(7.0, 4.0))
+    println(clamp(12.0, 0.0, 10.0))
+    println(lerp(10.0, 20.0, 0.25))
+    println(signbit(copysign(0.0, -1.0)))
+    println(isnan(sqrt(-1.0)))
+    println(isinf(exp(1000.0)))
+    println(isfinite(nextafter(1.0, 2.0)))
+    println(isnormal(1.0))
+
+    println(sqrtf(float(16.0)))
+    println(clampf(float(-2.0), float(0.0), float(1.0)))
+    println(lerpf(float(2.0), float(4.0), float(0.5)))
+    println(isfinitef(PIF))
+    return 0
+}

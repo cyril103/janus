@@ -52,6 +52,7 @@ add_library(janus_runtime STATIC
     runtime/janus_fs.c
     runtime/janus_graphics.c
     runtime/janus_io.c
+    runtime/janus_math.c
     runtime/janus_process.c
     runtime/janus_runtime.c
     runtime/janus_system.c
@@ -63,6 +64,9 @@ target_compile_options(janus_runtime
         -Wextra
         -Wpedantic
 )
+if(UNIX AND NOT APPLE)
+    target_link_libraries(janus_runtime PUBLIC m)
+endif()
 
 add_library(janus_types
     src/types/type.cpp
@@ -380,6 +384,19 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME runtime.floating COMMAND floating_runtime_test)
+
+    add_test(
+        NAME runtime.floating_math
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/floating_math.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/floating_math_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/floating_math.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
 
     add_executable(time_random_runtime_test
         tests/runtime/time_random_runtime_test.c

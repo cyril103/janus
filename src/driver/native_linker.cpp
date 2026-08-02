@@ -121,6 +121,11 @@ void link_executable(const std::vector<std::filesystem::path> &objects,
     command += " " + shell_quote(object);
   for (const std::filesystem::path &library : options.libraries)
     command += " " + shell_quote(library);
+#if !defined(__APPLE__)
+  // The Janus runtime's scalar math ABI is implemented on top of libm.
+  // Static archives do not carry transitive linker dependencies.
+  command += " -lm";
+#endif
   command += " -o " + shell_quote(output);
   const int status = command_status(std::system(command.c_str()));
 #endif
