@@ -1345,7 +1345,8 @@ ChildResult run_child(const std::filesystem::path &executable,
                               shell_quote(out) + " 2>" + shell_quote(err);
   const auto previous = std::filesystem::current_path();
   std::filesystem::current_path(working_directory);
-  const int raw_status = std::system(command.c_str());
+  const std::string command_line = '"' + command + '"';
+  const int raw_status = std::system(command_line.c_str());
   std::filesystem::current_path(previous);
   const auto read_output = [](const std::filesystem::path &path) {
     std::ifstream input{path, std::ios::binary};
