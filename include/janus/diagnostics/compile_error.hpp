@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -130,6 +131,20 @@ struct DiagnosticSuggestion {
 };
 
 struct Diagnostic {
+  Diagnostic() = default;
+  Diagnostic(DiagnosticSeverity diagnostic_severity,
+             DiagnosticCode diagnostic_code, std::string diagnostic_message,
+             SourceLocation location, std::vector<std::string> diagnostic_notes,
+             std::vector<DiagnosticLocation> locations,
+             std::vector<DiagnosticSuggestion> diagnostic_suggestions,
+             std::filesystem::path path = {})
+      : severity{diagnostic_severity}, code{diagnostic_code},
+        message{std::move(diagnostic_message)}, primary_location{location},
+        notes{std::move(diagnostic_notes)},
+        secondary_locations{std::move(locations)},
+        suggestions{std::move(diagnostic_suggestions)},
+        source_path{std::move(path)} {}
+
   DiagnosticSeverity severity{DiagnosticSeverity::Error};
   DiagnosticCode code{DiagnosticCode::Unclassified};
   std::string message;
@@ -137,6 +152,7 @@ struct Diagnostic {
   std::vector<std::string> notes;
   std::vector<DiagnosticLocation> secondary_locations;
   std::vector<DiagnosticSuggestion> suggestions;
+  std::filesystem::path source_path;
 };
 
 class CompileError final : public std::runtime_error {
