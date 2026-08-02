@@ -84,6 +84,7 @@ BOOK = [f"{number:02d}-" for number in range(1, 16)]
 EXPECTED_KEYWORDS = {
     "module",
     "import",
+    "as",
     "extern",
     "def",
     "trait",
@@ -207,7 +208,7 @@ class SiteStructureTests(unittest.TestCase):
         reserved = set(re.findall(r'lexeme == "([a-z]+)"', lexer))
         self.assertEqual(EXPECTED_KEYWORDS, reserved)
         self.assertEqual(reserved, documented)
-        self.assertEqual(32, len(documented))
+        self.assertEqual(33, len(documented))
         self.assertIn("`owned` est un qualificateur contextuel", reference)
         self.assertNotIn("owned", documented)
 

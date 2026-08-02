@@ -3,7 +3,7 @@
 
 ## Objectifs
 
-- retrouver les 32 mots-clés réservés de Janus 0.9.0 ;
+- retrouver les 33 mots-clés réservés de Janus 0.9.0 ;
 - comprendre leur utilité et leur contexte valide ;
 - ne pas confondre mots-clés, types primitifs, builtins et opérateurs.
 
@@ -15,6 +15,7 @@ Un mot-clé est réservé par le lexer et ne peut pas servir de nom de variable,
 | --- | --- | --- |
 | `module` | donne un nom qualifié au fichier | doit précéder les imports et déclarations |
 | `import` | rend les exports d’un module disponibles | `import std.array` |
+| `as` | donne un alias local à un module ou symbole importé | `import std.fs as fs` ou `Color as ThemeColor` |
 | `def` | déclare une fonction ou méthode typée | `def answer() : int { return 42 }` |
 | `extern` | déclare une fonction native sans corps Janus | `extern def native_call() : int` |
 | `return` | quitte une fonction, avec sa valeur si nécessaire | `return 0` ; le type doit correspondre |
