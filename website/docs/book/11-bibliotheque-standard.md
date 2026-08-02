@@ -66,7 +66,25 @@ Cette séparation produit de meilleurs diagnostics qu’un simple booléen.
 
 ## Mathématiques
 
-`std.math` fournit constantes, valeurs absolues, minimum/maximum, arrondis, puissances, racines, logarithmes, trigonométrie, interpolation et helpers sur les flottants. Les variantes `float` et `double` sont distinctes : évitez les conversions implicites qui n’existent pas.
+`std.math` fournit désormais le noyau scalaire portable de C99 : constantes,
+valeurs absolues, minimum/maximum, arrondis, puissances, racines, logarithmes,
+trigonométrie circulaire et hyperbolique, fonctions gamma, interpolation et
+classification IEEE. Les variantes sans suffixe utilisent `double`; celles
+suffixées par `f` utilisent `float`.
+
+```janus
+import std.math
+
+val diagonal : double = hypot(3.0, 4.0)
+val angle : double = atan2(1.0, 1.0)
+val bounded : double = clamp(angle, 0.0, PI)
+val valid : bool = isfinite(bounded) && !isnan(bounded)
+```
+
+Les erreurs de domaine suivent la bibliothèque C et peuvent produire NaN ou
+une infinité. Utilisez `isfinite`, `isinf`, `isnan`, `isnormal` et `signbit`
+pour les traiter. Le module conserve aussi `gcd`, `lcm`, `is_prime` et
+`prime_factors` pour les calculs entiers en `usize`.
 
 ## Temps monotone et temps civil
 

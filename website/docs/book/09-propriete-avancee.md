@@ -5,6 +5,7 @@
 
 - reconnaître une valeur propriétaire ;
 - transférer une ressource avec `move` ;
+- créer un alias observant avec `borrow` ;
 - écrire une méthode `consume` ;
 - organiser le nettoyage avec `delete`, `defer` et `destructor`.
 
@@ -42,6 +43,26 @@ def main() : int {
 `move resource` transfère la propriété et invalide la liaison source. Lire, déplacer ou supprimer ensuite `resource` est une erreur de compilation. `move` n’est admis que sur un identifiant local propriétaire : il ne sert ni à copier un entier ni à déplacer directement un champ hors de son parent.
 
 Les paramètres de fonctions propriétaires sont consommés. L’appel doit donc écrire `move` quand il passe une liaison locale. Le retour d’une ressource exige lui aussi `return move value`.
+
+## `borrow` observe sans devenir propriétaire
+
+`borrow val` crée une liaison immutable qui observe un propriétaire sans
+recevoir la responsabilité de le détruire. L'alias ne peut être ni déplacé,
+ni passé à `delete` ou `free`, et ne doit jamais survivre à sa source :
+
+```janus
+val storage : Ptr[byte] = alloc[byte](usize(16))
+borrow val view : Ptr[byte] = storage
+defer free(storage)
+```
+
+Une classe peut conserver une relation observante avec un champ constructeur
+`borrow val`. Ce champ n'est pas détruit avec la classe et permet notamment de
+casser un cycle de propriété. La source doit vivre plus longtemps que l'objet
+observateur. Les structs ne peuvent pas contenir de champ emprunté.
+
+Le diagnostic `JANA0018` signale un emprunt créé depuis un propriétaire
+temporaire; `JANA0021` signale un cycle potentiel entre propriétaires.
 
 ## Agrégats propriétaires
 

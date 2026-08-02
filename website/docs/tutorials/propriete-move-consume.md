@@ -1,4 +1,4 @@
-# Maîtriser `move`, `consume` et la destruction
+# Maîtriser `move`, `borrow`, `consume` et la destruction
 
 ## Prérequis
 
@@ -7,7 +7,9 @@
 
 ## Résultat
 
-Nous allons suivre une ressource depuis sa création jusqu’à sa destruction, d’abord à travers une fonction, puis dans un agrégat et enfin dans une méthode consommante.
+Nous allons suivre une ressource depuis sa création jusqu’à sa destruction,
+d’abord à travers une fonction, puis dans un agrégat, un emprunt et enfin une
+méthode consommante.
 
 ## 1. Un propriétaire unique
 
@@ -69,6 +71,10 @@ class Envelope(val token : Token) {
         delete this
         return answer
     }
+
+    destructor {
+        delete token
+    }
 }
 
 def main() : int {
@@ -80,7 +86,26 @@ def main() : int {
 
 `consume def` annonce que l’appel invalide le receveur. Ici, `delete this` détruit `Token` avec l’enveloppe. Pour retourner la ressource elle-même, une implémentation doit transférer explicitement la valeur et veiller à ne pas la détruire avec son ancien conteneur ; utilisez les abstractions éprouvées de la stdlib comme modèles.
 
-## 4. Le motif `defer delete`
+## 4. Observer avec `borrow`
+
+Une vue n'a pas à devenir copropriétaire du stockage qu'elle consulte :
+
+```janus
+val storage : Ptr[byte] = alloc[byte](usize(16))
+borrow val view : Ptr[byte] = storage
+defer free(storage)
+```
+
+`view` ne peut pas être libéré, déplacé ou consommé. Sa validité dépend de
+`storage`; il faut donc déclarer le propriétaire dans une portée au moins aussi
+longue. Pour une relation conservée dans un objet, un champ constructeur de
+classe peut s'écrire `private borrow val source : Collection`.
+
+À la frontière C, le même mot qualifie un paramètre ou un retour `Ptr[T]` : il
+décrit alors le contrat du code natif. Consultez le
+[chapitre sur l'interopérabilité](../book/10-modules-visibilite-ffi.md).
+
+## 5. Le motif `defer delete`
 
 ```janus
 class Session() {}
@@ -104,6 +129,8 @@ Le nettoyage s’exécute même lors du `return`. Plusieurs `defer` sont exécut
 - **used before initialization** après un transfert : la liaison a déjà été déplacée ou consommée.
 - **cannot be transferred independently** : le champ appartient encore à son agrégat.
 - **move requires an owning value** : le type est copiable ; `move` n’a pas de sens.
+- **JANA0018** : l'alias emprunte un propriétaire temporaire qui disparaîtrait trop tôt.
+- **JANA0021** : deux objets semblent se posséder cycliquement ; rendez une relation observante.
 
 Ne corrigez pas mécaniquement tous les diagnostics en ajoutant `move`. Demandez d’abord : « qui doit détruire cette ressource après l’opération ? »
 

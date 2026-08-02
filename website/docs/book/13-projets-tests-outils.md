@@ -99,7 +99,22 @@ Une API publique doit expliquer son contrat de propriété : l’appel observe-t
 
 ## Formatter, diagnostics et LSP
 
-`janus fmt` conserve la structure du code et rend les clauses comme `derives` stables. Les diagnostics possèdent des codes et des emplacements adaptés aux éditeurs.
+`janus fmt` conserve la structure du code et rend les clauses comme `derives`
+stables. Les diagnostics possèdent une gravité, un code, une position, des
+notes et parfois une suggestion. `--diagnostic-format json` fournit le même
+modèle structuré aux outils.
+
+Les avertissements `JANA0002` à `JANA0022` couvrent notamment les fuites,
+écrasements de propriétaires, nettoyages incomplets, captures de closures,
+casts numériques, emprunts temporaires, cycles et contrats FFI absents. Ne les
+corrigez pas en ajoutant mécaniquement `move`, `numericCast` ou un qualificateur :
+identifiez d'abord qui possède la valeur et qui doit la nettoyer. La
+[référence des diagnostics](../reference/generated/diagnostics.md) donne la
+réponse attendue pour chaque code.
+
+L'analyse supplémentaire `--warn-high-growth-loops` est disponible sur
+`check`, `build` et `run` pour repérer certaines croissances entières suspectes
+dans les boucles.
 
 `janus-lsp` fournit diagnostics, survol, définition, références, symboles du document/workspace, complétion et formatage. Configurez l’extension de l’éditeur pour utiliser le binaire de la même version que le compilateur du projet.
 

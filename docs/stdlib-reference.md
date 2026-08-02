@@ -127,7 +127,7 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-c
 import std.c
-def main() : int { return int(strlen(cstr("Janus"))) - 5 }
+def main() : int { return if strlen(cstr("Janus")) == usize(5) { 0 } else { 1 } }
 ```
 
 ### `std.system`
@@ -203,7 +203,10 @@ def main() : int { return openInputStream("missing.txt") }
 ```janus
 // doctest: doctest name=stdlib-std-process
 import std.process
-def main() : int { return int(programArgumentCount()) - int(programArgumentCount()) }
+def main() : int {
+    val count : usize = programArgumentCount()
+    return if count == programArgumentCount() { 0 } else { 1 }
+}
 ```
 
 ```janus
@@ -231,7 +234,7 @@ def main() : int { return parseInt("not-an-int") }
 ```janus
 // doctest: doctest name=stdlib-std-math
 import std.math
-def main() : int { return int(gcd(usize(42), usize(30))) - 6 }
+def main() : int { return if gcd(usize(42), usize(30)) == usize(6) { 0 } else { 1 } }
 ```
 
 ### `std.random`

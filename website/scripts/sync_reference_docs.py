@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote
 
-VERSION = "v0.8.1"
+VERSION = "main"
 REPOSITORY_URL = "https://github.com/cyril103/janus"
 DOCUMENTS = (
     "getting-started.md",
@@ -20,6 +20,7 @@ DOCUMENTS = (
     "compiler-performance.md",
     "api-documentation.md",
     "doctests.md",
+    "diagnostics.md",
     "stdlib-reference.md",
     "graphics.md",
     "stability-contract.md",
@@ -31,7 +32,7 @@ DOCUMENTS = (
     "migration-0.5-to-0.6.md",
     "migration-0.5-to-0.8.md",
 )
-DOCUMENT_VERSIONS = {"registry-protocol-v1.md": "main"}
+DOCUMENT_VERSIONS = {}
 ASSETS = ("public-surface-0.5.json",)
 LINK_RE = re.compile(r"(?P<image>!)?\[(?P<label>[^]]*)\]\((?P<target>[^)]+)\)")
 NOTICE = """> **Documentation canonique** — Cette page est générée depuis

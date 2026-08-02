@@ -19,6 +19,7 @@ EXPECTED_REFERENCE = {
     "compiler-performance.md",
     "api-documentation.md",
     "doctests.md",
+    "diagnostics.md",
     "stdlib-reference.md",
     "graphics.md",
     "stability-contract.md",
@@ -91,6 +92,7 @@ EXPECTED_KEYWORDS = {
     "derives",
     "new",
     "move",
+    "borrow",
     "consume",
     "defer",
     "delete",
@@ -151,6 +153,7 @@ class SiteStructureTests(unittest.TestCase):
             "docs/tutorials/atelier-graphisme-2d.md",
             "docs/tutorials/snake-graphique.md",
             "docs/reference/index.md",
+            "docs/reference/generated/diagnostics.md",
             "docs/reference/stdlib/api-index.json",
             "docs/reference/stdlib/index.html",
             "docs/assets/logo.svg",
@@ -196,7 +199,29 @@ class SiteStructureTests(unittest.TestCase):
             WEBSITE / "docs" / "book" / "14-reference-mots-cles.md"
         ).read_text(encoding="utf-8")
         documented = set(re.findall(r"\| `([a-z]+)` \|", reference))
-        self.assertEqual(EXPECTED_KEYWORDS, documented)
+        lexer = (REPOSITORY / "src" / "frontend" / "lexer.cpp").read_text(
+            encoding="utf-8"
+        )
+        reserved = set(re.findall(r'lexeme == "([a-z]+)"', lexer))
+        self.assertEqual(EXPECTED_KEYWORDS, reserved)
+        self.assertEqual(reserved, documented)
+        self.assertEqual(32, len(documented))
+        self.assertIn("`owned` est un qualificateur contextuel", reference)
+        self.assertNotIn("owned", documented)
+
+    def test_recent_language_surface_is_taught(self):
+        book = WEBSITE / "docs" / "book"
+        values = (book / "02-valeurs-types.md").read_text(encoding="utf-8")
+        ownership = (book / "09-propriete-avancee.md").read_text(encoding="utf-8")
+        ffi = (book / "10-modules-visibilite-ffi.md").read_text(encoding="utf-8")
+        stdlib = (book / "11-bibliotheque-standard.md").read_text(encoding="utf-8")
+        tooling = (book / "13-projets-tests-outils.md").read_text(encoding="utf-8")
+        self.assertIn("numericCast", values)
+        self.assertIn("borrow val", ownership)
+        self.assertIn(": owned Ptr[byte]", ffi)
+        self.assertIn("hypot(3.0, 4.0)", stdlib)
+        self.assertIn("JANA0022", tooling)
+        self.assertIn("generated/diagnostics.md", tooling)
 
     def test_lesson_navigation_uses_output_relative_urls(self):
         chapters = sorted((WEBSITE / "docs" / "book").glob("[0-9][0-9]-*.md"))
@@ -340,16 +365,16 @@ class ReferenceSyncTests(unittest.TestCase):
             module.sync(REPOSITORY, destination)
             language = (destination / "language-guide.md").read_text(encoding="utf-8")
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.8.1/stdlib/std",
+                "https://github.com/cyril103/janus/tree/main/stdlib/std",
                 language,
             )
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.8.1/examples",
+                "https://github.com/cyril103/janus/tree/main/examples",
                 language,
             )
             graphics = (destination / "graphics.md").read_text(encoding="utf-8")
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.8.1/examples/snake",
+                "https://github.com/cyril103/janus/tree/main/examples/snake",
                 graphics,
             )
             local_links = re.findall(r"\[[^]]+\]\((?!https?://|#|mailto:)([^)]+)\)", language)

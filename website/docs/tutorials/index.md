@@ -8,7 +8,7 @@ Des parcours indépendants, orientés vers un résultat observable. Ils décrive
 | [Collections](collections.md) | 25 min | un pipeline matérialisé | `Array`, closures, itérateurs |
 | [Gestion d’erreurs](gestion-erreurs.md) | 20 min | propagation typée | `Option`, `Result`, `?` |
 | [`derives`, de `Copy` à `Debug`](derives-copy-debug.md) | 25 min | un type comparable et hachable | `derives`, égalité, hash, debug |
-| [Propriété explicite](propriete-move-consume.md) | 30 min | un cycle de vie sans double destruction | `move`, `consume`, `defer`, destructeur |
+| [Propriété explicite](propriete-move-consume.md) | 35 min | posséder, emprunter et détruire sans ambiguïté | `move`, `borrow`, `consume`, `defer`, destructeur |
 | [Atelier graphisme 2D](atelier-graphisme-2d.md) | 35 min | une scène interactive et une texture générée | formes, collisions, image, texture |
 | [Snake graphique](snake-graphique.md) | 35 min | le vrai Snake néon du dépôt | raylib 6, rendu, temps, entrées |
 

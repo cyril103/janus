@@ -6,7 +6,7 @@
 - nommer et importer un module ;
 - choisir entre surface publique, `private` et `internal` ;
 - qualifier un symbole ambigu ;
-- comprendre le rôle limité de `extern` et des pointeurs.
+- déclarer les contrats de propriété d’une frontière `extern`.
 
 ## Déclarer et importer
 
@@ -80,13 +80,38 @@ Documentez chaque paramètre public avec `@param` et chaque retour non `Unit` av
 ```janus
 import std.c
 
-extern def native_add(left : int, right : int) : int
+extern("native_add") def add(left : int, right : int) : int
 ```
 
-Une fonction externe n’a pas de corps Janus. Son nom, sa convention d’appel et ses types doivent correspondre exactement à l’ABI C. Les fonctions variadiques utilisent `...`, comme `printf(format, ...)` dans `std.c`.
+Une fonction externe n’a pas de corps Janus. `extern("symbole")` permet de
+choisir un nom Janus différent du symbole C. La convention d’appel et les
+types doivent correspondre exactement à l’ABI C. Les fonctions variadiques
+utilisent `...`, comme `printf(format, ...)` dans `std.c`.
+
+Les paramètres pointeur doivent annoncer ce que fait le code natif :
+
+```janus
+extern def inspect(borrow data : Ptr[byte]) : Unit
+extern def release(consume data : Ptr[byte]) : Unit
+extern def lastError() : borrow Ptr[byte]
+extern def allocateBuffer() : owned Ptr[byte]
+```
+
+- `borrow` sur un paramètre garantit que le natif ne conserve ni ne libère le pointeur ;
+- `consume` transfère le pointeur au natif et invalide la liaison appelante ;
+- un retour `borrow` reste détenu par le code natif ;
+- un retour `owned` devient une ressource que Janus doit libérer ou transférer.
+
+`borrow` est un mot-clé réservé. `owned` est un qualificateur contextuel : il
+n'est reconnu à cet emplacement que sur le retour pointeur d'une déclaration
+externe. Les diagnostics `JANA0020` et `JANA0022` signalent respectivement un
+paramètre ou un retour pointeur externe sans contrat.
 
 !!! danger "Frontière non sûre"
-    Le compilateur ne peut pas vérifier la durée de vie, la taille ou la validité des données manipulées par le code C. Encapsulez les `extern def` dans un module étroit et exposez une API Janus typée et propriétaire.
+    Les qualificateurs rendent le transfert visible, mais le compilateur ne
+    peut toujours pas vérifier la taille ou la validité des données manipulées
+    par le code C. Encapsulez les `extern def` dans un module étroit et exposez
+    une API Janus typée et propriétaire.
 
 ## Pointeurs et mémoire brute
 

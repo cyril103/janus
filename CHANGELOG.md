@@ -12,6 +12,13 @@ utilise le versionnage sémantique à partir de sa première version publique.
 - ajout d’une ABI mathématique propre au runtime et du lien automatique avec
   `libm` sur les plateformes Unix qui la séparent de la libc.
 
+### Documentation
+
+- synchronisation du site et du Book avec `borrow`, les contrats externes
+  `consume`/`owned`, `numericCast`, les avertissements de sûreté et la nouvelle
+  surface de `std.math` ;
+- publication de la référence structurée des diagnostics dans le site.
+
 ## [0.8.1] - 2026-08-01
 
 Cette version corrective stabilise l'affichage des booléens à la frontière

@@ -112,10 +112,13 @@ La documentation canonique décrit précisément le langage 0.8.1, les outils, l
 </div>
 
 <div class="release-note" markdown>
-**Ce que 0.8.1 corrige.** L'affichage de `bool` est désormais stable à la
-frontière LLVM/runtime, y compris dans une struct retournée par une fonction
-et affichée au sein d'une boucle. Cette version reste compatible avec 0.8.0
-et explicitement pré-1.0.
-[Lire le changelog](https://github.com/cyril103/janus/blob/v0.8.1/CHANGELOG.md)
-ou [la référence de la stdlib](reference/stdlib/index.html).
+**Depuis 0.8.1 sur la branche principale.** Janus vérifie davantage les cycles
+de vie avec les avertissements `JANA0002` à `JANA0022`, comprend les contrats
+FFI `borrow` / `consume` / `owned`, distingue les conversions numériques
+potentiellement destructrices et étend `std.math` au noyau scalaire C99 en
+`double` et `float`. Ces changements restent pré-1.0 et ne constituent pas
+encore une nouvelle version publiée.
+[Lire le changelog](https://github.com/cyril103/janus/blob/main/CHANGELOG.md),
+[les diagnostics](reference/generated/diagnostics.md) ou
+[la référence de la stdlib](reference/stdlib/index.html).
 </div>

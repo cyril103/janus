@@ -33,7 +33,7 @@ nav:
       - Collections typées: tutorials/collections.md
       - Gestion des erreurs: tutorials/gestion-erreurs.md
       - Comprendre derives: tutorials/derives-copy-debug.md
-      - Maîtriser move et consume: tutorials/propriete-move-consume.md
+      - Maîtriser move, borrow et consume: tutorials/propriete-move-consume.md
       - Atelier graphisme 2D: tutorials/atelier-graphisme-2d.md
       - Snake graphique: tutorials/snake-graphique.md
   - Référence:
@@ -46,6 +46,7 @@ nav:
       - Performance du compilateur: reference/generated/compiler-performance.md
       - Documentation d’API: reference/generated/api-documentation.md
       - Doctests: reference/generated/doctests.md
+      - Diagnostics structurés: reference/generated/diagnostics.md
       - Guide de la bibliothèque standard: reference/generated/stdlib-reference.md
       - Index API de la stdlib: reference/stdlib/index.html
       - Graphisme 2D: reference/generated/graphics.md

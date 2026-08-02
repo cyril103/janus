@@ -3,7 +3,7 @@
 
 ## Objectifs
 
-- retrouver les 31 mots-clés réservés de Janus 0.8.1 ;
+- retrouver les 32 mots-clés réservés de Janus 0.8.1 ;
 - comprendre leur utilité et leur contexte valide ;
 - ne pas confondre mots-clés, types primitifs, builtins et opérateurs.
 
@@ -67,6 +67,7 @@ derives Equality, Hashing, Debug {
 | --- | --- | --- |
 | `new` | construit une classe, une structure ou une valeur nécessitant un constructeur | une classe obtenue est propriétaire |
 | `move` | transfère explicitement une liaison locale propriétaire | la source devient inutilisable |
+| `borrow` | crée un alias observant ou qualifie un pointeur externe | ne transfère jamais la propriété |
 | `consume` | marque une méthode qui consomme son receveur `this` | s’écrit avant `def` |
 | `delete` | détruit une valeur propriétaire | destruction récursive des agrégats |
 | `defer` | reporte une expression à la sortie de la portée | les actions sont exécutées en ordre inverse |
@@ -138,6 +139,7 @@ Les noms suivants sont importants, mais appartiennent à d’autres catégories 
 
 - `int`, `string`, `bool`, `Unit`, `usize`, `Ptr[T]` sont des types intégrés ;
 - `Copy`, `Equality`, `Hashing`, `Debug` sont des capacités reconnues par `derives` ;
+- `owned` est un qualificateur contextuel de retour `extern`, pas un mot-clé réservé ;
 - `print`, `println`, `debug`, `alloc`, `free` sont des fonctions ou builtins ;
 - `Option` et `Result` sont des enums de la bibliothèque standard ;
 - `this` est le receveur disponible dans une méthode, pas un mot-clé lexical réservé.
@@ -160,10 +162,11 @@ Les noms suivants sont importants, mais appartiennent à d’autres catégories 
 
 ## Exercice
 
-Classez `move`, `Copy`, `Option`, `?`, `consume` et `Ptr` selon leur catégorie et résumez leur rôle.
+Classez `move`, `borrow`, `owned`, `Copy`, `Option`, `?`, `consume` et `Ptr` selon leur catégorie et résumez leur rôle.
 
 ??? success "Correction"
-    - mots-clés : `move` transfère une ressource ; `consume` marque une méthode qui prend `this` ;
+    - mots-clés : `move` transfère une ressource ; `borrow` observe sans posséder ; `consume` marque une méthode qui prend `this` ;
+    - qualificateur contextuel : `owned` annonce qu’un pointeur retourné par `extern` appartient à Janus ;
     - capacité : `Copy` autorise une duplication implicite sûre ;
     - type de stdlib : `Option[T]` représente une présence ou une absence ;
     - opérateur : `?` propage l’absence ou l’erreur ;
