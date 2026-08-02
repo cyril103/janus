@@ -73,10 +73,13 @@ int main() {
          std::string::npos);
   const std::vector<std::string> registration = server.handle(
       R"({"jsonrpc":"2.0","method":"initialized","params":{}})");
-  assert(registration.size() == 1);
+  assert(registration.size() == 2);
   assert(registration.front().find("workspace/didChangeWatchedFiles") !=
          std::string::npos);
   assert(registration.front().find("**/*.janus") != std::string::npos);
+  assert(registration.back().find("\"code\":\"JANA0014\"") !=
+         std::string::npos);
+  assert(registration.back().find("src/unopened.janus") != std::string::npos);
   assert(server.handle(
                    R"({"jsonrpc":"2.0","id":"janus-watch-files","result":null})")
              .empty());
@@ -84,7 +87,7 @@ int main() {
   const janus::lsp::WorkspaceIndexMetrics metrics =
       server.workspace_index_metrics();
   assert(metrics.files == 4);
-  assert(metrics.symbols == 6);
+  assert(metrics.symbols == 7);
   assert(metrics.source_bytes != 0);
   assert(metrics.startup_milliseconds <= 2000);
   assert(metrics.estimated_memory_bytes <= 1024 * 1024);
@@ -250,6 +253,25 @@ int main() {
       R"({"jsonrpc":"2.0","id":9,"method":"workspace/symbol","params":{"query":"updatedValue"}})");
   assert(updated_symbols.front().find("updatedValue") != std::string::npos);
   assert(updated_symbols.front().find("createdValue") == std::string::npos);
+
+  const std::string warning_source =
+      "module created\n\ndef warningValue() : int {\n"
+      "    val unused : int = 1\n    return 0\n}\n";
+  {
+    std::ofstream output{created_path};
+    output << warning_source;
+  }
+  const std::vector<std::string> warning_opened = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      created_uri +
+      R"(","text":"module created\n\ndef warningValue() : int {\n    val unused : int = 1\n    return 0\n}\n"}}})");
+  assert(warning_opened.front().find("\"code\":\"JANA0014\"") !=
+         std::string::npos);
+  const std::vector<std::string> warning_closed = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":")" +
+      created_uri + R"("}}})");
+  assert(warning_closed.front().find("\"code\":\"JANA0014\"") !=
+         std::string::npos);
 
   std::filesystem::remove(created_path);
   static_cast<void>(server.handle(
