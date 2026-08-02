@@ -120,13 +120,10 @@ Commandes utiles :
 janus check          # vérifier le programme sans produire d'exécutable
 janus check --all    # vérifier chaque module du projet une seule fois
 janus check --all --deny-warnings  # faire échouer la CI sur un warning
-janus check --all    # vérifier chaque module du projet une seule fois
-janus check --all --deny-warnings  # faire échouer la CI sur un warning
 janus run            # compiler puis exécuter
 janus build          # construire un exécutable dans target/
 janus build --release
 janus build --no-cache       # compiler sans lire ni écrire le cache
-janus build --deny-warnings  # refuser tout warning du projet
 janus build --deny-warnings  # refuser tout warning du projet
 janus build --timings       # détailler les phases de compilation
 janus build --timings=json  # produire un rapport exploitable par CI
