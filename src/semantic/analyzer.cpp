@@ -78,6 +78,19 @@ std::string_view derivation_name(janus::ast::DerivationKind kind) {
   return "";
 }
 
+std::optional<janus::ast::DerivationKind>
+derivation_constraint(std::string_view name) {
+  if (name == "Copy")
+    return janus::ast::DerivationKind::Copy;
+  if (name == "Equality")
+    return janus::ast::DerivationKind::Equality;
+  if (name == "Hashing")
+    return janus::ast::DerivationKind::Hashing;
+  if (name == "Debug")
+    return janus::ast::DerivationKind::Debug;
+  return std::nullopt;
+}
+
 janus::semantic::SemanticType
 resolve_type(const janus::ast::TypeReference &reference,
              const std::unordered_set<std::string> &type_parameters,
@@ -1196,10 +1209,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 "trait constraint '" + constraint.trait.name +
                     "' is already declared for type parameter '" +
                     constraint.parameter + "'"};
-          if (constraint.trait.name == "Copy") {
-            if (!constraint.trait.type_arguments.empty())
-              throw CompileError{constraint.location,
-                                 "Copy does not accept type arguments"};
+          if (derivation_constraint(constraint.trait.name).has_value() &&
+              constraint.trait.type_arguments.empty()) {
           } else {
             static_cast<void>(resolve_trait(constraint.trait, type_parameters));
           }
@@ -1707,8 +1718,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const auto add_active_constraints =
         [&](const std::vector<ast::TypeConstraint> &constraints) {
           for (const ast::TypeConstraint &constraint : constraints) {
-            if (constraint.trait.name == "Copy") {
-              active_copy_constraints.insert(constraint.parameter);
+            if (const auto kind = derivation_constraint(constraint.trait.name);
+                kind.has_value() && constraint.trait.type_arguments.empty()) {
+              if (*kind == ast::DerivationKind::Copy)
+                active_copy_constraints.insert(constraint.parameter);
               continue;
             }
             active_trait_constraints[constraint.parameter].push_back(
@@ -2109,119 +2122,115 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 "consume parameter '" + parameter.name +
                     "' requires an owning local or temporary, not a field"};
         };
-    const auto declared_call_type =
-        [&](const ast::FunctionDeclaration &callee,
-            const std::vector<ast::TypeReference> &type_arguments,
-            const std::vector<std::unique_ptr<ast::Expression>> &arguments,
-            SourceLocation location, std::string_view display_name) {
-          if (type_arguments.size() != callee.type_parameters.size())
-            throw CompileError{
-                location, "function '" + std::string{display_name} +
-                              "' expects " +
-                              std::to_string(callee.type_parameters.size()) +
-                              " type argument(s), got " +
-                              std::to_string(type_arguments.size())};
-          if ((!callee.is_variadic &&
-               arguments.size() != callee.parameters.size()) ||
-              (callee.is_variadic &&
-               arguments.size() < callee.parameters.size()))
-            throw CompileError{
-                location,
-                "function '" + std::string{display_name} + "' expects " +
-                    (callee.is_variadic ? "at least " : "") +
-                    std::to_string(callee.parameters.size()) +
-                    " argument(s), got " + std::to_string(arguments.size())};
+    const auto declared_call_type = [&](const ast::FunctionDeclaration &callee,
+                                        const std::vector<ast::TypeReference>
+                                            &type_arguments,
+                                        const std::vector<
+                                            std::unique_ptr<ast::Expression>>
+                                            &arguments,
+                                        SourceLocation location,
+                                        std::string_view display_name) {
+      if (type_arguments.size() != callee.type_parameters.size())
+        throw CompileError{
+            location, "function '" + std::string{display_name} + "' expects " +
+                          std::to_string(callee.type_parameters.size()) +
+                          " type argument(s), got " +
+                          std::to_string(type_arguments.size())};
+      if ((!callee.is_variadic &&
+           arguments.size() != callee.parameters.size()) ||
+          (callee.is_variadic && arguments.size() < callee.parameters.size()))
+        throw CompileError{
+            location, "function '" + std::string{display_name} + "' expects " +
+                          (callee.is_variadic ? "at least " : "") +
+                          std::to_string(callee.parameters.size()) +
+                          " argument(s), got " +
+                          std::to_string(arguments.size())};
 
-          std::unordered_map<std::string, SemanticType> substitutions;
-          for (std::size_t index = 0; index < type_arguments.size(); ++index)
-            substitutions.emplace(callee.type_parameters[index],
-                                  resolve_type(type_arguments[index],
-                                               *active_type_parameters,
-                                               &class_arities));
-          const std::unordered_set<std::string> callee_parameters{
-              callee.type_parameters.begin(), callee.type_parameters.end()};
-          for (const ast::TypeConstraint &constraint :
-               callee.type_constraints) {
-            const SemanticType &candidate =
-                substitutions.at(constraint.parameter);
-            if (constraint.trait.name == "Copy") {
-              if (!satisfies_copy(candidate))
-                throw CompileError{
-                    location, "type '" + candidate.name() +
-                                  "' does not satisfy constraint 'Copy' for "
-                                  "type parameter '" +
-                                  constraint.parameter + "'"};
-              continue;
-            }
-            TraitInstance requirement =
-                resolve_trait(constraint.trait, callee_parameters);
-            for (SemanticType &argument : requirement.type_arguments)
-              argument = substitute(std::move(argument), substitutions);
-            if (!satisfies_active_trait(candidate, requirement))
-              throw CompileError{location,
-                                 "type '" + candidate.name() +
-                                     "' does not satisfy constraint '" +
-                                     requirement.declaration->name +
-                                     "' for type parameter '" +
-                                     constraint.parameter + "'"};
-          }
-          for (std::size_t index = 0; index < arguments.size(); ++index) {
-            if (index >= callee.parameters.size()) {
-              const SemanticType argument_type =
-                  expression_type(*arguments[index]);
-              if (!is_c_variadic_type(argument_type))
-                throw CompileError{
-                    expression_location(*arguments[index]),
-                    "variadic C argument has incompatible type '" +
-                        argument_type.name() + "'"};
-              if (callee.is_external &&
-                  !is_borrowed_pointer_expression(*arguments[index]) &&
-                  (argument_type.is_pointer() ||
-                   potentially_owns_value(argument_type)))
-                emit_warning(
-                    DiagnosticCode::AnalyzerUnannotatedExternOwnership,
-                    expression_location(*arguments[index]),
-                    "external variadic call receives value of type '" +
-                        argument_type.name() +
-                        "' without a verifiable ownership contract",
-                    {"document whether native code borrows, retains, or "
-                     "releases this value"});
-              continue;
-            }
-            SemanticType expected =
-                resolve_type(callee.parameters[index].type, callee_parameters,
-                             &class_arities);
-            expected = substitute(std::move(expected), substitutions);
-            const bool observes_owned_enum =
-                index == 0 &&
-                ((callee.module_name ==
-                      std::optional<std::string>{"std.option"} &&
-                  (callee.name == "isSome" || callee.name == "isNone")) ||
-                 (callee.module_name ==
-                      std::optional<std::string>{"std.result"} &&
-                  (callee.name == "isOk" || callee.name == "isError")));
-            const bool previous_contextual_borrow_expression =
-                contextual_borrow_expression;
-            const std::string_view previous_contextual_borrow_enum_name =
-                contextual_borrow_enum_name;
-            contextual_borrow_expression = observes_owned_enum;
-            contextual_borrow_enum_name =
-                callee.module_name == std::optional<std::string>{"std.option"}
-                    ? "Option"
-                    : "Result";
-            validate_expression(*arguments[index], expected,
-                                expression_location(*arguments[index]));
-            apply_external_ownership_contract(callee, callee.parameters[index],
-                                              *arguments[index], expected,
-                                              display_name);
-            contextual_borrow_expression =
-                previous_contextual_borrow_expression;
-            contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
-          }
-          return substitute(resolve_type(callee.return_type, callee_parameters,
-                                         &class_arities),
-                            substitutions);
-        };
+      std::unordered_map<std::string, SemanticType> substitutions;
+      for (std::size_t index = 0; index < type_arguments.size(); ++index)
+        substitutions.emplace(callee.type_parameters[index],
+                              resolve_type(type_arguments[index],
+                                           *active_type_parameters,
+                                           &class_arities));
+      const std::unordered_set<std::string> callee_parameters{
+          callee.type_parameters.begin(), callee.type_parameters.end()};
+      for (const ast::TypeConstraint &constraint : callee.type_constraints) {
+        const SemanticType &candidate = substitutions.at(constraint.parameter);
+        if (const auto kind = derivation_constraint(constraint.trait.name);
+            kind.has_value() && constraint.trait.type_arguments.empty()) {
+          const bool satisfies = *kind == ast::DerivationKind::Copy
+                                     ? satisfies_copy(candidate)
+                                     : supports_derivation(candidate, *kind);
+          if (!satisfies)
+            throw CompileError{location, "type '" + candidate.name() +
+                                             "' does not satisfy constraint '" +
+                                             constraint.trait.name +
+                                             "' for "
+                                             "type parameter '" +
+                                             constraint.parameter + "'"};
+          continue;
+        }
+        TraitInstance requirement =
+            resolve_trait(constraint.trait, callee_parameters);
+        for (SemanticType &argument : requirement.type_arguments)
+          argument = substitute(std::move(argument), substitutions);
+        if (!satisfies_active_trait(candidate, requirement))
+          throw CompileError{location, "type '" + candidate.name() +
+                                           "' does not satisfy constraint '" +
+                                           requirement.declaration->name +
+                                           "' for type parameter '" +
+                                           constraint.parameter + "'"};
+      }
+      for (std::size_t index = 0; index < arguments.size(); ++index) {
+        if (index >= callee.parameters.size()) {
+          const SemanticType argument_type = expression_type(*arguments[index]);
+          if (!is_c_variadic_type(argument_type))
+            throw CompileError{expression_location(*arguments[index]),
+                               "variadic C argument has incompatible type '" +
+                                   argument_type.name() + "'"};
+          if (callee.is_external &&
+              !is_borrowed_pointer_expression(*arguments[index]) &&
+              (argument_type.is_pointer() ||
+               potentially_owns_value(argument_type)))
+            emit_warning(DiagnosticCode::AnalyzerUnannotatedExternOwnership,
+                         expression_location(*arguments[index]),
+                         "external variadic call receives value of type '" +
+                             argument_type.name() +
+                             "' without a verifiable ownership contract",
+                         {"document whether native code borrows, retains, or "
+                          "releases this value"});
+          continue;
+        }
+        SemanticType expected = resolve_type(callee.parameters[index].type,
+                                             callee_parameters, &class_arities);
+        expected = substitute(std::move(expected), substitutions);
+        const bool observes_owned_enum =
+            index == 0 &&
+            ((callee.module_name == std::optional<std::string>{"std.option"} &&
+              (callee.name == "isSome" || callee.name == "isNone")) ||
+             (callee.module_name == std::optional<std::string>{"std.result"} &&
+              (callee.name == "isOk" || callee.name == "isError")));
+        const bool previous_contextual_borrow_expression =
+            contextual_borrow_expression;
+        const std::string_view previous_contextual_borrow_enum_name =
+            contextual_borrow_enum_name;
+        contextual_borrow_expression = observes_owned_enum;
+        contextual_borrow_enum_name =
+            callee.module_name == std::optional<std::string>{"std.option"}
+                ? "Option"
+                : "Result";
+        validate_expression(*arguments[index], expected,
+                            expression_location(*arguments[index]));
+        apply_external_ownership_contract(callee, callee.parameters[index],
+                                          *arguments[index], expected,
+                                          display_name);
+        contextual_borrow_expression = previous_contextual_borrow_expression;
+        contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
+      }
+      return substitute(
+          resolve_type(callee.return_type, callee_parameters, &class_arities),
+          substitutions);
+    };
     const auto class_substitutions =
         [](const ast::ClassDeclaration &class_declaration,
            const SemanticType &instance) {
@@ -2816,13 +2825,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       node.location,
                       "numericCast expects one destination type and one "
                       "value argument"};
-                SemanticType destination_type = resolve_type(
-                    node.type_arguments.front(), *active_type_parameters,
-                    &class_arities);
+                SemanticType destination_type =
+                    resolve_type(node.type_arguments.front(),
+                                 *active_type_parameters, &class_arities);
                 if (active_type_substitutions != nullptr)
-                  destination_type = substitute(
-                      std::move(destination_type),
-                      *active_type_substitutions);
+                  destination_type = substitute(std::move(destination_type),
+                                                *active_type_substitutions);
                 const SemanticType source_type =
                     expression_type(*node.arguments.front());
                 const bool source_numeric =
@@ -2990,14 +2998,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                    callee.type_constraints) {
                 const SemanticType &candidate =
                     substitutions.at(constraint.parameter);
-                if (constraint.trait.name == "Copy") {
-                  if (!satisfies_copy(candidate))
-                    throw CompileError{
-                        node.location,
-                        "type '" + candidate.name() +
-                            "' does not satisfy constraint 'Copy' for type "
-                            "parameter '" +
-                            constraint.parameter + "'"};
+                if (const auto kind =
+                        derivation_constraint(constraint.trait.name);
+                    kind.has_value() &&
+                    constraint.trait.type_arguments.empty()) {
+                  const bool satisfies =
+                      *kind == ast::DerivationKind::Copy
+                          ? satisfies_copy(candidate)
+                          : supports_derivation(candidate, *kind);
+                  if (!satisfies)
+                    throw CompileError{node.location,
+                                       "type '" + candidate.name() +
+                                           "' does not satisfy constraint '" +
+                                           constraint.trait.name +
+                                           "' for type "
+                                           "parameter '" +
+                                           constraint.parameter + "'"};
                   continue;
                 }
                 TraitInstance requirement =
@@ -3125,14 +3141,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                    class_declaration.type_constraints) {
                 const SemanticType &candidate =
                     substitutions.at(constraint.parameter);
-                if (constraint.trait.name == "Copy") {
-                  if (!satisfies_copy(candidate))
-                    throw CompileError{
-                        node.location,
-                        "type '" + candidate.name() +
-                            "' does not satisfy constraint 'Copy' for type "
-                            "parameter '" +
-                            constraint.parameter + "'"};
+                if (const auto kind =
+                        derivation_constraint(constraint.trait.name);
+                    kind.has_value() &&
+                    constraint.trait.type_arguments.empty()) {
+                  const bool satisfies =
+                      *kind == ast::DerivationKind::Copy
+                          ? satisfies_copy(candidate)
+                          : supports_derivation(candidate, *kind);
+                  if (!satisfies)
+                    throw CompileError{node.location,
+                                       "type '" + candidate.name() +
+                                           "' does not satisfy constraint '" +
+                                           constraint.trait.name +
+                                           "' for type "
+                                           "parameter '" +
+                                           constraint.parameter + "'"};
                   continue;
                 }
                 TraitInstance requirement =
@@ -3600,14 +3624,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                    method->type_constraints) {
                 const SemanticType &candidate =
                     substitutions.at(constraint.parameter);
-                if (constraint.trait.name == "Copy") {
-                  if (!satisfies_copy(candidate))
-                    throw CompileError{
-                        node.location,
-                        "type '" + candidate.name() +
-                            "' does not satisfy constraint 'Copy' for type "
-                            "parameter '" +
-                            constraint.parameter + "'"};
+                if (const auto kind =
+                        derivation_constraint(constraint.trait.name);
+                    kind.has_value() &&
+                    constraint.trait.type_arguments.empty()) {
+                  const bool satisfies =
+                      *kind == ast::DerivationKind::Copy
+                          ? satisfies_copy(candidate)
+                          : supports_derivation(candidate, *kind);
+                  if (!satisfies)
+                    throw CompileError{node.location,
+                                       "type '" + candidate.name() +
+                                           "' does not satisfy constraint '" +
+                                           constraint.trait.name +
+                                           "' for type "
+                                           "parameter '" +
+                                           constraint.parameter + "'"};
                   continue;
                 }
                 TraitInstance requirement =
@@ -4128,7 +4160,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               case ast::BinaryOperator::Equal:
               case ast::BinaryOperator::NotEqual:
                 if (!is_concrete && !left_type.is_pointer() &&
-                    !left_type.is_enum() && !left_type.is_class()) {
+                    !left_type.is_enum() && !left_type.is_class() &&
+                    !supports_derivation(left_type,
+                                         ast::DerivationKind::Equality)) {
                   throw CompileError{
                       node.location,
                       "equality operators require primitive operands"};

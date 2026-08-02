@@ -15,6 +15,7 @@ EXPECTED_REFERENCE = {
     "language-guide.md",
     "text.md",
     "tooling.md",
+    "testing.md",
     "registry-protocol-v1.md",
     "compiler-performance.md",
     "api-documentation.md",
@@ -58,6 +59,7 @@ EXPECTED_MODULES = {
     "std.result",
     "std.system",
     "std.text",
+    "std.testing",
     "std.time",
     "std.wall_time",
 }

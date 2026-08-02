@@ -10,6 +10,7 @@
 #include "janus/driver/incremental_cache.hpp"
 #include "janus/driver/manifest.hpp"
 #include "janus/driver/native_linker.hpp"
+#include "janus/driver/native_test.hpp"
 #include "janus/driver/project.hpp"
 #include "janus/driver/registry.hpp"
 #include "janus/driver/temporary_directory.hpp"
@@ -18,8 +19,8 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cctype>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -28,25 +29,31 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
+#include <unordered_map>
 
 #ifndef _WIN32
+#include <csignal>
+#include <fcntl.h>
 #include <sys/wait.h>
+#include <unistd.h>
 #endif
 
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Verifier.h>
 #include <llvm/Bitcode/BitcodeReader.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Linker/Linker.h>
-#include <llvm/Support/MemoryBuffer.h>
-#include <llvm/TargetParser/Host.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/TargetParser/Host.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -76,9 +83,21 @@ struct Options {
   bool doc_open{};
   bool doc_stdlib{};
   bool doctests_only{};
+  bool test_list{};
+  bool test_exact{};
+  bool test_ignored{};
+  bool test_include_ignored{};
+  bool test_fail_fast{};
+  bool test_fail_if_empty{};
+  enum class TestFormat { Human, Json, Junit } test_format{TestFormat::Human};
+  std::size_t test_jobs{1};
+  std::chrono::milliseconds test_timeout{};
   bool warn_high_growth_loops{};
-  enum class TimingsFormat { None, Human, Json } timings_format{
-      TimingsFormat::None};
+  enum class TimingsFormat {
+    None,
+    Human,
+    Json
+  } timings_format{TimingsFormat::None};
   bool diagnostic_format_set{};
   bool panic_trace_set{};
   janus::backend::llvm::PanicTraceMode panic_trace{
@@ -186,7 +205,9 @@ void print_usage(std::ostream &output) {
          << "  janus run [source.janus] [--release] "
             "[--panic-trace full|short|off]\n"
          << "  janus test [filter] [--doc] [--doc-path <path>] "
-            "[--release] "
+            "[--list] [--exact] [--ignored|--include-ignored] "
+            "[--jobs <count>] [--timeout <duration>] [--fail-fast] "
+            "[--fail-if-empty] [--format human|json|junit] [--release] "
             "[--panic-trace full|short|off]\n"
          << "  janus fmt [source.janus] [--check]\n"
          << "  janus doc [--stdlib] [-o directory] [--open] [--offline]\n"
@@ -214,7 +235,10 @@ void print_command_usage(std::ostream &output, std::string_view command) {
     output << " [source.janus] [--release] [--locked] [--offline] "
               "[--panic-trace full|short|off] [--warn-high-growth-loops]\n";
   else if (command == "test")
-    output << " [filter] [--doc] [--doc-path <path>] [--release] "
+    output << " [filter] [--doc] [--doc-path <path>] [--list] [--exact] "
+              "[--ignored|--include-ignored] [--jobs <count>] "
+              "[--timeout <duration>] [--fail-fast] [--fail-if-empty] "
+              "[--format human|json|junit] [--release] "
               "[--locked] [--offline] "
               "[--panic-trace full|short|off]\n";
   else if (command == "doc")
@@ -245,6 +269,20 @@ void print_compile_error(const std::filesystem::path &path,
   }
   std::cerr << janus::diagnostics::render_diagnostics(
       path, source, error.diagnostics(), format, {width});
+}
+
+std::string render_compile_error(const std::filesystem::path &path,
+                                 std::string_view source,
+                                 const janus::CompileError &error) {
+  std::size_t width = 80;
+  if (const char *columns = std::getenv("COLUMNS")) {
+    const unsigned long parsed = std::strtoul(columns, nullptr, 10);
+    if (parsed >= 20)
+      width = parsed;
+  }
+  return janus::diagnostics::render_diagnostics(
+      path, source, error.diagnostics(),
+      janus::diagnostics::DiagnosticFormat::Human, {width});
 }
 
 int manage_package(int argc, char **argv) {
@@ -401,6 +439,68 @@ Options parse_options(int argc, char **argv) {
       options.doc_stdlib = true;
     } else if (argument == "--doc" && options.command == "test") {
       options.doctests_only = true;
+    } else if (argument == "--list" && options.command == "test") {
+      options.test_list = true;
+    } else if (argument == "--exact" && options.command == "test") {
+      options.test_exact = true;
+    } else if (argument == "--ignored" && options.command == "test") {
+      options.test_ignored = true;
+    } else if (argument == "--include-ignored" && options.command == "test") {
+      options.test_include_ignored = true;
+    } else if (argument == "--fail-fast" && options.command == "test") {
+      options.test_fail_fast = true;
+    } else if (argument == "--fail-if-empty" && options.command == "test") {
+      options.test_fail_if_empty = true;
+    } else if (argument == "--jobs" && options.command == "test") {
+      if (++index == argc)
+        throw UsageError{options.command, "--jobs requires a positive count"};
+      std::string_view value = argv[index];
+      std::size_t parsed{};
+      const auto [end, error] =
+          std::from_chars(value.data(), value.data() + value.size(), parsed);
+      if (error != std::errc{} || end != value.data() + value.size() ||
+          parsed == 0)
+        throw UsageError{options.command, "--jobs requires a positive count"};
+      options.test_jobs = parsed;
+    } else if (argument == "--timeout" && options.command == "test") {
+      if (++index == argc)
+        throw UsageError{options.command, "--timeout requires a duration"};
+      std::string_view value = argv[index];
+      std::chrono::milliseconds multiplier{1000};
+      if (value.ends_with("ms")) {
+        multiplier = std::chrono::milliseconds{1};
+        value.remove_suffix(2);
+      } else if (value.ends_with('s')) {
+        value.remove_suffix(1);
+      } else if (value.ends_with('m')) {
+        multiplier = std::chrono::minutes{1};
+        value.remove_suffix(1);
+      }
+      std::uint64_t parsed{};
+      const auto [end, error] =
+          std::from_chars(value.data(), value.data() + value.size(), parsed);
+      if (error != std::errc{} || end != value.data() + value.size() ||
+          parsed == 0 ||
+          parsed > static_cast<std::uint64_t>(
+                       std::chrono::milliseconds::max().count() /
+                       multiplier.count()))
+        throw UsageError{options.command,
+                         "--timeout requires a positive duration (ms, s, m)"};
+      options.test_timeout = multiplier * parsed;
+    } else if (argument == "--format" && options.command == "test") {
+      if (++index == argc)
+        throw UsageError{options.command,
+                         "--format requires human, json, or junit"};
+      const std::string_view format = argv[index];
+      if (format == "human")
+        options.test_format = Options::TestFormat::Human;
+      else if (format == "json")
+        options.test_format = Options::TestFormat::Json;
+      else if (format == "junit")
+        options.test_format = Options::TestFormat::Junit;
+      else
+        throw UsageError{options.command,
+                         "--format accepts 'human', 'json', or 'junit'"};
     } else if (argument == "--doc-path" && options.command == "test") {
       if (++index == argc)
         throw UsageError{options.command,
@@ -408,14 +508,13 @@ Options parse_options(int argc, char **argv) {
       options.documentation_paths.emplace_back(argv[index]);
     } else if (argument == "--warn-high-growth-loops") {
       options.warn_high_growth_loops = true;
-    } else if (argument == "--timings" ||
-               argument.starts_with("--timings=")) {
+    } else if (argument == "--timings" || argument.starts_with("--timings=")) {
       if (options.timings_format != Options::TimingsFormat::None)
         throw UsageError{options.command,
                          "--timings may be specified only once"};
-      const std::string_view format =
-          argument == "--timings" ? std::string_view{"human"}
-                                  : argument.substr(10);
+      const std::string_view format = argument == "--timings"
+                                          ? std::string_view{"human"}
+                                          : argument.substr(10);
       if (format == "human")
         options.timings_format = Options::TimingsFormat::Human;
       else if (format == "json")
@@ -498,6 +597,11 @@ Options parse_options(int argc, char **argv) {
   if (options.command == "test" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object))
     throw UsageError{options.command, "test does not accept -o or --emit"};
+  if (options.test_ignored && options.test_include_ignored)
+    throw UsageError{options.command,
+                     "--ignored and --include-ignored are mutually exclusive"};
+  if (options.test_exact && options.test_filter.empty())
+    throw UsageError{options.command, "--exact requires a filter"};
   if (options.command == "fmt" &&
       (!options.output.empty() || options.emit_llvm || options.emit_object ||
        options.release || options.locked || options.offline ||
@@ -522,16 +626,19 @@ Options parse_options(int argc, char **argv) {
         "--diagnostic-format is only available for check and build"};
   if (options.timings_format != Options::TimingsFormat::None &&
       options.command != "build")
-    throw UsageError{options.command,
-                     "--timings is only available for build"};
+    throw UsageError{options.command, "--timings is only available for build"};
   if (options.no_cache && options.command != "build")
-    throw UsageError{options.command,
-                     "--no-cache is only available for build"};
+    throw UsageError{options.command, "--no-cache is only available for build"};
   if (options.command == "clean" &&
       (!options.source.empty() || !options.output.empty() || options.release ||
        options.locked || options.offline || options.no_cache ||
        options.format_check || options.doc_open || options.doc_stdlib ||
-       options.doctests_only || options.warn_high_growth_loops ||
+       options.doctests_only || options.test_list || options.test_exact ||
+       options.test_ignored || options.test_include_ignored ||
+       options.test_fail_fast || options.test_fail_if_empty ||
+       options.test_jobs != 1 || options.test_timeout.count() != 0 ||
+       options.test_format != Options::TestFormat::Human ||
+       options.warn_high_growth_loops ||
        options.timings_format != Options::TimingsFormat::None ||
        options.diagnostic_format_set || options.panic_trace_set ||
        options.emit_llvm || options.emit_object))
@@ -588,8 +695,7 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
         bool warn_high_growth_loops,
         janus::diagnostics::DiagnosticFormat diagnostic_format,
         janus::backend::llvm::PanicTraceMode panic_trace,
-        CompilationTimings *timings = nullptr,
-        bool dependencies_only = false,
+        CompilationTimings *timings = nullptr, bool dependencies_only = false,
         std::string_view source_name_override = {}) {
   std::vector<std::filesystem::path> search_paths{toolchain.stdlib};
   search_paths.insert(search_paths.end(), dependency_paths.begin(),
@@ -602,9 +708,9 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
     timings->loading = load_timings.loading;
     timings->parsing = load_timings.parsing;
   }
-  const auto analysis_start =
-      timings == nullptr ? CompilationTimings::Clock::time_point{}
-                         : CompilationTimings::Clock::now();
+  const auto analysis_start = timings == nullptr
+                                  ? CompilationTimings::Clock::time_point{}
+                                  : CompilationTimings::Clock::now();
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
   if (timings != nullptr)
@@ -625,9 +731,9 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
                    "bound, use a safe numeric type, or enforce a time budget\n";
     }
   }
-  const auto generation_start =
-      timings == nullptr ? CompilationTimings::Clock::time_point{}
-                         : CompilationTimings::Clock::now();
+  const auto generation_start = timings == nullptr
+                                    ? CompilationTimings::Clock::time_point{}
+                                    : CompilationTimings::Clock::now();
   janus::backend::llvm::IrGenerator generator{context};
   std::unique_ptr<llvm::Module> module =
       generator.generate(program, source_name, panic_trace, dependencies_only);
@@ -707,8 +813,8 @@ void print_timings(const CompilationTimings &timings, const Options &options) {
     for (std::size_t index = 0; index < phases.size(); ++index) {
       if (index != 0)
         output << ',';
-      output << '"' << phases[index].first << "\":"
-             << milliseconds(phases[index].second);
+      output << '"' << phases[index].first
+             << "\":" << milliseconds(phases[index].second);
     }
     output << "}}\n";
     return;
@@ -747,8 +853,8 @@ void write_bitcode(const llvm::Module &module,
   llvm::WriteBitcodeToFile(module, output);
 }
 
-std::unique_ptr<llvm::Module>
-read_bitcode(const std::filesystem::path &path, llvm::LLVMContext &context) {
+std::unique_ptr<llvm::Module> read_bitcode(const std::filesystem::path &path,
+                                           llvm::LLVMContext &context) {
   auto buffer = llvm::MemoryBuffer::getFile(path.string());
   if (!buffer)
     throw std::runtime_error{"cannot read cached consumer bitcode"};
@@ -767,7 +873,8 @@ consumer_definition_manifest(const llvm::Module &module) {
          function.hasFnAttribute("janus.consumer-owned")))
       definitions.push_back("f:" + function.getName().str());
   for (const llvm::GlobalVariable &global : module.globals())
-    if (global.hasInitializer() && global.getMetadata("janus.module") == nullptr)
+    if (global.hasInitializer() &&
+        global.getMetadata("janus.module") == nullptr)
       definitions.push_back("g:" + global.getName().str());
   std::sort(definitions.begin(), definitions.end());
   definitions.erase(std::unique(definitions.begin(), definitions.end()),
@@ -779,23 +886,26 @@ bool has_required_definitions(const llvm::Module &module,
                               const std::vector<std::string> &definitions) {
   return std::all_of(definitions.begin(), definitions.end(),
                      [&](const std::string &definition) {
-    if (definition.starts_with("f:")) {
-      const llvm::Function *function = module.getFunction(definition.substr(2));
-      return function != nullptr && !function->isDeclaration();
-    }
-    if (definition.starts_with("g:")) {
-      const llvm::GlobalVariable *global =
-          module.getNamedGlobal(definition.substr(2));
-      return global != nullptr && global->hasInitializer();
-    }
-    return false;
-  });
+                       if (definition.starts_with("f:")) {
+                         const llvm::Function *function =
+                             module.getFunction(definition.substr(2));
+                         return function != nullptr &&
+                                !function->isDeclaration();
+                       }
+                       if (definition.starts_with("g:")) {
+                         const llvm::GlobalVariable *global =
+                             module.getNamedGlobal(definition.substr(2));
+                         return global != nullptr && global->hasInitializer();
+                       }
+                       return false;
+                     });
 }
 
 bool has_incomplete_consumer_definitions(const llvm::Module &module) {
-  return std::any_of(module.begin(), module.end(), [](const llvm::Function &fn) {
-    return fn.hasFnAttribute("janus.consumer-owned") && fn.isDeclaration();
-  });
+  return std::any_of(
+      module.begin(), module.end(), [](const llvm::Function &fn) {
+        return fn.hasFnAttribute("janus.consumer-owned") && fn.isDeclaration();
+      });
 }
 
 struct CachedDependencyDefinition {
@@ -819,7 +929,8 @@ discard_cached_dependency_definitions(llvm::Module &module) {
                          llvm::MDNode::get(module.getContext(), {}));
       global.setInitializer(nullptr);
     }
-  for (auto iterator = module.global_begin(); iterator != module.global_end();) {
+  for (auto iterator = module.global_begin();
+       iterator != module.global_end();) {
     llvm::GlobalVariable &global = *iterator++;
     if (global.hasLocalLinkage() && global.use_empty())
       global.eraseFromParent();
@@ -886,8 +997,8 @@ std::filesystem::path default_output(const Options &options) {
   return output;
 }
 
-std::filesystem::path snapshot_module_path(
-    const std::filesystem::path &root, std::string_view module) {
+std::filesystem::path snapshot_module_path(const std::filesystem::path &root,
+                                           std::string_view module) {
   if (module.empty())
     throw std::runtime_error{"cannot snapshot an unnamed imported module"};
   std::filesystem::path relative;
@@ -901,7 +1012,8 @@ std::filesystem::path snapshot_module_path(
         !std::all_of(segment.begin(), segment.end(), [](unsigned char value) {
           return std::isalnum(value) != 0 || value == '_';
         }))
-      throw std::runtime_error{"invalid imported module name in build snapshot"};
+      throw std::runtime_error{
+          "invalid imported module name in build snapshot"};
     relative /= segment;
     if (separator == std::string_view::npos)
       break;
@@ -922,9 +1034,9 @@ void write_snapshot_source(const std::filesystem::path &path,
     throw std::runtime_error{"cannot write build-input snapshot"};
 }
 
-std::filesystem::path materialize_build_snapshot(
-    const janus::driver::BuildFingerprintInput &inputs,
-    const std::filesystem::path &root) {
+std::filesystem::path
+materialize_build_snapshot(const janus::driver::BuildFingerprintInput &inputs,
+                           const std::filesystem::path &root) {
   const auto entry = root / "entry.janus";
   write_snapshot_source(entry, inputs.source);
   for (const auto &dependency : inputs.dependencies) {
@@ -941,9 +1053,9 @@ std::filesystem::path materialize_build_snapshot(
 
 int build(const Options &options, const std::filesystem::path &output,
           const Toolchain &toolchain, CompilationTimings *timings = nullptr) {
-  const auto total_start =
-      timings == nullptr ? CompilationTimings::Clock::time_point{}
-                         : CompilationTimings::Clock::now();
+  const auto total_start = timings == nullptr
+                               ? CompilationTimings::Clock::time_point{}
+                               : CompilationTimings::Clock::now();
   if (!output.parent_path().empty())
     std::filesystem::create_directories(output.parent_path());
   std::optional<janus::driver::IncrementalCache> cache;
@@ -958,11 +1070,10 @@ int build(const Options &options, const std::filesystem::path &output,
                         options.dependency_paths.end());
     std::vector<std::string> compilation_options{
         options.release ? "release" : "debug",
-        options.emit_llvm
-            ? "emit=llvm-ir"
-            : options.emit_object ? "emit=object" : "emit=executable",
-        "panic-trace=" +
-            std::to_string(static_cast<int>(options.panic_trace)),
+        options.emit_llvm     ? "emit=llvm-ir"
+        : options.emit_object ? "emit=object"
+                              : "emit=executable",
+        "panic-trace=" + std::to_string(static_cast<int>(options.panic_trace)),
         options.warn_high_growth_loops ? "warn-high-growth-loops=on"
                                        : "warn-high-growth-loops=off"};
     return janus::driver::inspect_build_inputs(
@@ -1043,8 +1154,7 @@ int build(const Options &options, const std::filesystem::path &output,
       if (module) {
         const llvm::Function *entry = module->getFunction("main");
         if (entry == nullptr || entry->isDeclaration() ||
-            !has_required_definitions(*module,
-                                      required_consumer_definitions) ||
+            !has_required_definitions(*module, required_consumer_definitions) ||
             has_incomplete_consumer_definitions(*module) ||
             llvm::verifyModule(*module, &llvm::errs())) {
           cache->invalidate_consumer(consumer_key);
@@ -1054,12 +1164,11 @@ int build(const Options &options, const std::filesystem::path &output,
       if (module) {
         const std::vector<CachedDependencyDefinition> required_definitions =
             discard_cached_dependency_definitions(*module);
-        std::unique_ptr<llvm::Module> dependencies =
-            compile(compilation_source, context, compilation_toolchain,
-                    compilation_dependency_paths,
-                    options.warn_high_growth_loops, options.diagnostic_format,
-                    options.panic_trace, timings, true,
-                    options.source.string());
+        std::unique_ptr<llvm::Module> dependencies = compile(
+            compilation_source, context, compilation_toolchain,
+            compilation_dependency_paths, options.warn_high_growth_loops,
+            options.diagnostic_format, options.panic_trace, timings, true,
+            options.source.string());
         if (const llvm::Function *entry = dependencies->getFunction("main");
             entry != nullptr && !entry->isDeclaration())
           throw std::runtime_error{
@@ -1093,8 +1202,7 @@ int build(const Options &options, const std::filesystem::path &output,
           }
         }
         if (link_failed || incomplete_dependencies ||
-            !has_required_definitions(*module,
-                                      required_consumer_definitions) ||
+            !has_required_definitions(*module, required_consumer_definitions) ||
             has_incomplete_consumer_definitions(*module) ||
             llvm::verifyModule(*module, &llvm::errs()) ||
             module->getFunction("main") == nullptr ||
@@ -1108,11 +1216,11 @@ int build(const Options &options, const std::filesystem::path &output,
     }
   }
   if (!module)
-    module = compile(compilation_source, context, compilation_toolchain,
-                     compilation_dependency_paths,
-                     options.warn_high_growth_loops, options.diagnostic_format,
-                     options.panic_trace, timings, false,
-                     options.source.string());
+    module =
+        compile(compilation_source, context, compilation_toolchain,
+                compilation_dependency_paths, options.warn_high_growth_loops,
+                options.diagnostic_format, options.panic_trace, timings, false,
+                options.source.string());
   std::optional<std::filesystem::path> pending_consumer_bitcode;
   std::vector<std::string> pending_consumer_definitions;
   if (cache.has_value() && !reused_consumer) {
@@ -1141,13 +1249,13 @@ int build(const Options &options, const std::filesystem::path &output,
       timings->optimization +=
           std::chrono::steady_clock::now() - optimization_start;
     if (!options.emit_object) {
-      const auto link_start =
-          timings == nullptr ? CompilationTimings::Clock::time_point{}
-                             : CompilationTimings::Clock::now();
+      const auto link_start = timings == nullptr
+                                  ? CompilationTimings::Clock::time_point{}
+                                  : CompilationTimings::Clock::now();
       janus::driver::link_executable(
           {object}, compilation_output,
-          janus::driver::LinkOptions{!options.release, {toolchain.runtime},
-                                     toolchain.clang});
+          janus::driver::LinkOptions{
+              !options.release, {toolchain.runtime}, toolchain.clang});
       if (timings != nullptr)
         timings->link += std::chrono::steady_clock::now() - link_start;
     }
@@ -1158,11 +1266,11 @@ int build(const Options &options, const std::filesystem::path &output,
     if (!reused_consumer)
       throw;
     cache->invalidate_consumer(consumer_key);
-    module = compile(compilation_source, context, compilation_toolchain,
-                     compilation_dependency_paths,
-                     options.warn_high_growth_loops, options.diagnostic_format,
-                     options.panic_trace, timings, false,
-                     options.source.string());
+    module =
+        compile(compilation_source, context, compilation_toolchain,
+                compilation_dependency_paths, options.warn_high_growth_loops,
+                options.diagnostic_format, options.panic_trace, timings, false,
+                options.source.string());
     reused_consumer = false;
     const auto bitcode = consumer_directory->path() / "consumer.bc";
     pending_consumer_definitions = consumer_definition_manifest(*module);
@@ -1204,65 +1312,559 @@ int build(const Options &options, const std::filesystem::path &output,
   return 0;
 }
 
-int run_tests(const Options &options, const Toolchain &toolchain) {
-  const std::filesystem::path tests_root = options.manifest->root() / "tests";
-  std::vector<std::filesystem::path> tests;
-  if (!options.doctests_only && std::filesystem::is_directory(tests_root)) {
-    for (const auto &entry :
-         std::filesystem::recursive_directory_iterator(tests_root)) {
-      if (entry.is_regular_file() && entry.path().extension() == ".janus" &&
-          (options.test_filter.empty() ||
-           entry.path().generic_string().find(options.test_filter) !=
-               std::string::npos))
-        tests.push_back(entry.path());
+struct ChildResult {
+  int exit_code{};
+  bool signaled{};
+  bool timed_out{};
+  std::string standard_output;
+  std::string standard_error;
+};
+
+#ifndef _WIN32
+void drain_pipe(int descriptor, std::string &output) {
+  std::array<char, 4096> buffer{};
+  while (true) {
+    const ssize_t count = read(descriptor, buffer.data(), buffer.size());
+    if (count > 0)
+      output.append(buffer.data(), static_cast<std::size_t>(count));
+    else
+      break;
+  }
+}
+#endif
+
+ChildResult run_child(const std::filesystem::path &executable,
+                      const std::filesystem::path &working_directory,
+                      std::chrono::milliseconds timeout) {
+#ifdef _WIN32
+  janus::driver::TemporaryDirectory directory =
+      janus::driver::TemporaryDirectory::create("janus-test-output");
+  const auto out = directory.path() / "stdout.txt";
+  const auto err = directory.path() / "stderr.txt";
+  SECURITY_ATTRIBUTES attributes{};
+  attributes.nLength = sizeof(attributes);
+  attributes.bInheritHandle = TRUE;
+  const HANDLE stdout_handle =
+      CreateFileW(out.c_str(), GENERIC_WRITE, FILE_SHARE_READ, &attributes,
+                  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (stdout_handle == INVALID_HANDLE_VALUE)
+    throw std::system_error{static_cast<int>(GetLastError()),
+                            std::system_category(),
+                            "cannot create test stdout capture"};
+  const HANDLE stderr_handle =
+      CreateFileW(err.c_str(), GENERIC_WRITE, FILE_SHARE_READ, &attributes,
+                  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (stderr_handle == INVALID_HANDLE_VALUE) {
+    CloseHandle(stdout_handle);
+    throw std::system_error{static_cast<int>(GetLastError()),
+                            std::system_category(),
+                            "cannot create test stderr capture"};
+  }
+  STARTUPINFOW startup{};
+  startup.cb = sizeof(startup);
+  startup.dwFlags = STARTF_USESTDHANDLES;
+  startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+  startup.hStdOutput = stdout_handle;
+  startup.hStdError = stderr_handle;
+  PROCESS_INFORMATION process{};
+  std::wstring command_line = L"\"" + executable.wstring() + L"\"";
+  const BOOL created = CreateProcessW(
+      executable.c_str(), command_line.data(), nullptr, nullptr, TRUE,
+      CREATE_NO_WINDOW, nullptr, working_directory.c_str(), &startup, &process);
+  const DWORD create_error = created ? ERROR_SUCCESS : GetLastError();
+  CloseHandle(stdout_handle);
+  CloseHandle(stderr_handle);
+  if (!created)
+    throw std::system_error{static_cast<int>(create_error),
+                            std::system_category(),
+                            "cannot create test process"};
+  CloseHandle(process.hThread);
+  const DWORD wait_timeout =
+      timeout.count() == 0
+          ? INFINITE
+          : static_cast<DWORD>(std::min<std::int64_t>(
+                timeout.count(), static_cast<std::int64_t>(INFINITE - 1)));
+  const DWORD wait_status = WaitForSingleObject(process.hProcess, wait_timeout);
+  const bool timed_out = wait_status == WAIT_TIMEOUT;
+  if (timed_out) {
+    TerminateProcess(process.hProcess, 1);
+    WaitForSingleObject(process.hProcess, INFINITE);
+  } else if (wait_status == WAIT_FAILED) {
+    const DWORD wait_error = GetLastError();
+    CloseHandle(process.hProcess);
+    throw std::system_error{static_cast<int>(wait_error),
+                            std::system_category(),
+                            "cannot wait for test process"};
+  }
+  DWORD exit_code = 1;
+  if (!GetExitCodeProcess(process.hProcess, &exit_code)) {
+    const DWORD exit_error = GetLastError();
+    CloseHandle(process.hProcess);
+    throw std::system_error{static_cast<int>(exit_error),
+                            std::system_category(),
+                            "cannot read test process status"};
+  }
+  CloseHandle(process.hProcess);
+  const auto read_output = [](const std::filesystem::path &path) {
+    std::ifstream input{path, std::ios::binary};
+    return std::string{std::istreambuf_iterator<char>{input},
+                       std::istreambuf_iterator<char>{}};
+  };
+  return {static_cast<int>(exit_code), false, timed_out, read_output(out),
+          read_output(err)};
+#else
+  int stdout_pipe[2]{};
+  int stderr_pipe[2]{};
+  if (pipe(stdout_pipe) != 0 || pipe(stderr_pipe) != 0)
+    throw std::runtime_error{"cannot create test output pipes"};
+  const pid_t child = fork();
+  if (child < 0)
+    throw std::runtime_error{"cannot create test process"};
+  if (child == 0) {
+    close(stdout_pipe[0]);
+    close(stderr_pipe[0]);
+    dup2(stdout_pipe[1], STDOUT_FILENO);
+    dup2(stderr_pipe[1], STDERR_FILENO);
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
+    if (chdir(working_directory.c_str()) != 0)
+      _exit(126);
+    execl(executable.c_str(), executable.filename().c_str(),
+          static_cast<char *>(nullptr));
+    _exit(127);
+  }
+  close(stdout_pipe[1]);
+  close(stderr_pipe[1]);
+  fcntl(stdout_pipe[0], F_SETFL, fcntl(stdout_pipe[0], F_GETFL) | O_NONBLOCK);
+  fcntl(stderr_pipe[0], F_SETFL, fcntl(stderr_pipe[0], F_GETFL) | O_NONBLOCK);
+  ChildResult result;
+  int status{};
+  const auto start = std::chrono::steady_clock::now();
+  while (waitpid(child, &status, WNOHANG) == 0) {
+    drain_pipe(stdout_pipe[0], result.standard_output);
+    drain_pipe(stderr_pipe[0], result.standard_error);
+    if (timeout.count() != 0 &&
+        std::chrono::steady_clock::now() - start >= timeout) {
+      result.timed_out = true;
+      kill(child, SIGKILL);
+      static_cast<void>(waitpid(child, &status, 0));
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds{2});
+  }
+  drain_pipe(stdout_pipe[0], result.standard_output);
+  drain_pipe(stderr_pipe[0], result.standard_error);
+  close(stdout_pipe[0]);
+  close(stderr_pipe[0]);
+  result.signaled = WIFSIGNALED(status);
+  result.exit_code =
+      WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+  return result;
+#endif
+}
+
+std::string escape_json(std::string_view value) {
+  std::ostringstream escaped;
+  for (const unsigned char character : value) {
+    switch (character) {
+    case '"':
+      escaped << "\\\"";
+      break;
+    case '\\':
+      escaped << "\\\\";
+      break;
+    case '\b':
+      escaped << "\\b";
+      break;
+    case '\f':
+      escaped << "\\f";
+      break;
+    case '\n':
+      escaped << "\\n";
+      break;
+    case '\r':
+      escaped << "\\r";
+      break;
+    case '\t':
+      escaped << "\\t";
+      break;
+    default:
+      if (character < 0x20)
+        escaped << "\\u" << std::hex << std::setw(4) << std::setfill('0')
+                << static_cast<unsigned int>(character) << std::dec;
+      else
+        escaped << character;
     }
   }
-  std::sort(tests.begin(), tests.end());
+  return escaped.str();
+}
+
+std::string escape_xml(std::string_view value) {
+  std::string escaped;
+  for (const char character : value) {
+    if (character == '&')
+      escaped += "&amp;";
+    else if (character == '<')
+      escaped += "&lt;";
+    else if (character == '>')
+      escaped += "&gt;";
+    else if (character == '"')
+      escaped += "&quot;";
+    else if (character == '\'')
+      escaped += "&apos;";
+    else
+      escaped += character;
+  }
+  return escaped;
+}
+
+enum class TestStatus { Passed, Failed, Ignored, TimedOut, Crashed, Error };
+
+std::string_view status_name(TestStatus status) {
+  switch (status) {
+  case TestStatus::Passed:
+    return "passed";
+  case TestStatus::Failed:
+    return "failed";
+  case TestStatus::Ignored:
+    return "ignored";
+  case TestStatus::TimedOut:
+    return "timed_out";
+  case TestStatus::Crashed:
+    return "crashed";
+  case TestStatus::Error:
+    return "error";
+  }
+  return "error";
+}
+
+struct TestResult {
+  std::string identifier;
+  std::string kind{"unit"};
+  std::filesystem::path source;
+  janus::SourceLocation location{};
+  TestStatus status{TestStatus::Error};
+  std::chrono::milliseconds duration{};
+  std::string message;
+  std::string standard_output;
+  std::string standard_error;
+};
+
+void print_test_report(const std::vector<TestResult> &results,
+                       const Options &options) {
+  const auto count = [&results](TestStatus status) {
+    return std::count_if(
+        results.begin(), results.end(),
+        [status](const TestResult &result) { return result.status == status; });
+  };
+  const std::size_t passed = count(TestStatus::Passed);
+  const std::size_t ignored = count(TestStatus::Ignored);
+  const std::size_t failed = results.size() - passed - ignored;
+  const std::size_t unit = std::count_if(
+      results.begin(), results.end(),
+      [](const TestResult &result) { return result.kind == "unit"; });
+  const std::size_t doctest = results.size() - unit;
+
+  if (options.test_format == Options::TestFormat::Json) {
+    std::cout << "{\"schema_version\":1,\"summary\":{\"passed\":" << passed
+              << ",\"failed\":" << failed << ",\"ignored\":" << ignored
+              << ",\"unit\":" << unit << ",\"doctest\":" << doctest
+              << "},\"tests\":[";
+    for (std::size_t index = 0; index < results.size(); ++index) {
+      const TestResult &result = results[index];
+      if (index != 0)
+        std::cout << ',';
+      std::cout << "{\"id\":\"" << escape_json(result.identifier)
+                << "\",\"kind\":\"" << result.kind << "\",\"file\":\""
+                << escape_json(result.source.generic_string())
+                << "\",\"line\":" << result.location.line
+                << ",\"column\":" << result.location.column << ",\"status\":\""
+                << status_name(result.status)
+                << "\",\"duration_ms\":" << result.duration.count()
+                << ",\"message\":\"" << escape_json(result.message)
+                << "\",\"stdout\":\"" << escape_json(result.standard_output)
+                << "\",\"stderr\":\"" << escape_json(result.standard_error)
+                << "\"}";
+    }
+    std::cout << "]}\n";
+    return;
+  }
+  if (options.test_format == Options::TestFormat::Junit) {
+    std::chrono::milliseconds duration{};
+    for (const TestResult &result : results)
+      duration += result.duration;
+    std::cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+              << "<testsuite name=\"janus\" tests=\"" << results.size()
+              << "\" failures=\"" << failed << "\" skipped=\"" << ignored
+              << "\" time=\"" << std::fixed << std::setprecision(3)
+              << duration.count() / 1000.0 << "\">\n";
+    for (const TestResult &result : results) {
+      std::cout << "  <testcase classname=\"" << result.kind << "\" name=\""
+                << escape_xml(result.identifier) << "\" file=\""
+                << escape_xml(result.source.generic_string()) << "\" line=\""
+                << result.location.line << "\" time=\""
+                << result.duration.count() / 1000.0 << "\">";
+      if (result.status == TestStatus::Ignored)
+        std::cout << "<skipped/>";
+      else if (result.status != TestStatus::Passed)
+        std::cout << "<failure type=\"" << status_name(result.status)
+                  << "\" message=\"" << escape_xml(result.message) << "\">"
+                  << escape_xml(result.standard_error) << "</failure>";
+      if (!result.standard_output.empty())
+        std::cout << "<system-out>" << escape_xml(result.standard_output)
+                  << "</system-out>";
+      if (!result.standard_error.empty())
+        std::cout << "<system-err>" << escape_xml(result.standard_error)
+                  << "</system-err>";
+      std::cout << "</testcase>\n";
+    }
+    std::cout << "</testsuite>\n";
+    return;
+  }
+  for (const TestResult &result : results) {
+    std::cout << (result.kind == "doctest" ? "doctest " : "test ")
+              << result.identifier << " ... ";
+    if (result.status == TestStatus::Passed)
+      std::cout << "ok";
+    else if (result.status == TestStatus::Ignored)
+      std::cout << "ignored";
+    else
+      std::cout << "FAILED (" << status_name(result.status) << ')';
+    std::cout << " [" << result.duration.count() << " ms]\n";
+    if (result.status != TestStatus::Passed &&
+        result.status != TestStatus::Ignored) {
+      if (!result.message.empty())
+        std::cerr << result.message << '\n';
+      if (!result.standard_output.empty())
+        std::cerr << "--- stdout ---\n" << result.standard_output;
+      if (!result.standard_error.empty())
+        std::cerr << "--- stderr ---\n" << result.standard_error;
+    }
+  }
+  std::cout << "\ntest result: " << (failed == 0 ? "ok" : "FAILED") << ". "
+            << passed << " passed; " << failed << " failed; " << ignored
+            << " ignored (" << unit << " unit; " << doctest << " doctest)\n";
+}
+
+int run_tests(const Options &options, const Toolchain &toolchain) {
+  const std::filesystem::path root = options.manifest->root();
+  const std::filesystem::path tests_root = root / "tests";
+  std::vector<janus::driver::NativeTest> tests;
+  if (!options.doctests_only)
+    tests = janus::driver::discover_native_tests(tests_root);
+  std::erase_if(tests, [&options](const janus::driver::NativeTest &test) {
+    if (!janus::driver::matches_native_test_filter(test, options.test_filter,
+                                                   options.test_exact))
+      return true;
+    if (options.test_ignored)
+      return !test.ignored;
+    return false;
+  });
 
   std::vector<std::filesystem::path> documentation_paths =
       options.documentation_paths;
   if (documentation_paths.empty())
     documentation_paths = {"README.md", "docs"};
   std::vector<janus::driver::Doctest> doctests =
-      janus::driver::discover_doctests(options.manifest->root(),
-                                       documentation_paths);
+      janus::driver::discover_doctests(root, documentation_paths);
   std::erase_if(doctests, [&options](const janus::driver::Doctest &test) {
+    if (options.test_ignored)
+      return true;
+    if (options.test_exact)
+      return test.display_name() != options.test_filter;
     return !janus::driver::matches_doctest_filter(test, options.test_filter);
   });
 
-  std::size_t passed = 0;
-  for (const std::filesystem::path &test : tests) {
-    std::filesystem::path relative =
-        std::filesystem::relative(test, tests_root);
-    relative.replace_extension();
-    std::filesystem::path executable = options.manifest->root() / "target" /
+  if (options.test_list) {
+    for (const auto &test : tests)
+      std::cout << test.identifier << ": unit"
+                << (test.ignored ? " (ignored)" : "") << '\n';
+    for (const auto &test : doctests)
+      std::cout << test.display_name() << ": doctest\n";
+    std::cout << tests.size() + doctests.size() << " tests\n";
+    return tests.empty() && doctests.empty() && options.test_fail_if_empty ? 4
+                                                                           : 0;
+  }
+  if (tests.empty() && doctests.empty()) {
+    if (options.test_format == Options::TestFormat::Human)
+      std::cerr << "warning: no tests discovered\n";
+    print_test_report({}, options);
+    return options.test_fail_if_empty ? 4 : 0;
+  }
+
+  janus::driver::TemporaryDirectory generated_directory =
+      janus::driver::TemporaryDirectory::create("janus-native-tests");
+  struct Prepared {
+    janus::driver::NativeTest test;
+    std::filesystem::path executable;
+    std::optional<TestResult> result;
+  };
+  std::vector<Prepared> prepared;
+  prepared.reserve(tests.size());
+  for (std::size_t index = 0; index < tests.size(); ++index) {
+    const auto &test = tests[index];
+    std::string safe = test.identifier;
+    std::replace_if(
+        safe.begin(), safe.end(),
+        [](char value) {
+          return !std::isalnum(static_cast<unsigned char>(value));
+        },
+        '_');
+    std::filesystem::path executable = root / "target" /
                                        (options.release ? "release" : "debug") /
-                                       "tests" / relative;
+                                       "tests" / safe;
 #ifdef _WIN32
     executable += ".exe";
 #endif
-    std::cout << "test " << relative.generic_string() << " ... " << std::flush;
-    try {
-      Options test_options = options;
-      test_options.source = test;
-      test_options.warn_high_growth_loops = false;
-      build(test_options, executable, toolchain);
-      const int status =
-          command_status(std::system(shell_quote(executable).c_str()));
-      if (status == 0) {
-        ++passed;
-        std::cout << "ok\n";
-      } else {
-        std::cout << "FAILED (exit " << status << ")\n";
-      }
-    } catch (const janus::CompileError &error) {
-      std::cout << "FAILED\n";
-      print_compile_error(test, error);
-    } catch (const std::exception &error) {
-      std::cout << "FAILED\n";
-      std::cerr << test.string() << ": " << error.what() << '\n';
+    Prepared item{test, executable, std::nullopt};
+    if (test.ignored && !options.test_ignored &&
+        !options.test_include_ignored) {
+      item.result = TestResult{test.identifier,
+                               "unit",
+                               test.source,
+                               test.location,
+                               TestStatus::Ignored,
+                               std::chrono::milliseconds{},
+                               {},
+                               {},
+                               {}};
+      prepared.push_back(std::move(item));
+      continue;
     }
+    std::string original;
+    try {
+      std::ifstream input{test.source, std::ios::binary};
+      original = {std::istreambuf_iterator<char>{input},
+                  std::istreambuf_iterator<char>{}};
+      const std::filesystem::path generated =
+          generated_directory.path() /
+          ("test-" + std::to_string(index) + ".janus");
+      std::ofstream output{generated, std::ios::binary};
+      if (!output)
+        throw std::runtime_error{"cannot create generated test"};
+      output << janus::driver::native_test_source(original, test);
+      output.close();
+      Options test_options = options;
+      test_options.source = generated;
+      test_options.warn_high_growth_loops = false;
+      test_options.dependency_paths.push_back(test.source.parent_path());
+      build(test_options, executable, toolchain);
+    } catch (const janus::CompileError &error) {
+      item.result =
+          TestResult{test.identifier,
+                     "unit",
+                     test.source,
+                     test.location,
+                     TestStatus::Error,
+                     std::chrono::milliseconds{},
+                     "test compilation failed",
+                     {},
+                     render_compile_error(test.source, original, error)};
+    } catch (const std::exception &error) {
+      item.result = TestResult{test.identifier,
+                               "unit",
+                               test.source,
+                               test.location,
+                               TestStatus::Error,
+                               std::chrono::milliseconds{},
+                               error.what(),
+                               {},
+                               {}};
+    }
+    prepared.push_back(std::move(item));
+    if (options.test_fail_fast && prepared.back().result.has_value())
+      break;
   }
+
+  const auto execute = [&](Prepared &item) {
+    if (item.result.has_value())
+      return;
+    const auto start = std::chrono::steady_clock::now();
+    const ChildResult child =
+        run_child(item.executable, root, options.test_timeout);
+    const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start);
+    TestStatus status = TestStatus::Failed;
+    std::string message;
+    if (child.timed_out) {
+      status = TestStatus::TimedOut;
+      message = "test exceeded timeout of " +
+                std::to_string(options.test_timeout.count()) + " ms";
+    } else if (item.test.expected_panic.has_value()) {
+      const std::string combined = child.standard_output + child.standard_error;
+      if (child.exit_code == 0)
+        message = "expected panic, but the test completed successfully";
+      else if (!item.test.expected_panic->empty() &&
+               combined.find(*item.test.expected_panic) == std::string::npos)
+        message =
+            "panic message did not contain '" + *item.test.expected_panic + "'";
+      else
+        status = TestStatus::Passed;
+    } else if (child.exit_code == 0) {
+      status = TestStatus::Passed;
+    } else if (child.signaled) {
+      if (child.standard_error.find("panic") != std::string::npos) {
+        status = TestStatus::Failed;
+        message = "test panicked unexpectedly";
+      } else {
+        status = TestStatus::Crashed;
+        message = "test process terminated by a native signal";
+      }
+    } else {
+      message = "test exited with status " + std::to_string(child.exit_code);
+    }
+    item.result = TestResult{item.test.identifier,
+                             "unit",
+                             item.test.source,
+                             item.test.location,
+                             status,
+                             duration,
+                             std::move(message),
+                             child.standard_output,
+                             child.standard_error};
+  };
+
+  if (options.test_fail_fast || options.test_jobs == 1) {
+    for (Prepared &item : prepared) {
+      execute(item);
+      if (options.test_fail_fast && item.result->status != TestStatus::Passed &&
+          item.result->status != TestStatus::Ignored)
+        break;
+    }
+  } else {
+    std::vector<std::size_t> parallel;
+    std::vector<std::size_t> serial;
+    for (std::size_t index = 0; index < prepared.size(); ++index)
+      (prepared[index].test.serial ? serial : parallel).push_back(index);
+    std::size_t next{};
+    std::mutex mutex;
+    const auto worker = [&] {
+      while (true) {
+        std::size_t index{};
+        {
+          std::lock_guard lock{mutex};
+          if (next == parallel.size())
+            return;
+          index = parallel[next++];
+        }
+        execute(prepared[index]);
+      }
+    };
+    std::vector<std::thread> workers;
+    const std::size_t worker_count =
+        std::min(options.test_jobs, std::max<std::size_t>(1, parallel.size()));
+    for (std::size_t index = 0; index < worker_count; ++index)
+      workers.emplace_back(worker);
+    for (std::thread &thread : workers)
+      thread.join();
+    for (const std::size_t index : serial)
+      execute(prepared[index]);
+  }
+
+  std::vector<TestResult> results;
+  for (Prepared &item : prepared)
+    if (item.result.has_value())
+      results.push_back(std::move(*item.result));
 
   janus::driver::TemporaryDirectory doctest_directory =
       janus::driver::TemporaryDirectory::create("janus-doctest");
@@ -1271,67 +1873,72 @@ int run_tests(const Options &options, const Toolchain &toolchain) {
     const std::filesystem::path source =
         doctest_directory.path() /
         ("doctest-" + std::to_string(index) + ".janus");
-    {
-      std::ofstream output{source, std::ios::binary};
-      if (!output)
-        throw std::runtime_error{"cannot create doctest source"};
-      output << test.source;
-    }
-    std::cout << "doctest " << test.display_name() << " ... " << std::flush;
+    std::ofstream output{source, std::ios::binary};
+    if (!output)
+      throw std::runtime_error{"cannot create doctest source"};
+    output << test.source;
+    output.close();
+    TestResult result{test.display_name(),
+                      "doctest",
+                      test.document,
+                      {test.line, 1},
+                      TestStatus::Error,
+                      std::chrono::milliseconds{},
+                      {},
+                      {},
+                      {}};
+    const auto start = std::chrono::steady_clock::now();
     try {
       llvm::LLVMContext context;
-      static_cast<void>(compile(source, context, toolchain,
-                                options.dependency_paths, false,
-                                options.diagnostic_format,
-                                options.panic_trace));
-      if (test.expectation == janus::driver::DoctestExpectation::CompilePass) {
-        ++passed;
-        std::cout << "ok\n";
-      } else {
-        std::cout << "FAILED (expected diagnostic " << test.expected_diagnostic
-                  << ")\n";
-        std::cerr << test.document.generic_string() << ':' << test.line
-                  << ": error: doctest compiled successfully, expected "
-                  << test.expected_diagnostic << '\n';
+      static_cast<void>(
+          compile(source, context, toolchain, options.dependency_paths, false,
+                  options.diagnostic_format, options.panic_trace));
+      if (test.expectation == janus::driver::DoctestExpectation::CompilePass)
+        result.status = TestStatus::Passed;
+      else {
+        result.status = TestStatus::Failed;
+        result.message = "expected diagnostic " + test.expected_diagnostic;
       }
     } catch (const janus::CompileError &error) {
-      const auto expected = [&test, &error] {
-        if (test.expectation != janus::driver::DoctestExpectation::CompileFail)
-          return false;
-        return std::any_of(
-            error.diagnostics().begin(), error.diagnostics().end(),
-            [&test](const janus::Diagnostic &diagnostic) {
-              return janus::diagnostic_code_name(diagnostic.code) ==
-                     test.expected_diagnostic;
-            });
-      }();
-      if (expected) {
-        ++passed;
-        std::cout << "ok\n";
-      } else {
-        std::cout << "FAILED\n";
-        std::cerr << test.document.generic_string() << ':' << test.line
-                  << ": error: ";
+      const bool expected =
+          test.expectation == janus::driver::DoctestExpectation::CompileFail &&
+          std::any_of(error.diagnostics().begin(), error.diagnostics().end(),
+                      [&test](const janus::Diagnostic &diagnostic) {
+                        return janus::diagnostic_code_name(diagnostic.code) ==
+                               test.expected_diagnostic;
+                      });
+      result.status = expected ? TestStatus::Passed : TestStatus::Error;
+      if (!expected) {
+        result.message = test.document.generic_string() + ':' +
+                         std::to_string(test.line) + ": error: ";
         if (test.expectation == janus::driver::DoctestExpectation::CompileFail)
-          std::cerr << "expected diagnostic " << test.expected_diagnostic
-                    << ", got "
-                    << janus::diagnostic_code_name(error.diagnostic().code);
+          result.message +=
+              "expected diagnostic " + test.expected_diagnostic + ", got " +
+              std::string{janus::diagnostic_code_name(error.diagnostic().code)};
         else
-          std::cerr << "doctest compilation failed with "
-                    << janus::diagnostic_code_name(error.diagnostic().code)
-                    << ": " << error.what();
-        std::cerr << '\n';
+          result.message += "doctest compilation failed with " +
+                            std::string{janus::diagnostic_code_name(
+                                error.diagnostic().code)} +
+                            ": " + error.what();
       }
     } catch (const std::exception &error) {
-      std::cout << "FAILED\n";
-      std::cerr << test.document.generic_string() << ':' << test.line
-                << ": error: " << error.what() << '\n';
+      result.status = TestStatus::Error;
+      result.message = error.what();
     }
+    result.duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start);
+    results.push_back(std::move(result));
+    if (options.test_fail_fast && results.back().status != TestStatus::Passed)
+      break;
   }
-  const std::size_t total = tests.size() + doctests.size();
-  std::cout << "\ntest result: " << (passed == total ? "ok" : "FAILED") << ". "
-            << passed << " passed; " << total - passed << " failed\n";
-  return passed == total ? 0 : 1;
+  print_test_report(results, options);
+  return std::any_of(results.begin(), results.end(),
+                     [](const TestResult &result) {
+                       return result.status != TestStatus::Passed &&
+                              result.status != TestStatus::Ignored;
+                     })
+             ? 1
+             : 0;
 }
 
 int format_sources(const Options &options) {
@@ -1430,16 +2037,16 @@ int main(int argc, char **argv) {
     if (options.command == "doc") {
       const std::filesystem::path output =
           options.output.empty()
-              ? options.doc_stdlib
-                    ? std::filesystem::current_path() / "target" / "doc" /
-                          "stdlib"
-                    : options.manifest->root() / "target" / "doc"
+              ? options.doc_stdlib ? std::filesystem::current_path() /
+                                         "target" / "doc" / "stdlib"
+                                   : options.manifest->root() / "target" / "doc"
               : std::filesystem::absolute(options.output).lexically_normal();
-      const janus::driver::DocumentationReport report = options.doc_stdlib
-          ? janus::driver::generate_stdlib_documentation(
-                locate_toolchain(argv[0]).stdlib, output, JANUS_VERSION)
-          : janus::driver::generate_package_documentation(*options.manifest,
-                                                          output);
+      const janus::driver::DocumentationReport report =
+          options.doc_stdlib
+              ? janus::driver::generate_stdlib_documentation(
+                    locate_toolchain(argv[0]).stdlib, output, JANUS_VERSION)
+              : janus::driver::generate_package_documentation(*options.manifest,
+                                                              output);
       for (const janus::driver::UnresolvedDocumentationLink &link :
            report.unresolved_links)
         std::cerr << (options.doc_stdlib ? "error: " : "warning: ")
@@ -1452,15 +2059,14 @@ int main(int argc, char **argv) {
                   << diagnostic.code << "]\n";
       if (options.doc_stdlib) {
         for (const std::string &module : report.undocumented_modules)
-          std::cerr << "error: undocumented standard-library module "
-                    << module << '\n';
+          std::cerr << "error: undocumented standard-library module " << module
+                    << '\n';
         for (const std::string &symbol : report.undocumented_symbols)
-          std::cerr << "error: undocumented standard-library symbol "
-                    << symbol << '\n';
+          std::cerr << "error: undocumented standard-library symbol " << symbol
+                    << '\n';
         if (!report.unresolved_links.empty() ||
             !report.undocumented_modules.empty() ||
-            !report.undocumented_symbols.empty() ||
-            !report.diagnostics.empty())
+            !report.undocumented_symbols.empty() || !report.diagnostics.empty())
           return 1;
       }
       std::cout << "generated " << report.symbol_count << " public symbols in "
@@ -1489,13 +2095,11 @@ int main(int argc, char **argv) {
     }
     if (options.command == "build") {
       CompilationTimings timings;
-      const int status =
-          build(options, default_output(options), toolchain,
-                options.timings_format == Options::TimingsFormat::None
-                    ? nullptr
-                    : &timings);
-      if (status == 0 &&
-          options.timings_format != Options::TimingsFormat::None)
+      const int status = build(
+          options, default_output(options), toolchain,
+          options.timings_format == Options::TimingsFormat::None ? nullptr
+                                                                 : &timings);
+      if (status == 0 && options.timings_format != Options::TimingsFormat::None)
         print_timings(timings, options);
       return status;
     }

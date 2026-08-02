@@ -69,6 +69,9 @@ OWNER_MODULES = {
         "std.graphics.resources",
         "std.graphics.types",
     },
+    "#147": {
+        "std.testing",
+    },
 }
 IMPORT_RE = re.compile(r"^\s*import\s+([\w.]+)", re.MULTILINE)
 DOCUMENTATION_BLOCK_RE = re.compile(

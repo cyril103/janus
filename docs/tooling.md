@@ -14,6 +14,7 @@
 | `janus clean` | supprimer `target/`, cache incrémental compris |
 | `janus test [filtre]` | exécuter les tests et doctests |
 | `janus test --doc` | exécuter uniquement les doctests |
+| `janus test --format json|junit` | produire un rapport CI structuré |
 | `janus fmt` | formater `src/` et `tests/` |
 | `janus fmt --check` | vérifier le formatage |
 | `janus doc` | générer la documentation d’API hors ligne |
@@ -66,6 +67,9 @@ publics sont également écrits dans `api-index.json`. Une référence absente o
 ambiguë produit un avertissement ; elle n’empêche pas la génération.
 
 ### Doctests
+
+Les fonctions `/// @test`, leur isolation, `std.testing`, le parallélisme et
+les rapports CI sont décrits dans [Tests unitaires natifs](testing.md).
 
 `janus test` compile aussi les blocs Markdown dont la première ligne porte
 `// doctest: doctest` dans `README.md` et `docs/`. Un filtre sélectionne

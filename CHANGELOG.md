@@ -5,6 +5,13 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## Non publié
 
+### Tests
+
+- ajout des fonctions `/// @test`, de `std.testing` et de l’isolation par
+  processus avec paniques attendues, tests ignorés ou série ;
+- ajout du filtrage exact, du parallélisme, des timeouts, de la politique de
+  suite vide et des rapports humains, JSON versionné et JUnit.
+
 ### Exemples
 
 - suppression des avertissements de sûreté dans les 36 exemples Janus et

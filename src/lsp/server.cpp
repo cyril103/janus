@@ -114,6 +114,9 @@ qualified_type_name(const std::vector<janus::frontend::Token> &document_tokens,
   return result;
 }
 
+std::string
+function_signature(const janus::ast::FunctionDeclaration &function);
+
 std::vector<DocumentSymbol> symbols(std::string_view uri,
                                     std::string_view source) {
   using janus::frontend::Token;
@@ -121,9 +124,14 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
   const std::vector<Token> document_tokens = tokens(source);
   std::vector<DocumentSymbol> result;
   std::optional<std::string> module_name;
+  std::unordered_map<std::string, std::string> function_details;
   try {
     janus::frontend::Parser parser{source};
-    module_name = parser.parse_program().module_name;
+    const janus::ast::Program program = parser.parse_program();
+    module_name = program.module_name;
+    for (const janus::ast::FunctionDeclaration &function : program.functions)
+      function_details.emplace(function.name,
+                               "def " + function_signature(function));
   } catch (const std::exception &) {
   }
   struct Scope {
@@ -168,7 +176,10 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
           document_tokens[index + 3].kind == TokenKind::Identifier)
         detail += " : " + qualified_type_name(document_tokens, index + 3);
     } else if (token.kind == TokenKind::Def) {
-      detail = "def " + std::string{name.lexeme};
+      const auto signature = function_details.find(std::string{name.lexeme});
+      detail = signature == function_details.end()
+                   ? "def " + std::string{name.lexeme}
+                   : signature->second;
     } else if (token.kind == TokenKind::Class ||
                token.kind == TokenKind::Struct) {
       detail = "class " + std::string{name.lexeme};

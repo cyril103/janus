@@ -229,6 +229,25 @@ import std.text
 def main() : int { return parseInt("not-an-int") }
 ```
 
+### `std.testing`
+
+Assertions destinées aux fonctions `/// @test`. Les échecs déclenchent une
+panique isolée par `janus test` et affichent les valeurs lorsque `Debug` est
+disponible.
+
+```janus
+// doctest: doctest name=stdlib-std-testing
+import std.testing
+import std.option
+assertEqual[int](2 + 2, 4)
+assertSome[int](Option.Some[int](42))
+```
+
+```janus
+// doctest: compile_fail=JANA0001 name=stdlib-std-testing-requires-import
+assertTrue(unknownCondition)
+```
+
 ### `std.math`
 
 ```janus

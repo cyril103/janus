@@ -221,6 +221,7 @@ add_library(janus_driver
     src/driver/incremental_cache.cpp
     src/driver/native_linker.cpp
     src/driver/manifest.cpp
+    src/driver/native_test.cpp
     src/driver/project.cpp
     src/driver/dependency.cpp
     src/driver/remote_registry.cpp
@@ -804,6 +805,17 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME driver.doctest COMMAND doctest_test)
+    add_executable(native_test_test
+        tests/driver/native_test_test.cpp
+    )
+    target_link_libraries(native_test_test PRIVATE janus_driver)
+    target_compile_options(native_test_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME driver.native_test COMMAND native_test_test)
     find_package(Threads REQUIRED)
     add_executable(temporary_directory_test
         tests/driver/temporary_directory_test.cpp
@@ -911,6 +923,13 @@ if(BUILD_TESTING)
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}
                 -DJANUS=$<TARGET_FILE:janus>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_doctest_cli.cmake"
+    )
+    add_test(
+        NAME cli.native_test
+        COMMAND "${CMAKE_COMMAND}"
+                -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                -DJANUS=$<TARGET_FILE:janus>
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_native_test_cli.cmake"
     )
     add_test(
         NAME cli.execution_contract

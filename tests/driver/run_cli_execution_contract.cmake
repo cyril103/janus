@@ -19,7 +19,7 @@ set(TOP_LEVEL_USAGE
   janus check [source.janus] [--diagnostic-format human|json]
   janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache]
   janus run [source.janus] [--release] [--panic-trace full|short|off]
-  janus test [filter] [--doc] [--doc-path <path>] [--release] [--panic-trace full|short|off]
+  janus test [filter] [--doc] [--doc-path <path>] [--list] [--exact] [--ignored|--include-ignored] [--jobs <count>] [--timeout <duration>] [--fail-fast] [--fail-if-empty] [--format human|json|junit] [--release] [--panic-trace full|short|off]
   janus fmt [source.janus] [--check]
   janus doc [--stdlib] [-o directory] [--open] [--offline]
   diagnostics: --warn-high-growth-loops for check, build, run
@@ -37,7 +37,7 @@ set(RUN_USAGE
 "usage: janus run [source.janus] [--release] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops]
 ")
 set(TEST_USAGE
-"usage: janus test [filter] [--doc] [--doc-path <path>] [--release] [--locked] [--offline] [--panic-trace full|short|off]
+"usage: janus test [filter] [--doc] [--doc-path <path>] [--list] [--exact] [--ignored|--include-ignored] [--jobs <count>] [--timeout <duration>] [--fail-fast] [--fail-if-empty] [--format human|json|junit] [--release] [--locked] [--offline] [--panic-trace full|short|off]
 ")
 set(DOC_USAGE
 "usage: janus doc [--stdlib] [-o directory] [--open] [--offline]

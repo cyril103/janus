@@ -1,0 +1,138 @@
+/// Fournit les assertions communes des tests unitaires Janus.
+///
+/// Une assertion échouée affiche les valeurs compatibles avec `Debug`, puis
+/// déclenche une panique que le runner isole dans le processus du test courant.
+/// Les paniques attendues se déclarent avec `/// @shouldPanic [message]` sur la
+/// fonction `/// @test` afin que le processus parent puisse les distinguer.
+/// @example
+/// ```janus
+/// import std.testing
+/// assertEqual[int](2 + 2, 4)
+/// assertTrue(true)
+/// ```
+module std.testing
+
+import std.option
+import std.result
+import std.fs
+import std.path
+import std.system
+
+/// Possède un répertoire temporaire unique et le supprime à sa destruction.
+///
+/// La suppression porte sur un répertoire vide. Détruisez ou supprimez son
+/// contenu avant l’objet ; `preserve` permet de conserver le répertoire pour
+/// une inspection après le test.
+/// @param location Chemin propriétaire du répertoire déjà créé.
+/// @param preserve Politique de conservation appliquée à la destruction.
+class TestTemporaryDirectory(
+private val location : Path,
+private val preserve : bool
+) {
+    /// Emprunte le chemin natif du répertoire.
+    /// @return Vue valide jusqu’à la destruction de cette ressource.
+    def path() : string {
+        return location.view()
+    }
+
+    destructor {
+        if !preserve {
+            val removed : Result[bool, SystemError] =
+            removeDirectory(location.view())
+            isOk[bool, SystemError](removed)
+        }
+        delete location
+    }
+}
+
+/// Crée une ressource temporaire propre au test courant.
+/// @param preserve Conserve le répertoire à la destruction si `true`.
+/// @return Ressource propriétaire unique, ou erreur système de création.
+def testTemporaryDirectory(
+preserve : bool
+) : Result[TestTemporaryDirectory, SystemError] {
+    val created : Result[Path, SystemError] =
+    createTemporaryDirectory("janus-test")
+    return match move created {
+        Ok(path) => Result.Ok[TestTemporaryDirectory, SystemError](
+        new TestTemporaryDirectory(move path, preserve)
+        ),
+        Error(error) => Result.Error[TestTemporaryDirectory, SystemError](
+        error
+        )
+    }
+}
+
+/// Vérifie qu’une condition est vraie.
+/// @param condition Condition attendue à `true`.
+def assertTrue(condition : bool) : Unit {
+    if !condition {
+        panic("assertTrue failed\n")
+    }
+}
+
+/// Vérifie qu’une condition est fausse.
+/// @param condition Condition attendue à `false`.
+def assertFalse(condition : bool) : Unit {
+    if condition {
+        panic("assertFalse failed\n")
+    }
+}
+
+/// Compare deux valeurs disposant des capacités `Equality` et `Debug`.
+/// @param actual Valeur obtenue.
+/// @param expected Valeur attendue.
+def assertEqual[T <: Equality & Debug](actual : T, expected : T) : Unit {
+    if actual != expected {
+        println("assertEqual failed")
+        print("  expected: ")
+        debug(expected)
+        print("  actual:   ")
+        debug(actual)
+        panic("assertEqual failed\n")
+    }
+}
+
+/// Vérifie que deux valeurs comparables sont différentes.
+/// @param actual Valeur obtenue.
+/// @param expected Valeur qui ne doit pas être obtenue.
+def assertNotEqual[T <: Equality & Debug](actual : T, expected : T) : Unit {
+    if actual == expected {
+        println("assertNotEqual failed")
+        print("  unexpected: ")
+        debug(actual)
+        panic("assertNotEqual failed\n")
+    }
+}
+
+/// Vérifie qu’une option contient une valeur.
+/// @param value Option inspectée sans déplacer son contenu.
+def assertSome[T](value : Option[T]) : Unit {
+    if !isSome[T](value) {
+        panic("assertSome failed: expected Some, got None\n")
+    }
+}
+
+/// Vérifie qu’une option est vide.
+/// @param value Option inspectée sans déplacer son contenu.
+def assertNone[T](value : Option[T]) : Unit {
+    if !isNone[T](value) {
+        panic("assertNone failed: expected None, got Some\n")
+    }
+}
+
+/// Vérifie qu’un résultat représente un succès.
+/// @param value Résultat inspecté sans déplacer son contenu.
+def assertOk[T, E](value : Result[T, E]) : Unit {
+    if !isOk[T, E](value) {
+        panic("assertOk failed: expected Ok, got Error\n")
+    }
+}
+
+/// Vérifie qu’un résultat représente une erreur.
+/// @param value Résultat inspecté sans déplacer son contenu.
+def assertError[T, E](value : Result[T, E]) : Unit {
+    if !isError[T, E](value) {
+        panic("assertError failed: expected Error, got Ok\n")
+    }
+}

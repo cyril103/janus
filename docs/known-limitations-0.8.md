@@ -13,6 +13,8 @@ pour expérimentation, mais ne font pas partie du candidat stable.
   `std.graphics.input`, `std.graphics.resources` et `std.graphics.types` :
   l'API dépend de raylib et sa portabilité, sa gestion de ressources et sa
   couverture tier-1 ne satisfont pas encore le niveau du noyau de la stdlib.
+- `std.testing` : les métadonnées, le schéma JSON et la représentation JUnit
+  sont versionnés pour l’expérimentation, mais restent hors du gel 1.0 initial.
 
 Autres limites hors surface promise : format et ordre exacts des diagnostics,
 ABI des agrégats Janus, objets compilés entre plateformes, performances,

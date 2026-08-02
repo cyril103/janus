@@ -46,6 +46,7 @@ nav:
       - Performance du compilateur: reference/generated/compiler-performance.md
       - Documentation d’API: reference/generated/api-documentation.md
       - Doctests: reference/generated/doctests.md
+      - Tests unitaires natifs: reference/generated/testing.md
       - Diagnostics structurés: reference/generated/diagnostics.md
       - Guide de la bibliothèque standard: reference/generated/stdlib-reference.md
       - Index API de la stdlib: reference/stdlib/index.html

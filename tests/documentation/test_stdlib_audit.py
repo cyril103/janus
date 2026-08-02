@@ -56,8 +56,8 @@ class StdlibAuditTests(unittest.TestCase):
 
         self.assertEqual(expected_modules, set(model.modules))
         self.assertEqual(expected_symbols, set(model.symbols))
-        self.assertEqual(28, len(model.modules))
-        self.assertEqual(911, len(model.symbols))
+        self.assertEqual(29, len(model.modules))
+        self.assertEqual(922, len(model.symbols))
         self.assertTrue(all(module.owner for module in model.modules.values()))
         self.assertTrue(all(symbol.owner for symbol in model.symbols.values()))
         self.assertTrue(all(symbol.decision for symbol in model.symbols.values()))
@@ -91,7 +91,7 @@ class StdlibAuditTests(unittest.TestCase):
         html = API_HTML.read_text(encoding="utf-8")
 
         self.assertEqual(expected_modules, indexed_modules)
-        self.assertEqual(27, len(expected_modules))
+        self.assertEqual(28, len(expected_modules))
         self.assertEqual(
             len(expected_modules),
             html.count('class="module-example doc-section"'),
