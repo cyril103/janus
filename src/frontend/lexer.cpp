@@ -70,6 +70,8 @@ Token Lexer::next() {
       kind = TokenKind::Move;
     } else if (lexeme == "consume") {
       kind = TokenKind::Consume;
+    } else if (lexeme == "borrow") {
+      kind = TokenKind::Borrow;
     } else if (lexeme == "defer") {
       kind = TokenKind::Defer;
     } else if (lexeme == "delete") {

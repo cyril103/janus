@@ -64,6 +64,30 @@ int main() {
   expect(analysis.functions.contains("c_add"),
          "an ABI-compatible external signature is analyzed");
 
+  janus::frontend::Parser ownership_parser{
+      "extern def inspect(borrow data : Ptr[int]) : Unit "
+      "extern def release(consume data : Ptr[int]) : Unit "
+      "def main() : int { val data : Ptr[int] = alloc[int](usize(1)) "
+      "inspect(data) release(data) return 0 }"};
+  const janus::ast::Program ownership_program =
+      ownership_parser.parse_program();
+  expect(ownership_program.functions[0].parameters[0].ownership ==
+             janus::ast::ParameterOwnership::Borrow,
+         "borrow is preserved on an external parameter");
+  expect(ownership_program.functions[1].parameters[0].ownership ==
+             janus::ast::ParameterOwnership::Consume,
+         "consume is preserved on an external parameter");
+  const janus::semantic::AnalysisResult ownership_analysis =
+      analyzer.analyze(ownership_program);
+  bool has_unannotated_warning = false;
+  for (const janus::Diagnostic &diagnostic : ownership_analysis.diagnostics)
+    has_unannotated_warning =
+        has_unannotated_warning ||
+        diagnostic.code ==
+            janus::DiagnosticCode::AnalyzerUnannotatedExternOwnership;
+  expect(!has_unannotated_warning,
+         "borrow and consume suppress the unannotated extern warning");
+
   llvm::LLVMContext context;
   janus::backend::llvm::IrGenerator generator{context};
   const std::unique_ptr<llvm::Module> module =
@@ -243,6 +267,28 @@ int main() {
       "extern def printf(format : Ptr[byte], ...) : int "
       "def main() : int { return printf() }",
       "expects at least 1 argument");
+  expect_compile_error(
+      "def inspect(borrow data : Ptr[int]) : Unit {} "
+      "def main() : int { return 0 }",
+      "only supported on external functions");
+  expect_compile_error(
+      "extern def inspect(borrow value : int) : Unit "
+      "def main() : int { return 0 }",
+      "require a Ptr[T] type");
+  expect_compile_error(
+      "extern def inspect(borrow data : Ptr[int]) : Unit "
+      "def main() : int { val data : Ptr[int] = alloc[int](usize(1)) "
+      "inspect(move data) return 0 }",
+      "cannot receive an explicit ownership move");
+  expect_compile_error(
+      "extern def release(consume data : Ptr[int]) : Unit "
+      "def main() : int { val data : Ptr[int] = alloc[int](usize(1)) "
+      "release(data) free(data) return 0 }",
+      "used before initialization");
+  expect_compile_error(
+      "extern def release(consume data : Ptr[byte]) : Unit "
+      "def main() : int { release(cstr(\"borrowed\")) return 0 }",
+      "cannot take ownership of borrowed or null pointer");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

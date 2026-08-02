@@ -82,6 +82,16 @@ void test_fingerprint_covers_every_compatibility_input() {
           "dependency public interface is absent from the fingerprint");
 }
 
+void test_external_ownership_contract_changes_public_interface() {
+  const std::string borrowed = janus::driver::public_interface_fingerprint(
+      "extern def use(borrow data : Ptr[byte]) : Unit");
+  const std::string consumed = janus::driver::public_interface_fingerprint(
+      "extern def use(consume data : Ptr[byte]) : Unit");
+  require(borrowed != consumed,
+          "external ownership qualifiers are absent from the public "
+          "interface fingerprint");
+}
+
 void test_consumer_invalidation_uses_only_public_interface() {
   const auto original = base_input();
   auto private_change = original;
@@ -347,6 +357,7 @@ int main() {
   try {
     test_sha256_digest_vectors();
     test_fingerprint_covers_every_compatibility_input();
+    test_external_ownership_contract_changes_public_interface();
     test_consumer_invalidation_uses_only_public_interface();
     test_public_interface_excludes_private_implementation();
     test_store_is_atomic_concurrent_and_validated();

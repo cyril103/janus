@@ -40,7 +40,7 @@
       "source": "stdlib/std/c.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "8f2f52cdf077f5de09eed17f5b2d728dce56761cfde7fd4996490f34ab2b92c9",
+      "signature_digest": "12bb1ef92d131a0b2ce69c7bbd8aa87674c63e7aa56d0c3f4d755b50c00e0584",
       "symbols": ["puts", "strlen", "memcmp", "exit", "printf"]
     },
     {

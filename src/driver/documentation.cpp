@@ -286,6 +286,12 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
   for (std::size_t index = 0; index < value.parameters.size(); ++index) {
     if (index != 0)
       signature += ", ";
+    if (value.parameters[index].ownership ==
+        janus::ast::ParameterOwnership::Borrow)
+      signature += "borrow ";
+    else if (value.parameters[index].ownership ==
+             janus::ast::ParameterOwnership::Consume)
+      signature += "consume ";
     signature += value.parameters[index].name + " : " +
                  type_name(value.parameters[index].type);
   }

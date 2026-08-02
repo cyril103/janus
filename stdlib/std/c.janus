@@ -13,19 +13,19 @@ module std.c
 /// Écrit une chaîne C suivie d’un saut de ligne sur la sortie standard.
 /// @param text Pointeur vers une chaîne valide terminée par NUL.
 /// @return Valeur non négative en cas de succès, ou `EOF` selon la bibliothèque C en cas d’échec.
-extern def puts(text : Ptr[byte]) : int
+extern def puts(borrow text : Ptr[byte]) : int
 /// Mesure une chaîne C sans compter son octet NUL final.
 /// @param text Pointeur vers une chaîne valide terminée par NUL.
 /// @return Nombre d’octets précédant le premier octet NUL.
-extern def strlen(text : Ptr[byte]) : usize
+extern def strlen(borrow text : Ptr[byte]) : usize
 /// Compare lexicographiquement deux zones mémoire octet par octet.
 /// @param left Début de la première zone, lisible sur `size` octets.
 /// @param right Début de la seconde zone, lisible sur `size` octets.
 /// @param size Nombre d’octets à comparer.
 /// @return Entier négatif, nul ou positif selon que la première zone est inférieure, égale ou supérieure à la seconde.
 extern def memcmp(
-left : Ptr[byte],
-right : Ptr[byte],
+borrow left : Ptr[byte],
+borrow right : Ptr[byte],
 size : usize
 ) : int
 /// Termine immédiatement le processus avec le statut demandé.
@@ -36,4 +36,4 @@ extern def exit(status : int) : Unit
 /// Formate des arguments variadiques sur la sortie standard selon une chaîne C.
 /// @param format Chaîne C terminée par NUL ; chaque conversion doit correspondre exactement au type de son argument variadique.
 /// @return Nombre de caractères écrits, ou une valeur négative en cas d’échec d’écriture ou d’encodage.
-extern def printf(format : Ptr[byte], ...) : int
+extern def printf(borrow format : Ptr[byte], ...) : int

@@ -128,6 +128,8 @@ void append_function(std::string &output,
   append_type_parameters(output, function.type_parameters);
   output += '(';
   for (const auto &parameter : function.parameters) {
+    output += std::to_string(static_cast<int>(parameter.ownership));
+    output += ':';
     output += parameter.name;
     output += ':';
     append_type(output, parameter.type);

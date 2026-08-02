@@ -779,6 +779,22 @@ import std.c
 extern("abs") def absolute(value : int) : int
 ```
 
+Les paramètres pointeur d’une fonction externe peuvent déclarer leur contrat
+de propriété :
+
+```janus
+extern def inspect(borrow data : Ptr[byte]) : Unit
+extern def release(consume data : Ptr[byte]) : Unit
+```
+
+`borrow` déclare que le code natif ne conserve ni ne libère le pointeur :
+l’appelant garde donc la propriété et peut le réutiliser après l’appel.
+`consume` transfère la propriété au code natif et
+invalide immédiatement la valeur locale côté Janus. Sans l’un de ces
+qualificateurs, le compilateur émet `JANA0020`, car le contrat de propriété ne
+peut pas être vérifié. Ces qualificateurs sont actuellement limités aux
+paramètres `Ptr[T]` des déclarations `extern def`.
+
 Ces opérations peuvent produire des adresses invalides, des fuites ou des
 accès mémoire incorrects. Elles sont volontairement réservées au code qui doit
 contrôler précisément sa représentation et sa mémoire.

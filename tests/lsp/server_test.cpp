@@ -102,6 +102,25 @@ int main() {
          std::string::npos);
   assert(analyzer_warnings.front().find("\"severity\":2") != std::string::npos);
 
+  const std::vector<std::string> raw_ownership_warnings = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///raw-ownership-warnings.janus","text":"class Node(private val next : Node) { destructor { delete next } }\ndef main() : int {\n    val nodes : Ptr[Node] = alloc[Node](usize(1))\n    free(nodes)\n    return 0\n}"}}})");
+  assert(raw_ownership_warnings.size() == 1);
+  assert(raw_ownership_warnings.front().find("\"code\":\"JANA0015\"") !=
+         std::string::npos);
+  assert(raw_ownership_warnings.front().find("\"code\":\"JANA0021\"") !=
+         std::string::npos);
+
+  const std::vector<std::string> extern_contract = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///extern-contract.janus","text":"extern def inspect(borrow data : Ptr[int]) : Unit\ndef main() : int {\n    val data : Ptr[int] = alloc[int](usize(1))\n    inspect(data)\n    free(data)\n    return 0\n}"}}})");
+  assert(extern_contract.size() == 1);
+  assert(extern_contract.front().find("\"diagnostics\":[]") !=
+         std::string::npos);
+  const std::vector<std::string> extern_contract_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":54,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///extern-contract.janus"},"position":{"line":3,"character":7}}})");
+  assert(extern_contract_hover.size() == 1);
+  assert(extern_contract_hover.front().find(
+             "inspect(borrow data : Ptr[int]) : Unit") != std::string::npos);
+
   const std::vector<std::string> safe_correction_diagnostic = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///safe-correction.janus","text":"def main() : int { return @0 }"}}})");
   assert(safe_correction_diagnostic.size() == 1);

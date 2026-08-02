@@ -156,6 +156,11 @@ directement par valeur. Une chaîne est transmise explicitement avec `cstr()` et
 un pointeur ; sa représentation interne n'est pas une ABI publique. Les
 arguments variadiques suivent les promotions par défaut du C.
 
+Un paramètre pointeur externe peut être qualifié `borrow` lorsque le code natif
+ne conserve ni ne libère le pointeur, ou `consume` lorsque sa propriété lui est
+transférée. Un appel `consume` invalide la valeur locale Janus. Les pointeurs
+externes non qualifiés restent acceptés avec le diagnostic `JANA0020`.
+
 Le nom fourni par `extern("symbol")` est le nom de liaison. La disposition des
 agrégats Janus, le nom des fonctions Janus non exportées et les symboles
 `janus_*` du runtime restent internes.

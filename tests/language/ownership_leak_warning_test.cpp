@@ -357,6 +357,138 @@ def main() : int {
   expect(intentionally_unused.diagnostics.empty(),
          "an underscore-prefixed unused value is accepted");
 
+  const auto owning_buffer_free = analyze(R"(
+class Resource() {}
+def main() : int {
+    val values : Ptr[Resource] = alloc[Resource](usize(1))
+    free(values)
+    return 0
+}
+)");
+  expect(warns_with_code(
+             owning_buffer_free,
+             janus::DiagnosticCode::AnalyzerOwningBufferFreedWithoutCleanup),
+         "freeing storage for owning elements warns");
+
+  const auto owning_pointer_store = analyze(R"(
+class Resource() {}
+def main() : int {
+    val values : Ptr[Resource] = alloc[Resource](usize(1))
+    values.store(usize(0), new Resource())
+    free(values)
+    return 0
+}
+)");
+  expect(warns_with_code(
+             owning_pointer_store,
+             janus::DiagnosticCode::AnalyzerOwningPointerElementOverwritten),
+         "storing over a potentially initialized owning element warns");
+
+  const auto owning_buffer_reallocation = analyze(R"(
+class Resource() {}
+def main() : int {
+    val values : Ptr[Resource] = alloc[Resource](usize(1))
+    val resized : Ptr[Resource] = realloc[Resource](values, usize(2))
+    free(resized)
+    return 0
+}
+)");
+  expect(
+      warns_with_code(owning_buffer_reallocation,
+                      janus::DiagnosticCode::AnalyzerOwningBufferReallocated),
+      "reallocating a raw buffer of owners warns");
+
+  const auto borrowed_temporary = analyze(R"(
+class Resource() {
+    def inspect() : int { return 42 }
+}
+def main() : int { return new Resource().inspect() }
+)");
+  expect(warns_with_code(borrowed_temporary,
+                         janus::DiagnosticCode::AnalyzerBorrowedTemporaryOwner),
+         "borrowing a temporary owner without consuming it warns");
+
+  const auto unprotected_panic = analyze(R"(
+class Resource() {}
+def main() : int {
+    val resource : Resource = new Resource()
+    panic("failure")
+}
+)");
+  expect(warns_with_code(unprotected_panic,
+                         janus::DiagnosticCode::AnalyzerUnprotectedPanic),
+         "panic with a live owner lacking defer warns");
+  expect(!warns_about(unprotected_panic, "resource"),
+         "the panic warning replaces the generic owner warning");
+
+  const auto extern_ownership = analyze(R"(
+extern def nativeUse(data : Ptr[int]) : Unit
+def main() : int {
+    val data : Ptr[int] = alloc[int](usize(1))
+    nativeUse(data)
+    free(data)
+    return 0
+}
+)");
+  expect(warns_with_code(
+             extern_ownership,
+             janus::DiagnosticCode::AnalyzerUnannotatedExternOwnership),
+         "passing a pointer through an unannotated extern boundary warns");
+
+  const auto ownership_cycle = analyze(R"(
+class Node(private val next : Node) {
+    destructor { delete next }
+}
+def main() : int { return 0 }
+)");
+  expect(
+      warns_with_code(ownership_cycle,
+                      janus::DiagnosticCode::AnalyzerPotentialOwnershipCycle),
+      "a self-referential owning field warns about a potential cycle");
+
+  const auto trivial_pointer_storage = analyze(R"(
+def main() : int {
+    val values : Ptr[int] = alloc[int](usize(1))
+    values.store(usize(0), 42)
+    free(values)
+    return 0
+}
+)");
+  expect(!warns_with_code(
+             trivial_pointer_storage,
+             janus::DiagnosticCode::AnalyzerOwningPointerElementOverwritten),
+         "raw storage of non-owning elements does not warn");
+  expect(!warns_with_code(
+             trivial_pointer_storage,
+             janus::DiagnosticCode::AnalyzerOwningBufferFreedWithoutCleanup),
+         "freeing raw storage of non-owning elements does not warn");
+
+  const auto protected_panic = analyze(R"(
+class Resource() {}
+def main() : int {
+    val resource : Resource = new Resource()
+    defer delete resource
+    panic("failure")
+}
+)");
+  expect(!warns_with_code(protected_panic,
+                          janus::DiagnosticCode::AnalyzerUnprotectedPanic),
+         "panic with deferred cleanup does not warn");
+
+  const auto consumed_temporary = analyze(R"(
+class Resource() {
+    consume def finish() : int {
+        delete this
+        return 42
+    }
+}
+def main() : int { return new Resource().finish() }
+)");
+  expect(
+      !warns_with_code(consumed_temporary,
+                       janus::DiagnosticCode::AnalyzerBorrowedTemporaryOwner),
+      "a consuming method safely handles a temporary owner");
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;

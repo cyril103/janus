@@ -802,6 +802,130 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     for (const ast::ValueDeclaration &field : declaration.fields)
       check_field(field);
   }
+  using ClassPointer = const ast::ClassDeclaration *;
+  std::unordered_map<ClassPointer, std::vector<ClassPointer>> ownership_edges;
+  const auto collect_owned_classes =
+      [&](const auto &self, const SemanticType &type,
+          std::vector<ClassPointer> &targets,
+          std::unordered_set<std::string> &visiting) -> void {
+    if (type.is_class()) {
+      const ast::ClassDeclaration &nested = *classes.at(type.parameter);
+      if (!nested.is_value_type) {
+        targets.push_back(&nested);
+        return;
+      }
+      if (!visiting.insert(type.name()).second)
+        return;
+      const std::unordered_set<std::string> parameters{
+          nested.type_parameters.begin(), nested.type_parameters.end()};
+      std::unordered_map<std::string, SemanticType> substitutions;
+      for (std::size_t index = 0; index < nested.type_parameters.size();
+           ++index)
+        substitutions.emplace(nested.type_parameters[index],
+                              type.type_arguments[index]);
+      for (const ast::ValueDeclaration &field : nested.constructor_fields) {
+        SemanticType field_type =
+            resolve_type(field.declared_type, parameters, &class_arities);
+        self(self, substitute(std::move(field_type), substitutions), targets,
+             visiting);
+      }
+      visiting.erase(type.name());
+      return;
+    }
+    if (!type.is_enum())
+      return;
+    if (!visiting.insert(type.name()).second)
+      return;
+    const ast::EnumDeclaration &nested = *enums.at(type.parameter);
+    const std::unordered_set<std::string> parameters{
+        nested.type_parameters.begin(), nested.type_parameters.end()};
+    std::unordered_map<std::string, SemanticType> substitutions;
+    for (std::size_t index = 0; index < nested.type_parameters.size(); ++index)
+      substitutions.emplace(nested.type_parameters[index],
+                            type.type_arguments[index]);
+    for (const ast::EnumDeclaration::Case &enum_case : nested.cases)
+      for (const ast::TypeReference &payload : enum_case.payload_types) {
+        SemanticType payload_type =
+            resolve_type(payload, parameters, &class_arities);
+        self(self, substitute(std::move(payload_type), substitutions), targets,
+             visiting);
+      }
+    visiting.erase(type.name());
+  };
+  for (const ast::ClassDeclaration &declaration : program.classes) {
+    std::vector<ClassPointer> &targets = ownership_edges[&declaration];
+    const std::unordered_set<std::string> parameters{
+        declaration.type_parameters.begin(), declaration.type_parameters.end()};
+    const auto inspect_field = [&](const ast::ValueDeclaration &field) {
+      const SemanticType field_type =
+          resolve_type(field.declared_type, parameters, &class_arities);
+      std::unordered_set<std::string> visiting;
+      collect_owned_classes(collect_owned_classes, field_type, targets,
+                            visiting);
+    };
+    for (const ast::ValueDeclaration &field : declaration.constructor_fields)
+      inspect_field(field);
+    for (const ast::ValueDeclaration &field : declaration.fields)
+      inspect_field(field);
+    std::sort(targets.begin(), targets.end());
+    targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
+  }
+  const auto class_identity = [](ClassPointer declaration) {
+    return declaration->module_name.value_or("<entry>") + "." +
+           declaration->name;
+  };
+  std::unordered_set<std::string> reported_ownership_cycles;
+  for (const ast::ClassDeclaration &root_declaration : program.classes) {
+    if (root_declaration.module_name != program.module_name)
+      continue;
+    const ClassPointer root = &root_declaration;
+    std::vector<ClassPointer> path{root};
+    std::unordered_set<ClassPointer> active_path{root};
+    const auto find_cycles = [&](const auto &self,
+                                 ClassPointer current) -> void {
+      for (ClassPointer target : ownership_edges[current]) {
+        if (target == root) {
+          std::vector<std::string> identities;
+          identities.reserve(path.size());
+          for (ClassPointer member : path)
+            identities.push_back(class_identity(member));
+          std::sort(identities.begin(), identities.end());
+          identities.erase(std::unique(identities.begin(), identities.end()),
+                           identities.end());
+          std::string signature;
+          for (const std::string &identity : identities)
+            signature += identity + "|";
+          if (!reported_ownership_cycles.insert(signature).second)
+            continue;
+          std::string description;
+          for (std::size_t index = 0; index < path.size(); ++index) {
+            if (index != 0)
+              description += " -> ";
+            description += path[index]->name;
+          }
+          description += " -> " + root->name;
+          result.diagnostics.push_back(Diagnostic{
+              DiagnosticSeverity::Warning,
+              DiagnosticCode::AnalyzerPotentialOwnershipCycle,
+              "owning fields form a potential cycle: " + description,
+              root->location,
+              {"break the cycle with a borrowed reference or explicitly "
+               "clear one owning edge before destruction"},
+              {},
+              {},
+          });
+          continue;
+        }
+        if (!active_path.insert(target).second)
+          continue;
+        path.push_back(target);
+        self(self, target);
+        path.pop_back();
+        active_path.erase(target);
+      }
+    };
+    find_cycles(find_cycles, root);
+  }
   const auto validate_structural_fields =
       [&](const auto &declaration, ast::DerivationKind kind,
           const std::vector<ast::ValueDeclaration> &fields) {
@@ -1517,6 +1641,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
       const SemanticType parameter_type =
           resolve_type(parameter.type, type_parameters, &class_arities);
+      if (parameter.ownership != ast::ParameterOwnership::Unspecified &&
+          (is_destructor || !context.function->is_external))
+        throw CompileError{
+            parameter.location,
+            "borrow and consume parameter qualifiers are only supported on "
+            "external functions"};
+      if (parameter.ownership != ast::ParameterOwnership::Unspecified &&
+          !parameter_type.is_pointer())
+        throw CompileError{
+            parameter.location,
+            "borrow and consume external parameters require a Ptr[T] type"};
       if (parameter_type.is_concrete() &&
           parameter_type.concrete->kind() == TypeKind::Unit)
         throw CompileError{parameter.location,
@@ -1845,6 +1980,93 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::function<void(const ast::Expression &, const SemanticType &,
                        SourceLocation)>
         validate_expression;
+    const auto is_known_borrowed_pointer_expression =
+        [](const ast::Expression &expression) {
+          const auto *call =
+              std::get_if<ast::CallExpression>(&expression.value);
+          return call != nullptr &&
+                 (call->callee == "cstr" || call->callee == "stringData" ||
+                  call->callee == "null");
+        };
+    const auto apply_external_ownership_contract =
+        [&](const ast::FunctionDeclaration &callee,
+            const ast::FunctionDeclaration::Parameter &parameter,
+            const ast::Expression &argument, const SemanticType &argument_type,
+            std::string_view display_name) {
+          if (!callee.is_external || (!argument_type.is_pointer() &&
+                                      !potentially_owns_value(argument_type)))
+            return;
+          if (parameter.ownership == ast::ParameterOwnership::Unspecified) {
+            emit_warning(
+                DiagnosticCode::AnalyzerUnannotatedExternOwnership,
+                expression_location(argument),
+                "external function '" + std::string{display_name} +
+                    "' receives value of type '" + argument_type.name() +
+                    "' without a borrow or consume ownership qualifier",
+                {"declare this external parameter as borrow or consume"});
+            return;
+          }
+          if (parameter.ownership == ast::ParameterOwnership::Borrow) {
+            if (std::holds_alternative<ast::MoveExpression>(argument.value))
+              throw CompileError{
+                  expression_location(argument),
+                  "borrow parameter '" + parameter.name +
+                      "' cannot receive an explicit ownership move"};
+            if (const auto *call =
+                    std::get_if<ast::CallExpression>(&argument.value);
+                call != nullptr &&
+                (call->callee == "alloc" || call->callee == "realloc"))
+              emit_warning(
+                  DiagnosticCode::AnalyzerBorrowedTemporaryOwner,
+                  expression_location(argument),
+                  "borrow parameter '" + parameter.name +
+                      "' receives a temporary allocation that is abandoned "
+                      "after the external call",
+                  {"bind the allocation to a local and release it after the "
+                   "call, or declare the parameter consume"});
+            return;
+          }
+
+          if (is_known_borrowed_pointer_expression(argument)) {
+            const auto &call = std::get<ast::CallExpression>(argument.value);
+            throw CompileError{
+                expression_location(argument),
+                "consume parameter '" + parameter.name +
+                    "' cannot take ownership of borrowed or null pointer "
+                    "expression '" +
+                    call.callee + "'"};
+          }
+          if (const auto *identifier =
+                  std::get_if<ast::IdentifierExpression>(&argument.value)) {
+            if (borrowed_values.contains(identifier->name))
+              throw CompileError{expression_location(argument),
+                                 "borrowed value '" + identifier->name +
+                                     "' cannot be consumed by external "
+                                     "function '" +
+                                     std::string{display_name} + "'"};
+            if (deferred_values.contains(identifier->name))
+              throw CompileError{expression_location(argument),
+                                 "owning value '" + identifier->name +
+                                     "' is scheduled for deferred cleanup"};
+            if (const auto local = active_symbols->find(identifier->name);
+                local != active_symbols->end()) {
+              local->second.is_initialized = false;
+              local->second.may_be_initialized = false;
+              return;
+            }
+            if (visible_global(identifier->name) != nullptr)
+              throw CompileError{
+                  expression_location(argument),
+                  "owning global value '" + identifier->name +
+                      "' cannot be consumed by an external function"};
+          }
+          if (std::holds_alternative<ast::MemberAccessExpression>(
+                  argument.value))
+            throw CompileError{
+                expression_location(argument),
+                "consume parameter '" + parameter.name +
+                    "' requires an owning local or temporary, not a field"};
+        };
     const auto declared_call_type =
         [&](const ast::FunctionDeclaration &callee,
             const std::vector<ast::TypeReference> &type_arguments,
@@ -1910,6 +2132,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     expression_location(*arguments[index]),
                     "variadic C argument has incompatible type '" +
                         argument_type.name() + "'"};
+              if (callee.is_external &&
+                  !is_known_borrowed_pointer_expression(*arguments[index]) &&
+                  (argument_type.is_pointer() ||
+                   potentially_owns_value(argument_type)))
+                emit_warning(
+                    DiagnosticCode::AnalyzerUnannotatedExternOwnership,
+                    expression_location(*arguments[index]),
+                    "external variadic call receives value of type '" +
+                        argument_type.name() +
+                        "' without a verifiable ownership contract",
+                    {"document whether native code borrows, retains, or "
+                     "releases this value"});
               continue;
             }
             SemanticType expected =
@@ -1935,6 +2169,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     : "Result";
             validate_expression(*arguments[index], expected,
                                 expression_location(*arguments[index]));
+            apply_external_ownership_contract(callee, callee.parameters[index],
+                                              *arguments[index], expected,
+                                              display_name);
             contextual_borrow_expression =
                 previous_contextual_borrow_expression;
             contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
@@ -2375,6 +2612,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (node.callee == "realloc") {
                   validate_expression(*node.arguments[0], pointer_type,
                                       expression_location(*node.arguments[0]));
+                  if (potentially_owns_value(element_type))
+                    emit_warning(
+                        DiagnosticCode::AnalyzerOwningBufferReallocated,
+                        node.location,
+                        "realloc may relocate or discard elements of owning "
+                        "type '" +
+                            element_type.name() + "' without destroying them",
+                        {"move or destroy live elements explicitly before "
+                         "resizing their raw buffer"});
                   count_index = 1;
                 }
                 validate_expression(
@@ -2393,6 +2639,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (!pointer.is_pointer())
                   throw CompileError{node.location,
                                      "free requires a Ptr[T] argument"};
+                const SemanticType &element_type =
+                    pointer.type_arguments.front();
+                if (potentially_owns_value(element_type))
+                  emit_warning(
+                      DiagnosticCode::AnalyzerOwningBufferFreedWithoutCleanup,
+                      node.location,
+                      "free releases storage for owning elements of type '" +
+                          element_type.name() +
+                          "' without running their cleanup",
+                      {"destroy or move every initialized element before "
+                       "freeing the raw buffer"});
                 if (const auto *identifier =
                         std::get_if<ast::IdentifierExpression>(
                             &node.arguments.front()->value)) {
@@ -2590,6 +2847,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         expression_location(*node.arguments[index]),
                         "variadic C argument has incompatible type '" +
                             argument_type.name() + "'"};
+                  if (callee.is_external &&
+                      !is_known_borrowed_pointer_expression(
+                          *node.arguments[index]) &&
+                      (argument_type.is_pointer() ||
+                       potentially_owns_value(argument_type)))
+                    emit_warning(
+                        DiagnosticCode::AnalyzerUnannotatedExternOwnership,
+                        expression_location(*node.arguments[index]),
+                        "external variadic call receives value of type '" +
+                            argument_type.name() +
+                            "' without a verifiable ownership contract",
+                        {"document whether native code borrows, retains, or "
+                         "releases this value"});
                   continue;
                 }
                 SemanticType expected =
@@ -2617,6 +2887,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 validate_expression(
                     *node.arguments[index], expected,
                     expression_location(*node.arguments[index]));
+                apply_external_ownership_contract(
+                    callee, callee.parameters[index], *node.arguments[index],
+                    expected, node.callee);
                 contextual_borrow_expression =
                     previous_contextual_borrow_expression;
                 contextual_borrow_enum_name =
@@ -2958,6 +3231,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   validate_expression(*node.arguments[1],
                                       object_type.type_arguments.front(),
                                       expression_location(*node.arguments[1]));
+                  if (potentially_owns_value(
+                          object_type.type_arguments.front()))
+                    emit_warning(
+                        DiagnosticCode::AnalyzerOwningPointerElementOverwritten,
+                        node.location,
+                        "Ptr.store may overwrite an initialized element of "
+                        "owning type '" +
+                            object_type.type_arguments.front().name() + "'",
+                        {"load and destroy or move the previous element, or "
+                         "use an initialization-specific abstraction"});
                   return SemanticType{&Type::unit_type()};
                 }
                 throw CompileError{node.location, "Ptr[T] has no method '" +
@@ -3282,6 +3565,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "consuming method requires an owning local, explicit "
                       "move, or temporary object"};
                 }
+              } else if (potentially_owns_value(object_type) &&
+                         (std::holds_alternative<ast::NewExpression>(
+                              node.object->value) ||
+                          std::holds_alternative<ast::CallExpression>(
+                              node.object->value) ||
+                          std::holds_alternative<ast::MethodCallExpression>(
+                              node.object->value))) {
+                emit_warning(
+                    DiagnosticCode::AnalyzerBorrowedTemporaryOwner,
+                    node.location,
+                    "non-consuming method '" + node.method +
+                        "' borrows a temporary owner of type '" +
+                        object_type.name() + "' that is then abandoned",
+                    {"bind the temporary to a local and schedule cleanup, or "
+                     "call a consume method"});
               }
               return substitute(resolve_type(method->return_type,
                                              method_parameters, &class_arities),
@@ -4189,7 +4487,26 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (const auto *call = std::get_if<ast::CallExpression>(
                   &expression_statement->expression.value);
               call != nullptr && call->callee == "panic") {
-            warn_all_live_owners(block_symbols);
+            for (const auto &[name, declaration] : local_declarations) {
+              const auto symbol = block_symbols.find(name);
+              if (symbol == block_symbols.end() ||
+                  !symbol->second.may_be_initialized ||
+                  deferred_values.contains(name) ||
+                  !potentially_owns_value(symbol->second.type))
+                continue;
+              const std::string cleanup = symbol->second.type.is_pointer()
+                                              ? "defer free(" + name + ")"
+                                              : "defer delete " + name;
+              emit_warning(
+                  DiagnosticCode::AnalyzerUnprotectedPanic,
+                  expression_statement->location,
+                  "panic may terminate while owning value '" + name +
+                      "' is not protected by deferred cleanup",
+                  {"schedule cleanup before this call with '" + cleanup + "'"},
+                  {DiagnosticLocation{declaration,
+                                      "owning value declared here"}});
+              warned_leak_locations.insert(declaration.offset);
+            }
             has_terminator = true;
           }
           continue;

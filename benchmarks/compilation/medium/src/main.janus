@@ -7,5 +7,6 @@ def main() : int {
     val item : model.Item = new model.Item(7, 11)
     val base : int = algorithms.accumulate(200)
     val weighted : int = scoring.weight(item, 3)
+    delete item
     return base + weighted - 20044
 }

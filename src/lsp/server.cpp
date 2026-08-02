@@ -401,6 +401,12 @@ function_signature(const janus::ast::FunctionDeclaration &function) {
   for (std::size_t index = 0; index < function.parameters.size(); ++index) {
     if (index != 0)
       result += ", ";
+    if (function.parameters[index].ownership ==
+        janus::ast::ParameterOwnership::Borrow)
+      result += "borrow ";
+    else if (function.parameters[index].ownership ==
+             janus::ast::ParameterOwnership::Consume)
+      result += "consume ";
     result += function.parameters[index].name + " : " +
               type_reference(function.parameters[index].type);
   }
@@ -2419,9 +2425,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                             "bool", "string", "unit", "usize"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
-             {"val", "var", "def", "class", "struct", "trait", "enum", "new",
-              "derives", "delete", "defer", "if", "else", "match", "for",
-              "while", "return", "true", "false"})
+             {"val",    "var",    "def",  "class",  "struct",  "trait",
+              "enum",   "new",    "move", "borrow", "consume", "derives",
+              "delete", "defer",  "if",   "else",   "match",   "for",
+              "while",  "return", "true", "false"})
           add_item(std::string{keyword}, "Janus keyword", 14);
       }
       return {response(request_id(*request),

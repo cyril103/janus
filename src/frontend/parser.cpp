@@ -793,12 +793,26 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
         advance();
         break;
       }
+      ast::ParameterOwnership ownership =
+          ast::ParameterOwnership::Unspecified;
+      if (current_.kind == TokenKind::Borrow ||
+          current_.kind == TokenKind::Consume) {
+        if (!is_external)
+          throw CompileError{
+              current_.location,
+              "borrow and consume parameter qualifiers are only supported "
+              "on external functions"};
+        ownership = current_.kind == TokenKind::Borrow
+                        ? ast::ParameterOwnership::Borrow
+                        : ast::ParameterOwnership::Consume;
+        advance();
+      }
       const Token parameter_name = expect(TokenKind::Identifier);
       static_cast<void>(expect(TokenKind::Colon));
       ast::TypeReference parameter_type = parse_type();
       parameters.push_back(ast::FunctionDeclaration::Parameter{
           std::string{parameter_name.lexeme}, std::move(parameter_type),
-          parameter_name.location});
+          parameter_name.location, ownership});
       if (current_.kind != TokenKind::Comma) {
         break;
       }

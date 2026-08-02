@@ -267,11 +267,18 @@ struct TypeConstraint {
   SourceLocation location;
 };
 
+enum class ParameterOwnership {
+  Unspecified,
+  Borrow,
+  Consume,
+};
+
 struct FunctionDeclaration {
   struct Parameter {
     std::string name;
     TypeReference type;
     SourceLocation location;
+    ParameterOwnership ownership{ParameterOwnership::Unspecified};
   };
 
   std::string name;
