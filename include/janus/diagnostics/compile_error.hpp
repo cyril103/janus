@@ -30,6 +30,16 @@ enum class DiagnosticCode {
   AnalyzerPotentialMemoryLeak,
   AnalyzerOwningValueOverwritten,
   AnalyzerOwningResultDiscarded,
+  AnalyzerMustUseResult,
+  AnalyzerOwningFieldOverwritten,
+  AnalyzerIncompleteDestructor,
+  AnalyzerUnsafeReallocation,
+  AnalyzerUnprotectedEarlyExit,
+  AnalyzerLoopAllocation,
+  AnalyzerEscapingOwningCapture,
+  AnalyzerAmbiguousPointerCast,
+  AnalyzerLossyNumericCast,
+  AnalyzerUnusedValue,
   ModuleNotFound,
   BackendCyclicGlobalConstant,
 };
@@ -51,6 +61,26 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0003";
   case DiagnosticCode::AnalyzerOwningResultDiscarded:
     return "JANA0004";
+  case DiagnosticCode::AnalyzerMustUseResult:
+    return "JANA0005";
+  case DiagnosticCode::AnalyzerOwningFieldOverwritten:
+    return "JANA0006";
+  case DiagnosticCode::AnalyzerIncompleteDestructor:
+    return "JANA0007";
+  case DiagnosticCode::AnalyzerUnsafeReallocation:
+    return "JANA0008";
+  case DiagnosticCode::AnalyzerUnprotectedEarlyExit:
+    return "JANA0009";
+  case DiagnosticCode::AnalyzerLoopAllocation:
+    return "JANA0010";
+  case DiagnosticCode::AnalyzerEscapingOwningCapture:
+    return "JANA0011";
+  case DiagnosticCode::AnalyzerAmbiguousPointerCast:
+    return "JANA0012";
+  case DiagnosticCode::AnalyzerLossyNumericCast:
+    return "JANA0013";
+  case DiagnosticCode::AnalyzerUnusedValue:
+    return "JANA0014";
   case DiagnosticCode::ModuleNotFound:
     return "JMOD0001";
   case DiagnosticCode::BackendCyclicGlobalConstant:

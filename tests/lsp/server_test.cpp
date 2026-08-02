@@ -93,6 +93,15 @@ int main() {
   assert(ownership_warnings.front().find("\"code\":\"JANA0004\"") !=
          std::string::npos);
 
+  const std::vector<std::string> analyzer_warnings = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///analyzer-warnings.janus","text":"enum Option[T] { Some(T), None }\ndef maybe() : Option[int] { return Option.None[int]() }\ndef main() : int {\n    val unused : int = 42\n    maybe()\n    return 0\n}"}}})");
+  assert(analyzer_warnings.size() == 1);
+  assert(analyzer_warnings.front().find("\"code\":\"JANA0005\"") !=
+         std::string::npos);
+  assert(analyzer_warnings.front().find("\"code\":\"JANA0014\"") !=
+         std::string::npos);
+  assert(analyzer_warnings.front().find("\"severity\":2") != std::string::npos);
+
   const std::vector<std::string> safe_correction_diagnostic = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///safe-correction.janus","text":"def main() : int { return @0 }"}}})");
   assert(safe_correction_diagnostic.size() == 1);

@@ -773,6 +773,35 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
     }
   }
+  for (const ast::ClassDeclaration &declaration : program.classes) {
+    if (declaration.is_value_type || declaration.destructor.has_value() ||
+        declaration.module_name != program.module_name)
+      continue;
+    const std::unordered_set<std::string> parameters{
+        declaration.type_parameters.begin(), declaration.type_parameters.end()};
+    const auto check_field = [&](const ast::ValueDeclaration &field) {
+      const SemanticType field_type =
+          resolve_type(field.declared_type, parameters, &class_arities);
+      if (!aggregate_owns_value(field_type))
+        return;
+      result.diagnostics.push_back(Diagnostic{
+          DiagnosticSeverity::Warning,
+          DiagnosticCode::AnalyzerIncompleteDestructor,
+          "class '" + declaration.name +
+              "' has no destructor for owning "
+              "field '" +
+              field.name + "' of type '" + field_type.name() + "'",
+          field.location,
+          {"declare a destructor that deletes, frees, or moves the field"},
+          {},
+          {},
+      });
+    };
+    for (const ast::ValueDeclaration &field : declaration.constructor_fields)
+      check_field(field);
+    for (const ast::ValueDeclaration &field : declaration.fields)
+      check_field(field);
+  }
   const auto validate_structural_fields =
       [&](const auto &declaration, ast::DerivationKind kind,
           const std::vector<ast::ValueDeclaration> &fields) {
@@ -1660,7 +1689,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           return false;
         bool supported = true;
         if (type.is_class()) {
-          const ast::ClassDeclaration &declaration = *classes.at(type.parameter);
+          const ast::ClassDeclaration &declaration =
+              *classes.at(type.parameter);
           supported = has_derivation(declaration.derivations, kind);
           std::unordered_map<std::string, SemanticType> substitutions;
           for (std::size_t index = 0;
@@ -1671,10 +1701,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               declaration.type_parameters.begin(),
               declaration.type_parameters.end()};
           const auto check_field = [&](const ast::ValueDeclaration &field) {
-            SemanticType field_type = resolve_type(
-                field.declared_type, parameters, &class_arities);
-            return self(self,
-                        substitute(std::move(field_type), substitutions));
+            SemanticType field_type =
+                resolve_type(field.declared_type, parameters, &class_arities);
+            return self(self, substitute(std::move(field_type), substitutions));
           };
           for (const ast::ValueDeclaration &field :
                declaration.constructor_fields)
@@ -1692,16 +1721,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                index < declaration.type_parameters.size(); ++index)
             substitutions.emplace(declaration.type_parameters[index],
                                   type.type_arguments[index]);
-          for (const ast::EnumDeclaration::Case &enum_case :
-               declaration.cases)
-            for (const ast::TypeReference &payload :
-                 enum_case.payload_types) {
+          for (const ast::EnumDeclaration::Case &enum_case : declaration.cases)
+            for (const ast::TypeReference &payload : enum_case.payload_types) {
               SemanticType payload_type =
                   resolve_type(payload, parameters, &class_arities);
               supported =
-                  supported &&
-                  self(self,
-                       substitute(std::move(payload_type), substitutions));
+                  supported && self(self, substitute(std::move(payload_type),
+                                                     substitutions));
             }
         }
         visiting.erase(type.name());
@@ -1739,7 +1765,27 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> borrowed_values;
     std::unordered_map<std::string, SourceLocation> local_declarations;
     std::unordered_set<std::size_t> warned_leak_locations;
+    std::unordered_set<std::size_t> used_local_declarations;
+    std::unordered_map<std::size_t, std::vector<std::string>> lambda_captures;
+    std::unordered_map<std::string, std::size_t> local_lambda_locations;
+    std::unordered_set<std::string> *active_lambda_captures = nullptr;
     const bool report_local_warnings = context_module == program.module_name;
+    const auto emit_warning =
+        [&](DiagnosticCode code, SourceLocation location, std::string message,
+            std::vector<std::string> notes = {},
+            std::vector<DiagnosticLocation> secondary_locations = {}) {
+          if (!report_local_warnings)
+            return;
+          result.diagnostics.push_back(Diagnostic{
+              DiagnosticSeverity::Warning,
+              code,
+              std::move(message),
+              location,
+              std::move(notes),
+              std::move(secondary_locations),
+              {},
+          });
+        };
     const auto warn_live_owner = [&](std::string_view name,
                                      const Symbol &symbol,
                                      SourceLocation location) {
@@ -2044,6 +2090,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "variable '" + node.name +
                                        "' is used before initialization"};
               }
+              if (const auto declaration = local_declarations.find(node.name);
+                  declaration != local_declarations.end()) {
+                used_local_declarations.insert(declaration->second.offset);
+                if (active_lambda_captures != nullptr)
+                  active_lambda_captures->insert(node.name);
+              }
               return iterator->second.type;
             } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
               SymbolTable lambda_symbols = *active_symbols;
@@ -2077,6 +2129,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               SymbolTable *previous_symbols = active_symbols;
               active_symbols = &lambda_symbols;
               const bool previous_inside_lambda = inside_lambda;
+              std::unordered_set<std::string> captures;
+              std::unordered_set<std::string> *previous_lambda_captures =
+                  active_lambda_captures;
+              active_lambda_captures = &captures;
               const auto previous_transfer_protected =
                   transfer_protected_values;
               for (const auto &[name, symbol] : *previous_symbols) {
@@ -2087,6 +2143,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               inside_lambda = true;
               signature.push_back(expression_type(*node.body));
               inside_lambda = previous_inside_lambda;
+              active_lambda_captures = previous_lambda_captures;
+              for (const std::string &parameter : parameter_names)
+                captures.erase(parameter);
+              lambda_captures.insert_or_assign(
+                  node.location.offset,
+                  std::vector<std::string>{captures.begin(), captures.end()});
               transfer_protected_values = previous_transfer_protected;
               borrowed_values = previous_borrowed_values;
               active_symbols = previous_symbols;
@@ -2340,8 +2402,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "owning value '" + identifier->name +
                             "' is scheduled for deferred cleanup"};
                   if (active_symbols->contains(identifier->name)) {
-                    active_symbols->at(identifier->name).is_initialized =
-                        false;
+                    active_symbols->at(identifier->name).is_initialized = false;
                     active_symbols->at(identifier->name).may_be_initialized =
                         false;
                   }
@@ -2392,6 +2453,58 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      "cannot explicitly cast type '" +
                                          source_type.name() + "' to '" +
                                          destination_type.name() + "'"};
+                if ((source_type.is_pointer() ||
+                     destination_type.is_pointer()) &&
+                    !same_type(source_type, destination_type))
+                  emit_warning(
+                      DiagnosticCode::AnalyzerAmbiguousPointerCast,
+                      node.location,
+                      "explicit cast between '" + source_type.name() +
+                          "' and '" + destination_type.name() +
+                          "' has an ambiguous ownership contract",
+                      {"keep the original owner alive and document whether "
+                       "the converted pointer is borrowed or owning"});
+
+                const bool source_numeric =
+                    source_type.is_concrete() &&
+                    (source_type.concrete->is_integer() ||
+                     source_type.concrete->is_floating_point());
+                const bool destination_numeric =
+                    destination_type.is_concrete() &&
+                    (destination_type.concrete->is_integer() ||
+                     destination_type.concrete->is_floating_point());
+                bool lossy_numeric_cast = false;
+                if (source_numeric && destination_numeric &&
+                    !std::holds_alternative<ast::IntegerLiteralExpression>(
+                        node.arguments.front()->value)) {
+                  const bool source_integer =
+                      source_type.concrete->is_integer();
+                  const bool destination_integer =
+                      destination_type.concrete->is_integer();
+                  if (source_integer && destination_integer)
+                    lossy_numeric_cast =
+                        destination_type.concrete->bit_width() <
+                            source_type.concrete->bit_width() ||
+                        destination_type.concrete->is_signed() !=
+                            source_type.concrete->is_signed();
+                  else if (!source_integer && destination_integer)
+                    lossy_numeric_cast = true;
+                  else if (!source_integer && !destination_integer)
+                    lossy_numeric_cast =
+                        destination_type.concrete->bit_width() <
+                        source_type.concrete->bit_width();
+                  else
+                    lossy_numeric_cast = source_type.concrete->bit_width() >
+                                         destination_type.concrete->bit_width();
+                }
+                if (lossy_numeric_cast)
+                  emit_warning(
+                      DiagnosticCode::AnalyzerLossyNumericCast, node.location,
+                      "explicit cast from '" + source_type.name() + "' to '" +
+                          destination_type.name() +
+                          "' may lose range or precision",
+                      {"validate the value before converting to the narrower "
+                       "or differently signed type"});
                 return destination_type;
               }
               const auto callee_iterator = functions.find(node.callee);
@@ -3422,7 +3535,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "propagating owning aggregate '" +
                                        operand_type.name() +
                                        "' requires an explicit move"};
-              warn_all_live_owners(*active_symbols);
+              for (const auto &[name, declaration] : local_declarations) {
+                const auto symbol = active_symbols->find(name);
+                if (symbol == active_symbols->end() ||
+                    !symbol->second.may_be_initialized ||
+                    deferred_values.contains(name) ||
+                    !potentially_owns_value(symbol->second.type))
+                  continue;
+                const std::string cleanup = symbol->second.type.is_pointer()
+                                                ? "defer free(" + name + ")"
+                                                : "defer delete " + name;
+                emit_warning(
+                    DiagnosticCode::AnalyzerUnprotectedEarlyExit, node.location,
+                    "operator '?' may exit while owning value '" + name +
+                        "' is not protected by deferred cleanup",
+                    {"schedule cleanup before this expression with '" +
+                     cleanup + "'"},
+                    {DiagnosticLocation{declaration,
+                                        "owning value declared here"}});
+              }
               return operand_type.type_arguments.front();
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
@@ -3720,8 +3851,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (declaration->initializer.has_value() &&
               is_null_pointer_expression(*declaration->initializer))
             block_symbols.at(declaration->name).may_be_initialized = false;
+          if (declaration->initializer.has_value())
+            if (const auto *lambda = std::get_if<ast::LambdaExpression>(
+                    &declaration->initializer->value))
+              local_lambda_locations.insert_or_assign(declaration->name,
+                                                      lambda->location.offset);
           local_declarations.insert_or_assign(declaration->name,
-                                               declaration->location);
+                                              declaration->location);
           scope_declarations.emplace_back(declaration->name,
                                           declaration->location);
           continue;
@@ -3798,12 +3934,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{assignment->location,
                                  "cannot assign to immutable field '" +
                                      assignment->name + "'"};
-            validate_expression(
-                assignment->expression,
+            const SemanticType field_type =
                 substitute(resolve_type(matched->declared_type,
                                         class_parameters, &class_arities),
-                           substitutions),
-                assignment->location);
+                           substitutions);
+            validate_expression(assignment->expression, field_type,
+                                assignment->location);
+            if (potentially_owns_value(field_type))
+              emit_warning(
+                  DiagnosticCode::AnalyzerOwningFieldOverwritten,
+                  assignment->location,
+                  "assignment to field '" + assignment->object + "." +
+                      assignment->name +
+                      "' may overwrite a live owning value of type '" +
+                      field_type.name() + "'",
+                  {"delete or move the current field value before assigning "
+                   "its replacement"});
             continue;
           }
           const auto iterator = block_symbols.find(assignment->name);
@@ -3830,16 +3976,35 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "cannot assign to immutable value '" +
                                    assignment->name + "'"};
           const bool may_overwrite_owner =
-              report_local_warnings &&
-              iterator->second.may_be_initialized &&
+              report_local_warnings && iterator->second.may_be_initialized &&
               potentially_owns_value(iterator->second.type);
+          bool self_reallocation = false;
+          if (const auto *call = std::get_if<ast::CallExpression>(
+                  &assignment->expression.value);
+              call != nullptr && call->callee == "realloc" &&
+              !call->arguments.empty())
+            if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                    &call->arguments.front()->value))
+              self_reallocation = identifier->name == assignment->name;
           validate_expression(assignment->expression, iterator->second.type,
                               assignment->location);
-          if (may_overwrite_owner &&
-              iterator->second.may_be_initialized) {
+          if (self_reallocation)
+            emit_warning(
+                DiagnosticCode::AnalyzerUnsafeReallocation,
+                assignment->location,
+                "assigning realloc directly back to '" + assignment->name +
+                    "' can lose the original allocation when resizing fails",
+                {"store the realloc result in a temporary pointer, check it "
+                 "against null, then replace the original pointer"});
+          if (may_overwrite_owner && iterator->second.may_be_initialized &&
+              !self_reallocation) {
+            const DiagnosticCode code =
+                owner_field_names.contains(assignment->name)
+                    ? DiagnosticCode::AnalyzerOwningFieldOverwritten
+                    : DiagnosticCode::AnalyzerOwningValueOverwritten;
             result.diagnostics.push_back(Diagnostic{
                 DiagnosticSeverity::Warning,
-                DiagnosticCode::AnalyzerOwningValueOverwritten,
+                code,
                 "assignment to '" + assignment->name +
                     "' may overwrite a live owning value of type '" +
                     iterator->second.type.name() + "'",
@@ -3993,10 +4158,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 "only function and method calls can be used as statements"};
           const SemanticType discarded_type =
               expression_type(expression_statement->expression);
-          if (report_local_warnings &&
-              potentially_owns_value(discarded_type) &&
-              !is_null_pointer_expression(
-                  expression_statement->expression)) {
+          const bool must_use_result = discarded_type.is_enum() &&
+                                       (discarded_type.parameter == "Option" ||
+                                        discarded_type.parameter == "Result");
+          if (must_use_result)
+            emit_warning(
+                DiagnosticCode::AnalyzerMustUseResult,
+                expression_statement->location,
+                "result of type '" + discarded_type.name() +
+                    "' must be handled or explicitly stored",
+                {"match the result, propagate it with '?', or bind it to a "
+                 "named value"});
+          else if (report_local_warnings &&
+                   potentially_owns_value(discarded_type) &&
+                   !is_null_pointer_expression(
+                       expression_statement->expression)) {
             result.diagnostics.push_back(Diagnostic{
                 DiagnosticSeverity::Warning,
                 DiagnosticCode::AnalyzerOwningResultDiscarded,
@@ -4047,6 +4223,40 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "borrowed value '" + identifier->name +
                                    "' cannot escape by return"};
           validate_return_expression(return_statement);
+          std::optional<std::size_t> returned_lambda_location;
+          if (const auto *lambda = std::get_if<ast::LambdaExpression>(
+                  &return_statement.expression->value))
+            returned_lambda_location = lambda->location.offset;
+          else if (const auto *identifier =
+                       std::get_if<ast::IdentifierExpression>(
+                           &return_statement.expression->value);
+                   identifier != nullptr)
+            if (const auto stored =
+                    local_lambda_locations.find(identifier->name);
+                stored != local_lambda_locations.end())
+              returned_lambda_location = stored->second;
+          if (returned_lambda_location.has_value()) {
+            const auto captures =
+                lambda_captures.find(*returned_lambda_location);
+            if (captures != lambda_captures.end())
+              for (const std::string &capture : captures->second) {
+                const auto symbol = block_symbols.find(capture);
+                const auto declaration = local_declarations.find(capture);
+                if (symbol == block_symbols.end() ||
+                    declaration == local_declarations.end() ||
+                    !potentially_owns_value(symbol->second.type))
+                  continue;
+                emit_warning(
+                    DiagnosticCode::AnalyzerEscapingOwningCapture,
+                    return_statement.location,
+                    "returned closure captures owning value '" + capture +
+                        "' with no explicit transfer contract",
+                    {"move ownership into an explicit wrapper or keep the "
+                     "closure within the owner's scope"},
+                    {DiagnosticLocation{declaration->second,
+                                        "captured owner declared here"}});
+              }
+          }
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &return_statement.expression->value);
               identifier != nullptr &&
@@ -4070,12 +4280,34 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
       for (const auto &[name, location] : scope_declarations) {
         const auto symbol = block_symbols.find(name);
-        if (symbol != block_symbols.end())
+        if (symbol == block_symbols.end())
+          continue;
+        const bool owns_value = potentially_owns_value(symbol->second.type);
+        const bool loop_leak = loop_depth > 0 &&
+                               symbol->second.may_be_initialized &&
+                               owns_value && !deferred_values.contains(name);
+        if (loop_leak)
+          emit_warning(
+              DiagnosticCode::AnalyzerLoopAllocation, location,
+              "owning value '" + name + "' of type '" +
+                  symbol->second.type.name() +
+                  "' may survive an iteration and leak repeatedly",
+              {"release, defer, or move the value before the next loop "
+               "iteration"});
+        else
           warn_live_owner(name, symbol->second, location);
+
+        if (!owns_value && !name.starts_with('_') &&
+            !used_local_declarations.contains(location.offset))
+          emit_warning(DiagnosticCode::AnalyzerUnusedValue, location,
+                       "value '" + name + "' is declared but never used",
+                       {"remove it or prefix its name with '_' to document "
+                        "intentional non-use"});
       }
       for (const auto &[name, location] : scope_declarations) {
         static_cast<void>(location);
         local_declarations.erase(name);
+        local_lambda_locations.erase(name);
       }
       active_symbols = previous_symbols;
       deferred_values = previous_deferred_values;
@@ -4092,6 +4324,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
 
     static_cast<void>(validate_block(body, symbols));
+    if (is_destructor && owner != nullptr) {
+      const auto check_owned_field = [&](const ast::ValueDeclaration &field) {
+        const auto symbol = symbols.find(field.name);
+        if (symbol == symbols.end() || !symbol->second.may_be_initialized ||
+            !potentially_owns_value(symbol->second.type))
+          return;
+        emit_warning(
+            DiagnosticCode::AnalyzerIncompleteDestructor, field.location,
+            "destructor for '" + owner->name + "' may leave owning field '" +
+                field.name + "' of type '" + symbol->second.type.name() +
+                "' alive",
+            {"delete, free, defer, or move the field on every destructor "
+             "path"});
+      };
+      for (const ast::ValueDeclaration &field : owner->constructor_fields)
+        check_owned_field(field);
+      for (const ast::ValueDeclaration &field : owner->fields)
+        check_owned_field(field);
+    }
     const bool has_return = block_guarantees_return(body);
 
     if (!has_return && (!return_type.is_concrete() ||

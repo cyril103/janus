@@ -37,12 +37,12 @@ bool warns_about(const janus::semantic::AnalysisResult &analysis,
 
 bool warns_with_code(const janus::semantic::AnalysisResult &analysis,
                      janus::DiagnosticCode code) {
-  return std::any_of(
-      analysis.diagnostics.begin(), analysis.diagnostics.end(),
-      [code](const janus::Diagnostic &diagnostic) {
-        return diagnostic.severity == janus::DiagnosticSeverity::Warning &&
-               diagnostic.code == code;
-      });
+  return std::any_of(analysis.diagnostics.begin(), analysis.diagnostics.end(),
+                     [code](const janus::Diagnostic &diagnostic) {
+                       return diagnostic.severity ==
+                                  janus::DiagnosticSeverity::Warning &&
+                              diagnostic.code == code;
+                     });
 }
 
 } // namespace
@@ -145,8 +145,8 @@ def attempt(value : Option[int]) : Option[int] {
 }
 def main() : int { return 0 }
 )");
-  expect(warns_about(propagation, "guard"),
-         "an owner live across a propagating question mark warns");
+  expect(!warns_about(propagation, "guard"),
+         "the early-exit warning replaces the generic owner warning");
 
   const auto overwritten = analyze(R"(
 class Resource() {}
@@ -157,13 +157,11 @@ def main() : int {
     return 0
 }
 )");
-  expect(warns_with_code(
-             overwritten,
-             janus::DiagnosticCode::AnalyzerOwningValueOverwritten),
+  expect(warns_with_code(overwritten,
+                         janus::DiagnosticCode::AnalyzerOwningValueOverwritten),
          "overwriting a live owner produces a dedicated warning");
-  expect(!warns_with_code(
-             overwritten,
-             janus::DiagnosticCode::AnalyzerPotentialMemoryLeak),
+  expect(!warns_with_code(overwritten,
+                          janus::DiagnosticCode::AnalyzerPotentialMemoryLeak),
          "cleaning the replacement avoids a scope-exit leak warning");
 
   const auto consumed_before_assignment = analyze(R"(
@@ -190,9 +188,8 @@ def main() : int {
     return 0
 }
 )");
-  expect(warns_with_code(
-             discarded,
-             janus::DiagnosticCode::AnalyzerOwningResultDiscarded),
+  expect(warns_with_code(discarded,
+                         janus::DiagnosticCode::AnalyzerOwningResultDiscarded),
          "discarding an owning call result produces a dedicated warning");
 
   const auto unit_result = analyze(R"(
@@ -220,6 +217,145 @@ def main() : int {
 )");
   expect(freed_pointers.diagnostics.empty(),
          "free consumes pointers and discarding null does not warn");
+
+  const auto must_use = analyze(R"(
+enum Option[T] { Some(T), None }
+def maybe() : Option[int] { return Option.None[int]() }
+def main() : int {
+    maybe()
+    return 0
+}
+)");
+  expect(
+      warns_with_code(must_use, janus::DiagnosticCode::AnalyzerMustUseResult),
+      "discarding Option produces a must-use warning");
+  expect(!warns_with_code(must_use,
+                          janus::DiagnosticCode::AnalyzerOwningResultDiscarded),
+         "must-use replaces the generic discarded-owner warning");
+
+  const auto field_overwrite = analyze(R"(
+class Resource() {}
+class Holder(var resource : Resource) {
+    def replace(next : Resource) : Unit {
+        resource = move next
+    }
+    destructor { delete resource }
+}
+def main() : int { return 0 }
+)");
+  expect(warns_with_code(field_overwrite,
+                         janus::DiagnosticCode::AnalyzerOwningFieldOverwritten),
+         "overwriting an owning field produces a dedicated warning");
+
+  const auto incomplete_destructor = analyze(R"(
+class Resource() {}
+class Owner(private val resource : Resource) {
+    destructor {}
+}
+def main() : int { return 0 }
+)");
+  expect(warns_with_code(incomplete_destructor,
+                         janus::DiagnosticCode::AnalyzerIncompleteDestructor),
+         "leaving an owning field alive in a destructor warns");
+
+  const auto missing_destructor = analyze(R"(
+class Resource() {}
+class Owner(private val resource : Resource) {}
+def main() : int { return 0 }
+)");
+  expect(warns_with_code(missing_destructor,
+                         janus::DiagnosticCode::AnalyzerIncompleteDestructor),
+         "omitting a destructor for an owning field warns");
+
+  const auto reallocation = analyze(R"(
+def main() : int {
+    var data : Ptr[int] = alloc[int](usize(1))
+    data = realloc[int](data, usize(2))
+    free(data)
+    return 0
+}
+)");
+  expect(warns_with_code(reallocation,
+                         janus::DiagnosticCode::AnalyzerUnsafeReallocation),
+         "direct realloc reassignment produces a dedicated warning");
+  expect(
+      !warns_with_code(reallocation,
+                       janus::DiagnosticCode::AnalyzerOwningValueOverwritten),
+      "realloc warning replaces the generic overwrite warning");
+
+  expect(warns_with_code(propagation,
+                         janus::DiagnosticCode::AnalyzerUnprotectedEarlyExit),
+         "question mark identifies an owner lacking deferred cleanup");
+
+  const auto loop_allocation = analyze(R"(
+class Resource() {}
+def main() : int {
+    var index : int = 0
+    while index < 1 {
+        val resource : Resource = new Resource()
+        index = index + 1
+    }
+    return index
+}
+)");
+  expect(warns_with_code(loop_allocation,
+                         janus::DiagnosticCode::AnalyzerLoopAllocation),
+         "a live owner inside a loop produces a repeated-leak warning");
+
+  const auto escaping_capture = analyze(R"(
+class Resource(val value : int) {}
+def makeReader() : () => int {
+    val resource : Resource = new Resource(42)
+    return () => resource.value
+}
+def main() : int { return 0 }
+)");
+  expect(warns_with_code(escaping_capture,
+                         janus::DiagnosticCode::AnalyzerEscapingOwningCapture),
+         "returning a closure that captures an owner warns");
+
+  const auto pointer_cast = analyze(R"(
+def main() : int {
+    val pointer : Ptr[int] = alloc[int](usize(1))
+    val address : usize = usize(pointer)
+    println(address)
+    free(pointer)
+    return 0
+}
+)");
+  expect(warns_with_code(pointer_cast,
+                         janus::DiagnosticCode::AnalyzerAmbiguousPointerCast),
+         "pointer-to-integer conversion warns about ownership ambiguity");
+
+  const auto numeric_cast = analyze(R"(
+def main() : int {
+    val wide : long = long(42)
+    val narrow : int = int(wide)
+    return narrow
+}
+)");
+  expect(warns_with_code(numeric_cast,
+                         janus::DiagnosticCode::AnalyzerLossyNumericCast),
+         "narrowing a runtime numeric value warns");
+
+  const auto unused_value = analyze(R"(
+def main() : int {
+    val unused : int = 42
+    return 0
+}
+)");
+  expect(
+      warns_with_code(unused_value, janus::DiagnosticCode::AnalyzerUnusedValue),
+      "an unread local value warns");
+
+  const auto intentionally_unused = analyze(R"(
+def main() : int {
+    val _ignored : int = 42
+    return 0
+}
+)");
+  expect(intentionally_unused.diagnostics.empty(),
+         "an underscore-prefixed unused value is accepted");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
