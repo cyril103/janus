@@ -1198,7 +1198,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
     return {};
 
   if (*method == "initialized") {
-    return {serialize(llvm::json::Object{
+    std::vector<std::string> notifications{serialize(llvm::json::Object{
         {"jsonrpc", "2.0"},
         {"id", "janus-watch-files"},
         {"method", "client/registerCapability"},
@@ -1221,6 +1221,16 @@ std::vector<std::string> Server::handle(std::string_view message) {
               }}},
          }},
     })};
+    for (const std::string &indexed_uri : workspace_uris_) {
+      if (dependency_uris_.contains(indexed_uri))
+        continue;
+      const auto indexed = index_cache_.find(indexed_uri);
+      if (indexed != index_cache_.end() &&
+          !analyze_document(indexed_uri, indexed->second.source).empty())
+        notifications.push_back(
+            diagnostics(indexed_uri, indexed->second.source));
+    }
+    return notifications;
   }
 
   if (*method == "workspace/didChangeConfiguration") {
@@ -1266,6 +1276,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
 
   if (*method == "workspace/didChangeWatchedFiles" && params != nullptr) {
     bool rebuild = false;
+    std::vector<std::string> notifications;
     if (const llvm::json::Array *changes = params->getArray("changes")) {
       for (const llvm::json::Value &change : *changes) {
         const llvm::json::Object *entry = change.getAsObject();
@@ -1299,9 +1310,16 @@ std::vector<std::string> Server::handle(std::string_view message) {
           continue;
         if (*kind == 3) {
           remove_workspace_file(file_uri(*path));
+          notifications.push_back(publish_diagnostics(file_uri(*path), {}));
           continue;
         }
         index_workspace_file(*path, dependency);
+        const std::string changed_uri_normalized = file_uri(*path);
+        if (!dependency)
+          if (const auto indexed = index_cache_.find(changed_uri_normalized);
+              indexed != index_cache_.end())
+            notifications.push_back(
+                diagnostics(changed_uri_normalized, indexed->second.source));
       }
     }
     if (rebuild) {
@@ -1310,7 +1328,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
     } else {
       refresh_workspace_metrics();
     }
-    return {};
+    return notifications;
   }
 
   const llvm::json::Object *text_document =
@@ -1384,6 +1402,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
     } else {
       index_cache_.erase(*uri);
     }
+    if (const auto indexed = index_cache_.find(*uri);
+        indexed != index_cache_.end())
+      return {diagnostics(*uri, indexed->second.source)};
     return {publish_diagnostics(*uri, {})};
   }
 

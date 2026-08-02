@@ -104,7 +104,11 @@ std::string render_json(const std::filesystem::path &path,
            << json_string(janus::diagnostic_code_name(diagnostic.code))
            << ",\"message\":" << json_string(diagnostic.message)
            << ",\"primaryLocation\":{\"file\":"
-           << json_string(path.generic_string()) << ",\"position\":";
+           << json_string((diagnostic.source_path.empty()
+                               ? path
+                               : diagnostic.source_path)
+                              .generic_string())
+           << ",\"position\":";
     render_location_json(output, diagnostic.primary_location);
     output << "},\"notes\":[";
     bool first = true;

@@ -1,0 +1,6 @@
+module shared
+
+def sharedValue() : int {
+    val unused : int = 42
+    return 3
+}

@@ -12,6 +12,19 @@
 
 namespace janus::frontend {
 
+namespace {
+
+CompileError with_source_path(const CompileError &error,
+                              const std::filesystem::path &path) {
+  std::vector<Diagnostic> diagnostics = error.diagnostics();
+  for (Diagnostic &diagnostic : diagnostics)
+    if (diagnostic.source_path.empty())
+      diagnostic.source_path = path;
+  return CompileError{std::move(diagnostics)};
+}
+
+} // namespace
+
 ModuleLoader::ModuleLoader(std::vector<std::filesystem::path> search_paths)
     : search_paths_{std::move(search_paths)} {}
 
@@ -46,9 +59,9 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
   loaded_paths_.push_back(normalized);
 
   std::string source;
-  const auto loading_start =
-      timings == nullptr ? std::chrono::steady_clock::time_point{}
-                         : std::chrono::steady_clock::now();
+  const auto loading_start = timings == nullptr
+                                 ? std::chrono::steady_clock::time_point{}
+                                 : std::chrono::steady_clock::now();
   if (source_override != nullptr) {
     source = *source_override;
   } else {
@@ -61,25 +74,44 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
   }
   if (timings != nullptr)
     timings->loading += std::chrono::steady_clock::now() - loading_start;
-  const auto parsing_start =
-      timings == nullptr ? std::chrono::steady_clock::time_point{}
-                         : std::chrono::steady_clock::now();
-  Parser parser{source};
-  ast::Program parsed = parser.parse_program();
+  const auto parsing_start = timings == nullptr
+                                 ? std::chrono::steady_clock::time_point{}
+                                 : std::chrono::steady_clock::now();
+  ast::Program parsed;
+  try {
+    Parser parser{source};
+    parsed = parser.parse_program();
+  } catch (const CompileError &error) {
+    if (expected_module != nullptr)
+      throw with_source_path(error, normalized);
+    throw;
+  }
   if (timings != nullptr)
     timings->parsing += std::chrono::steady_clock::now() - parsing_start;
 
   if (expected_module != nullptr && (!parsed.module_name.has_value() ||
                                      *parsed.module_name != *expected_module))
-    throw CompileError{SourceLocation{}, "module file '" + normalized.string() +
-                                             "' must declare 'module " +
-                                             *expected_module + "'"};
+    throw CompileError{Diagnostic{
+        DiagnosticSeverity::Error,
+        DiagnosticCode::Unclassified,
+        "module file '" + normalized.string() + "' must declare 'module " +
+            *expected_module + "'",
+        SourceLocation{},
+        {},
+        {},
+        {},
+        normalized,
+    }};
 
   ast::Program result;
   for (const std::string &import : parsed.imports) {
-    ast::Program dependency =
-        load_file(resolve_import(import, project_root), project_root, &import,
-                  nullptr, timings);
+    ast::Program dependency;
+    try {
+      dependency = load_file(resolve_import(import, project_root), project_root,
+                             &import, nullptr, timings);
+    } catch (const CompileError &error) {
+      throw with_source_path(error, normalized);
+    }
     for (ast::GlobalDeclaration &global : dependency.globals)
       result.globals.push_back(std::move(global));
     for (ast::TraitDeclaration &trait_declaration : dependency.traits)

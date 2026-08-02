@@ -1,0 +1,5 @@
+module left
+
+import shared
+
+def leftValue() : int { return 1 }

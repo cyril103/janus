@@ -7,10 +7,12 @@
 | `janus new <dossier>` | créer un nouveau projet |
 | `janus init [dossier]` | initialiser Janus dans un dossier existant |
 | `janus check` | analyser le projet sans construire d'exécutable |
+| `janus check --all` | analyser exhaustivement chaque module du projet |
 | `janus run` | compiler et exécuter |
 | `janus build` | construire en mode développement avec cache incrémental |
 | `janus build --release` | construire avec optimisations |
 | `janus build --no-cache` | forcer une construction sans lire ni écrire le cache |
+| `janus build --deny-warnings` | refuser la construction si un module avertit |
 | `janus clean` | supprimer `target/`, cache incrémental compris |
 | `janus test [filtre]` | exécuter les tests et doctests |
 | `janus test --doc` | exécuter uniquement les doctests |
@@ -27,6 +29,14 @@ janus check fichier.janus
 janus run fichier.janus
 janus build fichier.janus -o programme
 ```
+
+Lorsqu'il appartient à un paquet, un fichier explicite est résolu depuis la
+racine `src/` et avec les dépendances du manifeste courant. `janus check --all`
+parcourt tous les fichiers `.janus` sous `src/`, déduplique les modules partagés
+et agrège leurs diagnostics. `--deny-warnings`, accepté par `check` et `build`,
+renvoie le code `1` dès que cette analyse exhaustive contient un avertissement.
+La passe est rejouée avant un build, y compris lorsqu'un artefact incrémental
+est disponible, afin que le résultat ne dépende jamais d'un hit de cache.
 
 Les options `--emit llvm-ir` et `--emit object` arrêtent la compilation après
 la production de l'IR LLVM ou du fichier objet.
@@ -108,6 +118,15 @@ ajoute un extrait de source avec repère. Le format JSON est destiné aux outils
 reste écrit sur stderr et ne change ni stdout ni le code de sortie. Son schéma
 versionné et le contrat des suggestions sont décrits dans la page
 [Diagnostics structurés](diagnostics.md).
+
+Avec `check --all`, la sortie JSON reste un document unique et contient le
+même ensemble de codes, sévérités, emplacements et fichiers que la sortie
+humaine.
+
+Le LSP publie aussi les diagnostics des fichiers indexés qui ne sont pas
+ouverts. À la fermeture d'un document du projet, il réanalyse sa version sur
+disque au lieu d'effacer ses diagnostics ; les changements observés par le
+file watcher republient ou retirent les diagnostics concernés.
 
 ## Diagnostics optionnels
 
