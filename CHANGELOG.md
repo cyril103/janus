@@ -3,7 +3,32 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
-## Non publié
+## [0.9.0] - 2026-08-02
+
+Cette version mineure renforce l'analyse de sûreté et les contrats de
+propriété à la frontière C, tout en élargissant les surfaces mathématique et
+graphique de la bibliothèque standard.
+
+### Langage et diagnostics
+
+- ajout des avertissements `JANA0002` à `JANA0022` pour les fuites, les
+  écrasements de propriétaires, les nettoyages incomplets, les emprunts
+  temporaires, les cycles potentiels et les conversions numériques à risque ;
+- ajout des contrats `borrow` et `consume` sur les paramètres pointeur des
+  fonctions externes, et `borrow` ou `owned` sur leurs retours ;
+- ajout des emprunts locaux et des champs observants, ainsi que des primitives
+  explicites `numericCast`, `owningCapture`, `freeStorage`,
+  `reallocPreserving` et `adoptReallocation` pour les opérations bas niveau ;
+- ajout de l'analyse optionnelle `--warn-high-growth-loops` et d'une couverture
+  de régression dédiée aux diagnostics de propriété.
+
+### Graphisme 2D
+
+- extension de la façade raylib aux images CPU, formats de pixels, primitives
+  géométriques, splines, collisions, ciseaux, modes de fusion et textures
+  avancées ;
+- conservation des contrats de ressources propriétaires et couverture du
+  runtime avec un backend raylib factice élargi.
 
 ### Bibliothèque standard
 
@@ -18,6 +43,13 @@ utilise le versionnage sémantique à partir de sa première version publique.
   `consume`/`owned`, `numericCast`, les avertissements de sûreté et la nouvelle
   surface de `std.math` ;
 - publication de la référence structurée des diagnostics dans le site.
+
+### Correctifs
+
+- correction de la validation des versions de release et de plusieurs cas
+  limites du runtime ;
+- suppression des avertissements numériques et de propriété dans la
+  bibliothèque standard.
 
 ## [0.8.1] - 2026-08-01
 
@@ -532,6 +564,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.9.0]: https://github.com/cyril103/janus/releases/tag/v0.9.0
 [0.8.1]: https://github.com/cyril103/janus/releases/tag/v0.8.1
 [0.8.0]: https://github.com/cyril103/janus/releases/tag/v0.8.0
 [0.7.6]: https://github.com/cyril103/janus/releases/tag/v0.7.6

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-VERSION="${JANUS_VERSION:-0.8.1}"
+VERSION="${JANUS_VERSION:-0.9.0}"
 BASE_URL="${JANUS_DIST_SERVER:-https://github.com/cyril103/janus/releases/download/v${VERSION}}"
 HOME_DIR="${JANUSUP_HOME:-${HOME}/.janus}"
 

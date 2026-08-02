@@ -36,7 +36,7 @@ def main() : int {
 
 Une déclaration peut étendre plusieurs traits, séparés par des virgules. La signature, la visibilité et le caractère consommant de chaque méthode doivent correspondre au contrat.
 
-!!! note "Limite 0.8.1"
+!!! note "Limite 0.9.0"
     L’implémentation de traits par `extends` est actuellement réservée aux classes. Les structs restent utilisables avec les capacités intrinsèques de `derives`, mais ne peuvent pas encore implémenter un trait utilisateur.
 
 ## Pourquoi `derives` existe

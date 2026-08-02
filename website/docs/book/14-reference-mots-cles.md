@@ -3,7 +3,7 @@
 
 ## Objectifs
 
-- retrouver les 32 mots-clés réservés de Janus 0.8.1 ;
+- retrouver les 32 mots-clés réservés de Janus 0.9.0 ;
 - comprendre leur utilité et leur contexte valide ;
 - ne pas confondre mots-clés, types primitifs, builtins et opérateurs.
 
@@ -48,7 +48,7 @@ derives Equality, Hashing, Debug {
 }
 ```
 
-`Hashing` exige `Equality`. Les capacités sont intrinsèques et sensibles à la casse ; elles ne sont pas des mots-clés séparés. En 0.8.1, seuls les classes implémentent les traits utilisateur avec `extends` ; les structs et enums peuvent utiliser `derives`, mais pas `extends`.
+`Hashing` exige `Equality`. Les capacités sont intrinsèques et sensibles à la casse ; elles ne sont pas des mots-clés séparés. En 0.9.0, seuls les classes implémentent les traits utilisateur avec `extends` ; les structs et enums peuvent utiliser `derives`, mais pas `extends`.
 
 ## Liaisons et visibilité
 
