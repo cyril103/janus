@@ -45,6 +45,7 @@ private:
   [[nodiscard]] ast::Expression parse_primary();
   [[nodiscard]] ast::Expression parse_postfix(ast::Expression expression);
   [[nodiscard]] ast::TypeReference parse_type();
+  [[nodiscard]] ast::ImportDeclaration parse_import_declaration();
   [[nodiscard]] bool starts_lambda() const;
   [[nodiscard]] std::string parse_qualified_name();
   [[nodiscard]] std::string take_documentation();

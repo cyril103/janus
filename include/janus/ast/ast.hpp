@@ -372,9 +372,28 @@ struct ClassDeclaration {
   std::string documentation;
 };
 
+struct ImportDeclaration {
+  struct Symbol {
+    std::string name;
+    std::optional<std::string> alias;
+    SourceLocation location;
+  };
+
+  std::string module_name;
+  std::optional<std::string> module_alias;
+  std::vector<Symbol> symbols;
+  SourceLocation location;
+  std::optional<std::string> importing_module;
+
+  [[nodiscard]] bool is_qualified() const noexcept {
+    return module_alias.has_value();
+  }
+  [[nodiscard]] bool is_selective() const noexcept { return !symbols.empty(); }
+};
+
 struct Program {
   std::optional<std::string> module_name;
-  std::vector<std::string> imports;
+  std::vector<ImportDeclaration> imports;
   std::vector<GlobalDeclaration> globals;
   std::vector<TraitDeclaration> traits;
   std::vector<EnumDeclaration> enums;

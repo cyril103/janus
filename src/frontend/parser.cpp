@@ -178,8 +178,9 @@ ast::Program Parser::parse_program() {
       advance();
   }
   while (current_.kind == TokenKind::Import) {
-    advance();
-    program.imports.push_back(parse_qualified_name());
+    ast::ImportDeclaration import = parse_import_declaration();
+    import.importing_module = program.module_name;
+    program.imports.push_back(std::move(import));
     if (current_.kind == TokenKind::Semicolon)
       advance();
   }
@@ -507,6 +508,53 @@ std::string Parser::parse_qualified_name() {
     name += expect(TokenKind::Identifier).lexeme;
   }
   return name;
+}
+
+ast::ImportDeclaration Parser::parse_import_declaration() {
+  const Token import_token = expect(TokenKind::Import);
+  std::string module{expect(TokenKind::Identifier).lexeme};
+  std::vector<ast::ImportDeclaration::Symbol> symbols;
+
+  while (current_.kind == TokenKind::Dot) {
+    advance();
+    if (current_.kind == TokenKind::LeftBrace) {
+      advance();
+      if (current_.kind == TokenKind::RightBrace)
+        throw CompileError{current_.location,
+                           "a selective import must name at least one symbol"};
+      do {
+        const Token name = expect(TokenKind::Identifier);
+        std::optional<std::string> alias;
+        if (current_.kind == TokenKind::As) {
+          advance();
+          alias = std::string{expect(TokenKind::Identifier).lexeme};
+        }
+        symbols.push_back(ast::ImportDeclaration::Symbol{
+            std::string{name.lexeme}, std::move(alias), name.location});
+        if (current_.kind != TokenKind::Comma)
+          break;
+        advance();
+      } while (true);
+      static_cast<void>(expect(TokenKind::RightBrace));
+      break;
+    }
+    module += '.';
+    module += expect(TokenKind::Identifier).lexeme;
+  }
+
+  std::optional<std::string> alias;
+  if (current_.kind == TokenKind::As) {
+    if (!symbols.empty())
+      throw CompileError{current_.location,
+                         "a selective import cannot also alias its module"};
+    advance();
+    alias = std::string{expect(TokenKind::Identifier).lexeme};
+  }
+  return ast::ImportDeclaration{std::move(module),
+                                std::move(alias),
+                                std::move(symbols),
+                                import_token.location,
+                                {}};
 }
 
 std::string Parser::take_documentation() {

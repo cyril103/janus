@@ -48,6 +48,8 @@ Token Lexer::next() {
       kind = TokenKind::Module;
     } else if (lexeme == "import") {
       kind = TokenKind::Import;
+    } else if (lexeme == "as") {
+      kind = TokenKind::As;
     } else if (lexeme == "extern") {
       kind = TokenKind::Extern;
     } else if (lexeme == "def") {
@@ -273,15 +275,15 @@ Token Lexer::next() {
     SourceLocation end = start;
     ++end.offset;
     ++end.column;
-    throw CompileError{Diagnostic{
-        DiagnosticSeverity::Error,
-        DiagnosticCode::LexerUnexpectedCharacter,
-        "unexpected character '" + std::string(1, character) + "'",
-        start,
-        {},
-        {},
-        {DiagnosticSuggestion{"remove the unexpected character",
-                              SourceRange{start, end}, ""}}}};
+    throw CompileError{
+        Diagnostic{DiagnosticSeverity::Error,
+                   DiagnosticCode::LexerUnexpectedCharacter,
+                   "unexpected character '" + std::string(1, character) + "'",
+                   start,
+                   {},
+                   {},
+                   {DiagnosticSuggestion{"remove the unexpected character",
+                                         SourceRange{start, end}, ""}}}};
   }
 }
 
