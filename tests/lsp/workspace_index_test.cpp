@@ -71,8 +71,8 @@ int main() {
   assert(initialized.size() == 1);
   assert(initialized.front().find("\"workspaceSymbolProvider\":true") !=
          std::string::npos);
-  const std::vector<std::string> registration = server.handle(
-      R"({"jsonrpc":"2.0","method":"initialized","params":{}})");
+  const std::vector<std::string> registration =
+      server.handle(R"({"jsonrpc":"2.0","method":"initialized","params":{}})");
   assert(registration.size() == 2);
   assert(registration.front().find("workspace/didChangeWatchedFiles") !=
          std::string::npos);
@@ -80,9 +80,10 @@ int main() {
   assert(registration.back().find("\"code\":\"JANA0014\"") !=
          std::string::npos);
   assert(registration.back().find("src/unopened.janus") != std::string::npos);
-  assert(server.handle(
-                   R"({"jsonrpc":"2.0","id":"janus-watch-files","result":null})")
-             .empty());
+  assert(
+      server
+          .handle(R"({"jsonrpc":"2.0","id":"janus-watch-files","result":null})")
+          .empty());
 
   const janus::lsp::WorkspaceIndexMetrics metrics =
       server.workspace_index_metrics();

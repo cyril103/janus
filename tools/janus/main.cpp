@@ -775,8 +775,8 @@ struct DiagnosticBatch {
   std::vector<janus::Diagnostic> diagnostics;
 };
 
-std::vector<std::filesystem::path>
-project_sources(const Options &options, bool exhaustive) {
+std::vector<std::filesystem::path> project_sources(const Options &options,
+                                                   bool exhaustive) {
   std::vector<std::filesystem::path> paths;
   const auto add = [&paths](const std::filesystem::path &path) {
     const std::filesystem::path normalized =
@@ -789,9 +789,11 @@ project_sources(const Options &options, bool exhaustive) {
   if (exhaustive && options.manifest.has_value()) {
     const std::filesystem::path source_root = options.manifest->root() / "src";
     std::error_code error;
-    for (std::filesystem::recursive_directory_iterator iterator{
-             source_root,
-             std::filesystem::directory_options::skip_permission_denied, error},
+    for (std::filesystem::recursive_directory_iterator
+             iterator{source_root,
+                      std::filesystem::directory_options::
+                          skip_permission_denied,
+                      error},
          end;
          iterator != end; iterator.increment(error)) {
       if (error) {
@@ -840,8 +842,10 @@ int check_sources(const Options &options, const Toolchain &toolchain,
               janus::DiagnosticSeverity::Warning,
               janus::DiagnosticCode::Unclassified,
               "high-growth loop pattern may cause integer overflow or "
-              "excessive running time; add an explicit bound, use a safe "
-              "numeric type, or enforce a time budget",
+              "excessive "
+              "running time; add an explicit bound, use a safe numeric type, "
+              "or "
+              "enforce a time budget",
               warning.location,
               {},
               {},
@@ -861,20 +865,61 @@ int check_sources(const Options &options, const Toolchain &toolchain,
       });
     }
     for (janus::Diagnostic &diagnostic : batch.diagnostics) {
-      diagnostic.source_path = path;
+      if (diagnostic.source_path.empty())
+        diagnostic.source_path = path;
       has_error =
-          has_error ||
-          diagnostic.severity == janus::DiagnosticSeverity::Error;
-      has_warning =
-          has_warning ||
-          diagnostic.severity == janus::DiagnosticSeverity::Warning;
+          has_error || diagnostic.severity == janus::DiagnosticSeverity::Error;
+      has_warning = has_warning ||
+                    diagnostic.severity == janus::DiagnosticSeverity::Warning;
     }
     if (!batch.diagnostics.empty())
       batches.push_back(std::move(batch));
   }
 
-  if (options.diagnostic_format ==
-      janus::diagnostics::DiagnosticFormat::Json) {
+  std::vector<DiagnosticBatch> consolidated;
+  for (DiagnosticBatch &batch : batches)
+    for (janus::Diagnostic &diagnostic : batch.diagnostics) {
+      const std::filesystem::path path = diagnostic.source_path;
+      auto target = std::find_if(consolidated.begin(), consolidated.end(),
+                                 [&path](const DiagnosticBatch &candidate) {
+                                   return candidate.path == path;
+                                 });
+      if (target == consolidated.end()) {
+        DiagnosticBatch located;
+        located.path = path;
+        if (path == batch.path) {
+          located.source = batch.source;
+        } else {
+          std::ifstream input{path, std::ios::binary};
+          located.source.assign(std::istreambuf_iterator<char>{input},
+                                std::istreambuf_iterator<char>{});
+        }
+        consolidated.push_back(std::move(located));
+        target = std::prev(consolidated.end());
+      }
+      const bool duplicate =
+          std::any_of(target->diagnostics.begin(), target->diagnostics.end(),
+                      [&diagnostic](const janus::Diagnostic &candidate) {
+                        return candidate.severity == diagnostic.severity &&
+                               candidate.code == diagnostic.code &&
+                               candidate.message == diagnostic.message &&
+                               candidate.primary_location.offset ==
+                                   diagnostic.primary_location.offset &&
+                               candidate.primary_location.line ==
+                                   diagnostic.primary_location.line &&
+                               candidate.primary_location.column ==
+                                   diagnostic.primary_location.column;
+                      });
+      if (!duplicate)
+        target->diagnostics.push_back(std::move(diagnostic));
+    }
+  batches = std::move(consolidated);
+  std::sort(batches.begin(), batches.end(),
+            [](const DiagnosticBatch &left, const DiagnosticBatch &right) {
+              return left.path < right.path;
+            });
+
+  if (options.diagnostic_format == janus::diagnostics::DiagnosticFormat::Json) {
     std::vector<janus::Diagnostic> diagnostics;
     for (DiagnosticBatch &batch : batches)
       diagnostics.insert(diagnostics.end(),
@@ -2234,9 +2279,9 @@ int main(int argc, char **argv) {
     diagnostic_path = options.source;
     if (options.command == "check") {
       if (options.check_all_modules || options.deny_warnings) {
-        const int status = check_sources(
-            options, toolchain,
-            options.check_all_modules || options.deny_warnings);
+        const int status =
+            check_sources(options, toolchain,
+                          options.check_all_modules || options.deny_warnings);
         if (status == 0)
           std::cout << "checked " << options.source.string() << '\n';
         return status;

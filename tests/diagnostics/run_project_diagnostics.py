@@ -65,6 +65,30 @@ def main() -> int:
         assert denied_cached.returncode == 1, denied_cached.stderr
         assert denied_cached.stderr.count("JANA0014") == 1, denied_cached.stderr
 
+        (project / "src/shared.janus").write_text(
+            "module shared\n\ndef sharedValue() : int { return 3 @ }\n",
+            encoding="utf-8",
+        )
+        invalid_shared = run(
+            arguments.janus,
+            project,
+            "check",
+            "--all",
+            "--diagnostic-format",
+            "json",
+        )
+        assert invalid_shared.returncode == 1, invalid_shared.stderr
+        invalid_payload = json.loads(invalid_shared.stderr)
+        parser_diagnostics = [
+            diagnostic
+            for diagnostic in invalid_payload["diagnostics"]
+            if diagnostic["code"] == "JLEX0001"
+        ]
+        assert len(parser_diagnostics) == 1, invalid_payload
+        assert parser_diagnostics[0]["primaryLocation"]["file"].endswith(
+            "src/shared.janus"
+        ), invalid_payload
+
     return 0
 
 
