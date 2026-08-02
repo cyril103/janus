@@ -16,8 +16,8 @@ set(TOP_LEVEL_USAGE
   janus search <query> [--registry <url>]
   janus publish [--registry <url>]
   janus clean
-  janus check [source.janus] [--diagnostic-format human|json]
-  janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache]
+  janus check [source.janus] [--all] [--deny-warnings] [--diagnostic-format human|json]
+  janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache] [--deny-warnings]
   janus run [source.janus] [--release] [--panic-trace full|short|off]
   janus test [filter] [--doc] [--doc-path <path>] [--list] [--exact] [--ignored|--include-ignored] [--jobs <count>] [--timeout <duration>] [--fail-fast] [--fail-if-empty] [--format human|json|junit] [--release] [--panic-trace full|short|off]
   janus fmt [source.janus] [--check]
@@ -28,10 +28,10 @@ set(TOP_LEVEL_USAGE
   janus --version
 ")
 set(CHECK_USAGE
-"usage: janus check [source.janus] [--locked] [--offline] [--warn-high-growth-loops] [--diagnostic-format human|json]
+"usage: janus check [source.janus] [--locked] [--offline] [--all] [--deny-warnings] [--warn-high-growth-loops] [--diagnostic-format human|json]
 ")
 set(BUILD_USAGE
-"usage: janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache]
+"usage: janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache] [--deny-warnings]
 ")
 set(RUN_USAGE
 "usage: janus run [source.janus] [--release] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops]
