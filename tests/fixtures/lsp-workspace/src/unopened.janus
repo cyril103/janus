@@ -2,3 +2,8 @@ module unopened
 
 val workspaceValue : int = 42
 private val hiddenWorkspaceValue : int = 7
+
+def warningValue() : int {
+    val unused : int = 1
+    return 0
+}
