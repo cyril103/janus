@@ -591,6 +591,14 @@ if(BUILD_TESTING)
                 "${PROJECT_SOURCE_DIR}/docs/schemas/diagnostic-0.5.2.schema.json"
     )
     add_test(
+        NAME diagnostics.project
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/diagnostics/run_project_diagnostics.py"
+                --janus "$<TARGET_FILE:janus>"
+                --fixture
+                "${PROJECT_SOURCE_DIR}/tests/fixtures/project-diagnostics"
+    )
+    add_test(
         NAME cli.check_top_level_val
         COMMAND janus check
                 "${PROJECT_SOURCE_DIR}/tests/fixtures/parser/top_level_val.janus"
