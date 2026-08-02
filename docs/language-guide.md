@@ -89,7 +89,32 @@ sont pris en charge, y compris lorsqu'elles contiennent récursivement des
 ressources possédées. Contrairement à une `var` locale, une `var` globale ne
 peut pas être déclarée sans initialiseur.
 
-Un export public peut être utilisé sans qualification ou avec le nom de son
+La forme historique rend tous les exports publics disponibles sans
+qualification :
+
+```janus
+import std.fs
+```
+
+Un module peut aussi être importé sous un alias sans injecter ses symboles, ou
+exposer seulement une liste explicite. Le point est l'unique séparateur
+d'accès qualifié :
+
+```janus
+import std.fs as fs
+import std.result.{Result, Ok as Success, Error}
+
+val loaded : fs.FileData = fs.readFile(path)
+val result : Result[int, string] = Success(42)
+```
+
+Les alias sont locaux au module importeur et ne changent pas l'identité
+canonique du symbole. Un symbole absent ou `private`, une liste vide et toute
+collision entre deux noms importés produisent un diagnostic. Il faut qualifier
+ou renommer les exports concurrents ; aucune collision n'est résolue
+silencieusement.
+
+Un export public peut également être utilisé avec le nom canonique de son
 module :
 
 ```janus

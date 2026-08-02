@@ -95,11 +95,32 @@ public:
 #endif
     module_->setPICLevel(::llvm::PICLevel::BigPIC);
     module_->setPIELevel(::llvm::PIELevel::Large);
+    const auto imported_names = [&](const std::optional<std::string> &module,
+                                    std::string_view name) {
+      std::vector<std::string> names;
+      if (!module.has_value())
+        return names;
+      for (const janus::ast::ImportDeclaration &import : program.imports) {
+        if (import.module_name != *module)
+          continue;
+        if (import.module_alias.has_value())
+          names.push_back(*import.module_alias + "." + std::string{name});
+        for (const janus::ast::ImportDeclaration::Symbol &symbol :
+             import.symbols)
+          if (symbol.name == name)
+            names.push_back(symbol.alias.value_or(symbol.name));
+      }
+      return names;
+    };
     std::unordered_map<std::string, std::size_t> type_name_counts;
     for (const janus::ast::EnumDeclaration &declaration : program.enums) {
       enums_.emplace(
           source_global_key(declaration.module_name, declaration.name),
           &declaration);
+      if (!declaration.is_private)
+        for (const std::string &alias :
+             imported_names(declaration.module_name, declaration.name))
+          enums_.emplace(alias, &declaration);
       ++type_name_counts[declaration.name];
     }
     for (const janus::ast::ClassDeclaration &class_declaration :
@@ -107,6 +128,10 @@ public:
       classes_.emplace(source_global_key(class_declaration.module_name,
                                          class_declaration.name),
                        &class_declaration);
+      if (!class_declaration.is_private)
+        for (const std::string &alias : imported_names(
+                 class_declaration.module_name, class_declaration.name))
+          classes_.emplace(alias, &class_declaration);
       ++type_name_counts[class_declaration.name];
     }
     for (const janus::ast::EnumDeclaration &declaration : program.enums)
@@ -120,6 +145,10 @@ public:
     for (const janus::ast::FunctionDeclaration &function : program.functions) {
       functions_.emplace(source_global_key(function.module_name, function.name),
                          &function);
+      if (!function.is_private)
+        for (const std::string &alias :
+             imported_names(function.module_name, function.name))
+          functions_.emplace(alias, &function);
       ++function_name_counts[function.name];
     }
     for (const janus::ast::FunctionDeclaration &function : program.functions)
@@ -138,6 +167,12 @@ public:
         public_global_keys_.emplace(
             global.declaration.name,
             source_global_key(global.module_name, global.declaration.name));
+      if (!global.declaration.is_private)
+        for (const std::string &alias :
+             imported_names(global.module_name, global.declaration.name))
+          public_global_keys_.emplace(
+              alias,
+              source_global_key(global.module_name, global.declaration.name));
       if (global.module_name.has_value())
         global_modules_.insert(*global.module_name);
     }

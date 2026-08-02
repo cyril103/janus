@@ -496,6 +496,60 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::unordered_map<std::string, std::size_t> class_arities;
   std::unordered_map<std::string, std::size_t> type_name_counts;
   std::unordered_set<std::string> type_identities;
+  const auto imported_names = [&](const std::optional<std::string> &module,
+                                  std::string_view name) {
+    std::vector<std::string> names;
+    if (!module.has_value())
+      return names;
+    for (const ast::ImportDeclaration &import : program.imports) {
+      if (import.module_name != *module)
+        continue;
+      if (import.module_alias.has_value())
+        names.push_back(*import.module_alias + "." + std::string{name});
+      for (const ast::ImportDeclaration::Symbol &symbol : import.symbols)
+        if (symbol.name == name)
+          names.push_back(symbol.alias.value_or(symbol.name));
+    }
+    std::sort(names.begin(), names.end());
+    names.erase(std::unique(names.begin(), names.end()), names.end());
+    return names;
+  };
+  const auto import_allows =
+      [&](const std::optional<std::string> &importer,
+          const std::optional<std::string> &declaring_module,
+          std::string_view canonical_name, std::string_view spelling) {
+        if (importer == declaring_module || !declaring_module.has_value())
+          return true;
+        for (const ast::ImportDeclaration &import : program.imports) {
+          if (import.importing_module != importer ||
+              import.module_name != *declaring_module)
+            continue;
+          if (!import.is_qualified() && !import.is_selective() &&
+              spelling == canonical_name)
+            return true;
+          if (import.module_alias.has_value() &&
+              spelling ==
+                  *import.module_alias + "." + std::string{canonical_name})
+            return true;
+          if (spelling ==
+              import.module_name + "." + std::string{canonical_name})
+            return true;
+          for (const ast::ImportDeclaration::Symbol &symbol : import.symbols)
+            if (symbol.name == canonical_name &&
+                spelling == symbol.alias.value_or(symbol.name))
+              return true;
+        }
+        // A dependency may be loaded once through several branches of the
+        // graph. Preserve the historical unqualified semantics when another
+        // loaded module has the same legacy import; qualified-only imports do
+        // not take this fallback.
+        if (spelling == canonical_name)
+          for (const ast::ImportDeclaration &import : program.imports)
+            if (import.module_name == *declaring_module &&
+                !import.is_qualified() && !import.is_selective())
+              return true;
+        return false;
+      };
   const auto register_type_identity =
       [&](const std::optional<std::string> &module, std::string_view name,
           SourceLocation location) {
@@ -512,17 +566,31 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     enums.emplace(identity, &declaration);
     class_arities.emplace(identity, enum_arity_marker +
                                         declaration.type_parameters.size());
+    for (const std::string &alias :
+         imported_names(declaration.module_name, declaration.name)) {
+      enums.emplace(alias, &declaration);
+      class_arities.emplace(alias, enum_arity_marker +
+                                       declaration.type_parameters.size());
+    }
   }
   for (const ast::TraitDeclaration &declaration : program.traits) {
     const std::string identity = register_type_identity(
         declaration.module_name, declaration.name, declaration.location);
     traits.emplace(identity, &declaration);
+    for (const std::string &alias :
+         imported_names(declaration.module_name, declaration.name))
+      traits.emplace(alias, &declaration);
   }
   for (const ast::ClassDeclaration &declaration : program.classes) {
     const std::string identity = register_type_identity(
         declaration.module_name, declaration.name, declaration.location);
     classes.emplace(identity, &declaration);
     class_arities.emplace(identity, declaration.type_parameters.size());
+    for (const std::string &alias :
+         imported_names(declaration.module_name, declaration.name)) {
+      classes.emplace(alias, &declaration);
+      class_arities.emplace(alias, declaration.type_parameters.size());
+    }
   }
   for (const ast::EnumDeclaration &declaration : program.enums)
     if (type_name_counts.at(declaration.name) == 1) {
@@ -548,20 +616,36 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   struct TypeVisibility {
     bool is_private;
     std::optional<std::string> module;
+    std::string name;
   };
   std::unordered_map<std::string, TypeVisibility> type_visibility;
-  for (const ast::EnumDeclaration &declaration : program.enums)
+  for (const ast::EnumDeclaration &declaration : program.enums) {
+    const TypeVisibility visibility{declaration.is_private,
+                                    declaration.module_name, declaration.name};
     type_visibility.emplace(
-        global_key(declaration.module_name, declaration.name),
-        TypeVisibility{declaration.is_private, declaration.module_name});
-  for (const ast::TraitDeclaration &declaration : program.traits)
+        global_key(declaration.module_name, declaration.name), visibility);
+    for (const std::string &alias :
+         imported_names(declaration.module_name, declaration.name))
+      type_visibility.emplace(alias, visibility);
+  }
+  for (const ast::TraitDeclaration &declaration : program.traits) {
+    const TypeVisibility visibility{declaration.is_private,
+                                    declaration.module_name, declaration.name};
     type_visibility.emplace(
-        global_key(declaration.module_name, declaration.name),
-        TypeVisibility{declaration.is_private, declaration.module_name});
-  for (const ast::ClassDeclaration &declaration : program.classes)
+        global_key(declaration.module_name, declaration.name), visibility);
+    for (const std::string &alias :
+         imported_names(declaration.module_name, declaration.name))
+      type_visibility.emplace(alias, visibility);
+  }
+  for (const ast::ClassDeclaration &declaration : program.classes) {
+    const TypeVisibility visibility{declaration.is_private,
+                                    declaration.module_name, declaration.name};
     type_visibility.emplace(
-        global_key(declaration.module_name, declaration.name),
-        TypeVisibility{declaration.is_private, declaration.module_name});
+        global_key(declaration.module_name, declaration.name), visibility);
+    for (const std::string &alias :
+         imported_names(declaration.module_name, declaration.name))
+      type_visibility.emplace(alias, visibility);
+  }
   const auto check_type_visibility =
       [&](const auto &self, const ast::TypeReference &reference,
           const std::optional<std::string> &context_module) -> void {
@@ -580,10 +664,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           }
     }
     if (const auto visibility = type_visibility.find(identity);
-        visibility != type_visibility.end() && visibility->second.is_private &&
-        visibility->second.module != context_module)
-      throw CompileError{reference.location,
-                         "type '" + identity + "' is private"};
+        visibility != type_visibility.end()) {
+      if (visibility->second.is_private &&
+          visibility->second.module != context_module)
+        throw CompileError{reference.location,
+                           "type '" + identity + "' is private"};
+      if (!import_allows(context_module, visibility->second.module,
+                         visibility->second.name, reference.name))
+        throw CompileError{reference.location,
+                           "type '" + reference.name +
+                               "' is not imported in this module"};
+    }
     for (const ast::TypeReference &argument : reference.type_arguments)
       self(self, argument, context_module);
   };
@@ -1064,7 +1155,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                    "' requires an initializer"};
     Symbol symbol{type, declaration.is_mutable, true};
     result.globals.emplace(key, symbol);
-    globals.emplace(key, ResolvedGlobal{&global, std::move(symbol)});
+    globals.emplace(key, ResolvedGlobal{&global, symbol});
+    for (const std::string &alias :
+         imported_names(global.module_name, declaration.name)) {
+      if (!declaration.is_private)
+        public_globals.insert_or_assign(alias, key);
+      globals.emplace(alias, ResolvedGlobal{&global, symbol});
+      if (const std::size_t dot = alias.rfind('.'); dot != std::string::npos)
+        global_modules.insert(alias.substr(0, dot));
+    }
   }
 
   enum class ConstantState { Unvisited, Visiting, Complete };
@@ -1473,6 +1572,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       throw CompileError{function.location,
                          "function '" + identity + "' is already declared"};
     ++function_name_counts[function.name];
+    for (const std::string &alias :
+         imported_names(function.module_name, function.name))
+      functions.emplace(alias, &function);
   }
   std::unordered_set<std::string> ambiguous_functions;
   for (const ast::FunctionDeclaration &function : program.functions)
@@ -1917,7 +2019,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto exported = public_globals.find(std::string{name});
       if (exported == public_globals.end())
         return nullptr;
-      return &globals.at(exported->second).symbol;
+      const ResolvedGlobal &resolved = globals.at(exported->second);
+      if (!import_allows(context_module, resolved.declaration->module_name,
+                         resolved.declaration->declaration.name, name))
+        return nullptr;
+      return &resolved.symbol;
     };
     const std::unordered_set<std::string> *active_type_parameters =
         &type_parameters;
@@ -2122,115 +2228,126 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 "consume parameter '" + parameter.name +
                     "' requires an owning local or temporary, not a field"};
         };
-    const auto declared_call_type = [&](const ast::FunctionDeclaration &callee,
-                                        const std::vector<ast::TypeReference>
-                                            &type_arguments,
-                                        const std::vector<
-                                            std::unique_ptr<ast::Expression>>
-                                            &arguments,
-                                        SourceLocation location,
-                                        std::string_view display_name) {
-      if (type_arguments.size() != callee.type_parameters.size())
-        throw CompileError{
-            location, "function '" + std::string{display_name} + "' expects " +
-                          std::to_string(callee.type_parameters.size()) +
-                          " type argument(s), got " +
-                          std::to_string(type_arguments.size())};
-      if ((!callee.is_variadic &&
-           arguments.size() != callee.parameters.size()) ||
-          (callee.is_variadic && arguments.size() < callee.parameters.size()))
-        throw CompileError{
-            location, "function '" + std::string{display_name} + "' expects " +
-                          (callee.is_variadic ? "at least " : "") +
-                          std::to_string(callee.parameters.size()) +
-                          " argument(s), got " +
-                          std::to_string(arguments.size())};
+    const auto declared_call_type =
+        [&](const ast::FunctionDeclaration &callee,
+            const std::vector<ast::TypeReference> &type_arguments,
+            const std::vector<std::unique_ptr<ast::Expression>> &arguments,
+            SourceLocation location, std::string_view display_name) {
+          if (type_arguments.size() != callee.type_parameters.size())
+            throw CompileError{
+                location, "function '" + std::string{display_name} +
+                              "' expects " +
+                              std::to_string(callee.type_parameters.size()) +
+                              " type argument(s), got " +
+                              std::to_string(type_arguments.size())};
+          if ((!callee.is_variadic &&
+               arguments.size() != callee.parameters.size()) ||
+              (callee.is_variadic &&
+               arguments.size() < callee.parameters.size()))
+            throw CompileError{
+                location,
+                "function '" + std::string{display_name} + "' expects " +
+                    (callee.is_variadic ? "at least " : "") +
+                    std::to_string(callee.parameters.size()) +
+                    " argument(s), got " + std::to_string(arguments.size())};
 
-      std::unordered_map<std::string, SemanticType> substitutions;
-      for (std::size_t index = 0; index < type_arguments.size(); ++index)
-        substitutions.emplace(callee.type_parameters[index],
-                              resolve_type(type_arguments[index],
-                                           *active_type_parameters,
-                                           &class_arities));
-      const std::unordered_set<std::string> callee_parameters{
-          callee.type_parameters.begin(), callee.type_parameters.end()};
-      for (const ast::TypeConstraint &constraint : callee.type_constraints) {
-        const SemanticType &candidate = substitutions.at(constraint.parameter);
-        if (const auto kind = derivation_constraint(constraint.trait.name);
-            kind.has_value() && constraint.trait.type_arguments.empty()) {
-          const bool satisfies = *kind == ast::DerivationKind::Copy
-                                     ? satisfies_copy(candidate)
-                                     : supports_derivation(candidate, *kind);
-          if (!satisfies)
-            throw CompileError{location, "type '" + candidate.name() +
-                                             "' does not satisfy constraint '" +
-                                             constraint.trait.name +
-                                             "' for "
-                                             "type parameter '" +
-                                             constraint.parameter + "'"};
-          continue;
-        }
-        TraitInstance requirement =
-            resolve_trait(constraint.trait, callee_parameters);
-        for (SemanticType &argument : requirement.type_arguments)
-          argument = substitute(std::move(argument), substitutions);
-        if (!satisfies_active_trait(candidate, requirement))
-          throw CompileError{location, "type '" + candidate.name() +
-                                           "' does not satisfy constraint '" +
-                                           requirement.declaration->name +
-                                           "' for type parameter '" +
-                                           constraint.parameter + "'"};
-      }
-      for (std::size_t index = 0; index < arguments.size(); ++index) {
-        if (index >= callee.parameters.size()) {
-          const SemanticType argument_type = expression_type(*arguments[index]);
-          if (!is_c_variadic_type(argument_type))
-            throw CompileError{expression_location(*arguments[index]),
-                               "variadic C argument has incompatible type '" +
-                                   argument_type.name() + "'"};
-          if (callee.is_external &&
-              !is_borrowed_pointer_expression(*arguments[index]) &&
-              (argument_type.is_pointer() ||
-               potentially_owns_value(argument_type)))
-            emit_warning(DiagnosticCode::AnalyzerUnannotatedExternOwnership,
-                         expression_location(*arguments[index]),
-                         "external variadic call receives value of type '" +
-                             argument_type.name() +
-                             "' without a verifiable ownership contract",
-                         {"document whether native code borrows, retains, or "
-                          "releases this value"});
-          continue;
-        }
-        SemanticType expected = resolve_type(callee.parameters[index].type,
-                                             callee_parameters, &class_arities);
-        expected = substitute(std::move(expected), substitutions);
-        const bool observes_owned_enum =
-            index == 0 &&
-            ((callee.module_name == std::optional<std::string>{"std.option"} &&
-              (callee.name == "isSome" || callee.name == "isNone")) ||
-             (callee.module_name == std::optional<std::string>{"std.result"} &&
-              (callee.name == "isOk" || callee.name == "isError")));
-        const bool previous_contextual_borrow_expression =
-            contextual_borrow_expression;
-        const std::string_view previous_contextual_borrow_enum_name =
-            contextual_borrow_enum_name;
-        contextual_borrow_expression = observes_owned_enum;
-        contextual_borrow_enum_name =
-            callee.module_name == std::optional<std::string>{"std.option"}
-                ? "Option"
-                : "Result";
-        validate_expression(*arguments[index], expected,
-                            expression_location(*arguments[index]));
-        apply_external_ownership_contract(callee, callee.parameters[index],
-                                          *arguments[index], expected,
-                                          display_name);
-        contextual_borrow_expression = previous_contextual_borrow_expression;
-        contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
-      }
-      return substitute(
-          resolve_type(callee.return_type, callee_parameters, &class_arities),
-          substitutions);
-    };
+          std::unordered_map<std::string, SemanticType> substitutions;
+          for (std::size_t index = 0; index < type_arguments.size(); ++index)
+            substitutions.emplace(callee.type_parameters[index],
+                                  resolve_type(type_arguments[index],
+                                               *active_type_parameters,
+                                               &class_arities));
+          const std::unordered_set<std::string> callee_parameters{
+              callee.type_parameters.begin(), callee.type_parameters.end()};
+          for (const ast::TypeConstraint &constraint :
+               callee.type_constraints) {
+            const SemanticType &candidate =
+                substitutions.at(constraint.parameter);
+            if (const auto kind = derivation_constraint(constraint.trait.name);
+                kind.has_value() && constraint.trait.type_arguments.empty()) {
+              const bool satisfies =
+                  *kind == ast::DerivationKind::Copy
+                      ? satisfies_copy(candidate)
+                      : supports_derivation(candidate, *kind);
+              if (!satisfies)
+                throw CompileError{location,
+                                   "type '" + candidate.name() +
+                                       "' does not satisfy constraint '" +
+                                       constraint.trait.name +
+                                       "' for "
+                                       "type parameter '" +
+                                       constraint.parameter + "'"};
+              continue;
+            }
+            TraitInstance requirement =
+                resolve_trait(constraint.trait, callee_parameters);
+            for (SemanticType &argument : requirement.type_arguments)
+              argument = substitute(std::move(argument), substitutions);
+            if (!satisfies_active_trait(candidate, requirement))
+              throw CompileError{location,
+                                 "type '" + candidate.name() +
+                                     "' does not satisfy constraint '" +
+                                     requirement.declaration->name +
+                                     "' for type parameter '" +
+                                     constraint.parameter + "'"};
+          }
+          for (std::size_t index = 0; index < arguments.size(); ++index) {
+            if (index >= callee.parameters.size()) {
+              const SemanticType argument_type =
+                  expression_type(*arguments[index]);
+              if (!is_c_variadic_type(argument_type))
+                throw CompileError{
+                    expression_location(*arguments[index]),
+                    "variadic C argument has incompatible type '" +
+                        argument_type.name() + "'"};
+              if (callee.is_external &&
+                  !is_borrowed_pointer_expression(*arguments[index]) &&
+                  (argument_type.is_pointer() ||
+                   potentially_owns_value(argument_type)))
+                emit_warning(
+                    DiagnosticCode::AnalyzerUnannotatedExternOwnership,
+                    expression_location(*arguments[index]),
+                    "external variadic call receives value of type '" +
+                        argument_type.name() +
+                        "' without a verifiable ownership contract",
+                    {"document whether native code borrows, retains, or "
+                     "releases this value"});
+              continue;
+            }
+            SemanticType expected =
+                resolve_type(callee.parameters[index].type, callee_parameters,
+                             &class_arities);
+            expected = substitute(std::move(expected), substitutions);
+            const bool observes_owned_enum =
+                index == 0 &&
+                ((callee.module_name ==
+                      std::optional<std::string>{"std.option"} &&
+                  (callee.name == "isSome" || callee.name == "isNone")) ||
+                 (callee.module_name ==
+                      std::optional<std::string>{"std.result"} &&
+                  (callee.name == "isOk" || callee.name == "isError")));
+            const bool previous_contextual_borrow_expression =
+                contextual_borrow_expression;
+            const std::string_view previous_contextual_borrow_enum_name =
+                contextual_borrow_enum_name;
+            contextual_borrow_expression = observes_owned_enum;
+            contextual_borrow_enum_name =
+                callee.module_name == std::optional<std::string>{"std.option"}
+                    ? "Option"
+                    : "Result";
+            validate_expression(*arguments[index], expected,
+                                expression_location(*arguments[index]));
+            apply_external_ownership_contract(callee, callee.parameters[index],
+                                              *arguments[index], expected,
+                                              display_name);
+            contextual_borrow_expression =
+                previous_contextual_borrow_expression;
+            contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
+          }
+          return substitute(resolve_type(callee.return_type, callee_parameters,
+                                         &class_arities),
+                            substitutions);
+        };
     const auto class_substitutions =
         [](const ast::ClassDeclaration &class_declaration,
            const SemanticType &instance) {
@@ -2963,6 +3080,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     node.location,
                     "function '" + global_key(callee.module_name, callee.name) +
                         "' is private"};
+              if (!import_allows(context_module, callee.module_name,
+                                 callee.name, node.callee))
+                throw CompileError{node.location,
+                                   "function '" + node.callee +
+                                       "' is not imported in this module"};
               if (node.type_arguments.size() != callee.type_parameters.size()) {
                 throw CompileError{
                     node.location,
@@ -3370,6 +3492,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       function->second->module_name != context_module)
                     throw CompileError{node.location, "function '" + qualified +
                                                           "' is private"};
+                  if (!import_allows(context_module,
+                                     function->second->module_name,
+                                     function->second->name, qualified))
+                    throw CompileError{node.location,
+                                       "function '" + qualified +
+                                           "' is not imported in this module"};
                   return declared_call_type(*function->second,
                                             node.type_arguments, node.arguments,
                                             node.location, qualified);

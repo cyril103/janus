@@ -9,7 +9,9 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -47,8 +49,156 @@ int main() {
   const janus::ast::Program syntax = syntax_parser.parse_program();
   expect(syntax.module_name == "application.main",
          "module declarations use qualified names");
-  expect(syntax.imports.size() == 1 && syntax.imports.front() == "std.array",
+  expect(syntax.imports.size() == 1 &&
+             syntax.imports.front().module_name == "std.array",
          "imports retain their qualified module name");
+
+  janus::frontend::Parser extended_syntax_parser{
+      "import std.fs as fs\n"
+      "import std.result.{Result, Ok as Success}\n"
+      "def main() : int { return 0 }"};
+  const janus::ast::Program extended_syntax =
+      extended_syntax_parser.parse_program();
+  expect(extended_syntax.imports.size() == 2 &&
+             extended_syntax.imports[0].module_alias == "fs" &&
+             extended_syntax.imports[1].symbols.size() == 2 &&
+             extended_syntax.imports[1].symbols[1].alias == "Success",
+         "qualified, selective, and renamed imports retain their structure");
+
+  bool empty_selective_rejected = false;
+  try {
+    janus::frontend::Parser empty_import{
+        "import std.fs.{}\ndef main() : int { return 0 }"};
+    static_cast<void>(empty_import.parse_program());
+  } catch (const janus::CompileError &) {
+    empty_selective_rejected = true;
+  }
+  expect(empty_selective_rejected, "empty selective imports are rejected");
+
+  const std::filesystem::path import_root =
+      std::filesystem::temp_directory_path() /
+      ("janus-imports-" +
+       std::to_string(
+           std::chrono::steady_clock::now().time_since_epoch().count()));
+  std::filesystem::create_directories(import_root / "sample");
+  const auto write_source = [](const std::filesystem::path &path,
+                               std::string_view source) {
+    std::ofstream output{path, std::ios::binary};
+    output << source;
+  };
+  write_source(import_root / "sample" / "api.janus",
+               "module sample.api\n"
+               "def answer() : int { return 42 }\n"
+               "private def hidden() : int { return 0 }\n"
+               "struct Box[T](val value : T) {}\n"
+               "enum Status { Ready }\n");
+  write_source(import_root / "qualified.janus",
+               "import sample.api as api\n"
+               "def main() : int { return api.answer() }\n");
+  write_source(import_root / "selective.janus",
+               "import sample.api.{answer as selected}\n"
+               "def main() : int { return selected() }\n");
+  janus::frontend::ModuleLoader import_loader;
+  const janus::ast::Program aliased_import_program =
+      import_loader.load(import_root / "qualified.janus");
+  janus::semantic::Analyzer import_analyzer;
+  static_cast<void>(import_analyzer.analyze(aliased_import_program));
+  const janus::ast::Program selective_program =
+      import_loader.load(import_root / "selective.janus");
+  static_cast<void>(import_analyzer.analyze(selective_program));
+  {
+    llvm::LLVMContext alias_context;
+    janus::backend::llvm::IrGenerator alias_generator{alias_context};
+    static_cast<void>(
+        alias_generator.generate(selective_program, "selective_import"));
+  }
+  expect(true, "qualified and renamed function imports resolve canonically");
+
+  write_source(import_root / "not_injected.janus",
+               "import sample.api as api\n"
+               "def main() : int { return answer() }\n");
+  bool qualified_does_not_inject = false;
+  try {
+    static_cast<void>(import_analyzer.analyze(
+        import_loader.load(import_root / "not_injected.janus")));
+  } catch (const janus::CompileError &error) {
+    qualified_does_not_inject =
+        std::string{error.what()}.find("not imported") != std::string::npos;
+  }
+  expect(qualified_does_not_inject,
+         "a qualified import does not inject module symbols");
+
+  write_source(import_root / "private.janus",
+               "import sample.api.{hidden}\n"
+               "def main() : int { return 0 }\n");
+  bool private_selective_rejected = false;
+  try {
+    static_cast<void>(import_loader.load(import_root / "private.janus"));
+  } catch (const janus::CompileError &error) {
+    private_selective_rejected =
+        std::string{error.what()}.find("private") != std::string::npos;
+  }
+  expect(private_selective_rejected,
+         "selective imports reject private symbols precisely");
+
+  write_source(import_root / "qualified_types.janus",
+               "import sample.api as api\n"
+               "def main() : int {\n"
+               "    val box : api.Box[int] = new api.Box[int](42)\n"
+               "    val status : api.Status = api.Status.Ready\n"
+               "    return box.value\n"
+               "}\n");
+  write_source(import_root / "selective_types.janus",
+               "import sample.api.{Box as Crate, Status as State}\n"
+               "def main() : int {\n"
+               "    val box : Crate[int] = new Crate[int](42)\n"
+               "    val status : State = State.Ready\n"
+               "    return box.value\n"
+               "}\n");
+  for (const std::string_view source :
+       {"qualified_types.janus", "selective_types.janus"}) {
+    const janus::ast::Program imported_types =
+        import_loader.load(import_root / source);
+    static_cast<void>(import_analyzer.analyze(imported_types));
+    llvm::LLVMContext imported_type_context;
+    janus::backend::llvm::IrGenerator imported_type_generator{
+        imported_type_context};
+    static_cast<void>(
+        imported_type_generator.generate(imported_types, "imported_types"));
+  }
+  expect(true, "qualified and renamed generic classes and enums preserve "
+               "their canonical identity");
+
+  write_source(import_root / "missing.janus",
+               "import sample.api.{missing}\n"
+               "def main() : int { return 0 }\n");
+  bool missing_selective_rejected = false;
+  try {
+    static_cast<void>(import_loader.load(import_root / "missing.janus"));
+  } catch (const janus::CompileError &error) {
+    missing_selective_rejected =
+        std::string{error.what()}.find("does not exist") != std::string::npos;
+  }
+  expect(missing_selective_rejected,
+         "selective imports reject missing symbols precisely");
+
+  std::filesystem::create_directories(import_root / "other");
+  write_source(import_root / "other" / "api.janus",
+               "module other.api\ndef answer() : int { return 7 }\n");
+  write_source(import_root / "collision.janus",
+               "import sample.api.{answer}\n"
+               "import other.api.{answer}\n"
+               "def main() : int { return answer() }\n");
+  bool collision_rejected = false;
+  try {
+    static_cast<void>(import_loader.load(import_root / "collision.janus"));
+  } catch (const janus::CompileError &error) {
+    collision_rejected =
+        std::string{error.what()}.find("ambiguous") != std::string::npos;
+  }
+  expect(collision_rejected,
+         "distinct selective imports cannot silently collide");
+  std::filesystem::remove_all(import_root);
 
   janus::frontend::ModuleLoader loader{
       {std::filesystem::path{JANUS_STDLIB_DIR}}};
@@ -235,8 +385,7 @@ int main() {
          "for obtains an iterator directly from Iterable Array values");
   expect(ir.find("call void %action.code") != std::string::npos,
          "Array.foreach invokes Unit closures indirectly");
-  expect(ir.find("define i32 @main(i32 %argc, ptr %argv)") !=
-             std::string::npos,
+  expect(ir.find("define i32 @main(i32 %argc, ptr %argv)") != std::string::npos,
          "the merged program produces its entry point");
   expect_allocas_in_entry_blocks(*module);
 
@@ -307,8 +456,7 @@ int main() {
 
   const janus::ast::Program qualified_program =
       loader.load(std::filesystem::path{JANUS_QUALIFIED_ENTRY});
-  expect(qualified_program.classes.front().module_name ==
-             "qualified.library",
+  expect(qualified_program.classes.front().module_name == "qualified.library",
          "type declarations preserve their qualified module identity");
   static_cast<void>(analyzer.analyze(qualified_program));
   llvm::LLVMContext qualified_context;
@@ -321,8 +469,7 @@ int main() {
   qualified_output.flush();
   expect(qualified_ir.find("call i32 @answer()") != std::string::npos,
          "a function can be called through its qualified module name");
-  expect(qualified_ir.find("struct.qualified.library.Box") !=
-             std::string::npos,
+  expect(qualified_ir.find("struct.qualified.library.Box") != std::string::npos,
          "a class can be referenced and constructed by qualified name");
   expect(qualified_ir.find("enum.qualified.library.Choice__int") !=
                  std::string::npos &&
@@ -341,20 +488,18 @@ int main() {
   llvm::raw_string_ostream identity_output{identity_ir};
   identity_module->print(identity_output, nullptr);
   identity_output.flush();
-  expect(identity_ir.find("@identity_left__moduleValue") !=
-             std::string::npos &&
+  expect(identity_ir.find("@identity_left__moduleValue") != std::string::npos &&
              identity_ir.find("@identity_right__moduleValue") !=
                  std::string::npos,
          "same-named functions from distinct modules have distinct symbols");
-  expect(identity_ir.find("struct.identity.left.Marker") !=
-             std::string::npos &&
+  expect(identity_ir.find("struct.identity.left.Marker") != std::string::npos &&
              identity_ir.find("struct.identity.right.Marker") !=
                  std::string::npos,
          "same-named types from distinct modules retain distinct identities");
 
   try {
-    const janus::ast::Program ambiguous_program = loader.load(
-        std::filesystem::path{JANUS_IDENTITY_AMBIGUOUS_ENTRY});
+    const janus::ast::Program ambiguous_program =
+        loader.load(std::filesystem::path{JANUS_IDENTITY_AMBIGUOUS_ENTRY});
     static_cast<void>(analyzer.analyze(ambiguous_program));
     expect(false, "an ambiguous short type name must be rejected");
   } catch (const janus::CompileError &error) {
@@ -401,8 +546,8 @@ int main() {
            "private function access reports its qualified identity");
   }
   try {
-    const janus::ast::Program private_type_program = loader.load(
-        std::filesystem::path{JANUS_VISIBILITY_PRIVATE_TYPE_ENTRY});
+    const janus::ast::Program private_type_program =
+        loader.load(std::filesystem::path{JANUS_VISIBILITY_PRIVATE_TYPE_ENTRY});
     static_cast<void>(analyzer.analyze(private_type_program));
     expect(false, "a private imported type must be inaccessible");
   } catch (const janus::CompileError &error) {

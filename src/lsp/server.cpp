@@ -114,8 +114,7 @@ qualified_type_name(const std::vector<janus::frontend::Token> &document_tokens,
   return result;
 }
 
-std::string
-function_signature(const janus::ast::FunctionDeclaration &function);
+std::string function_signature(const janus::ast::FunctionDeclaration &function);
 
 std::vector<DocumentSymbol> symbols(std::string_view uri,
                                     std::string_view source) {
@@ -596,8 +595,47 @@ struct IndexedDocument {
   std::string uri;
   const janus::lsp::DocumentIndex *index;
   std::optional<std::string> module_name;
-  std::vector<std::string> imports;
+  std::vector<janus::ast::ImportDeclaration> imports;
 };
+
+bool imports_module(const IndexedDocument &document, std::string_view module) {
+  return std::any_of(document.imports.begin(), document.imports.end(),
+                     [&](const janus::ast::ImportDeclaration &import) {
+                       return import.module_name == module;
+                     });
+}
+
+bool qualifier_imports_module(const IndexedDocument &document,
+                              std::string_view qualifier,
+                              std::string_view module) {
+  return std::any_of(document.imports.begin(), document.imports.end(),
+                     [&](const janus::ast::ImportDeclaration &import) {
+                       return import.module_name == module &&
+                              (qualifier == module ||
+                               import.module_alias == qualifier);
+                     });
+}
+
+bool import_exposes(const IndexedDocument &document, std::string_view module,
+                    std::string_view symbol,
+                    const std::optional<std::string> &qualifier,
+                    std::string_view local_name) {
+  for (const janus::ast::ImportDeclaration &import : document.imports) {
+    if (import.module_name != module)
+      continue;
+    if (qualifier.has_value())
+      return (*qualifier == import.module_name ||
+              import.module_alias == qualifier) &&
+             symbol == local_name;
+    if (!import.is_qualified() && !import.is_selective() &&
+        symbol == local_name)
+      return true;
+    for (const janus::ast::ImportDeclaration::Symbol &item : import.symbols)
+      if (item.name == symbol && item.alias.value_or(item.name) == local_name)
+        return true;
+  }
+  return false;
+}
 
 struct SemanticIndex {
   std::vector<IndexedDocument> documents;
@@ -730,9 +768,9 @@ SemanticIndex build_semantic_index(
       continue;
     }
     const std::filesystem::path root = document_path->parent_path();
-    for (const std::string &import : program.imports) {
+    for (const janus::ast::ImportDeclaration &import : program.imports) {
       const std::optional<std::filesystem::path> imported =
-          resolve_import(import, root, search_paths);
+          resolve_import(import.module_name, root, search_paths);
       if (!imported.has_value())
         continue;
       const std::string uri = file_uri(*imported);
@@ -752,7 +790,7 @@ SemanticIndex build_semantic_index(
   for (std::string &uri : ordered_uris) {
     if (const auto cached = cache.find(uri); cached != cache.end()) {
       std::optional<std::string> module_name;
-      std::vector<std::string> imports;
+      std::vector<janus::ast::ImportDeclaration> imports;
       try {
         janus::frontend::Parser parser{cached->second.source};
         janus::ast::Program program = parser.parse_program();
@@ -1935,21 +1973,18 @@ std::vector<std::string> Server::handle(std::string_view message) {
       std::vector<std::pair<std::string, DocumentSymbol>> candidates;
       for (const IndexedDocument &candidate : semantic_index.documents) {
         bool visible_module = candidate.uri == origin.uri;
-        if (requested.qualifier.has_value()) {
-          visible_module =
-              candidate.module_name == requested.qualifier &&
-              (candidate.uri == origin.uri ||
-               std::find(origin.imports.begin(), origin.imports.end(),
-                         *requested.qualifier) != origin.imports.end());
-        } else if (!visible_module && candidate.module_name.has_value()) {
-          visible_module =
-              std::find(origin.imports.begin(), origin.imports.end(),
-                        *candidate.module_name) != origin.imports.end();
-        }
+        if (!visible_module && candidate.module_name.has_value())
+          visible_module = imports_module(origin, *candidate.module_name);
         if (!visible_module)
           continue;
         for (const DocumentSymbol &symbol : candidate.index->symbols) {
-          if (!symbol.is_top_level || symbol.name != requested.name ||
+          const bool exposed =
+              candidate.uri == origin.uri ||
+              !candidate.module_name.has_value() ||
+              import_exposes(origin, *candidate.module_name, symbol.name,
+                             requested.qualifier, requested.name);
+          if (!exposed || !symbol.is_top_level ||
+              (candidate.uri == origin.uri && symbol.name != requested.name) ||
               (symbol.is_private && candidate.uri != origin.uri))
             continue;
           candidates.emplace_back(candidate.uri, symbol);
@@ -2046,19 +2081,13 @@ std::vector<std::string> Server::handle(std::string_view message) {
           for (const IndexedDocument &indexed : semantic_index.documents) {
             bool visible = indexed.uri == *uri;
             if (receiver_module) {
-              visible =
-                  indexed.module_name == receiver_module &&
-                  (indexed.uri == *uri ||
-                   std::find(semantic_index.documents.front().imports.begin(),
-                             semantic_index.documents.front().imports.end(),
-                             *receiver_module) !=
-                       semantic_index.documents.front().imports.end());
+              visible = indexed.module_name == receiver_module &&
+                        (indexed.uri == *uri ||
+                         imports_module(semantic_index.documents.front(),
+                                        *receiver_module));
             } else if (!visible && indexed.module_name) {
-              visible =
-                  std::find(semantic_index.documents.front().imports.begin(),
-                            semantic_index.documents.front().imports.end(),
-                            *indexed.module_name) !=
-                  semantic_index.documents.front().imports.end();
+              visible = imports_module(semantic_index.documents.front(),
+                                       *indexed.module_name);
             }
             if (!visible)
               continue;
@@ -2189,6 +2218,48 @@ std::vector<std::string> Server::handle(std::string_view message) {
       if (!target.has_value())
         return {error_response(request_id(*request), -32602,
                                "No symbol can be renamed here")};
+      const IndexedDocument &active_document = semantic_index.documents.front();
+      bool explicit_local_alias = false;
+      for (const ast::ImportDeclaration &import : active_document.imports)
+        for (const ast::ImportDeclaration::Symbol &symbol : import.symbols)
+          if (symbol.alias == identifier->name)
+            explicit_local_alias = true;
+      if (explicit_local_alias) {
+        const std::string new_name = requested_name->str();
+        for (const DocumentSymbol &symbol : active_document.index->symbols)
+          if (symbol.name == new_name)
+            return {error_response(request_id(*request), -32602,
+                                   "Rename would collide with a local symbol")};
+        llvm::json::Array alias_edits;
+        const std::vector<frontend::Token> document_tokens =
+            tokens(active_document.index->source);
+        for (std::size_t token_index = 0; token_index < document_tokens.size();
+             ++token_index) {
+          const frontend::Token &token = document_tokens[token_index];
+          if (token.kind != frontend::TokenKind::Identifier ||
+              token.lexeme != identifier->name)
+            continue;
+          const bool declaration =
+              token_index != 0 &&
+              document_tokens[token_index - 1].kind == frontend::TokenKind::As;
+          const auto bound =
+              bind_symbol(active_document,
+                          located_identifier(document_tokens, token_index));
+          if (!declaration &&
+              (!bound.has_value() || bound->second.id != target->second.id))
+            continue;
+          alias_edits.emplace_back(llvm::json::Object{
+              {"range", range(active_document.index->source, token.location,
+                              token.lexeme.size())},
+              {"newText", new_name},
+          });
+        }
+        return {response(
+            request_id(*request),
+            llvm::json::Object{
+                {"changes", llvm::json::Object{{active_document.uri,
+                                                std::move(alias_edits)}}}})};
+      }
       if (target->second.name == *requested_name)
         return {
             response(request_id(*request),
@@ -2249,18 +2320,13 @@ std::vector<std::string> Server::handle(std::string_view message) {
              semantic_index.documents) {
           bool visible = candidate_document.uri == occurrence.document->uri;
           if (occurrence.identifier.qualifier) {
-            visible =
-                candidate_document.module_name ==
-                    occurrence.identifier.qualifier &&
-                (visible || std::find(occurrence.document->imports.begin(),
-                                      occurrence.document->imports.end(),
-                                      *occurrence.identifier.qualifier) !=
-                                occurrence.document->imports.end());
+            visible = candidate_document.module_name.has_value() &&
+                      qualifier_imports_module(*occurrence.document,
+                                               *occurrence.identifier.qualifier,
+                                               *candidate_document.module_name);
           } else if (!visible && candidate_document.module_name) {
-            visible = std::find(occurrence.document->imports.begin(),
-                                occurrence.document->imports.end(),
-                                *candidate_document.module_name) !=
-                      occurrence.document->imports.end();
+            visible = imports_module(*occurrence.document,
+                                     *candidate_document.module_name);
           }
           if (!visible)
             continue;
@@ -2321,6 +2387,15 @@ std::vector<std::string> Server::handle(std::string_view message) {
         if (const auto located = locate_symbol(*identifier)) {
           const DocumentSymbol &symbol = located->second;
           std::string detail = symbol.detail;
+          if ((identifier->name != symbol.name || identifier->qualifier) &&
+              symbol.module_name.has_value()) {
+            const std::string local =
+                identifier->qualifier.has_value()
+                    ? *identifier->qualifier + "." + identifier->name
+                    : identifier->name;
+            detail = local + " (alias of " + *symbol.module_name + "." +
+                     symbol.name + ")\n" + detail;
+          }
           if (symbol.is_global && symbol.module_name.has_value())
             detail += "\n\nmodule `" + *symbol.module_name + "`";
           return {response(
@@ -2417,11 +2492,26 @@ std::vector<std::string> Server::handle(std::string_view message) {
       bool module_member_context = false;
       if (member_qualifier.has_value()) {
         for (const IndexedDocument &candidate : semantic_index.documents) {
+          const bool matching_module =
+              candidate.module_name.has_value() &&
+              (*candidate.module_name == *member_qualifier ||
+               qualifier_imports_module(semantic_index.documents.front(),
+                                        *member_qualifier,
+                                        *candidate.module_name));
+          if (!matching_module)
+            continue;
           for (const DocumentSymbol &symbol : candidate.index->symbols) {
-            if (symbol.is_global && !symbol.is_private &&
-                symbol.module_name == member_qualifier) {
+            if (symbol.is_top_level && !symbol.is_private &&
+                symbol.module_name == candidate.module_name) {
               module_member_context = true;
-              add_item(symbol.name, symbol.detail, 6);
+              const std::int64_t kind =
+                  symbol.detail.starts_with("def ") ? 3
+                  : symbol.detail.starts_with("class ") ||
+                          symbol.detail.starts_with("trait ") ||
+                          symbol.detail.starts_with("enum ")
+                      ? 7
+                      : 6;
+              add_item(symbol.name, symbol.detail, kind);
             }
           }
         }
@@ -2462,10 +2552,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                             "bool", "string", "unit", "usize"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
-             {"val",    "var",    "def",  "class",  "struct",  "trait",
-              "enum",   "new",    "move", "borrow", "consume", "owned", "derives",
-              "delete", "defer",  "if",   "else",   "match",   "for",
-              "while",  "return", "true", "false"})
+             {"val",     "var",    "def",    "class",  "struct",  "trait",
+              "enum",    "new",    "move",   "borrow", "consume", "owned",
+              "derives", "delete", "defer",  "if",     "else",    "match",
+              "for",     "while",  "return", "true",   "false"})
           add_item(std::string{keyword}, "Janus keyword", 14);
       }
       return {response(request_id(*request),

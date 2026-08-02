@@ -9,6 +9,7 @@
 #include <iterator>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 
 namespace janus::frontend {
 
@@ -21,6 +22,65 @@ CompileError with_source_path(const CompileError &error,
     if (diagnostic.source_path.empty())
       diagnostic.source_path = path;
   return CompileError{std::move(diagnostics)};
+}
+
+template <typename Declaration>
+bool declares_public_symbol(const std::vector<Declaration> &declarations,
+                            std::string_view module, std::string_view name) {
+  return std::any_of(declarations.begin(), declarations.end(),
+                     [&](const Declaration &declaration) {
+                       return declaration.module_name == module &&
+                              declaration.name == name &&
+                              !declaration.is_private;
+                     });
+}
+
+bool declares_public_symbol(const ast::Program &program,
+                            std::string_view module, std::string_view name) {
+  if (declares_public_symbol(program.functions, module, name) ||
+      declares_public_symbol(program.classes, module, name) ||
+      declares_public_symbol(program.traits, module, name) ||
+      declares_public_symbol(program.enums, module, name))
+    return true;
+  return std::any_of(program.globals.begin(), program.globals.end(),
+                     [&](const ast::GlobalDeclaration &global) {
+                       return global.module_name == module &&
+                              global.declaration.name == name &&
+                              !global.declaration.is_private;
+                     });
+}
+
+bool declares_private_symbol(const ast::Program &program,
+                             std::string_view module, std::string_view name) {
+  const auto private_declaration = [&](const auto &declarations) {
+    return std::any_of(
+        declarations.begin(), declarations.end(), [&](const auto &declaration) {
+          return declaration.module_name == module &&
+                 declaration.name == name && declaration.is_private;
+        });
+  };
+  if (private_declaration(program.functions) ||
+      private_declaration(program.classes) ||
+      private_declaration(program.traits) || private_declaration(program.enums))
+    return true;
+  return std::any_of(program.globals.begin(), program.globals.end(),
+                     [&](const ast::GlobalDeclaration &global) {
+                       return global.module_name == module &&
+                              global.declaration.name == name &&
+                              global.declaration.is_private;
+                     });
+}
+
+void reserve_import_name(std::unordered_map<std::string, std::string> &names,
+                         std::string local_name, std::string origin,
+                         SourceLocation location) {
+  const auto [existing, inserted] =
+      names.emplace(std::move(local_name), std::move(origin));
+  if (!inserted && existing->second != origin)
+    throw CompileError{location, "import name '" + existing->first +
+                                     "' is ambiguous between '" +
+                                     existing->second + "' and '" + origin +
+                                     "'; qualify or rename one import"};
 }
 
 } // namespace
@@ -104,13 +164,51 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
     }};
 
   ast::Program result;
-  for (const std::string &import : parsed.imports) {
+  std::unordered_map<std::string, std::string> imported_names;
+  const auto reserve_local = [&](std::string_view name,
+                                 SourceLocation location) {
+    reserve_import_name(imported_names, std::string{name}, "local declaration",
+                        location);
+  };
+  for (const ast::FunctionDeclaration &declaration : parsed.functions)
+    reserve_local(declaration.name, declaration.location);
+  for (const ast::ClassDeclaration &declaration : parsed.classes)
+    reserve_local(declaration.name, declaration.location);
+  for (const ast::TraitDeclaration &declaration : parsed.traits)
+    reserve_local(declaration.name, declaration.location);
+  for (const ast::EnumDeclaration &declaration : parsed.enums)
+    reserve_local(declaration.name, declaration.location);
+  for (const ast::GlobalDeclaration &global : parsed.globals)
+    reserve_local(global.declaration.name, global.declaration.location);
+  for (const ast::ImportDeclaration &import : parsed.imports) {
     ast::Program dependency;
     try {
-      dependency = load_file(resolve_import(import, project_root), project_root,
-                             &import, nullptr, timings);
+      dependency =
+          load_file(resolve_import(import.module_name, project_root),
+                    project_root, &import.module_name, nullptr, timings);
     } catch (const CompileError &error) {
       throw with_source_path(error, normalized);
+    }
+    if (import.module_alias.has_value())
+      reserve_import_name(imported_names, *import.module_alias,
+                          import.module_name, import.location);
+    for (const ast::ImportDeclaration::Symbol &symbol : import.symbols) {
+      if (!declares_public_symbol(dependency, import.module_name,
+                                  symbol.name) &&
+          !declares_public_symbol(result, import.module_name, symbol.name)) {
+        const std::string reason =
+            (declares_private_symbol(dependency, import.module_name,
+                                     symbol.name) ||
+             declares_private_symbol(result, import.module_name, symbol.name))
+                ? " is private"
+                : " does not exist";
+        throw CompileError{symbol.location, "symbol '" + import.module_name +
+                                                "." + symbol.name + "'" +
+                                                reason};
+      }
+      reserve_import_name(imported_names, symbol.alias.value_or(symbol.name),
+                          import.module_name + "." + symbol.name,
+                          symbol.location);
     }
     for (ast::GlobalDeclaration &global : dependency.globals)
       result.globals.push_back(std::move(global));
@@ -122,6 +220,8 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
       result.classes.push_back(std::move(class_declaration));
     for (ast::FunctionDeclaration &function : dependency.functions)
       result.functions.push_back(std::move(function));
+    for (ast::ImportDeclaration &dependency_import : dependency.imports)
+      result.imports.push_back(std::move(dependency_import));
   }
   for (ast::GlobalDeclaration &global : parsed.globals)
     result.globals.push_back(std::move(global));
@@ -135,6 +235,8 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
     result.functions.push_back(std::move(function));
   result.module_name = std::move(parsed.module_name);
   result.documentation = std::move(parsed.documentation);
+  for (ast::ImportDeclaration &import : parsed.imports)
+    result.imports.push_back(std::move(import));
   return result;
 }
 

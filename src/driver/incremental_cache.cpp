@@ -381,10 +381,10 @@ void inspect_dependency(const std::filesystem::path &path,
   const std::string source = read_file(normalized);
   frontend::Parser parser{source};
   const ast::Program program = parser.parse_program();
-  for (const std::string &import : program.imports)
-    inspect_dependency(resolve_import(import, project_root, search_paths),
-                       import, project_root, search_paths, visited,
-                       dependencies);
+  for (const ast::ImportDeclaration &import : program.imports)
+    inspect_dependency(
+        resolve_import(import.module_name, project_root, search_paths),
+        import.module_name, project_root, search_paths, visited, dependencies);
   dependencies.push_back(
       {program.module_name.value_or(normalized.generic_string()),
        stable_digest(public_interface(source)), stable_digest(source), source,
@@ -692,10 +692,11 @@ inspect_build_inputs(const std::filesystem::path &entry,
   const ast::Program program = parser.parse_program();
   std::vector<std::filesystem::path> visited{normalized};
   std::vector<DependencyFingerprintInput> dependencies;
-  for (const std::string &import : program.imports)
-    inspect_dependency(
-        resolve_import(import, normalized.parent_path(), search_paths), import,
-        normalized.parent_path(), search_paths, visited, dependencies);
+  for (const ast::ImportDeclaration &import : program.imports)
+    inspect_dependency(resolve_import(import.module_name,
+                                      normalized.parent_path(), search_paths),
+                       import.module_name, normalized.parent_path(),
+                       search_paths, visited, dependencies);
   std::sort(dependencies.begin(), dependencies.end(),
             [](const auto &left, const auto &right) {
               return left.name < right.name;
