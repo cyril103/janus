@@ -18,18 +18,18 @@ import std.result
 import std.system
 
 private extern def janus_io_open(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize,
 mode : int
 ) : isize
 private extern def janus_io_read(
 handle : isize,
-data : Ptr[byte],
+borrow data : Ptr[byte],
 capacity : usize
 ) : isize
 private extern def janus_io_write(
 handle : isize,
-data : Ptr[byte],
+borrow data : Ptr[byte],
 offset : usize,
 size : usize
 ) : isize
@@ -37,7 +37,7 @@ private extern def janus_io_close(handle : isize) : int
 private extern def janus_io_flush(handle : isize) : int
 private extern def janus_io_standard_handle(stream : int) : isize
 private extern def janus_io_valid_utf8(
-data : Ptr[byte],
+borrow data : Ptr[byte],
 size : usize
 ) : int
 private extern def janus_io_last_error_code() : uint
@@ -116,11 +116,12 @@ class ByteBuffer(initialCapacity : usize) {
             next = grown
         }
         val resized : Ptr[byte] =
-        realloc[byte](nativeData, next)
+        reallocPreserving[byte](nativeData, next)
         if resized == null[byte]() {
+            free(resized)
             return false
         }
-        nativeData = resized
+        nativeData = adoptReallocation[byte](nativeData, resized)
         allocated = next
         return true
     }
@@ -172,7 +173,7 @@ class ByteBuffer(initialCapacity : usize) {
         if !this.ensure(count) {
             return false
         }
-        val readable : Ptr[byte] =
+        borrow val readable : Ptr[byte] =
         if aliasesBuffer { nativeData } else { source }
         var index : usize = usize(0)
         while index < count {
@@ -239,31 +240,53 @@ class ByteBuffer(initialCapacity : usize) {
     }
 }
 
-private class LineBufferState() {
-    private var line : ByteBuffer =
-    new ByteBuffer(usize(128))
-    private var available : bool = true
+private class LineBufferState(private var line : Option[ByteBuffer]) {
+    private def takeLine() : Option[ByteBuffer] {
+        val previous : Option[ByteBuffer] = move line
+        line = Option.None[ByteBuffer]()
+        return move previous
+    }
+
+    private def inspectLine(buffer : ByteBuffer) : bool {
+        val result : bool = buffer.isEmpty()
+        delete line
+        line = Option.Some[ByteBuffer](move buffer)
+        return result
+    }
+
+    private def appendToLine(buffer : ByteBuffer, value : byte) : bool {
+        val result : bool = buffer.appendByte(value)
+        delete line
+        line = Option.Some[ByteBuffer](move buffer)
+        return result
+    }
 
     def isEmpty() : bool {
-        return line.isEmpty()
+        val previous : Option[ByteBuffer] = this.takeLine()
+        return match move previous {
+            Some(buffer) => this.inspectLine(move buffer),
+            None => true
+        }
     }
 
     def appendByte(value : byte) : bool {
-        return line.appendByte(value)
+        val previous : Option[ByteBuffer] = this.takeLine()
+        return match move previous {
+            Some(buffer) => this.appendToLine(move buffer, value),
+            None => false
+        }
     }
 
     def some(
     ) : Result[Option[ByteBuffer], SystemError] {
-        available = false
         return Result.Ok[Option[ByteBuffer], SystemError](
-        Option.Some[ByteBuffer](move line)
+        this.takeLine()
         )
     }
 
     def none(
     ) : Result[Option[ByteBuffer], SystemError] {
-        available = false
-        delete line
+        delete this.takeLine()
         return Result.Ok[Option[ByteBuffer], SystemError](
         Option.None[ByteBuffer]()
         )
@@ -272,17 +295,14 @@ private class LineBufferState() {
     def fail(
     error : SystemError
     ) : Result[Option[ByteBuffer], SystemError] {
-        available = false
-        delete line
+        delete this.takeLine()
         return Result.Error[Option[ByteBuffer], SystemError](
         error
         )
     }
 
     destructor {
-        if available {
-            delete line
-        }
+        delete line
     }
 }
 
@@ -412,7 +432,9 @@ private val requestedCapacity : usize
             )
         }
         val state : LineBufferState =
-        new LineBufferState()
+        new LineBufferState(
+        Option.Some[ByteBuffer](new ByteBuffer(usize(128)))
+        )
         defer delete state
         while true {
             if bufferOffset >= bufferSize {
@@ -822,12 +844,12 @@ input : InputStream,
 output : OutputStream
 ) : Result[usize, SystemError] {
     val scratch : Ptr[byte] = alloc[byte](usize(4096))
+    defer free(scratch)
     if scratch == null[byte]() {
         return Result.Error[usize, SystemError](
         memoryIoError("io.copy", "stream")
         )
     }
-    defer free(scratch)
     var total : usize = usize(0)
     while true {
         val read : IoCopyStep = copyStep(

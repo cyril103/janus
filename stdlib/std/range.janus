@@ -39,6 +39,6 @@ def range(start : int, end : int) : Iterator[int] {
     val state : Range = new Range(start, end)
     return new Iterator[int](
     () => state.next(),
-    () => state.dispose()
+    owningCapture[Range](state, () => state.dispose())
     )
 }

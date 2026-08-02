@@ -804,6 +804,25 @@ un paramètre `consume`. Sans contrat sur un retour `Ptr[T]`, le compilateur
 émet `JANA0022`. Les qualificateurs de retour sont limités aux déclarations
 `extern def` et aux types `Ptr[T]`.
 
+Un alias pointeur local peut être déclaré sans transfert de propriété avec
+`borrow val view : Ptr[byte] = owner`. Il est immutable et ne peut être ni
+libéré ni déplacé. Une classe peut de même conserver une référence observante
+dans un champ de constructeur immutable, par exemple
+`private borrow val source : Collection`; ce champ n'est pas détruit avec la
+classe et sa source doit donc vivre plus longtemps. Les structs ne peuvent pas
+contenir de champ emprunté.
+
+Le code de conteneur bas niveau dispose de contrats explicites supplémentaires :
+la méthode Ptr.initialize écrit un emplacement neuf, et Ptr.overwrite remplace un
+emplacement dont l'ancienne propriété a déjà été extraite,
+`reallocPreserving[T]` déplace le stockage brut sans nettoyer ses éléments,
+`adoptReallocation[T]` valide le remplacement après contrôle du résultat et
+`freeStorage` libère une zone dont tous les éléments ont déjà été déplacés ou
+détruits. `owningCapture[T]` transfère enfin un propriétaire à une fermeture
+qui doit effectivement le capturer. Ces opérations suppriment uniquement les
+warnings correspondant au contrat affirmé; leur précondition reste à la charge
+du code appelant.
+
 Ces opérations peuvent produire des adresses invalides, des fuites ou des
 accès mémoire incorrects. Elles sont volontairement réservées au code qui doit
 contrôler précisément sa représentation et sa mémoire.

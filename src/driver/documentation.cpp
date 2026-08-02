@@ -17,8 +17,8 @@
 #include <utility>
 
 #ifdef _WIN32
-#include <windows.h>
 #include <shellapi.h>
+#include <windows.h>
 #else
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -89,8 +89,7 @@ StructuredDocumentation parse_documentation(std::string_view source) {
     if (reading_example) {
       if (!inside_example_fence &&
           (stripped.rfind("@param", 0) == 0 ||
-           stripped.rfind("@return", 0) == 0 ||
-           stripped == "@example")) {
+           stripped.rfind("@return", 0) == 0 || stripped == "@example")) {
         result.examples.push_back(trim(example));
         example.clear();
         reading_example = false;
@@ -108,8 +107,7 @@ StructuredDocumentation parse_documentation(std::string_view source) {
       continue;
     }
     if (stripped.rfind("@param", 0) == 0 &&
-        (stripped.size() == 6 || stripped[6] == ' ' ||
-         stripped[6] == '\t')) {
+        (stripped.size() == 6 || stripped[6] == ' ' || stripped[6] == '\t')) {
       const std::string body = trim(std::string_view{stripped}.substr(6));
       const std::size_t separator = body.find_first_of(" \t");
       const std::string name = body.substr(0, separator);
@@ -127,11 +125,9 @@ StructuredDocumentation parse_documentation(std::string_view source) {
       continue;
     }
     if (stripped.rfind("@return", 0) == 0 &&
-        (stripped.size() == 7 || stripped[7] == ' ' ||
-         stripped[7] == '\t')) {
+        (stripped.size() == 7 || stripped[7] == ' ' || stripped[7] == '\t')) {
       result.has_return = true;
-      result.return_description =
-          trim(std::string_view{stripped}.substr(7));
+      result.return_description = trim(std::string_view{stripped}.substr(7));
       continue;
     }
     prose.push_back(line);
@@ -144,8 +140,8 @@ StructuredDocumentation parse_documentation(std::string_view source) {
     const std::size_t first_newline = value.find('\n');
     const std::size_t closing = value.rfind("```");
     if (first_newline != std::string::npos && closing > first_newline)
-      value = trim(std::string_view{value}.substr(
-          first_newline + 1, closing - first_newline - 1));
+      value = trim(std::string_view{value}.substr(first_newline + 1,
+                                                  closing - first_newline - 1));
   }
 
   std::vector<std::string> paragraphs;
@@ -310,7 +306,8 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
 }
 
 std::string value_signature(const janus::ast::ValueDeclaration &value) {
-  return std::string{value.is_mutable ? "var " : "val "} + value.name + " : " +
+  return std::string{value.is_borrowed ? "borrow " : ""} +
+         std::string{value.is_mutable ? "var " : "val "} + value.name + " : " +
          type_name(value.declared_type);
 }
 
@@ -338,6 +335,8 @@ std::string type_signature(const janus::ast::ClassDeclaration &value) {
     if (!first_parameter)
       signature += ", ";
     first_parameter = false;
+    if (field.is_borrowed)
+      signature += "borrow ";
     signature += std::string{field.is_mutable ? "var " : "val "} + field.name +
                  " : " + type_name(field.declared_type);
   }
@@ -382,17 +381,15 @@ void add_symbol(std::vector<Symbol> &symbols, std::string module,
       parent.empty() ? module + '.' + name : parent + '.' + name;
   StructuredDocumentation structured = parse_documentation(documentation);
   for (DocumentedParameter &parameter : parameters) {
-    const auto found =
-        structured.parameter_descriptions.find(parameter.name);
+    const auto found = structured.parameter_descriptions.find(parameter.name);
     if (found != structured.parameter_descriptions.end())
       parameter.description = found->second;
   }
-  symbols.push_back(
-      Symbol{std::move(module), std::move(name), qualified, std::move(kind),
-             std::move(signature), std::move(documentation),
-             std::move(structured), std::move(parameters),
-             std::move(return_type), is_function, anchor_for(qualified),
-             std::move(parent)});
+  symbols.push_back(Symbol{
+      std::move(module), std::move(name), qualified, std::move(kind),
+      std::move(signature), std::move(documentation), std::move(structured),
+      std::move(parameters), std::move(return_type), is_function,
+      anchor_for(qualified), std::move(parent)});
 }
 
 std::vector<DocumentedParameter>
@@ -468,7 +465,8 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
       if (type.is_private)
         continue;
       const std::string parent = module + '.' + type.name;
-      std::vector<DocumentedParameter> parameters = constructor_parameters(type);
+      std::vector<DocumentedParameter> parameters =
+          constructor_parameters(type);
       const bool has_constructor_parameters = !parameters.empty();
       add_symbol(symbols, module, type.name,
                  type.is_value_type ? "struct" : "class", type_signature(type),
@@ -653,8 +651,7 @@ namespace janus::driver {
 
 DocumentationReport
 generate_documentation(const std::vector<ast::Program> &programs,
-                      const DocumentationOptions &options,
-                      bool strict_links) {
+                       const DocumentationOptions &options, bool strict_links) {
   if (options.package_name.empty())
     throw std::runtime_error{"documentation package name cannot be empty"};
   if (options.output_directory.empty())
@@ -683,9 +680,9 @@ generate_documentation(const std::vector<ast::Program> &programs,
     links[symbol.qualified_name].push_back(symbol.anchor);
     if (!symbol.parent.empty()) {
       const auto last = symbol.parent.find_last_of('.');
-      const std::string local_parent =
-          last == std::string::npos ? symbol.parent
-                                   : symbol.parent.substr(last + 1);
+      const std::string local_parent = last == std::string::npos
+                                           ? symbol.parent
+                                           : symbol.parent.substr(last + 1);
       links[local_parent + "." + symbol.name].push_back(symbol.anchor);
     }
   }
@@ -733,18 +730,20 @@ generate_documentation(const std::vector<ast::Program> &programs,
     if (!symbol.return_type.empty() && !is_unit_or_void(symbol.return_type) &&
         (!symbol.structured.has_return ||
          symbol.structured.return_description.empty()))
-      report.diagnostics.push_back(
-          {"missing-return", symbol.qualified_name, {},
-           "non-unit return type '" + symbol.return_type +
-               "' requires an @return description"});
+      report.diagnostics.push_back({"missing-return",
+                                    symbol.qualified_name,
+                                    {},
+                                    "non-unit return type '" +
+                                        symbol.return_type +
+                                        "' requires an @return description"});
   }
   std::sort(report.diagnostics.begin(), report.diagnostics.end(),
             [](const DocumentationDiagnostic &left,
                const DocumentationDiagnostic &right) {
               return std::tie(left.symbol, left.code, left.parameter,
-                              left.message) <
-                     std::tie(right.symbol, right.code, right.parameter,
-                              right.message);
+                              left.message) < std::tie(right.symbol, right.code,
+                                                       right.parameter,
+                                                       right.message);
             });
 
   std::ostringstream html;
@@ -756,8 +755,7 @@ generate_documentation(const std::vector<ast::Program> &programs,
 <meta name="color-scheme" content="light">
 <title>)"
        << html_escape(options.package_name) << ' '
-       << html_escape(options.package_version)
-       << R"( API</title>
+       << html_escape(options.package_version) << R"( API</title>
 <style>
 :root{--ink:#173c50;--ink-strong:#102f40;--top:#123f54;--top-soft:#315d70;--paper:#edf1f3;--panel:#fff;--line:#d9e1e5;--signature:#c8d8e1;--accent:#087b51;--accent-bright:#62e6a7;--flare:#d95c36;--muted:#617784;--shadow:0 2px 9px rgba(16,47,64,.12);--mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;--sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:5.5rem}body{margin:0;background:var(--paper);color:var(--ink);font:13px/1.55 var(--sans)}a{color:#285d7c;text-decoration:underline;text-decoration-thickness:.06em;text-underline-offset:.14em}a:hover{color:var(--accent)}a:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid rgba(98,230,167,.68);outline-offset:2px}code{font-family:var(--mono)}
@@ -775,7 +773,8 @@ generate_documentation(const std::vector<ast::Program> &programs,
 <body>
 <header class="topbar">
 <div class="brand"><strong>)"
-       << html_escape(options.package_name) << R"(</strong><span class="version">)"
+       << html_escape(options.package_name)
+       << R"(</strong><span class="version">)"
        << html_escape(options.package_version) << R"(</span></div>
 <label class="search"><span class="sr-only" hidden>Search the API</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 3a6.5 6.5 0 1 0 4.1 11.55L19.05 20 20.5 18.55l-5.45-5.45A6.5 6.5 0 0 0 9.5 3Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"/></svg><input id="api-search" type="search" autocomplete="off" placeholder="Search modules, symbols and signatures" aria-controls="api-content"></label>
 <div id="search-status" class="search-status" aria-live="polite"></div><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="module-sidebar">Modules</button>
@@ -783,19 +782,20 @@ generate_documentation(const std::vector<ast::Program> &programs,
 <div class="doc-layout">
 <main id="api-content" class="content">
 <header class="hero"><span class="hero-mark" aria-hidden="true">J</span><div><h1>)"
-       << html_escape(options.package_name) << R"( API</h1><p>Offline reference · version )"
+       << html_escape(options.package_name)
+       << R"( API</h1><p>Offline reference · version )"
        << html_escape(options.package_version) << R"(</p></div></header>
 <div id="empty-state" class="empty-state"><strong>No API entries match this search.</strong><br>Try a module name, symbol or type.</div>
 )";
   for (const auto &[module, documentation] : module_documentation) {
     const std::size_t member_count = static_cast<std::size_t>(std::count_if(
-        symbols.begin(), symbols.end(), [&](const Symbol &symbol) {
-          return symbol.module == module;
-        }));
+        symbols.begin(), symbols.end(),
+        [&](const Symbol &symbol) { return symbol.module == module; }));
     html << "<section class=\"module\" id=\"module-" << anchor_for(module)
          << "\" data-module data-search=\""
          << html_escape(module + " " + documentation) << "\">\n"
-         << "<header class=\"module-heading\"><span class=\"keyword\">module</span> "
+         << "<header class=\"module-heading\"><span "
+            "class=\"keyword\">module</span> "
          << "<h2>" << html_escape(module) << "</h2></header>\n"
          << "<div class=\"module-summary\">";
     const StructuredDocumentation &module_doc = structured_modules.at(module);
@@ -810,7 +810,7 @@ generate_documentation(const std::vector<ast::Program> &programs,
         html << "<p>"
              << render_documentation(paragraph, module, links,
                                      report.unresolved_links, strict_links)
-                                     << "</p>";
+             << "</p>";
       html << "</div>";
     }
     html << "</div>";
@@ -826,52 +826,53 @@ generate_documentation(const std::vector<ast::Program> &programs,
              << "</code></pre>";
       html << "</section>";
     }
-    html << "<h3 class=\"member-heading\">Public members <span class=\"member-count\">"
+    html << "<h3 class=\"member-heading\">Public members <span "
+            "class=\"member-count\">"
          << member_count << "</span></h3>\n<div class=\"symbol-list\">\n";
     for (const Symbol &symbol : symbols) {
       if (symbol.module != module)
         continue;
       const char kind_initial = symbol.kind.empty() ? '?' : symbol.kind.front();
       html << "<article class=\"symbol-card kind-" << html_escape(symbol.kind)
-           << (symbol.parent.empty() ? "" : " child")
-           << "\" id=\"" << symbol.anchor << "\" data-symbol data-search=\""
+           << (symbol.parent.empty() ? "" : " child") << "\" id=\""
+           << symbol.anchor << "\" data-symbol data-search=\""
            << html_escape(symbol.qualified_name + " " + symbol.kind + " " +
                           symbol.signature + " " + symbol.documentation)
            << "\"><span class=\"kind-icon\" aria-hidden=\"true\">"
            << kind_initial << "</span><div><span class=\"kind\">"
            << html_escape(symbol.kind) << "</span>";
       if (!symbol.parent.empty())
-        html << "<div class=\"owner\">Member of "
-             << html_escape(symbol.parent) << "</div>";
-      html << "<h3><code>"
-           << html_escape(symbol.signature) << "</code></h3>\n";
+        html << "<div class=\"owner\">Member of " << html_escape(symbol.parent)
+             << "</div>";
+      html << "<h3><code>" << html_escape(symbol.signature) << "</code></h3>\n";
       if (!symbol.structured.summary.empty())
         html << "<p class=\"doc-summary\">"
              << render_documentation(symbol.structured.summary,
                                      symbol.qualified_name, links,
                                      report.unresolved_links, strict_links)
-                                     << "</p>\n";
+             << "</p>\n";
       if (!symbol.structured.details.empty()) {
         html << "<div class=\"doc-details\">";
         for (const std::string &paragraph : symbol.structured.details)
           html << "<p>"
                << render_documentation(paragraph, symbol.qualified_name, links,
                                        report.unresolved_links, strict_links)
-                                       << "</p>";
+               << "</p>";
         html << "</div>\n";
       }
       if (!symbol.parameters.empty()) {
         html << "<section class=\"doc-section\"><h4>Parameters</h4>"
-                "<table class=\"parameters\"><thead><tr><th>Name</th><th>Type</th>"
+                "<table "
+                "class=\"parameters\"><thead><tr><th>Name</th><th>Type</th>"
                 "<th>Description</th></tr></thead><tbody>";
         for (const DocumentedParameter &parameter : symbol.parameters)
           html << "<tr><td><code>" << html_escape(parameter.name)
-                << "</code></td><td><code>" << html_escape(parameter.type)
-                << "</code></td><td>"
-                << render_documentation(parameter.description,
-                                        symbol.qualified_name, links,
-                                        report.unresolved_links, strict_links)
-                                        << "</td></tr>";
+               << "</code></td><td><code>" << html_escape(parameter.type)
+               << "</code></td><td>"
+               << render_documentation(parameter.description,
+                                       symbol.qualified_name, links,
+                                       report.unresolved_links, strict_links)
+               << "</td></tr>";
         html << "</tbody></table></section>\n";
       }
       if (!symbol.return_type.empty() && !is_unit_or_void(symbol.return_type)) {
@@ -886,18 +887,19 @@ generate_documentation(const std::vector<ast::Program> &programs,
       }
       for (const std::string &example : symbol.structured.examples)
         html << "<section class=\"doc-section\"><h4>Example</h4><pre "
-                << "class=\"example\"><code>"
-                 << render_documentation(example, symbol.qualified_name, links,
-                                         report.unresolved_links, strict_links)
-                                         << "</code></pre></section>\n";
+             << "class=\"example\"><code>"
+             << render_documentation(example, symbol.qualified_name, links,
+                                     report.unresolved_links, strict_links)
+             << "</code></pre></section>\n";
       html << "<div class=\"qualified\">" << html_escape(symbol.qualified_name)
            << "</div></div><a class=\"permalink\" href=\"#" << symbol.anchor
-           << "\" aria-label=\"Permanent link to " << html_escape(symbol.qualified_name)
-           << "\">#</a></article>\n";
+           << "\" aria-label=\"Permanent link to "
+           << html_escape(symbol.qualified_name) << "\">#</a></article>\n";
     }
     html << "</div></section>\n";
   }
-  html << "</main>\n<aside id=\"module-sidebar\" class=\"sidebar\"><h2>Modules</h2>"
+  html << "</main>\n<aside id=\"module-sidebar\" "
+          "class=\"sidebar\"><h2>Modules</h2>"
           "<nav class=\"module-nav\" aria-label=\"Modules\">";
   for (const auto &[module, documentation] : module_documentation) {
     static_cast<void>(documentation);
@@ -905,7 +907,8 @@ generate_documentation(const std::vector<ast::Program> &programs,
          << anchor_for(module) << "\"><span class=\"dot\"></span>"
          << html_escape(module) << "</a>";
   }
-  html << R"(</nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
+  html
+      << R"(</nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
 </div>
 <footer><p>Generated by Janus. No network resources are required.</p></footer>
 <script>
@@ -977,10 +980,10 @@ generate_package_documentation(const Manifest &manifest,
       programs, {manifest.name, manifest.version, output_directory}, true);
 }
 
-DocumentationReport generate_stdlib_documentation(
-    const std::filesystem::path &stdlib_directory,
-    const std::filesystem::path &output_directory,
-    std::string package_version) {
+DocumentationReport
+generate_stdlib_documentation(const std::filesystem::path &stdlib_directory,
+                              const std::filesystem::path &output_directory,
+                              std::string package_version) {
   const std::filesystem::path source_root = stdlib_directory / "std";
   if (!std::filesystem::is_directory(source_root))
     throw std::runtime_error{"standard library source directory not found: " +
@@ -1002,8 +1005,9 @@ DocumentationReport generate_stdlib_documentation(
           "every standard-library source must declare its module"};
   }
   return generate_documentation(
-      programs, {"Janus standard library", std::move(package_version),
-                 output_directory}, false);
+      programs,
+      {"Janus standard library", std::move(package_version), output_directory},
+      false);
 }
 
 void open_documentation(const std::filesystem::path &index_path) {

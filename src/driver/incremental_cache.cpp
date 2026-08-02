@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <chrono>
 #include <cctype>
+#include <chrono>
 #include <cstdint>
 #include <fstream>
 #include <iomanip>
@@ -186,8 +186,7 @@ std::string_view declaration_source(std::string_view source,
         escaped = false;
       else if (current == '\\')
         escaped = true;
-      else if ((quoted && current == '"') ||
-               (character && current == '\'')) {
+      else if ((quoted && current == '"') || (character && current == '\'')) {
         quoted = false;
         character = false;
       }
@@ -286,6 +285,7 @@ std::string public_interface(std::string_view source) {
       output += ':';
       append_type(output, field.declared_type);
       output += field.is_mutable ? ":mutable;" : ":immutable;";
+      output += field.is_borrowed ? ":borrowed;" : ":owned;";
       if (!field.is_private && !field.is_internal) {
         output += "field-api:";
         output += field.name;
@@ -301,6 +301,7 @@ std::string public_interface(std::string_view source) {
       output += ':';
       append_type(output, field.declared_type);
       output += field.is_mutable ? ":mutable;" : ":immutable;";
+      output += field.is_borrowed ? ":borrowed;" : ":owned;";
       if (!field.is_private && !field.is_internal) {
         output += "field-api:";
         output += field.name;
@@ -326,9 +327,9 @@ std::string public_interface(std::string_view source) {
     if (class_declaration.is_private)
       continue;
     if (!class_declaration.type_parameters.empty()) {
-      append_field(output, "generic-class-implementation",
-                   declaration_source(source,
-                                      class_declaration.location.offset));
+      append_field(
+          output, "generic-class-implementation",
+          declaration_source(source, class_declaration.location.offset));
       continue;
     }
     for (const auto &method : class_declaration.methods)
@@ -340,9 +341,10 @@ std::string public_interface(std::string_view source) {
   return output;
 }
 
-std::filesystem::path resolve_import(
-    std::string_view module, const std::filesystem::path &project_root,
-    const std::vector<std::filesystem::path> &search_paths) {
+std::filesystem::path
+resolve_import(std::string_view module,
+               const std::filesystem::path &project_root,
+               const std::vector<std::filesystem::path> &search_paths) {
   std::filesystem::path relative;
   std::size_t start = 0;
   while (start < module.size()) {
@@ -366,12 +368,12 @@ std::filesystem::path resolve_import(
                            std::string{module} + "'"};
 }
 
-void inspect_dependency(
-    const std::filesystem::path &path, std::string import_name,
-    const std::filesystem::path &project_root,
-    const std::vector<std::filesystem::path> &search_paths,
-    std::vector<std::filesystem::path> &visited,
-    std::vector<DependencyFingerprintInput> &dependencies) {
+void inspect_dependency(const std::filesystem::path &path,
+                        std::string import_name,
+                        const std::filesystem::path &project_root,
+                        const std::vector<std::filesystem::path> &search_paths,
+                        std::vector<std::filesystem::path> &visited,
+                        std::vector<DependencyFingerprintInput> &dependencies) {
   const auto normalized = std::filesystem::absolute(path).lexically_normal();
   if (std::find(visited.begin(), visited.end(), normalized) != visited.end())
     return;
@@ -380,8 +382,9 @@ void inspect_dependency(
   frontend::Parser parser{source};
   const ast::Program program = parser.parse_program();
   for (const std::string &import : program.imports)
-    inspect_dependency(resolve_import(import, project_root, search_paths), import,
-                       project_root, search_paths, visited, dependencies);
+    inspect_dependency(resolve_import(import, project_root, search_paths),
+                       import, project_root, search_paths, visited,
+                       dependencies);
   dependencies.push_back(
       {program.module_name.value_or(normalized.generic_string()),
        stable_digest(public_interface(source)), stable_digest(source), source,
@@ -392,19 +395,17 @@ std::string file_digest(const std::filesystem::path &path) {
   return stable_digest(read_file(path));
 }
 
-std::filesystem::path unique_temporary_path(
-    const std::filesystem::path &destination) {
+std::filesystem::path
+unique_temporary_path(const std::filesystem::path &destination) {
   static std::atomic<std::uint64_t> sequence{};
   static thread_local std::mt19937_64 random{std::random_device{}()};
   if (!destination.parent_path().empty())
     std::filesystem::create_directories(destination.parent_path());
   for (int attempt = 0; attempt < 100; ++attempt) {
-    const auto nonce = random() ^
-                       sequence.fetch_add(1, std::memory_order_relaxed) ^
-                       static_cast<std::uint64_t>(
-                           std::chrono::steady_clock::now()
-                               .time_since_epoch()
-                               .count());
+    const auto nonce =
+        random() ^ sequence.fetch_add(1, std::memory_order_relaxed) ^
+        static_cast<std::uint64_t>(
+            std::chrono::steady_clock::now().time_since_epoch().count());
     const std::filesystem::path directory =
         destination.string() + ".tmp-" + std::to_string(nonce);
     std::error_code error;
@@ -449,8 +450,8 @@ void publish_immutable(const std::filesystem::path &temporary,
   std::filesystem::remove_all(reservation, cleanup_error);
   if (error)
     throw std::runtime_error{"cannot publish " + std::string{description} +
-                             " '" + destination.string() + "': " +
-                             error.message()};
+                             " '" + destination.string() +
+                             "': " + error.message()};
 }
 
 void replace_temporary(const std::filesystem::path &temporary,
@@ -470,8 +471,8 @@ void replace_temporary(const std::filesystem::path &temporary,
   std::filesystem::remove_all(reservation, cleanup_error);
   if (error)
     throw std::runtime_error{"cannot replace " + std::string{description} +
-                             " '" + destination.string() + "': " +
-                             error.message()};
+                             " '" + destination.string() +
+                             "': " + error.message()};
 }
 
 std::string atomic_copy_immutable(const std::filesystem::path &source,
@@ -594,9 +595,9 @@ std::string stable_digest(std::string_view input) {
   for (int shift = 56; shift >= 0; shift -= 8)
     message.push_back(static_cast<std::uint8_t>(bit_length >> shift));
 
-  std::array<std::uint32_t, 8> hash{
-      0x6a09e667U, 0xbb67ae85U, 0x3c6ef372U, 0xa54ff53aU,
-      0x510e527fU, 0x9b05688cU, 0x1f83d9abU, 0x5be0cd19U};
+  std::array<std::uint32_t, 8> hash{0x6a09e667U, 0xbb67ae85U, 0x3c6ef372U,
+                                    0xa54ff53aU, 0x510e527fU, 0x9b05688cU,
+                                    0x1f83d9abU, 0x5be0cd19U};
   for (std::size_t offset = 0; offset < message.size(); offset += 64U) {
     std::array<std::uint32_t, 64> words{};
     for (std::size_t index = 0; index < 16U; ++index) {
@@ -625,13 +626,13 @@ std::string stable_digest(std::string_view input) {
     std::uint32_t g = hash[6];
     std::uint32_t h = hash[7];
     for (std::size_t index = 0; index < words.size(); ++index) {
-      const std::uint32_t sum1 = rotate_right(e, 6U) ^ rotate_right(e, 11U) ^
-                                 rotate_right(e, 25U);
+      const std::uint32_t sum1 =
+          rotate_right(e, 6U) ^ rotate_right(e, 11U) ^ rotate_right(e, 25U);
       const std::uint32_t choice = (e & f) ^ (~e & g);
       const std::uint32_t temporary1 =
           h + sum1 + choice + constants[index] + words[index];
-      const std::uint32_t sum0 = rotate_right(a, 2U) ^ rotate_right(a, 13U) ^
-                                 rotate_right(a, 22U);
+      const std::uint32_t sum0 =
+          rotate_right(a, 2U) ^ rotate_right(a, 13U) ^ rotate_right(a, 22U);
       const std::uint32_t majority = (a & b) ^ (a & c) ^ (b & c);
       const std::uint32_t temporary2 = sum0 + majority;
       h = g;
@@ -680,11 +681,11 @@ std::string public_interface_fingerprint(std::string_view source) {
   return stable_digest(public_interface(source));
 }
 
-BuildFingerprintInput inspect_build_inputs(
-    const std::filesystem::path &entry,
-    const std::vector<std::filesystem::path> &search_paths,
-    std::string janus_version, std::string target,
-    std::vector<std::string> options) {
+BuildFingerprintInput
+inspect_build_inputs(const std::filesystem::path &entry,
+                     const std::vector<std::filesystem::path> &search_paths,
+                     std::string janus_version, std::string target,
+                     std::vector<std::string> options) {
   const auto normalized = std::filesystem::absolute(entry).lexically_normal();
   const std::string source = read_file(normalized);
   frontend::Parser parser{source};
@@ -692,23 +693,25 @@ BuildFingerprintInput inspect_build_inputs(
   std::vector<std::filesystem::path> visited{normalized};
   std::vector<DependencyFingerprintInput> dependencies;
   for (const std::string &import : program.imports)
-    inspect_dependency(resolve_import(import, normalized.parent_path(),
-                                      search_paths),
-                       import, normalized.parent_path(), search_paths, visited,
-                       dependencies);
+    inspect_dependency(
+        resolve_import(import, normalized.parent_path(), search_paths), import,
+        normalized.parent_path(), search_paths, visited, dependencies);
   std::sort(dependencies.begin(), dependencies.end(),
             [](const auto &left, const auto &right) {
               return left.name < right.name;
             });
-  return {std::move(janus_version), std::move(target), std::move(options),
-          normalized.generic_string(), source, std::move(dependencies)};
+  return {std::move(janus_version),
+          std::move(target),
+          std::move(options),
+          normalized.generic_string(),
+          source,
+          std::move(dependencies)};
 }
 
 IncrementalCache::IncrementalCache(std::filesystem::path root)
     : root_{std::move(root)} {}
 
-std::filesystem::path
-IncrementalCache::entry_path(std::string_view key) const {
+std::filesystem::path IncrementalCache::entry_path(std::string_view key) const {
   validate_digest_key(key);
   return root_ / "entries" / (std::string{key} + ".entry");
 }
@@ -768,8 +771,8 @@ void IncrementalCache::store_consumer(
   if (required_definitions.empty() ||
       std::any_of(required_definitions.begin(), required_definitions.end(),
                   [](const std::string &name) {
-                    return name.empty() || name.find_first_of("\r\n") !=
-                                               std::string::npos;
+                    return name.empty() ||
+                           name.find_first_of("\r\n") != std::string::npos;
                   }))
     throw std::invalid_argument{"invalid consumer definition manifest"};
   const auto destination = consumer_path(key);
@@ -778,15 +781,14 @@ void IncrementalCache::store_consumer(
                          "\ndigest=" + digest + "\n";
   for (const std::string &definition : required_definitions)
     metadata += "definition=" + definition + "\n";
-  atomic_write(root_ / "consumers" / (std::string{key} + ".entry"),
-               metadata);
+  atomic_write(root_ / "consumers" / (std::string{key} + ".entry"), metadata);
 }
 
-void IncrementalCache::invalidate_consumer(std::string_view key) const noexcept {
+void IncrementalCache::invalidate_consumer(
+    std::string_view key) const noexcept {
   try {
     const auto artifact = consumer_path(key);
-    const auto metadata =
-        root_ / "consumers" / (std::string{key} + ".entry");
+    const auto metadata = root_ / "consumers" / (std::string{key} + ".entry");
     const auto legacy_digest =
         root_ / "consumers" / (std::string{key} + ".digest");
     std::error_code ignored;
@@ -797,9 +799,9 @@ void IncrementalCache::invalidate_consumer(std::string_view key) const noexcept 
   }
 }
 
-CacheLookup IncrementalCache::restore(
-    std::string_view key, std::string_view identity,
-    const std::filesystem::path &output) const {
+CacheLookup
+IncrementalCache::restore(std::string_view key, std::string_view identity,
+                          const std::filesystem::path &output) const {
   const auto entry = entry_path(key);
   if (!std::filesystem::is_regular_file(entry))
     return CacheLookup::Miss;
@@ -825,8 +827,7 @@ void IncrementalCache::store(std::string_view key, std::string_view identity,
                              std::string_view consumer) const {
   validate_digest_key(consumer);
   const auto cached_artifact = artifact_path(key);
-  const std::string digest =
-      atomic_copy_immutable(artifact, cached_artifact);
+  const std::string digest = atomic_copy_immutable(artifact, cached_artifact);
   if (file_digest(artifact) != digest &&
       !atomic_replace_copy_if_digest(cached_artifact, artifact, digest))
     throw std::runtime_error{"cannot converge output on cached artifact"};

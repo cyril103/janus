@@ -780,6 +780,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const std::unordered_set<std::string> parameters{
         declaration.type_parameters.begin(), declaration.type_parameters.end()};
     const auto check_field = [&](const ast::ValueDeclaration &field) {
+      if (field.is_borrowed)
+        return;
       const SemanticType field_type =
           resolve_type(field.declared_type, parameters, &class_arities);
       if (!aggregate_owns_value(field_type))
@@ -824,6 +826,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         substitutions.emplace(nested.type_parameters[index],
                               type.type_arguments[index]);
       for (const ast::ValueDeclaration &field : nested.constructor_fields) {
+        if (field.is_borrowed)
+          continue;
         SemanticType field_type =
             resolve_type(field.declared_type, parameters, &class_arities);
         self(self, substitute(std::move(field_type), substitutions), targets,
@@ -857,6 +861,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const std::unordered_set<std::string> parameters{
         declaration.type_parameters.begin(), declaration.type_parameters.end()};
     const auto inspect_field = [&](const ast::ValueDeclaration &field) {
+      if (field.is_borrowed)
+        return;
       const SemanticType field_type =
           resolve_type(field.declared_type, parameters, &class_arities);
       std::unordered_set<std::string> visiting;
@@ -1921,6 +1927,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_map<std::size_t, std::vector<std::string>> lambda_captures;
     std::unordered_map<std::string, std::size_t> local_lambda_locations;
     std::unordered_set<std::string> *active_lambda_captures = nullptr;
+    if (owner != nullptr)
+      for (const ast::ValueDeclaration &field : owner->constructor_fields)
+        if (field.is_borrowed) {
+          borrowed_values.insert(field.name);
+          transfer_protected_values.insert(field.name);
+        }
     const bool report_local_warnings = context_module == program.module_name;
     const auto emit_warning =
         [&](DiagnosticCode code, SourceLocation location, std::string message,
@@ -2063,7 +2075,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 expression_location(argument),
                 "consume parameter '" + parameter.name +
                     "' cannot take ownership of borrowed or null pointer "
-                    "expression " + expression_name};
+                    "expression " +
+                    expression_name};
           }
           if (const auto *identifier =
                   std::get_if<ast::IdentifierExpression>(&argument.value)) {
@@ -2605,8 +2618,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                            : SemanticType{&Type::bool_type()};
               }
               if (node.callee == "alloc" || node.callee == "realloc" ||
-                  node.callee == "null" || node.callee == "sizeof" ||
-                  node.callee == "alignof") {
+                  node.callee == "reallocPreserving" || node.callee == "null" ||
+                  node.callee == "sizeof" || node.callee == "alignof") {
                 if (node.type_arguments.size() != 1)
                   throw CompileError{node.location,
                                      "memory intrinsic '" + node.callee +
@@ -2644,10 +2657,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "memory intrinsic '" + node.callee + "' expects " +
                           std::to_string(expected_arguments) + " argument(s)"};
                 std::size_t count_index = 0;
-                if (node.callee == "realloc") {
+                if (node.callee == "realloc" ||
+                    node.callee == "reallocPreserving") {
                   validate_expression(*node.arguments[0], pointer_type,
                                       expression_location(*node.arguments[0]));
-                  if (potentially_owns_value(element_type))
+                  if (node.callee == "realloc" &&
+                      potentially_owns_value(element_type))
                     emit_warning(
                         DiagnosticCode::AnalyzerOwningBufferReallocated,
                         node.location,
@@ -2664,7 +2679,95 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     expression_location(*node.arguments[count_index]));
                 return pointer_type;
               }
-              if (node.callee == "free") {
+              if (node.callee == "adoptReallocation") {
+                if (node.type_arguments.size() != 1 ||
+                    node.arguments.size() != 2)
+                  throw CompileError{
+                      node.location,
+                      "adoptReallocation expects one type argument and two "
+                      "pointer arguments"};
+                const SemanticType element_type =
+                    resolve_type(node.type_arguments.front(),
+                                 *active_type_parameters, &class_arities);
+                const SemanticType pointer_type{
+                    nullptr, "Ptr", false, {element_type}, true};
+                for (const auto &argument : node.arguments) {
+                  if (is_borrowed_pointer_expression(*argument))
+                    throw CompileError{
+                        expression_location(*argument),
+                        "borrowed pointer cannot be adopted after realloc"};
+                  validate_expression(*argument, pointer_type,
+                                      expression_location(*argument));
+                  if (const auto *identifier =
+                          std::get_if<ast::IdentifierExpression>(
+                              &argument->value);
+                      identifier != nullptr &&
+                      active_symbols->contains(identifier->name)) {
+                    active_symbols->at(identifier->name).is_initialized = false;
+                    active_symbols->at(identifier->name).may_be_initialized =
+                        false;
+                  }
+                }
+                return pointer_type;
+              }
+              if (node.callee == "owningCapture") {
+                if (node.type_arguments.size() != 1 ||
+                    node.arguments.size() != 2)
+                  throw CompileError{
+                      node.location,
+                      "owningCapture expects one owner type argument, an "
+                      "owner, and a zero-argument closure"};
+                const auto *owner_identifier =
+                    std::get_if<ast::IdentifierExpression>(
+                        &node.arguments[0]->value);
+                if (owner_identifier == nullptr ||
+                    !active_symbols->contains(owner_identifier->name))
+                  throw CompileError{
+                      expression_location(*node.arguments[0]),
+                      "owningCapture requires a local owner identifier"};
+                if (borrowed_values.contains(owner_identifier->name))
+                  throw CompileError{
+                      expression_location(*node.arguments[0]),
+                      "borrowed value cannot be transferred to a closure"};
+                if (deferred_values.contains(owner_identifier->name))
+                  throw CompileError{
+                      expression_location(*node.arguments[0]),
+                      "deferred value cannot be transferred to a closure"};
+                SemanticType owner_type =
+                    resolve_type(node.type_arguments.front(),
+                                 *active_type_parameters, &class_arities);
+                if (active_type_substitutions != nullptr)
+                  owner_type = substitute(std::move(owner_type),
+                                          *active_type_substitutions);
+                validate_expression(*node.arguments[0], owner_type,
+                                    expression_location(*node.arguments[0]));
+                const SemanticType closure_type =
+                    expression_type(*node.arguments[1]);
+                if (!closure_type.is_function() ||
+                    closure_type.type_arguments.size() != 1)
+                  throw CompileError{
+                      expression_location(*node.arguments[1]),
+                      "owningCapture requires a zero-argument closure"};
+                const auto *lambda = std::get_if<ast::LambdaExpression>(
+                    &node.arguments[1]->value);
+                const auto captures =
+                    lambda == nullptr
+                        ? lambda_captures.end()
+                        : lambda_captures.find(lambda->location.offset);
+                if (captures == lambda_captures.end() ||
+                    std::find(captures->second.begin(), captures->second.end(),
+                              owner_identifier->name) == captures->second.end())
+                  throw CompileError{
+                      expression_location(*node.arguments[1]),
+                      "owningCapture closure must capture owner '" +
+                          owner_identifier->name + "'"};
+                active_symbols->at(owner_identifier->name).is_initialized =
+                    false;
+                active_symbols->at(owner_identifier->name).may_be_initialized =
+                    false;
+                return closure_type;
+              }
+              if (node.callee == "free" || node.callee == "freeStorage") {
                 if (!node.type_arguments.empty() || node.arguments.size() != 1)
                   throw CompileError{
                       node.location,
@@ -2680,7 +2783,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      "free requires a Ptr[T] argument"};
                 const SemanticType &element_type =
                     pointer.type_arguments.front();
-                if (potentially_owns_value(element_type))
+                if (node.callee == "free" &&
+                    potentially_owns_value(element_type))
                   emit_warning(
                       DiagnosticCode::AnalyzerOwningBufferFreedWithoutCleanup,
                       node.location,
@@ -2887,8 +2991,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "variadic C argument has incompatible type '" +
                             argument_type.name() + "'"};
                   if (callee.is_external &&
-                      !is_borrowed_pointer_expression(
-                          *node.arguments[index]) &&
+                      !is_borrowed_pointer_expression(*node.arguments[index]) &&
                       (argument_type.is_pointer() ||
                        potentially_owns_value(argument_type)))
                     emit_warning(
@@ -2934,10 +3037,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 contextual_borrow_enum_name =
                     previous_contextual_borrow_enum_name;
               }
-              SemanticType call_return = substitute(
-                  resolve_type(callee.return_type, callee_parameters,
-                               &class_arities),
-                  substitutions);
+              SemanticType call_return =
+                  substitute(resolve_type(callee.return_type, callee_parameters,
+                                          &class_arities),
+                             substitutions);
               if (callee.is_external && call_return.is_pointer() &&
                   callee.return_ownership ==
                       ast::ReturnOwnership::Unspecified &&
@@ -3043,11 +3146,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     field.declared_type, class_parameters, &class_arities);
                 const SemanticType concrete_field_type =
                     substitute(field_type, substitutions);
-                validate_expression(
-                    *node.arguments[parameter_count + index],
-                    concrete_field_type,
-                    expression_location(
-                        *node.arguments[parameter_count + index]));
+                const ast::Expression &argument =
+                    *node.arguments[parameter_count + index];
+                if (field.is_borrowed &&
+                    std::holds_alternative<ast::MoveExpression>(argument.value))
+                  throw CompileError{
+                      expression_location(argument),
+                      "borrowed field '" + field.name +
+                          "' cannot be initialized with a moved value"};
+                const bool previous_contextual_borrow_expression =
+                    contextual_borrow_expression;
+                contextual_borrow_expression = field.is_borrowed;
+                validate_expression(argument, concrete_field_type,
+                                    expression_location(argument));
+                contextual_borrow_expression =
+                    previous_contextual_borrow_expression;
                 initializer_symbols.emplace(
                     field.name,
                     Symbol{concrete_field_type, field.is_mutable, true});
@@ -3274,18 +3387,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                       expression_location(*node.arguments[0]));
                   return object_type.type_arguments.front();
                 }
-                if (node.method == "store") {
+                if (node.method == "store" || node.method == "initialize" ||
+                    node.method == "overwrite") {
                   if (node.arguments.size() != 2)
-                    throw CompileError{
-                        node.location,
-                        "Ptr.store expects an index and a value"};
+                    throw CompileError{node.location,
+                                       "Ptr." + node.method +
+                                           " expects an index and a value"};
                   validate_expression(*node.arguments[0],
                                       SemanticType{&Type::usize_type()},
                                       expression_location(*node.arguments[0]));
                   validate_expression(*node.arguments[1],
                                       object_type.type_arguments.front(),
                                       expression_location(*node.arguments[1]));
-                  if (potentially_owns_value(
+                  if (node.method == "store" &&
+                      potentially_owns_value(
                           object_type.type_arguments.front()))
                     emit_warning(
                         DiagnosticCode::AnalyzerOwningPointerElementOverwritten,
@@ -4194,6 +4309,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{declaration->location,
                                "value '" + declaration->name +
                                    "' is already declared"};
+          if (declaration->is_borrowed && !declared_type.is_pointer())
+            throw CompileError{
+                declaration->location,
+                "borrowed local values currently require a Ptr[T] type"};
+          if (declaration->is_borrowed &&
+              declaration->initializer.has_value() &&
+              std::holds_alternative<ast::MoveExpression>(
+                  declaration->initializer->value))
+            throw CompileError{declaration->location,
+                               "a borrowed local cannot move its initializer"};
           if (declaration->initializer.has_value())
             validate_expression(*declaration->initializer, declared_type,
                                 declaration->location);
@@ -4203,8 +4328,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (declaration->initializer.has_value() &&
               is_null_pointer_expression(*declaration->initializer))
             block_symbols.at(declaration->name).may_be_initialized = false;
-          if (declaration->initializer.has_value() &&
-              is_borrowed_pointer_expression(*declaration->initializer))
+          if (declaration->is_borrowed ||
+              (declaration->initializer.has_value() &&
+               is_borrowed_pointer_expression(*declaration->initializer)))
             borrowed_values.insert(declaration->name);
           if (declaration->initializer.has_value())
             if (const auto *lambda = std::get_if<ast::LambdaExpression>(
@@ -4341,8 +4467,31 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                     &call->arguments.front()->value))
               self_reallocation = identifier->name == assignment->name;
+          bool reinitializes_moved_loop_owner = false;
+          if (loop_depth != 0)
+            if (const auto *call = std::get_if<ast::CallExpression>(
+                    &assignment->expression.value))
+              reinitializes_moved_loop_owner = std::any_of(
+                  call->arguments.begin(), call->arguments.end(),
+                  [&](const std::unique_ptr<ast::Expression> &argument) {
+                    const auto *move =
+                        std::get_if<ast::MoveExpression>(&argument->value);
+                    if (move == nullptr)
+                      return false;
+                    const auto *identifier =
+                        std::get_if<ast::IdentifierExpression>(
+                            &move->operand->value);
+                    return identifier != nullptr &&
+                           identifier->name == assignment->name;
+                  });
+          const bool was_transfer_protected =
+              transfer_protected_values.contains(assignment->name);
+          if (reinitializes_moved_loop_owner)
+            transfer_protected_values.erase(assignment->name);
           validate_expression(assignment->expression, iterator->second.type,
                               assignment->location);
+          if (was_transfer_protected)
+            transfer_protected_values.insert(assignment->name);
           if (self_reallocation)
             emit_warning(
                 DiagnosticCode::AnalyzerUnsafeReallocation,
@@ -4712,6 +4861,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     static_cast<void>(validate_block(body, symbols));
     if (is_destructor && owner != nullptr) {
       const auto check_owned_field = [&](const ast::ValueDeclaration &field) {
+        if (field.is_borrowed)
+          return;
         const auto symbol = symbols.find(field.name);
         if (symbol == symbols.end() || !symbol->second.may_be_initialized ||
             !potentially_owns_value(symbol->second.type))

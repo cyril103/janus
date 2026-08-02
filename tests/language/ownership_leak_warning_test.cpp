@@ -56,10 +56,10 @@ def main() : int {
     return 0
 }
 )");
-  expect(warns_with_code(
-             unannotated_extern_return,
-             janus::DiagnosticCode::AnalyzerUnannotatedExternReturn),
-         "an unannotated external pointer return warns");
+  expect(
+      warns_with_code(unannotated_extern_return,
+                      janus::DiagnosticCode::AnalyzerUnannotatedExternReturn),
+      "an unannotated external pointer return warns");
 
   const auto owned_extern_return = analyze(R"(
 extern def acquire() : owned Ptr[byte]
@@ -69,10 +69,10 @@ def main() : int {
     return 0
 }
 )");
-  expect(!warns_with_code(
-             owned_extern_return,
-             janus::DiagnosticCode::AnalyzerUnannotatedExternReturn),
-         "an owned external pointer return suppresses JANA0022");
+  expect(
+      !warns_with_code(owned_extern_return,
+                       janus::DiagnosticCode::AnalyzerUnannotatedExternReturn),
+      "an owned external pointer return suppresses JANA0022");
 
   const auto simple_leak = analyze(R"(
 class Resource() {}
@@ -292,6 +292,67 @@ def main() : int { return 0 }
   expect(warns_with_code(missing_destructor,
                          janus::DiagnosticCode::AnalyzerIncompleteDestructor),
          "omitting a destructor for an owning field warns");
+
+  const auto borrowed_field = analyze(R"(
+class Resource(val id : int) {}
+class Observer(private borrow val resource : Resource) {
+    def inspect() : int { return resource.id }
+}
+def main() : int {
+    val resource : Resource = new Resource(1)
+    val observer : Observer = new Observer(resource)
+    delete observer
+    delete resource
+    return 0
+}
+)");
+  expect(!warns_with_code(borrowed_field,
+                          janus::DiagnosticCode::AnalyzerIncompleteDestructor),
+         "a borrowed field does not require destructor cleanup");
+  expect(!warns_with_code(borrowed_field,
+                          janus::DiagnosticCode::AnalyzerPotentialMemoryLeak),
+         "a borrowed field does not transfer its constructor argument");
+
+  const auto explicit_borrow_and_capture = analyze(R"(
+class Resource() {
+    def dispose() : Unit { delete this }
+}
+def main() : int {
+    val pointer : Ptr[int] = alloc[int](usize(1))
+    borrow val alias : Ptr[int] = pointer
+    println(alias.load(usize(0)))
+    free(pointer)
+    val state : Resource = new Resource()
+    val cleanup : () => Unit = owningCapture[Resource](
+        state, () => state.dispose()
+    )
+    cleanup()
+    delete cleanup
+    return 0
+}
+)");
+  expect(explicit_borrow_and_capture.diagnostics.empty(),
+         "borrowed locals and explicit owning captures do not leak");
+
+  const auto raw_storage_contracts = analyze(R"(
+class Resource() {}
+def main() : int {
+    var data : Ptr[Resource] = alloc[Resource](usize(1))
+    data.initialize(usize(0), new Resource())
+    val previous : Resource = data.load(usize(0))
+    data.overwrite(usize(0), new Resource())
+    delete previous
+    val resized : Ptr[Resource] =
+        reallocPreserving[Resource](data, usize(2))
+    data = adoptReallocation[Resource](data, resized)
+    val remaining : Resource = data.load(usize(0))
+    delete remaining
+    freeStorage(data)
+    return 0
+}
+)");
+  expect(raw_storage_contracts.diagnostics.empty(),
+         "explicit raw-storage operations suppress only acknowledged hazards");
 
   const auto reallocation = analyze(R"(
 def main() : int {

@@ -18,31 +18,34 @@ enum Result[T, E] {
     Error(E)
 }
 
-private class ResultFallback[T](private var value : T) {
-    private var available : bool = true
+private class ResultFallback[T](private var value : Option[T]) {
+    private def takeOption() : Option[T] {
+        val previous : Option[T] = move value
+        value = Option.None[T]()
+        return move previous
+    }
 
     def discardAndReturn[U](result : U) : U {
-        val discarded : T = move value
-        available = false
+        val discarded : Option[T] = this.takeOption()
         delete discarded
         return move result
     }
 
     def discardAndTake[U](discarded : U) : T {
         delete discarded
-        available = false
-        return move value
+        return this.take()
     }
 
     def take() : T {
-        available = false
-        return move value
+        val previous : Option[T] = this.takeOption()
+        return match move previous {
+            Some(item) => move item,
+            None => this.take()
+        }
     }
 
     destructor {
-        if available {
-            delete value
-        }
+        delete value
     }
 }
 
@@ -144,7 +147,7 @@ transform : (E) => Result[T, F]
 /// @return Valeur déplacée de `Ok`, sinon `fallback`.
 def unwrapOr[T, E](value : Result[T, E], fallback : T) : T {
     val state : ResultFallback[T] =
-    new ResultFallback[T](move fallback)
+    new ResultFallback[T](Option.Some[T](move fallback))
     defer delete state
     return match move value {
         Ok(item) => state.discardAndReturn[T](move item),
@@ -170,7 +173,7 @@ def toOption[T, E](value : Result[T, E]) : Option[T] {
 /// @return `Ok` avec le contenu déplacé de `Some`, sinon `Error(error)`.
 def fromOption[T, E](value : Option[T], error : E) : Result[T, E] {
     val state : ResultFallback[E] =
-    new ResultFallback[E](move error)
+    new ResultFallback[E](Option.Some[E](move error))
     defer delete state
     return match move value {
         Some(item) => state.discardAndReturn[Result[T, E]](

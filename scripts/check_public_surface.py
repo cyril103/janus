@@ -20,9 +20,11 @@ FUNCTION_RE = re.compile(
     r"(?:(private|internal)\s+)?(?:(extern)\s+)?(?:(consume)\s+)?"
     r"def\s+([A-Za-z_]\w*)"
 )
-VALUE_RE = re.compile(r"(?:(private|internal)\s+)?(val|var)\s+([A-Za-z_]\w*)")
+VALUE_RE = re.compile(
+    r"(?:(private|internal)\s+)?(?:borrow\s+)?(val|var)\s+([A-Za-z_]\w*)"
+)
 FIELD_RE = re.compile(
-    r"(?:(private|internal)\s+)?(val|var)\s+([A-Za-z_]\w*)\s*:\s*"
+    r"(?:(private|internal)\s+)?(?:borrow\s+)?(val|var)\s+([A-Za-z_]\w*)\s*:\s*"
     r"([^,)]+)"
 )
 VARIANT_RE = re.compile(r"([A-Z][A-Za-z0-9_]*)(?:\s*\(|\s*=|\s*,|$)")

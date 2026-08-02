@@ -20,19 +20,19 @@ private extern def janus_process_argument_count() : usize
 private extern def janus_process_argument_data(index : usize) : borrow Ptr[byte]
 private extern def janus_process_argument_size(index : usize) : usize
 private extern def janus_process_environment(
-name : Ptr[byte],
+borrow name : Ptr[byte],
 length : usize
 ) : isize
 private extern def janus_process_text_data(text : isize) : borrow Ptr[byte]
 private extern def janus_process_text_size(text : isize) : usize
 private extern def janus_process_text_destroy(text : isize) : Unit
 private extern def janus_process_run(
-executable : Ptr[byte],
+borrow executable : Ptr[byte],
 executableLength : usize,
-arguments : Ptr[Ptr[byte]],
-argumentLengths : Ptr[usize],
+borrow arguments : Ptr[Ptr[byte]],
+borrow argumentLengths : Ptr[usize],
 argumentCount : usize,
-workingDirectory : Ptr[byte],
+borrow workingDirectory : Ptr[byte],
 workingDirectoryLength : usize,
 captureStdout : bool,
 captureStderr : bool
@@ -206,23 +206,23 @@ captureStderr : bool
     val count : usize = arguments.size()
     val argumentData : Ptr[Ptr[byte]] =
     alloc[Ptr[byte]](count)
+    defer freeStorage(argumentData)
     if argumentData == null[Ptr[byte]]() && count != usize(0) {
         return Result.Error[ProcessResult, SystemError](
         processMemoryError(executable)
         )
     }
-    defer free(argumentData)
     val argumentLengths : Ptr[usize] = alloc[usize](count)
+    defer free(argumentLengths)
     if argumentLengths == null[usize]() && count != usize(0) {
         return Result.Error[ProcessResult, SystemError](
         processMemoryError(executable)
         )
     }
-    defer free(argumentLengths)
     var index : usize = usize(0)
     while index < count {
         val argument : string = arguments.get(index)
-        argumentData.store(index, stringData(argument))
+        argumentData.initialize(index, stringData(argument))
         argumentLengths.store(index, stringLength(argument))
         index = index + usize(1)
     }

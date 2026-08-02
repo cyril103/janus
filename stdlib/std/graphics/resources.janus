@@ -14,115 +14,115 @@ module std.graphics.resources
 import std.c
 import std.graphics.types
 
-private extern def janus_graphics_load_image(fileName : Ptr[byte]) : owned Ptr[byte]
+private extern def janus_graphics_load_image(borrow fileName : Ptr[byte]) : owned Ptr[byte]
 private extern def janus_graphics_load_raw_image(
-fileName : Ptr[byte], width : int, height : int, format : int, headerSize : int
+borrow fileName : Ptr[byte], width : int, height : int, format : int, headerSize : int
 ) : owned Ptr[byte]
 private extern def janus_graphics_load_image_memory(
-fileType : Ptr[byte], data : Ptr[byte], dataSize : int
+borrow fileType : Ptr[byte], borrow data : Ptr[byte], dataSize : int
 ) : owned Ptr[byte]
 private extern def janus_graphics_load_image_texture(
-texture : Ptr[byte]
+borrow texture : Ptr[byte]
 ) : owned Ptr[byte]
 private extern def janus_graphics_load_image_screen() : owned Ptr[byte]
 private extern def janus_graphics_generate_image(
 width : int, height : int, kind : int, first : int, second : int,
-amount : float, firstColor : uint, secondColor : uint, text : Ptr[byte]
+amount : float, firstColor : uint, secondColor : uint, borrow text : Ptr[byte]
 ) : owned Ptr[byte]
-private extern def janus_graphics_image_is_valid(handle : Ptr[byte]) : bool
-private extern def janus_graphics_image_width(handle : Ptr[byte]) : int
-private extern def janus_graphics_image_height(handle : Ptr[byte]) : int
-private extern def janus_graphics_image_mipmaps(handle : Ptr[byte]) : int
-private extern def janus_graphics_image_format(handle : Ptr[byte]) : int
-private extern def janus_graphics_unload_image(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_image_is_valid(borrow handle : Ptr[byte]) : bool
+private extern def janus_graphics_image_width(borrow handle : Ptr[byte]) : int
+private extern def janus_graphics_image_height(borrow handle : Ptr[byte]) : int
+private extern def janus_graphics_image_mipmaps(borrow handle : Ptr[byte]) : int
+private extern def janus_graphics_image_format(borrow handle : Ptr[byte]) : int
+private extern def janus_graphics_unload_image(consume handle : Ptr[byte]) : Unit
 private extern def janus_graphics_export_image(
-handle : Ptr[byte], fileName : Ptr[byte]
+borrow handle : Ptr[byte], borrow fileName : Ptr[byte]
 ) : bool
 private extern def janus_graphics_export_image_code(
-handle : Ptr[byte], fileName : Ptr[byte]
+borrow handle : Ptr[byte], borrow fileName : Ptr[byte]
 ) : bool
 private extern def janus_graphics_copy_image(
-handle : Ptr[byte], x : float, y : float, width : float, height : float,
+borrow handle : Ptr[byte], x : float, y : float, width : float, height : float,
 region : bool
 ) : owned Ptr[byte]
 private extern def janus_graphics_image_channel(
-handle : Ptr[byte], channel : int
+borrow handle : Ptr[byte], channel : int
 ) : owned Ptr[byte]
 private extern def janus_graphics_image_text(
-text : Ptr[byte], fontSize : int, color : uint
+borrow text : Ptr[byte], fontSize : int, color : uint
 ) : owned Ptr[byte]
 private extern def janus_graphics_image_alpha_mask(
-handle : Ptr[byte], mask : Ptr[byte]
+borrow handle : Ptr[byte], borrow mask : Ptr[byte]
 ) : Unit
 private extern def janus_graphics_image_convolution(
-handle : Ptr[byte], kernel : Ptr[float], kernelSize : int
+borrow handle : Ptr[byte], borrow kernel : Ptr[float], kernelSize : int
 ) : Unit
 private extern def janus_graphics_transform_image(
-handle : Ptr[byte], kind : int, first : int, second : int,
+borrow handle : Ptr[byte], kind : int, first : int, second : int,
 third : int, fourth : int, x : float, y : float,
 width : float, height : float, amount : float,
 firstColor : uint, secondColor : uint
 ) : Unit
 private extern def janus_graphics_image_alpha_border_x(
-handle : Ptr[byte], threshold : float
+borrow handle : Ptr[byte], threshold : float
 ) : float
 private extern def janus_graphics_image_alpha_border_y(
-handle : Ptr[byte], threshold : float
+borrow handle : Ptr[byte], threshold : float
 ) : float
 private extern def janus_graphics_image_alpha_border_width(
-handle : Ptr[byte], threshold : float
+borrow handle : Ptr[byte], threshold : float
 ) : float
 private extern def janus_graphics_image_alpha_border_height(
-handle : Ptr[byte], threshold : float
+borrow handle : Ptr[byte], threshold : float
 ) : float
 private extern def janus_graphics_image_color(
-handle : Ptr[byte], x : int, y : int
+borrow handle : Ptr[byte], x : int, y : int
 ) : uint
 private extern def janus_graphics_draw_on_image(
-handle : Ptr[byte], kind : int, x1 : float, y1 : float,
+borrow handle : Ptr[byte], kind : int, x1 : float, y1 : float,
 x2 : float, y2 : float, x3 : float, y3 : float,
 thickness : int, color : uint
 ) : Unit
 private extern def janus_graphics_draw_triangle_colors_on_image(
-handle : Ptr[byte], x1 : float, y1 : float, x2 : float, y2 : float,
+borrow handle : Ptr[byte], x1 : float, y1 : float, x2 : float, y2 : float,
 x3 : float, y3 : float, first : uint, second : uint, third : uint
 ) : Unit
 private extern def janus_graphics_draw_points_on_image(
-handle : Ptr[byte], points : Ptr[Vector2], count : int,
+borrow handle : Ptr[byte], borrow points : Ptr[Vector2], count : int,
 color : uint, strip : bool
 ) : Unit
 private extern def janus_graphics_draw_image(
-handle : Ptr[byte], source : Ptr[byte], sourceX : float, sourceY : float,
+borrow handle : Ptr[byte], borrow source : Ptr[byte], sourceX : float, sourceY : float,
 sourceWidth : float, sourceHeight : float, destinationX : float,
 destinationY : float, destinationWidth : float, destinationHeight : float,
 tint : uint
 ) : Unit
 private extern def janus_graphics_draw_text_on_image(
-handle : Ptr[byte], text : Ptr[byte], x : int, y : int,
+borrow handle : Ptr[byte], borrow text : Ptr[byte], x : int, y : int,
 fontSize : int, color : uint
 ) : Unit
 private extern def janus_graphics_texture_from_image(
-handle : Ptr[byte]
+borrow handle : Ptr[byte]
 ) : owned Ptr[byte]
 private extern def janus_graphics_update_texture_from_image(
-texture : Ptr[byte], image : Ptr[byte], x : float, y : float,
+borrow texture : Ptr[byte], borrow image : Ptr[byte], x : float, y : float,
 width : float, height : float, region : bool
 ) : Unit
 
 private extern def janus_graphics_load_font(
-fileName : Ptr[byte],
+borrow fileName : Ptr[byte],
 fontSize : int
 ) : owned Ptr[byte]
 private extern def janus_graphics_load_font_utf8(
-fileName : Ptr[byte],
+borrow fileName : Ptr[byte],
 fontSize : int,
-characters : Ptr[byte]
+borrow characters : Ptr[byte]
 ) : owned Ptr[byte]
-private extern def janus_graphics_font_is_valid(handle : Ptr[byte]) : bool
-private extern def janus_graphics_unload_font(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_font_is_valid(borrow handle : Ptr[byte]) : bool
+private extern def janus_graphics_unload_font(consume handle : Ptr[byte]) : Unit
 private extern def janus_graphics_draw_text_font(
-handle : Ptr[byte],
-text : Ptr[byte],
+borrow handle : Ptr[byte],
+borrow text : Ptr[byte],
 x : float,
 y : float,
 fontSize : float,
@@ -130,42 +130,42 @@ spacing : float,
 color : uint
 ) : Unit
 private extern def janus_graphics_measure_text_width(
-handle : Ptr[byte],
-text : Ptr[byte],
+borrow handle : Ptr[byte],
+borrow text : Ptr[byte],
 fontSize : float,
 spacing : float
 ) : float
 private extern def janus_graphics_measure_text_height(
-handle : Ptr[byte],
-text : Ptr[byte],
+borrow handle : Ptr[byte],
+borrow text : Ptr[byte],
 fontSize : float,
 spacing : float
 ) : float
-private extern def janus_graphics_load_texture(fileName : Ptr[byte]) : owned Ptr[byte]
-private extern def janus_graphics_texture_is_valid(handle : Ptr[byte]) : bool
-private extern def janus_graphics_texture_width(handle : Ptr[byte]) : int
-private extern def janus_graphics_texture_height(handle : Ptr[byte]) : int
-private extern def janus_graphics_unload_texture(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_load_texture(borrow fileName : Ptr[byte]) : owned Ptr[byte]
+private extern def janus_graphics_texture_is_valid(borrow handle : Ptr[byte]) : bool
+private extern def janus_graphics_texture_width(borrow handle : Ptr[byte]) : int
+private extern def janus_graphics_texture_height(borrow handle : Ptr[byte]) : int
+private extern def janus_graphics_unload_texture(consume handle : Ptr[byte]) : Unit
 private extern def janus_graphics_draw_texture(
-handle : Ptr[byte],
+borrow handle : Ptr[byte],
 x : int,
 y : int,
 tint : uint
 ) : Unit
 private extern def janus_graphics_draw_texture_at(
-handle : Ptr[byte], x : float, y : float, tint : uint
+borrow handle : Ptr[byte], x : float, y : float, tint : uint
 ) : Unit
 private extern def janus_graphics_draw_texture_ex(
-handle : Ptr[byte], x : float, y : float,
+borrow handle : Ptr[byte], x : float, y : float,
 rotation : float, scale : float, tint : uint
 ) : Unit
 private extern def janus_graphics_draw_texture_rec(
-handle : Ptr[byte], sourceX : float, sourceY : float,
+borrow handle : Ptr[byte], sourceX : float, sourceY : float,
 sourceWidth : float, sourceHeight : float, x : float, y : float,
 tint : uint
 ) : Unit
 private extern def janus_graphics_draw_texture_pro(
-handle : Ptr[byte],
+borrow handle : Ptr[byte],
 sourceX : float,
 sourceY : float,
 sourceWidth : float,
@@ -180,40 +180,40 @@ rotation : float,
 tint : uint
 ) : Unit
 private extern def janus_graphics_draw_texture_npatch(
-handle : Ptr[byte], sourceX : float, sourceY : float,
+borrow handle : Ptr[byte], sourceX : float, sourceY : float,
 sourceWidth : float, sourceHeight : float, left : int, top : int,
 right : int, bottom : int, layout : int, destinationX : float,
 destinationY : float, destinationWidth : float, destinationHeight : float,
 originX : float, originY : float, rotation : float, tint : uint
 ) : Unit
 private extern def janus_graphics_set_shapes_texture(
-handle : Ptr[byte], sourceX : float, sourceY : float,
+borrow handle : Ptr[byte], sourceX : float, sourceY : float,
 sourceWidth : float, sourceHeight : float
 ) : Unit
 private extern def janus_graphics_set_texture_filter(
-handle : Ptr[byte],
+borrow handle : Ptr[byte],
 filter : int
 ) : Unit
 private extern def janus_graphics_set_texture_wrap(
-handle : Ptr[byte], wrap : int
+borrow handle : Ptr[byte], wrap : int
 ) : Unit
 private extern def janus_graphics_generate_texture_mipmaps(
-handle : Ptr[byte]
+borrow handle : Ptr[byte]
 ) : Unit
 private extern def janus_graphics_load_render_texture(
 width : int,
 height : int
 ) : owned Ptr[byte]
 private extern def janus_graphics_render_texture_is_valid(
-handle : Ptr[byte]
+borrow handle : Ptr[byte]
 ) : bool
-private extern def janus_graphics_render_texture_width(handle : Ptr[byte]) : int
-private extern def janus_graphics_render_texture_height(handle : Ptr[byte]) : int
-private extern def janus_graphics_unload_render_texture(handle : Ptr[byte]) : Unit
-private extern def janus_graphics_begin_render_texture(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_render_texture_width(borrow handle : Ptr[byte]) : int
+private extern def janus_graphics_render_texture_height(borrow handle : Ptr[byte]) : int
+private extern def janus_graphics_unload_render_texture(consume handle : Ptr[byte]) : Unit
+private extern def janus_graphics_begin_render_texture(borrow handle : Ptr[byte]) : Unit
 private extern def janus_graphics_end_render_texture() : Unit
 private extern def janus_graphics_draw_render_texture_pro(
-handle : Ptr[byte],
+borrow handle : Ptr[byte],
 sourceX : float,
 sourceY : float,
 sourceWidth : float,
@@ -228,38 +228,38 @@ rotation : float,
 tint : uint
 ) : Unit
 private extern def janus_graphics_load_fragment_shader(
-fragmentFile : Ptr[byte]
+borrow fragmentFile : Ptr[byte]
 ) : owned Ptr[byte]
 private extern def janus_graphics_load_shader(
-vertexFile : Ptr[byte],
-fragmentFile : Ptr[byte]
+borrow vertexFile : Ptr[byte],
+borrow fragmentFile : Ptr[byte]
 ) : owned Ptr[byte]
-private extern def janus_graphics_shader_is_valid(handle : Ptr[byte]) : bool
-private extern def janus_graphics_unload_shader(handle : Ptr[byte]) : Unit
-private extern def janus_graphics_begin_shader(handle : Ptr[byte]) : Unit
+private extern def janus_graphics_shader_is_valid(borrow handle : Ptr[byte]) : bool
+private extern def janus_graphics_unload_shader(consume handle : Ptr[byte]) : Unit
+private extern def janus_graphics_begin_shader(borrow handle : Ptr[byte]) : Unit
 private extern def janus_graphics_end_shader() : Unit
 private extern def janus_graphics_shader_location(
-handle : Ptr[byte],
-name : Ptr[byte]
+borrow handle : Ptr[byte],
+borrow name : Ptr[byte]
 ) : int
 private extern def janus_graphics_set_shader_float(
-handle : Ptr[byte],
+borrow handle : Ptr[byte],
 location : int,
 value : float
 ) : Unit
 private extern def janus_graphics_set_shader_vector2(
-handle : Ptr[byte],
+borrow handle : Ptr[byte],
 location : int,
 x : float,
 y : float
 ) : Unit
 private extern def janus_graphics_set_shader_color(
-handle : Ptr[byte],
+borrow handle : Ptr[byte],
 location : int,
 color : uint
 ) : Unit
 private extern def janus_graphics_set_shader_int(
-handle : Ptr[byte],
+borrow handle : Ptr[byte],
 location : int,
 value : int
 ) : Unit
@@ -267,61 +267,61 @@ value : int
 /// Possède une image CPU native et la libère à sa destruction.
 /// @param handle Image native dont la propriété est transférée à cette ressource.
 class Image(private val handle : Ptr[byte]) {
-/// Indique si l’image contient des pixels valides.
-/// @return `true` lorsque le test ou l’opération réussit.
+    /// Indique si l’image contient des pixels valides.
+    /// @return `true` lorsque le test ou l’opération réussit.
     def isValid() : bool {
         return janus_graphics_image_is_valid(handle)
     }
 
-/// Renvoie la largeur de l’image CPU.
-/// @return Valeur entière rapportée par la ressource.
+    /// Renvoie la largeur de l’image CPU.
+    /// @return Valeur entière rapportée par la ressource.
     def width() : int {
         return janus_graphics_image_width(handle)
     }
 
-/// Renvoie la hauteur de l’image CPU.
-/// @return Valeur entière rapportée par la ressource.
+    /// Renvoie la hauteur de l’image CPU.
+    /// @return Valeur entière rapportée par la ressource.
     def height() : int {
         return janus_graphics_image_height(handle)
     }
 
-/// Renvoie le nombre de niveaux de mipmap.
-/// @return Valeur entière rapportée par la ressource.
+    /// Renvoie le nombre de niveaux de mipmap.
+    /// @return Valeur entière rapportée par la ressource.
     def mipmaps() : int {
         return janus_graphics_image_mipmaps(handle)
     }
 
     /// Renvoie la valeur entière de [[PixelFormat]].
-/// @return Valeur entière rapportée par la ressource.
+    /// @return Valeur entière rapportée par la ressource.
     def formatValue() : int {
         return janus_graphics_image_format(handle)
     }
 
-/// Encode l’image dans un fichier.
-/// @param fileName Chemin transmis au chargeur natif.
-/// @return `true` lorsque le test ou l’opération réussit.
+    /// Encode l’image dans un fichier.
+    /// @param fileName Chemin transmis au chargeur natif.
+    /// @return `true` lorsque le test ou l’opération réussit.
     def export(fileName : string) : bool {
         return janus_graphics_export_image(handle, cstr(fileName))
     }
 
     /// Exporte l’image sous forme de tableau C dans un fichier source.
-/// @param fileName Chemin transmis au chargeur natif.
-/// @return `true` lorsque le test ou l’opération réussit.
+    /// @param fileName Chemin transmis au chargeur natif.
+    /// @return `true` lorsque le test ou l’opération réussit.
     def exportAsCode(fileName : string) : bool {
         return janus_graphics_export_image_code(handle, cstr(fileName))
     }
 
-/// Duplique les pixels dans une image indépendante.
-/// @return Nouvelle image propriétaire, invalide si le backend échoue.
+    /// Duplique les pixels dans une image indépendante.
+    /// @return Nouvelle image propriétaire, invalide si le backend échoue.
     def copy() : Image {
         return new Image(janus_graphics_copy_image(
         handle, float(0.0), float(0.0), float(0.0), float(0.0), false
         ))
     }
 
-/// Copie une région dans une image indépendante.
-/// @param area Zone rectangulaire concernée.
-/// @return Nouvelle image propriétaire, invalide si le backend échoue.
+    /// Copie une région dans une image indépendante.
+    /// @param area Zone rectangulaire concernée.
+    /// @return Nouvelle image propriétaire, invalide si le backend échoue.
     def region(area : Rectangle) : Image {
         return new Image(janus_graphics_copy_image(
         handle, area.x, area.y, area.width, area.height, true
@@ -329,192 +329,192 @@ class Image(private val handle : Ptr[byte]) {
     }
 
     /// Extrait un canal RGBA sous forme d’image en niveaux de gris.
-/// @param selected Indice du canal RGBA.
-/// @return Nouvelle image propriétaire, invalide si le backend échoue.
+    /// @param selected Indice du canal RGBA.
+    /// @return Nouvelle image propriétaire, invalide si le backend échoue.
     def channel(selected : int) : Image {
         return new Image(janus_graphics_image_channel(handle, selected))
     }
 
-/// Convertit le format mémoire des pixels.
-/// @param format Format de pixels demandé.
+    /// Convertit le format mémoire des pixels.
+    /// @param format Format de pixels demandé.
     def convert(format : PixelFormat) : Unit {
         janus_graphics_transform_image(handle, 0, int(format), 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Agrandit le canevas aux dimensions puissances de deux.
-/// @param fill Couleur des pixels nouvellement créés.
+    /// Agrandit le canevas aux dimensions puissances de deux.
+    /// @param fill Couleur des pixels nouvellement créés.
     def toPowerOfTwo(fill : Color) : Unit {
         janus_graphics_transform_image(handle, 1, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), fill.packed(), uint(0))
     }
 
-/// Réduit l’image à une région.
-/// @param area Zone rectangulaire concernée.
+    /// Réduit l’image à une région.
+    /// @param area Zone rectangulaire concernée.
     def crop(area : Rectangle) : Unit {
         janus_graphics_transform_image(handle, 2, 0, 0, 0, 0,
         area.x, area.y, area.width, area.height, float(0.0), uint(0), uint(0))
     }
 
-/// Recadre autour des pixels assez opaques.
-/// @param threshold Seuil du test.
+    /// Recadre autour des pixels assez opaques.
+    /// @param threshold Seuil du test.
     def alphaCrop(threshold : float) : Unit {
         janus_graphics_transform_image(handle, 3, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), threshold, uint(0), uint(0))
     }
 
-/// Remplace les pixels sous le seuil alpha.
-/// @param color Couleur appliquée.
-/// @param threshold Seuil du test.
+    /// Remplace les pixels sous le seuil alpha.
+    /// @param color Couleur appliquée.
+    /// @param threshold Seuil du test.
     def alphaClear(color : Color, threshold : float) : Unit {
         janus_graphics_transform_image(handle, 4, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), threshold, color.packed(), uint(0))
     }
 
-/// Applique le canal alpha d’une autre image.
-/// @param mask Image fournissant le canal alpha.
+    /// Applique le canal alpha d’une autre image.
+    /// @param mask Image fournissant le canal alpha.
     def alphaMask(mask : Image) : Unit {
         janus_graphics_image_alpha_mask(handle, mask.handle)
     }
 
-/// Prémultiplie les couleurs par leur alpha.
+    /// Prémultiplie les couleurs par leur alpha.
     def alphaPremultiply() : Unit {
         janus_graphics_transform_image(handle, 5, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Applique un flou gaussien approché.
-/// @param size Taille du voisinage.
+    /// Applique un flou gaussien approché.
+    /// @param size Taille du voisinage.
     def blurGaussian(size : int) : Unit {
         janus_graphics_transform_image(handle, 6, size, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
     /// Applique un noyau carré contenant `kernelSize * kernelSize` flottants contigus.
-/// @param kernel Noyau carré de flottants contigus.
-/// @param kernelSize Côté du noyau carré.
+    /// @param kernel Noyau carré de flottants contigus.
+    /// @param kernelSize Côté du noyau carré.
     def convolve(kernel : Ptr[float], kernelSize : int) : Unit {
         janus_graphics_image_convolution(handle, kernel, kernelSize)
     }
 
-/// Redimensionne avec interpolation bicubique.
-/// @param width Largeur en pixels.
-/// @param height Hauteur en pixels.
+    /// Redimensionne avec interpolation bicubique.
+    /// @param width Largeur en pixels.
+    /// @param height Hauteur en pixels.
     def resize(width : int, height : int) : Unit {
         janus_graphics_transform_image(handle, 7, width, height, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Redimensionne au voisin le plus proche.
-/// @param width Largeur en pixels.
-/// @param height Hauteur en pixels.
+    /// Redimensionne au voisin le plus proche.
+    /// @param width Largeur en pixels.
+    /// @param height Hauteur en pixels.
     def resizeNearest(width : int, height : int) : Unit {
         janus_graphics_transform_image(handle, 8, width, height, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Change le canevas sans étirer les pixels.
-/// @param width Largeur en pixels.
-/// @param height Hauteur en pixels.
-/// @param offsetX Décalage horizontal.
-/// @param offsetY Décalage vertical.
-/// @param fill Couleur des pixels nouvellement créés.
+    /// Change le canevas sans étirer les pixels.
+    /// @param width Largeur en pixels.
+    /// @param height Hauteur en pixels.
+    /// @param offsetX Décalage horizontal.
+    /// @param offsetY Décalage vertical.
+    /// @param fill Couleur des pixels nouvellement créés.
     def resizeCanvas(width : int, height : int, offsetX : int, offsetY : int, fill : Color) : Unit {
         janus_graphics_transform_image(handle, 9, width, height, offsetX, offsetY,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), fill.packed(), uint(0))
     }
 
-/// Calcule les niveaux de mipmap.
+    /// Calcule les niveaux de mipmap.
     def generateMipmaps() : Unit {
         janus_graphics_transform_image(handle, 10, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Réduit la profondeur des canaux par diffusion d’erreur.
-/// @param redBits Bits rouges conservés.
-/// @param greenBits Bits verts conservés.
-/// @param blueBits Bits bleus conservés.
-/// @param alphaBits Bits alpha conservés.
+    /// Réduit la profondeur des canaux par diffusion d’erreur.
+    /// @param redBits Bits rouges conservés.
+    /// @param greenBits Bits verts conservés.
+    /// @param blueBits Bits bleus conservés.
+    /// @param alphaBits Bits alpha conservés.
     def dither(redBits : int, greenBits : int, blueBits : int, alphaBits : int) : Unit {
         janus_graphics_transform_image(handle, 11, redBits, greenBits, blueBits, alphaBits,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Retourne verticalement les pixels.
+    /// Retourne verticalement les pixels.
     def flipVertical() : Unit {
         janus_graphics_transform_image(handle, 12, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Retourne horizontalement les pixels.
+    /// Retourne horizontalement les pixels.
     def flipHorizontal() : Unit {
         janus_graphics_transform_image(handle, 13, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Fait pivoter les pixels.
-/// @param degrees Angle entier de rotation.
+    /// Fait pivoter les pixels.
+    /// @param degrees Angle entier de rotation.
     def rotate(degrees : int) : Unit {
         janus_graphics_transform_image(handle, 14, degrees, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Fait pivoter de 90 degrés dans le sens horaire.
+    /// Fait pivoter de 90 degrés dans le sens horaire.
     def rotateClockwise() : Unit {
         janus_graphics_transform_image(handle, 15, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Fait pivoter de 90 degrés dans le sens antihoraire.
+    /// Fait pivoter de 90 degrés dans le sens antihoraire.
     def rotateCounterClockwise() : Unit {
         janus_graphics_transform_image(handle, 16, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Multiplie les pixels par une couleur.
-/// @param color Couleur appliquée.
+    /// Multiplie les pixels par une couleur.
+    /// @param color Couleur appliquée.
     def tint(color : Color) : Unit {
         janus_graphics_transform_image(handle, 17, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), color.packed(), uint(0))
     }
 
-/// Inverse les canaux colorés.
+    /// Inverse les canaux colorés.
     def invert() : Unit {
         janus_graphics_transform_image(handle, 18, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Convertit les pixels en niveaux de gris.
+    /// Convertit les pixels en niveaux de gris.
     def grayscale() : Unit {
         janus_graphics_transform_image(handle, 19, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Corrige le contraste.
-/// @param value Intensité de correction.
+    /// Corrige le contraste.
+    /// @param value Intensité de correction.
     def contrast(value : float) : Unit {
         janus_graphics_transform_image(handle, 20, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), value, uint(0), uint(0))
     }
 
-/// Corrige la luminosité.
-/// @param value Intensité de correction.
+    /// Corrige la luminosité.
+    /// @param value Intensité de correction.
     def brightness(value : int) : Unit {
         janus_graphics_transform_image(handle, 21, value, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), uint(0), uint(0))
     }
 
-/// Remplace une couleur exacte.
-/// @param color Couleur appliquée.
-/// @param replacement Couleur de remplacement.
+    /// Remplace une couleur exacte.
+    /// @param color Couleur appliquée.
+    /// @param replacement Couleur de remplacement.
     def replaceColor(color : Color, replacement : Color) : Unit {
         janus_graphics_transform_image(handle, 22, 0, 0, 0, 0,
         float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), color.packed(), replacement.packed())
     }
 
-/// Calcule les limites des pixels assez opaques.
-/// @param threshold Seuil du test.
-/// @return Rectangle calculé, nul lorsqu’aucune zone ne convient.
+    /// Calcule les limites des pixels assez opaques.
+    /// @param threshold Seuil du test.
+    /// @return Rectangle calculé, nul lorsqu’aucune zone ne convient.
     def alphaBorder(threshold : float) : Rectangle {
         return rectangle(
         janus_graphics_image_alpha_border_x(handle, threshold),
@@ -524,84 +524,84 @@ class Image(private val handle : Ptr[byte]) {
         )
     }
 
-/// Lit un pixel.
-/// @param x Coordonnée horizontale.
-/// @param y Coordonnée verticale.
-/// @return Couleur lue dans l’image.
+    /// Lit un pixel.
+    /// @param x Coordonnée horizontale.
+    /// @param y Coordonnée verticale.
+    /// @return Couleur lue dans l’image.
     def colorAt(x : int, y : int) : Color {
         return new Color(janus_graphics_image_color(handle, x, y))
     }
 
-/// Remplit toute l’image.
-/// @param color Couleur appliquée.
+    /// Remplit toute l’image.
+    /// @param color Couleur appliquée.
     def clear(color : Color) : Unit {
         janus_graphics_draw_on_image(handle, 0, float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), float(0.0), 0, color.packed())
     }
 
-/// Écrit un pixel dans l’image CPU.
-/// @param x Coordonnée horizontale.
-/// @param y Coordonnée verticale.
-/// @param color Couleur appliquée.
+    /// Écrit un pixel dans l’image CPU.
+    /// @param x Coordonnée horizontale.
+    /// @param y Coordonnée verticale.
+    /// @param color Couleur appliquée.
     def drawPixel(x : int, y : int, color : Color) : Unit {
         janus_graphics_draw_on_image(handle, 1, float(x), float(y), float(0.0), float(0.0), float(0.0), float(0.0), 0, color.packed())
     }
 
-/// Trace un segment dans l’image CPU.
-/// @param start Point ou couleur initiale.
-/// @param end Point ou couleur finale.
-/// @param thickness Épaisseur du trait en pixels.
-/// @param color Couleur appliquée.
+    /// Trace un segment dans l’image CPU.
+    /// @param start Point ou couleur initiale.
+    /// @param end Point ou couleur finale.
+    /// @param thickness Épaisseur du trait en pixels.
+    /// @param color Couleur appliquée.
     def drawLine(start : Vector2, end : Vector2, thickness : int, color : Color) : Unit {
         janus_graphics_draw_on_image(handle, 2, start.x, start.y, end.x, end.y, float(0.0), float(0.0), thickness, color.packed())
     }
 
-/// Dessine un disque dans l’image CPU.
-/// @param center Centre dans le repère actif.
-/// @param radius Rayon de la forme.
-/// @param color Couleur appliquée.
+    /// Dessine un disque dans l’image CPU.
+    /// @param center Centre dans le repère actif.
+    /// @param radius Rayon de la forme.
+    /// @param color Couleur appliquée.
     def drawCircle(center : Vector2, radius : int, color : Color) : Unit {
         janus_graphics_draw_on_image(handle, 3, center.x, center.y, float(radius), float(0.0), float(0.0), float(0.0), 0, color.packed())
     }
 
-/// Trace un cercle dans l’image CPU.
-/// @param center Centre dans le repère actif.
-/// @param radius Rayon de la forme.
-/// @param color Couleur appliquée.
+    /// Trace un cercle dans l’image CPU.
+    /// @param center Centre dans le repère actif.
+    /// @param radius Rayon de la forme.
+    /// @param color Couleur appliquée.
     def drawCircleLines(center : Vector2, radius : int, color : Color) : Unit {
         janus_graphics_draw_on_image(handle, 4, center.x, center.y, float(radius), float(0.0), float(0.0), float(0.0), 0, color.packed())
     }
 
-/// Dessine un rectangle dans l’image CPU.
-/// @param area Zone rectangulaire concernée.
-/// @param color Couleur appliquée.
+    /// Dessine un rectangle dans l’image CPU.
+    /// @param area Zone rectangulaire concernée.
+    /// @param color Couleur appliquée.
     def drawRectangle(area : Rectangle, color : Color) : Unit {
         janus_graphics_draw_on_image(handle, 5, area.x, area.y, area.width, area.height, float(0.0), float(0.0), 0, color.packed())
     }
 
-/// Trace un rectangle dans l’image CPU.
-/// @param area Zone rectangulaire concernée.
-/// @param thickness Épaisseur du trait en pixels.
-/// @param color Couleur appliquée.
+    /// Trace un rectangle dans l’image CPU.
+    /// @param area Zone rectangulaire concernée.
+    /// @param thickness Épaisseur du trait en pixels.
+    /// @param color Couleur appliquée.
     def drawRectangleLines(area : Rectangle, thickness : int, color : Color) : Unit {
         janus_graphics_draw_on_image(handle, 6, area.x, area.y, area.width, area.height, float(0.0), float(0.0), thickness, color.packed())
     }
 
-/// Dessine un triangle dans l’image CPU.
-/// @param first Premier point ou rectangle.
-/// @param second Deuxième point ou rectangle.
-/// @param third Troisième point.
-/// @param color Couleur appliquée.
+    /// Dessine un triangle dans l’image CPU.
+    /// @param first Premier point ou rectangle.
+    /// @param second Deuxième point ou rectangle.
+    /// @param third Troisième point.
+    /// @param color Couleur appliquée.
     def drawTriangle(first : Vector2, second : Vector2, third : Vector2, color : Color) : Unit {
         janus_graphics_draw_on_image(handle, 7, first.x, first.y, second.x, second.y, third.x, third.y, 0, color.packed())
     }
 
-/// Dessine un triangle à couleurs interpolées.
-/// @param first Premier point ou rectangle.
-/// @param second Deuxième point ou rectangle.
-/// @param third Troisième point.
-/// @param firstColor Couleur du premier sommet.
-/// @param secondColor Couleur du deuxième sommet.
-/// @param thirdColor Couleur du troisième sommet.
+    /// Dessine un triangle à couleurs interpolées.
+    /// @param first Premier point ou rectangle.
+    /// @param second Deuxième point ou rectangle.
+    /// @param third Troisième point.
+    /// @param firstColor Couleur du premier sommet.
+    /// @param secondColor Couleur du deuxième sommet.
+    /// @param thirdColor Couleur du troisième sommet.
     def drawTriangleColors(first : Vector2, second : Vector2, third : Vector2, firstColor : Color, secondColor : Color, thirdColor : Color) : Unit {
         janus_graphics_draw_triangle_colors_on_image(
         handle, first.x, first.y, second.x, second.y, third.x, third.y,
@@ -609,54 +609,54 @@ class Image(private val handle : Ptr[byte]) {
         )
     }
 
-/// Trace un triangle dans l’image CPU.
-/// @param first Premier point ou rectangle.
-/// @param second Deuxième point ou rectangle.
-/// @param third Troisième point.
-/// @param color Couleur appliquée.
+    /// Trace un triangle dans l’image CPU.
+    /// @param first Premier point ou rectangle.
+    /// @param second Deuxième point ou rectangle.
+    /// @param third Troisième point.
+    /// @param color Couleur appliquée.
     def drawTriangleLines(first : Vector2, second : Vector2, third : Vector2, color : Color) : Unit {
         janus_graphics_draw_on_image(handle, 8, first.x, first.y, second.x, second.y, third.x, third.y, 0, color.packed())
     }
 
-/// Dessine un éventail de triangles dans l’image CPU.
-/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
-/// @param count Nombre de vecteurs lisibles.
-/// @param color Couleur appliquée.
+    /// Dessine un éventail de triangles dans l’image CPU.
+    /// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+    /// @param count Nombre de vecteurs lisibles.
+    /// @param color Couleur appliquée.
     def drawTriangleFan(points : Ptr[Vector2], count : int, color : Color) : Unit {
         janus_graphics_draw_points_on_image(handle, points, count, color.packed(), false)
     }
 
-/// Dessine une bande de triangles dans l’image CPU.
-/// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
-/// @param count Nombre de vecteurs lisibles.
-/// @param color Couleur appliquée.
+    /// Dessine une bande de triangles dans l’image CPU.
+    /// @param points Pointeur vers des Vector2 contigus appartenant à l’appelant.
+    /// @param count Nombre de vecteurs lisibles.
+    /// @param color Couleur appliquée.
     def drawTriangleStrip(points : Ptr[Vector2], count : int, color : Color) : Unit {
         janus_graphics_draw_points_on_image(handle, points, count, color.packed(), true)
     }
 
-/// Compose une image source.
-/// @param source Image source.
-/// @param sourceArea Région lue dans la source.
-/// @param destination Rectangle de destination.
-/// @param tint Couleur multiplicative.
+    /// Compose une image source.
+    /// @param source Image source.
+    /// @param sourceArea Région lue dans la source.
+    /// @param destination Rectangle de destination.
+    /// @param tint Couleur multiplicative.
     def drawImage(source : Image, sourceArea : Rectangle, destination : Rectangle, tint : Color) : Unit {
         janus_graphics_draw_image(handle, source.handle, sourceArea.x, sourceArea.y,
         sourceArea.width, sourceArea.height, destination.x, destination.y,
         destination.width, destination.height, tint.packed())
     }
 
-/// Dessine du texte dans l’image CPU.
-/// @param text Texte UTF-8 rendu.
-/// @param x Coordonnée horizontale.
-/// @param y Coordonnée verticale.
-/// @param fontSize Hauteur de police en pixels.
-/// @param color Couleur appliquée.
+    /// Dessine du texte dans l’image CPU.
+    /// @param text Texte UTF-8 rendu.
+    /// @param x Coordonnée horizontale.
+    /// @param y Coordonnée verticale.
+    /// @param fontSize Hauteur de police en pixels.
+    /// @param color Couleur appliquée.
     def drawText(text : string, x : int, y : int, fontSize : int, color : Color) : Unit {
         janus_graphics_draw_text_on_image(handle, cstr(text), x, y, fontSize, color.packed())
     }
 
-/// Téléverse les pixels dans une texture GPU.
-/// @return Nouvelle texture GPU propriétaire, invalide si le téléversement échoue.
+    /// Téléverse les pixels dans une texture GPU.
+    /// @return Nouvelle texture GPU propriétaire, invalide si le téléversement échoue.
     def toTexture() : Texture {
         return new Texture(janus_graphics_texture_from_image(handle))
     }
@@ -708,18 +708,18 @@ class Texture(private val handle : Ptr[byte]) {
     }
 
     /// Dessine la texture avec rotation et échelle uniforme.
-/// @param position Paramètre interprété selon le contrat de cette opération raylib.
-/// @param rotation Rotation en degrés.
-/// @param scale Échelle du motif.
-/// @param tint Couleur multiplicative.
+    /// @param position Paramètre interprété selon le contrat de cette opération raylib.
+    /// @param rotation Rotation en degrés.
+    /// @param scale Échelle du motif.
+    /// @param tint Couleur multiplicative.
     def drawEx(position : Vector2, rotation : float, scale : float, tint : Color) : Unit {
         janus_graphics_draw_texture_ex(handle, position.x, position.y, rotation, scale, tint.packed())
     }
 
     /// Dessine une zone source à une position flottante.
-/// @param source Image source.
-/// @param position Paramètre interprété selon le contrat de cette opération raylib.
-/// @param tint Couleur multiplicative.
+    /// @param source Image source.
+    /// @param position Paramètre interprété selon le contrat de cette opération raylib.
+    /// @param tint Couleur multiplicative.
     def drawRegion(source : Rectangle, position : Vector2, tint : Color) : Unit {
         janus_graphics_draw_texture_rec(handle, source.x, source.y, source.width, source.height, position.x, position.y, tint.packed())
     }
@@ -756,11 +756,11 @@ class Texture(private val handle : Ptr[byte]) {
     }
 
     /// Dessine une texture neuf-patch en préservant ses bordures.
-/// @param info Paramètre interprété selon le contrat de cette opération raylib.
-/// @param destination Rectangle de destination.
-/// @param origin Point de pivot.
-/// @param rotation Rotation en degrés.
-/// @param tint Couleur multiplicative.
+    /// @param info Paramètre interprété selon le contrat de cette opération raylib.
+    /// @param destination Rectangle de destination.
+    /// @param origin Point de pivot.
+    /// @param rotation Rotation en degrés.
+    /// @param tint Couleur multiplicative.
     def drawNPatch(
     info : NPatchInfo,
     destination : Rectangle,
@@ -777,7 +777,7 @@ class Texture(private val handle : Ptr[byte]) {
     }
 
     /// Utilise une région de cette texture pour les primitives géométriques raylib.
-/// @param source Image source.
+    /// @param source Image source.
     def useForShapes(source : Rectangle) : Unit {
         janus_graphics_set_shapes_texture(
         handle, source.x, source.y, source.width, source.height
@@ -845,7 +845,7 @@ class Texture(private val handle : Ptr[byte]) {
     }
 
     /// Règle la répétition des coordonnées hors de la texture.
-/// @param wrap Paramètre interprété selon le contrat de cette opération raylib.
+    /// @param wrap Paramètre interprété selon le contrat de cette opération raylib.
     def setWrap(wrap : TextureWrap) : Unit {
         janus_graphics_set_texture_wrap(handle, int(wrap))
     }
@@ -1118,6 +1118,10 @@ var currentFrame : int
         flipY,
         tint
         )
+    }
+
+    destructor {
+        delete texture
     }
 }
 

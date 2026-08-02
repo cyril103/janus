@@ -17,37 +17,37 @@ import std.result
 import std.system
 
 private extern def janus_path_normalize(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize,
-output : Ptr[Ptr[byte]],
-outputLength : Ptr[usize]
+borrow output : Ptr[Ptr[byte]],
+borrow outputLength : Ptr[usize]
 ) : int
 private extern def janus_path_join(
-base : Ptr[byte],
+borrow base : Ptr[byte],
 baseLength : usize,
-child : Ptr[byte],
+borrow child : Ptr[byte],
 childLength : usize,
-output : Ptr[Ptr[byte]],
-outputLength : Ptr[usize]
+borrow output : Ptr[Ptr[byte]],
+borrow outputLength : Ptr[usize]
 ) : int
 private extern def janus_path_is_absolute(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize
 ) : int
 private extern def janus_path_component_count(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize
 ) : int
 private extern def janus_path_component(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize,
 index : uint,
-output : Ptr[Ptr[byte]],
-outputLength : Ptr[usize]
+borrow output : Ptr[Ptr[byte]],
+borrow outputLength : Ptr[usize]
 ) : int
 private extern def janus_path_last_error_code() : uint
 private extern def janus_path_last_error_category() : int
-private extern def janus_path_free(data : Ptr[byte]) : Unit
+private extern def janus_path_free(consume data : Ptr[byte]) : Unit
 
 private def pathError(
 operation : string,
@@ -65,6 +65,7 @@ private def pathOutput() : Ptr[Ptr[byte]] {
     val output : Ptr[Ptr[byte]] =
     alloc[Ptr[byte]](usize(1))
     if output == null[Ptr[byte]]() {
+        freeStorage(output)
         panic("Path output allocation failed\n")
     }
     return output
@@ -73,6 +74,7 @@ private def pathOutput() : Ptr[Ptr[byte]] {
 private def lengthOutput() : Ptr[usize] {
     val output : Ptr[usize] = alloc[usize](usize(1))
     if output == null[usize]() {
+        free(output)
         panic("Path length allocation failed\n")
     }
     return output
@@ -132,7 +134,7 @@ private val nativeLength : usize
     index : usize
     ) : Result[Path, SystemError] {
         val output : Ptr[Ptr[byte]] = pathOutput()
-        defer free(output)
+        defer freeStorage(output)
         val outputLength : Ptr[usize] = lengthOutput()
         defer free(outputLength)
         if janus_path_component(
@@ -170,7 +172,7 @@ def normalizePath(
 path : string
 ) : Result[Path, SystemError] {
     val output : Ptr[Ptr[byte]] = pathOutput()
-    defer free(output)
+    defer freeStorage(output)
     val outputLength : Ptr[usize] = lengthOutput()
     defer free(outputLength)
     if janus_path_normalize(
@@ -200,7 +202,7 @@ base : string,
 child : string
 ) : Result[Path, SystemError] {
     val output : Ptr[Ptr[byte]] = pathOutput()
-    defer free(output)
+    defer freeStorage(output)
     val outputLength : Ptr[usize] = lengthOutput()
     defer free(outputLength)
     if janus_path_join(

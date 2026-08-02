@@ -30,7 +30,7 @@ private enum SetSlot[T] {
 }
 
 private class HashSetIteratorState[T <: Copy, H <: Hashing[T]](
-private val source : HashSet[T, H],
+private borrow val source : HashSet[T, H],
 private var index : usize
 ) {
     def next() : Option[T] {
@@ -55,15 +55,15 @@ private val source : HashSet[T, H],
 private var index : usize
 ) {
     def next() : Option[T] {
-        var result : Option[T] = Option.None[T]()
-        while index < source.storageSize() && match result {
-            Some(value) => false,
-            None => true
-        } {
-            result = source.takeValueAt(index)
+        while index < source.storageSize() {
+            val result : Option[T] = source.takeValueAt(index)
             index = index + usize(1)
+            if isSome[T](result) {
+                return move result
+            }
+            delete result
         }
-        return result
+        return Option.None[T]()
     }
 
     def dispose() : Unit {
@@ -77,16 +77,16 @@ private var index : usize
 
 /// Ensemble propriétaire à adressage ouvert et sondage linéaire.
 ///
-/// L’ensemble possède ses valeurs et la stratégie `hashing`. La capacité est au
+/// L’ensemble possède ses valeurs et emprunte la stratégie `hashing`. La capacité est au
 /// minimum 8 et une insertion réorganise la table lorsque membres et tombstones
 /// approchent 75 % des cases. Les observations copient les valeurs et nécessitent
 /// donc `Copy`; [[HashSet.intoIterator]] consomme l’ensemble pour transférer des
 /// valeurs de tout type.
 /// @param initialCapacity Capacité souhaitée, normalisée à un minimum de 8.
-/// @param hashing Stratégie d’égalité et de hachage conservée par l’ensemble.
+/// @param hashing Stratégie d’égalité et de hachage empruntée par l’ensemble; elle doit rester vivante aussi longtemps que lui.
 class HashSet[T, H <: Hashing[T]](
 initialCapacity : usize,
-private val hashing : H
+private borrow val hashing : H
 ) extends Iterable[T] {
     private var slotCapacity : usize =
     normalizedHashCapacity(initialCapacity)
@@ -394,7 +394,9 @@ private val hashing : H
         new HashSetIteratorState[T, H](this, usize(0))
         return new Iterator[T](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[HashSetIteratorState[T, H]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -408,7 +410,9 @@ private val hashing : H
         new HashSetIntoIteratorState[T, H](move this, usize(0))
         return new Iterator[T](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[HashSetIntoIteratorState[T, H]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -423,10 +427,10 @@ private val hashing : H
 /// sont détruits conformément à [[HashSet.add]]. [[SetBuilder.result]] transfère
 /// le résultat puis réinitialise le constructeur à une capacité de 8.
 /// @param initialCapacity Capacité initiale souhaitée pour l’ensemble accumulé.
-/// @param hashing Stratégie conservée et réutilisée après chaque résultat.
+/// @param hashing Stratégie empruntée et réutilisée après chaque résultat.
 class SetBuilder[T, H <: Hashing[T]](
 initialCapacity : usize,
-private val hashing : H
+private borrow val hashing : H
 ) extends Builder[T, HashSet[T, H]] {
     private var values : HashSet[T, H] =
     new HashSet[T, H](initialCapacity, hashing)

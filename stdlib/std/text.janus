@@ -18,65 +18,65 @@ import std.result
 // mutation of that builder or until the builder is deleted. Character appends
 // encode one Unicode scalar as UTF-8; invalid scalar values become U+FFFD.
 
-private extern def janus_text_int(data : Ptr[byte], capacity : usize,
+private extern def janus_text_int(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : int) : usize
-private extern def janus_text_uint(data : Ptr[byte], capacity : usize,
+private extern def janus_text_uint(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : uint) : usize
-private extern def janus_text_long(data : Ptr[byte], capacity : usize,
+private extern def janus_text_long(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : long) : usize
-private extern def janus_text_ulong(data : Ptr[byte], capacity : usize,
+private extern def janus_text_ulong(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : ulong) : usize
-private extern def janus_text_byte(data : Ptr[byte], capacity : usize,
+private extern def janus_text_byte(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : byte) : usize
-private extern def janus_text_ubyte(data : Ptr[byte], capacity : usize,
+private extern def janus_text_ubyte(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : ubyte) : usize
-private extern def janus_text_short(data : Ptr[byte], capacity : usize,
+private extern def janus_text_short(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : short) : usize
-private extern def janus_text_ushort(data : Ptr[byte], capacity : usize,
+private extern def janus_text_ushort(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : ushort) : usize
-private extern def janus_text_isize(data : Ptr[byte], capacity : usize,
+private extern def janus_text_isize(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : isize) : usize
-private extern def janus_text_usize(data : Ptr[byte], capacity : usize,
+private extern def janus_text_usize(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : usize) : usize
-private extern def janus_text_float(data : Ptr[byte], capacity : usize,
+private extern def janus_text_float(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : float) : usize
-private extern def janus_text_double(data : Ptr[byte], capacity : usize,
+private extern def janus_text_double(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : double) : usize
-private extern def janus_text_bool(data : Ptr[byte], capacity : usize,
+private extern def janus_text_bool(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : bool) : usize
-private extern def janus_text_char(data : Ptr[byte], capacity : usize,
+private extern def janus_text_char(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : char) : usize
-private extern def janus_text_hex(data : Ptr[byte], capacity : usize,
+private extern def janus_text_hex(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : ulong, uppercase : bool) : usize
-private extern def janus_text_fixed(data : Ptr[byte], capacity : usize,
+private extern def janus_text_fixed(borrow data : Ptr[byte], capacity : usize,
 offset : usize, value : double, digits : uint) : usize
 
-private extern def janus_parse_int(data : Ptr[byte], length : usize,
-error : Ptr[int]) : int
-private extern def janus_parse_uint(data : Ptr[byte], length : usize,
-error : Ptr[int]) : uint
-private extern def janus_parse_long(data : Ptr[byte], length : usize,
-error : Ptr[int]) : long
-private extern def janus_parse_ulong(data : Ptr[byte], length : usize,
-error : Ptr[int]) : ulong
-private extern def janus_parse_byte(data : Ptr[byte], length : usize,
-error : Ptr[int]) : byte
-private extern def janus_parse_ubyte(data : Ptr[byte], length : usize,
-error : Ptr[int]) : ubyte
-private extern def janus_parse_short(data : Ptr[byte], length : usize,
-error : Ptr[int]) : short
-private extern def janus_parse_ushort(data : Ptr[byte], length : usize,
-error : Ptr[int]) : ushort
-private extern def janus_parse_isize(data : Ptr[byte], length : usize,
-error : Ptr[int]) : isize
-private extern def janus_parse_usize(data : Ptr[byte], length : usize,
-error : Ptr[int]) : usize
-private extern def janus_parse_float(data : Ptr[byte], length : usize,
-error : Ptr[int]) : float
-private extern def janus_parse_double(data : Ptr[byte], length : usize,
-error : Ptr[int]) : double
-private extern def janus_parse_char(data : Ptr[byte], length : usize,
-error : Ptr[int]) : char
+private extern def janus_parse_int(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : int
+private extern def janus_parse_uint(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : uint
+private extern def janus_parse_long(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : long
+private extern def janus_parse_ulong(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : ulong
+private extern def janus_parse_byte(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : byte
+private extern def janus_parse_ubyte(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : ubyte
+private extern def janus_parse_short(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : short
+private extern def janus_parse_ushort(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : ushort
+private extern def janus_parse_isize(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : isize
+private extern def janus_parse_usize(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : usize
+private extern def janus_parse_float(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : float
+private extern def janus_parse_double(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : double
+private extern def janus_parse_char(borrow data : Ptr[byte], length : usize,
+borrow error : Ptr[int]) : char
 
 /// Explique pourquoi une chaîne ne peut pas être convertie vers le type demandé.
 enum ParseError {
@@ -105,7 +105,10 @@ private def parseError(code : int) : ParseError {
 
 private def newParseStatus() : Ptr[int] {
     val status : Ptr[int] = alloc[int](usize(1))
-    if status == null[int]() { panic("text parsing allocation failed\n") }
+    if status == null[int]() {
+        free(status)
+        panic("text parsing allocation failed\n")
+    }
     return status
 }
 
@@ -133,11 +136,13 @@ class TextBuilder() {
                     panic("TextBuilder capacity overflow\n")
                 }
             }
-            val resized : Ptr[byte] = realloc[byte](data, next)
+            val resized : Ptr[byte] =
+            reallocPreserving[byte](data, next)
             if resized == null[byte]() {
+                free(resized)
                 panic("TextBuilder allocation failed\n")
             }
-            data = resized
+            data = adoptReallocation[byte](data, resized)
             allocated = next
         }
     }
@@ -173,7 +178,8 @@ class TextBuilder() {
         val source : Ptr[byte] = stringData(value)
         val aliasesBuilder : bool = source == data
         this.ensure(stringLength(value))
-        val readable : Ptr[byte] = if aliasesBuilder { data } else { source }
+        borrow val readable : Ptr[byte] =
+        if aliasesBuilder { data } else { source }
         var index : usize = usize(0)
         while index < stringLength(value) {
             data.store(length + index, readable.load(index))

@@ -188,6 +188,7 @@ struct ValueDeclaration {
   bool is_private{};
   bool is_internal{};
   std::string documentation;
+  bool is_borrowed{};
 };
 
 struct GlobalDeclaration {

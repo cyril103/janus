@@ -195,13 +195,11 @@ private var index : usize
 private class FlatMapIteratorState[A, B](
 private val source : Iterator[A],
 private val transform : (A) => Iterator[B],
-private var current : Iterator[B]
+private var current : Option[Iterator[B]]
 ) {
-    private var hasCurrent : bool = false
-
     private def start(nextIterator : Iterator[B]) : bool {
-        current = move nextIterator
-        hasCurrent = true
+        delete current
+        current = Option.Some[Iterator[B]](move nextIterator)
         return true
     }
 
@@ -212,10 +210,27 @@ private var current : Iterator[B]
         }
     }
 
+    private def poll(iterator : Iterator[B]) : Option[B] {
+        val result : Option[B] = iterator.next()
+        delete current
+        current = Option.Some[Iterator[B]](move iterator)
+        return move result
+    }
+
+    private def takeCurrent() : Option[Iterator[B]] {
+        val active : Option[Iterator[B]] = move current
+        current = Option.None[Iterator[B]]()
+        return move active
+    }
+
     def next() : Option[B] {
         while true {
-            if hasCurrent {
-                val value : Option[B] = current.next()
+            if isSome[Iterator[B]](current) {
+                val active : Option[Iterator[B]] = this.takeCurrent()
+                val value : Option[B] = match move active {
+                    Some(iterator) => this.poll(move iterator),
+                    None => Option.None[B]()
+                }
                 val available : bool = match value {
                     Some(item) => true,
                     None => false
@@ -223,8 +238,9 @@ private var current : Iterator[B]
                 if available {
                     return move value
                 }
+                delete value
                 delete current
-                hasCurrent = false
+                current = Option.None[Iterator[B]]()
             }
 
             val outer : Option[A] = source.next()
@@ -240,9 +256,7 @@ private var current : Iterator[B]
     }
 
     destructor {
-        if hasCurrent {
-            delete current
-        }
+        delete current
         delete transform
         delete source
     }
@@ -281,7 +295,9 @@ private val release : () => Unit
         new MapIteratorState[T, U](move this, move transform)
         return new Iterator[U](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[MapIteratorState[T, U]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -296,7 +312,9 @@ private val release : () => Unit
         new FilterIteratorState[T](move this, move predicate)
         return new Iterator[T](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[FilterIteratorState[T]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -311,7 +329,9 @@ private val release : () => Unit
         new TakeIteratorState[T](move this, count)
         return new Iterator[T](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[TakeIteratorState[T]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -329,7 +349,9 @@ private val release : () => Unit
         new ZipIteratorState[T, U](move this, move other)
         return new Iterator[ZipItem[T, U]](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[ZipIteratorState[T, U]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -343,7 +365,9 @@ private val release : () => Unit
         new EnumerateIteratorState[T](move this, usize(0))
         return new Iterator[Indexed[T]](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[EnumerateIteratorState[T]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -361,11 +385,13 @@ private val release : () => Unit
         new FlatMapIteratorState[T, U](
         move this,
         move transform,
-        Iterator[U](usize(0))
+        Option.None[Iterator[U]]()
         )
         return new Iterator[U](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[FlatMapIteratorState[T, U]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -393,7 +419,7 @@ private val release : () => Unit
     consume def fold[U](initial : U, combine : (U, T) => U) : U {
         var accumulator : U = initial
         for value in move this {
-            accumulator = combine(accumulator, move value)
+            accumulator = combine(move accumulator, move value)
         }
         return accumulator
     }

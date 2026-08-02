@@ -19,53 +19,53 @@ import std.result
 import std.system
 
 private extern def janus_fs_read_file(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize,
-output : Ptr[Ptr[byte]],
-outputLength : Ptr[usize]
+borrow output : Ptr[Ptr[byte]],
+borrow outputLength : Ptr[usize]
 ) : int
 private extern def janus_fs_write_file_atomic(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize,
-data : Ptr[byte],
+borrow data : Ptr[byte],
 size : usize
 ) : int
 private extern def janus_fs_create_directory(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize,
 recursive : int
 ) : int
 private extern def janus_fs_create_temporary_directory(
-prefix : Ptr[byte],
+borrow prefix : Ptr[byte],
 prefixLength : usize,
-output : Ptr[Ptr[byte]],
-outputLength : Ptr[usize]
+borrow output : Ptr[Ptr[byte]],
+borrow outputLength : Ptr[usize]
 ) : int
 private extern def janus_fs_remove_directory(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize
 ) : int
 private extern def janus_fs_metadata(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize,
-kind : Ptr[int],
-size : Ptr[usize]
+borrow kind : Ptr[int],
+borrow size : Ptr[usize]
 ) : int
 private extern def janus_fs_directory_open(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize
 ) : isize
 private extern def janus_fs_directory_next(
 handle : isize,
-output : Ptr[Ptr[byte]],
-outputLength : Ptr[usize]
+borrow output : Ptr[Ptr[byte]],
+borrow outputLength : Ptr[usize]
 ) : int
 private extern def janus_fs_directory_close(
 handle : isize
 ) : int
 private extern def janus_fs_last_error_code() : uint
 private extern def janus_fs_last_error_category() : int
-private extern def janus_file_free(data : Ptr[byte]) : Unit
+private extern def janus_file_free(consume data : Ptr[byte]) : Unit
 
 /// Identifie la nature d’une entrée telle que rapportée par [[metadata]].
 enum FileType derives Copy, Equality, Debug {
@@ -118,6 +118,7 @@ private def pointerOutput() : Ptr[Ptr[byte]] {
     val output : Ptr[Ptr[byte]] =
     alloc[Ptr[byte]](usize(1))
     if output == null[Ptr[byte]]() {
+        freeStorage(output)
         panic("filesystem output allocation failed\n")
     }
     return output
@@ -126,6 +127,7 @@ private def pointerOutput() : Ptr[Ptr[byte]] {
 private def sizeOutput() : Ptr[usize] {
     val output : Ptr[usize] = alloc[usize](usize(1))
     if output == null[usize]() {
+        free(output)
         panic("filesystem size allocation failed\n")
     }
     return output
@@ -185,7 +187,7 @@ private val directoryContext : string
             )
         }
         val output : Ptr[Ptr[byte]] = pointerOutput()
-        defer free(output)
+        defer freeStorage(output)
         val outputLength : Ptr[usize] = sizeOutput()
         defer free(outputLength)
         val status : int = janus_fs_directory_next(
@@ -247,7 +249,7 @@ def readFile(
 path : string
 ) : Result[FileData, SystemError] {
     val output : Ptr[Ptr[byte]] = pointerOutput()
-    defer free(output)
+    defer freeStorage(output)
     val outputLength : Ptr[usize] = sizeOutput()
     defer free(outputLength)
     if janus_fs_read_file(
@@ -338,7 +340,7 @@ def createTemporaryDirectory(
 prefix : string
 ) : Result[Path, SystemError] {
     val output : Ptr[Ptr[byte]] = pointerOutput()
-    defer free(output)
+    defer freeStorage(output)
     val outputLength : Ptr[usize] = sizeOutput()
     defer free(outputLength)
     if janus_fs_create_temporary_directory(
@@ -393,6 +395,7 @@ path : string
 ) : Result[FileMetadata, SystemError] {
     val kind : Ptr[int] = alloc[int](usize(1))
     if kind == null[int]() {
+        free(kind)
         panic("filesystem metadata allocation failed\n")
     }
     defer free(kind)

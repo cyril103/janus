@@ -16,25 +16,29 @@ enum Option[T] {
     None
 }
 
-private class OptionFallback[T](private var value : T) {
-    private var available : bool = true
+private class OptionFallback[T](private var value : Option[T]) {
+    private def takeOption() : Option[T] {
+        val previous : Option[T] = move value
+        value = Option.None[T]()
+        return move previous
+    }
 
     def discardAndReturn[U](result : U) : U {
-        val discarded : T = move value
-        available = false
+        val discarded : Option[T] = this.takeOption()
         delete discarded
         return move result
     }
 
     def take() : T {
-        available = false
-        return move value
+        val previous : Option[T] = this.takeOption()
+        return match move previous {
+            Some(item) => move item,
+            None => this.take()
+        }
     }
 
     destructor {
-        if available {
-            delete value
-        }
+        delete value
     }
 }
 
@@ -102,7 +106,9 @@ value : Option[T],
 fallback : Option[T]
 ) : Option[T] {
     val state : OptionFallback[Option[T]] =
-    new OptionFallback[Option[T]](move fallback)
+    new OptionFallback[Option[T]](
+    Option.Some[Option[T]](move fallback)
+    )
     defer delete state
     return match move value {
         Some(item) => state.discardAndReturn[Option[T]](
@@ -119,7 +125,7 @@ fallback : Option[T]
 /// @return Contenu déplacé de `Some`, sinon `fallback`.
 def unwrapOr[T](value : Option[T], fallback : T) : T {
     val state : OptionFallback[T] =
-    new OptionFallback[T](move fallback)
+    new OptionFallback[T](Option.Some[T](move fallback))
     defer delete state
     return match move value {
         Some(item) => state.discardAndReturn[T](move item),

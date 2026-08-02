@@ -16,23 +16,23 @@ module std.system
 import std.result
 
 private extern def janus_system_open(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize,
 mode : int
 ) : isize
 private extern def janus_system_read(
 handle : isize,
-data : Ptr[byte],
+borrow data : Ptr[byte],
 capacity : usize
 ) : isize
 private extern def janus_system_write(
 handle : isize,
-data : Ptr[byte],
+borrow data : Ptr[byte],
 size : usize
 ) : isize
 private extern def janus_system_close(handle : isize) : int
 private extern def janus_system_remove(
-path : Ptr[byte],
+borrow path : Ptr[byte],
 length : usize
 ) : int
 private extern def janus_system_error_code() : uint

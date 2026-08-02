@@ -16,7 +16,7 @@ import std.option
 import std.iterator
 
 private class ArrayIteratorState[T <: Copy](
-private val source : Array[T],
+private borrow val source : Array[T],
 private var index : usize
 ) {
     def next() : Option[T] {
@@ -77,12 +77,13 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
             next = usize(1)
         }
 
-        val resized : Ptr[T] = realloc[T](data, next)
+        val resized : Ptr[T] = reallocPreserving[T](data, next)
         if resized == null[T]() {
+            freeStorage(resized)
             return false
         }
 
-        data = resized
+        data = adoptReallocation[T](data, resized)
         allocated = next
         return true
     }
@@ -122,7 +123,9 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         new ArrayIteratorState[T](this, usize(0))
         return new Iterator[T](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[ArrayIteratorState[T]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -137,7 +140,9 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         new ArrayIntoIteratorState[T](move this, usize(0))
         return new Iterator[T](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[ArrayIntoIteratorState[T]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -189,7 +194,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     def set(index : usize, value : T) : Unit {
         if index < length {
             val previous : T = data.load(index)
-            data.store(index, move value)
+            data.overwrite(index, move value)
             delete previous
             return
         }
@@ -207,7 +212,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     def replace(index : usize, value : T) : T {
         if index < length {
             val previous : T = data.load(index)
-            data.store(index, move value)
+            data.overwrite(index, move value)
             return move previous
         }
         delete value
@@ -216,13 +221,13 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
 
     private def pushAllocated(value : T) : usize {
         if length < allocated {
-            data.store(length, move value)
+            data.initialize(length, move value)
             length = length + usize(1)
             return length
         }
         val next : usize = allocated * usize(2)
         if next >= allocated && this.tryResize(next) {
-            data.store(length, move value)
+            data.initialize(length, move value)
             length = length + usize(1)
             return length
         }
@@ -290,7 +295,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         var cursor : usize = index
         while cursor < length {
             val shifted : T = data.load(cursor + usize(1))
-            data.store(cursor, move shifted)
+            data.overwrite(cursor, move shifted)
             cursor = cursor + usize(1)
         }
         return move removed
@@ -408,7 +413,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         var accumulator : U = initial
         var index : usize = usize(0)
         while index < length {
-            accumulator = combine(accumulator, data.load(index))
+            accumulator = combine(move accumulator, data.load(index))
             index = index + usize(1)
         }
         return accumulator
@@ -463,6 +468,6 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
 
     destructor {
         this.clear()
-        free(data)
+        freeStorage(data)
     }
 }

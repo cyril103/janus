@@ -73,7 +73,7 @@ K <: Copy,
 V <: Copy,
 H <: Hashing[K]
 ](
-private val source : HashMap[K, V, H],
+private borrow val source : HashMap[K, V, H],
 private var index : usize
 ) {
     def next() : Option[MapEntry[K, V]] {
@@ -95,7 +95,7 @@ private var index : usize
 }
 
 private class MapKeyIteratorState[K <: Copy, V, H <: Hashing[K]](
-private val source : HashMap[K, V, H],
+private borrow val source : HashMap[K, V, H],
 private var index : usize
 ) {
     def next() : Option[K] {
@@ -116,7 +116,7 @@ private var index : usize
 }
 
 private class MapValueIteratorState[K, V <: Copy, H <: Hashing[K]](
-private val source : HashMap[K, V, H],
+private borrow val source : HashMap[K, V, H],
 private var index : usize
 ) {
     def next() : Option[V] {
@@ -141,16 +141,16 @@ private val source : HashMap[K, V, H],
 private var index : usize
 ) {
     def next() : Option[MapEntry[K, V]] {
-        var result : Option[MapEntry[K, V]] =
-        Option.None[MapEntry[K, V]]()
-        while index < source.storageSize() && match result {
-            Some(entry) => false,
-            None => true
-        } {
-            result = source.takeEntryAt(index)
+        while index < source.storageSize() {
+            val result : Option[MapEntry[K, V]] =
+            source.takeEntryAt(index)
             index = index + usize(1)
+            if isSome[MapEntry[K, V]](result) {
+                return move result
+            }
+            delete result
         }
-        return result
+        return Option.None[MapEntry[K, V]]()
     }
 
     def dispose() : Unit {
@@ -164,17 +164,17 @@ private var index : usize
 
 /// Table associative propriétaire à adressage ouvert et sondage linéaire.
 ///
-/// La table possède ses clés, ses valeurs et la stratégie `hashing`. Une clé
+/// La table possède ses clés et ses valeurs, et emprunte la stratégie `hashing`. Une clé
 /// existante est reconnue par [[Hashing.equals]] au sein de sa chaîne de sondage.
 /// La capacité minimale est 8 et la table se réorganise lorsque valeurs et
 /// tombstones approchent 75 % des cases. Les méthodes d’observation copient les
 /// résultats concernés; [[HashMap.intoEntries]] transfère au contraire tout le
 /// contenu sans copie.
 /// @param initialCapacity Capacité souhaitée, normalisée à un minimum de 8.
-/// @param hashing Stratégie d’égalité et de hachage conservée par la table.
+/// @param hashing Stratégie d’égalité et de hachage empruntée par la table; elle doit rester vivante aussi longtemps qu’elle.
 class HashMap[K, V, H <: Hashing[K]](
 initialCapacity : usize,
-private val hashing : H
+private borrow val hashing : H
 ) {
     private var slotCapacity : usize =
     normalizedHashCapacity(initialCapacity)
@@ -669,7 +669,9 @@ private val hashing : H
         new MapEntryIteratorState[K, V, H](this, usize(0))
         return new Iterator[MapEntry[K, V]](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[MapEntryIteratorState[K, V, H]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -683,7 +685,9 @@ private val hashing : H
         new MapKeyIteratorState[K, V, H](this, usize(0))
         return new Iterator[K](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[MapKeyIteratorState[K, V, H]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -697,7 +701,9 @@ private val hashing : H
         new MapValueIteratorState[K, V, H](this, usize(0))
         return new Iterator[V](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[MapValueIteratorState[K, V, H]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -712,7 +718,9 @@ private val hashing : H
         new MapEntryIntoIteratorState[K, V, H](move this, usize(0))
         return new Iterator[MapEntry[K, V]](
         () => state.next(),
-        () => state.dispose()
+        owningCapture[MapEntryIntoIteratorState[K, V, H]](
+        state, () => state.dispose()
+        )
         )
     }
 
@@ -727,10 +735,10 @@ private val hashing : H
 /// détruit toute valeur remplacée. [[MapBuilder.result]] transfère la table
 /// terminée puis réinitialise le constructeur avec une capacité de 8.
 /// @param initialCapacity Capacité initiale souhaitée pour la table accumulée.
-/// @param hashing Stratégie conservée et réutilisée après chaque résultat.
+/// @param hashing Stratégie empruntée et réutilisée après chaque résultat.
 class MapBuilder[K, V, H <: Hashing[K]](
 initialCapacity : usize,
-private val hashing : H
+private borrow val hashing : H
 ) extends Builder[MapEntry[K, V], HashMap[K, V, H]] {
     private var values : HashMap[K, V, H] =
     new HashMap[K, V, H](initialCapacity, hashing)

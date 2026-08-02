@@ -164,6 +164,15 @@ Un retour `Ptr[T]` externe peut être qualifié `borrow` lorsque le stockage
 reste natif, ou `owned` lorsque sa propriété est transférée à Janus. Un retour
 pointeur non qualifié reste accepté avec le diagnostic `JANA0022`.
 
+`borrow val` déclare un alias pointeur local immutable. Les champs de
+constructeur de classe peuvent utiliser `borrow val` pour conserver une
+référence observante non détruite avec l'instance; ce contrat est interdit aux
+structs. Les primitives de stockage explicites (Ptr.initialize,
+Ptr.overwrite, `reallocPreserving`, `adoptReallocation`, `freeStorage`) et
+`owningCapture` font partie de la surface bas niveau : elles exigent que
+l'appelant respecte respectivement l'état d'initialisation, le nettoyage des
+éléments et le transfert réel vers la fermeture.
+
 Le nom fourni par `extern("symbol")` est le nom de liaison. La disposition des
 agrégats Janus, le nom des fonctions Janus non exportées et les symboles
 `janus_*` du runtime restent internes.

@@ -167,8 +167,7 @@ public:
       std::erase_if(initialization_plan_.dynamic, [&](const auto *global) {
         return is_dependency(global->module_name) != dependencies;
       });
-      global_lifecycle_suffix_ =
-          dependencies ? "_dependencies" : "_consumer";
+      global_lifecycle_suffix_ = dependencies ? "_dependencies" : "_consumer";
       emitting_dependency_lifecycle_ = dependencies;
       force_global_lifecycle_ = dependencies;
       global_initializer_ = nullptr;
@@ -203,9 +202,9 @@ public:
         for (const janus::ast::FunctionDeclaration &method :
              class_declaration->methods)
           if (method.type_parameters.empty())
-            static_cast<void>(emit_function(
-                method, {}, class_declaration, &specialization.substitutions,
-                name));
+            static_cast<void>(emit_function(method, {}, class_declaration,
+                                            &specialization.substitutions,
+                                            name));
         static_cast<void>(emit_destructor(name));
       }
     }
@@ -255,9 +254,9 @@ private:
            (!entry_module_.has_value() || *module != *entry_module_);
   }
 
-  static ::llvm::AllocaInst *
-  create_entry_alloca(::llvm::IRBuilder<> &builder, ::llvm::Type *type,
-                      const ::llvm::Twine &name) {
+  static ::llvm::AllocaInst *create_entry_alloca(::llvm::IRBuilder<> &builder,
+                                                 ::llvm::Type *type,
+                                                 const ::llvm::Twine &name) {
     ::llvm::Function *function = builder.GetInsertBlock()->getParent();
     ::llvm::IRBuilder<> entry_builder{&function->getEntryBlock(),
                                       function->getEntryBlock().begin()};
@@ -534,8 +533,8 @@ private:
     if (is_dependency(global.module_name))
       storage->setMetadata(
           "janus.module",
-          ::llvm::MDNode::get(context_, ::llvm::MDString::get(
-                                           context_, *global.module_name)));
+          ::llvm::MDNode::get(
+              context_, ::llvm::MDString::get(context_, *global.module_name)));
     global_storage_.emplace(
         source_global_key(global.module_name, declaration.name),
         Local{storage, &type});
@@ -647,8 +646,8 @@ private:
     if (emitting_dependency_lifecycle_)
       global_finalization_finished_->setMetadata(
           "janus.module",
-          ::llvm::MDNode::get(
-              context_, ::llvm::MDString::get(context_, "dependencies")));
+          ::llvm::MDNode::get(context_,
+                              ::llvm::MDString::get(context_, "dependencies")));
     auto *cleanup =
         ::llvm::BasicBlock::Create(context_, "cleanup", global_finalizer_);
     auto *done =
@@ -1201,9 +1200,8 @@ private:
       const auto &parameter = function.parameters[parameter_index++];
       const janus::Type &type = resolve(parameter.type, substitutions);
       argument.setName(parameter.name);
-      ::llvm::Value *storage =
-          create_entry_alloca(builder, lower_type(type, context_),
-                              parameter.name);
+      ::llvm::Value *storage = create_entry_alloca(
+          builder, lower_type(type, context_), parameter.name);
       builder.CreateStore(&argument, storage);
       locals.emplace(parameter.name, Local{storage, &type});
     }
@@ -1378,9 +1376,8 @@ private:
           ::llvm::Value *item = builder.CreateExtractValue(
               next, enum_case_payload_start(option_type.name(), "Some"),
               (*loop)->binding + ".item");
-          ::llvm::Value *storage =
-              create_entry_alloca(builder, lower_type(element_type, context_),
-                                  (*loop)->binding);
+          ::llvm::Value *storage = create_entry_alloca(
+              builder, lower_type(element_type, context_), (*loop)->binding);
           builder.CreateStore(item, storage);
           auto body_locals = block_locals;
           body_locals.insert_or_assign((*loop)->binding,
@@ -1402,9 +1399,8 @@ private:
                 std::get_if<janus::ast::ValueDeclaration>(&statement)) {
           const janus::Type &type =
               resolve(declaration->declared_type, substitutions);
-          ::llvm::Value *storage =
-              create_entry_alloca(builder, lower_type(type, context_),
-                                  declaration->name);
+          ::llvm::Value *storage = create_entry_alloca(
+              builder, lower_type(type, context_), declaration->name);
           if (declaration->initializer.has_value()) {
             ::llvm::Value *initializer =
                 emit_expression(*declaration->initializer, type, substitutions,
@@ -1569,13 +1565,20 @@ private:
             ? specialization.declaration->destructor->location
             : specialization.declaration->location;
     janus::ast::FunctionDeclaration destructor_function{
-        "destructor", {},
-        {},           janus::ast::TypeReference{"Unit", location, {}},
-        {},           location,
-        false,        false,
-        {},           false,
-        std::nullopt, false,
-        std::nullopt, false,
+        "destructor",
+        {},
+        {},
+        janus::ast::TypeReference{"Unit", location, {}},
+        {},
+        location,
+        false,
+        false,
+        {},
+        false,
+        std::nullopt,
+        false,
+        std::nullopt,
+        false,
         {}};
     const std::vector<janus::ast::Statement> empty_body;
     const auto &body = specialization.declaration->destructor.has_value()
@@ -1828,15 +1831,22 @@ private:
             if (node.callee == "stringView")
               return janus::Type::string_type();
             if (node.callee == "alloc" || node.callee == "realloc" ||
-                node.callee == "null") {
+                node.callee == "reallocPreserving" || node.callee == "null") {
               const janus::Type &element =
                   resolve(node.type_arguments.front(), substitutions);
               return ensure_pointer(element);
             }
             if (node.callee == "sizeof" || node.callee == "alignof")
               return janus::Type::usize_type();
-            if (node.callee == "free")
+            if (node.callee == "free" || node.callee == "freeStorage")
               return janus::Type::unit_type();
+            if (node.callee == "adoptReallocation") {
+              const janus::Type &element =
+                  resolve(node.type_arguments.front(), substitutions);
+              return ensure_pointer(element);
+            }
+            if (node.callee == "owningCapture")
+              return expression_type(*node.arguments[1], substitutions, locals);
             if (is_explicit_cast(node))
               return cast_destination(node, substitutions);
             const auto &callee = *functions_.at(node.callee);
@@ -2850,8 +2860,8 @@ private:
               return emit_panic_call(data, length, node.location, builder);
             }
             if (node.callee == "alloc" || node.callee == "realloc" ||
-                node.callee == "null" || node.callee == "sizeof" ||
-                node.callee == "alignof") {
+                node.callee == "reallocPreserving" || node.callee == "null" ||
+                node.callee == "sizeof" || node.callee == "alignof") {
               const janus::Type &element_type =
                   resolve(node.type_arguments.front(), substitutions);
               ::llvm::Type *llvm_element_type =
@@ -2891,7 +2901,22 @@ private:
               return builder.CreateCall(realloc_function, {pointer, bytes},
                                         "realloc");
             }
-            if (node.callee == "free") {
+            if (node.callee == "adoptReallocation") {
+              const janus::Type &pointer_type =
+                  expression_type(*node.arguments[1], substitutions, locals);
+              static_cast<void>(emit_expression(*node.arguments[0],
+                                                pointer_type, substitutions,
+                                                locals, builder));
+              return emit_expression(*node.arguments[1], pointer_type,
+                                     substitutions, locals, builder);
+            }
+            if (node.callee == "owningCapture") {
+              const janus::Type &closure_type =
+                  expression_type(*node.arguments[1], substitutions, locals);
+              return emit_expression(*node.arguments[1], closure_type,
+                                     substitutions, locals, builder);
+            }
+            if (node.callee == "free" || node.callee == "freeStorage") {
               const janus::Type &pointer_type = expression_type(
                   *node.arguments.front(), substitutions, locals);
               ::llvm::Value *pointer =
@@ -3735,7 +3760,8 @@ std::unique_ptr<::llvm::Module>
 IrGenerator::generate(const ast::Program &program, std::string_view module_name,
                       PanicTraceMode panic_trace, bool dependencies_only) {
   return Generator{context_, program, module_name, panic_trace,
-                   dependencies_only}.generate();
+                   dependencies_only}
+      .generate();
 }
 
 } // namespace janus::backend::llvm

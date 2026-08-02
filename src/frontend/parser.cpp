@@ -204,8 +204,7 @@ ast::Program Parser::parse_program() {
           current_.kind != TokenKind::Extern &&
           current_.kind != TokenKind::Class &&
           current_.kind != TokenKind::Struct &&
-          current_.kind != TokenKind::Trait &&
-          current_.kind != TokenKind::Enum)
+          current_.kind != TokenKind::Trait && current_.kind != TokenKind::Enum)
         throw CompileError{
             current_.location,
             "expected a top-level declaration after 'private', found " +
@@ -235,8 +234,8 @@ ast::Program Parser::parse_program() {
         ast::ValueDeclaration declaration = parse_variable_declaration();
         declaration.is_private = is_private;
         declaration.documentation = std::move(documentation);
-        program.globals.push_back(ast::GlobalDeclaration{
-            std::move(declaration), program.module_name});
+        program.globals.push_back(ast::GlobalDeclaration{std::move(declaration),
+                                                         program.module_name});
       } else {
         ast::FunctionDeclaration declaration = parse_function_declaration();
         declaration.is_private = is_private;
@@ -269,16 +268,15 @@ void Parser::synchronize_top_level() {
       --brace_depth;
     } else if (current_.kind == TokenKind::LeftBrace) {
       ++brace_depth;
-    } else if (brace_depth == 0 &&
-               (current_.kind == TokenKind::Private ||
-                current_.kind == TokenKind::Trait ||
-                current_.kind == TokenKind::Enum ||
-                current_.kind == TokenKind::Class ||
-                current_.kind == TokenKind::Struct ||
-                current_.kind == TokenKind::Val ||
-                current_.kind == TokenKind::Var ||
-                current_.kind == TokenKind::Def ||
-                current_.kind == TokenKind::Extern)) {
+    } else if (brace_depth == 0 && (current_.kind == TokenKind::Private ||
+                                    current_.kind == TokenKind::Trait ||
+                                    current_.kind == TokenKind::Enum ||
+                                    current_.kind == TokenKind::Class ||
+                                    current_.kind == TokenKind::Struct ||
+                                    current_.kind == TokenKind::Val ||
+                                    current_.kind == TokenKind::Var ||
+                                    current_.kind == TokenKind::Def ||
+                                    current_.kind == TokenKind::Extern)) {
       return;
     }
     advance();
@@ -323,10 +321,14 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
       advance();
   }
   static_cast<void>(expect(TokenKind::RightBrace));
-  ast::TraitDeclaration declaration{
-      std::string{name.lexeme}, std::move(type_parameters), std::move(methods),
-      trait_token.location, std::move(type_constraints), false, std::nullopt,
-      {}};
+  ast::TraitDeclaration declaration{std::string{name.lexeme},
+                                    std::move(type_parameters),
+                                    std::move(methods),
+                                    trait_token.location,
+                                    std::move(type_constraints),
+                                    false,
+                                    std::nullopt,
+                                    {}};
   return declaration;
 }
 
@@ -486,9 +488,14 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
     throw CompileError{enum_token.location,
                        "enum '" + std::string{name.lexeme} +
                            "' must declare at least one case"};
-  ast::EnumDeclaration declaration{
-      std::string{name.lexeme}, std::move(type_parameters), std::move(cases),
-      enum_token.location, false, std::nullopt, std::move(derivations), {}};
+  ast::EnumDeclaration declaration{std::string{name.lexeme},
+                                   std::move(type_parameters),
+                                   std::move(cases),
+                                   enum_token.location,
+                                   false,
+                                   std::nullopt,
+                                   std::move(derivations),
+                                   {}};
   return declaration;
 }
 
@@ -546,10 +553,9 @@ std::vector<ast::Derivation> Parser::parse_derivations() {
 
     for (const ast::Derivation &derivation : derivations)
       if (derivation.kind == *kind)
-        throw CompileError{
-            name.location,
-            "derivation '" + std::string{name.lexeme} +
-                "' is requested more than once"};
+        throw CompileError{name.location, "derivation '" +
+                                              std::string{name.lexeme} +
+                                              "' is requested more than once"};
     derivations.push_back(ast::Derivation{*kind, name.location});
 
     if (current_.kind != TokenKind::Comma)
@@ -606,26 +612,36 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
         throw CompileError{
             current_.location,
             "a class member cannot be both private and internal"};
+      const bool is_borrowed = current_.kind == TokenKind::Borrow;
+      if (is_borrowed)
+        advance();
       if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
+        if (is_borrowed && is_value_type)
+          throw CompileError{current_.location,
+                             "struct fields cannot be borrowed"};
+        if (is_borrowed && current_.kind == TokenKind::Var)
+          throw CompileError{current_.location,
+                             "borrowed fields must be immutable"};
         parsed_field = true;
         const bool is_mutable = current_.kind == TokenKind::Var;
         const Token keyword =
             expect(is_mutable ? TokenKind::Var : TokenKind::Val);
         const Token field = expect(TokenKind::Identifier);
         static_cast<void>(expect(TokenKind::Colon));
-        ast::ValueDeclaration declaration{std::string{field.lexeme},
-                                          parse_type(), is_mutable,
-                                          std::nullopt, keyword.location,
-                                          false, false, {}};
+        ast::ValueDeclaration declaration{
+            std::string{field.lexeme}, parse_type(), is_mutable, std::nullopt,
+            keyword.location,          false,        false,      {}};
         declaration.is_private = is_private;
         declaration.is_internal = is_internal;
         declaration.documentation = std::move(documentation);
+        declaration.is_borrowed = is_borrowed;
         constructor_fields.push_back(std::move(declaration));
       } else {
-        if (is_private || is_internal)
+        if (is_private || is_internal || is_borrowed)
           throw CompileError{
               current_.location,
-              "a non-field constructor parameter cannot have visibility"};
+              "a non-field constructor parameter cannot have visibility or "
+              "borrow ownership"};
         if (parsed_field)
           throw CompileError{
               current_.location,
@@ -665,9 +681,8 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       advance();
     if ((is_private && current_.kind == TokenKind::Internal) ||
         (is_internal && current_.kind == TokenKind::Private))
-      throw CompileError{
-          current_.location,
-          "a class member cannot be both private and internal"};
+      throw CompileError{current_.location,
+                         "a class member cannot be both private and internal"};
     const bool is_consuming = current_.kind == TokenKind::Consume;
     if (is_consuming)
       advance();
@@ -793,8 +808,7 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
         advance();
         break;
       }
-      ast::ParameterOwnership ownership =
-          ast::ParameterOwnership::Unspecified;
+      ast::ParameterOwnership ownership = ast::ParameterOwnership::Unspecified;
       if (current_.kind == TokenKind::Borrow ||
           current_.kind == TokenKind::Consume) {
         if (!is_external)
@@ -861,7 +875,8 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
 }
 
 ast::Statement Parser::parse_statement() {
-  if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
+  if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var ||
+      current_.kind == TokenKind::Borrow) {
     return parse_variable_declaration();
   }
   if (current_.kind == TokenKind::Identifier) {
@@ -899,7 +914,13 @@ ast::Statement Parser::parse_statement() {
 }
 
 ast::ValueDeclaration Parser::parse_variable_declaration() {
+  const bool is_borrowed = current_.kind == TokenKind::Borrow;
+  if (is_borrowed)
+    advance();
   const bool is_mutable = current_.kind == TokenKind::Var;
+  if (is_borrowed && is_mutable)
+    throw CompileError{current_.location,
+                       "borrowed local values must be immutable"};
   const Token declaration =
       expect(is_mutable ? TokenKind::Var : TokenKind::Val);
   const Token identifier = expect(TokenKind::Identifier);
@@ -913,10 +934,16 @@ ast::ValueDeclaration Parser::parse_variable_declaration() {
     static_cast<void>(expect(TokenKind::Equal));
   }
 
-  return ast::ValueDeclaration{std::string{identifier.lexeme},
-                               std::move(declared_type), is_mutable,
-                               std::move(initializer), declaration.location,
-                               false, false, {}};
+  ast::ValueDeclaration result{std::string{identifier.lexeme},
+                               std::move(declared_type),
+                               is_mutable,
+                               std::move(initializer),
+                               declaration.location,
+                               false,
+                               false,
+                               {}};
+  result.is_borrowed = is_borrowed;
+  return result;
 }
 
 ast::AssignmentStatement Parser::parse_assignment_statement() {
@@ -1137,8 +1164,7 @@ ast::Expression Parser::parse_unary() {
             literal.location,
             "integer literal is outside the unsigned 64-bit range"};
       }
-      return ast::IntegerLiteralExpression{
-          magnitude, true, operation.location};
+      return ast::IntegerLiteralExpression{magnitude, true, operation.location};
     }
     return ast::UnaryExpression{
         operation.kind == TokenKind::Minus ? ast::UnaryOperator::Negate
@@ -1255,9 +1281,8 @@ ast::Expression Parser::parse_primary() {
       } while (true);
     }
     static_cast<void>(expect(TokenKind::RightParen));
-    return ast::NewExpression{class_name,
-                              std::move(type_arguments), std::move(arguments),
-                              new_token.location};
+    return ast::NewExpression{class_name, std::move(type_arguments),
+                              std::move(arguments), new_token.location};
   }
 
   if (current_.kind == TokenKind::Identifier) {
@@ -1311,8 +1336,9 @@ ast::Expression Parser::parse_primary() {
                         literal.lexeme.data() + literal.lexeme.size(), value);
 
     if (result.ec != std::errc{}) {
-      throw CompileError{literal.location,
-                         "integer literal is outside the unsigned 64-bit range"};
+      throw CompileError{
+          literal.location,
+          "integer literal is outside the unsigned 64-bit range"};
     }
 
     return ast::IntegerLiteralExpression{value, false, literal.location};
@@ -1350,10 +1376,9 @@ ast::Expression Parser::parse_primary() {
     return ast::BooleanLiteralExpression{value, literal.location};
   }
 
-  throw CompileError{DiagnosticCode::ParserExpectedExpression,
-                     current_.location,
-                     "expected expression, found " +
-                         std::string{token_name(current_.kind)}};
+  throw CompileError{
+      DiagnosticCode::ParserExpectedExpression, current_.location,
+      "expected expression, found " + std::string{token_name(current_.kind)}};
 }
 
 ast::TypeReference Parser::parse_type() {
