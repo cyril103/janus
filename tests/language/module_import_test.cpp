@@ -198,6 +198,71 @@ int main() {
   }
   expect(collision_rejected,
          "distinct selective imports cannot silently collide");
+
+  std::filesystem::create_directories(import_root / "x");
+  std::filesystem::create_directories(import_root / "y");
+  write_source(import_root / "x" / "api.janus",
+               "module x.api\n"
+               "def run() : int { return 1 }\n"
+               "struct Box(val value : int) {}\n");
+  write_source(import_root / "y" / "api.janus",
+               "module y.api\n"
+               "def run() : int { return 2 }\n"
+               "struct Box(val value : int) {}\n");
+  write_source(import_root / "a.janus",
+               "module a\n"
+               "import x.api.{run as execute, Box as Payload}\n"
+               "def fromA() : int {\n"
+               "    val payload : Payload = new Payload(execute())\n"
+               "    return payload.value\n"
+               "}\n");
+  write_source(import_root / "b.janus",
+               "module b\n"
+               "import y.api.{run as execute, Box as Payload}\n"
+               "def fromB() : int {\n"
+               "    val payload : Payload = new Payload(execute())\n"
+               "    return payload.value\n"
+               "}\n");
+  write_source(import_root / "scoped_aliases.janus",
+               "import a\n"
+               "import b\n"
+               "def main() : int { return fromA() + fromB() }\n");
+  const janus::ast::Program scoped_alias_program =
+      import_loader.load(import_root / "scoped_aliases.janus");
+  static_cast<void>(import_analyzer.analyze(scoped_alias_program));
+  llvm::LLVMContext scoped_alias_context;
+  janus::backend::llvm::IrGenerator scoped_alias_generator{
+      scoped_alias_context};
+  const std::unique_ptr<llvm::Module> scoped_alias_module =
+      scoped_alias_generator.generate(scoped_alias_program, "scoped_aliases");
+  std::string scoped_alias_ir;
+  llvm::raw_string_ostream scoped_alias_output{scoped_alias_ir};
+  scoped_alias_module->print(scoped_alias_output, nullptr);
+  scoped_alias_output.flush();
+  expect(scoped_alias_ir.find("call i32 @x_api__run") != std::string::npos &&
+             scoped_alias_ir.find("call i32 @y_api__run") != std::string::npos,
+         "function and type aliases are scoped to their importing modules");
+
+  write_source(import_root / "collision_consumer.janus",
+               "module collision_consumer\n"
+               "import x.api.{run as execute}\n"
+               "import y.api.{run as execute}\n");
+  write_source(import_root / "collision_entry.janus",
+               "import collision_consumer\n"
+               "def main() : int { return 0 }\n");
+  bool nested_collision_localized = false;
+  try {
+    static_cast<void>(
+        import_loader.load(import_root / "collision_entry.janus"));
+  } catch (const janus::CompileError &error) {
+    nested_collision_localized =
+        std::string{error.what()}.find("ambiguous") != std::string::npos &&
+        error.diagnostic().source_path ==
+            std::filesystem::weakly_canonical(import_root /
+                                              "collision_consumer.janus");
+  }
+  expect(nested_collision_localized,
+         "same-module alias collisions retain their source path");
   std::filesystem::remove_all(import_root);
 
   janus::frontend::ModuleLoader loader{

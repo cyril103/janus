@@ -91,11 +91,12 @@ derivation_constraint(std::string_view name) {
   return std::nullopt;
 }
 
-janus::semantic::SemanticType
-resolve_type(const janus::ast::TypeReference &reference,
-             const std::unordered_set<std::string> &type_parameters,
-             const std::unordered_map<std::string, std::size_t> *class_arities =
-                 nullptr) {
+janus::semantic::SemanticType resolve_type(
+    const janus::ast::TypeReference &reference,
+    const std::unordered_set<std::string> &type_parameters,
+    const std::unordered_map<std::string, std::size_t> *class_arities = nullptr,
+    const std::optional<std::string> &context_module = std::nullopt,
+    const std::unordered_set<std::string> *scoped_type_aliases = nullptr) {
   if (const janus::Type *type = builtin_type(reference.name)) {
     if (!reference.type_arguments.empty())
       throw janus::CompileError{reference.location,
@@ -110,8 +111,8 @@ resolve_type(const janus::ast::TypeReference &reference,
     std::vector<janus::semantic::SemanticType> signature;
     signature.reserve(reference.type_arguments.size());
     for (const janus::ast::TypeReference &argument : reference.type_arguments)
-      signature.push_back(
-          resolve_type(argument, type_parameters, class_arities));
+      signature.push_back(resolve_type(argument, type_parameters, class_arities,
+                                       context_module, scoped_type_aliases));
     for (std::size_t index = 0; index + 1 < signature.size(); ++index) {
       if (signature[index].is_concrete() &&
           signature[index].concrete->kind() == janus::TypeKind::Unit)
@@ -135,8 +136,9 @@ resolve_type(const janus::ast::TypeReference &reference,
           reference.location,
           "Ptr expects exactly one type argument, got " +
               std::to_string(reference.type_arguments.size())};
-    janus::semantic::SemanticType element = resolve_type(
-        reference.type_arguments.front(), type_parameters, class_arities);
+    janus::semantic::SemanticType element =
+        resolve_type(reference.type_arguments.front(), type_parameters,
+                     class_arities, context_module, scoped_type_aliases);
     if (element.is_concrete() &&
         element.concrete->kind() == janus::TypeKind::Unit)
       throw janus::CompileError{reference.location,
@@ -145,8 +147,12 @@ resolve_type(const janus::ast::TypeReference &reference,
         nullptr, "Ptr", false, {std::move(element)}, true};
   }
   if (class_arities != nullptr) {
-    if (const auto iterator = class_arities->find(reference.name);
-        iterator != class_arities->end()) {
+    auto iterator = class_arities->find(
+        context_module.has_value() ? *context_module + "." + reference.name
+                                   : reference.name);
+    if (iterator == class_arities->end())
+      iterator = class_arities->find(reference.name);
+    if (iterator != class_arities->end()) {
       if (iterator->second == ambiguous_arity_marker)
         throw janus::CompileError{reference.location,
                                   "type name '" + reference.name +
@@ -162,10 +168,16 @@ resolve_type(const janus::ast::TypeReference &reference,
         std::vector<janus::semantic::SemanticType> arguments;
         for (const janus::ast::TypeReference &argument :
              reference.type_arguments)
-          arguments.push_back(
-              resolve_type(argument, type_parameters, class_arities));
+          arguments.push_back(resolve_type(argument, type_parameters,
+                                           class_arities, context_module,
+                                           scoped_type_aliases));
+        const std::string identity =
+            scoped_type_aliases != nullptr &&
+                    scoped_type_aliases->contains(iterator->first)
+                ? iterator->first
+                : reference.name;
         return janus::semantic::SemanticType{
-            nullptr, reference.name, false, std::move(arguments), false, true};
+            nullptr, identity, false, std::move(arguments), false, true};
       }
       if (reference.type_arguments.size() != iterator->second)
         throw janus::CompileError{
@@ -177,10 +189,16 @@ resolve_type(const janus::ast::TypeReference &reference,
       arguments.reserve(reference.type_arguments.size());
       for (const janus::ast::TypeReference &argument :
            reference.type_arguments) {
-        arguments.push_back(
-            resolve_type(argument, type_parameters, class_arities));
+        arguments.push_back(resolve_type(argument, type_parameters,
+                                         class_arities, context_module,
+                                         scoped_type_aliases));
       }
-      return janus::semantic::SemanticType{nullptr, reference.name, true,
+      const std::string identity =
+          scoped_type_aliases != nullptr &&
+                  scoped_type_aliases->contains(iterator->first)
+              ? iterator->first
+              : reference.name;
+      return janus::semantic::SemanticType{nullptr, identity, true,
                                            std::move(arguments)};
     }
   }
@@ -496,6 +514,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::unordered_map<std::string, std::size_t> class_arities;
   std::unordered_map<std::string, std::size_t> type_name_counts;
   std::unordered_set<std::string> type_identities;
+  std::unordered_set<std::string> scoped_type_aliases;
   const auto imported_names = [&](const std::optional<std::string> &module,
                                   std::string_view name) {
     std::vector<std::string> names;
@@ -504,15 +523,26 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     for (const ast::ImportDeclaration &import : program.imports) {
       if (import.module_name != *module)
         continue;
-      if (import.module_alias.has_value())
-        names.push_back(*import.module_alias + "." + std::string{name});
       for (const ast::ImportDeclaration::Symbol &symbol : import.symbols)
         if (symbol.name == name)
-          names.push_back(symbol.alias.value_or(symbol.name));
+          names.push_back(global_key(import.importing_module,
+                                     symbol.alias.value_or(symbol.name)));
+      if (import.module_alias.has_value())
+        names.push_back(
+            global_key(import.importing_module,
+                       *import.module_alias + "." + std::string{name}));
     }
     std::sort(names.begin(), names.end());
     names.erase(std::unique(names.begin(), names.end()), names.end());
     return names;
+  };
+  const auto find_in_context = [&](auto &symbols,
+                                   const std::optional<std::string> &module,
+                                   std::string_view name) {
+    auto iterator = symbols.find(global_key(module, name));
+    if (iterator == symbols.end())
+      iterator = symbols.find(std::string{name});
+    return iterator;
   };
   const auto import_allows =
       [&](const std::optional<std::string> &importer,
@@ -568,6 +598,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                         declaration.type_parameters.size());
     for (const std::string &alias :
          imported_names(declaration.module_name, declaration.name)) {
+      scoped_type_aliases.insert(alias);
       enums.emplace(alias, &declaration);
       class_arities.emplace(alias, enum_arity_marker +
                                        declaration.type_parameters.size());
@@ -578,8 +609,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         declaration.module_name, declaration.name, declaration.location);
     traits.emplace(identity, &declaration);
     for (const std::string &alias :
-         imported_names(declaration.module_name, declaration.name))
+         imported_names(declaration.module_name, declaration.name)) {
+      scoped_type_aliases.insert(alias);
       traits.emplace(alias, &declaration);
+    }
   }
   for (const ast::ClassDeclaration &declaration : program.classes) {
     const std::string identity = register_type_identity(
@@ -588,6 +621,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     class_arities.emplace(identity, declaration.type_parameters.size());
     for (const std::string &alias :
          imported_names(declaration.module_name, declaration.name)) {
+      scoped_type_aliases.insert(alias);
       classes.emplace(alias, &declaration);
       class_arities.emplace(alias, declaration.type_parameters.size());
     }
@@ -1718,7 +1752,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const SemanticType return_type =
         is_destructor ? SemanticType{&Type::unit_type()}
                       : resolve_type(context.function->return_type,
-                                     type_parameters, &class_arities);
+                                     type_parameters, &class_arities,
+                                     context_module, &scoped_type_aliases);
     if (!is_destructor && owner == nullptr && function_name == "main") {
       if (context.function->is_external)
         throw CompileError{function_location,
@@ -1743,23 +1778,27 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      false, true});
       for (const ast::ValueDeclaration &field : owner->constructor_fields) {
         owner_field_names.insert(field.name);
-        symbols.emplace(field.name,
-                        Symbol{resolve_type(field.declared_type,
-                                            type_parameters, &class_arities),
-                               field.is_mutable, true});
+        symbols.emplace(
+            field.name,
+            Symbol{resolve_type(field.declared_type, type_parameters,
+                                &class_arities, context_module,
+                                &scoped_type_aliases),
+                   field.is_mutable, true});
       }
       for (const ast::ValueDeclaration &field : owner->fields) {
         owner_field_names.insert(field.name);
-        symbols.emplace(field.name,
-                        Symbol{resolve_type(field.declared_type,
-                                            type_parameters, &class_arities),
-                               field.is_mutable,
-                               field.initializer.has_value()});
+        symbols.emplace(
+            field.name,
+            Symbol{resolve_type(field.declared_type, type_parameters,
+                                &class_arities, context_module,
+                                &scoped_type_aliases),
+                   field.is_mutable, field.initializer.has_value()});
       }
     }
     for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
       const SemanticType parameter_type =
-          resolve_type(parameter.type, type_parameters, &class_arities);
+          resolve_type(parameter.type, type_parameters, &class_arities,
+                       context_module, &scoped_type_aliases);
       if (parameter.ownership != ast::ParameterOwnership::Unspecified &&
           (is_destructor || !context.function->is_external))
         throw CompileError{
@@ -1804,7 +1843,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "' is not compatible with the C ABI"};
       for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
         const SemanticType parameter_type =
-            resolve_type(parameter.type, type_parameters, &class_arities);
+            resolve_type(parameter.type, type_parameters, &class_arities,
+                         context_module, &scoped_type_aliases);
         if (!is_c_abi_type(parameter_type, false))
           throw CompileError{parameter.location,
                              "external parameter '" + parameter.name +
@@ -2141,7 +2181,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (call->callee == "cstr" || call->callee == "stringData" ||
               call->callee == "null")
             return true;
-          const auto callee = functions.find(call->callee);
+          const auto callee =
+              find_in_context(functions, context_module, call->callee);
           return callee != functions.end() && callee->second->is_external &&
                  callee->second->return_ownership ==
                      ast::ReturnOwnership::Borrow;
@@ -2942,9 +2983,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       node.location,
                       "numericCast expects one destination type and one "
                       "value argument"};
-                SemanticType destination_type =
-                    resolve_type(node.type_arguments.front(),
-                                 *active_type_parameters, &class_arities);
+                SemanticType destination_type = resolve_type(
+                    node.type_arguments.front(), *active_type_parameters,
+                    &class_arities, context_module, &scoped_type_aliases);
                 if (active_type_substitutions != nullptr)
                   destination_type = substitute(std::move(destination_type),
                                                 *active_type_substitutions);
@@ -2968,8 +3009,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               }
               const bool is_builtin_cast = builtin_type(node.callee) != nullptr;
               const bool is_reference_cast =
-                  node.callee == "Ptr" || classes.contains(node.callee);
-              const bool is_enum_cast = enums.contains(node.callee);
+                  node.callee == "Ptr" ||
+                  find_in_context(classes, context_module, node.callee) !=
+                      classes.end();
+              const bool is_enum_cast =
+                  find_in_context(enums, context_module, node.callee) !=
+                  enums.end();
               if (is_builtin_cast || is_reference_cast || is_enum_cast) {
                 const SemanticType destination_type =
                     resolve_type(ast::TypeReference{node.callee, node.location,
@@ -3064,7 +3109,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                        "or differently signed type"});
                 return destination_type;
               }
-              const auto callee_iterator = functions.find(node.callee);
+              const auto callee_iterator =
+                  find_in_context(functions, context_module, node.callee);
               if (callee_iterator == functions.end()) {
                 if (ambiguous_functions.contains(node.callee))
                   throw CompileError{
@@ -3226,7 +3272,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     {"declare this external return as borrow or owned"});
               return call_return;
             } else if constexpr (std::is_same_v<Node, ast::NewExpression>) {
-              const auto iterator = classes.find(node.class_name);
+              const auto iterator =
+                  find_in_context(classes, context_module, node.class_name);
               if (iterator == classes.end())
                 throw CompileError{node.location,
                                    "unknown class '" + node.class_name + "'"};
@@ -3239,7 +3286,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               SemanticType instance_type = resolve_type(
                   ast::TypeReference{node.class_name, node.location,
                                      node.type_arguments},
-                  *active_type_parameters, &class_arities);
+                  *active_type_parameters, &class_arities, context_module,
+                  &scoped_type_aliases);
               if (active_type_substitutions != nullptr)
                 instance_type = substitute(std::move(instance_type),
                                            *active_type_substitutions);
@@ -3370,12 +3418,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {
               const auto enum_name = qualified_expression_name(*node.object);
-              if (enum_name.has_value() && enums.contains(*enum_name) &&
+              const auto enum_iterator =
+                  enum_name.has_value()
+                      ? find_in_context(enums, context_module, *enum_name)
+                      : enums.end();
+              if (enum_name.has_value() && enum_iterator != enums.end() &&
                   (enum_name->find('.') == std::string::npos ||
                    !active_symbols->contains(
                        enum_name->substr(0, enum_name->find('.'))))) {
                 const ast::EnumDeclaration &enum_declaration =
-                    *enums.at(*enum_name);
+                    *enum_iterator->second;
                 if (enum_declaration.is_private &&
                     enum_declaration.module_name != context_module)
                   throw CompileError{node.location,
@@ -3486,7 +3538,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   !active_symbols->contains(
                       module->substr(0, module->find('.')))) {
                 const std::string qualified = *module + "." + node.method;
-                if (const auto function = functions.find(qualified);
+                if (const auto function =
+                        find_in_context(functions, context_module, qualified);
                     function != functions.end()) {
                   if (function->second->is_private &&
                       function->second->module_name != context_module)
@@ -3504,12 +3557,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
               }
               const auto enum_name = qualified_expression_name(*node.object);
-              if (enum_name.has_value() && enums.contains(*enum_name) &&
+              const auto enum_iterator =
+                  enum_name.has_value()
+                      ? find_in_context(enums, context_module, *enum_name)
+                      : enums.end();
+              if (enum_name.has_value() && enum_iterator != enums.end() &&
                   (enum_name->find('.') == std::string::npos ||
                    !active_symbols->contains(
                        enum_name->substr(0, enum_name->find('.'))))) {
                 const ast::EnumDeclaration &enum_declaration =
-                    *enums.at(*enum_name);
+                    *enum_iterator->second;
                 if (enum_declaration.is_private &&
                     enum_declaration.module_name != context_module)
                   throw CompileError{node.location,
@@ -4494,7 +4551,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (const auto *declaration =
                 std::get_if<ast::ValueDeclaration>(&statement)) {
           const SemanticType declared_type = resolve_type(
-              declaration->declared_type, type_parameters, &class_arities);
+              declaration->declared_type, type_parameters, &class_arities,
+              context_module, &scoped_type_aliases);
           if (declared_type.is_concrete() &&
               declared_type.concrete->kind() == TypeKind::Unit)
             throw CompileError{declaration->location,

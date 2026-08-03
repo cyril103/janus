@@ -112,14 +112,23 @@ bool declares_private_symbol(const ast::Program &program,
 
 void reserve_import_name(std::unordered_map<std::string, std::string> &names,
                          std::string local_name, std::string origin,
-                         SourceLocation location) {
+                         SourceLocation location,
+                         const std::filesystem::path &source_path) {
   const auto [existing, inserted] =
       names.emplace(std::move(local_name), std::move(origin));
   if (!inserted && existing->second != origin)
-    throw CompileError{location, "import name '" + existing->first +
-                                     "' is ambiguous between '" +
-                                     existing->second + "' and '" + origin +
-                                     "'; qualify or rename one import"};
+    throw CompileError{Diagnostic{
+        DiagnosticSeverity::Error,
+        DiagnosticCode::Unclassified,
+        "import name '" + existing->first + "' is ambiguous between '" +
+            existing->second + "' and '" + origin +
+            "'; qualify or rename one import",
+        location,
+        {},
+        {},
+        {},
+        source_path,
+    }};
 }
 
 } // namespace
@@ -204,7 +213,7 @@ ModuleLoader::load_file(const std::filesystem::path &path,
   const auto reserve_local = [&](std::string_view name,
                                  SourceLocation location) {
     reserve_import_name(imported_names, std::string{name}, "local declaration",
-                        location);
+                        location, normalized);
   };
   for (const ast::FunctionDeclaration &declaration : parsed.functions)
     reserve_local(declaration.name, declaration.location);
@@ -227,7 +236,7 @@ ModuleLoader::load_file(const std::filesystem::path &path,
     }
     if (import.module_alias.has_value())
       reserve_import_name(imported_names, *import.module_alias,
-                          import.module_name, import.location);
+                          import.module_name, import.location, normalized);
     for (const ast::ImportDeclaration::Symbol &symbol : import.symbols) {
       if (!declares_public_symbol(*dependency, import.module_name,
                                   symbol.name)) {
@@ -248,7 +257,7 @@ ModuleLoader::load_file(const std::filesystem::path &path,
       }
       reserve_import_name(imported_names, symbol.alias.value_or(symbol.name),
                           import.module_name + "." + symbol.name,
-                          symbol.location);
+                          symbol.location, normalized);
     }
   }
   load_order_.push_back(normalized);

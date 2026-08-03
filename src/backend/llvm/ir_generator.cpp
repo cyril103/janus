@@ -104,11 +104,14 @@ public:
         if (import.module_name != *module)
           continue;
         if (import.module_alias.has_value())
-          names.push_back(*import.module_alias + "." + std::string{name});
+          names.push_back(source_global_key(import.importing_module,
+                                            *import.module_alias + "." +
+                                                std::string{name}));
         for (const janus::ast::ImportDeclaration::Symbol &symbol :
              import.symbols)
           if (symbol.name == name)
-            names.push_back(symbol.alias.value_or(symbol.name));
+            names.push_back(source_global_key(
+                import.importing_module, symbol.alias.value_or(symbol.name)));
       }
       return names;
     };
@@ -119,8 +122,10 @@ public:
           &declaration);
       if (!declaration.is_private)
         for (const std::string &alias :
-             imported_names(declaration.module_name, declaration.name))
+             imported_names(declaration.module_name, declaration.name)) {
+          scoped_type_names_.insert(alias);
           enums_.emplace(alias, &declaration);
+        }
       ++type_name_counts[declaration.name];
     }
     for (const janus::ast::ClassDeclaration &class_declaration :
@@ -130,8 +135,10 @@ public:
                        &class_declaration);
       if (!class_declaration.is_private)
         for (const std::string &alias : imported_names(
-                 class_declaration.module_name, class_declaration.name))
+                 class_declaration.module_name, class_declaration.name)) {
+          scoped_type_names_.insert(alias);
           classes_.emplace(alias, &class_declaration);
+        }
       ++type_name_counts[class_declaration.name];
     }
     for (const janus::ast::EnumDeclaration &declaration : program.enums)
@@ -298,6 +305,32 @@ private:
     return entry_builder.CreateAlloca(type, nullptr, name);
   }
 
+  static std::string source_global_key(const std::optional<std::string> &module,
+                                       std::string_view name) {
+    return module.has_value() ? *module + "." + std::string{name}
+                              : std::string{name};
+  }
+
+  template <typename Map>
+  auto find_in_active_module(const Map &symbols, std::string_view name) const {
+    auto iterator = symbols.find(source_global_key(active_module_, name));
+    if (iterator == symbols.end())
+      iterator = symbols.find(std::string{name});
+    return iterator;
+  }
+
+  template <typename Map>
+  auto find_type_in_active_module(const Map &symbols,
+                                  std::string_view name) const {
+    const std::string scoped = source_global_key(active_module_, name);
+    if (scoped_type_names_.contains(scoped))
+      return symbols.find(scoped);
+    auto iterator = symbols.find(std::string{name});
+    if (iterator == symbols.end())
+      iterator = symbols.find(scoped);
+    return iterator;
+  }
+
   const janus::Type &resolve(const janus::ast::TypeReference &reference,
                              const Substitutions &substitutions) {
     if (const janus::Type *type = builtin_type(reference.name))
@@ -314,11 +347,13 @@ private:
     if (const auto iterator = substitutions.find(reference.name);
         iterator != substitutions.end())
       return *iterator->second;
-    if (enums_.contains(reference.name)) {
+    if (const auto declaration =
+            find_type_in_active_module(enums_, reference.name);
+        declaration != enums_.end()) {
       std::vector<const janus::Type *> arguments;
       for (const janus::ast::TypeReference &argument : reference.type_arguments)
         arguments.push_back(&resolve(argument, substitutions));
-      return ensure_enum(reference.name, arguments);
+      return ensure_enum(declaration->first, arguments);
     }
     if (reference.name == "Ptr")
       return ensure_pointer(
@@ -327,7 +362,9 @@ private:
     type_arguments.reserve(reference.type_arguments.size());
     for (const janus::ast::TypeReference &argument : reference.type_arguments)
       type_arguments.push_back(&resolve(argument, substitutions));
-    return ensure_class(reference.name, type_arguments);
+    const auto declaration =
+        find_type_in_active_module(classes_, reference.name);
+    return ensure_class(declaration->first, type_arguments);
   }
 
   const Local *
@@ -356,12 +393,6 @@ private:
                                         std::string_view name) const {
     return global_storage_.at(
         source_global_key(std::optional<std::string>{module}, name));
-  }
-
-  static std::string source_global_key(const std::optional<std::string> &module,
-                                       std::string_view name) {
-    return module.has_value() ? *module + "." + std::string{name}
-                              : std::string{name};
   }
 
   static std::optional<std::string>
@@ -869,8 +900,10 @@ private:
     if (type != nullptr)
       return type->kind() != janus::TypeKind::String &&
              type->kind() != janus::TypeKind::Unit;
-    return call.callee == "Ptr" || classes_.contains(call.callee) ||
-           enums_.contains(call.callee);
+    return call.callee == "Ptr" ||
+           find_type_in_active_module(classes_, call.callee) !=
+               classes_.end() ||
+           find_type_in_active_module(enums_, call.callee) != enums_.end();
   }
 
   const janus::Type &cast_destination(const janus::ast::CallExpression &call,
@@ -1118,6 +1151,11 @@ private:
         iterator != emitted_.end())
       return iterator->second;
 
+    const auto previous_active_module = active_module_;
+    const std::string previous_active_function = active_function_;
+    active_module_ =
+        owner == nullptr ? function.module_name : owner->module_name;
+
     Substitutions substitutions;
     if (owner_substitutions != nullptr)
       substitutions = *owner_substitutions;
@@ -1161,13 +1199,12 @@ private:
         (owner != nullptr && !owner->type_parameters.empty()))
       llvm_function->addFnAttr("janus.consumer-owned");
     emitted_.emplace(llvm_name, llvm_function);
-    if (function.is_external)
+    if (function.is_external) {
+      active_function_ = previous_active_function;
+      active_module_ = previous_active_module;
       return llvm_function;
+    }
 
-    const auto previous_active_module = active_module_;
-    const std::string previous_active_function = active_function_;
-    active_module_ =
-        owner == nullptr ? function.module_name : owner->module_name;
     active_function_ =
         owner == nullptr ? function.name : owner->name + "." + function.name;
     auto previous_cleanup_scopes = std::move(active_cleanup_scopes_);
@@ -1888,7 +1925,8 @@ private:
               return expression_type(*node.arguments[1], substitutions, locals);
             if (is_explicit_cast(node))
               return cast_destination(node, substitutions);
-            const auto &callee = *functions_.at(node.callee);
+            const auto &callee =
+                *find_in_active_module(functions_, node.callee)->second;
             Substitutions callee_substitutions;
             for (std::size_t index = 0; index < node.type_arguments.size();
                  ++index) {
@@ -1903,14 +1941,20 @@ private:
             for (const janus::ast::TypeReference &argument :
                  node.type_arguments)
               type_arguments.push_back(&resolve(argument, substitutions));
-            return ensure_class(node.class_name, type_arguments);
+            const auto declaration =
+                find_type_in_active_module(classes_, node.class_name);
+            return ensure_class(declaration->first, type_arguments);
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::MemberAccessExpression>) {
             if (const auto *identifier =
                     std::get_if<janus::ast::IdentifierExpression>(
                         &node.object->value);
-                identifier != nullptr && enums_.contains(identifier->name))
-              return ensure_enum(identifier->name, {});
+                identifier != nullptr) {
+              const auto declaration =
+                  find_type_in_active_module(enums_, identifier->name);
+              if (declaration != enums_.end())
+                return ensure_enum(declaration->first, {});
+            }
             if (const auto module = qualified_expression_name(*node.object);
                 module.has_value() && global_modules_.contains(*module) &&
                 !locals.contains(module->substr(0, module->find('.'))))
@@ -1924,7 +1968,8 @@ private:
                 module.has_value() &&
                 !locals.contains(module->substr(0, module->find('.')))) {
               const std::string qualified = *module + "." + node.method;
-              if (const auto function = functions_.find(qualified);
+              if (const auto function =
+                      find_in_active_module(functions_, qualified);
                   function != functions_.end()) {
                 const auto &callee = *function->second;
                 Substitutions callee_substitutions;
@@ -1939,12 +1984,16 @@ private:
             if (const auto *identifier =
                     std::get_if<janus::ast::IdentifierExpression>(
                         &node.object->value);
-                identifier != nullptr && enums_.contains(identifier->name)) {
-              std::vector<const janus::Type *> type_arguments;
-              for (const janus::ast::TypeReference &argument :
-                   node.type_arguments)
-                type_arguments.push_back(&resolve(argument, substitutions));
-              return ensure_enum(identifier->name, type_arguments);
+                identifier != nullptr) {
+              const auto declaration =
+                  find_type_in_active_module(enums_, identifier->name);
+              if (declaration != enums_.end()) {
+                std::vector<const janus::Type *> type_arguments;
+                for (const janus::ast::TypeReference &argument :
+                     node.type_arguments)
+                  type_arguments.push_back(&resolve(argument, substitutions));
+                return ensure_enum(declaration->first, type_arguments);
+              }
             }
             const janus::Type &object_type =
                 expression_type(*node.object, substitutions, locals);
@@ -3050,7 +3099,7 @@ private:
                                            node.callee + ".conversion");
             }
             const janus::ast::FunctionDeclaration &callee =
-                *functions_.at(node.callee);
+                *find_in_active_module(functions_, node.callee)->second;
             std::vector<const janus::Type *> type_arguments;
             type_arguments.reserve(node.type_arguments.size());
             for (const janus::ast::TypeReference &argument :
@@ -3098,13 +3147,15 @@ private:
                                             node.callee + ".result");
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::NewExpression>) {
-            const auto &class_declaration = *classes_.at(node.class_name);
+            const auto class_iterator =
+                find_type_in_active_module(classes_, node.class_name);
+            const auto &class_declaration = *class_iterator->second;
             std::vector<const janus::Type *> type_arguments;
             for (const janus::ast::TypeReference &argument :
                  node.type_arguments)
               type_arguments.push_back(&resolve(argument, substitutions));
             const janus::Type &object_type =
-                ensure_class(node.class_name, type_arguments);
+                ensure_class(class_iterator->first, type_arguments);
             const ClassSpecialization &specialization =
                 class_specializations_.at(std::string{object_type.name()});
             ::llvm::StructType *class_type =
@@ -3194,11 +3245,16 @@ private:
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);
             const auto enum_name = qualified_expression_name(*node.object);
-            if (enum_name.has_value() && enums_.contains(*enum_name) &&
+            const auto enum_declaration =
+                enum_name.has_value()
+                    ? find_type_in_active_module(enums_, *enum_name)
+                    : enums_.end();
+            if (enum_name.has_value() && enum_declaration != enums_.end() &&
                 (enum_name->find('.') == std::string::npos ||
                  !locals.contains(
                      enum_name->substr(0, enum_name->find('.'))))) {
-              const janus::Type &enum_type = ensure_enum(*enum_name, {});
+              const janus::Type &enum_type =
+                  ensure_enum(enum_declaration->first, {});
               auto *llvm_enum_type =
                   llvm_enum_types_.at(std::string{enum_type.name()});
               ::llvm::Value *value = ::llvm::UndefValue::get(llvm_enum_type);
@@ -3252,7 +3308,8 @@ private:
                 module.has_value() &&
                 !locals.contains(module->substr(0, module->find('.')))) {
               const std::string qualified = *module + "." + node.method;
-              if (const auto function = functions_.find(qualified);
+              if (const auto function =
+                      find_in_active_module(functions_, qualified);
                   function != functions_.end())
                 return emit_declared_call(
                     *function->second, node.type_arguments, node.arguments,
@@ -3262,7 +3319,11 @@ private:
                 std::get_if<janus::ast::IdentifierExpression>(
                     &node.object->value);
             const auto enum_name = qualified_expression_name(*node.object);
-            if (enum_name.has_value() && enums_.contains(*enum_name) &&
+            const auto enum_declaration =
+                enum_name.has_value()
+                    ? find_type_in_active_module(enums_, *enum_name)
+                    : enums_.end();
+            if (enum_name.has_value() && enum_declaration != enums_.end() &&
                 (enum_name->find('.') == std::string::npos ||
                  !locals.contains(
                      enum_name->substr(0, enum_name->find('.'))))) {
@@ -3271,7 +3332,7 @@ private:
                    node.type_arguments)
                 type_arguments.push_back(&resolve(argument, substitutions));
               const janus::Type &enum_type =
-                  ensure_enum(*enum_name, type_arguments);
+                  ensure_enum(enum_declaration->first, type_arguments);
               const EnumSpecialization &specialization =
                   enum_specializations_.at(std::string{enum_type.name()});
               const auto enum_case = std::find_if(
@@ -3767,6 +3828,7 @@ private:
   std::unordered_map<std::string, const janus::ast::ClassDeclaration *>
       classes_;
   std::unordered_map<std::string, const janus::ast::EnumDeclaration *> enums_;
+  std::unordered_set<std::string> scoped_type_names_;
   std::unordered_map<std::string, janus::Type> enum_types_;
   std::unordered_map<std::string, ::llvm::StructType *> llvm_enum_types_;
   std::unordered_map<std::string, EnumSpecialization> enum_specializations_;
