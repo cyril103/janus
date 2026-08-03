@@ -19,6 +19,20 @@ permissions:
   contents: read
 
 jobs:
+  test-source-policy:
+    name: Test source policy
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Janus
+        uses: actions/checkout@v7
+
+      - name: Reject disabled standard assertions
+        run: python3 scripts/check-test-asserts.py tests
+
+      - name: Verify assertion guard
+        run: python3 scripts/check-test-asserts.py --self-test
+
   reference-registry-image:
     name: Reference registry image
     runs-on: ubuntu-24.04

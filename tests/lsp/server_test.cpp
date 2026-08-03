@@ -1,30 +1,20 @@
 #include "janus/lsp/server.hpp"
 
-#include <cassert>
-#include <charconv>
-#include <cstdio>
-#include <cstdlib>
-#include <string>
-#include <vector>
+#include "../support/require.hpp"
 
-[[noreturn]] inline void janus_test_assertion_failed(const char *expression,
-                                                     const char *file,
-                                                     int line) {
-  std::fprintf(stderr, "%s:%d: assertion failed: %s\n", file, line, expression);
-  std::abort();
-}
-#define REQUIRE(condition)                                                     \
-  ((condition) ? static_cast<void>(0)                                          \
-               : janus_test_assertion_failed(#condition, __FILE__, __LINE__))
+#include <charconv>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace {
 
 std::vector<std::int64_t> semantic_token_field(const std::string &response,
                                                std::size_t field) {
-  REQUIRE(field < 5);
+  JANUS_REQUIRE(field < 5);
   const std::string marker = "\"data\":[";
   std::size_t cursor = response.find(marker);
-  REQUIRE(cursor != std::string::npos);
+  JANUS_REQUIRE(cursor != std::string::npos);
   cursor += marker.size();
   std::vector<std::int64_t> values;
   while (cursor < response.size() && response[cursor] != ']') {
@@ -32,13 +22,13 @@ std::vector<std::int64_t> semantic_token_field(const std::string &response,
     const char *begin = response.data() + cursor;
     const char *end = response.data() + response.size();
     const auto parsed = std::from_chars(begin, end, value);
-    REQUIRE(parsed.ec == std::errc{});
+    JANUS_REQUIRE(parsed.ec == std::errc{});
     values.push_back(value);
     cursor = static_cast<std::size_t>(parsed.ptr - response.data());
     if (cursor < response.size() && response[cursor] == ',')
       ++cursor;
   }
-  REQUIRE(values.size() % 5 == 0);
+  JANUS_REQUIRE(values.size() % 5 == 0);
   std::vector<std::int64_t> fields;
   for (std::size_t index = field; index < values.size(); index += 5)
     fields.push_back(values[index]);
@@ -47,107 +37,118 @@ std::vector<std::int64_t> semantic_token_field(const std::string &response,
 
 } // namespace
 
-int main() {
+int main(int argc, char **argv) {
+  if (argc == 2 && std::string_view{argv[1]} == "--verify-require-failure")
+    JANUS_REQUIRE(false);
+
   janus::lsp::Server server{{std::filesystem::path{JANUS_STDLIB_DIR}}};
 
   const std::vector<std::string> initialized = server.handle(
       R"({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}})");
-  assert(initialized.size() == 1);
-  assert(initialized.front().find("\"textDocumentSync\"") != std::string::npos);
-  assert(initialized.front().find("\"renameProvider\"") != std::string::npos);
-  assert(initialized.front().find("\"prepareProvider\":true") !=
-         std::string::npos);
-  assert(initialized.front().find("\"signatureHelpProvider\"") !=
-         std::string::npos);
-  assert(initialized.front().find("\"semanticTokensProvider\"") !=
-         std::string::npos);
-  assert(initialized.front().find("\"inlayHintProvider\":true") !=
-         std::string::npos);
-  assert(initialized.front().find("\"implementationProvider\":true") !=
-         std::string::npos);
-  assert(initialized.front().find("\"codeActionProvider\"") !=
-         std::string::npos);
+  JANUS_REQUIRE(initialized.size() == 1);
+  JANUS_REQUIRE(initialized.front().find("\"textDocumentSync\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(initialized.front().find("\"renameProvider\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(initialized.front().find("\"prepareProvider\":true") !=
+                std::string::npos);
+  JANUS_REQUIRE(initialized.front().find("\"signatureHelpProvider\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(initialized.front().find("\"semanticTokensProvider\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(initialized.front().find("\"inlayHintProvider\":true") !=
+                std::string::npos);
+  JANUS_REQUIRE(initialized.front().find("\"implementationProvider\":true") !=
+                std::string::npos);
+  JANUS_REQUIRE(initialized.front().find("\"codeActionProvider\"") !=
+                std::string::npos);
 
   const std::vector<std::string> invalid = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///broken.janus","version":1,"text":"def main() : int { return nope }"}}})");
-  assert(invalid.size() == 1);
-  assert(invalid.front().find("publishDiagnostics") != std::string::npos);
-  assert(invalid.front().find("unknown value") != std::string::npos);
-  assert(invalid.front().find("\"code\":\"JANA0001\"") != std::string::npos);
-  assert(invalid.front().find("\"severity\":1") != std::string::npos);
+  JANUS_REQUIRE(invalid.size() == 1);
+  JANUS_REQUIRE(invalid.front().find("publishDiagnostics") !=
+                std::string::npos);
+  JANUS_REQUIRE(invalid.front().find("unknown value") != std::string::npos);
+  JANUS_REQUIRE(invalid.front().find("\"code\":\"JANA0001\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(invalid.front().find("\"severity\":1") != std::string::npos);
 
   const std::vector<std::string> leak_warning = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///leak-warning.janus","text":"class Resource() {}\ndef main() : int {\n    val resource : Resource = new Resource()\n    return 0\n}"}}})");
-  assert(leak_warning.size() == 1);
-  assert(leak_warning.front().find("\"code\":\"JANA0002\"") !=
-         std::string::npos);
-  assert(leak_warning.front().find("\"severity\":2") != std::string::npos);
-  assert(leak_warning.front().find("may reach the end of its scope") !=
-         std::string::npos);
+  JANUS_REQUIRE(leak_warning.size() == 1);
+  JANUS_REQUIRE(leak_warning.front().find("\"code\":\"JANA0002\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(leak_warning.front().find("\"severity\":2") !=
+                std::string::npos);
+  JANUS_REQUIRE(leak_warning.front().find("may reach the end of its scope") !=
+                std::string::npos);
 
   const std::vector<std::string> ownership_warnings = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///ownership-warnings.janus","text":"class Resource() {}\ndef make() : Resource { return new Resource() }\ndef main() : int {\n    var resource : Resource = new Resource()\n    resource = new Resource()\n    delete resource\n    make()\n    return 0\n}"}}})");
-  assert(ownership_warnings.size() == 1);
-  assert(ownership_warnings.front().find("\"code\":\"JANA0003\"") !=
-         std::string::npos);
-  assert(ownership_warnings.front().find("\"code\":\"JANA0004\"") !=
-         std::string::npos);
+  JANUS_REQUIRE(ownership_warnings.size() == 1);
+  JANUS_REQUIRE(ownership_warnings.front().find("\"code\":\"JANA0003\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(ownership_warnings.front().find("\"code\":\"JANA0004\"") !=
+                std::string::npos);
 
   const std::vector<std::string> analyzer_warnings = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///analyzer-warnings.janus","text":"enum Option[T] { Some(T), None }\ndef maybe() : Option[int] { return Option.None[int]() }\ndef main() : int {\n    val unused : int = 42\n    maybe()\n    return 0\n}"}}})");
-  assert(analyzer_warnings.size() == 1);
-  assert(analyzer_warnings.front().find("\"code\":\"JANA0005\"") !=
-         std::string::npos);
-  assert(analyzer_warnings.front().find("\"code\":\"JANA0014\"") !=
-         std::string::npos);
-  assert(analyzer_warnings.front().find("\"severity\":2") != std::string::npos);
+  JANUS_REQUIRE(analyzer_warnings.size() == 1);
+  JANUS_REQUIRE(analyzer_warnings.front().find("\"code\":\"JANA0005\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(analyzer_warnings.front().find("\"code\":\"JANA0014\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(analyzer_warnings.front().find("\"severity\":2") !=
+                std::string::npos);
 
   const std::vector<std::string> raw_ownership_warnings = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///raw-ownership-warnings.janus","text":"class Node(private val next : Node) { destructor { delete next } }\ndef main() : int {\n    val nodes : Ptr[Node] = alloc[Node](usize(1))\n    free(nodes)\n    return 0\n}"}}})");
-  assert(raw_ownership_warnings.size() == 1);
-  assert(raw_ownership_warnings.front().find("\"code\":\"JANA0015\"") !=
-         std::string::npos);
-  assert(raw_ownership_warnings.front().find("\"code\":\"JANA0021\"") !=
-         std::string::npos);
+  JANUS_REQUIRE(raw_ownership_warnings.size() == 1);
+  JANUS_REQUIRE(raw_ownership_warnings.front().find("\"code\":\"JANA0015\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(raw_ownership_warnings.front().find("\"code\":\"JANA0021\"") !=
+                std::string::npos);
 
   const std::vector<std::string> extern_contract = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///extern-contract.janus","text":"extern def inspect(borrow data : Ptr[int]) : Unit\ndef main() : int {\n    val data : Ptr[int] = alloc[int](usize(1))\n    inspect(data)\n    free(data)\n    return 0\n}"}}})");
-  assert(extern_contract.size() == 1);
-  assert(extern_contract.front().find("\"diagnostics\":[]") !=
-         std::string::npos);
+  JANUS_REQUIRE(extern_contract.size() == 1);
+  JANUS_REQUIRE(extern_contract.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
   const std::vector<std::string> extern_contract_hover = server.handle(
       R"({"jsonrpc":"2.0","id":54,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///extern-contract.janus"},"position":{"line":3,"character":7}}})");
-  assert(extern_contract_hover.size() == 1);
-  assert(extern_contract_hover.front().find(
-             "inspect(borrow data : Ptr[int]) : Unit") != std::string::npos);
+  JANUS_REQUIRE(extern_contract_hover.size() == 1);
+  JANUS_REQUIRE(extern_contract_hover.front().find(
+                    "inspect(borrow data : Ptr[int]) : Unit") !=
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///extern-return.janus","text":"extern def data() : borrow Ptr[byte]\ndef main() : int {\n    val result : Ptr[byte] = data()\n    return 0\n}"}}})"));
   const std::vector<std::string> extern_return_hover = server.handle(
       R"({"jsonrpc":"2.0","id":55,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///extern-return.janus"},"position":{"line":2,"character":33}}})");
-  assert(extern_return_hover.size() == 1);
-  assert(extern_return_hover.front().find("data() : borrow Ptr[byte]") !=
-         std::string::npos);
+  JANUS_REQUIRE(extern_return_hover.size() == 1);
+  JANUS_REQUIRE(extern_return_hover.front().find("data() : borrow Ptr[byte]") !=
+                std::string::npos);
 
   const std::vector<std::string> safe_correction_diagnostic = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///safe-correction.janus","text":"def main() : int { return @0 }"}}})");
-  assert(safe_correction_diagnostic.size() == 1);
-  assert(safe_correction_diagnostic.front().find("\"data\"") !=
-         std::string::npos);
-  assert(safe_correction_diagnostic.front().find(
-             "remove the unexpected character") != std::string::npos);
+  JANUS_REQUIRE(safe_correction_diagnostic.size() == 1);
+  JANUS_REQUIRE(safe_correction_diagnostic.front().find("\"data\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(safe_correction_diagnostic.front().find(
+                    "remove the unexpected character") != std::string::npos);
   const std::vector<std::string> safe_correction = server.handle(
       R"({"jsonrpc":"2.0","id":50,"method":"textDocument/codeAction","params":{"textDocument":{"uri":"file:///safe-correction.janus"},"range":{"start":{"line":0,"character":26},"end":{"line":0,"character":27}},"context":{"diagnostics":[],"only":["quickfix"]}}})");
-  assert(safe_correction.size() == 1);
-  assert(safe_correction.front().find("\"kind\":\"quickfix\"") !=
-         std::string::npos);
-  assert(safe_correction.front().find("\"edit\":{\"changes\"") !=
-         std::string::npos);
-  assert(safe_correction.front().find("\"newText\":\"\"") != std::string::npos);
+  JANUS_REQUIRE(safe_correction.size() == 1);
+  JANUS_REQUIRE(safe_correction.front().find("\"kind\":\"quickfix\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(safe_correction.front().find("\"edit\":{\"changes\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(safe_correction.front().find("\"newText\":\"\"") !=
+                std::string::npos);
 
   const std::vector<std::string> recovered = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///recovery.janus","text":"def first() : int {\n val x : int = }\ndef second() : int {\n val y : int = }\n"}}})");
-  assert(recovered.size() == 1);
+  JANUS_REQUIRE(recovered.size() == 1);
   std::size_t parser_diagnostic_count = 0;
   std::size_t parser_diagnostic_position = 0;
   while ((parser_diagnostic_position = recovered.front().find(
@@ -156,108 +157,114 @@ int main() {
     ++parser_diagnostic_count;
     parser_diagnostic_position += 20;
   }
-  assert(parser_diagnostic_count == 2);
+  JANUS_REQUIRE(parser_diagnostic_count == 2);
 
   const std::vector<std::string> missing_import = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///a/deliberately/long/path/used/to/expose/dangling/diagnostic/messages.janus","text":"import module_that_does_not_exist_anywhere\n\ndef main() : int { return 0 }"}}})");
-  assert(missing_import.size() == 1);
-  assert(missing_import.front().find("cannot resolve imported module "
-                                     "'module_that_does_not_exist_anywhere'") !=
-         std::string::npos);
+  JANUS_REQUIRE(missing_import.size() == 1);
+  JANUS_REQUIRE(
+      missing_import.front().find("cannot resolve imported module "
+                                  "'module_that_does_not_exist_anywhere'") !=
+      std::string::npos);
 
   const std::vector<std::string> valid = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { return 0 }"}]}})");
-  assert(valid.size() == 1);
-  assert(valid.front().find("\"diagnostics\":[]") != std::string::npos);
+  JANUS_REQUIRE(valid.size() == 1);
+  JANUS_REQUIRE(valid.front().find("\"diagnostics\":[]") != std::string::npos);
 
   const std::vector<std::string> imported = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///array.janus","text":"import std.array\n\ndef main() : int {\n    val values : Array[int] = new Array[int](usize(1))\n    defer delete values\n    return numericCast[int](values.size())\n}\n"}}})");
-  assert(imported.size() == 1);
-  assert(imported.front().find("\"diagnostics\":[]") != std::string::npos);
+  JANUS_REQUIRE(imported.size() == 1);
+  JANUS_REQUIRE(imported.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
   const std::vector<std::string> imported_definition = server.handle(
       R"({"jsonrpc":"2.0","id":15,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///array.janus"},"position":{"line":3,"character":20}}})");
-  assert(imported_definition.front().find("stdlib/std/array.janus") !=
-         std::string::npos);
+  JANUS_REQUIRE(imported_definition.front().find("stdlib/std/array.janus") !=
+                std::string::npos);
 
   const std::vector<std::string> derivation_document = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///derivation.janus","text":"struct Point(val x : int, val y : int) derives Copy, Equality, Hashing, Debug {}\n\ndef main() : int { return 0 }"}}})");
-  assert(derivation_document.size() == 1);
-  assert(derivation_document.front().find("\"diagnostics\":[]") !=
-         std::string::npos);
+  JANUS_REQUIRE(derivation_document.size() == 1);
+  JANUS_REQUIRE(derivation_document.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
 
   const std::vector<std::string> module = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///library.janus","text":"module library\n\ndef helper() : int { return 42 }"}}})");
-  assert(module.size() == 1);
-  assert(module.front().find("\"diagnostics\":[]") != std::string::npos);
-  assert(module.front().find("entry point") == std::string::npos);
+  JANUS_REQUIRE(module.size() == 1);
+  JANUS_REQUIRE(module.front().find("\"diagnostics\":[]") != std::string::npos);
+  JANUS_REQUIRE(module.front().find("entry point") == std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tools.janus","text":"module tools\n\ndef importedAnswer() : int { return 42 }"}}})"));
   const std::vector<std::string> missing_import_diagnostic = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///missing-import.janus","text":"def main() : int { return importedAnswer }"}}})");
-  assert(missing_import_diagnostic.front().find("unknown value") !=
-         std::string::npos);
+  JANUS_REQUIRE(missing_import_diagnostic.front().find("unknown value") !=
+                std::string::npos);
   const std::vector<std::string> missing_import_action = server.handle(
       R"({"jsonrpc":"2.0","id":51,"method":"textDocument/codeAction","params":{"textDocument":{"uri":"file:///missing-import.janus"},"range":{"start":{"line":0,"character":26},"end":{"line":0,"character":40}},"context":{"diagnostics":[]}}})");
-  assert(missing_import_action.front().find("Import module `tools`") !=
-         std::string::npos);
-  assert(missing_import_action.front().find(
-             "\"newText\":\"import tools\\n\"") != std::string::npos);
-  assert(missing_import_action.front().find("\"isPreferred\":false") !=
-         std::string::npos);
+  JANUS_REQUIRE(missing_import_action.front().find("Import module `tools`") !=
+                std::string::npos);
+  JANUS_REQUIRE(missing_import_action.front().find(
+                    "\"newText\":\"import tools\\n\"") != std::string::npos);
+  JANUS_REQUIRE(missing_import_action.front().find("\"isPreferred\":false") !=
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///other-tools.janus","text":"module other_tools\n\ndef importedAnswer() : int { return 7 }"}}})"));
   const std::vector<std::string> ambiguous_import_action = server.handle(
       R"({"jsonrpc":"2.0","id":52,"method":"textDocument/codeAction","params":{"textDocument":{"uri":"file:///missing-import.janus"},"range":{"start":{"line":0,"character":26},"end":{"line":0,"character":40}},"context":{"diagnostics":[]}}})");
-  assert(ambiguous_import_action.front().find("\"result\":[]") !=
-         std::string::npos);
+  JANUS_REQUIRE(ambiguous_import_action.front().find("\"result\":[]") !=
+                std::string::npos);
 
   const std::vector<std::string> missing_match_diagnostic = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///missing-match.janus","text":"enum Choice { First, Second }\ndef choose(choice : Choice) : int {\n    return match choice { First => 1 }\n}\ndef main() : int { return 0 }"}}})");
-  assert(missing_match_diagnostic.front().find("non-exhaustive match") !=
-         std::string::npos);
+  JANUS_REQUIRE(missing_match_diagnostic.front().find("non-exhaustive match") !=
+                std::string::npos);
   const std::vector<std::string> missing_match_action = server.handle(
       R"({"jsonrpc":"2.0","id":53,"method":"textDocument/codeAction","params":{"textDocument":{"uri":"file:///missing-match.janus"},"range":{"start":{"line":2,"character":11},"end":{"line":2,"character":16}},"context":{"diagnostics":[]}}})");
-  assert(missing_match_action.front().find("Add missing match branches") !=
-         std::string::npos);
-  assert(missing_match_action.front().find("\"edit\":{\"changes\"") !=
-         std::string::npos);
-  assert(missing_match_action.front().find("Second =>") != std::string::npos);
-  assert(missing_match_action.front().find("\"isPreferred\":false") !=
-         std::string::npos);
+  JANUS_REQUIRE(missing_match_action.front().find(
+                    "Add missing match branches") != std::string::npos);
+  JANUS_REQUIRE(missing_match_action.front().find("\"edit\":{\"changes\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(missing_match_action.front().find("Second =>") !=
+                std::string::npos);
+  JANUS_REQUIRE(missing_match_action.front().find("\"isPreferred\":false") !=
+                std::string::npos);
 
   const std::vector<std::string> invalid_module = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///invalid-library.janus","text":"module invalid_library\n\ndef helper() : int { return missing }"}}})");
-  assert(invalid_module.size() == 1);
-  assert(invalid_module.front().find("unknown value") != std::string::npos);
+  JANUS_REQUIRE(invalid_module.size() == 1);
+  JANUS_REQUIRE(invalid_module.front().find("unknown value") !=
+                std::string::npos);
 
   const std::vector<std::string> closed = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"file:///array.janus"}}})");
-  assert(closed.size() == 1);
-  assert(closed.front().find("\"uri\":\"file:///array.janus\"") !=
-         std::string::npos);
-  assert(closed.front().find("\"diagnostics\":[]") != std::string::npos);
-  assert(closed.front().find("entry point") == std::string::npos);
+  JANUS_REQUIRE(closed.size() == 1);
+  JANUS_REQUIRE(closed.front().find("\"uri\":\"file:///array.janus\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(closed.front().find("\"diagnostics\":[]") != std::string::npos);
+  JANUS_REQUIRE(closed.front().find("entry point") == std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 return answer }"}]}})"));
   const std::vector<std::string> hover = server.handle(
       R"({"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50}}})");
-  assert(hover.size() == 1);
-  assert(hover.front().find("val answer : int") != std::string::npos);
+  JANUS_REQUIRE(hover.size() == 1);
+  JANUS_REQUIRE(hover.front().find("val answer : int") != std::string::npos);
 
   const std::vector<std::string> definition = server.handle(
       R"({"jsonrpc":"2.0","id":3,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50}}})");
-  assert(definition.front().find("\"character\":23") != std::string::npos);
+  JANUS_REQUIRE(definition.front().find("\"character\":23") !=
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"val answer : int = 1\ndef main() : int { val answer : int = 2 return answer }"}]}})"));
   const std::vector<std::string> shadowed_definition = server.handle(
       R"({"jsonrpc":"2.0","id":16,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":1,"character":49}}})");
-  assert(shadowed_definition.front().find("\"line\":1") != std::string::npos);
-  assert(shadowed_definition.front().find("\"character\":23") !=
-         std::string::npos);
+  JANUS_REQUIRE(shadowed_definition.front().find("\"line\":1") !=
+                std::string::npos);
+  JANUS_REQUIRE(shadowed_definition.front().find("\"character\":23") !=
+                std::string::npos);
   const std::vector<std::string> shadowed_references = server.handle(
       R"({"jsonrpc":"2.0","id":17,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":1,"character":49},"context":{"includeDeclaration":true}}})");
   std::size_t reference_count = 0;
@@ -267,19 +274,19 @@ int main() {
     ++reference_count;
     reference_position += 5;
   }
-  assert(reference_count == 2);
+  JANUS_REQUIRE(reference_count == 2);
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 return answer }"}]}})"));
 
   const std::vector<std::string> references = server.handle(
       R"({"jsonrpc":"2.0","id":4,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50},"context":{"includeDeclaration":true}}})");
-  assert(references.front().find("\"uri\":\"file:///broken.janus\"") !=
-         std::string::npos);
+  JANUS_REQUIRE(references.front().find("\"uri\":\"file:///broken.janus\"") !=
+                std::string::npos);
 
   const auto assert_null_result = [](const std::vector<std::string> &result) {
-    assert(result.size() == 1);
-    assert(result.front().find("\"result\":null") != std::string::npos);
-    assert(result.front().find("\"error\"") == std::string::npos);
+    JANUS_REQUIRE(result.size() == 1);
+    JANUS_REQUIRE(result.front().find("\"result\":null") != std::string::npos);
+    JANUS_REQUIRE(result.front().find("\"error\"") == std::string::npos);
   };
   assert_null_result(server.handle(
       R"({"jsonrpc":"2.0","id":7,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":0}}})"));
@@ -290,10 +297,14 @@ int main() {
 
   const std::vector<std::string> completion = server.handle(
       R"({"jsonrpc":"2.0","id":5,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":20}}})");
-  assert(completion.front().find("\"label\":\"answer\"") != std::string::npos);
-  assert(completion.front().find("\"label\":\"int\"") != std::string::npos);
-  assert(completion.front().find("\"label\":\"return\"") != std::string::npos);
-  assert(completion.front().find("\"label\":\"derives\"") != std::string::npos);
+  JANUS_REQUIRE(completion.front().find("\"label\":\"answer\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(completion.front().find("\"label\":\"int\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(completion.front().find("\"label\":\"return\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(completion.front().find("\"label\":\"derives\"") !=
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///settings.janus","text":"module settings\n\nval sharedCount : int = 42\nprivate val secretCount : int = 7\n"}}})"));
@@ -302,57 +313,63 @@ int main() {
 
   const std::vector<std::string> global_hover = server.handle(
       R"({"jsonrpc":"2.0","id":10,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":2,"character":30}}})");
-  assert(global_hover.front().find("val sharedCount : int") !=
-         std::string::npos);
-  assert(global_hover.front().find("module `settings`") != std::string::npos);
+  JANUS_REQUIRE(global_hover.front().find("val sharedCount : int") !=
+                std::string::npos);
+  JANUS_REQUIRE(global_hover.front().find("module `settings`") !=
+                std::string::npos);
 
   const std::vector<std::string> global_definition = server.handle(
       R"({"jsonrpc":"2.0","id":11,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":2,"character":30}}})");
-  assert(global_definition.front().find("\"uri\":\"file:///settings.janus\"") !=
-         std::string::npos);
-  assert(global_definition.front().find("\"line\":2") != std::string::npos);
+  JANUS_REQUIRE(global_definition.front().find(
+                    "\"uri\":\"file:///settings.janus\"") != std::string::npos);
+  JANUS_REQUIRE(global_definition.front().find("\"line\":2") !=
+                std::string::npos);
 
   const std::vector<std::string> global_references = server.handle(
       R"({"jsonrpc":"2.0","id":12,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":2,"character":30},"context":{"includeDeclaration":true}}})");
-  assert(global_references.front().find("file:///settings.janus") !=
-         std::string::npos);
-  assert(global_references.front().find("file:///broken.janus") !=
-         std::string::npos);
+  JANUS_REQUIRE(global_references.front().find("file:///settings.janus") !=
+                std::string::npos);
+  JANUS_REQUIRE(global_references.front().find("file:///broken.janus") !=
+                std::string::npos);
 
   const std::vector<std::string> global_completion = server.handle(
       R"({"jsonrpc":"2.0","id":13,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":18}}})");
-  assert(global_completion.front().find("\"label\":\"sharedCount\"") !=
-         std::string::npos);
-  assert(global_completion.front().find("\"label\":\"secretCount\"") ==
-         std::string::npos);
+  JANUS_REQUIRE(global_completion.front().find("\"label\":\"sharedCount\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(global_completion.front().find("\"label\":\"secretCount\"") ==
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { return settings. }"}]}})"));
   const std::vector<std::string> module_completion = server.handle(
       R"({"jsonrpc":"2.0","id":14,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":35}}})");
-  assert(module_completion.front().find("\"label\":\"sharedCount\"") !=
-         std::string::npos);
-  assert(module_completion.front().find("\"label\":\"secretCount\"") ==
-         std::string::npos);
+  JANUS_REQUIRE(module_completion.front().find("\"label\":\"sharedCount\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(module_completion.front().find("\"label\":\"secretCount\"") ==
+                std::string::npos);
 
   const std::vector<std::string> else_if_document = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def choose(first : bool, second : bool) : int {\n    if first {\n        val low : int = 1\n        return low\n    } else if second {\n        val middle : int = 2\n        return middle\n    } else {\n        val high : int = 3\n        return high\n    }\n}\ndef main() : int { return choose(true, false) }"}]}})");
-  assert(else_if_document.size() == 1);
-  assert(else_if_document.front().find("\"diagnostics\":[]") !=
-         std::string::npos);
+  JANUS_REQUIRE(else_if_document.size() == 1);
+  JANUS_REQUIRE(else_if_document.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
   const std::vector<std::string> low_definition = server.handle(
       R"({"jsonrpc":"2.0","id":18,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":3,"character":15}}})");
-  assert(low_definition.front().find("\"line\":2") != std::string::npos);
-  assert(low_definition.front().find("\"character\":12") != std::string::npos);
+  JANUS_REQUIRE(low_definition.front().find("\"line\":2") != std::string::npos);
+  JANUS_REQUIRE(low_definition.front().find("\"character\":12") !=
+                std::string::npos);
   const std::vector<std::string> middle_definition = server.handle(
       R"({"jsonrpc":"2.0","id":19,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":6,"character":15}}})");
-  assert(middle_definition.front().find("\"line\":5") != std::string::npos);
-  assert(middle_definition.front().find("\"character\":12") !=
-         std::string::npos);
+  JANUS_REQUIRE(middle_definition.front().find("\"line\":5") !=
+                std::string::npos);
+  JANUS_REQUIRE(middle_definition.front().find("\"character\":12") !=
+                std::string::npos);
   const std::vector<std::string> high_definition = server.handle(
       R"({"jsonrpc":"2.0","id":20,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":9,"character":15}}})");
-  assert(high_definition.front().find("\"line\":8") != std::string::npos);
-  assert(high_definition.front().find("\"character\":12") != std::string::npos);
+  JANUS_REQUIRE(high_definition.front().find("\"line\":8") !=
+                std::string::npos);
+  JANUS_REQUIRE(high_definition.front().find("\"character\":12") !=
+                std::string::npos);
   const std::vector<std::string> middle_references = server.handle(
       R"({"jsonrpc":"2.0","id":21,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":6,"character":15},"context":{"includeDeclaration":true}}})");
   std::size_t else_if_reference_count = 0;
@@ -362,25 +379,29 @@ int main() {
     ++else_if_reference_count;
     else_if_reference_position += 5;
   }
-  assert(else_if_reference_count == 2);
+  JANUS_REQUIRE(else_if_reference_count == 2);
 
   const std::vector<std::string> signature_help = server.handle(
       R"({"jsonrpc":"2.0","id":22,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":12,"character":42}}})");
-  assert(signature_help.front().find(
-             "\"label\":\"choose(first : bool, second : bool) : int\"") !=
-         std::string::npos);
-  assert(signature_help.front().find("\"activeParameter\":1") !=
-         std::string::npos);
+  JANUS_REQUIRE(
+      signature_help.front().find(
+          "\"label\":\"choose(first : bool, second : bool) : int\"") !=
+      std::string::npos);
+  JANUS_REQUIRE(signature_help.front().find("\"activeParameter\":1") !=
+                std::string::npos);
   const std::vector<std::string> parameter_rename = server.handle(
       R"({"jsonrpc":"2.0","id":30,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":11},"newName":"primary"}})");
-  assert(parameter_rename.front().find("\"error\"") == std::string::npos);
-  assert(parameter_rename.front().find("\"newText\":\"primary\"") !=
-         std::string::npos);
+  JANUS_REQUIRE(parameter_rename.front().find("\"error\"") ==
+                std::string::npos);
+  JANUS_REQUIRE(parameter_rename.front().find("\"newText\":\"primary\"") !=
+                std::string::npos);
 
   const std::vector<std::string> semantic_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":23,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///broken.janus"}}})");
-  assert(semantic_tokens.front().find("\"data\":[") != std::string::npos);
-  assert(semantic_tokens.front().find("\"data\":[]") == std::string::npos);
+  JANUS_REQUIRE(semantic_tokens.front().find("\"data\":[") !=
+                std::string::npos);
+  JANUS_REQUIRE(semantic_tokens.front().find("\"data\":[]") ==
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-kinds.janus","text":"class C() { def f(x : C) : int { val local : C = x return local } }\ndef top(value : int) : int { return value }\ndef shadow(f : int) : int { return f() }\nprivate def hidden() : int { return 0 }\n"}}})"));
@@ -388,63 +409,66 @@ int main() {
       R"({"jsonrpc":"2.0","id":44,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-kinds.janus"}}})");
   const std::vector<std::int64_t> classified_types =
       semantic_token_field(classified_tokens.front(), 3);
-  REQUIRE((classified_types ==
-           std::vector<std::int64_t>{10, 2, 10, 6,  8, 2,  1,  10, 7, 2,  8,
-                                     10, 7, 10, 5,  8, 1,  1,  10, 8, 10, 5,
-                                     8,  1, 1,  10, 8, 10, 10, 5,  1, 10, 12}));
+  JANUS_REQUIRE(
+      (classified_types ==
+       std::vector<std::int64_t>{10, 2, 10, 6,  8, 2,  1,  10, 7, 2,  8,
+                                 10, 7, 10, 5,  8, 1,  1,  10, 8, 10, 5,
+                                 8,  1, 1,  10, 8, 10, 10, 5,  1, 10, 12}));
   const std::vector<std::int64_t> classified_modifiers =
       semantic_token_field(classified_tokens.front(), 4);
-  REQUIRE((classified_modifiers ==
-           std::vector<std::int64_t>{0, 1, 0, 1, 1, 0, 0, 0, 3, 0, 0,
-                                     0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1,
-                                     1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}));
+  JANUS_REQUIRE((classified_modifiers ==
+                 std::vector<std::int64_t>{0, 1, 0, 1, 1, 0, 0, 0, 3, 0, 0,
+                                           0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1,
+                                           1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}));
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-qualified.janus","text":"import b\ndef main() : int { val x : b.Box = new b.Box() return b.helper() }\n"}}})"));
   const std::vector<std::string> qualified_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":45,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-qualified.janus"}}})");
-  REQUIRE((semantic_token_field(qualified_tokens.front(), 3) ==
-           std::vector<std::int64_t>{10, 0, 10, 5, 1, 10, 7, 0, 1, 10, 0, 1, 10,
-                                     0, 5}));
+  JANUS_REQUIRE((semantic_token_field(qualified_tokens.front(), 3) ==
+                 std::vector<std::int64_t>{10, 0, 10, 5, 1, 10, 7, 0, 1, 10, 0,
+                                           1, 10, 0, 5}));
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-shadowed-import.janus","text":"import b\ndef main(b : int) : int { return b.helper() }\n"}}})"));
   const std::vector<std::string> shadowed_import_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":46,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-shadowed-import.janus"}}})");
-  REQUIRE((semantic_token_field(shadowed_import_tokens.front(), 3) ==
-           std::vector<std::int64_t>{10, 0, 10, 5, 8, 1, 1, 10, 8, 6}));
+  JANUS_REQUIRE((semantic_token_field(shadowed_import_tokens.front(), 3) ==
+                 std::vector<std::int64_t>{10, 0, 10, 5, 8, 1, 1, 10, 8, 6}));
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-import-path.janus","text":"import std.math\n"}}})"));
   const std::vector<std::string> import_path_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":47,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-import-path.janus"}}})");
-  REQUIRE((semantic_token_field(import_path_tokens.front(), 3) ==
-           std::vector<std::int64_t>{10, 0, 0}));
+  JANUS_REQUIRE((semantic_token_field(import_path_tokens.front(), 3) ==
+                 std::vector<std::int64_t>{10, 0, 0}));
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-shadowed-path.janus","text":"import std.math\ndef main(std : int) : int { return std.math.gcd() }\n"}}})"));
   const std::vector<std::string> shadowed_path_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":48,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-shadowed-path.janus"}}})");
-  REQUIRE((semantic_token_field(shadowed_path_tokens.front(), 3) ==
-           std::vector<std::int64_t>{10, 0, 0, 10, 5, 8, 1, 1, 10, 8, 9, 6}));
+  JANUS_REQUIRE(
+      (semantic_token_field(shadowed_path_tokens.front(), 3) ==
+       std::vector<std::int64_t>{10, 0, 0, 10, 5, 8, 1, 1, 10, 8, 9, 6}));
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-callable.janus","text":"def invoke(f : (int) => int) : int { return f(1) }\n"}}})"));
   const std::vector<std::string> callable_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":49,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-callable.janus"}}})");
-  REQUIRE((semantic_token_field(callable_tokens.front(), 3) ==
-           std::vector<std::int64_t>{10, 5, 8, 1, 1, 1, 10, 8, 12}));
+  JANUS_REQUIRE((semantic_token_field(callable_tokens.front(), 3) ==
+                 std::vector<std::int64_t>{10, 5, 8, 1, 1, 1, 10, 8, 12}));
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val inferred = 42 return inferred }"}]}})"));
   const std::vector<std::string> default_hints = server.handle(
       R"({"jsonrpc":"2.0","id":24,"method":"textDocument/inlayHint","params":{"textDocument":{"uri":"file:///broken.janus"},"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":0}}}})");
-  assert(default_hints.front().find("\": int\"") != std::string::npos);
+  JANUS_REQUIRE(default_hints.front().find("\": int\"") != std::string::npos);
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"workspace/didChangeConfiguration","params":{"settings":{"janus":{"inlayHints":{"inferredTypes":false}}}}})"));
   const std::vector<std::string> disabled_hints = server.handle(
       R"({"jsonrpc":"2.0","id":25,"method":"textDocument/inlayHint","params":{"textDocument":{"uri":"file:///broken.janus"},"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":0}}}})");
-  assert(disabled_hints.front().find("\"result\":[]") != std::string::npos);
+  JANUS_REQUIRE(disabled_hints.front().find("\"result\":[]") !=
+                std::string::npos);
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"workspace/didChangeConfiguration","params":{"settings":{"janus":{"inlayHints":{"inferredTypes":true}}}}})"));
 
@@ -452,33 +476,38 @@ int main() {
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///traits.janus","text":"trait Printable { def print() : int }\nclass Console() extends Printable { def print() : int { return 1 } }\ndef main() : int { return 0 }"}}})"));
   const std::vector<std::string> implementations = server.handle(
       R"({"jsonrpc":"2.0","id":26,"method":"textDocument/implementation","params":{"textDocument":{"uri":"file:///traits.janus"},"position":{"line":0,"character":7}}})");
-  assert(implementations.front().find("\"line\":1") != std::string::npos);
-  assert(implementations.front().find("\"character\":6") != std::string::npos);
+  JANUS_REQUIRE(implementations.front().find("\"line\":1") !=
+                std::string::npos);
+  JANUS_REQUIRE(implementations.front().find("\"character\":6") !=
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 return answer }"}]}})"));
   const std::vector<std::string> prepare_rename = server.handle(
       R"({"jsonrpc":"2.0","id":27,"method":"textDocument/prepareRename","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50}}})");
-  assert(prepare_rename.front().find("\"placeholder\":\"answer\"") !=
-         std::string::npos);
+  JANUS_REQUIRE(prepare_rename.front().find("\"placeholder\":\"answer\"") !=
+                std::string::npos);
   const std::vector<std::string> local_rename = server.handle(
       R"({"jsonrpc":"2.0","id":28,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50},"newName":"result"}})");
-  assert(local_rename.front().find("\"newText\":\"result\"") !=
-         std::string::npos);
-  assert(local_rename.front().find("\"version\":1") != std::string::npos);
-  assert(local_rename.front().find("\"uri\":\"file:///broken.janus\"") !=
-         std::string::npos);
+  JANUS_REQUIRE(local_rename.front().find("\"newText\":\"result\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(local_rename.front().find("\"version\":1") !=
+                std::string::npos);
+  JANUS_REQUIRE(local_rename.front().find("\"uri\":\"file:///broken.janus\"") !=
+                std::string::npos);
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 val result : int = answer return answer }"}]}})"));
   const std::vector<std::string> colliding_rename = server.handle(
       R"({"jsonrpc":"2.0","id":29,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":60},"newName":"result"}})");
-  assert(colliding_rename.front().find("\"error\"") != std::string::npos);
-  assert(colliding_rename.front().find("\"changes\"") == std::string::npos);
+  JANUS_REQUIRE(colliding_rename.front().find("\"error\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(colliding_rename.front().find("\"changes\"") ==
+                std::string::npos);
   const std::vector<std::string> keyword_rename = server.handle(
       R"({"jsonrpc":"2.0","id":34,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":60},"newName":"return"}})");
-  assert(keyword_rename.front().find("\"error\"") != std::string::npos);
-  assert(keyword_rename.front().find("\"documentChanges\"") ==
-         std::string::npos);
+  JANUS_REQUIRE(keyword_rename.front().find("\"error\"") != std::string::npos);
+  JANUS_REQUIRE(keyword_rename.front().find("\"documentChanges\"") ==
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///homonym-a.janus","text":"module homonym_a\n\ndef helper(value : int) : int { return value }\ntrait Printable { def print() : int }\n"}}})"));
@@ -488,34 +517,36 @@ int main() {
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///homonym-consumer.janus","text":"import homonym_b\n\ndef main() : int {\n    return helper(\"a,b\", // ignored, comma\n                  true, 1, 0)\n}\n"}}})"));
   const std::vector<std::string> imported_homonym_definition = server.handle(
       R"({"jsonrpc":"2.0","id":31,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"position":{"line":3,"character":13}}})");
-  assert(imported_homonym_definition.front().find("file:///homonym-b.janus") !=
-         std::string::npos);
-  assert(imported_homonym_definition.front().find("file:///homonym-a.janus") ==
-         std::string::npos);
+  JANUS_REQUIRE(imported_homonym_definition.front().find(
+                    "file:///homonym-b.janus") != std::string::npos);
+  JANUS_REQUIRE(imported_homonym_definition.front().find(
+                    "file:///homonym-a.janus") == std::string::npos);
   const std::vector<std::string> imported_homonym_references = server.handle(
       R"({"jsonrpc":"2.0","id":32,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"position":{"line":3,"character":13},"context":{"includeDeclaration":true}}})");
-  assert(imported_homonym_references.front().find("file:///homonym-b.janus") !=
-         std::string::npos);
-  assert(imported_homonym_references.front().find("file:///homonym-a.janus") ==
-         std::string::npos);
+  JANUS_REQUIRE(imported_homonym_references.front().find(
+                    "file:///homonym-b.janus") != std::string::npos);
+  JANUS_REQUIRE(imported_homonym_references.front().find(
+                    "file:///homonym-a.janus") == std::string::npos);
   const std::vector<std::string> imported_homonym_signature = server.handle(
       R"({"jsonrpc":"2.0","id":33,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"position":{"line":4,"character":22}}})");
-  assert(imported_homonym_signature.front().find(
-             "helper(text : string, enabled : bool, count : int, fallback : "
-             "int)") != std::string::npos);
-  assert(imported_homonym_signature.front().find("\"activeParameter\":1") !=
-         std::string::npos);
+  JANUS_REQUIRE(
+      imported_homonym_signature.front().find(
+          "helper(text : string, enabled : bool, count : int, fallback : "
+          "int)") != std::string::npos);
+  JANUS_REQUIRE(imported_homonym_signature.front().find(
+                    "\"activeParameter\":1") != std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///method-signature.janus","text":"class A() { def combine(value : string) : string { return value } }\nclass B() { def combine(left : int, right : int) : int { return left } }\n\ndef main() : int { val b : B = new B() return b.combine(1, 2) }\n"}}})"));
   const std::vector<std::string> method_signature = server.handle(
       R"({"jsonrpc":"2.0","id":42,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///method-signature.janus"},"position":{"line":3,"character":60}}})");
-  assert(method_signature.front().find(
-             "combine(left : int, right : int) : int") != std::string::npos);
-  assert(method_signature.front().find("combine(value : string)") ==
-         std::string::npos);
-  assert(method_signature.front().find("\"activeParameter\":1") !=
-         std::string::npos);
+  JANUS_REQUIRE(
+      method_signature.front().find("combine(left : int, right : int) : int") !=
+      std::string::npos);
+  JANUS_REQUIRE(method_signature.front().find("combine(value : string)") ==
+                std::string::npos);
+  JANUS_REQUIRE(method_signature.front().find("\"activeParameter\":1") !=
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///qualified-method-a.janus","text":"module method_a\n\nclass Box() { def combine(value : string) : string { return value } }\n"}}})"));
@@ -525,59 +556,63 @@ int main() {
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///qualified-method-consumer.janus","text":"import method_a\nimport method_b\n\ndef main() : int { val box : method_b.Box = new method_b.Box() return box.combine(1, 2) }\n"}}})"));
   const std::vector<std::string> qualified_method_signature = server.handle(
       R"({"jsonrpc":"2.0","id":43,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///qualified-method-consumer.janus"},"position":{"line":3,"character":85}}})");
-  assert(qualified_method_signature.front().find(
-             "combine(left : int, right : int) : int") != std::string::npos);
-  assert(qualified_method_signature.front().find("combine(value : string)") ==
-         std::string::npos);
-  assert(qualified_method_signature.front().find("\"activeParameter\":1") !=
-         std::string::npos);
+  JANUS_REQUIRE(qualified_method_signature.front().find(
+                    "combine(left : int, right : int) : int") !=
+                std::string::npos);
+  JANUS_REQUIRE(qualified_method_signature.front().find(
+                    "combine(value : string)") == std::string::npos);
+  JANUS_REQUIRE(qualified_method_signature.front().find(
+                    "\"activeParameter\":1") != std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"contentChanges":[{"text":"import homonym_b\n\nval foo : int = 7\ndef main() : int { return helper(1, true, 2, foo) }\n"}]}})"));
   const std::vector<std::string> captured_workspace_rename = server.handle(
       R"({"jsonrpc":"2.0","id":34,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///homonym-b.janus"},"position":{"line":2,"character":5},"newName":"foo"}})");
-  assert(captured_workspace_rename.front().find("\"error\"") !=
-         std::string::npos);
-  assert(captured_workspace_rename.front().find("\"documentChanges\"") ==
-         std::string::npos);
+  JANUS_REQUIRE(captured_workspace_rename.front().find("\"error\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(captured_workspace_rename.front().find("\"documentChanges\"") ==
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///trait-consumer.janus","text":"import homonym_b\n\nclass Console() extends Printable { def print() : int { return 1 } }\n"}}})"));
   const std::vector<std::string> imported_trait_implementations = server.handle(
       R"({"jsonrpc":"2.0","id":35,"method":"textDocument/implementation","params":{"textDocument":{"uri":"file:///homonym-b.janus"},"position":{"line":3,"character":7}}})");
-  assert(imported_trait_implementations.front().find(
-             "file:///trait-consumer.janus") != std::string::npos);
+  JANUS_REQUIRE(imported_trait_implementations.front().find(
+                    "file:///trait-consumer.janus") != std::string::npos);
   const std::vector<std::string> unrelated_trait_implementations = server.handle(
       R"({"jsonrpc":"2.0","id":36,"method":"textDocument/implementation","params":{"textDocument":{"uri":"file:///homonym-a.janus"},"position":{"line":3,"character":7}}})");
-  assert(unrelated_trait_implementations.front().find(
-             "file:///trait-consumer.janus") == std::string::npos);
+  JANUS_REQUIRE(unrelated_trait_implementations.front().find(
+                    "file:///trait-consumer.janus") == std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///utf16.janus","text":"def main() : int { val prefix = \"é😀\" val answer : int = 1 return answer }\n"}}})"));
   const std::vector<std::string> utf16_definition = server.handle(
       R"({"jsonrpc":"2.0","id":37,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///utf16.janus"},"position":{"line":0,"character":66}}})");
-  assert(utf16_definition.front().find("\"character\":42") !=
-         std::string::npos);
+  JANUS_REQUIRE(utf16_definition.front().find("\"character\":42") !=
+                std::string::npos);
   const std::vector<std::string> utf16_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":38,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///utf16.janus"}}})");
-  assert(utf16_tokens.front().find(
-             "0,4,6,7,3,0,9,5,11,0,0,6,3,10,0,0,4,6,7,3") != std::string::npos);
+  JANUS_REQUIRE(
+      utf16_tokens.front().find("0,4,6,7,3,0,9,5,11,0,0,6,3,10,0,0,4,6,7,3") !=
+      std::string::npos);
 
   const std::vector<std::string> utf16_diagnostics = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///utf16.janus"},"contentChanges":[{"text":"def main() : int { val prefix : string = \"é😀\" return missing }\n"}]}})");
-  assert(utf16_diagnostics.front().find(
-             "\"start\":{\"character\":54,\"line\":0}") != std::string::npos);
-  assert(utf16_diagnostics.front().find(
-             "\"end\":{\"character\":55,\"line\":0}") != std::string::npos);
+  JANUS_REQUIRE(utf16_diagnostics.front().find(
+                    "\"start\":{\"character\":54,\"line\":0}") !=
+                std::string::npos);
+  JANUS_REQUIRE(
+      utf16_diagnostics.front().find("\"end\":{\"character\":55,\"line\":0}") !=
+      std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///utf16.janus"},"contentChanges":[{"text":"def main() : int {\n    val first = 1\n    val ignored = \"😀\"\n    val second = 2\n    return first + second\n}\n"}]}})"));
   const std::vector<std::string> ranged_hints = server.handle(
       R"({"jsonrpc":"2.0","id":39,"method":"textDocument/inlayHint","params":{"textDocument":{"uri":"file:///utf16.janus"},"range":{"start":{"line":3,"character":0},"end":{"line":4,"character":0}}}})");
-  assert(ranged_hints.front().find("\"line\":3") != std::string::npos);
-  assert(ranged_hints.front().find("\"line\":1") == std::string::npos);
+  JANUS_REQUIRE(ranged_hints.front().find("\"line\":3") != std::string::npos);
+  JANUS_REQUIRE(ranged_hints.front().find("\"line\":1") == std::string::npos);
 
   const std::vector<std::string> formatting = server.handle(
       R"({"jsonrpc":"2.0","id":6,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///broken.janus"},"options":{"tabSize":2,"insertSpaces":true}}})");
-  assert(formatting.front().find("\"newText\"") != std::string::npos);
+  JANUS_REQUIRE(formatting.front().find("\"newText\"") != std::string::npos);
 }

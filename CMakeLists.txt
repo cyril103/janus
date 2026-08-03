@@ -359,6 +359,19 @@ if(BUILD_TESTING)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     set(CLANG_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}")
 
+    add_test(
+        NAME tests.no_standard_assert
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/check-test-asserts.py"
+                "${PROJECT_SOURCE_DIR}/tests"
+    )
+    add_test(
+        NAME tests.no_standard_assert.guard_self_test
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/check-test-asserts.py"
+                --self-test
+    )
+
     add_executable(graphics_runtime_test
         tests/runtime/graphics_runtime_test.c
     )
@@ -651,6 +664,30 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME lsp.workspace_index COMMAND lsp_workspace_index_test)
+    add_test(
+        NAME diagnostics.model.require_failure
+        COMMAND diagnostic_model_test --verify-require-failure
+    )
+    set_tests_properties(
+        diagnostics.model.require_failure
+        PROPERTIES WILL_FAIL TRUE
+    )
+    add_test(
+        NAME lsp.server.require_failure
+        COMMAND lsp_server_test --verify-require-failure
+    )
+    set_tests_properties(
+        lsp.server.require_failure
+        PROPERTIES WILL_FAIL TRUE
+    )
+    add_test(
+        NAME lsp.workspace_index.require_failure
+        COMMAND lsp_workspace_index_test --verify-require-failure
+    )
+    set_tests_properties(
+        lsp.workspace_index.require_failure
+        PROPERTIES WILL_FAIL TRUE
+    )
     add_test(
         NAME cli.emit_llvm
         COMMAND janus build "${PROJECT_SOURCE_DIR}/examples/value.janus"

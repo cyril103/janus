@@ -1,12 +1,16 @@
 #include "janus/diagnostics/compile_error.hpp"
 
+#include "../support/require.hpp"
+
 #include <array>
-#include <cassert>
 #include <string>
 #include <string_view>
 #include <vector>
 
-int main() {
+int main(int argc, char **argv) {
+  if (argc == 2 && std::string_view{argv[1]} == "--verify-require-failure")
+    JANUS_REQUIRE(false);
+
   using janus::DiagnosticCode;
 
   constexpr std::array codes{
@@ -17,10 +21,10 @@ int main() {
       DiagnosticCode::BackendCyclicGlobalConstant,
   };
   for (std::size_t left = 0; left < codes.size(); ++left) {
-    assert(janus::diagnostic_code_name(codes[left]) != "J0000");
+    JANUS_REQUIRE(janus::diagnostic_code_name(codes[left]) != "J0000");
     for (std::size_t right = left + 1; right < codes.size(); ++right)
-      assert(janus::diagnostic_code_name(codes[left]) !=
-             janus::diagnostic_code_name(codes[right]));
+      JANUS_REQUIRE(janus::diagnostic_code_name(codes[left]) !=
+                    janus::diagnostic_code_name(codes[right]));
   }
 
   janus::Diagnostic diagnostic{
@@ -38,16 +42,19 @@ int main() {
   };
   const janus::CompileError error{std::move(diagnostic)};
 
-  assert(std::string_view{error.what()} == "unknown value 'answer'");
-  assert(error.location().line == 3);
-  assert(error.location().column == 7);
-  assert(error.diagnostic().severity == janus::DiagnosticSeverity::Error);
-  assert(error.diagnostic().code == DiagnosticCode::AnalyzerUnknownValue);
-  assert(error.diagnostic().notes.size() == 1);
-  assert(error.diagnostic().secondary_locations.size() == 1);
-  assert(error.diagnostic().secondary_locations.front().location.line == 1);
-  assert(error.diagnostic().secondary_locations.front().label ==
-         "related declaration");
-  assert(error.diagnostic().suggestions.size() == 1);
-  assert(error.diagnostic().suggestions.front().replacement == "value");
+  JANUS_REQUIRE(std::string_view{error.what()} == "unknown value 'answer'");
+  JANUS_REQUIRE(error.location().line == 3);
+  JANUS_REQUIRE(error.location().column == 7);
+  JANUS_REQUIRE(error.diagnostic().severity ==
+                janus::DiagnosticSeverity::Error);
+  JANUS_REQUIRE(error.diagnostic().code ==
+                DiagnosticCode::AnalyzerUnknownValue);
+  JANUS_REQUIRE(error.diagnostic().notes.size() == 1);
+  JANUS_REQUIRE(error.diagnostic().secondary_locations.size() == 1);
+  JANUS_REQUIRE(error.diagnostic().secondary_locations.front().location.line ==
+                1);
+  JANUS_REQUIRE(error.diagnostic().secondary_locations.front().label ==
+                "related declaration");
+  JANUS_REQUIRE(error.diagnostic().suggestions.size() == 1);
+  JANUS_REQUIRE(error.diagnostic().suggestions.front().replacement == "value");
 }
