@@ -4,8 +4,11 @@
 
 #include <chrono>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace janus::frontend {
@@ -19,26 +22,30 @@ class ModuleLoader final {
 public:
   explicit ModuleLoader(std::vector<std::filesystem::path> search_paths = {});
 
-  [[nodiscard]] ast::Program
-  load(const std::filesystem::path &entry_path,
-       ModuleLoadTimings *timings = nullptr);
+  [[nodiscard]] ast::Program load(const std::filesystem::path &entry_path,
+                                  ModuleLoadTimings *timings = nullptr);
   [[nodiscard]] ast::Program load(const std::filesystem::path &entry_path,
                                   std::string_view entry_source,
                                   ModuleLoadTimings *timings = nullptr);
 
 private:
-  [[nodiscard]] ast::Program
+  [[nodiscard]] const ast::Program &
   load_file(const std::filesystem::path &path,
             const std::filesystem::path &project_root,
             const std::string *expected_module,
             const std::string_view *source_override,
             ModuleLoadTimings *timings);
+  [[nodiscard]] ast::Program
+  take_loaded_program(const std::filesystem::path &entry_path);
   [[nodiscard]] std::filesystem::path
   resolve_import(std::string_view module,
                  const std::filesystem::path &project_root) const;
 
   std::vector<std::filesystem::path> search_paths_;
-  std::vector<std::filesystem::path> loaded_paths_;
+  std::unordered_set<std::filesystem::path> visiting_paths_;
+  std::unordered_map<std::filesystem::path, std::unique_ptr<ast::Program>>
+      loaded_programs_;
+  std::vector<std::filesystem::path> load_order_;
 };
 
 } // namespace janus::frontend

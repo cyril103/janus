@@ -15,6 +15,26 @@ namespace janus::frontend {
 
 namespace {
 
+std::filesystem::path normalize_path(const std::filesystem::path &path) {
+  return std::filesystem::weakly_canonical(std::filesystem::absolute(path));
+}
+
+class VisitingPathGuard final {
+public:
+  VisitingPathGuard(std::unordered_set<std::filesystem::path> &paths,
+                    std::filesystem::path path)
+      : paths_{paths}, path_{std::move(path)} {}
+
+  ~VisitingPathGuard() { paths_.erase(path_); }
+
+  VisitingPathGuard(const VisitingPathGuard &) = delete;
+  VisitingPathGuard &operator=(const VisitingPathGuard &) = delete;
+
+private:
+  std::unordered_set<std::filesystem::path> &paths_;
+  std::filesystem::path path_;
+};
+
 CompileError with_source_path(const CompileError &error,
                               const std::filesystem::path &path) {
   std::vector<Diagnostic> diagnostics = error.diagnostics();
@@ -22,6 +42,25 @@ CompileError with_source_path(const CompileError &error,
     if (diagnostic.source_path.empty())
       diagnostic.source_path = path;
   return CompileError{std::move(diagnostics)};
+}
+
+void require_module_name(const ast::Program &program,
+                         const std::string *expected_module,
+                         const std::filesystem::path &path) {
+  if (expected_module == nullptr || (program.module_name.has_value() &&
+                                     *program.module_name == *expected_module))
+    return;
+  throw CompileError{Diagnostic{
+      DiagnosticSeverity::Error,
+      DiagnosticCode::Unclassified,
+      "module file '" + path.string() + "' must declare 'module " +
+          *expected_module + "'",
+      SourceLocation{},
+      {},
+      {},
+      {},
+      path,
+  }};
 }
 
 template <typename Declaration>
@@ -90,33 +129,43 @@ ModuleLoader::ModuleLoader(std::vector<std::filesystem::path> search_paths)
 
 ast::Program ModuleLoader::load(const std::filesystem::path &entry_path,
                                 ModuleLoadTimings *timings) {
-  loaded_paths_.clear();
-  const std::filesystem::path absolute =
-      std::filesystem::absolute(entry_path).lexically_normal();
-  return load_file(absolute, absolute.parent_path(), nullptr, nullptr, timings);
+  visiting_paths_.clear();
+  loaded_programs_.clear();
+  load_order_.clear();
+  const std::filesystem::path absolute = normalize_path(entry_path);
+  static_cast<void>(
+      load_file(absolute, absolute.parent_path(), nullptr, nullptr, timings));
+  return take_loaded_program(absolute);
 }
 
 ast::Program ModuleLoader::load(const std::filesystem::path &entry_path,
                                 std::string_view entry_source,
                                 ModuleLoadTimings *timings) {
-  loaded_paths_.clear();
-  const std::filesystem::path absolute =
-      std::filesystem::absolute(entry_path).lexically_normal();
-  return load_file(absolute, absolute.parent_path(), nullptr, &entry_source,
-                   timings);
+  visiting_paths_.clear();
+  loaded_programs_.clear();
+  load_order_.clear();
+  const std::filesystem::path absolute = normalize_path(entry_path);
+  static_cast<void>(load_file(absolute, absolute.parent_path(), nullptr,
+                              &entry_source, timings));
+  return take_loaded_program(absolute);
 }
 
-ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
-                                     const std::filesystem::path &project_root,
-                                     const std::string *expected_module,
-                                     const std::string_view *source_override,
-                                     ModuleLoadTimings *timings) {
-  const std::filesystem::path normalized =
-      std::filesystem::absolute(path).lexically_normal();
-  if (std::find(loaded_paths_.begin(), loaded_paths_.end(), normalized) !=
-      loaded_paths_.end())
-    return {};
-  loaded_paths_.push_back(normalized);
+const ast::Program &
+ModuleLoader::load_file(const std::filesystem::path &path,
+                        const std::filesystem::path &project_root,
+                        const std::string *expected_module,
+                        const std::string_view *source_override,
+                        ModuleLoadTimings *timings) {
+  const std::filesystem::path normalized = normalize_path(path);
+  if (const auto loaded = loaded_programs_.find(normalized);
+      loaded != loaded_programs_.end()) {
+    require_module_name(*loaded->second, expected_module, normalized);
+    return *loaded->second;
+  }
+  if (!visiting_paths_.insert(normalized).second)
+    throw CompileError{SourceLocation{}, "cyclic module import involving '" +
+                                             normalized.string() + "'"};
+  const VisitingPathGuard visiting_guard{visiting_paths_, normalized};
 
   std::string source;
   const auto loading_start = timings == nullptr
@@ -149,21 +198,8 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
   if (timings != nullptr)
     timings->parsing += std::chrono::steady_clock::now() - parsing_start;
 
-  if (expected_module != nullptr && (!parsed.module_name.has_value() ||
-                                     *parsed.module_name != *expected_module))
-    throw CompileError{Diagnostic{
-        DiagnosticSeverity::Error,
-        DiagnosticCode::Unclassified,
-        "module file '" + normalized.string() + "' must declare 'module " +
-            *expected_module + "'",
-        SourceLocation{},
-        {},
-        {},
-        {},
-        normalized,
-    }};
+  require_module_name(parsed, expected_module, normalized);
 
-  ast::Program result;
   std::unordered_map<std::string, std::string> imported_names;
   const auto reserve_local = [&](std::string_view name,
                                  SourceLocation location) {
@@ -181,11 +217,11 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
   for (const ast::GlobalDeclaration &global : parsed.globals)
     reserve_local(global.declaration.name, global.declaration.location);
   for (const ast::ImportDeclaration &import : parsed.imports) {
-    ast::Program dependency;
+    const ast::Program *dependency = nullptr;
     try {
       dependency =
-          load_file(resolve_import(import.module_name, project_root),
-                    project_root, &import.module_name, nullptr, timings);
+          &load_file(resolve_import(import.module_name, project_root),
+                     project_root, &import.module_name, nullptr, timings);
     } catch (const CompileError &error) {
       throw with_source_path(error, normalized);
     }
@@ -193,50 +229,63 @@ ast::Program ModuleLoader::load_file(const std::filesystem::path &path,
       reserve_import_name(imported_names, *import.module_alias,
                           import.module_name, import.location);
     for (const ast::ImportDeclaration::Symbol &symbol : import.symbols) {
-      if (!declares_public_symbol(dependency, import.module_name,
-                                  symbol.name) &&
-          !declares_public_symbol(result, import.module_name, symbol.name)) {
+      if (!declares_public_symbol(*dependency, import.module_name,
+                                  symbol.name)) {
         const std::string reason =
-            (declares_private_symbol(dependency, import.module_name,
-                                     symbol.name) ||
-             declares_private_symbol(result, import.module_name, symbol.name))
+            declares_private_symbol(*dependency, import.module_name,
+                                    symbol.name)
                 ? " is private"
                 : " does not exist";
-        throw CompileError{symbol.location, "symbol '" + import.module_name +
-                                                "." + symbol.name + "'" +
-                                                reason};
+        throw CompileError{Diagnostic{DiagnosticSeverity::Error,
+                                      DiagnosticCode::Unclassified,
+                                      "symbol '" + import.module_name + "." +
+                                          symbol.name + "'" + reason,
+                                      symbol.location,
+                                      {},
+                                      {},
+                                      {},
+                                      normalized}};
       }
       reserve_import_name(imported_names, symbol.alias.value_or(symbol.name),
                           import.module_name + "." + symbol.name,
                           symbol.location);
     }
-    for (ast::GlobalDeclaration &global : dependency.globals)
-      result.globals.push_back(std::move(global));
-    for (ast::TraitDeclaration &trait_declaration : dependency.traits)
-      result.traits.push_back(std::move(trait_declaration));
-    for (ast::EnumDeclaration &enum_declaration : dependency.enums)
-      result.enums.push_back(std::move(enum_declaration));
-    for (ast::ClassDeclaration &class_declaration : dependency.classes)
-      result.classes.push_back(std::move(class_declaration));
-    for (ast::FunctionDeclaration &function : dependency.functions)
-      result.functions.push_back(std::move(function));
-    for (ast::ImportDeclaration &dependency_import : dependency.imports)
-      result.imports.push_back(std::move(dependency_import));
   }
-  for (ast::GlobalDeclaration &global : parsed.globals)
-    result.globals.push_back(std::move(global));
-  for (ast::TraitDeclaration &trait_declaration : parsed.traits)
-    result.traits.push_back(std::move(trait_declaration));
-  for (ast::EnumDeclaration &enum_declaration : parsed.enums)
-    result.enums.push_back(std::move(enum_declaration));
-  for (ast::ClassDeclaration &class_declaration : parsed.classes)
-    result.classes.push_back(std::move(class_declaration));
-  for (ast::FunctionDeclaration &function : parsed.functions)
-    result.functions.push_back(std::move(function));
-  result.module_name = std::move(parsed.module_name);
-  result.documentation = std::move(parsed.documentation);
-  for (ast::ImportDeclaration &import : parsed.imports)
-    result.imports.push_back(std::move(import));
+  load_order_.push_back(normalized);
+  const auto [loaded, inserted] = loaded_programs_.emplace(
+      normalized, std::make_unique<ast::Program>(std::move(parsed)));
+  static_cast<void>(inserted);
+  return *loaded->second;
+}
+
+ast::Program
+ModuleLoader::take_loaded_program(const std::filesystem::path &entry_path) {
+  ast::Program result;
+  for (const std::filesystem::path &path : load_order_) {
+    ast::Program &program = *loaded_programs_.at(path);
+    result.globals.insert(result.globals.end(),
+                          std::make_move_iterator(program.globals.begin()),
+                          std::make_move_iterator(program.globals.end()));
+    result.traits.insert(result.traits.end(),
+                         std::make_move_iterator(program.traits.begin()),
+                         std::make_move_iterator(program.traits.end()));
+    result.enums.insert(result.enums.end(),
+                        std::make_move_iterator(program.enums.begin()),
+                        std::make_move_iterator(program.enums.end()));
+    result.classes.insert(result.classes.end(),
+                          std::make_move_iterator(program.classes.begin()),
+                          std::make_move_iterator(program.classes.end()));
+    result.functions.insert(result.functions.end(),
+                            std::make_move_iterator(program.functions.begin()),
+                            std::make_move_iterator(program.functions.end()));
+    result.imports.insert(result.imports.end(),
+                          std::make_move_iterator(program.imports.begin()),
+                          std::make_move_iterator(program.imports.end()));
+    if (path == entry_path) {
+      result.module_name = std::move(program.module_name);
+      result.documentation = std::move(program.documentation);
+    }
+  }
   return result;
 }
 

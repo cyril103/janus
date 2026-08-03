@@ -536,6 +536,17 @@ if(BUILD_TESTING)
         NAME parser.top_level_declaration
         COMMAND parser_top_level_declaration_test
     )
+    add_executable(module_loader_test
+        tests/frontend/module_loader_test.cpp
+    )
+    target_link_libraries(module_loader_test PRIVATE janus_frontend)
+    target_compile_options(module_loader_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME frontend.module_loader COMMAND module_loader_test)
     add_executable(documentation_comment_test
         tests/frontend/documentation_comment_test.cpp
     )
