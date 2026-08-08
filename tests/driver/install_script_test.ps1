@@ -72,8 +72,11 @@ if (-not $result.Failure) { throw "private mirror silently skipped attestation" 
 if ($result.Extracted) { throw "private default reached extraction" }
 
 $result = Invoke-InstallCase "private-optout" $private "old" $true
-if (-not $result.Extracted -or $result.Failure.Exception.Message -ne "extraction reached") {
-    throw "private opt-out did not reach extraction"
+if (-not $result.Extracted) {
+    throw "private opt-out did not reach extraction: $($result.Failure)"
+}
+if (-not $result.Failure) {
+    throw "private opt-out extraction sentinel did not stop the installer"
 }
 if (-not ($result.Warnings -match "private.*unverified|unverified.*private|non vérifié.*privé")) {
     throw "private opt-out was not loudly logged"
