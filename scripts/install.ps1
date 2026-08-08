@@ -15,6 +15,15 @@ $BaseUrl = if ($env:JANUS_DIST_SERVER) {
     "https://github.com/cyril103/janus/releases/download/v$Version"
 }
 $Url = if ($env:JANUS_DIST_URL) { $env:JANUS_DIST_URL } else { "$BaseUrl/$Archive" }
+$ParsedUrl = [Uri]$Url
+$OfficialSource = $ParsedUrl.Scheme.Equals(
+        "https", [StringComparison]::OrdinalIgnoreCase) -and
+    $ParsedUrl.Host.Equals(
+        "github.com", [StringComparison]::OrdinalIgnoreCase) -and
+    $ParsedUrl.Port -eq 443 -and
+    $ParsedUrl.AbsolutePath.StartsWith(
+        "/cyril103/janus/releases/download/",
+        [StringComparison]::OrdinalIgnoreCase)
 $JanusHome = if ($env:JANUSUP_HOME) { $env:JANUSUP_HOME } else {
     Join-Path $env:LOCALAPPDATA "Janus"
 }
@@ -34,13 +43,13 @@ try {
         & gh attestation --help *> $null
         $GhSupportsAttestation = $LASTEXITCODE -eq 0
     }
-    if ($GhSupportsAttestation) {
+    if ($env:JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR -eq "1" -and -not $OfficialSource) {
+        Write-Warning "Using an unverified private mirror (JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1)"
+    } elseif ($GhSupportsAttestation) {
         & gh attestation verify $ArchivePath --repo cyril103/janus
         if ($LASTEXITCODE -ne 0) { throw "La provenance du paquet est invalide" }
-    } elseif ($env:JANUS_REQUIRE_ATTESTATION -eq "1") {
-        throw "Une version récente de GitHub CLI avec la commande attestation est nécessaire pour vérifier la provenance"
     } else {
-        Write-Warning "Installez une version récente de GitHub CLI pour vérifier la provenance du paquet"
+        throw "Une version récente de GitHub CLI avec la commande attestation est nécessaire pour vérifier la provenance"
     }
     $Package = Join-Path $Temporary "package"
     Expand-Archive -Path $ArchivePath -DestinationPath $Package

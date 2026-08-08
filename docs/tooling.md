@@ -233,13 +233,17 @@ janusup uninstall 0.1.0
 janusup home
 ```
 
-Les téléchargements sont contrôlés par SHA-256. La présence de GitHub CLI
-active également la vérification de provenance Sigstore. Pour la rendre
-obligatoire dans l'installateur :
+Les téléchargements sont contrôlés par SHA-256 et leur provenance est vérifiée
+obligatoirement avec GitHub CLI avant extraction. Seul un miroir privé peut
+utiliser l'opt-out explicite et bruyant :
 
 ```bash
-export JANUS_REQUIRE_ATTESTATION=1
+export JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1
 ```
+
+La définition des sources officielles, la frontière de confiance et
+l'exception réservée aux répertoires locaux sont détaillées dans le
+[guide d'installation](getting-started.md#vérifier-linstallation).
 
 ## Formatage
 
@@ -318,4 +322,4 @@ reproductible sont détaillées dans le README de l'extension.
 | `JANUS_REGISTRY_TOKEN` | jeton de publication distant, transmis seulement par `Authorization` |
 | `JANUS_CC` | pilote Clang utilisé pour l'édition de liens |
 | `JANUS_RAYLIB_PATH` | chemin de la bibliothèque partagée raylib 6 |
-| `JANUS_REQUIRE_ATTESTATION` | exiger la vérification de provenance |
+| `JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR` | accepter explicitement un miroir privé sans attestation (jamais une source officielle) |
