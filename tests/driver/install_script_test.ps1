@@ -48,6 +48,7 @@ function Invoke-InstallCase {
 }
 
 $env:JANUS_VERSION = "test"
+$env:JANUSUP_HOME = Join-Path ([IO.Path]::GetTempPath()) "janus-installer-policy-test"
 $official = "https://github.com/cyril103/janus/releases/download/vtest/janus-test-Windows-AMD64.zip"
 $officialVariants = @(
     $official,
