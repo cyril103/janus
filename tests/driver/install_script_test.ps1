@@ -1,8 +1,8 @@
 param([Parameter(Mandatory = $true)][string]$SourceDir)
 $ErrorActionPreference = "Stop"
-$script:GhState = "invalid"
-$script:Extracted = $false
-$script:Warnings = @()
+$global:JanusTestGhState = "invalid"
+$global:JanusTestExtracted = $false
+$global:JanusTestWarnings = @()
 
 function Invoke-WebRequest {
     param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing)
@@ -15,26 +15,26 @@ function Get-FileHash {
 function Get-Content { param($Path) "fixture  archive" }
 function Get-Command {
     param($Name, $ErrorAction)
-    if ($script:GhState -ne "absent") { [pscustomobject]@{ Name = "gh" } }
+    if ($global:JanusTestGhState -ne "absent") { [pscustomobject]@{ Name = "gh" } }
 }
 function gh {
     if ($args[0] -eq "attestation" -and $args[1] -eq "--help") {
-        $global:LASTEXITCODE = if ($script:GhState -eq "old") { 1 } else { 0 }
+        $global:LASTEXITCODE = if ($global:JanusTestGhState -eq "old") { 1 } else { 0 }
     } else {
-        $global:LASTEXITCODE = if ($script:GhState -eq "invalid") { 1 } else { 0 }
+        $global:LASTEXITCODE = if ($global:JanusTestGhState -eq "invalid") { 1 } else { 0 }
     }
 }
 function Expand-Archive {
-    $script:Extracted = $true
+    $global:JanusTestExtracted = $true
     throw "extraction reached"
 }
-function Write-Warning { param($Message) $script:Warnings += $Message }
+function Write-Warning { param($Message) $global:JanusTestWarnings += $Message }
 
 function Invoke-InstallCase {
     param([string]$Name, [string]$Url, [string]$GhState, [bool]$OptOut)
-    $script:GhState = $GhState
-    $script:Extracted = $false
-    $script:Warnings = @()
+    $global:JanusTestGhState = $GhState
+    $global:JanusTestExtracted = $false
+    $global:JanusTestWarnings = @()
     $env:JANUS_DIST_URL = $Url
     $env:JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR = if ($OptOut) { "1" } else { $null }
     $failure = $null
@@ -42,8 +42,8 @@ function Invoke-InstallCase {
     [pscustomobject]@{
         Name = $Name
         Failure = $failure
-        Extracted = $script:Extracted
-        Warnings = @($script:Warnings)
+        Extracted = $global:JanusTestExtracted
+        Warnings = @($global:JanusTestWarnings)
     }
 }
 

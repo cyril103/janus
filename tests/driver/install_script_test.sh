@@ -9,6 +9,7 @@ fi
 SOURCE_DIR="$1"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT HUP INT TERM
+REAL_TAR=$(command -v tar)
 FAKE_BIN="$WORK/bin"
 NO_GH_BIN="$WORK/no-gh-bin"
 DIST="$WORK/dist"
@@ -72,17 +73,25 @@ cat > "$FAKE_BIN/tar" <<'EOF'
 #!/bin/sh
 set -eu
 touch "$TEST_TRACE_EXTRACTED"
-exec /bin/tar "$@"
+exec "$TEST_REAL_TAR" "$@"
 EOF
 chmod +x "$FAKE_BIN/uname" "$FAKE_BIN/curl" "$FAKE_BIN/gh" "$FAKE_BIN/tar"
 ln -s "$FAKE_BIN/uname" "$NO_GH_BIN/uname"
 ln -s "$FAKE_BIN/curl" "$NO_GH_BIN/curl"
 ln -s "$FAKE_BIN/tar" "$NO_GH_BIN/tar"
-for tool in mktemp rm tr sha256sum mkdir touch cp gzip; do
+for tool in mktemp rm tr mkdir touch cp gzip; do
   tool_path=$(command -v "$tool")
   ln -s "$tool_path" "$NO_GH_BIN/$tool"
   ln -s "$tool_path" "$FAKE_BIN/$tool"
 done
+if command -v sha256sum >/dev/null 2>&1; then
+  HASH_TOOL=sha256sum
+else
+  HASH_TOOL=shasum
+fi
+tool_path=$(command -v "$HASH_TOOL")
+ln -s "$tool_path" "$NO_GH_BIN/$HASH_TOOL"
+ln -s "$tool_path" "$FAKE_BIN/$HASH_TOOL"
 
 run_install() {
   case_name="$1"
@@ -98,6 +107,7 @@ run_install() {
     JANUSUP_HOME="$WORK/$case_name-home" \
     TEST_TRACE_ATTESTED="$WORK/$case_name-attested" \
     TEST_TRACE_EXTRACTED="$WORK/$case_name-extracted" \
+    TEST_REAL_TAR="$REAL_TAR" \
     TEST_TRACE_EXECUTED="$WORK/$case_name-executed" "$@" \
     "$SOURCE_DIR/scripts/install.sh" >"$WORK/$case_name-output" \
       2>"$WORK/$case_name-error"
