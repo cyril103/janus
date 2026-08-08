@@ -3,9 +3,15 @@
 #include "../support/require.hpp"
 
 #include <charconv>
+#include <atomic>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <llvm/Support/JSON.h>
 
 namespace {
 
@@ -55,6 +61,163 @@ std::int64_t semantic_token_type_at(const std::string &response,
   JANUS_REQUIRE(false);
   return -1;
 }
+
+enum class LspResultShape { CodeActions, FormattingEdits, SemanticTokens,
+                            InlayHints };
+
+std::string require_lsp_result(const std::vector<std::string> &responses,
+                               LspResultShape shape) {
+  JANUS_REQUIRE(responses.size() == 1);
+  llvm::Expected<llvm::json::Value> parsed =
+      llvm::json::parse(responses.front());
+  JANUS_REQUIRE(static_cast<bool>(parsed));
+  const llvm::json::Object *message = parsed->getAsObject();
+  JANUS_REQUIRE(message != nullptr);
+  JANUS_REQUIRE(message->getString("jsonrpc") == "2.0");
+  JANUS_REQUIRE(message->get("error") == nullptr);
+  JANUS_REQUIRE(responses.front().find("-32601") == std::string::npos);
+  const llvm::json::Value *result = message->get("result");
+  JANUS_REQUIRE(result != nullptr);
+  if (shape == LspResultShape::SemanticTokens) {
+    const llvm::json::Object *tokens = result->getAsObject();
+    JANUS_REQUIRE(tokens != nullptr);
+    JANUS_REQUIRE(tokens->getArray("data") != nullptr);
+    return responses.front();
+  }
+  const llvm::json::Array *items = result->getAsArray();
+  JANUS_REQUIRE(items != nullptr);
+  for (const llvm::json::Value &item : *items) {
+    const llvm::json::Object *object = item.getAsObject();
+    JANUS_REQUIRE(object != nullptr);
+    if (shape == LspResultShape::CodeActions) {
+      JANUS_REQUIRE(object->getString("title").has_value());
+      JANUS_REQUIRE(object->getString("kind").has_value());
+    } else if (shape == LspResultShape::FormattingEdits) {
+      JANUS_REQUIRE(object->getObject("range") != nullptr);
+      JANUS_REQUIRE(object->getString("newText").has_value());
+    } else {
+      JANUS_REQUIRE(object->getObject("position") != nullptr);
+      JANUS_REQUIRE(object->get("label") != nullptr);
+    }
+  }
+  return responses.front();
+}
+
+void require_safe_correction(const std::string &response) {
+  llvm::Expected<llvm::json::Value> parsed = llvm::json::parse(response);
+  JANUS_REQUIRE(static_cast<bool>(parsed));
+  const llvm::json::Object *message = parsed->getAsObject();
+  JANUS_REQUIRE(message != nullptr);
+  const llvm::json::Array *actions = message->getArray("result");
+  JANUS_REQUIRE(actions != nullptr && actions->size() == 1);
+  const llvm::json::Object *action = actions->front().getAsObject();
+  JANUS_REQUIRE(action != nullptr);
+  JANUS_REQUIRE(action->getString("title") ==
+                "remove the unexpected character");
+  JANUS_REQUIRE(action->getString("kind") == "quickfix");
+  JANUS_REQUIRE(action->getBoolean("isPreferred") == true);
+  const llvm::json::Object *edit = action->getObject("edit");
+  JANUS_REQUIRE(edit != nullptr);
+  const llvm::json::Object *changes = edit->getObject("changes");
+  JANUS_REQUIRE(changes != nullptr);
+  JANUS_REQUIRE(changes->size() == 1);
+  const llvm::json::Array *edits = changes->begin()->second.getAsArray();
+  JANUS_REQUIRE(edits != nullptr && edits->size() == 1);
+  const llvm::json::Object *text_edit = edits->front().getAsObject();
+  JANUS_REQUIRE(text_edit != nullptr);
+  JANUS_REQUIRE(text_edit->getString("newText") == "");
+  JANUS_REQUIRE(text_edit->getObject("range") != nullptr);
+}
+
+std::string file_uri(const std::filesystem::path &path) {
+  std::string normalized =
+      std::filesystem::absolute(path).lexically_normal().generic_string();
+#ifdef _WIN32
+  if (normalized.starts_with("//"))
+    normalized.erase(0, 2);
+  else if (normalized.size() >= 2 && normalized[1] == ':')
+    normalized.insert(normalized.begin(), '/');
+#endif
+  constexpr char hex[] = "0123456789ABCDEF";
+  std::string result = "file://";
+  for (const unsigned char character : normalized) {
+    const bool unreserved = (character >= 'a' && character <= 'z') ||
+                            (character >= 'A' && character <= 'Z') ||
+                            (character >= '0' && character <= '9') ||
+                            character == '-' || character == '.' ||
+                            character == '_' || character == '~' ||
+                            character == '/' || character == ':';
+    if (unreserved) {
+      result.push_back(static_cast<char>(character));
+    } else {
+      result.push_back('%');
+      result.push_back(hex[character >> 4U]);
+      result.push_back(hex[character & 0x0FU]);
+    }
+  }
+  return result;
+}
+
+class TemporaryWorkspace final {
+public:
+  TemporaryWorkspace() {
+    static std::atomic<std::uint64_t> counter{};
+    const auto stamp = std::chrono::steady_clock::now()
+                           .time_since_epoch()
+                           .count();
+    bool created = false;
+    for (std::uint64_t attempt = 0; attempt < 100 && !created; ++attempt) {
+      root_ = std::filesystem::temp_directory_path() /
+              ("janus-lsp-" + std::to_string(stamp) + "-" +
+               std::to_string(counter.fetch_add(1)) + "-" +
+               std::to_string(attempt));
+      std::error_code error;
+      created = std::filesystem::create_directory(root_, error) && !error;
+    }
+    JANUS_REQUIRE(created);
+    workspace_ = root_ / "workspace with # encoded path";
+    std::filesystem::create_directories(workspace_ / "src");
+    write(workspace_ / "janus.toml",
+          "[package]\nname = \"lsp-source-matrix\"\nversion = \"0.1.0\"\n"
+          "entry = \"src/main.janus\"\n");
+    write(workspace_ / "src/main.janus",
+          "def main() : int { val diskValue = 2 return @0 }\n");
+#ifndef _WIN32
+    write(root_ / "symlink-target.janus",
+          "def leaked() : int { val symlinkSecret = 9 return @0 }\n");
+    std::error_code symlink_error;
+    std::filesystem::create_symlink(root_ / "symlink-target.janus",
+                                    workspace_ / "src/cached-link.janus",
+                                    symlink_error);
+    JANUS_REQUIRE(!symlink_error);
+#endif
+  }
+
+  TemporaryWorkspace(const TemporaryWorkspace &) = delete;
+  TemporaryWorkspace &operator=(const TemporaryWorkspace &) = delete;
+
+  ~TemporaryWorkspace() {
+    std::error_code ignored;
+    std::filesystem::remove_all(root_, ignored);
+  }
+
+  const std::filesystem::path &path() const { return workspace_; }
+  std::filesystem::path outside(std::string_view name) const {
+    return root_ / std::string{name};
+  }
+
+  static void write(const std::filesystem::path &path,
+                    std::string_view contents) {
+    std::ofstream output{path, std::ios::binary};
+    JANUS_REQUIRE(static_cast<bool>(output));
+    output << contents;
+    JANUS_REQUIRE(static_cast<bool>(output));
+  }
+
+private:
+  std::filesystem::path root_;
+  std::filesystem::path workspace_;
+};
 
 } // namespace
 
@@ -667,4 +830,129 @@ int main(int argc, char **argv) {
   const std::vector<std::string> formatting = server.handle(
       R"({"jsonrpc":"2.0","id":6,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///broken.janus"},"options":{"tabSize":2,"insertSpaces":true}}})");
   JANUS_REQUIRE(formatting.front().find("\"newText\"") != std::string::npos);
+
+  // Regression matrix for every advertised request that operates on source.
+  TemporaryWorkspace temporary_workspace;
+  const std::filesystem::path &workspace = temporary_workspace.path();
+  janus::lsp::Server source_server{{std::filesystem::path{JANUS_STDLIB_DIR}}};
+  const std::string indexed_uri = file_uri(workspace / "src/main.janus");
+  const std::string unknown_uri = file_uri(workspace / "src/unknown.janus");
+  static_cast<void>(source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"id\":100,\"method\":\"initialize\",\"params\":{\"rootUri\":\"" +
+      file_uri(workspace) + "\"}}"));
+  static_cast<void>(source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_uri +
+      "\",\"text\":\"def main() : int { val openValue = 1 return @0 }\\n\"}}}"));
+
+  struct SourceResponses {
+    std::string code_actions;
+    std::string formatting;
+    std::string semantic_tokens;
+    std::string inlay_hints;
+  };
+  const auto source_requests = [&](const std::string &requested_uri,
+                                   std::int64_t id) {
+    SourceResponses responses;
+    responses.code_actions = require_lsp_result(source_server.handle(
+                           "{\"jsonrpc\":\"2.0\",\"id\":" +
+                           std::to_string(id) +
+                           ",\"method\":\"textDocument/codeAction\",\"params\":{\"textDocument\":{\"uri\":\"" +
+                           requested_uri +
+                           "\"},\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":1}},\"context\":{\"diagnostics\":[]}}}"),
+                       LspResultShape::CodeActions);
+    responses.formatting = require_lsp_result(source_server.handle(
+                           "{\"jsonrpc\":\"2.0\",\"id\":" +
+                           std::to_string(id + 1) +
+                           ",\"method\":\"textDocument/formatting\",\"params\":{\"textDocument\":{\"uri\":\"" +
+                           requested_uri +
+                           "\"},\"options\":{\"tabSize\":2,\"insertSpaces\":true}}}"),
+                       LspResultShape::FormattingEdits);
+    responses.semantic_tokens = require_lsp_result(source_server.handle(
+                           "{\"jsonrpc\":\"2.0\",\"id\":" +
+                           std::to_string(id + 2) +
+                           ",\"method\":\"textDocument/semanticTokens/full\",\"params\":{\"textDocument\":{\"uri\":\"" +
+                           requested_uri + "\"}}}"),
+                       LspResultShape::SemanticTokens);
+    responses.inlay_hints = require_lsp_result(source_server.handle(
+                           "{\"jsonrpc\":\"2.0\",\"id\":" +
+                           std::to_string(id + 3) +
+                           ",\"method\":\"textDocument/inlayHint\",\"params\":{\"textDocument\":{\"uri\":\"" +
+                           requested_uri +
+                           "\"},\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":1,\"character\":0}}}}"),
+                       LspResultShape::InlayHints);
+    return responses;
+  };
+
+  const auto require_nonempty_source_results = [](const SourceResponses &got,
+                                                   std::string_view name) {
+    require_safe_correction(got.code_actions);
+    JANUS_REQUIRE(got.formatting.find(name) != std::string::npos);
+    JANUS_REQUIRE(!semantic_token_field(got.semantic_tokens, 0).empty());
+    JANUS_REQUIRE(got.inlay_hints.find("\"label\":\": int\"") !=
+                  std::string::npos);
+  };
+  const auto require_empty_source_results = [](const SourceResponses &got) {
+    JANUS_REQUIRE(got.code_actions.find("\"result\":[]") != std::string::npos);
+    JANUS_REQUIRE(got.formatting.find("\"result\":[]") != std::string::npos);
+    JANUS_REQUIRE(got.semantic_tokens.find("\"data\":[]") != std::string::npos);
+    JANUS_REQUIRE(got.inlay_hints.find("\"result\":[]") != std::string::npos);
+  };
+
+  // Four methods x three states: open, closed/indexed, and unknown.
+  const SourceResponses opened = source_requests(indexed_uri, 101);
+  require_nonempty_source_results(opened, "openValue");
+  static_cast<void>(source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didClose\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_uri + "\"}}}"));
+  const SourceResponses indexed = source_requests(indexed_uri, 105);
+  require_nonempty_source_results(indexed, "diskValue");
+  JANUS_REQUIRE(indexed.formatting != opened.formatting);
+  JANUS_REQUIRE(indexed.semantic_tokens != opened.semantic_tokens);
+
+  const SourceResponses unknown = source_requests(unknown_uri, 109);
+  require_empty_source_results(unknown);
+
+  // Created after initialize: read from disk without growing the index.
+  const std::filesystem::path direct_path =
+      workspace / "src/janus direct # source.janus";
+  TemporaryWorkspace::write(
+      direct_path, "def direct() : int { val directValue = 7 return @0 }\n");
+  const std::size_t indexed_files_before =
+      source_server.workspace_index_metrics().files;
+  const SourceResponses direct = source_requests(file_uri(direct_path), 113);
+  require_nonempty_source_results(direct, "directValue");
+  JANUS_REQUIRE(source_server.workspace_index_metrics().files ==
+                indexed_files_before);
+#ifndef _WIN32
+  std::string localhost_uri = file_uri(direct_path);
+  localhost_uri.insert(std::string{"file://"}.size(), "localhost");
+  const SourceResponses localhost = source_requests(localhost_uri, 117);
+  require_nonempty_source_results(localhost, "directValue");
+  std::string foreign_uri = file_uri(direct_path);
+  foreign_uri.insert(std::string{"file://"}.size(), "remote-host");
+  const SourceResponses foreign = source_requests(foreign_uri, 121);
+  require_empty_source_results(foreign);
+#else
+  JANUS_REQUIRE(file_uri(direct_path).starts_with("file:///"));
+#endif
+
+  // Neither an out-of-root .janus file nor an in-root non-source is read.
+  const std::filesystem::path outside_path =
+      temporary_workspace.outside("outside secret.janus");
+  TemporaryWorkspace::write(
+      outside_path, "def leaked() : int { val outsideSecret = 9 return @0 }\n");
+  require_empty_source_results(source_requests(file_uri(outside_path), 125));
+  const std::filesystem::path non_source_path = workspace / "src/secret.txt";
+  TemporaryWorkspace::write(
+      non_source_path, "def leaked() : int { val extensionSecret = 9 return @0 }\n");
+  require_empty_source_results(source_requests(file_uri(non_source_path), 129));
+#ifndef _WIN32
+  // The workspace index may have seen the symlink, but source requests must
+  // still reject its canonical target outside the authorized workspace.
+  const std::filesystem::path cached_symlink =
+      workspace / "src/cached-link.janus";
+  require_empty_source_results(
+      source_requests(file_uri(cached_symlink), 133));
+#endif
 }

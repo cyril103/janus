@@ -12,8 +12,14 @@
 namespace {
 
 std::string file_uri(const std::filesystem::path &path) {
-  const std::string normalized =
+  std::string normalized =
       std::filesystem::absolute(path).lexically_normal().generic_string();
+#ifdef _WIN32
+  if (normalized.starts_with("//"))
+    normalized.erase(0, 2);
+  else if (normalized.size() >= 2 && normalized[1] == ':')
+    normalized.insert(normalized.begin(), '/');
+#endif
   constexpr char hex[] = "0123456789ABCDEF";
   std::string result = "file://";
   for (const unsigned char character : normalized) {
