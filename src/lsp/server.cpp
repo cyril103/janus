@@ -1458,7 +1458,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
   if (text_document != nullptr)
     if (const std::optional<llvm::StringRef> requested_uri =
             text_document->getString("uri")) {
-      if (const auto path = file_uri_path(*requested_uri))
+      if (const auto path = file_uri_path(*requested_uri);
+          path && path->is_absolute())
         uri = file_uri(*path);
       else
         uri = requested_uri->str();
