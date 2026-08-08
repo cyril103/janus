@@ -67,8 +67,25 @@ janusup list
 Sous Unix, Janus est installé dans `~/.janus`. Sous Windows, il est installé
 dans `%LOCALAPPDATA%\Janus`.
 
-Les archives sont toujours contrôlées avec leur somme SHA-256. Si GitHub CLI
-est disponible, leur attestation de provenance est également vérifiée.
+Les archives sont toujours contrôlées avec leur somme SHA-256, puis leur
+attestation de provenance est vérifiée avec une version récente de GitHub CLI,
+avant toute extraction ou exécution. Une archive est **officielle** uniquement
+si son URL HTTPS finale appartient à
+`github.com/cyril103/janus/releases/download/`. Toute autre URL est traitée
+comme un **miroir privé**.
+
+La vérification ne peut jamais être désactivée pour une source officielle. Un
+miroir privé administré dans une autre frontière de confiance peut seulement
+la désactiver explicitement avec
+`JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1`; chaque utilisation affiche un
+avertissement. Dans ce mode, le miroir et son checksum sont entièrement de
+confiance et un compromis du miroir permet de substituer le paquet.
+
+`janusup install <répertoire-paquet> <nom>` installe un répertoire déjà local :
+il ne télécharge, n'extrait et ne vérifie aucune attestation. L'appelant est
+responsable de la provenance de ce répertoire. Cette exception locale
+n'affecte pas `janusup install <version|canal>`, qui applique la politique
+ci-dessus.
 
 ## Mettre Janus à jour
 

@@ -18,7 +18,29 @@ case "$(uname -m)" in
 esac
 
 ARCHIVE="janus-${VERSION}-${OS}-${ARCH}.tar.gz"
-URL="${JANUS_DIST_URL:-${BASE_URL}/${ARCHIVE}}"
+URL="${JANUS_DIST_URL:-${BASE_URL%/}/${ARCHIVE}}"
+is_official_url() {
+  normalized=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$normalized" in
+    https://*) remainder=${normalized#https://} ;;
+    *) return 1 ;;
+  esac
+  authority=${remainder%%/*}
+  [ "$authority" != "$remainder" ] || return 1
+  authority=${authority##*@}
+  case "$authority" in
+    github.com|github.com:443) ;;
+    *) return 1 ;;
+  esac
+  path=/${remainder#*/}
+  path=${path%%\?*}
+  path=${path%%\#*}
+  case "$path" in
+    /cyril103/janus/releases/download/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+if is_official_url "$URL"; then OFFICIAL_SOURCE=1; else OFFICIAL_SOURCE=0; fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
 
@@ -43,14 +65,18 @@ else
   exit 1
 fi
 
-if command -v gh >/dev/null 2>&1 &&
-   gh attestation --help >/dev/null 2>&1; then
-  gh attestation verify "$TMP/$ARCHIVE" --repo cyril103/janus
-elif [ "${JANUS_REQUIRE_ATTESTATION:-0}" = "1" ]; then
+if [ "${JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR:-0}" = "1" ] &&
+   [ "$OFFICIAL_SOURCE" = "0" ]; then
+  echo "janusup: WARNING: using an unverified private mirror (JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1)" >&2
+elif command -v gh >/dev/null 2>&1 &&
+     gh attestation --help >/dev/null 2>&1; then
+  if ! gh attestation verify "$TMP/$ARCHIVE" --repo cyril103/janus; then
+    echo "janusup: artifact provenance verification failed" >&2
+    exit 1
+  fi
+else
   echo "janusup: une version récente de GitHub CLI avec la commande attestation est nécessaire pour vérifier la provenance" >&2
   exit 1
-else
-  echo "janusup: avertissement: installez une version récente de GitHub CLI pour vérifier la provenance" >&2
 fi
 
 mkdir "$TMP/package"

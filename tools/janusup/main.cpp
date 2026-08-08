@@ -161,23 +161,17 @@ bool github_cli_available() {
   constexpr const char *redirect = " >/dev/null 2>&1";
 #endif
   return command_status(std::system(
-             (std::string{"gh --version"} + redirect).c_str())) == 0;
+             (std::string{"gh attestation --help"} + redirect).c_str())) == 0;
 }
 
-void verify_attestation(const std::filesystem::path &archive, bool required) {
+void verify_attestation(const std::filesystem::path &archive) {
   if (!github_cli_available()) {
-    if (required)
-      throw std::runtime_error{
-          "GitHub CLI is required to verify artifact provenance"};
-    std::cerr << "janusup: warning: install GitHub CLI to verify the "
-                 "artifact attestation\n";
-    return;
+    throw std::runtime_error{
+        "GitHub CLI with attestation support is required to verify artifact "
+        "provenance"};
   }
-  const char *configured = std::getenv("JANUS_ATTESTATION_REPOSITORY");
-  const std::filesystem::path repository =
-      configured == nullptr ? "cyril103/janus" : configured;
   const std::string command = "gh attestation verify " + shell_quote(archive) +
-                              " --repo " + shell_quote(repository);
+                              " --repo cyril103/janus";
   if (command_status(std::system(command.c_str())) != 0)
     throw std::runtime_error{"provenance verification failed for '" +
                              archive.filename().string() + "'"};
@@ -214,7 +208,57 @@ std::string distribution_location(const std::string &version,
           : configured;
   if (std::filesystem::is_directory(server))
     return (std::filesystem::path{server} / version / filename).string();
-  return server + "/" + version + "/" + filename;
+  return server + (server.ends_with('/') ? "" : "/") + version + "/" +
+         filename;
+}
+
+bool ascii_iequals(std::string_view left, std::string_view right) {
+  return left.size() == right.size() &&
+         std::equal(left.begin(), left.end(), right.begin(),
+                    [](char a, char b) {
+                      return std::tolower(static_cast<unsigned char>(a)) ==
+                             std::tolower(static_cast<unsigned char>(b));
+                    });
+}
+
+bool ascii_istarts_with(std::string_view value, std::string_view prefix) {
+  return value.size() >= prefix.size() &&
+         ascii_iequals(value.substr(0, prefix.size()), prefix);
+}
+
+bool official_distribution(std::string_view url) {
+  const auto scheme_end = url.find("://");
+  if (scheme_end == std::string_view::npos ||
+      !ascii_iequals(url.substr(0, scheme_end), "https"))
+    return false;
+  const auto authority_begin = scheme_end + 3;
+  const auto path_begin = url.find_first_of("/?#", authority_begin);
+  if (path_begin == std::string_view::npos || url[path_begin] != '/')
+    return false;
+  auto authority = url.substr(authority_begin, path_begin - authority_begin);
+  if (const auto userinfo = authority.rfind('@');
+      userinfo != std::string_view::npos)
+    authority.remove_prefix(userinfo + 1);
+  std::string_view host = authority;
+  std::string_view port;
+  if (const auto colon = authority.rfind(':'); colon != std::string_view::npos) {
+    host = authority.substr(0, colon);
+    port = authority.substr(colon + 1);
+  }
+  if (!ascii_iequals(host, "github.com") ||
+      (!port.empty() && port != "443") ||
+      (authority.ends_with(':') && port.empty()))
+    return false;
+  const auto path_end = url.find_first_of("?#", path_begin);
+  const auto path = url.substr(path_begin, path_end - path_begin);
+  return ascii_istarts_with(path,
+                            "/cyril103/janus/releases/download/");
+}
+
+bool unverified_private_mirror_allowed() {
+  const char *configured =
+      std::getenv("JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR");
+  return configured != nullptr && std::string_view{configured} == "1";
 }
 
 struct ToolchainSpec {
@@ -250,13 +294,20 @@ std::filesystem::path download_package(const ToolchainSpec &spec,
   const std::string archive = archive_name(spec.version);
   const std::filesystem::path archive_path = temporary / archive;
   const std::filesystem::path checksum_path = temporary / (archive + ".sha256");
-  fetch(distribution_location(spec.release, archive), archive_path);
+  const std::string archive_location =
+      distribution_location(spec.release, archive);
+  fetch(archive_location, archive_path);
   fetch(distribution_location(spec.release, archive + ".sha256"),
         checksum_path);
   if (sha256(archive_path) != expected_sha256(checksum_path))
     throw std::runtime_error{"SHA-256 verification failed for " + archive};
-  if (std::getenv("JANUS_DIST_SERVER") == nullptr)
-    verify_attestation(archive_path, false);
+  if (!official_distribution(archive_location) &&
+      unverified_private_mirror_allowed()) {
+    std::cerr << "janusup: WARNING: using an unverified private mirror "
+                 "(JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1)\n";
+  } else {
+    verify_attestation(archive_path);
+  }
 
   const std::filesystem::path extracted = temporary / "package";
   std::filesystem::create_directory(extracted);
@@ -427,7 +478,7 @@ int main(int argc, char **argv) {
       return 0;
     }
     if (argc == 3 && std::string_view{argv[1]} == "verify") {
-      verify_attestation(argv[2], true);
+      verify_attestation(argv[2]);
       std::cout << "verified provenance for '" << argv[2] << "'\n";
       return 0;
     }

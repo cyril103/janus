@@ -83,7 +83,8 @@ janusup list
 ```
 
 Consultez le [guide d'installation détaillé](docs/getting-started.md) en cas de
-problème ou pour mettre Janus à jour.
+problème, pour mettre Janus à jour ou pour comprendre la vérification de
+provenance obligatoire et la frontière de confiance des miroirs privés.
 
 ## Premier programme
 

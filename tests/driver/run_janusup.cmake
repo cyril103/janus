@@ -124,16 +124,90 @@ get_filename_component(REMOTE_ARCHIVE_NAME "${REMOTE_ARCHIVE}" NAME)
 file(WRITE "${REMOTE_ARCHIVE}.sha256"
      "${REMOTE_DIGEST}  ${REMOTE_ARCHIVE_NAME}\n")
 
+# Downloads fail closed before extraction unless the final archive URL is
+# private and the explicit, noisy private-mirror opt-out is set.
+set(FAKE_BIN "${TEST_ROOT}/fake-bin")
+file(MAKE_DIRECTORY "${FAKE_BIN}")
+if(WIN32)
+    file(WRITE "${FAKE_BIN}/gh.bat" "@exit /b 1\n")
+else()
+    file(WRITE "${FAKE_BIN}/gh"
+         "#!/bin/sh\nif [ \"\${1:-}\" = attestation ] && [ \"\${2:-}\" = --help ]; then\n  exit 0\nfi\n: > '${TEST_ROOT}/attested'\nexit 1\n")
+    file(CHMOD "${FAKE_BIN}/gh"
+         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+    file(WRITE "${FAKE_BIN}/tar"
+         "#!/bin/sh\n: > '${TEST_ROOT}/extracted'\nexit 1\n")
+    file(CHMOD "${FAKE_BIN}/tar"
+         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+    file(WRITE "${FAKE_BIN}/curl"
+         "#!/bin/sh\nout=\nurl=\nwhile [ \"\$#\" -gt 0 ]; do\n  case \"\$1\" in\n    -o) out=\"\$2\"; shift 2 ;;\n    *://*) url=\"\$1\"; shift ;;\n    *) shift ;;\n  esac\ndone\ncase \"\$url\" in\n  *.sha256*) cp '${REMOTE_ARCHIVE}.sha256' \"\$out\" ;;\n  *) cp '${REMOTE_ARCHIVE}' \"\$out\" ;;\nesac\n")
+    file(CHMOD "${FAKE_BIN}/curl"
+         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+endif()
+
+if(NOT WIN32)
+    set(OFFICIAL_SERVERS
+        "https://github.com/cyril103/janus/releases/download/"
+        "HTTPS://GITHUB.COM/CYRIL103/JANUS/RELEASES/DOWNLOAD"
+        "https://github.com:443/cyril103/janus/releases/download/")
+    set(OFFICIAL_INDEX 0)
+    foreach(OFFICIAL_SERVER IN LISTS OFFICIAL_SERVERS)
+        math(EXPR OFFICIAL_INDEX "${OFFICIAL_INDEX} + 1")
+        file(REMOVE "${TEST_ROOT}/attested" "${TEST_ROOT}/extracted")
+        execute_process(
+            COMMAND "${CMAKE_COMMAND}" -E env
+                    "PATH=${FAKE_BIN}:/usr/bin:/bin"
+                    "JANUSUP_HOME=${TEST_ROOT}/official-home-${OFFICIAL_INDEX}"
+                    "JANUS_DIST_SERVER=${OFFICIAL_SERVER}"
+                    "JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1"
+                    "${JANUSUP}" install "${REMOTE_VERSION}"
+            RESULT_VARIABLE OFFICIAL_STATUS
+            ERROR_VARIABLE OFFICIAL_ERROR
+        )
+        if(OFFICIAL_STATUS EQUAL 0)
+            message(FATAL_ERROR
+                    "janusup opt-out accepted official server: ${OFFICIAL_SERVER}")
+        endif()
+        if(NOT EXISTS "${TEST_ROOT}/attested")
+            message(FATAL_ERROR
+                    "janusup did not attest official server: ${OFFICIAL_SERVER}")
+        endif()
+        if(EXISTS "${TEST_ROOT}/extracted")
+            message(FATAL_ERROR
+                    "janusup extracted official server: ${OFFICIAL_SERVER}")
+        endif()
+    endforeach()
+endif()
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env
+            "PATH=${FAKE_BIN}"
+            "JANUSUP_HOME=${TEST_ROOT}/private-default-home"
+            "JANUS_DIST_SERVER=${TEST_ROOT}/dist"
+            "${JANUSUP}" install "${REMOTE_VERSION}"
+    RESULT_VARIABLE PRIVATE_DEFAULT_STATUS
+    ERROR_VARIABLE PRIVATE_DEFAULT_ERROR
+)
+if(PRIVATE_DEFAULT_STATUS EQUAL 0)
+    message(FATAL_ERROR "janusup silently trusted a private mirror")
+endif()
+if(EXISTS "${TEST_ROOT}/extracted")
+    message(FATAL_ERROR "janusup verified provenance after extraction")
+endif()
+
 execute_process(
     COMMAND "${CMAKE_COMMAND}" -E env
             "JANUSUP_HOME=${TEST_ROOT}/home"
             "JANUS_DIST_SERVER=${TEST_ROOT}/dist"
+            "JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1"
             "${JANUSUP}" install "${REMOTE_VERSION}"
     RESULT_VARIABLE REMOTE_INSTALL_STATUS
     ERROR_VARIABLE REMOTE_INSTALL_ERROR
 )
 if(NOT REMOTE_INSTALL_STATUS EQUAL 0)
     message(FATAL_ERROR "remote install failed: ${REMOTE_INSTALL_ERROR}")
+endif()
+if(NOT REMOTE_INSTALL_ERROR MATCHES "unverified private")
+    message(FATAL_ERROR "janusup private-mirror opt-out was not logged")
 endif()
 if(NOT EXISTS "${TEST_ROOT}/home/toolchains/${REMOTE_VERSION}/bin")
     message(FATAL_ERROR "remote toolchain was not installed")
@@ -147,6 +221,7 @@ foreach(CHANNEL stable beta nightly)
         COMMAND "${CMAKE_COMMAND}" -E env
                 "JANUSUP_HOME=${TEST_ROOT}/home"
                 "JANUS_DIST_SERVER=${TEST_ROOT}/dist"
+                "JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1"
                 "${JANUSUP}" install "${CHANNEL}"
         RESULT_VARIABLE CHANNEL_STATUS
         ERROR_VARIABLE CHANNEL_ERROR
@@ -161,6 +236,7 @@ execute_process(
     COMMAND "${CMAKE_COMMAND}" -E env
             "JANUSUP_HOME=${TEST_ROOT}/home"
             "JANUS_DIST_SERVER=${TEST_ROOT}/dist"
+            "JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1"
             "${JANUSUP}" update
     RESULT_VARIABLE CHANNEL_UPDATE_STATUS
     ERROR_VARIABLE CHANNEL_UPDATE_ERROR

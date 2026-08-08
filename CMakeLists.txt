@@ -807,6 +807,15 @@ if(BUILD_TESTING)
                 LABELS "project-euler;smoke"
         )
     endif()
+    find_program(POWERSHELL_EXECUTABLE NAMES pwsh powershell)
+    if(POWERSHELL_EXECUTABLE)
+        add_test(
+            NAME toolchain.install_script_powershell
+            COMMAND "${POWERSHELL_EXECUTABLE}" -NoProfile -File
+                    "${PROJECT_SOURCE_DIR}/tests/driver/install_script_test.ps1"
+                    "${PROJECT_SOURCE_DIR}"
+        )
+    endif()
     add_executable(manifest_test
         tests/driver/manifest_test.cpp
     )
