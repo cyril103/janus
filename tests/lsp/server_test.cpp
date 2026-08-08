@@ -35,6 +35,27 @@ std::vector<std::int64_t> semantic_token_field(const std::string &response,
   return fields;
 }
 
+std::int64_t semantic_token_type_at(const std::string &response,
+                                    std::int64_t expected_line,
+                                    std::int64_t expected_column) {
+  const std::vector<std::int64_t> line_deltas =
+      semantic_token_field(response, 0);
+  const std::vector<std::int64_t> column_deltas =
+      semantic_token_field(response, 1);
+  const std::vector<std::int64_t> types = semantic_token_field(response, 3);
+  std::int64_t line = 0;
+  std::int64_t column = 0;
+  for (std::size_t index = 0; index < types.size(); ++index) {
+    line += line_deltas[index];
+    column = line_deltas[index] == 0 ? column + column_deltas[index]
+                                     : column_deltas[index];
+    if (line == expected_line && column == expected_column)
+      return types[index];
+  }
+  JANUS_REQUIRE(false);
+  return -1;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -457,6 +478,37 @@ int main(int argc, char **argv) {
       R"({"jsonrpc":"2.0","id":49,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-callable.janus"}}})");
   JANUS_REQUIRE((semantic_token_field(callable_tokens.front(), 3) ==
                  std::vector<std::int64_t>{10, 5, 8, 1, 1, 1, 10, 8, 12}));
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-imported-generics.janus","text":"import model.{User, Box as Crate}\ndef inspect(users : Array[User], mapping : Map[string, User], nested : Array[Map[string, Crate]], qualified : Array[model.User], User : int) : int { val indexed = users[User] return User }\ndef call(User : int) : int { identity[User](User) return User }\ndef qualifiedCall(User : int) : int { model.make[model.User](User) return User }\n"}}})"));
+  const std::vector<std::string> imported_generic_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":50,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-imported-generics.janus"}}})");
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 1, 26) ==
+                1);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 1, 55) ==
+                1);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 1, 89) ==
+                1);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 1, 116) ==
+                0);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 1, 122) ==
+                1);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 1, 129) ==
+                8);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 1, 169) ==
+                8);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 1, 182) ==
+                8);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 2, 38) ==
+                1);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 2, 44) ==
+                8);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 3, 49) ==
+                0);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 3, 55) ==
+                1);
+  JANUS_REQUIRE(semantic_token_type_at(imported_generic_tokens.front(), 3, 61) ==
+                8);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val inferred = 42 return inferred }"}]}})"));

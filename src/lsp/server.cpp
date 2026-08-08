@@ -19,6 +19,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -1735,7 +1736,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
         return std::nullopt;
       return semantic_kind(*best);
     };
-    const auto is_type_position = [&](std::size_t index) {
+    std::function<bool(std::size_t)> is_type_position;
+    is_type_position = [&](std::size_t index) {
       while (index >= 2 &&
              document_tokens[index - 1].kind == frontend::TokenKind::Dot &&
              document_tokens[index - 2].kind == frontend::TokenKind::Identifier)
@@ -1743,9 +1745,50 @@ std::vector<std::string> Server::handle(std::string_view message) {
       if (index == 0)
         return false;
       const frontend::TokenKind previous = document_tokens[index - 1].kind;
-      return previous == frontend::TokenKind::Colon ||
-             previous == frontend::TokenKind::New ||
-             previous == frontend::TokenKind::Extends;
+      if (previous == frontend::TokenKind::Colon ||
+          previous == frontend::TokenKind::New ||
+          previous == frontend::TokenKind::Extends)
+        return true;
+      if (previous != frontend::TokenKind::LeftBracket &&
+          previous != frontend::TokenKind::Comma)
+        return false;
+
+      std::size_t depth = 0;
+      for (std::size_t cursor = index; cursor-- > 0;) {
+        const frontend::TokenKind kind = document_tokens[cursor].kind;
+        if (kind == frontend::TokenKind::RightBracket) {
+          ++depth;
+        } else if (kind == frontend::TokenKind::LeftBracket) {
+          if (depth != 0) {
+            --depth;
+            continue;
+          }
+          const bool enclosing_type =
+              cursor != 0 &&
+              document_tokens[cursor - 1].kind ==
+                  frontend::TokenKind::Identifier &&
+              is_type_position(cursor - 1);
+          if (enclosing_type)
+            return true;
+
+          std::size_t forward_depth = 0;
+          for (std::size_t forward = cursor; forward < document_tokens.size();
+               ++forward) {
+            const frontend::TokenKind forward_kind =
+                document_tokens[forward].kind;
+            if (forward_kind == frontend::TokenKind::LeftBracket) {
+              ++forward_depth;
+            } else if (forward_kind == frontend::TokenKind::RightBracket &&
+                       --forward_depth == 0) {
+              return forward + 1 < document_tokens.size() &&
+                     document_tokens[forward + 1].kind ==
+                         frontend::TokenKind::LeftParen;
+            }
+          }
+          return false;
+        }
+      }
+      return false;
     };
     const auto chain_start = [&](std::size_t index) {
       while (index >= 2 &&
