@@ -643,6 +643,9 @@ if(BUILD_TESTING)
         tests/lsp/server_test.cpp
     )
     target_link_libraries(lsp_server_test PRIVATE janus_lsp)
+    target_include_directories(lsp_server_test SYSTEM PRIVATE
+        ${JANUS_LLVM_INCLUDE_DIR}
+    )
     target_compile_definitions(lsp_server_test
         PRIVATE
             JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"

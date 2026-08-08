@@ -557,9 +557,12 @@ std::optional<std::filesystem::path> file_uri_path(std::string_view uri) {
   if (!uri.starts_with(prefix))
     return std::nullopt;
 
-  std::string decoded;
-  const std::string_view encoded = uri.substr(prefix.size());
-  decoded.reserve(encoded.size());
+  const std::string_view remainder = uri.substr(prefix.size());
+  const std::size_t path_start = remainder.find('/');
+  const std::string_view encoded_authority = remainder.substr(0, path_start);
+  const std::string_view encoded_path =
+      path_start == std::string_view::npos ? std::string_view{}
+                                           : remainder.substr(path_start);
   const auto hex_value = [](char character) -> std::optional<unsigned char> {
     if (character >= '0' && character <= '9')
       return static_cast<unsigned char>(character - '0');
@@ -569,27 +572,104 @@ std::optional<std::filesystem::path> file_uri_path(std::string_view uri) {
       return static_cast<unsigned char>(character - 'A' + 10);
     return std::nullopt;
   };
-  for (std::size_t index = 0; index < encoded.size(); ++index) {
-    if (encoded[index] == '%' && index + 2 < encoded.size()) {
-      const std::optional<unsigned char> high = hex_value(encoded[index + 1]);
-      const std::optional<unsigned char> low = hex_value(encoded[index + 2]);
-      if (high && low) {
-        decoded.push_back(static_cast<char>((*high << 4U) | *low));
-        index += 2;
-        continue;
+  const auto decode = [&](std::string_view encoded)
+      -> std::optional<std::string> {
+    std::string decoded;
+    decoded.reserve(encoded.size());
+    for (std::size_t index = 0; index < encoded.size(); ++index) {
+      if (encoded[index] == '%' && index + 2 < encoded.size()) {
+        const std::optional<unsigned char> high = hex_value(encoded[index + 1]);
+        const std::optional<unsigned char> low = hex_value(encoded[index + 2]);
+        if (high && low) {
+          const unsigned char value = (*high << 4U) | *low;
+          if (value == 0)
+            return std::nullopt;
+          decoded.push_back(static_cast<char>(value));
+          index += 2;
+          continue;
+        }
       }
+      if (encoded[index] == '%')
+        return std::nullopt;
+      decoded.push_back(encoded[index]);
     }
-    if (encoded[index] == '%')
-      return std::nullopt;
-    decoded.push_back(encoded[index]);
-  }
+    return decoded;
+  };
+  const std::optional<std::string> authority = decode(encoded_authority);
+  const std::optional<std::string> path = decode(encoded_path);
+  if (!authority || !path)
+    return std::nullopt;
 #ifdef _WIN32
-  if (!decoded.empty() && decoded.front() != '/')
-    return std::filesystem::path{"//" + decoded};
-  if (decoded.size() >= 3 && decoded[0] == '/' && decoded[2] == ':')
+  if (!authority->empty() && *authority != "localhost")
+    return path->empty() ? std::nullopt
+                         : std::optional<std::filesystem::path>{
+                               std::filesystem::path{"//" + *authority + *path}};
+  std::string decoded = *path;
+  if (decoded.size() >= 3 && decoded[0] == '/' &&
+      ((decoded[1] >= 'a' && decoded[1] <= 'z') ||
+       (decoded[1] >= 'A' && decoded[1] <= 'Z')) &&
+      decoded[2] == ':')
     decoded.erase(decoded.begin());
+  return decoded.empty() ? std::nullopt
+                         : std::optional<std::filesystem::path>{decoded};
+#else
+  if (!authority->empty() && *authority != "localhost")
+    return std::nullopt;
+  if (path->empty() || path->front() != '/')
+    return std::nullopt;
+  return std::filesystem::path{*path};
 #endif
-  return std::filesystem::path{decoded};
+}
+
+bool is_canonical_descendant(const std::filesystem::path &path,
+                             const std::filesystem::path &root) {
+  const auto components_equal = [](const std::filesystem::path &left,
+                                   const std::filesystem::path &right) {
+#ifdef _WIN32
+    std::string left_text = left.generic_string();
+    std::string right_text = right.generic_string();
+    std::transform(left_text.begin(), left_text.end(), left_text.begin(),
+                   [](unsigned char character) {
+                     return static_cast<char>(std::tolower(character));
+                   });
+    std::transform(right_text.begin(), right_text.end(), right_text.begin(),
+                   [](unsigned char character) {
+                     return static_cast<char>(std::tolower(character));
+                   });
+    return left_text == right_text;
+#else
+    return left == right;
+#endif
+  };
+  auto path_component = path.begin();
+  for (auto root_component = root.begin(); root_component != root.end();
+       ++root_component, ++path_component)
+    if (path_component == path.end() ||
+        !components_equal(*path_component, *root_component))
+      return false;
+  return true;
+}
+
+std::optional<std::filesystem::path> canonical_janus_file_under_roots(
+    const std::filesystem::path &path,
+    const std::vector<std::filesystem::path> &roots) {
+  if (path.extension() != ".janus")
+    return std::nullopt;
+  std::error_code error;
+  const std::filesystem::path canonical_path =
+      std::filesystem::canonical(path, error);
+  if (error || canonical_path.extension() != ".janus" ||
+      !std::filesystem::is_regular_file(canonical_path, error) || error)
+    return std::nullopt;
+  for (const std::filesystem::path &root : roots) {
+    error.clear();
+    const std::filesystem::path canonical_root =
+        std::filesystem::canonical(root, error);
+    if (!error && std::filesystem::is_directory(canonical_root, error) &&
+        !error && is_canonical_descendant(canonical_path, canonical_root))
+      return canonical_path;
+  }
+  return std::nullopt;
 }
 
 struct IndexedDocument {
@@ -648,6 +728,8 @@ std::string file_uri(const std::filesystem::path &path) {
 #ifdef _WIN32
   if (normalized.starts_with("//"))
     normalized.erase(0, 2);
+  else if (normalized.size() >= 2 && normalized[1] == ':')
+    normalized.insert(normalized.begin(), '/');
 #endif
   constexpr char hex[] = "0123456789ABCDEF";
   std::string result = "file://";
@@ -1516,10 +1598,49 @@ std::vector<std::string> Server::handle(std::string_view message) {
   }
 
   const auto open_document = uri ? documents_.find(*uri) : documents_.end();
-  if (*method == "textDocument/codeAction" && uri &&
-      open_document != documents_.end()) {
+  const bool source_request =
+      *method == "textDocument/codeAction" ||
+      *method == "textDocument/formatting" ||
+      *method == "textDocument/semanticTokens/full" ||
+      *method == "textDocument/inlayHint";
+  std::string disk_source;
+  const std::string *document_source = nullptr;
+  if (source_request && uri) {
+    if (open_document != documents_.end()) {
+      document_source = &open_document->second;
+    } else {
+      std::vector<std::filesystem::path> allowed_roots = workspace_roots_;
+      allowed_roots.insert(allowed_roots.end(), dependency_roots_.begin(),
+                           dependency_roots_.end());
+      allowed_roots.insert(allowed_roots.end(), module_search_paths_.begin(),
+                           module_search_paths_.end());
+      allowed_roots.insert(allowed_roots.end(),
+                           workspace_search_paths_.begin(),
+                           workspace_search_paths_.end());
+      const auto path = file_uri_path(*uri);
+      const auto canonical_path =
+          path ? canonical_janus_file_under_roots(*path, allowed_roots)
+               : std::nullopt;
+      if (canonical_path) {
+        if (const auto indexed = index_cache_.find(*uri);
+            indexed != index_cache_.end()) {
+          document_source = &indexed->second.source;
+        } else {
+          std::ifstream input{*canonical_path, std::ios::binary};
+          if (input) {
+            disk_source.assign(std::istreambuf_iterator<char>{input},
+                               std::istreambuf_iterator<char>{});
+            document_source = &disk_source;
+          }
+        }
+      }
+    }
+  }
+  if (*method == "textDocument/codeAction" && uri) {
     llvm::json::Array actions;
-    const std::string_view source = open_document->second;
+    if (document_source == nullptr)
+      return {response(request_id(*request), std::move(actions))};
+    const std::string_view source = *document_source;
     const auto add_action = [&](std::string title,
                                 llvm::json::Object edit_range,
                                 std::string new_text, bool preferred) {
@@ -1616,8 +1737,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
     }
     return {response(request_id(*request), std::move(actions))};
   }
-  if (*method == "textDocument/formatting" && uri &&
-      open_document != documents_.end()) {
+  if (*method == "textDocument/formatting" && uri) {
+    if (document_source == nullptr)
+      return {response(request_id(*request), llvm::json::Array{})};
     driver::FormatOptions options;
     if (params != nullptr) {
       if (const llvm::json::Object *formatting_options =
@@ -1629,10 +1751,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
       }
     }
     const std::string formatted =
-        driver::format_source(open_document->second, options);
+        driver::format_source(*document_source, options);
     const std::int64_t line_count = static_cast<std::int64_t>(
-        std::count(open_document->second.begin(), open_document->second.end(),
-                   '\n') +
+        std::count(document_source->begin(), document_source->end(), '\n') +
         1);
     return {response(
         request_id(*request),
@@ -1646,14 +1767,16 @@ std::vector<std::string> Server::handle(std::string_view message) {
         }})};
   }
 
-  if (*method == "textDocument/semanticTokens/full" && uri &&
-      open_document != documents_.end()) {
+  if (*method == "textDocument/semanticTokens/full" && uri) {
     llvm::json::Array data;
+    if (document_source == nullptr)
+      return {response(request_id(*request),
+                       llvm::json::Object{{"data", std::move(data)}})};
     std::uint32_t previous_line = 0;
     std::uint32_t previous_column = 0;
     bool first = true;
     const std::vector<frontend::Token> document_tokens =
-        tokens(open_document->second);
+        tokens(*document_source);
     std::unordered_map<std::size_t, std::pair<std::int64_t, std::int64_t>>
         declaration_kinds;
     std::unordered_map<std::string, std::int64_t> type_kinds;
@@ -1700,7 +1823,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
       return std::int64_t{7};
     };
     const std::vector<DocumentSymbol> semantic_symbols =
-        symbols(*uri, open_document->second);
+        symbols(*uri, *document_source);
     for (const DocumentSymbol &symbol : semantic_symbols) {
       const std::int64_t kind = semantic_kind(symbol);
       std::int64_t modifiers = 1;
@@ -1891,7 +2014,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
       if (!type.has_value())
         continue;
       const llvm::json::Object token_position =
-          position_at_offset(open_document->second, token.location.offset);
+          position_at_offset(*document_source, token.location.offset);
       const std::uint32_t line =
           static_cast<std::uint32_t>(*token_position.getInteger("line"));
       const std::uint32_t column =
@@ -1911,9 +2034,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
                      llvm::json::Object{{"data", std::move(data)}})};
   }
 
-  if (*method == "textDocument/inlayHint" && uri &&
-      open_document != documents_.end()) {
+  if (*method == "textDocument/inlayHint" && uri) {
     llvm::json::Array hints;
+    if (document_source == nullptr)
+      return {response(request_id(*request), std::move(hints))};
     std::optional<std::size_t> range_start;
     std::optional<std::size_t> range_end;
     if (params != nullptr)
@@ -1931,18 +2055,18 @@ std::vector<std::string> Server::handle(std::string_view message) {
                 *start_line >= 0 && *start_character >= 0 && *end_line >= 0 &&
                 *end_character >= 0) {
               range_start = offset_from_position(
-                  open_document->second,
+                  *document_source,
                   static_cast<std::uint32_t>(*start_line),
                   static_cast<std::uint32_t>(*start_character));
               range_end = offset_from_position(
-                  open_document->second, static_cast<std::uint32_t>(*end_line),
+                  *document_source, static_cast<std::uint32_t>(*end_line),
                   static_cast<std::uint32_t>(*end_character));
             }
           }
     if (inferred_type_hints_ && range_start && range_end &&
         *range_start <= *range_end) {
       const std::vector<frontend::Token> document_tokens =
-          tokens(open_document->second);
+          tokens(*document_source);
       for (std::size_t index = 0; index + 3 < document_tokens.size(); ++index) {
         if ((document_tokens[index].kind != frontend::TokenKind::Val &&
              document_tokens[index].kind != frontend::TokenKind::Var) ||
@@ -1961,7 +2085,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
           continue;
         hints.emplace_back(llvm::json::Object{
             {"position",
-             position_at_offset(open_document->second, hint_offset)},
+             position_at_offset(*document_source, hint_offset)},
             {"label", ": " + *inferred},
             {"kind", 1},
             {"paddingLeft", false},
