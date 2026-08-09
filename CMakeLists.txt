@@ -13,17 +13,37 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(GNUInstallDirs)
+include(cmake/resolve_toolchain_executable.cmake)
 
 find_package(LLVM REQUIRED CONFIG)
 list(GET LLVM_INCLUDE_DIRS 0 JANUS_LLVM_INCLUDE_DIR)
 find_program(JANUS_CLANG_EXECUTABLE clang REQUIRED)
 find_program(JANUS_LLD_EXECUTABLE NAMES ld.lld lld-link ld64.lld REQUIRED)
-get_filename_component(
-    JANUS_CLANG_REAL_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}" REALPATH
+set(JANUS_CLANG_REAL_EXECUTABLE "" CACHE FILEPATH
+    "Native Clang executable to use when JANUS_CLANG_EXECUTABLE is a wrapper")
+set(JANUS_LLD_REAL_EXECUTABLE "" CACHE FILEPATH
+    "Native LLD executable to use when JANUS_LLD_EXECUTABLE is a wrapper")
+janus_resolve_toolchain_executable(
+    TOOL Clang
+    DISCOVERED "${JANUS_CLANG_EXECUTABLE}"
+    OVERRIDE "${JANUS_CLANG_REAL_EXECUTABLE}"
+    OVERRIDE_VARIABLE JANUS_CLANG_REAL_EXECUTABLE
+    QUERY_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}"
+    QUERY_PROGRAM clang
+    OUTPUT JANUS_RESOLVED_CLANG_EXECUTABLE
 )
-get_filename_component(
-    JANUS_LLD_REAL_EXECUTABLE "${JANUS_LLD_EXECUTABLE}" REALPATH
+get_filename_component(JANUS_LLD_PROGRAM_NAME "${JANUS_LLD_EXECUTABLE}" NAME)
+janus_resolve_toolchain_executable(
+    TOOL LLD
+    DISCOVERED "${JANUS_LLD_EXECUTABLE}"
+    OVERRIDE "${JANUS_LLD_REAL_EXECUTABLE}"
+    OVERRIDE_VARIABLE JANUS_LLD_REAL_EXECUTABLE
+    QUERY_EXECUTABLE "${JANUS_RESOLVED_CLANG_EXECUTABLE}"
+    QUERY_PROGRAM "${JANUS_LLD_PROGRAM_NAME}"
+    OUTPUT JANUS_RESOLVED_LLD_EXECUTABLE
 )
+set(JANUS_CLANG_REAL_EXECUTABLE "${JANUS_RESOLVED_CLANG_EXECUTABLE}")
+set(JANUS_LLD_REAL_EXECUTABLE "${JANUS_RESOLVED_LLD_EXECUTABLE}")
 get_filename_component(
     JANUS_CLANG_RUNTIME_DIRECTORY "${JANUS_CLANG_REAL_EXECUTABLE}" DIRECTORY
 )
@@ -42,7 +62,7 @@ else()
 endif()
 get_filename_component(JANUS_LLD_INSTALL_NAME "${JANUS_LLD_EXECUTABLE}" NAME)
 execute_process(
-    COMMAND "${JANUS_CLANG_REAL_EXECUTABLE}" -print-resource-dir
+    COMMAND "${JANUS_CLANG_EXECUTABLE}" -print-resource-dir
     OUTPUT_VARIABLE JANUS_CLANG_RESOURCE_DIR
     OUTPUT_STRIP_TRAILING_WHITESPACE
     COMMAND_ERROR_IS_FATAL ANY
@@ -751,6 +771,9 @@ if(BUILD_TESTING)
         COMMAND "${CMAKE_COMMAND}"
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}
                 -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
+                -DCLANG_EXECUTABLE=${JANUS_CLANG_EXECUTABLE}
+                -DLLD_EXECUTABLE=${JANUS_LLD_EXECUTABLE}
+                -DLLVM_DIR=${LLVM_DIR}
                 -DPACKAGE_PLATFORM=${CMAKE_SYSTEM_NAME}
                 -DPACKAGE_ARCH=${CMAKE_SYSTEM_PROCESSOR}
                 -DJANUS=$<TARGET_FILE:janus>
@@ -2359,7 +2382,7 @@ set_target_properties(janus_bundled_lld
 
 install(
     TARGETS janus janusc janusup janus-lsp
-    RUNTIME_DEPENDENCY_SET janus_toolchain_dependencies
+    RUNTIME_DEPENDENCY_SET janus_application_dependencies
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 install(
@@ -2374,6 +2397,24 @@ install(
 )
 install(
     RUNTIME_DEPENDENCY_SET janus_toolchain_dependencies
+    DIRECTORIES
+        "${JANUS_CLANG_RUNTIME_DIRECTORY}"
+        "${JANUS_LLD_RUNTIME_DIRECTORY}"
+    PRE_EXCLUDE_REGEXES
+        "^api-ms-"
+        "^ext-ms-"
+        "^ld-linux"
+        "^lib(c|m|pthread|dl|rt|gcc_s|stdc\\+\\+)\\.so"
+    POST_EXCLUDE_REGEXES
+        "^/System/Library/"
+        "^/usr/lib/lib(System|c\\+\\+)"
+        ".*[Ww]indows[/\\\\][Ss]ystem32.*"
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(
+    RUNTIME_DEPENDENCY_SET janus_application_dependencies
     DIRECTORIES
         "${JANUS_CLANG_RUNTIME_DIRECTORY}"
         "${JANUS_LLD_RUNTIME_DIRECTORY}"
