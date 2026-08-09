@@ -544,6 +544,29 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       iterator = symbols.find(std::string{name});
     return iterator;
   };
+  std::unordered_map<std::string, std::vector<std::string>>
+      legacy_import_edges;
+  for (const ast::ImportDeclaration &import : program.imports)
+    if (!import.is_qualified() && !import.is_selective())
+      legacy_import_edges[import.importing_module.value_or(std::string{})]
+          .push_back(import.module_name);
+  std::unordered_map<std::string, std::unordered_set<std::string>>
+      legacy_import_closure;
+  for (const auto &[importer, direct_imports] : legacy_import_edges) {
+    std::vector<std::string> pending = direct_imports;
+    std::unordered_set<std::string> &reachable =
+        legacy_import_closure[importer];
+    while (!pending.empty()) {
+      std::string dependency = std::move(pending.back());
+      pending.pop_back();
+      if (!reachable.insert(dependency).second)
+        continue;
+      if (const auto nested = legacy_import_edges.find(dependency);
+          nested != legacy_import_edges.end())
+        pending.insert(pending.end(), nested->second.begin(),
+                       nested->second.end());
+    }
+  }
   const auto import_allows =
       [&](const std::optional<std::string> &importer,
           const std::optional<std::string> &declaring_module,
@@ -569,15 +592,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 spelling == symbol.alias.value_or(symbol.name))
               return true;
         }
-        // A dependency may be loaded once through several branches of the
-        // graph. Preserve the historical unqualified semantics when another
-        // loaded module has the same legacy import; qualified-only imports do
-        // not take this fallback.
-        if (spelling == canonical_name)
-          for (const ast::ImportDeclaration &import : program.imports)
-            if (import.module_name == *declaring_module &&
-                !import.is_qualified() && !import.is_selective())
-              return true;
+        // Plain imports intentionally re-export their plain dependencies (for
+        // example std.graphics). Limit that legacy behavior to the dependency
+        // closure rooted at the current module so a sibling branch cannot
+        // widen lexical visibility.
+        if (spelling == canonical_name) {
+          const auto reachable = legacy_import_closure.find(
+              importer.value_or(std::string{}));
+          if (reachable != legacy_import_closure.end() &&
+              reachable->second.contains(*declaring_module))
+            return true;
+        }
         return false;
       };
   const auto register_type_identity =
@@ -1713,7 +1738,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                  : context.function->location;
     const std::string function_name =
         is_destructor ? "destructor" : context.function->name;
-    const std::optional<std::string> &context_module =
+    std::optional<std::string> context_module =
         owner != nullptr ? owner->module_name : context.function->module_name;
     std::unordered_set<std::string> type_parameters;
     if (owner != nullptr) {
@@ -3396,13 +3421,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               const auto *previous_type_parameters = active_type_parameters;
               const auto *previous_type_substitutions =
                   active_type_substitutions;
+              const std::optional<std::string> previous_context_module =
+                  context_module;
               active_symbols = &initializer_symbols;
               active_type_parameters = &class_parameters;
               active_type_substitutions = &substitutions;
+              context_module = class_declaration.module_name;
               for (const ast::ValueDeclaration &field :
                    class_declaration.fields) {
                 SemanticType field_type = resolve_type(
-                    field.declared_type, class_parameters, &class_arities);
+                    field.declared_type, class_parameters, &class_arities,
+                    context_module, &scoped_type_aliases);
                 field_type = substitute(std::move(field_type), substitutions);
                 if (field.initializer.has_value())
                   validate_expression(*field.initializer, field_type,
@@ -3414,6 +3443,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               active_symbols = previous_symbols;
               active_type_parameters = previous_type_parameters;
               active_type_substitutions = previous_type_substitutions;
+              context_module = previous_context_module;
               return instance_type;
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {

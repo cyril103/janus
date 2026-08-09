@@ -263,6 +263,60 @@ int main() {
   }
   expect(nested_collision_localized,
          "same-module alias collisions retain their source path");
+
+  std::filesystem::create_directories(import_root / "leak");
+  write_source(import_root / "leak" / "shared.janus",
+               "module leak.shared\n"
+               "def helper() : int { return 21 }\n");
+  write_source(import_root / "leak" / "a.janus",
+               "module leak.a\n"
+               "import leak.shared\n"
+               "class Wrapper() { val value : int = helper() }\n"
+               "def fromA() : int {\n"
+               "    val wrapper : Wrapper = new Wrapper()\n"
+               "    return wrapper.value\n"
+               "}\n");
+  write_source(import_root / "leak" / "b.janus",
+               "module leak.b\n"
+               "def fromB() : int { return helper() }\n");
+  write_source(import_root / "leak_ab.janus",
+               "import leak.a\n"
+               "import leak.b\n"
+               "def main() : int { return fromA() + fromB() }\n");
+  write_source(import_root / "leak_ba.janus",
+               "import leak.b\n"
+               "import leak.a\n"
+               "def main() : int { return fromA() + fromB() }\n");
+  for (const std::string_view entry : {"leak_ab.janus", "leak_ba.janus"}) {
+    bool sibling_import_rejected = false;
+    try {
+      janus::frontend::ModuleLoader sibling_loader;
+      static_cast<void>(import_analyzer.analyze(
+          sibling_loader.load(import_root / entry)));
+    } catch (const janus::CompileError &error) {
+      sibling_import_rejected =
+          std::string{error.what()}.find("not imported") != std::string::npos;
+    }
+    expect(sibling_import_rejected,
+           "a sibling module cannot provide an implicit import");
+  }
+
+  write_source(import_root / "leak" / "b.janus",
+               "module leak.b\n"
+               "import leak.shared\n"
+               "def fromB() : int { return helper() }\n");
+  janus::frontend::ModuleLoader explicit_sibling_loader;
+  static_cast<void>(import_analyzer.analyze(
+      explicit_sibling_loader.load(import_root / "leak_ba.janus")));
+  expect(true, "an explicit import remains valid in each sibling module");
+
+  write_source(import_root / "leak_qualified.janus",
+               "import leak.a as a\n"
+               "def main() : int { return a.fromA() }\n");
+  janus::frontend::ModuleLoader qualified_sibling_loader;
+  static_cast<void>(import_analyzer.analyze(
+      qualified_sibling_loader.load(import_root / "leak_qualified.janus")));
+  expect(true, "class field initializers retain their declaring module scope");
   std::filesystem::remove_all(import_root);
 
   janus::frontend::ModuleLoader loader{
