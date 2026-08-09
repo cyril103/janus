@@ -3,10 +3,17 @@
 #include "janus/driver/semver.hpp"
 #include "janus/driver/temporary_directory.hpp"
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#endif
+
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cctype>
+#include <cerrno>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -22,6 +29,8 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
+#include <thread>
 #include <vector>
 
 #include <llvm/ADT/ArrayRef.h>
@@ -29,8 +38,13 @@
 #include <llvm/Support/SHA256.h>
 #include <llvm/Support/raw_ostream.h>
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <sys/file.h>
 #include <sys/wait.h>
+#include <unistd.h>
 #endif
 
 namespace {
@@ -612,6 +626,112 @@ bool validate_cache(const std::filesystem::path &destination,
   }
 }
 
+std::filesystem::path
+generation_root(const std::filesystem::path &destination) {
+  // Keep published generations beside the stable version anchor. Readers hold
+  // generation paths directly, so a later publication never invalidates them.
+  return destination.string() + ".generations";
+}
+
+std::vector<std::filesystem::path>
+cache_generations(const std::filesystem::path &destination) {
+  std::vector<std::filesystem::path> result;
+  std::error_code error;
+  if (std::filesystem::is_directory(destination, error))
+    result.push_back(destination);
+  error.clear();
+  const auto root = generation_root(destination);
+  if (!std::filesystem::is_directory(root, error))
+    return result;
+  for (std::filesystem::directory_iterator iterator{root, error}, end;
+       !error && iterator != end; iterator.increment(error)) {
+    std::error_code type_error;
+    if (iterator->is_directory(type_error) && !type_error)
+      result.push_back(iterator->path());
+  }
+  return result;
+}
+
+std::optional<std::filesystem::path>
+find_valid_generation(const std::filesystem::path &destination,
+                      std::string_view package,
+                      const janus::driver::RegistryLock &expected) {
+  for (const auto &candidate : cache_generations(destination))
+    if (validate_cache(candidate, package, expected))
+      return candidate;
+  return std::nullopt;
+}
+
+class CacheMutationLock {
+public:
+  explicit CacheMutationLock(const std::filesystem::path &destination)
+      : path_{destination.string() + ".lock"} {
+#ifdef _WIN32
+    for (int attempt = 0; attempt < 400; ++attempt) {
+      handle_ = CreateFileW(path_.c_str(), GENERIC_READ | GENERIC_WRITE, 0,
+                            nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+      if (handle_ != INVALID_HANDLE_VALUE)
+        return;
+      const DWORD error = GetLastError();
+      if (error != ERROR_SHARING_VIOLATION && error != ERROR_LOCK_VIOLATION)
+        throw std::runtime_error{
+            "cannot lock registry cache destination: " +
+            std::system_category().message(static_cast<int>(error))};
+      std::this_thread::sleep_for(std::chrono::milliseconds{25});
+    }
+#else
+    descriptor_ = ::open(path_.c_str(), O_CREAT | O_RDWR, 0600);
+    if (descriptor_ < 0)
+      throw std::runtime_error{
+          "cannot open registry cache lock: " +
+          std::error_code{errno, std::generic_category()}.message()};
+    for (int attempt = 0; attempt < 400; ++attempt) {
+      if (::flock(descriptor_, LOCK_EX | LOCK_NB) == 0)
+        return;
+      if (errno != EWOULDBLOCK && errno != EAGAIN) {
+        const std::string message =
+            std::error_code{errno, std::generic_category()}.message();
+        ::close(descriptor_);
+        descriptor_ = -1;
+        throw std::runtime_error{"cannot lock registry cache destination: " +
+                                 message};
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds{25});
+    }
+#endif
+    release();
+    throw std::runtime_error{"timed out locking registry cache destination"};
+  }
+
+  CacheMutationLock(const CacheMutationLock &) = delete;
+  CacheMutationLock &operator=(const CacheMutationLock &) = delete;
+
+  ~CacheMutationLock() { release(); }
+
+private:
+  void release() noexcept {
+#ifdef _WIN32
+    if (handle_ != INVALID_HANDLE_VALUE) {
+      CloseHandle(handle_);
+      handle_ = INVALID_HANDLE_VALUE;
+    }
+#else
+    if (descriptor_ >= 0) {
+      static_cast<void>(::flock(descriptor_, LOCK_UN));
+      static_cast<void>(::close(descriptor_));
+      descriptor_ = -1;
+    }
+#endif
+  }
+
+  std::filesystem::path path_;
+#ifdef _WIN32
+  HANDLE handle_{INVALID_HANDLE_VALUE};
+#else
+  int descriptor_{-1};
+#endif
+};
+
 std::filesystem::path unique_staging(const std::filesystem::path &destination) {
   static std::atomic<std::uint64_t> sequence{};
   for (int attempt = 0; attempt < 128; ++attempt) {
@@ -808,11 +928,13 @@ resolve_remote_package(const Dependency &dependency,
     if (locked) {
       const auto destination = cache_destination(
           cache_root, registry, dependency.name, locked->version);
-      if (!validate_cache(destination, dependency.name, *locked))
+      const auto generation =
+          find_valid_generation(destination, dependency.name, *locked);
+      if (!generation)
         throw std::runtime_error{"registry package '" + dependency.name +
                                  "' is not cached and verified; --offline was "
                                  "requested"};
-      return {destination / "package", *locked};
+      return {*generation / "package", *locked};
     }
     const auto package_root =
         cache_destination(cache_root, registry, dependency.name, "placeholder")
@@ -832,22 +954,27 @@ resolve_remote_package(const Dependency &dependency,
               parse_semantic_version(entry.path().filename().string());
           if (!matches_version(dependency.version_requirement, version))
             continue;
-          const llvm::json::Object marker =
-              parse_object(read_file(entry.path() / "verified.json", 64 * 1024),
-                           "registry cache marker");
-          RegistryLock candidate{
-              required_string(marker, "registry", "registry cache marker"),
-              required_string(marker, "version", "registry cache marker"),
-              required_string(marker, "metadataSha256",
-                              "registry cache marker"),
-              required_string(marker, "archiveSha256",
-                              "registry cache marker")};
-          if (validate_cache(entry.path(), dependency.name, candidate) &&
-              (!found || compare(version, best) > 0)) {
-            found = true;
-            best = version;
-            best_lock = std::move(candidate);
-            best_path = entry.path();
+          for (const auto &generation : cache_generations(entry.path())) {
+            try {
+              const llvm::json::Object marker = parse_object(
+                  read_file(generation / "verified.json", 64 * 1024),
+                  "registry cache marker");
+              RegistryLock candidate{
+                  required_string(marker, "registry", "registry cache marker"),
+                  required_string(marker, "version", "registry cache marker"),
+                  required_string(marker, "metadataSha256",
+                                  "registry cache marker"),
+                  required_string(marker, "archiveSha256",
+                                  "registry cache marker")};
+              if (validate_cache(generation, dependency.name, candidate) &&
+                  (!found || compare(version, best) > 0)) {
+                found = true;
+                best = version;
+                best_lock = std::move(candidate);
+                best_path = generation;
+              }
+            } catch (const std::exception &) {
+            }
           }
         } catch (const std::exception &) {
         }
@@ -900,10 +1027,10 @@ resolve_remote_package(const Dependency &dependency,
                           metadata.archive_sha256};
   const auto destination = cache_destination(cache_root, registry,
                                              dependency.name, selected.version);
-  if (validate_cache(destination, dependency.name, resolution))
-    return {destination / "package", resolution};
+  if (const auto generation =
+          find_valid_generation(destination, dependency.name, resolution))
+    return {*generation / "package", resolution};
   std::error_code ignored;
-  std::filesystem::remove_all(destination, ignored);
   std::filesystem::create_directories(destination.parent_path());
   const std::filesystem::path staging = unique_staging(destination);
   try {
@@ -936,21 +1063,38 @@ resolve_remote_package(const Dependency &dependency,
     write_file(
         staging / "verified.json",
         marker_contents(resolution, dependency.name, metadata.manifest_sha256));
-    std::error_code publish_error;
-    std::filesystem::rename(staging, destination, publish_error);
-    if (publish_error) {
-      if (validate_cache(destination, dependency.name, resolution)) {
+    {
+      CacheMutationLock mutation_lock{destination};
+      if (const auto generation =
+              find_valid_generation(destination, dependency.name, resolution)) {
         std::filesystem::remove_all(staging, ignored);
-        return {destination / "package", resolution};
+        return {*generation / "package", resolution};
       }
-      throw std::runtime_error{"cannot publish verified registry cache: " +
-                               publish_error.message()};
+      const auto root = generation_root(destination);
+      // The empty version directory keeps cache discovery compatible with the
+      // legacy layout; only complete staging directories enter the generation
+      // root through the atomic rename below.
+      std::filesystem::create_directories(destination);
+      std::filesystem::create_directories(root);
+      const std::string staging_name = staging.filename().string();
+      const std::size_t nonce_offset = staging_name.rfind(".new-");
+      const auto generation =
+          root / ("generation-" +
+                  staging_name.substr(nonce_offset == std::string::npos
+                                          ? 0
+                                          : nonce_offset + 5));
+      std::error_code publish_error;
+      std::filesystem::rename(staging, generation, publish_error);
+      if (publish_error)
+        throw std::runtime_error{"cannot publish verified registry cache: " +
+                                 publish_error.message()};
+      return {generation / "package", resolution};
     }
   } catch (...) {
     std::filesystem::remove_all(staging, ignored);
     throw;
   }
-  return {destination / "package", resolution};
+  throw std::runtime_error{"cannot publish verified registry cache"};
 }
 
 void publish_remote_package(const Manifest &manifest,
