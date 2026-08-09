@@ -60,8 +60,11 @@ locales (`./...`) sont autorisées parce que leur contenu est versionné avec le
 dépôt. Une action Docker éventuelle doit utiliser une référence
 `docker://...@sha256:<digest>` ; les tags d'image seuls sont interdits.
 
-Dependabot vérifie chaque semaine les mises à jour `github-actions`. Le contrôle
-local et CI qui empêche le retour d'une référence mutable se lance avec :
+Dependabot vérifie chaque semaine les mises à jour `github-actions`. Le garde
+Python ci-dessous fournit un contrôle local rapide des formes canoniques. La CI
+le complète avec `zizmor` 1.29.0, dont le parseur YAML sémantique bloque aussi
+les formes équivalentes ou obfusquées d'une référence mutable. L'action et la
+version de `zizmor` sont elles-mêmes épinglées.
 
 ```bash
 python3 scripts/check-github-actions-pins.py .

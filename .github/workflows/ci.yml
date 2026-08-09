@@ -39,6 +39,16 @@ jobs:
       - name: Verify GitHub Actions pin guard
         run: python3 scripts/check-github-actions-pins.py --self-test
 
+      - name: Audit workflow semantics
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          version: 1.29.0
+          persona: regular
+          min-severity: high
+          online-audits: false
+          advanced-security: false
+          annotations: true
+
   reference-registry-image:
     name: Reference registry image
     runs-on: ubuntu-24.04
@@ -120,6 +130,9 @@ jobs:
       EULER_CASE_TIMEOUT: 5
       EULER_GLOBAL_TIMEOUT: 120
       EULER_MAX_ERRORS: 0
+      MATRIX_CC: ${{ matrix.cc }}
+      MATRIX_CXX: ${{ matrix.cxx }}
+      MATRIX_LLVM_DIR: ${{ matrix.llvm_dir }}
 
     steps:
       - name: Check out Janus
@@ -160,9 +173,9 @@ jobs:
         run: >
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_C_COMPILER="${{ matrix.cc }}"
-          -DCMAKE_CXX_COMPILER="${{ matrix.cxx }}"
-          -DLLVM_DIR="${{ matrix.llvm_dir }}"
+          -DCMAKE_C_COMPILER="$MATRIX_CC"
+          -DCMAKE_CXX_COMPILER="$MATRIX_CXX"
+          -DLLVM_DIR="$MATRIX_LLVM_DIR"
 
       - name: Configure on Windows
         if: runner.os == 'Windows'
@@ -256,28 +269,33 @@ jobs:
         include:
           - name: Ubuntu 24.04
             image: ubuntu:24.04
-            install: >-
-              apt-get update &&
-              apt-get install --yes build-essential ca-certificates
-              coreutils findutils gzip tar
           - name: Fedora 42
             image: fedora:42
-            install: >-
-              dnf install --assumeyes gcc glibc-devel libstdc++-devel
-              coreutils findutils gzip tar
           - name: openSUSE Tumbleweed
             image: opensuse/tumbleweed
-            install: >-
-              zypper --non-interactive install gcc glibc-devel
-              libstdc++-devel coreutils findutils gzip tar
     runs-on: ubuntu-24.04
     container:
       image: ${{ matrix.image }}
 
     steps:
-      - name: Install native SDK
-        shell: bash
-        run: ${{ matrix.install }}
+      - name: Install native SDK on Ubuntu
+        if: matrix.name == 'Ubuntu 24.04'
+        run: >-
+          apt-get update &&
+          apt-get install --yes build-essential ca-certificates
+          coreutils findutils gzip tar
+
+      - name: Install native SDK on Fedora
+        if: matrix.name == 'Fedora 42'
+        run: >-
+          dnf install --assumeyes gcc glibc-devel libstdc++-devel
+          coreutils findutils gzip tar
+
+      - name: Install native SDK on openSUSE
+        if: matrix.name == 'openSUSE Tumbleweed'
+        run: >-
+          zypper --non-interactive install gcc glibc-devel
+          libstdc++-devel coreutils findutils gzip tar
 
       - name: Check out Janus
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -503,10 +521,12 @@ jobs:
 
       - name: Fuzz ${{ matrix.mode }} for 60 minutes
         timeout-minutes: 62
+        env:
+          FUZZ_MODE: ${{ matrix.mode }}
         run: >
           python3 scripts/fuzz_frontend.py
           --janus build-fuzz/janus
-          --mode "${{ matrix.mode }}"
+          --mode "$FUZZ_MODE"
           --duration 3600
 
   nightly:
