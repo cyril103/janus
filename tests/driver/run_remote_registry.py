@@ -413,6 +413,8 @@ def main() -> None:
     )
     run(args.janus, race_consumer, env, "check")
     old_race_lock = (race_consumer / "janus.lock").read_text(encoding="utf-8")
+    reader_root = args.work_dir / "race-reader"
+    shutil.copytree(race_consumer, reader_root)
 
     del Registry.releases[("acme/race", "1.0.0")]
     (race_package / "src/library.janus").write_text(
@@ -433,10 +435,10 @@ def main() -> None:
             finish(writer, "registry cache writer")
             raise AssertionError("registry cache writer did not reach archive download")
 
-    (race_consumer / "janus.lock").write_text(old_race_lock, encoding="utf-8")
+    assert (reader_root / "janus.lock").read_text(encoding="utf-8") == old_race_lock
     reader = subprocess.run(
         [str(args.janus), "check", "--locked", "--offline"],
-        cwd=race_consumer,
+        cwd=reader_root,
         env=env,
         text=True,
         capture_output=True,
