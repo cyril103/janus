@@ -1,0 +1,9 @@
+# This focused gate complements the local pin checker. Findings unrelated to
+# action-reference mutability remain visible in broader security audits.
+rules:
+  cache-poisoning:
+    disable: true
+  excessive-permissions:
+    disable: true
+  unpinned-images:
+    disable: true
