@@ -20,6 +20,9 @@ class Registry:
     releases: dict[tuple[str, str], dict[str, bytes]] = {}
     corrupt_archive = False
     interrupt_archive = False
+    archive_gate: threading.Event | None = None
+    archive_requests = 0
+    archive_condition = threading.Condition()
 
 
 def canonical_json(value: object) -> bytes:
@@ -135,6 +138,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_error(404)
             return
         body = stored[name]
+        if name == "archive" and Registry.archive_gate is not None:
+            with Registry.archive_condition:
+                Registry.archive_requests += 1
+                Registry.archive_condition.notify_all()
+            if not Registry.archive_gate.wait(timeout=20):
+                self.send_error(503)
+                return
         if name == "archive" and Registry.interrupt_archive:
             self.send_response(200)
             self.send_header("Content-Length", str(len(body) + 100))
@@ -234,6 +244,38 @@ def run(
         )
     if SECRET in output:
         raise AssertionError("registry token leaked into CLI output")
+    return result
+
+
+def start(
+    janus: pathlib.Path,
+    cwd: pathlib.Path,
+    env: dict[str, str],
+    *arguments: str,
+) -> subprocess.Popen[str]:
+    return subprocess.Popen(
+        [str(janus), *arguments],
+        cwd=cwd,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+def finish(
+    process: subprocess.Popen[str], description: str
+) -> subprocess.CompletedProcess[str]:
+    stdout, stderr = process.communicate(timeout=40)
+    result = subprocess.CompletedProcess(
+        process.args, process.returncode, stdout, stderr
+    )
+    if SECRET in stdout + stderr:
+        raise AssertionError("registry token leaked into CLI output")
+    if result.returncode != 0:
+        raise AssertionError(
+            f"{description} returned {result.returncode}\n{stdout}{stderr}"
+        )
     return result
 
 
@@ -354,6 +396,130 @@ def main() -> None:
     Registry.interrupt_archive = False
     assert not any((args.work_dir / "cache").rglob("package"))
     assert not any(".new-" in path.name for path in (args.work_dir / "cache").rglob("*"))
+
+    race_package = args.work_dir / "race-package"
+    write_package(race_package, "acme/race", "1.0.0", 7)
+    run(args.janus, race_package, env, "publish")
+    race_consumer = args.work_dir / "race-consumer"
+    run(args.janus, args.work_dir, env, "new", str(race_consumer))
+    run(
+        args.janus,
+        race_consumer,
+        env,
+        "add",
+        "acme/race@^1.0.0",
+        "--registry",
+        registry,
+    )
+    run(args.janus, race_consumer, env, "check")
+    old_race_lock = (race_consumer / "janus.lock").read_text(encoding="utf-8")
+    reader_root = args.work_dir / "race-reader"
+    shutil.copytree(race_consumer, reader_root)
+
+    del Registry.releases[("acme/race", "1.0.0")]
+    (race_package / "src/library.janus").write_text(
+        "module library\ndef registry_value() : int { return 8 }\n",
+        encoding="utf-8",
+    )
+    run(args.janus, race_package, env, "publish")
+    (race_consumer / "janus.lock").unlink()
+
+    Registry.archive_requests = 0
+    Registry.archive_gate = threading.Event()
+    writer = start(args.janus, race_consumer, env, "check")
+    with Registry.archive_condition:
+        if not Registry.archive_condition.wait_for(
+            lambda: Registry.archive_requests >= 1, timeout=20
+        ):
+            Registry.archive_gate.set()
+            finish(writer, "registry cache writer")
+            raise AssertionError("registry cache writer did not reach archive download")
+
+    assert (reader_root / "janus.lock").read_text(encoding="utf-8") == old_race_lock
+    reader = subprocess.run(
+        [str(args.janus), "check", "--locked", "--offline"],
+        cwd=reader_root,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=40,
+    )
+    Registry.archive_gate.set()
+    finish(writer, "registry cache writer")
+    Registry.archive_gate = None
+    if reader.returncode != 0:
+        raise AssertionError(
+            "a concurrent writer removed a cache generation already used by a reader\n"
+            + reader.stdout
+            + reader.stderr
+        )
+
+    del Registry.releases[("acme/race", "1.0.0")]
+    (race_package / "src/library.janus").write_text(
+        "module library\ndef registry_value() : int { return 9 }\n",
+        encoding="utf-8",
+    )
+    run(args.janus, race_package, env, "publish")
+    writer_roots = [args.work_dir / "writer-a", args.work_dir / "writer-b"]
+    for writer_root in writer_roots:
+        shutil.copytree(race_consumer, writer_root)
+        (writer_root / "janus.lock").unlink(missing_ok=True)
+
+    Registry.archive_requests = 0
+    Registry.archive_gate = threading.Event()
+    writers = [start(args.janus, root, env, "check") for root in writer_roots]
+    with Registry.archive_condition:
+        writers_ready = Registry.archive_condition.wait_for(
+            lambda: Registry.archive_requests >= 2, timeout=20
+        )
+    Registry.archive_gate.set()
+    if not writers_ready:
+        for index, process in enumerate(writers):
+            finish(process, f"concurrent registry cache writer {index + 1}")
+        raise AssertionError("concurrent registry cache writers did not overlap")
+    for index, process in enumerate(writers):
+        finish(process, f"concurrent registry cache writer {index + 1}")
+    Registry.archive_gate = None
+    for writer_root in writer_roots:
+        run(args.janus, writer_root, env, "check", "--locked", "--offline")
+    (writer_roots[1] / "janus.lock").unlink()
+    run(args.janus, writer_roots[1], env, "check", "--offline")
+    race_markers = [
+        marker
+        for marker in (args.work_dir / "cache").rglob("verified.json")
+        if json.loads(marker.read_text(encoding="utf-8"))["package"]
+        == "acme/race"
+    ]
+    assert len(race_markers) == 3, "concurrent writers published duplicate generations"
+
+    del Registry.releases[("acme/race", "1.0.0")]
+    (race_package / "src/library.janus").write_text(
+        "module library\ndef registry_value() : int { return 10 }\n",
+        encoding="utf-8",
+    )
+    run(args.janus, race_package, env, "publish")
+    interrupted_consumer = args.work_dir / "interrupted-consumer"
+    shutil.copytree(race_consumer, interrupted_consumer)
+    (interrupted_consumer / "janus.lock").unlink(missing_ok=True)
+    Registry.interrupt_archive = True
+    interrupted_writer = run(
+        args.janus, interrupted_consumer, env, "check", success=False
+    )
+    Registry.interrupt_archive = False
+    assert "download" in interrupted_writer.stderr.lower(), interrupted_writer.stderr
+    run(args.janus, writer_roots[0], env, "check", "--locked", "--offline")
+    assert len(
+        [
+            marker
+            for marker in (args.work_dir / "cache").rglob("verified.json")
+            if json.loads(marker.read_text(encoding="utf-8"))["package"]
+            == "acme/race"
+        ]
+    ) == len(race_markers), "interrupted writer published a cache generation"
+    assert not any(
+        ".new-" in path.name
+        for path in (args.work_dir / "cache").rglob("*")
+    )
 
     server.shutdown()
     thread.join()
