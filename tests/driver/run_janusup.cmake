@@ -11,6 +11,154 @@ else()
     set(EXECUTABLE_SUFFIX "")
 endif()
 file(REMOVE_RECURSE "${TEST_ROOT}")
+if(UNIX)
+    if(NOT DEFINED CLANG_EXECUTABLE OR NOT DEFINED LLD_EXECUTABLE
+       OR NOT DEFINED LLVM_DIR)
+        message(FATAL_ERROR "missing wrapped toolchain test configuration")
+    endif()
+
+    execute_process(
+        COMMAND "${CLANG_EXECUTABLE}" -print-prog-name=clang
+        OUTPUT_VARIABLE CLANG_REAL_EXECUTABLE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    get_filename_component(LLD_PROGRAM_NAME "${LLD_EXECUTABLE}" NAME)
+    execute_process(
+        COMMAND "${CLANG_EXECUTABLE}" "-print-prog-name=${LLD_PROGRAM_NAME}"
+        OUTPUT_VARIABLE LLD_REAL_EXECUTABLE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+    if(NOT IS_ABSOLUTE "${CLANG_REAL_EXECUTABLE}"
+       OR NOT EXISTS "${CLANG_REAL_EXECUTABLE}"
+       OR NOT IS_ABSOLUTE "${LLD_REAL_EXECUTABLE}"
+       OR NOT EXISTS "${LLD_REAL_EXECUTABLE}")
+        message(FATAL_ERROR "could not locate native toolchain test executables")
+    endif()
+    find_program(ALTERNATE_LLD_EXECUTABLE true REQUIRED)
+    get_filename_component(ALTERNATE_LLD_EXECUTABLE
+                           "${ALTERNATE_LLD_EXECUTABLE}" REALPATH)
+
+    set(WRAPPER_ROOT "${TEST_ROOT}/wrapper-configure")
+    set(WRAPPER_BIN "${WRAPPER_ROOT}/bin")
+    set(WRAPPER_BUILD "${WRAPPER_ROOT}/build")
+    file(MAKE_DIRECTORY "${WRAPPER_BIN}")
+    file(WRITE "${WRAPPER_BIN}/clang"
+         "#!/bin/sh\nexec '${CLANG_REAL_EXECUTABLE}' \"\$@\"\n")
+    file(WRITE "${WRAPPER_BIN}/${LLD_PROGRAM_NAME}"
+         "#!/bin/sh\nexec '${ALTERNATE_LLD_EXECUTABLE}' \"\$@\"\n")
+    file(CHMOD "${WRAPPER_BIN}/clang" "${WRAPPER_BIN}/${LLD_PROGRAM_NAME}"
+         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}"
+                -S "${SOURCE_DIR}"
+                -B "${WRAPPER_BUILD}"
+                -DBUILD_TESTING=OFF
+                "-DLLVM_DIR=${LLVM_DIR}"
+                "-DJANUS_CLANG_EXECUTABLE=${WRAPPER_BIN}/clang"
+                "-DJANUS_LLD_EXECUTABLE=${WRAPPER_BIN}/${LLD_PROGRAM_NAME}"
+        RESULT_VARIABLE WRAPPER_CONFIGURE_STATUS
+        OUTPUT_VARIABLE WRAPPER_CONFIGURE_OUTPUT
+        ERROR_VARIABLE WRAPPER_CONFIGURE_ERROR
+    )
+    if(NOT WRAPPER_CONFIGURE_STATUS EQUAL 0)
+        message(FATAL_ERROR
+                "wrapped toolchain configure failed: ${WRAPPER_CONFIGURE_ERROR}")
+    endif()
+    file(READ "${WRAPPER_BUILD}/cmake_install.cmake" WRAPPER_INSTALL_SCRIPT)
+    if(WRAPPER_INSTALL_SCRIPT MATCHES
+       "EXECUTABLES[^;]*${WRAPPER_BIN}/(clang|${LLD_PROGRAM_NAME})")
+        message(FATAL_ERROR
+                "wrapped scripts leaked into GET_RUNTIME_DEPENDENCIES")
+    endif()
+    if(NOT WRAPPER_INSTALL_SCRIPT MATCHES "${ALTERNATE_LLD_EXECUTABLE}")
+        message(FATAL_ERROR
+                "the LLD wrapper target was replaced by Clang's associated linker")
+    endif()
+
+    set(WRAPPER_FIXTURE_BUILD "${WRAPPER_ROOT}/fixture-build")
+    set(WRAPPER_FIXTURE_INSTALL "${WRAPPER_ROOT}/fixture-install")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}"
+                -S "${SOURCE_DIR}/tests/fixtures/toolchain-wrapper-install"
+                -B "${WRAPPER_FIXTURE_BUILD}"
+                "-DRESOLVER_MODULE=${SOURCE_DIR}/cmake/resolve_toolchain_executable.cmake"
+                "-DCLANG_WRAPPER=${WRAPPER_BIN}/clang"
+                "-DLLD_WRAPPER=${WRAPPER_BIN}/${LLD_PROGRAM_NAME}"
+                "-DLLD_PROGRAM_NAME=${LLD_PROGRAM_NAME}"
+        RESULT_VARIABLE WRAPPER_FIXTURE_CONFIGURE_STATUS
+        OUTPUT_QUIET
+        ERROR_VARIABLE WRAPPER_FIXTURE_CONFIGURE_ERROR
+    )
+    if(NOT WRAPPER_FIXTURE_CONFIGURE_STATUS EQUAL 0)
+        message(FATAL_ERROR
+                "wrapped install fixture configure failed: ${WRAPPER_FIXTURE_CONFIGURE_ERROR}")
+    endif()
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" --install "${WRAPPER_FIXTURE_BUILD}"
+                --prefix "${WRAPPER_FIXTURE_INSTALL}"
+        RESULT_VARIABLE WRAPPER_FIXTURE_INSTALL_STATUS
+        OUTPUT_QUIET
+        ERROR_VARIABLE WRAPPER_FIXTURE_INSTALL_ERROR
+    )
+    if(NOT WRAPPER_FIXTURE_INSTALL_STATUS EQUAL 0)
+        message(FATAL_ERROR
+                "cmake --install failed with POSIX wrappers: ${WRAPPER_FIXTURE_INSTALL_ERROR}")
+    endif()
+
+    set(OPAQUE_WRAPPER_BUILD "${WRAPPER_ROOT}/opaque-build")
+    file(WRITE "${WRAPPER_BIN}/clang"
+         "#!/bin/sh\nREAL='${CLANG_REAL_EXECUTABLE}'\ncase \"\${1:-}\" in -print-prog-name=*) exit 1 ;; esac\nexec \"\$REAL\" \"\$@\"\n")
+    file(WRITE "${WRAPPER_BIN}/${LLD_PROGRAM_NAME}"
+         "#!/bin/sh\nREAL='${LLD_REAL_EXECUTABLE}'\nexec \"\$REAL\" \"\$@\"\n")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}"
+                -S "${SOURCE_DIR}"
+                -B "${OPAQUE_WRAPPER_BUILD}"
+                -DBUILD_TESTING=OFF
+                "-DLLVM_DIR=${LLVM_DIR}"
+                "-DJANUS_CLANG_EXECUTABLE=${WRAPPER_BIN}/clang"
+                "-DJANUS_LLD_EXECUTABLE=${WRAPPER_BIN}/${LLD_PROGRAM_NAME}"
+        RESULT_VARIABLE OPAQUE_CONFIGURE_STATUS
+        OUTPUT_QUIET
+        ERROR_VARIABLE OPAQUE_CONFIGURE_ERROR
+    )
+    if(OPAQUE_CONFIGURE_STATUS EQUAL 0
+       OR NOT OPAQUE_CONFIGURE_ERROR MATCHES
+              "JANUS_CLANG_REAL_EXECUTABLE")
+        message(FATAL_ERROR
+                "unresolved wrapper did not report the Clang override: ${OPAQUE_CONFIGURE_ERROR}")
+    endif()
+
+    set(OVERRIDE_WRAPPER_BUILD "${WRAPPER_ROOT}/override-build")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}"
+                -S "${SOURCE_DIR}"
+                -B "${OVERRIDE_WRAPPER_BUILD}"
+                -DBUILD_TESTING=OFF
+                "-DLLVM_DIR=${LLVM_DIR}"
+                "-DJANUS_CLANG_EXECUTABLE=${WRAPPER_BIN}/clang"
+                "-DJANUS_LLD_EXECUTABLE=${WRAPPER_BIN}/${LLD_PROGRAM_NAME}"
+                "-DJANUS_CLANG_REAL_EXECUTABLE=${CLANG_REAL_EXECUTABLE}"
+                "-DJANUS_LLD_REAL_EXECUTABLE=${LLD_REAL_EXECUTABLE}"
+        RESULT_VARIABLE OVERRIDE_CONFIGURE_STATUS
+        OUTPUT_QUIET
+        ERROR_VARIABLE OVERRIDE_CONFIGURE_ERROR
+    )
+    if(NOT OVERRIDE_CONFIGURE_STATUS EQUAL 0)
+        message(FATAL_ERROR
+                "explicit native toolchain overrides failed: ${OVERRIDE_CONFIGURE_ERROR}")
+    endif()
+    file(READ "${OVERRIDE_WRAPPER_BUILD}/cmake_install.cmake"
+         OVERRIDE_INSTALL_SCRIPT)
+    if(OVERRIDE_INSTALL_SCRIPT MATCHES
+       "EXECUTABLES[^;]*${WRAPPER_BIN}/(clang|${LLD_PROGRAM_NAME})")
+        message(FATAL_ERROR
+                "explicit overrides leaked wrappers into GET_RUNTIME_DEPENDENCIES")
+    endif()
+endif()
 if(WIN32)
     # The package smoke test exercises the complete Windows archive. Keep this
     # janusup lifecycle test small so Defender does not rescan thousands of
