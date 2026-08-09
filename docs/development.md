@@ -52,6 +52,22 @@ Pour un test précis :
 ctest --test-dir build -R lsp.server --output-on-failure
 ```
 
+### Politique des actions CI
+
+Toute action GitHub distante sous `.github/workflows/` doit référencer un SHA de
+commit complet et conserver son tag majeur dans un commentaire. Les actions
+locales (`./...`) sont autorisées parce que leur contenu est versionné avec le
+dépôt. Une action Docker éventuelle doit utiliser une référence
+`docker://...@sha256:<digest>` ; les tags d'image seuls sont interdits.
+
+Dependabot vérifie chaque semaine les mises à jour `github-actions`. Le contrôle
+local et CI qui empêche le retour d'une référence mutable se lance avec :
+
+```bash
+python3 scripts/check-github-actions-pins.py .
+python3 scripts/check-github-actions-pins.py --self-test
+```
+
 ### Cohérence de la documentation publique
 
 `docs.public_surface` exécute

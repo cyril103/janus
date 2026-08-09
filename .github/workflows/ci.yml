@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Check out Janus
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Reject disabled standard assertions
         run: python3 scripts/check-test-asserts.py tests
@@ -33,13 +33,19 @@ jobs:
       - name: Verify assertion guard
         run: python3 scripts/check-test-asserts.py --self-test
 
+      - name: Reject mutable GitHub Actions references
+        run: python3 scripts/check-github-actions-pins.py .
+
+      - name: Verify GitHub Actions pin guard
+        run: python3 scripts/check-github-actions-pins.py --self-test
+
   reference-registry-image:
     name: Reference registry image
     runs-on: ubuntu-24.04
 
     steps:
       - name: Check out Janus
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Validate Compose deployment
         env:
@@ -62,10 +68,10 @@ jobs:
 
     steps:
       - name: Check out Janus
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -84,7 +90,7 @@ jobs:
         run: npm run package -- --out janus-language.vsix
 
       - name: Upload extension
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: janus-vscode
           path: editors/vscode/janus-language.vsix
@@ -117,7 +123,7 @@ jobs:
 
     steps:
       - name: Check out Janus
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -135,7 +141,7 @@ jobs:
 
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
         with:
           msystem: CLANG64
           update: true
@@ -209,7 +215,7 @@ jobs:
 
       - name: Upload Euler gate report and artifacts
         if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: janus-euler-gate-${{ runner.os }}-${{ runner.arch }}
           path: |
@@ -231,7 +237,7 @@ jobs:
         run: scripts/smoke-test-package.ps1 build/janus-*.zip
 
       - name: Upload distribution
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: janus-${{ runner.os }}-${{ runner.arch }}
           path: |
@@ -274,10 +280,10 @@ jobs:
         run: ${{ matrix.install }}
 
       - name: Check out Janus
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Download Linux distribution
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: janus-Linux-X64
           path: dist
@@ -295,10 +301,10 @@ jobs:
 
     steps:
       - name: Check out Janus
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Download current Linux distribution
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: janus-Linux-X64
           path: dist/current
@@ -365,7 +371,7 @@ jobs:
 
     steps:
       - name: Check out Janus
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Validate stability inventory and links
         run: python3 scripts/check_stability_inventory.py
@@ -401,7 +407,7 @@ jobs:
 
     steps:
       - name: Check out Janus
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Verify release version
         run: >
@@ -426,7 +432,7 @@ jobs:
           done
 
       - name: Attest release provenance
-        uses: actions/attest@v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: |
             dist/release/*.tar.gz
@@ -473,7 +479,7 @@ jobs:
 
     steps:
       - name: Check out Janus
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Install dependencies
         run: |
@@ -516,7 +522,7 @@ jobs:
 
     steps:
       - name: Check out Janus
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Download distributions
         env:
@@ -535,7 +541,7 @@ jobs:
           done
 
       - name: Attest nightly provenance
-        uses: actions/attest@v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: |
             dist/release/*.tar.gz

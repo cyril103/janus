@@ -391,6 +391,18 @@ if(BUILD_TESTING)
                 "${PROJECT_SOURCE_DIR}/scripts/check-test-asserts.py"
                 --self-test
     )
+    add_test(
+        NAME ci.github_actions_pinned
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/check-github-actions-pins.py"
+                "${PROJECT_SOURCE_DIR}"
+    )
+    add_test(
+        NAME ci.github_actions_pinned.guard_self_test
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/check-github-actions-pins.py"
+                --self-test
+    )
 
     add_executable(graphics_runtime_test
         tests/runtime/graphics_runtime_test.c
