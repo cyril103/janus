@@ -39,10 +39,11 @@ jobs:
       - name: Verify GitHub Actions pin guard
         run: python3 scripts/check-github-actions-pins.py --self-test
 
-      - name: Audit workflow semantics
+      - name: Reject semantically mutable action references
         uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
         with:
           version: 1.29.0
+          config: .github/zizmor-pin-policy.yml
           persona: regular
           min-severity: high
           online-audits: false
