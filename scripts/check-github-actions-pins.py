@@ -11,6 +11,7 @@ from pathlib import Path
 
 USES = re.compile(r"^\s*(?:-\s*)?(?:uses|['\"]uses['\"])\s*:\s*(.*?)\s*$")
 USES_KEY = re.compile(r"(?:\buses|['\"]uses['\"])\s*:")
+ESCAPED_MAPPING_KEY = re.compile(r'"(?=[^"]*\\)[^"]*"\s*:', re.DOTALL)
 REMOTE_ACTION = re.compile(
     r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@([0-9a-fA-F]{40})$"
 )
@@ -26,21 +27,31 @@ def workflow_files(root: Path) -> list[Path]:
 def violations(root: Path) -> list[str]:
     failures: list[str] = []
     for path in workflow_files(root):
+        text = path.read_text(encoding="utf-8")
+        escaped_key_lines = {
+            text.count("\n", 0, match.start()) + 1
+            for match in ESCAPED_MAPPING_KEY.finditer(text)
+        }
         for line_number, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), start=1
+            text.splitlines(), start=1
         ):
+            location = f"{path.relative_to(root)}:{line_number}"
+            if line_number in escaped_key_lines:
+                failures.append(
+                    f"{location}: escaped double-quoted mapping keys are forbidden"
+                )
+                continue
             match = USES.match(line)
             if match is None:
                 if not line.lstrip().startswith("#") and USES_KEY.search(line):
                     failures.append(
-                        f"{path.relative_to(root)}:{line_number}: uses must be a single-line scalar"
+                        f"{location}: uses must be a single-line scalar"
                     )
                 continue
             payload = match.group(1)
             reference, separator, comment = payload.partition(" #")
             reference = reference.strip()
             comment = comment.strip() if separator else None
-            location = f"{path.relative_to(root)}:{line_number}"
             if reference.startswith("./"):
                 if ".." in Path(reference).parts:
                     failures.append(
@@ -104,6 +115,24 @@ def run_self_test() -> int:
         )
         if not violations(root):
             print("self-test inline mapping failed: expected rejection", file=sys.stderr)
+            return 1
+        inline.unlink()
+        escaped_key = workflows / "escaped-key.yml"
+        escaped_key.write_text(
+            "name: escaped-key\njobs:\n  test:\n    steps:\n"
+            '      - "\\u0075ses": actions/checkout@v7\n',
+            encoding="utf-8",
+        )
+        if not violations(root):
+            print("self-test escaped key failed: expected rejection", file=sys.stderr)
+            return 1
+        escaped_key.write_text(
+            "name: escaped-key\njobs:\n  test:\n    steps:\n"
+            '      - "u\\\n        ses": actions/checkout@v7\n',
+            encoding="utf-8",
+        )
+        if not violations(root):
+            print("self-test multiline escaped key failed: expected rejection", file=sys.stderr)
             return 1
     print("GitHub Actions pin policy self-test passed")
     return 0
