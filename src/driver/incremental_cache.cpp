@@ -3,6 +3,7 @@
 #include "janus/ast/ast.hpp"
 #include "janus/constant/evaluator.hpp"
 #include "janus/frontend/parser.hpp"
+#include "../frontend/module_resolution.hpp"
 
 #include <algorithm>
 #include <array>
@@ -341,33 +342,6 @@ std::string public_interface(std::string_view source) {
   return output;
 }
 
-std::filesystem::path
-resolve_import(std::string_view module,
-               const std::filesystem::path &project_root,
-               const std::vector<std::filesystem::path> &search_paths) {
-  std::filesystem::path relative;
-  std::size_t start = 0;
-  while (start < module.size()) {
-    const std::size_t separator = module.find('.', start);
-    relative /= module.substr(start, separator == std::string_view::npos
-                                         ? module.size() - start
-                                         : separator - start);
-    if (separator == std::string_view::npos)
-      break;
-    start = separator + 1;
-  }
-  relative += ".janus";
-  std::vector<std::filesystem::path> roots{project_root};
-  roots.insert(roots.end(), search_paths.begin(), search_paths.end());
-  for (const auto &root : roots) {
-    const auto candidate = root / relative;
-    if (std::filesystem::is_regular_file(candidate))
-      return std::filesystem::absolute(candidate).lexically_normal();
-  }
-  throw std::runtime_error{"cannot resolve imported module '" +
-                           std::string{module} + "'"};
-}
-
 void inspect_dependency(const std::filesystem::path &path,
                         std::string import_name,
                         const std::filesystem::path &project_root,
@@ -383,7 +357,8 @@ void inspect_dependency(const std::filesystem::path &path,
   const ast::Program program = parser.parse_program();
   for (const ast::ImportDeclaration &import : program.imports)
     inspect_dependency(
-        resolve_import(import.module_name, project_root, search_paths),
+        frontend::detail::resolve_module_import(import.module_name,
+                                                project_root, search_paths),
         import.module_name, project_root, search_paths, visited, dependencies);
   dependencies.push_back(
       {program.module_name.value_or(normalized.generic_string()),
@@ -693,8 +668,9 @@ inspect_build_inputs(const std::filesystem::path &entry,
   std::vector<std::filesystem::path> visited{normalized};
   std::vector<DependencyFingerprintInput> dependencies;
   for (const ast::ImportDeclaration &import : program.imports)
-    inspect_dependency(resolve_import(import.module_name,
-                                      normalized.parent_path(), search_paths),
+    inspect_dependency(frontend::detail::resolve_module_import(
+                           import.module_name, normalized.parent_path(),
+                           search_paths),
                        import.module_name, normalized.parent_path(),
                        search_paths, visited, dependencies);
   std::sort(dependencies.begin(), dependencies.end(),

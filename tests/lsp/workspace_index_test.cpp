@@ -1,7 +1,9 @@
 #include "janus/lsp/server.hpp"
+#include "janus/frontend/module_loader.hpp"
 
 #include "../support/require.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -354,6 +356,153 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(stats.front().find("\"estimatedMemoryBytes\"") !=
                 std::string::npos);
 
+  TemporaryWorkspace competing_workspace{
+      std::filesystem::temp_directory_path() /
+      ("janus-lsp-competing-modules-" + std::to_string(suffix))};
+  std::filesystem::create_directories(competing_workspace.path / "src");
+  std::filesystem::create_directories(competing_workspace.path /
+                                      "deps/library/src");
+  {
+    std::ofstream output{competing_workspace.path / "janus.toml"};
+    output << "[package]\nname = \"competing\"\nversion = \"0.1.0\"\n"
+              "entry = \"src/main.janus\"\n"
+              "\n[dependencies]\nlibrary = { path = \"deps/library\" }\n";
+  }
+  {
+    std::ofstream output{competing_workspace.path / "deps/library/janus.toml"};
+    output << "[package]\nname = \"library\"\nversion = \"0.1.0\"\n"
+              "entry = \"src/shared.janus\"\n";
+  }
+  const std::filesystem::path competing_main_path =
+      competing_workspace.path / "src/main.janus";
+  const std::filesystem::path project_shared_path =
+      competing_workspace.path / "src/shared.janus";
+  const std::filesystem::path dependency_shared_path =
+      competing_workspace.path / "deps/library/src/shared.janus";
+  const std::filesystem::path dependency_consumer_path =
+      competing_workspace.path / "deps/library/src/consumer.janus";
+  {
+    std::ofstream output{competing_main_path};
+    output << "import consumer\nimport shared\n\ndef main() : int { return chosen() }\n";
+  }
+  {
+    std::ofstream output{project_shared_path};
+    output << "module shared\n\ndef chosen() : int { return 1 }\n";
+  }
+  {
+    std::ofstream output{dependency_shared_path};
+    output << "module shared\n\ndef chosen(value : int) : int { return value }\n";
+  }
+  {
+    std::ofstream output{dependency_consumer_path};
+    output << "module consumer\nimport shared\n\ndef use() : int { return chosen() }\n";
+  }
+
+  janus::frontend::ModuleLoader compiler_loader{
+      {competing_workspace.path / "deps/library/src"}};
+  const janus::ast::Program compiled = compiler_loader.load(competing_main_path);
+  JANUS_REQUIRE(std::any_of(compiled.functions.begin(), compiled.functions.end(),
+                            [](const auto &function) {
+                              return function.name == "chosen" &&
+                                     function.parameters.empty();
+                            }));
+
+  janus::lsp::Server competing_server;
+  const std::string competing_root_uri = file_uri(competing_workspace.path);
+  const std::string competing_main_uri = file_uri(competing_main_path);
+  const std::string project_shared_uri = file_uri(project_shared_path);
+  const std::string dependency_shared_uri = file_uri(dependency_shared_path);
+  const std::string dependency_consumer_uri =
+      file_uri(dependency_consumer_path);
+  static_cast<void>(competing_server.handle(
+      R"({"jsonrpc":"2.0","id":30,"method":"initialize","params":{"rootUri":")" +
+      competing_root_uri + R"("}})"));
+  static_cast<void>(competing_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      competing_main_uri +
+      R"(","text":"import consumer\nimport shared\n\ndef main() : int { return chosen() }\n"}}})"));
+  const std::vector<std::string> competing_definition = competing_server.handle(
+      R"({"jsonrpc":"2.0","id":31,"method":"textDocument/definition","params":{"textDocument":{"uri":")" +
+      competing_main_uri +
+      R"("},"position":{"line":3,"character":30}}})");
+  JANUS_REQUIRE(competing_definition.front().find(project_shared_uri) !=
+                std::string::npos);
+  JANUS_REQUIRE(competing_definition.front().find(dependency_shared_uri) ==
+                std::string::npos);
+  const std::vector<std::string> competing_hover = competing_server.handle(
+      R"({"jsonrpc":"2.0","id":32,"method":"textDocument/hover","params":{"textDocument":{"uri":")" +
+      competing_main_uri +
+      R"("},"position":{"line":3,"character":30}}})");
+  JANUS_REQUIRE(competing_hover.front().find("def chosen() : int") !=
+                std::string::npos);
+  JANUS_REQUIRE(competing_hover.front().find("value : int") ==
+                std::string::npos);
+  const std::vector<std::string> competing_references =
+      competing_server.handle(
+          R"({"jsonrpc":"2.0","id":33,"method":"textDocument/references","params":{"textDocument":{"uri":")" +
+          competing_main_uri +
+          R"("},"position":{"line":3,"character":30},"context":{"includeDeclaration":true}}})");
+  JANUS_REQUIRE(competing_references.front().find(competing_main_uri) !=
+                std::string::npos);
+  JANUS_REQUIRE(competing_references.front().find(project_shared_uri) !=
+                std::string::npos);
+  JANUS_REQUIRE(competing_references.front().find(dependency_consumer_uri) !=
+                std::string::npos);
+  JANUS_REQUIRE(competing_references.front().find(dependency_shared_uri) ==
+                std::string::npos);
+  const std::vector<std::string> competing_rename = competing_server.handle(
+      R"({"jsonrpc":"2.0","id":34,"method":"textDocument/rename","params":{"textDocument":{"uri":")" +
+      competing_main_uri +
+      R"("},"position":{"line":3,"character":30},"newName":"projectChosen"}})");
+  JANUS_REQUIRE(competing_rename.front().find(competing_main_uri) !=
+                std::string::npos);
+  JANUS_REQUIRE(competing_rename.front().find(project_shared_uri) !=
+                std::string::npos);
+  JANUS_REQUIRE(competing_rename.front().find(dependency_consumer_uri) !=
+                std::string::npos);
+  JANUS_REQUIRE(competing_rename.front().find(dependency_shared_uri) ==
+                std::string::npos);
+
+  static_cast<void>(competing_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      dependency_consumer_uri +
+      R"(","text":"module consumer\nimport shared\n\ndef use() : int { return chosen() }\n"}}})"));
+  const std::vector<std::string> dependency_definition =
+      competing_server.handle(
+          R"({"jsonrpc":"2.0","id":35,"method":"textDocument/definition","params":{"textDocument":{"uri":")" +
+          dependency_consumer_uri +
+          R"("},"position":{"line":3,"character":29}}})");
+  JANUS_REQUIRE(dependency_definition.front().find(dependency_shared_uri) !=
+                std::string::npos);
+  JANUS_REQUIRE(dependency_definition.front().find(project_shared_uri) ==
+                std::string::npos);
+
+  janus::lsp::Server reverse_index_server;
+  static_cast<void>(reverse_index_server.handle(
+      R"({"jsonrpc":"2.0","id":36,"method":"initialize","params":{"rootUri":")" +
+      competing_root_uri + R"("}})"));
+  static_cast<void>(reverse_index_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      dependency_shared_uri +
+      R"(","text":"module shared\n\ndef chosen(value : int) : int { return value }\n"}}})"));
+  static_cast<void>(reverse_index_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      project_shared_uri +
+      R"(","text":"module shared\n\ndef chosen() : int { return 1 }\n"}}})"));
+  static_cast<void>(reverse_index_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      competing_main_uri +
+      R"(","text":"import shared\n\ndef main() : int { return chosen() }\n"}}})"));
+  const std::vector<std::string> reverse_index_definition =
+      reverse_index_server.handle(
+          R"({"jsonrpc":"2.0","id":37,"method":"textDocument/definition","params":{"textDocument":{"uri":")" +
+          competing_main_uri +
+          R"("},"position":{"line":2,"character":30}}})");
+  JANUS_REQUIRE(reverse_index_definition.front().find(project_shared_uri) !=
+                std::string::npos);
+  JANUS_REQUIRE(reverse_index_definition.front().find(dependency_shared_uri) ==
+                std::string::npos);
+
   TemporaryWorkspace encoded_workspace{
       std::filesystem::temp_directory_path() /
       ("janus project #80 % \xC3\xA9-" + std::to_string(suffix))};
@@ -376,5 +525,61 @@ int main(int argc, char **argv) {
                 std::string::npos);
   JANUS_REQUIRE(encoded_symbols.front().find("module # %.janus") ==
                 std::string::npos);
+
+#ifndef _WIN32
+  TemporaryWorkspace symlink_workspace{
+      std::filesystem::temp_directory_path() /
+      ("janus-lsp-symlink-buffer-" + std::to_string(suffix))};
+  std::filesystem::create_directories(symlink_workspace.path / "src");
+  const std::filesystem::path symlink_main =
+      symlink_workspace.path / "src/main.janus";
+  const std::filesystem::path symlink_target =
+      symlink_workspace.path / "src/real.janus";
+  const std::filesystem::path symlink_module =
+      symlink_workspace.path / "src/shared.janus";
+  {
+    std::ofstream output{symlink_workspace.path / "janus.toml"};
+    output << "[package]\nname = \"symlink-buffer\"\nversion = \"0.1.0\"\n"
+              "entry = \"src/main.janus\"\n";
+  }
+  {
+    std::ofstream output{symlink_main};
+    output << "import shared\n\ndef main() : int { return buffered() }\n";
+  }
+  {
+    std::ofstream output{symlink_target};
+    output << "module shared\n\ndef stale() : int { return 0 }\n";
+  }
+  std::error_code symlink_error;
+  std::filesystem::create_symlink(symlink_target.filename(), symlink_module,
+                                  symlink_error);
+  JANUS_REQUIRE(!symlink_error);
+
+  janus::lsp::Server symlink_server;
+  static_cast<void>(symlink_server.handle(
+      R"({"jsonrpc":"2.0","id":50,"method":"initialize","params":{"rootUri":")" +
+      file_uri(symlink_workspace.path) + R"("}})"));
+  static_cast<void>(symlink_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      file_uri(symlink_module) +
+      R"(","text":"module shared\n\ndef buffered() : int { return 1 }\n"}}})"));
+  static_cast<void>(symlink_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      file_uri(symlink_main) +
+      R"(","text":"import shared\n\ndef main() : int { return buffered() }\n"}}})"));
+  const std::vector<std::string> symlink_definition = symlink_server.handle(
+      R"({"jsonrpc":"2.0","id":51,"method":"textDocument/definition","params":{"textDocument":{"uri":")" +
+      file_uri(symlink_main) +
+      R"("},"position":{"line":2,"character":30}}})");
+  JANUS_REQUIRE(symlink_definition.front().find(file_uri(symlink_target)) !=
+                std::string::npos);
+  const std::vector<std::string> symlink_hover = symlink_server.handle(
+      R"({"jsonrpc":"2.0","id":52,"method":"textDocument/hover","params":{"textDocument":{"uri":")" +
+      file_uri(symlink_main) +
+      R"("},"position":{"line":2,"character":30}}})");
+  JANUS_REQUIRE(symlink_hover.front().find("def buffered() : int") !=
+                std::string::npos);
+  JANUS_REQUIRE(symlink_hover.front().find("stale") == std::string::npos);
+#endif
   return 0;
 }
