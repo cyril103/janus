@@ -1106,14 +1106,13 @@ private:
                    source,
                    ::llvm::ConstantFP::get(source->getType(), lower)),
                error_case_value("Underflow"));
-        ::llvm::Value *above_maximum =
-            diagnostic_maximum == safety_exclusive_maximum
-                ? builder.CreateFCmpOGE(
-                      source, ::llvm::ConstantFP::get(
-                                  source->getType(), safety_exclusive_maximum))
-                : builder.CreateFCmpOGT(
-                      source, ::llvm::ConstantFP::get(source->getType(),
-                                                      diagnostic_maximum));
+        ::llvm::Value *above_maximum = builder.CreateOr(
+            builder.CreateFCmpOGE(
+                source, ::llvm::ConstantFP::get(source->getType(),
+                                                safety_exclusive_maximum)),
+            builder.CreateFCmpOGT(
+                source, ::llvm::ConstantFP::get(source->getType(),
+                                                diagnostic_maximum)));
         fail(above_maximum, error_case_value("Overflow"));
         ::llvm::Value *truncated = builder.CreateUnaryIntrinsic(
             ::llvm::Intrinsic::trunc, source);

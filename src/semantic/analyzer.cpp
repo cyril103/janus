@@ -5,6 +5,7 @@
 #include "janus/ownership/classifier.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -3058,10 +3059,68 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                 node.location, {}};
                   ast::TypeReference result_type{
                       "Result", node.location,
-                      {node.type_arguments.front(), std::move(error_type)}};
-                  return resolve_type(result_type, *active_type_parameters,
-                                      &class_arities, context_module,
-                                      &scoped_type_aliases);
+                      {node.type_arguments.front(), error_type}};
+                  SemanticType resolved_result = resolve_type(
+                      result_type, *active_type_parameters, &class_arities,
+                      context_module, &scoped_type_aliases);
+
+                  const auto error_iterator = find_in_context(
+                      enums, context_module, "NumericCastError");
+                  const auto result_iterator =
+                      find_in_context(enums, context_module, "Result");
+                  const auto find_case = [](const ast::EnumDeclaration &type,
+                                            std::string_view name) {
+                    return std::find_if(
+                        type.cases.begin(), type.cases.end(),
+                        [&](const ast::EnumDeclaration::Case &item) {
+                          return item.name == name;
+                        });
+                  };
+                  constexpr std::array<std::string_view, 6> error_cases{
+                      "Overflow", "Underflow", "IncompatibleSign",
+                      "NonFinite", "FractionalLoss", "PrecisionLoss"};
+                  if (error_iterator == enums.end() ||
+                      error_iterator->second->type_parameters.size() != 0 ||
+                      std::any_of(
+                          error_cases.begin(), error_cases.end(),
+                          [&](std::string_view name) {
+                            const auto item =
+                                find_case(*error_iterator->second, name);
+                            return item == error_iterator->second->cases.end() ||
+                                   !item->payload_types.empty();
+                          }))
+                    throw CompileError{
+                        node.location,
+                        "checkedCast requires NumericCastError to define "
+                        "payload-free Overflow, Underflow, IncompatibleSign, "
+                        "NonFinite, FractionalLoss and PrecisionLoss cases"};
+
+                  bool valid_result = result_iterator != enums.end() &&
+                                      result_iterator->second->type_parameters.size() ==
+                                          2;
+                  if (valid_result) {
+                    const ast::EnumDeclaration &declaration =
+                        *result_iterator->second;
+                    const auto ok = find_case(declaration, "Ok");
+                    const auto error = find_case(declaration, "Error");
+                    valid_result =
+                        ok != declaration.cases.end() &&
+                        error != declaration.cases.end() &&
+                        ok->payload_types.size() == 1 &&
+                        error->payload_types.size() == 1 &&
+                        ok->payload_types.front().name ==
+                            declaration.type_parameters[0] &&
+                        ok->payload_types.front().type_arguments.empty() &&
+                        error->payload_types.front().name ==
+                            declaration.type_parameters[1] &&
+                        error->payload_types.front().type_arguments.empty();
+                  }
+                  if (!valid_result)
+                    throw CompileError{
+                        node.location,
+                        "checkedCast requires Result to define Ok(T) and "
+                        "Error(E)"};
+                  return resolved_result;
                 }
                 return destination_type;
               }

@@ -120,6 +120,14 @@ def main() : int {
       "def main() : int { return 0 }",
       "saturatingCast requires a concrete numeric destination type");
   expect_compile_error(
+      "enum NumericCastError { Overflow, Underflow, IncompatibleSign, "
+      "NonFinite, FractionalLoss, PrecisionLoss } "
+      "enum Result[T, E] { Success(T), Failure(E) } "
+      "def main() : int { var source : long = 42 "
+      "val value : Result[int, NumericCastError] = "
+      "checkedCast[int](source) return 0 }",
+      "checkedCast requires Result to define Ok(T) and Error(E)");
+  expect_compile_error(
       "def main() : int { val x : float = 1.0ff return 0 }",
       "invalid float literal");
 

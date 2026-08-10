@@ -21,6 +21,8 @@ def main() : int {
     var preciseFloatInteger : long = 16777216
     var impreciseFloatInteger : long = 16777217
     var exponent : float = 1e3f
+    var signedIntExclusive : float = 2147483648.0f
+    var unsignedIntExclusive : float = 4294967296.0f
 
     println(match checkedCast[byte](127) { Ok(v) => int(v), Error(e) => -100 - int(e) })
     println(match checkedCast[byte](bmax) { Ok(v) => int(v), Error(e) => -100 - int(e) })
@@ -55,5 +57,7 @@ def main() : int {
     println(match checkedCast[double](exponent) { Ok(v) => int(v), Error(e) => -100 - int(e) })
     println(match checkedCast[double](lmin) { Ok(v) => 1, Error(e) => -100 - int(e) })
     println(match checkedCast[double](imax) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[int](signedIntExclusive) { Ok(v) => v, Error(e) => -100 - int(e) })
+    println(match checkedCast[uint](unsignedIntExclusive) { Ok(v) => 1, Error(e) => -100 - int(e) })
     return 0
 }
