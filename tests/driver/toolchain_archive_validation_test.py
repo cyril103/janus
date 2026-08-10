@@ -27,9 +27,11 @@ def main():
         powershell = shutil.which("pwsh") or shutil.which("powershell")
         validators = {
             "janusup": lambda archive, root: [str(args.janusup), "validate-archive", str(archive), root],
-            "install.sh": lambda archive, root: ["sh", str(args.source / "scripts/install.sh"),
-                                                   "--validate-archive", str(archive), root],
         }
+        if os.name != "nt" and shutil.which("sh"):
+            validators["install.sh"] = lambda archive, root: [
+                "sh", str(args.source / "scripts/install.sh"),
+                "--validate-archive", str(archive), root]
         if powershell:
             validators["install.ps1"] = lambda archive, root: [powershell, "-NoProfile", "-File",
                 str(args.source / "scripts/install.ps1"), "-ValidateArchivePath", str(archive),
