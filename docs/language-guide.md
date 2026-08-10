@@ -878,11 +878,13 @@ qui doit effectivement le capturer. Ces opérations suppriment uniquement les
 warnings correspondant au contrat affirmé; leur précondition reste à la charge
 du code appelant.
 
-La primitive numericCast[T](value) rend explicite une conversion numérique dont la perte
-éventuelle a été contrôlée ou volontairement acceptée. Contrairement au cast
-ordinaire `T(value)`, il n’émet pas `JANA0013`; il conserve cependant exactement
-la même représentation et ne vérifie aucune borne à l’exécution. Le code qui
-reçoit une valeur externe doit donc tester sa plage avant de l’utiliser.
+Les conversions numériques explicites distinguent désormais quatre contrats :
+`checkedCast[T]` refuse toute altération dans un `Result`,
+`saturatingCast[T]` borne le résultat, `truncatingCast[T]` rend la perte
+prévisible et `numericCast[T]` conserve l'échappatoire native sans contrôle.
+Le suffixe `f` construit directement un littéral `float`, par exemple `0.5f`.
+La [matrice exhaustive des conversions](numeric-conversions.md) spécifie les
+bornes, signes, fractions, `NaN`, infinis, zéros signés et règles d'arrondi.
 
 Ces opérations peuvent produire des adresses invalides, des fuites ou des
 accès mémoire incorrects. Elles sont volontairement réservées au code qui doit

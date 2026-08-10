@@ -172,9 +172,11 @@ Ptr.overwrite, `reallocPreserving`, `adoptReallocation`, `freeStorage`) et
 `owningCapture` font partie de la surface bas niveau : elles exigent que
 l'appelant respecte respectivement l'état d'initialisation, le nettoyage des
 éléments et le transfert réel vers la fermeture.
-La primitive numericCast[T] est l’échappatoire explicite à `JANA0013` pour une conversion
-numérique dont les bornes ont été vérifiées ou dont la troncature est voulue;
-elle n’ajoute aucun contrôle dynamique.
+`numericCast[T]` reste l'échappatoire native à `JANA0013` et n'ajoute aucun
+contrôle dynamique. `checkedCast[T]`, `saturatingCast[T]` et
+`truncatingCast[T]` font partie de la sémantique numérique portable : leurs
+résultats, erreurs et cas limites suivent la
+[matrice normative](numeric-conversions.md), indépendamment de la plateforme.
 
 Le nom fourni par `extern("symbol")` est le nom de liaison. La disposition des
 agrégats Janus, le nom des fonctions Janus non exportées et les symboles

@@ -14,6 +14,7 @@ REPOSITORY_URL = "https://github.com/cyril103/janus"
 DOCUMENTS = (
     "getting-started.md",
     "language-guide.md",
+    "numeric-conversions.md",
     "text.md",
     "tooling.md",
     "registry-protocol-v1.md",

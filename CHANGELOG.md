@@ -5,6 +5,22 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## Non publié
 
+### Langage et diagnostics
+
+- ajout de `checkedCast`, `saturatingCast` et `truncatingCast`, du suffixe de
+  littéral `float` (`0.5f`) et de diagnostics orientant vers la politique de
+  conversion adaptée ;
+- définition portable des bornes, signes, fractions, valeurs non finies et
+  pertes de précision, identique entre repliement constant et backend LLVM.
+
+### Bibliothèque standard
+
+- ajout de `std.numeric` et de l'enum public `NumericCastError`.
+
+### Documentation
+
+- publication de la matrice exhaustive des conversions numériques explicites.
+
 ### Sécurité
 
 - validation défensive des archives de toolchain avant extraction dans
