@@ -1232,7 +1232,8 @@ void recover_toolchain(const std::string &name) {
 
 void install_directory(const std::filesystem::path &source,
                        const std::string &name, bool replace = false,
-                       const ToolchainSpec *metadata = nullptr) {
+                       const ToolchainSpec *metadata = nullptr,
+                       std::string_view expected_active = {}) {
   validate_name(name);
   validate_package(source);
   std::filesystem::create_directories(toolchains());
@@ -1241,6 +1242,9 @@ void install_directory(const std::filesystem::path &source,
   recover_activation();
   recover_toolchain(name);
   cleanup_orphan_transactions();
+  if (!expected_active.empty() && active_toolchain() != expected_active)
+    throw std::runtime_error{
+        "active toolchain changed while preparing the update; retry the command"};
   const std::filesystem::path destination = toolchains() / name;
   if (std::filesystem::exists(destination) && !replace)
     throw std::runtime_error{"toolchain '" + name + "' is already installed"};
@@ -1304,12 +1308,13 @@ void install_directory(const std::filesystem::path &source,
   std::cout << "installed and selected Janus toolchain '" << name << "'\n";
 }
 
-void install_spec(const std::string &name, bool replace) {
+void install_spec(const std::string &name, bool replace,
+                  std::string_view expected_active = {}) {
   const std::filesystem::path temporary = temporary_directory();
   try {
     const ToolchainSpec spec = resolve_spec(name, temporary);
     const std::filesystem::path package = download_package(spec, temporary);
-    install_directory(package, spec.name, replace, &spec);
+    install_directory(package, spec.name, replace, &spec, expected_active);
     std::filesystem::remove_all(temporary);
   } catch (...) {
     std::error_code cleanup_error;
@@ -1427,12 +1432,20 @@ int main(int argc, char **argv) {
       install_directory(argv[2], argv[3], true);
       return 0;
     }
+    if (argc == 3 && std::string_view{argv[1]} == "replace-active") {
+      const std::string active = active_toolchain();
+      if (active.empty())
+        throw std::runtime_error{"no active toolchain to update"};
+      JANUSUP_TEST_POINT("update-after-active-read");
+      install_directory(argv[2], active, true, nullptr, active);
+      return 0;
+    }
 #endif
     if (argc == 2 && std::string_view{argv[1]} == "update") {
       const std::string active = active_toolchain();
       if (active.empty())
         throw std::runtime_error{"no active toolchain to update"};
-      install_spec(active, true);
+      install_spec(active, true, active);
       return 0;
     }
     if (argc == 3 && std::string_view{argv[1]} == "update") {
