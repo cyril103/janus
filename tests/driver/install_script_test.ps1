@@ -3,10 +3,21 @@ $ErrorActionPreference = "Stop"
 $global:JanusTestGhState = "invalid"
 $global:JanusTestExtracted = $false
 $global:JanusTestWarnings = @()
+Add-Type -AssemblyName System.IO.Compression
+$fixtureStream = [IO.MemoryStream]::new()
+$fixtureZip = [IO.Compression.ZipArchive]::new(
+    $fixtureStream, [IO.Compression.ZipArchiveMode]::Create, $true)
+$fixtureEntry = $fixtureZip.CreateEntry("janus-test-Windows-AMD64/bin/janusup.exe")
+$fixtureWriter = [IO.StreamWriter]::new($fixtureEntry.Open())
+$fixtureWriter.Write("fixture")
+$fixtureWriter.Dispose()
+$fixtureZip.Dispose()
+$global:JanusTestArchiveBytes = $fixtureStream.ToArray()
+$fixtureStream.Dispose()
 
 function Invoke-WebRequest {
     param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing)
-    [IO.File]::WriteAllText($OutFile, "fixture")
+    [IO.File]::WriteAllBytes($OutFile, $global:JanusTestArchiveBytes)
 }
 function Get-FileHash {
     param($Algorithm, $Path)

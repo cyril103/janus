@@ -792,6 +792,13 @@ if(BUILD_TESTING)
                 -DJANUSUP=$<TARGET_FILE:janusup>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_janusup.cmake"
     )
+    add_test(
+        NAME toolchain.archive_validation
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/driver/toolchain_archive_validation_test.py"
+                --source "${PROJECT_SOURCE_DIR}"
+                --janusup "$<TARGET_FILE:janusup>"
+    )
     if(UNIX)
         add_test(
             NAME toolchain.install_raylib_script
@@ -2555,6 +2562,27 @@ install(
     FILES README.md CHANGELOG.md LICENSE NOTICE
     DESTINATION ${CMAKE_INSTALL_DOCDIR}
 )
+if(UNIX)
+    # Toolchain archives are consumed by strict extractors which reject every
+    # link entry. Materialize dependency SONAME links in the staging tree so
+    # the official package contains only directories and regular files.
+    install(CODE [[
+        set(install_root "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}")
+        file(GLOB_RECURSE installed_entries
+             LIST_DIRECTORIES TRUE "${install_root}/*")
+        foreach(installed_entry IN LISTS installed_entries)
+            if(IS_SYMLINK "${installed_entry}")
+                file(REAL_PATH "${installed_entry}" link_target)
+                if(IS_DIRECTORY "${link_target}")
+                    message(FATAL_ERROR
+                            "cannot materialize directory symlink: ${installed_entry}")
+                endif()
+                file(REMOVE "${installed_entry}")
+                file(COPY_FILE "${link_target}" "${installed_entry}")
+            endif()
+        endforeach()
+    ]])
+endif()
 
 set(JANUS_PACKAGE_ARCH "${CMAKE_SYSTEM_PROCESSOR}")
 if(JANUS_PACKAGE_ARCH MATCHES "^(aarch64|ARM64)$")

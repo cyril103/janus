@@ -1,6 +1,8 @@
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <chrono>
+#include <charconv>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -11,6 +13,8 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_set>
+#include <vector>
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/Support/SHA256.h>
@@ -186,6 +190,178 @@ std::filesystem::path temporary_directory() {
   return path;
 }
 
+std::uint64_t archive_limit(const char *test_name,
+                            std::uint64_t production) {
+  const char *configured = std::getenv(test_name);
+  if (configured == nullptr)
+    return production;
+  std::uint64_t candidate = 0;
+  const std::string_view text{configured};
+  const auto parsed =
+      std::from_chars(text.data(), text.data() + text.size(), candidate);
+  return parsed.ec == std::errc{} && parsed.ptr == text.data() + text.size() &&
+                 candidate < production
+             ? candidate
+             : production;
+}
+
+std::filesystem::path archive_tar() {
+#ifdef _WIN32
+  if (const char *system_root = std::getenv("SystemRoot")) {
+    const std::filesystem::path system_tar =
+        std::filesystem::path{system_root} / "System32/tar.exe";
+    if (std::filesystem::is_regular_file(system_tar))
+      return system_tar;
+  }
+#endif
+  return "tar";
+}
+
+std::vector<std::string> read_archive_listing(
+    const std::filesystem::path &archive, const std::filesystem::path &tar,
+    const std::filesystem::path &output, bool verbose) {
+  const std::string command = shell_quote(tar) +
+                              (verbose ? " --numeric-owner -tvf " : " -tf ") +
+                              shell_quote(archive) + " > " +
+                              shell_quote(output);
+  if (command_status(std::system(command.c_str())) != 0)
+    throw std::runtime_error{"could not inspect archive"};
+  std::ifstream input{output};
+  std::vector<std::string> lines;
+  for (std::string line; std::getline(input, line);)
+    lines.push_back(std::move(line));
+  return lines;
+}
+
+std::string portable_archive_path(std::string_view name,
+                                  std::string_view expected_root) {
+  if (name.empty() || name.front() == '/' || name.find('\\') != name.npos ||
+      (name.size() >= 2 && std::isalpha(static_cast<unsigned char>(name[0])) &&
+       name[1] == ':'))
+    throw std::runtime_error{"unsafe archive: absolute or ambiguous entry path"};
+  std::string normalized;
+  std::string first;
+  std::size_t begin = 0;
+  while (begin < name.size()) {
+    const std::size_t end = name.find('/', begin);
+    const std::string_view part = name.substr(begin, end - begin);
+    if (part.empty() || part == "." || part == "..")
+      throw std::runtime_error{"unsafe archive: traversing entry path"};
+    if (part.back() == '.' ||
+        part.find_first_of("<>:\"|?*") != std::string_view::npos)
+      throw std::runtime_error{"unsafe archive: Windows-ambiguous entry path"};
+    std::string portable_component{part};
+    std::transform(portable_component.begin(), portable_component.end(),
+                   portable_component.begin(), [](const unsigned char byte) {
+                     return static_cast<char>(std::tolower(byte));
+                   });
+    const std::string_view stem = portable_component.substr(
+        0, portable_component.find('.'));
+    const bool reserved_device =
+        stem == "con" || stem == "prn" || stem == "aux" || stem == "nul" ||
+        (stem.size() == 4 &&
+         (stem.starts_with("com") || stem.starts_with("lpt")) &&
+         stem.back() >= '1' && stem.back() <= '9');
+    if (reserved_device)
+      throw std::runtime_error{"unsafe archive: reserved Windows entry path"};
+    if (first.empty())
+      first = part;
+    if (!normalized.empty())
+      normalized += '/';
+    normalized += part;
+    if (end == name.npos)
+      break;
+    begin = end + 1;
+    if (begin == name.size())
+      break;
+  }
+  if (first != expected_root)
+    throw std::runtime_error{"unsafe archive: unexpected archive root"};
+  for (char &character : normalized) {
+    const unsigned char byte = static_cast<unsigned char>(character);
+    if (byte <= 0x20 || byte >= 0x7f)
+      throw std::runtime_error{"unsafe archive: ambiguous entry name"};
+    character = static_cast<char>(std::tolower(byte));
+  }
+  return normalized;
+}
+
+void validate_archive(const std::filesystem::path &archive,
+                      std::string_view expected_root) {
+  constexpr std::uint64_t production_entries = 100000;
+  constexpr std::uint64_t production_file_size = 1024ULL * 1024 * 1024;
+  constexpr std::uint64_t production_total_size = 4ULL * 1024 * 1024 * 1024;
+  const std::uint64_t max_entries =
+      archive_limit("JANUS_ARCHIVE_TEST_MAX_ENTRIES", production_entries);
+  const std::uint64_t max_file_size = archive_limit(
+      "JANUS_ARCHIVE_TEST_MAX_FILE_SIZE", production_file_size);
+  const std::uint64_t max_total_size = archive_limit(
+      "JANUS_ARCHIVE_TEST_MAX_TOTAL_SIZE", production_total_size);
+  const auto scratch = temporary_directory();
+  try {
+    const auto tar = archive_tar();
+    const auto names = read_archive_listing(archive, tar, scratch / "names", false);
+    const auto verbose =
+        read_archive_listing(archive, tar, scratch / "verbose", true);
+    if (names.empty() || names.size() != verbose.size())
+      throw std::runtime_error{"unsafe archive: inconsistent archive listing"};
+    if (names.size() > max_entries)
+      throw std::runtime_error{"unsafe archive: too many entries"};
+    std::unordered_set<std::string> paths;
+    std::unordered_set<std::string> regular_paths;
+    std::unordered_set<std::string> required_directories;
+    std::uint64_t total = 0;
+    for (std::size_t index = 0; index < names.size(); ++index) {
+      const std::string path =
+          portable_archive_path(names[index], expected_root);
+      if (!paths.insert(path).second)
+        throw std::runtime_error{"unsafe archive: colliding entry paths"};
+      std::istringstream fields{verbose[index]};
+      std::vector<std::string> tokens;
+      for (std::string token; fields >> token;)
+        tokens.push_back(std::move(token));
+      if (tokens.empty() || (tokens[0][0] != '-' && tokens[0][0] != 'd'))
+        throw std::runtime_error{"unsafe archive: link or special entry"};
+      for (std::size_t separator = path.find('/'); separator != path.npos;
+           separator = path.find('/', separator + 1)) {
+        const std::string ancestor = path.substr(0, separator);
+        if (regular_paths.contains(ancestor))
+          throw std::runtime_error{
+              "unsafe archive: file/directory path collision"};
+        required_directories.insert(ancestor);
+      }
+      if (tokens[0][0] == 'd')
+        continue;
+      if (required_directories.contains(path))
+        throw std::runtime_error{
+            "unsafe archive: file/directory path collision"};
+      regular_paths.insert(path);
+      const std::size_t size_index =
+          tokens.size() > 2 && tokens[1].find('/') != std::string::npos ? 2 : 4;
+      if (tokens.size() <= size_index)
+        throw std::runtime_error{"unsafe archive: unparseable entry size"};
+      std::uint64_t size = 0;
+      const auto parsed = std::from_chars(tokens[size_index].data(),
+                                          tokens[size_index].data() +
+                                              tokens[size_index].size(),
+                                          size);
+      if (parsed.ec != std::errc{} ||
+          parsed.ptr != tokens[size_index].data() + tokens[size_index].size())
+        throw std::runtime_error{"unsafe archive: unparseable entry size"};
+      if (size > max_file_size)
+        throw std::runtime_error{"unsafe archive: entry is too large"};
+      if (size > max_total_size - total)
+        throw std::runtime_error{"unsafe archive: total size limit exceeded"};
+      total += size;
+    }
+    std::filesystem::remove_all(scratch);
+  } catch (...) {
+    std::error_code ignored;
+    std::filesystem::remove_all(scratch, ignored);
+    throw;
+  }
+}
+
 void fetch(const std::string &location,
            const std::filesystem::path &destination) {
   if (std::filesystem::is_regular_file(location)) {
@@ -311,15 +487,9 @@ std::filesystem::path download_package(const ToolchainSpec &spec,
 
   const std::filesystem::path extracted = temporary / "package";
   std::filesystem::create_directory(extracted);
+  validate_archive(archive_path, package_basename(spec.version));
 #ifdef _WIN32
-  std::filesystem::path tar{"tar"};
-  if (const char *system_root = std::getenv("SystemRoot");
-      system_root != nullptr) {
-    const std::filesystem::path system_tar =
-        std::filesystem::path{system_root} / "System32/tar.exe";
-    if (std::filesystem::is_regular_file(system_tar))
-      tar = system_tar;
-  }
+  const std::filesystem::path tar = archive_tar();
   const std::string command =
       "cd /d " + shell_quote(temporary) + " && " + shell_quote(tar) +
       " -xf " + shell_quote(archive_path.filename()) + " -C package";
@@ -451,6 +621,7 @@ void usage() {
             << "  janusup uninstall <name>\n"
             << "  janusup default <name>\n"
             << "  janusup verify <archive>\n"
+            << "  janusup validate-archive <archive> <expected-root>\n"
             << "  janusup list\n"
             << "  janusup home\n"
             << "  janusup --version\n";
@@ -480,6 +651,10 @@ int main(int argc, char **argv) {
     if (argc == 3 && std::string_view{argv[1]} == "verify") {
       verify_attestation(argv[2]);
       std::cout << "verified provenance for '" << argv[2] << "'\n";
+      return 0;
+    }
+    if (argc == 4 && std::string_view{argv[1]} == "validate-archive") {
+      validate_archive(argv[2], argv[3]);
       return 0;
     }
     if (argc == 2 && std::string_view{argv[1]} == "install") {
