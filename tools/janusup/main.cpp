@@ -220,10 +220,14 @@ std::filesystem::path archive_tar() {
 std::vector<std::string> read_archive_listing(
     const std::filesystem::path &archive, const std::filesystem::path &tar,
     const std::filesystem::path &output, bool verbose) {
-  const std::string command = shell_quote(tar) +
-                              (verbose ? " --numeric-owner -tvf " : " -tf ") +
-                              shell_quote(archive) + " > " +
-                              shell_quote(output);
+  const std::string command =
+      shell_quote(tar) +
+#ifdef _WIN32
+      (verbose ? " -tvf " : " -tf ") +
+#else
+      (verbose ? " --numeric-owner -tvf " : " -tf ") +
+#endif
+      shell_quote(archive) + " > " + shell_quote(output);
   if (command_status(std::system(command.c_str())) != 0)
     throw std::runtime_error{"could not inspect archive"};
   std::ifstream input{output};
