@@ -3055,19 +3055,46 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           : policy + " requires numeric source and "
                                          "destination types"};
                 if (policy == "checkedCast") {
-                  ast::TypeReference error_type{"NumericCastError",
-                                                node.location, {}};
+                  const auto error_iterator = find_in_context(
+                      enums, context_module, "NumericCastError");
+                  const auto result_iterator =
+                      find_in_context(enums, context_module, "Result");
+                  const auto visible_type_name =
+                      [&](const ast::EnumDeclaration &declaration) {
+                        if (declaration.module_name == context_module)
+                          return declaration.name;
+                        for (const ast::ImportDeclaration &import :
+                             program.imports) {
+                          if (import.importing_module != context_module ||
+                              import.module_name != declaration.module_name)
+                            continue;
+                          for (const ast::ImportDeclaration::Symbol &symbol :
+                               import.symbols)
+                            if (symbol.name == declaration.name)
+                              return symbol.alias.value_or(symbol.name);
+                          if (import.module_alias.has_value())
+                            return *import.module_alias + "." + declaration.name;
+                          if (!import.is_qualified() && !import.is_selective())
+                            return declaration.name;
+                        }
+                        return declaration.name;
+                      };
+                  const std::string error_name =
+                      error_iterator == enums.end()
+                          ? "NumericCastError"
+                          : visible_type_name(*error_iterator->second);
+                  const std::string result_name =
+                      result_iterator == enums.end()
+                          ? "Result"
+                          : visible_type_name(*result_iterator->second);
+                  ast::TypeReference error_type{error_name, node.location, {}};
                   ast::TypeReference result_type{
-                      "Result", node.location,
+                      result_name, node.location,
                       {node.type_arguments.front(), error_type}};
                   SemanticType resolved_result = resolve_type(
                       result_type, *active_type_parameters, &class_arities,
                       context_module, &scoped_type_aliases);
 
-                  const auto error_iterator = find_in_context(
-                      enums, context_module, "NumericCastError");
-                  const auto result_iterator =
-                      find_in_context(enums, context_module, "Result");
                   const auto find_case = [](const ast::EnumDeclaration &type,
                                             std::string_view name) {
                     return std::find_if(
