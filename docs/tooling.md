@@ -250,6 +250,33 @@ La définition des sources officielles, la frontière de confiance et
 l'exception réservée aux répertoires locaux sont détaillées dans le
 [guide d'installation](getting-started.md#vérifier-linstallation).
 
+### Transactions, récupération et durabilité
+
+Les mutations de `janusup` sont sérialisées par un verrou global. Les fichiers
+de journal et `default` sont écrits dans un fichier temporaire, synchronisés,
+puis renommés atomiquement. Sur POSIX, `janusup` synchronise aussi les fichiers
+publiés et les répertoires parents après les renommages critiques. Sur Windows,
+les fichiers sont vidés explicitement et les renommages critiques demandent
+une écriture immédiate via les API système. Ce modèle garantit la
+récupération après l'arrêt brutal du processus. POSIX fournit en plus l'ordre de
+persistance attendu après panne système lorsque le système de fichiers respecte
+`fsync`; Windows ne fournit pas d'API portable permettant de vider séparément
+les métadonnées d'un répertoire, donc la garantie après perte d'alimentation
+reste celle offerte par `MOVEFILE_WRITE_THROUGH`, le système de fichiers et le
+matériel.
+
+Au démarrage d'une mutation, les transactions orphelines dont le nom appartient
+strictement au namespace interne sont supprimées sous le verrou global, sauf si
+un journal les référence. Les noms inconnus ne sont jamais touchés. Un journal
+corrompu ou qui référence une transaction absente est déplacé dans
+`.janusup-state/quarantine/`; aucune toolchain valide n'est supprimée sur cette
+seule base. La récupération continue automatiquement si `default`, `bin` et la
+toolchain installée donnent un état valide et déterministe. Sinon, `janusup`
+signale le chemin de quarantaine et demande de réparer explicitement l'état avec
+`janusup default <nom-toolchain-intacte>` ou en réinstallant la toolchain
+concernée. Les fichiers en quarantaine sont conservés pour diagnostic et peuvent
+être supprimés manuellement après vérification de l'état réparé.
+
 ## Formatage
 
 `janus fmt` découvre récursivement les fichiers `.janus` de `src/` et

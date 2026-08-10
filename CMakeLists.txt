@@ -313,24 +313,27 @@ set_target_properties(janus janusc
 add_executable(janusup
     tools/janusup/main.cpp
 )
-target_include_directories(janusup
-    SYSTEM PRIVATE
-        ${JANUS_LLVM_INCLUDE_DIR}
-)
-target_link_libraries(janusup
-    PRIVATE
-        ${JANUS_LLVM_LIBS}
-)
-target_compile_options(janusup
-    PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-)
-target_compile_definitions(janusup
-    PRIVATE
-        JANUS_VERSION="${PROJECT_VERSION}"
-)
+function(configure_janusup_target target)
+    target_include_directories(${target}
+        SYSTEM PRIVATE
+            ${JANUS_LLVM_INCLUDE_DIR}
+    )
+    target_link_libraries(${target}
+        PRIVATE
+            ${JANUS_LLVM_LIBS}
+    )
+    target_compile_options(${target}
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    target_compile_definitions(${target}
+        PRIVATE
+            JANUS_VERSION="${PROJECT_VERSION}"
+    )
+endfunction()
+configure_janusup_target(janusup)
 
 add_executable(janus-lsp
     tools/janus-lsp/main.cpp
@@ -377,6 +380,10 @@ target_compile_definitions(janus-lsp
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(janusup-test tools/janusup/main.cpp)
+    configure_janusup_target(janusup-test)
+    target_compile_definitions(janusup-test PRIVATE JANUSUP_TEST_HOOKS=1)
+    set_target_properties(janusup-test PROPERTIES OUTPUT_NAME janusup-test-hooks)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     set(CLANG_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}")
 
@@ -803,6 +810,14 @@ if(BUILD_TESTING)
     # PowerShell process startup dominates the shared malicious-archive matrix
     # on Windows runners; keep the repository-wide default for other tests.
     set_tests_properties(toolchain.archive_validation PROPERTIES TIMEOUT 180)
+    add_test(
+        NAME toolchain.concurrent_install
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/driver/janusup_concurrent_install_test.py"
+                --janusup "$<TARGET_FILE:janusup-test>"
+                --production-janusup "$<TARGET_FILE:janusup>"
+    )
+    set_tests_properties(toolchain.concurrent_install PROPERTIES TIMEOUT 90)
     if(UNIX)
         add_test(
             NAME toolchain.install_raylib_script
