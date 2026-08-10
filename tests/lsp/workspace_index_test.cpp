@@ -14,8 +14,12 @@
 namespace {
 
 std::string file_uri(const std::filesystem::path &path) {
-  std::string normalized =
-      std::filesystem::absolute(path).lexically_normal().generic_string();
+  std::error_code error;
+  std::filesystem::path normalized_path = std::filesystem::weakly_canonical(
+      std::filesystem::absolute(path), error);
+  if (error)
+    normalized_path = std::filesystem::absolute(path).lexically_normal();
+  std::string normalized = normalized_path.generic_string();
 #ifdef _WIN32
   if (normalized.starts_with("//"))
     normalized.erase(0, 2);
