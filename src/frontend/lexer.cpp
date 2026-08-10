@@ -131,6 +131,15 @@ Token Lexer::next() {
       }
     }
 
+    if (kind == TokenKind::DoubleLiteral && !at_end() && current() == 'f') {
+      kind = TokenKind::FloatLiteral;
+      advance();
+      while (!at_end() &&
+             (std::isalnum(static_cast<unsigned char>(current())) != 0 ||
+              current() == '_'))
+        advance();
+    }
+
     return Token{kind,
                  source_.substr(start_position, position_ - start_position),
                  start};

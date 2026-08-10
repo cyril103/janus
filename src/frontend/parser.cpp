@@ -1392,17 +1392,26 @@ ast::Expression Parser::parse_primary() {
     return ast::IntegerLiteralExpression{value, false, literal.location};
   }
 
-  if (current_.kind == TokenKind::DoubleLiteral) {
-    const Token literal = expect(TokenKind::DoubleLiteral);
-    const std::string text{literal.lexeme};
+  if (current_.kind == TokenKind::DoubleLiteral ||
+      current_.kind == TokenKind::FloatLiteral) {
+    const bool is_float = current_.kind == TokenKind::FloatLiteral;
+    const Token literal = current_;
+    advance();
+    const std::string text{
+        is_float ? literal.lexeme.substr(0, literal.lexeme.size() - 1)
+                 : literal.lexeme};
     char *end = nullptr;
     errno = 0;
-    const double value = std::strtod(text.c_str(), &end);
+    const double value =
+        is_float ? static_cast<double>(std::strtof(text.c_str(), &end))
+                 : std::strtod(text.c_str(), &end);
     if (errno == ERANGE || end != text.c_str() + text.size() ||
         !std::isfinite(value)) {
-      throw CompileError{literal.location, "invalid double literal"};
+      throw CompileError{literal.location,
+                         is_float ? "invalid float literal"
+                                  : "invalid double literal"};
     }
-    return ast::DoubleLiteralExpression{value, literal.location};
+    return ast::DoubleLiteralExpression{value, is_float, literal.location};
   }
 
   if (current_.kind == TokenKind::CharacterLiteral) {

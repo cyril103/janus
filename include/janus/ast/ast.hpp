@@ -28,6 +28,7 @@ struct IntegerLiteralExpression {
 
 struct DoubleLiteralExpression {
   double value;
+  bool is_float;
   SourceLocation location;
 };
 

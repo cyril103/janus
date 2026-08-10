@@ -11,7 +11,9 @@
 #include <array>
 #include <cctype>
 #include <cstdint>
+#include <cmath>
 #include <functional>
+#include <limits>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -912,7 +914,8 @@ private:
   }
 
   bool is_explicit_cast(const janus::ast::CallExpression &call) const {
-    if (call.callee == "numericCast")
+    if (call.callee == "numericCast" || call.callee == "saturatingCast" ||
+        call.callee == "truncatingCast")
       return true;
     const janus::Type *type = builtin_type(call.callee);
     if (type != nullptr)
@@ -926,11 +929,251 @@ private:
 
   const janus::Type &cast_destination(const janus::ast::CallExpression &call,
                                       const Substitutions &substitutions) {
-    if (call.callee == "numericCast")
+    if (call.callee == "numericCast" || call.callee == "saturatingCast" ||
+        call.callee == "truncatingCast")
       return resolve(call.type_arguments.front(), substitutions);
     return resolve(janus::ast::TypeReference{call.callee, call.location,
                                              call.type_arguments},
                    substitutions);
+  }
+
+  ::llvm::Value *emit_clamped_numeric_cast(
+      ::llvm::Value *source, const janus::Type &source_type,
+      const janus::Type &destination, ::llvm::IRBuilder<> &builder) {
+    ::llvm::Type *destination_type = lower_type(destination, context_);
+    if (destination.is_floating_point()) {
+      ::llvm::Value *converted = nullptr;
+      if (source_type.is_floating_point())
+        converted = builder.CreateFPCast(source, destination_type,
+                                         "saturating.floating");
+      else if (source_type.is_signed())
+        converted = builder.CreateSIToFP(source, destination_type,
+                                         "saturating.signed");
+      else
+        converted = builder.CreateUIToFP(source, destination_type,
+                                         "saturating.unsigned");
+      if (source_type.is_floating_point()) {
+        ::llvm::Value *is_nan = builder.CreateFCmpUNO(source, source);
+        ::llvm::Value *is_positive = builder.CreateFCmpOGT(
+            source, ::llvm::ConstantFP::get(source->getType(), 0.0));
+        const double maximum = destination.kind() == janus::TypeKind::Float
+                                   ? std::numeric_limits<float>::max()
+                                   : std::numeric_limits<double>::max();
+        ::llvm::Value *outside_range = builder.CreateFCmpOGT(
+            builder.CreateUnaryIntrinsic(::llvm::Intrinsic::fabs, source),
+            ::llvm::ConstantFP::get(source->getType(), maximum));
+        ::llvm::Value *limit = builder.CreateSelect(
+            is_positive, ::llvm::ConstantFP::get(destination_type, maximum),
+            ::llvm::ConstantFP::get(destination_type, -maximum));
+        converted = builder.CreateSelect(outside_range, limit, converted);
+        converted = builder.CreateSelect(
+            is_nan, ::llvm::ConstantFP::get(destination_type, 0.0), converted);
+      }
+      return converted;
+    }
+
+    if (source_type.is_floating_point()) {
+      const unsigned bits = destination.bit_width();
+      const double lower = destination.is_signed()
+                               ? -std::ldexp(1.0, static_cast<int>(bits - 1))
+                               : 0.0;
+      const double upper = std::ldexp(
+          1.0, static_cast<int>(bits - (destination.is_signed() ? 1 : 0)));
+      ::llvm::Value *is_nan = builder.CreateFCmpUNO(source, source);
+      ::llvm::Value *below = builder.CreateFCmpOLT(
+          source, ::llvm::ConstantFP::get(source->getType(), lower));
+      ::llvm::Value *above = builder.CreateFCmpOGE(
+          source, ::llvm::ConstantFP::get(source->getType(), upper));
+      ::llvm::Value *safe = builder.CreateSelect(
+          builder.CreateOr(is_nan, builder.CreateOr(below, above)),
+          ::llvm::ConstantFP::get(source->getType(), 0.0), source);
+      ::llvm::Value *converted =
+          destination.is_signed()
+              ? builder.CreateFPToSI(safe, destination_type,
+                                     "clamped.floating.to.signed")
+              : builder.CreateFPToUI(safe, destination_type,
+                                     "clamped.floating.to.unsigned");
+      const std::uint64_t maximum =
+          destination.is_signed()
+              ? (std::uint64_t{1} << (bits - 1)) - 1
+              : (bits == 64 ? std::numeric_limits<std::uint64_t>::max()
+                            : (std::uint64_t{1} << bits) - 1);
+      const std::uint64_t minimum =
+          destination.is_signed() ? std::uint64_t{1} << (bits - 1) : 0;
+      converted = builder.CreateSelect(
+          below, ::llvm::ConstantInt::get(destination_type, minimum),
+          converted);
+      converted = builder.CreateSelect(
+          above, ::llvm::ConstantInt::get(destination_type, maximum),
+          converted);
+      return converted;
+    }
+
+    auto *wide_type = builder.getInt128Ty();
+    ::llvm::Value *wide = source_type.is_signed()
+                              ? builder.CreateSExt(source, wide_type)
+                              : builder.CreateZExt(source, wide_type);
+    const unsigned bits = destination.bit_width();
+    const ::llvm::APInt minimum =
+        destination.is_signed()
+            ? ::llvm::APInt::getSignedMinValue(bits).sext(128)
+            : ::llvm::APInt(128, 0);
+    const ::llvm::APInt maximum =
+        destination.is_signed()
+            ? ::llvm::APInt::getSignedMaxValue(bits).sext(128)
+            : ::llvm::APInt::getMaxValue(bits).zext(128);
+    ::llvm::Value *below = builder.CreateICmpSLT(
+        wide, ::llvm::ConstantInt::get(context_, minimum));
+    ::llvm::Value *above = builder.CreateICmpSGT(
+        wide, ::llvm::ConstantInt::get(context_, maximum));
+    wide = builder.CreateSelect(below,
+                                ::llvm::ConstantInt::get(context_, minimum), wide);
+    wide = builder.CreateSelect(above,
+                                ::llvm::ConstantInt::get(context_, maximum), wide);
+    return builder.CreateTruncOrBitCast(wide, destination_type,
+                                       "saturating.integer");
+  }
+
+  ::llvm::Value *emit_truncating_numeric_cast(
+      ::llvm::Value *source, const janus::Type &source_type,
+      const janus::Type &destination, ::llvm::IRBuilder<> &builder) {
+    if (source_type.is_floating_point() || destination.is_floating_point())
+      return emit_clamped_numeric_cast(source, source_type, destination,
+                                       builder);
+    return builder.CreateIntCast(source, lower_type(destination, context_),
+                                 source_type.is_signed(),
+                                 "truncating.integer");
+  }
+
+  ::llvm::Value *emit_checked_numeric_cast(
+      ::llvm::Value *source, const janus::Type &source_type,
+      const janus::Type &destination, ::llvm::IRBuilder<> &builder) {
+    ::llvm::Value *success = builder.getTrue();
+    ::llvm::Value *error_code = builder.getInt32(0);
+    const auto fail = [&](::llvm::Value *condition, std::uint32_t code) {
+      ::llvm::Value *was_success = success;
+      error_code = builder.CreateSelect(
+          builder.CreateAnd(success, condition), builder.getInt32(code),
+          error_code, "checked.error");
+      success = builder.CreateAnd(
+          was_success, builder.CreateNot(condition),
+          "checked.success");
+    };
+
+    ::llvm::Value *converted =
+        emit_clamped_numeric_cast(source, source_type, destination, builder);
+    if (source_type.is_floating_point()) {
+      ::llvm::Value *non_finite = builder.CreateOr(
+          builder.CreateFCmpUNO(source, source),
+          builder.CreateFCmpOEQ(
+                                builder.CreateUnaryIntrinsic(
+                                    ::llvm::Intrinsic::fabs, source),
+                                ::llvm::ConstantFP::getInfinity(
+                                    source->getType())));
+      fail(non_finite, 3);
+      if (destination.is_integer()) {
+        const unsigned bits = destination.bit_width();
+        const double lower = destination.is_signed()
+                                 ? -std::ldexp(1.0, static_cast<int>(bits - 1))
+                                 : 0.0;
+        const double upper = std::ldexp(
+            1.0, static_cast<int>(bits - (destination.is_signed() ? 1 : 0)));
+        if (!destination.is_signed())
+          fail(builder.CreateFCmpOLT(
+                   source, ::llvm::ConstantFP::get(source->getType(), 0.0)),
+               2);
+        else
+          fail(builder.CreateFCmpOLT(
+                   source,
+                   ::llvm::ConstantFP::get(source->getType(), lower)),
+               1);
+        fail(builder.CreateFCmpOGE(
+                 source, ::llvm::ConstantFP::get(source->getType(), upper)),
+             0);
+        ::llvm::Value *truncated = builder.CreateUnaryIntrinsic(
+            ::llvm::Intrinsic::trunc, source);
+        fail(builder.CreateFCmpONE(source, truncated), 4);
+      } else if (destination.bit_width() < source_type.bit_width()) {
+        ::llvm::Value *overflow = builder.CreateFCmpOEQ(
+            builder.CreateUnaryIntrinsic(::llvm::Intrinsic::fabs, converted),
+            ::llvm::ConstantFP::getInfinity(converted->getType()));
+        fail(overflow, 0);
+        ::llvm::Value *roundtrip =
+            builder.CreateFPExt(converted, source->getType());
+        fail(builder.CreateFCmpONE(source, roundtrip), 5);
+      }
+    } else if (destination.is_integer()) {
+      auto *wide_type = builder.getInt128Ty();
+      ::llvm::Value *wide = source_type.is_signed()
+                                ? builder.CreateSExt(source, wide_type)
+                                : builder.CreateZExt(source, wide_type);
+      const unsigned bits = destination.bit_width();
+      const ::llvm::APInt minimum =
+          destination.is_signed()
+              ? ::llvm::APInt::getSignedMinValue(bits).sext(128)
+              : ::llvm::APInt(128, 0);
+      const ::llvm::APInt maximum =
+          destination.is_signed()
+              ? ::llvm::APInt::getSignedMaxValue(bits).sext(128)
+              : ::llvm::APInt::getMaxValue(bits).zext(128);
+      if (!destination.is_signed() && source_type.is_signed())
+        fail(builder.CreateICmpSLT(
+                 wide, ::llvm::ConstantInt::get(wide_type, 0)),
+             2);
+      else
+        fail(builder.CreateICmpSLT(
+                 wide, ::llvm::ConstantInt::get(context_, minimum)),
+             1);
+      fail(builder.CreateICmpSGT(
+               wide, ::llvm::ConstantInt::get(context_, maximum)),
+           0);
+    } else {
+      const unsigned bits = source_type.bit_width();
+      const double lower = source_type.is_signed()
+                               ? -std::ldexp(1.0, static_cast<int>(bits - 1))
+                               : 0.0;
+      const double upper = std::ldexp(
+          1.0, static_cast<int>(bits - (source_type.is_signed() ? 1 : 0)));
+      ::llvm::Value *outside_range = builder.CreateOr(
+          builder.CreateFCmpOLT(
+              converted,
+              ::llvm::ConstantFP::get(converted->getType(), lower)),
+          builder.CreateFCmpOGE(
+              converted,
+              ::llvm::ConstantFP::get(converted->getType(), upper)));
+      ::llvm::Value *safe = builder.CreateSelect(
+          outside_range,
+          ::llvm::ConstantFP::get(converted->getType(), 0.0), converted,
+          "checked.safe.floating");
+      ::llvm::Value *roundtrip =
+          source_type.is_signed()
+              ? builder.CreateFPToSI(safe, source->getType())
+              : builder.CreateFPToUI(safe, source->getType());
+      fail(builder.CreateICmpNE(source, roundtrip), 5);
+    }
+
+    const auto error_declaration =
+        find_type_in_active_module(enums_, "NumericCastError");
+    const janus::Type &error_type = ensure_enum(error_declaration->first, {});
+    const auto result_declaration = find_type_in_active_module(enums_, "Result");
+    const janus::Type &result_type = ensure_enum(
+        result_declaration->first, {&destination, &error_type});
+    auto *llvm_error_type = ::llvm::cast<::llvm::StructType>(
+        lower_type(error_type, context_));
+    ::llvm::Value *error = builder.CreateInsertValue(
+        ::llvm::UndefValue::get(llvm_error_type), error_code, 0,
+        "numeric.cast.error");
+    auto *llvm_result_type = ::llvm::cast<::llvm::StructType>(
+        lower_type(result_type, context_));
+    ::llvm::Value *result = ::llvm::UndefValue::get(llvm_result_type);
+    result = builder.CreateInsertValue(
+        result,
+        builder.CreateSelect(success, builder.getInt32(0), builder.getInt32(1)),
+        0, "checked.result.tag");
+    result = builder.CreateInsertValue(result, converted, 1,
+                                       "checked.result.value");
+    return builder.CreateInsertValue(result, error, 2,
+                                     "checked.result.error");
   }
 
   std::string
@@ -1872,7 +2115,8 @@ private:
             return janus::Type::int_type();
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::DoubleLiteralExpression>) {
-            return janus::Type::double_type();
+            return node.is_float ? janus::Type::float_type()
+                                 : janus::Type::double_type();
           } else if constexpr (std::is_same_v<
                                    Node,
                                    janus::ast::CharacterLiteralExpression>) {
@@ -1914,6 +2158,18 @@ private:
               return janus::Type::usize_type();
             if (node.callee == "__derivedEquals")
               return janus::Type::bool_type();
+            if (node.callee == "checkedCast") {
+              const janus::Type &destination =
+                  resolve(node.type_arguments.front(), substitutions);
+              const auto error_declaration =
+                  find_type_in_active_module(enums_, "NumericCastError");
+              const janus::Type &error =
+                  ensure_enum(error_declaration->first, {});
+              const auto result_declaration =
+                  find_type_in_active_module(enums_, "Result");
+              return ensure_enum(result_declaration->first,
+                                 {&destination, &error});
+            }
             if (node.callee == "cstr")
               return ensure_pointer(janus::Type::byte_type());
             if (node.callee == "stringData")
@@ -3031,6 +3287,17 @@ private:
                                                 {builder.getPtrTy()}, false));
               return builder.CreateCall(free_function, {pointer});
             }
+            if (node.callee == "checkedCast") {
+              const janus::Type &destination =
+                  resolve(node.type_arguments.front(), substitutions);
+              const janus::Type &source_type = expression_type(
+                  *node.arguments.front(), substitutions, locals);
+              ::llvm::Value *source = emit_expression(
+                  *node.arguments.front(), source_type, substitutions, locals,
+                  builder);
+              return emit_checked_numeric_cast(source, source_type,
+                                               destination, builder);
+            }
             if (is_explicit_cast(node)) {
               const janus::Type &conversion_type =
                   cast_destination(node, substitutions);
@@ -3039,6 +3306,12 @@ private:
               ::llvm::Value *source =
                   emit_expression(*node.arguments.front(), source_type,
                                   substitutions, locals, builder);
+              if (node.callee == "saturatingCast")
+                return emit_clamped_numeric_cast(source, source_type,
+                                                 conversion_type, builder);
+              if (node.callee == "truncatingCast")
+                return emit_truncating_numeric_cast(source, source_type,
+                                                    conversion_type, builder);
               const bool source_is_reference =
                   source_type.kind() == janus::TypeKind::Pointer ||
                   source_type.kind() == janus::TypeKind::Class;

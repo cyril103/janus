@@ -2547,7 +2547,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               return SemanticType{&Type::int_type(), {}};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::DoubleLiteralExpression>) {
-              return SemanticType{&Type::double_type(), {}};
+              return SemanticType{node.is_float ? &Type::float_type()
+                                                : &Type::double_type(), {}};
             } else if constexpr (std::is_same_v<
                                      Node, ast::CharacterLiteralExpression>) {
               return SemanticType{&Type::char_type(), {}};
@@ -3011,12 +3012,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 return SemanticType{&Type::unit_type()};
               }
-              if (node.callee == "numericCast") {
+              if (node.callee == "numericCast" ||
+                  node.callee == "checkedCast" ||
+                  node.callee == "saturatingCast" ||
+                  node.callee == "truncatingCast") {
+                const std::string policy = node.callee;
                 if (node.type_arguments.size() != 1 ||
                     node.arguments.size() != 1)
                   throw CompileError{
                       node.location,
-                      "numericCast expects one destination type and one "
+                      policy + " expects one destination type and one "
                       "value argument"};
                 SemanticType destination_type = resolve_type(
                     node.type_arguments.front(), *active_type_parameters,
@@ -3030,16 +3035,34 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     source_type.is_concrete() &&
                     (source_type.concrete->is_integer() ||
                      source_type.concrete->is_floating_point());
-                const bool destination_numeric =
-                    destination_type.is_concrete() &&
-                    (destination_type.concrete->is_integer() ||
-                     destination_type.concrete->is_floating_point());
-                if (!source_numeric || !destination_numeric ||
-                    !can_explicitly_cast(source_type, destination_type))
+                if (!destination_type.is_concrete())
                   throw CompileError{
                       node.location,
-                      "numericCast requires compatible numeric source and "
-                      "destination types"};
+                      policy +
+                          " requires a concrete numeric destination type"};
+                const bool destination_numeric =
+                    destination_type.concrete->is_integer() ||
+                    destination_type.concrete->is_floating_point();
+                if (!source_numeric || !destination_numeric ||
+                    (destination_type.is_concrete() &&
+                     !can_explicitly_cast(source_type, destination_type)))
+                  throw CompileError{
+                      node.location,
+                      policy == "numericCast"
+                          ? "numericCast requires compatible numeric source "
+                            "and destination types"
+                          : policy + " requires numeric source and "
+                                         "destination types"};
+                if (policy == "checkedCast") {
+                  ast::TypeReference error_type{"NumericCastError",
+                                                node.location, {}};
+                  ast::TypeReference result_type{
+                      "Result", node.location,
+                      {node.type_arguments.front(), std::move(error_type)}};
+                  return resolve_type(result_type, *active_type_parameters,
+                                      &class_arities, context_module,
+                                      &scoped_type_aliases);
+                }
                 return destination_type;
               }
               const bool is_builtin_cast = builtin_type(node.callee) != nullptr;
@@ -3140,8 +3163,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "explicit cast from '" + source_type.name() + "' to '" +
                           destination_type.name() +
                           "' may lose range or precision",
-                      {"validate the value before converting to the narrower "
-                       "or differently signed type"});
+                      {"use checkedCast[T] to reject altered values, "
+                       "saturatingCast[T] to clamp them, or "
+                       "truncatingCast[T] for intentional truncation"});
                 return destination_type;
               }
               const auto callee_iterator =

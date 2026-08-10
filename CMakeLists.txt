@@ -2252,6 +2252,35 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.explicit_cast COMMAND explicit_cast_test)
 
+    add_executable(numeric_conversion_test
+        tests/language/numeric_conversion_test.cpp
+    )
+    target_link_libraries(numeric_conversion_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(numeric_conversion_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.numeric_conversion COMMAND numeric_conversion_test)
+
+    add_test(
+        NAME runtime.numeric_conversions
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/numeric_conversions.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/numeric_conversions_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/numeric_conversions.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+
     add_executable(enum_test
         tests/language/enum_test.cpp
     )
