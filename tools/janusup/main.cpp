@@ -662,7 +662,7 @@ void remove_tree(const std::filesystem::path &path, std::string_view purpose) {
 
 void sync_file(const std::filesystem::path &path) {
 #ifdef _WIN32
-  HANDLE handle = CreateFileW(path.c_str(), GENERIC_READ,
+  HANDLE handle = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE,
                               FILE_SHARE_READ | FILE_SHARE_WRITE |
                                   FILE_SHARE_DELETE,
                               nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
