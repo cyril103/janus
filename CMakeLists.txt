@@ -799,6 +799,9 @@ if(BUILD_TESTING)
                 --source "${PROJECT_SOURCE_DIR}"
                 --janusup "$<TARGET_FILE:janusup>"
     )
+    # PowerShell process startup dominates the shared malicious-archive matrix
+    # on Windows runners; keep the repository-wide default for other tests.
+    set_tests_properties(toolchain.archive_validation PROPERTIES TIMEOUT 180)
     if(UNIX)
         add_test(
             NAME toolchain.install_raylib_script
