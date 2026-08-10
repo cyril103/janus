@@ -725,23 +725,23 @@ int main(int argc, char **argv) {
                 std::string::npos);
 
   static_cast<void>(server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///homonym-a.janus","text":"module homonym_a\n\ndef helper(value : int) : int { return value }\ntrait Printable { def print() : int }\n"}}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///homonym_a.janus","text":"module homonym_a\n\ndef helper(value : int) : int { return value }\ntrait Printable { def print() : int }\n"}}})"));
   static_cast<void>(server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///homonym-b.janus","text":"module homonym_b\n\ndef helper(text : string, enabled : bool, count : int, fallback : int) : int { return count }\ntrait Printable { def print() : int }\n"}}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///homonym_b.janus","text":"module homonym_b\n\ndef helper(text : string, enabled : bool, count : int, fallback : int) : int { return count }\ntrait Printable { def print() : int }\n"}}})"));
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///homonym-consumer.janus","text":"import homonym_b\n\ndef main() : int {\n    return helper(\"a,b\", // ignored, comma\n                  true, 1, 0)\n}\n"}}})"));
   const std::vector<std::string> imported_homonym_definition = server.handle(
       R"({"jsonrpc":"2.0","id":31,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"position":{"line":3,"character":13}}})");
   JANUS_REQUIRE(imported_homonym_definition.front().find(
-                    "file:///homonym-b.janus") != std::string::npos);
+                    "file:///homonym_b.janus") != std::string::npos);
   JANUS_REQUIRE(imported_homonym_definition.front().find(
-                    "file:///homonym-a.janus") == std::string::npos);
+                    "file:///homonym_a.janus") == std::string::npos);
   const std::vector<std::string> imported_homonym_references = server.handle(
       R"({"jsonrpc":"2.0","id":32,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"position":{"line":3,"character":13},"context":{"includeDeclaration":true}}})");
   JANUS_REQUIRE(imported_homonym_references.front().find(
-                    "file:///homonym-b.janus") != std::string::npos);
+                    "file:///homonym_b.janus") != std::string::npos);
   JANUS_REQUIRE(imported_homonym_references.front().find(
-                    "file:///homonym-a.janus") == std::string::npos);
+                    "file:///homonym_a.janus") == std::string::npos);
   const std::vector<std::string> imported_homonym_signature = server.handle(
       R"({"jsonrpc":"2.0","id":33,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"position":{"line":4,"character":22}}})");
   JANUS_REQUIRE(
@@ -750,6 +750,15 @@ int main(int argc, char **argv) {
           "int)") != std::string::npos);
   JANUS_REQUIRE(imported_homonym_signature.front().find(
                     "\"activeParameter\":1") != std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///unrelated-name.janus","text":"module missing_module\n\ndef accidental() : int { return 1 }\n"}}})"));
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///missing-consumer.janus","text":"import missing_module\n\ndef main() : int { return accidental() }\n"}}})"));
+  const std::vector<std::string> unresolved_file_import = server.handle(
+      R"({"jsonrpc":"2.0","id":53,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///missing-consumer.janus"},"position":{"line":2,"character":30}}})");
+  JANUS_REQUIRE(unresolved_file_import.front().find("\"result\":null") !=
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///method-signature.janus","text":"class A() { def combine(value : string) : string { return value } }\nclass B() { def combine(left : int, right : int) : int { return left } }\n\ndef main() : int { val b : B = new B() return b.combine(1, 2) }\n"}}})"));
@@ -764,9 +773,9 @@ int main(int argc, char **argv) {
                 std::string::npos);
 
   static_cast<void>(server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///qualified-method-a.janus","text":"module method_a\n\nclass Box() { def combine(value : string) : string { return value } }\n"}}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///method_a.janus","text":"module method_a\n\nclass Box() { def combine(value : string) : string { return value } }\n"}}})"));
   static_cast<void>(server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///qualified-method-b.janus","text":"module method_b\n\nclass Box() { def combine(left : int, right : int) : int { return left } }\n"}}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///method_b.janus","text":"module method_b\n\nclass Box() { def combine(left : int, right : int) : int { return left } }\n"}}})"));
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///qualified-method-consumer.janus","text":"import method_a\nimport method_b\n\ndef main() : int { val box : method_b.Box = new method_b.Box() return box.combine(1, 2) }\n"}}})"));
   const std::vector<std::string> qualified_method_signature = server.handle(
@@ -782,7 +791,7 @@ int main(int argc, char **argv) {
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"contentChanges":[{"text":"import homonym_b\n\nval foo : int = 7\ndef main() : int { return helper(1, true, 2, foo) }\n"}]}})"));
   const std::vector<std::string> captured_workspace_rename = server.handle(
-      R"({"jsonrpc":"2.0","id":34,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///homonym-b.janus"},"position":{"line":2,"character":5},"newName":"foo"}})");
+      R"({"jsonrpc":"2.0","id":34,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///homonym_b.janus"},"position":{"line":2,"character":5},"newName":"foo"}})");
   JANUS_REQUIRE(captured_workspace_rename.front().find("\"error\"") !=
                 std::string::npos);
   JANUS_REQUIRE(captured_workspace_rename.front().find("\"documentChanges\"") ==
@@ -791,11 +800,11 @@ int main(int argc, char **argv) {
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///trait-consumer.janus","text":"import homonym_b\n\nclass Console() extends Printable { def print() : int { return 1 } }\n"}}})"));
   const std::vector<std::string> imported_trait_implementations = server.handle(
-      R"({"jsonrpc":"2.0","id":35,"method":"textDocument/implementation","params":{"textDocument":{"uri":"file:///homonym-b.janus"},"position":{"line":3,"character":7}}})");
+      R"({"jsonrpc":"2.0","id":35,"method":"textDocument/implementation","params":{"textDocument":{"uri":"file:///homonym_b.janus"},"position":{"line":3,"character":7}}})");
   JANUS_REQUIRE(imported_trait_implementations.front().find(
                     "file:///trait-consumer.janus") != std::string::npos);
   const std::vector<std::string> unrelated_trait_implementations = server.handle(
-      R"({"jsonrpc":"2.0","id":36,"method":"textDocument/implementation","params":{"textDocument":{"uri":"file:///homonym-a.janus"},"position":{"line":3,"character":7}}})");
+      R"({"jsonrpc":"2.0","id":36,"method":"textDocument/implementation","params":{"textDocument":{"uri":"file:///homonym_a.janus"},"position":{"line":3,"character":7}}})");
   JANUS_REQUIRE(unrelated_trait_implementations.front().find(
                     "file:///trait-consumer.janus") == std::string::npos);
 
@@ -955,4 +964,33 @@ int main(int argc, char **argv) {
   require_empty_source_results(
       source_requests(file_uri(cached_symlink), 133));
 #endif
+
+  const std::filesystem::path later_search_path =
+      temporary_workspace.outside("later-search-path");
+  std::filesystem::create_directory(later_search_path);
+  TemporaryWorkspace::write(
+      later_search_path / "priority.janus",
+      "module priority\n\ndef selected() : int { return 2 }\n");
+  janus::lsp::Server import_priority_server{{later_search_path}};
+  const std::string buffered_module_uri =
+      file_uri(workspace / "src/priority.janus");
+  const std::string canonical_buffered_module_uri = file_uri(
+      std::filesystem::weakly_canonical(workspace / "src/priority.janus"));
+  const std::string priority_consumer_uri =
+      file_uri(workspace / "src/priority-consumer.janus");
+  static_cast<void>(import_priority_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      buffered_module_uri +
+      "\",\"text\":\"module priority\\n\\ndef selected() : int { return 1 }\\n\"}}}"));
+  static_cast<void>(import_priority_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      priority_consumer_uri +
+      "\",\"text\":\"import priority\\n\\ndef main() : int { return selected() }\\n\"}}}"));
+  const std::vector<std::string> buffered_import_definition =
+      import_priority_server.handle(
+          "{\"jsonrpc\":\"2.0\",\"id\":137,\"method\":\"textDocument/definition\",\"params\":{\"textDocument\":{\"uri\":\"" +
+          priority_consumer_uri +
+          "\"},\"position\":{\"line\":2,\"character\":31}}}");
+  JANUS_REQUIRE(buffered_import_definition.front().find(
+                    canonical_buffered_module_uri) != std::string::npos);
 }

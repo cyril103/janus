@@ -241,8 +241,7 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
     const bool symbol_top_level = is_top_level && !is_parameter;
     const std::string identity =
         symbol_top_level
-            ? (module_name.has_value() ? *module_name : std::string{uri}) +
-                  "." + std::string{name.lexeme} + ":" +
+            ? std::string{uri} + "#" + std::string{name.lexeme} + ":" +
                   detail.substr(0, detail.find(' '))
             : std::string{uri} + "#" + std::to_string(name.location.offset) +
                   ":" + std::string{name.lexeme};
@@ -677,9 +676,17 @@ struct IndexedDocument {
   const janus::lsp::DocumentIndex *index;
   std::optional<std::string> module_name;
   std::vector<janus::ast::ImportDeclaration> imports;
+  std::unordered_map<std::string, std::string> resolved_import_uris;
+  bool file_backed{};
 };
 
-bool imports_module(const IndexedDocument &document, std::string_view module) {
+bool imports_module(const IndexedDocument &document, std::string_view module,
+                    std::string_view uri) {
+  const auto resolved = document.resolved_import_uris.find(std::string{module});
+  if (resolved != document.resolved_import_uris.end())
+    return resolved->second == uri;
+  if (document.file_backed)
+    return false;
   return std::any_of(document.imports.begin(), document.imports.end(),
                      [&](const janus::ast::ImportDeclaration &import) {
                        return import.module_name == module;
@@ -688,7 +695,9 @@ bool imports_module(const IndexedDocument &document, std::string_view module) {
 
 bool qualifier_imports_module(const IndexedDocument &document,
                               std::string_view qualifier,
-                              std::string_view module) {
+                              std::string_view module, std::string_view uri) {
+  if (!imports_module(document, module, uri))
+    return false;
   return std::any_of(document.imports.begin(), document.imports.end(),
                      [&](const janus::ast::ImportDeclaration &import) {
                        return import.module_name == module &&
@@ -700,7 +709,9 @@ bool qualifier_imports_module(const IndexedDocument &document,
 bool import_exposes(const IndexedDocument &document, std::string_view module,
                     std::string_view symbol,
                     const std::optional<std::string> &qualifier,
-                    std::string_view local_name) {
+                    std::string_view local_name, std::string_view uri) {
+  if (!imports_module(document, module, uri))
+    return false;
   for (const janus::ast::ImportDeclaration &import : document.imports) {
     if (import.module_name != module)
       continue;
@@ -723,8 +734,12 @@ struct SemanticIndex {
 };
 
 std::string file_uri(const std::filesystem::path &path) {
-  std::string normalized =
-      std::filesystem::absolute(path).lexically_normal().generic_string();
+  std::error_code error;
+  std::filesystem::path normalized_path = std::filesystem::weakly_canonical(
+      std::filesystem::absolute(path), error);
+  if (error)
+    normalized_path = std::filesystem::absolute(path).lexically_normal();
+  std::string normalized = normalized_path.generic_string();
 #ifdef _WIN32
   if (normalized.starts_with("//"))
     normalized.erase(0, 2);
@@ -767,9 +782,7 @@ bool path_is_within(const std::filesystem::path &path,
   return true;
 }
 
-std::optional<std::filesystem::path>
-resolve_import(std::string_view module, const std::filesystem::path &root,
-               const std::vector<std::filesystem::path> &search_paths) {
+std::filesystem::path module_relative_path(std::string_view module) {
   std::filesystem::path relative;
   std::size_t start = 0;
   while (start < module.size()) {
@@ -782,12 +795,44 @@ resolve_import(std::string_view module, const std::filesystem::path &root,
     start = separator + 1;
   }
   relative += ".janus";
+  return relative;
+}
+
+bool uri_paths_equal(const std::filesystem::path &left,
+                     const std::filesystem::path &right) {
+  std::string normalized_left = left.lexically_normal().generic_string();
+  std::string normalized_right = right.lexically_normal().generic_string();
+#ifdef _WIN32
+  const auto lowercase = [](std::string &path) {
+    std::transform(path.begin(), path.end(), path.begin(), [](char character) {
+      return static_cast<char>(
+          std::tolower(static_cast<unsigned char>(character)));
+    });
+  };
+  lowercase(normalized_left);
+  lowercase(normalized_right);
+#endif
+  return normalized_left == normalized_right;
+}
+
+std::optional<std::string> resolve_import_uri(
+    std::string_view module, const std::filesystem::path &root,
+    const std::vector<std::filesystem::path> &search_paths,
+    const std::vector<std::string> &buffered_uris) {
+  const std::filesystem::path relative = module_relative_path(module);
   std::vector<std::filesystem::path> roots{root};
   roots.insert(roots.end(), search_paths.begin(), search_paths.end());
   for (const std::filesystem::path &candidate_root : roots) {
-    const std::filesystem::path candidate = candidate_root / relative;
-    if (std::filesystem::is_regular_file(candidate))
-      return std::filesystem::absolute(candidate).lexically_normal();
+    const std::filesystem::path candidate_path = candidate_root / relative;
+    for (const std::string &buffered_uri : buffered_uris) {
+      const std::optional<std::filesystem::path> buffered_path =
+          file_uri_path(buffered_uri);
+      if (buffered_path && uri_paths_equal(*buffered_path, candidate_path))
+        return buffered_uri;
+    }
+    const std::string candidate_uri = file_uri(candidate_path);
+    if (std::filesystem::is_regular_file(candidate_path))
+      return candidate_uri;
   }
   return std::nullopt;
 }
@@ -813,10 +858,17 @@ SemanticIndex build_semantic_index(
     return true;
   };
   add_document(std::string{active_uri}, std::string{active_source});
+  const std::optional<std::filesystem::path> active_path =
+      file_uri_path(active_uri);
+  const std::optional<std::filesystem::path> project_root =
+      active_path ? std::optional<std::filesystem::path>{active_path->parent_path()}
+                  : std::nullopt;
   std::vector<std::string> available_uris;
   available_uris.reserve(open_documents.size() + workspace_uris.size());
   for (const auto &[uri, ignored] : open_documents)
     available_uris.push_back(uri);
+  std::vector<std::string> buffered_uris = available_uris;
+  std::sort(buffered_uris.begin(), buffered_uris.end());
   for (const std::string &uri : workspace_uris)
     available_uris.push_back(uri);
   std::sort(available_uris.begin(), available_uris.end());
@@ -841,7 +893,7 @@ SemanticIndex build_semantic_index(
       continue;
     const std::optional<std::filesystem::path> document_path =
         file_uri_path(document_uri);
-    if (!document_path.has_value())
+    if (!document_path.has_value() || !project_root.has_value())
       continue;
     janus::ast::Program program;
     try {
@@ -850,16 +902,18 @@ SemanticIndex build_semantic_index(
     } catch (const std::exception &) {
       continue;
     }
-    const std::filesystem::path root = document_path->parent_path();
     for (const janus::ast::ImportDeclaration &import : program.imports) {
-      const std::optional<std::filesystem::path> imported =
-          resolve_import(import.module_name, root, search_paths);
-      if (!imported.has_value())
+      const std::optional<std::string> imported_uri = resolve_import_uri(
+          import.module_name, *project_root, search_paths, buffered_uris);
+      if (!imported_uri.has_value())
         continue;
-      const std::string uri = file_uri(*imported);
+      const std::string &uri = *imported_uri;
       if (indexed_uris.contains(uri))
         continue;
-      std::ifstream input{*imported, std::ios::binary};
+      const auto imported_path = file_uri_path(uri);
+      if (!imported_path)
+        continue;
+      std::ifstream input{*imported_path, std::ios::binary};
       if (!input)
         continue;
       std::string source{std::istreambuf_iterator<char>{input},
@@ -874,16 +928,27 @@ SemanticIndex build_semantic_index(
     if (const auto cached = cache.find(uri); cached != cache.end()) {
       std::optional<std::string> module_name;
       std::vector<janus::ast::ImportDeclaration> imports;
+      std::unordered_map<std::string, std::string> resolved_import_uris;
+      const bool file_backed = file_uri_path(uri).has_value();
       try {
         janus::frontend::Parser parser{cached->second.source};
         janus::ast::Program program = parser.parse_program();
         module_name = std::move(program.module_name);
         imports = std::move(program.imports);
+        if (file_backed && project_root)
+          for (const janus::ast::ImportDeclaration &import : imports)
+            if (const auto imported = resolve_import_uri(
+                    import.module_name, *project_root, search_paths,
+                    buffered_uris))
+              resolved_import_uris.insert_or_assign(import.module_name,
+                                                     *imported);
       } catch (const std::exception &) {
       }
       index.documents.push_back(IndexedDocument{std::move(uri), &cached->second,
                                                 std::move(module_name),
-                                                std::move(imports)});
+                                                std::move(imports),
+                                                std::move(resolved_import_uris),
+                                                file_backed});
     }
   }
   return index;
@@ -2142,7 +2207,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
       for (const IndexedDocument &candidate : semantic_index.documents) {
         bool visible_module = candidate.uri == origin.uri;
         if (!visible_module && candidate.module_name.has_value())
-          visible_module = imports_module(origin, *candidate.module_name);
+          visible_module =
+              imports_module(origin, *candidate.module_name, candidate.uri);
         if (!visible_module)
           continue;
         for (const DocumentSymbol &symbol : candidate.index->symbols) {
@@ -2150,7 +2216,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
               candidate.uri == origin.uri ||
               !candidate.module_name.has_value() ||
               import_exposes(origin, *candidate.module_name, symbol.name,
-                             requested.qualifier, requested.name);
+                             requested.qualifier, requested.name,
+                             candidate.uri);
           if (!exposed || !symbol.is_top_level ||
               (candidate.uri == origin.uri && symbol.name != requested.name) ||
               (symbol.is_private && candidate.uri != origin.uri))
@@ -2252,10 +2319,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
               visible = indexed.module_name == receiver_module &&
                         (indexed.uri == *uri ||
                          imports_module(semantic_index.documents.front(),
-                                        *receiver_module));
+                                        *receiver_module, indexed.uri));
             } else if (!visible && indexed.module_name) {
               visible = imports_module(semantic_index.documents.front(),
-                                       *indexed.module_name);
+                                       *indexed.module_name, indexed.uri);
             }
             if (!visible)
               continue;
@@ -2491,10 +2558,12 @@ std::vector<std::string> Server::handle(std::string_view message) {
             visible = candidate_document.module_name.has_value() &&
                       qualifier_imports_module(*occurrence.document,
                                                *occurrence.identifier.qualifier,
-                                               *candidate_document.module_name);
+                                               *candidate_document.module_name,
+                                               candidate_document.uri);
           } else if (!visible && candidate_document.module_name) {
             visible = imports_module(*occurrence.document,
-                                     *candidate_document.module_name);
+                                     *candidate_document.module_name,
+                                     candidate_document.uri);
           }
           if (!visible)
             continue;
@@ -2665,7 +2734,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
               (*candidate.module_name == *member_qualifier ||
                qualifier_imports_module(semantic_index.documents.front(),
                                         *member_qualifier,
-                                        *candidate.module_name));
+                                        *candidate.module_name,
+                                        candidate.uri));
           if (!matching_module)
             continue;
           for (const DocumentSymbol &symbol : candidate.index->symbols) {

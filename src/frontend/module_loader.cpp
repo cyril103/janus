@@ -1,4 +1,5 @@
 #include "janus/frontend/module_loader.hpp"
+#include "module_resolution.hpp"
 
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/frontend/parser.hpp"
@@ -298,9 +299,9 @@ ModuleLoader::take_loaded_program(const std::filesystem::path &entry_path) {
   return result;
 }
 
-std::filesystem::path
-ModuleLoader::resolve_import(std::string_view module,
-                             const std::filesystem::path &project_root) const {
+std::filesystem::path detail::resolve_module_import(
+    std::string_view module, const std::filesystem::path &project_root,
+    const std::vector<std::filesystem::path> &search_paths) {
   std::filesystem::path relative;
   std::size_t start = 0;
   while (start < module.size()) {
@@ -315,15 +316,21 @@ ModuleLoader::resolve_import(std::string_view module,
   relative += ".janus";
 
   std::vector<std::filesystem::path> roots{project_root};
-  roots.insert(roots.end(), search_paths_.begin(), search_paths_.end());
+  roots.insert(roots.end(), search_paths.begin(), search_paths.end());
   for (const std::filesystem::path &root : roots) {
     const std::filesystem::path candidate = root / relative;
     if (std::filesystem::is_regular_file(candidate))
-      return candidate;
+      return normalize_path(candidate);
   }
   throw CompileError{DiagnosticCode::ModuleNotFound, SourceLocation{},
                      "cannot resolve imported module '" + std::string{module} +
                          "'"};
+}
+
+std::filesystem::path
+ModuleLoader::resolve_import(std::string_view module,
+                             const std::filesystem::path &project_root) const {
+  return detail::resolve_module_import(module, project_root, search_paths_);
 }
 
 } // namespace janus::frontend
