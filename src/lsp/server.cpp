@@ -2316,10 +2316,13 @@ std::vector<std::string> Server::handle(std::string_view message) {
           for (const IndexedDocument &indexed : semantic_index.documents) {
             bool visible = indexed.uri == *uri;
             if (receiver_module) {
-              visible = indexed.module_name == receiver_module &&
-                        (indexed.uri == *uri ||
-                         imports_module(semantic_index.documents.front(),
-                                        *receiver_module, indexed.uri));
+              visible = indexed.module_name.has_value() &&
+                        ((indexed.uri == *uri &&
+                          *indexed.module_name == *receiver_module) ||
+                         qualifier_imports_module(
+                             semantic_index.documents.front(),
+                             *receiver_module, *indexed.module_name,
+                             indexed.uri));
             } else if (!visible && indexed.module_name) {
               visible = imports_module(semantic_index.documents.front(),
                                        *indexed.module_name, indexed.uri);
@@ -2333,17 +2336,16 @@ std::vector<std::string> Server::handle(std::string_view message) {
                    program.classes) {
                 if (class_declaration.name != receiver_class)
                   continue;
+                const std::string owner =
+                    indexed.uri + "#" + class_declaration.name;
+                if (owning_class && *owning_class != owner)
+                  ambiguous_owner = true;
+                else
+                  owning_class = owner;
                 for (const ast::FunctionDeclaration &method :
                      class_declaration.methods) {
                   if (method.name != call->callee.name)
                     continue;
-                  const std::string owner =
-                      indexed.uri + "#" + class_declaration.name;
-                  if (owning_class && *owning_class != owner) {
-                    ambiguous_owner = true;
-                    continue;
-                  }
-                  owning_class = owner;
                   llvm::json::Array parameters;
                   for (const ast::FunctionDeclaration::Parameter &parameter :
                        method.parameters)
