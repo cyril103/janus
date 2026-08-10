@@ -365,7 +365,7 @@ std::optional<LocatedIdentifier> identifier_at(std::string_view source,
     const janus::frontend::Token &token = document_tokens[index];
     if (token.kind != TokenKind::Identifier ||
         *requested < token.location.offset ||
-        *requested > token.location.offset + token.lexeme.size())
+        *requested >= token.location.offset + token.lexeme.size())
       continue;
     return located_identifier(document_tokens, index);
   }
@@ -2644,10 +2644,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
                    llvm::json::Object{
                        {"kind", "markdown"},
                        {"value", "```janus\n" + detail + "\n```"}}},
-                  {"range", range(located->first == *uri
-                                      ? document->second
-                                      : index_cache_.at(located->first).source,
-                                  symbol.location, symbol.name.size())},
+                  {"range", range(document->second, identifier->location,
+                                  identifier->name.size())},
               })};
         }
       }

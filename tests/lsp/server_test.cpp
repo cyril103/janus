@@ -103,6 +103,43 @@ std::string require_lsp_result(const std::vector<std::string> &responses,
   return responses.front();
 }
 
+void require_hover_result(const std::vector<std::string> &responses,
+                          std::string_view expected_detail,
+                          std::int64_t expected_line,
+                          std::int64_t expected_start,
+                          std::int64_t expected_end) {
+  JANUS_REQUIRE(responses.size() == 1);
+  llvm::Expected<llvm::json::Value> parsed =
+      llvm::json::parse(responses.front());
+  JANUS_REQUIRE(static_cast<bool>(parsed));
+  const llvm::json::Object *message = parsed->getAsObject();
+  JANUS_REQUIRE(message != nullptr);
+  JANUS_REQUIRE(message->get("error") == nullptr);
+  const llvm::json::Object *result = message->getObject("result");
+  JANUS_REQUIRE(result != nullptr);
+  const llvm::json::Object *contents = result->getObject("contents");
+  JANUS_REQUIRE(contents != nullptr);
+  const std::optional<llvm::StringRef> value = contents->getString("value");
+  JANUS_REQUIRE(value.has_value());
+  JANUS_REQUIRE(value->contains(expected_detail));
+  const llvm::json::Object *hover_range = result->getObject("range");
+  JANUS_REQUIRE(hover_range != nullptr);
+  const llvm::json::Object *start = hover_range->getObject("start");
+  const llvm::json::Object *end = hover_range->getObject("end");
+  JANUS_REQUIRE(start != nullptr && end != nullptr);
+  JANUS_REQUIRE(start->getInteger("line") == expected_line);
+  JANUS_REQUIRE(end->getInteger("line") == expected_line);
+  JANUS_REQUIRE(start->getInteger("character") == expected_start);
+  JANUS_REQUIRE(end->getInteger("character") == expected_end);
+}
+
+void require_null_result(const std::vector<std::string> &responses) {
+  JANUS_REQUIRE(responses.size() == 1);
+  JANUS_REQUIRE(responses.front().find("\"result\":null") !=
+                std::string::npos);
+  JANUS_REQUIRE(responses.front().find("\"error\"") == std::string::npos);
+}
+
 void require_safe_correction(const std::string &response) {
   llvm::Expected<llvm::json::Value> parsed = llvm::json::parse(response);
   JANUS_REQUIRE(static_cast<bool>(parsed));
@@ -317,7 +354,7 @@ int main(int argc, char **argv) {
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///extern-return.janus","text":"extern def data() : borrow Ptr[byte]\ndef main() : int {\n    val result : Ptr[byte] = data()\n    return 0\n}"}}})"));
   const std::vector<std::string> extern_return_hover = server.handle(
-      R"({"jsonrpc":"2.0","id":55,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///extern-return.janus"},"position":{"line":2,"character":33}}})");
+      R"({"jsonrpc":"2.0","id":55,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///extern-return.janus"},"position":{"line":2,"character":31}}})");
   JANUS_REQUIRE(extern_return_hover.size() == 1);
   JANUS_REQUIRE(extern_return_hover.front().find("data() : borrow Ptr[byte]") !=
                 std::string::npos);
@@ -441,9 +478,10 @@ int main(int argc, char **argv) {
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val answer : int = 42 return answer }"}]}})"));
   const std::vector<std::string> hover = server.handle(
-      R"({"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50}}})");
-  JANUS_REQUIRE(hover.size() == 1);
-  JANUS_REQUIRE(hover.front().find("val answer : int") != std::string::npos);
+      R"({"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":48}}})");
+  require_hover_result(hover, "val answer : int", 0, 48, 54);
+  require_null_result(server.handle(
+      R"({"jsonrpc":"2.0","id":59,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":54}}})"));
 
   const std::vector<std::string> definition = server.handle(
       R"({"jsonrpc":"2.0","id":3,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":50}}})");
@@ -476,16 +514,11 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(references.front().find("\"uri\":\"file:///broken.janus\"") !=
                 std::string::npos);
 
-  const auto assert_null_result = [](const std::vector<std::string> &result) {
-    JANUS_REQUIRE(result.size() == 1);
-    JANUS_REQUIRE(result.front().find("\"result\":null") != std::string::npos);
-    JANUS_REQUIRE(result.front().find("\"error\"") == std::string::npos);
-  };
-  assert_null_result(server.handle(
+  require_null_result(server.handle(
       R"({"jsonrpc":"2.0","id":7,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":0}}})"));
-  assert_null_result(server.handle(
+  require_null_result(server.handle(
       R"({"jsonrpc":"2.0","id":8,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":0}}})"));
-  assert_null_result(server.handle(
+  require_null_result(server.handle(
       R"({"jsonrpc":"2.0","id":9,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":0},"context":{"includeDeclaration":true}}})"));
 
   const std::vector<std::string> completion = server.handle(
@@ -505,11 +538,32 @@ int main(int argc, char **argv) {
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"import settings\n\ndef main() : int { return sharedCount }"}]}})"));
 
   const std::vector<std::string> global_hover = server.handle(
-      R"({"jsonrpc":"2.0","id":10,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":2,"character":30}}})");
-  JANUS_REQUIRE(global_hover.front().find("val sharedCount : int") !=
-                std::string::npos);
+      R"({"jsonrpc":"2.0","id":10,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":2,"character":26}}})");
+  require_hover_result(global_hover, "val sharedCount : int", 2, 26, 37);
   JANUS_REQUIRE(global_hover.front().find("module `settings`") !=
                 std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///aliased-hover.janus","text":"import settings.{sharedCount as count}\n\ndef main() : int { return count }"}}})"));
+  const std::vector<std::string> aliased_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":57,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///aliased-hover.janus"},"position":{"line":2,"character":26}}})");
+  require_hover_result(aliased_hover, "val sharedCount : int", 2, 26, 31);
+  JANUS_REQUIRE(aliased_hover.front().find(
+                    "count (alias of settings.sharedCount)") !=
+                std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///qualified-hover.janus","text":"import settings\n\ndef main() : int { return settings.sharedCount }"}}})"));
+  const std::vector<std::string> qualified_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":58,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///qualified-hover.janus"},"position":{"line":2,"character":35}}})");
+  require_hover_result(qualified_hover, "val sharedCount : int", 2, 35, 46);
+  JANUS_REQUIRE(qualified_hover.front().find(
+                    "settings.sharedCount (alias of settings.sharedCount)") !=
+                std::string::npos);
+  require_null_result(server.handle(
+      R"({"jsonrpc":"2.0","id":60,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///qualified-hover.janus"},"position":{"line":2,"character":34}}})"));
+  require_null_result(server.handle(
+      R"({"jsonrpc":"2.0","id":61,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///qualified-hover.janus"},"position":{"line":2,"character":46}}})"));
 
   const std::vector<std::string> global_definition = server.handle(
       R"({"jsonrpc":"2.0","id":11,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":2,"character":30}}})");
@@ -852,6 +906,9 @@ int main(int argc, char **argv) {
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///utf16.janus","text":"def main() : int { val prefix = \"é😀\" val answer : int = 1 return answer }\n"}}})"));
+  const std::vector<std::string> utf16_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":56,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///utf16.janus"},"position":{"line":0,"character":68}}})");
+  require_hover_result(utf16_hover, "val answer : int", 0, 66, 72);
   const std::vector<std::string> utf16_definition = server.handle(
       R"({"jsonrpc":"2.0","id":37,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///utf16.janus"},"position":{"line":0,"character":66}}})");
   JANUS_REQUIRE(utf16_definition.front().find("\"character\":42") !=
