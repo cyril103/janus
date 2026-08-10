@@ -234,8 +234,13 @@ janusup home
 ```
 
 Les téléchargements sont contrôlés par SHA-256 et leur provenance est vérifiée
-obligatoirement avec GitHub CLI avant extraction. Seul un miroir privé peut
-utiliser l'opt-out explicite et bruyant :
+obligatoirement avec GitHub CLI avant extraction. L'archive est ensuite
+inventoriée sans écrire sur disque : `janusup` et les installateurs refusent les
+chemins absolus ou traversants, les noms ambigus entre plateformes, les
+collisions insensibles à la casse, les liens et les types spéciaux. Une archive
+doit avoir une seule racine attendue et reste limitée à 100 000 entrées, 1 Gio
+par fichier et 4 Gio décompressés au total. Seul un miroir privé peut utiliser
+l'opt-out explicite et bruyant :
 
 ```bash
 export JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1

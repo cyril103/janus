@@ -79,7 +79,7 @@ chmod +x "$FAKE_BIN/uname" "$FAKE_BIN/curl" "$FAKE_BIN/gh" "$FAKE_BIN/tar"
 ln -s "$FAKE_BIN/uname" "$NO_GH_BIN/uname"
 ln -s "$FAKE_BIN/curl" "$NO_GH_BIN/curl"
 ln -s "$FAKE_BIN/tar" "$NO_GH_BIN/tar"
-for tool in mktemp rm tr mkdir touch cp gzip; do
+for tool in awk mktemp rm tr mkdir touch cp gzip; do
   tool_path=$(command -v "$tool")
   ln -s "$tool_path" "$NO_GH_BIN/$tool"
   ln -s "$tool_path" "$FAKE_BIN/$tool"

@@ -5,6 +5,13 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## Non publié
 
+### Sécurité
+
+- validation défensive des archives de toolchain avant extraction dans
+  `janusup`, les installateurs POSIX et PowerShell : confinement de la racine,
+  refus des liens, types spéciaux et noms ambigus, détection des collisions et
+  limites de décompression.
+
 ### Tests
 
 - ajout des fonctions `/// @test`, de `std.testing` et de l’isolation par
