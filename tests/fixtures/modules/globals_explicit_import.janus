@@ -1,0 +1,6 @@
+import shared_access
+
+def main() : int {
+    shared_access.counter = 3
+    return shared_access.counter + shared_access.limit
+}

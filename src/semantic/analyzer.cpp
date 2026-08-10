@@ -584,8 +584,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               spelling ==
                   *import.module_alias + "." + std::string{canonical_name})
             return true;
-          if (spelling ==
-              import.module_name + "." + std::string{canonical_name})
+          if (!import.is_qualified() && !import.is_selective() &&
+              spelling ==
+                  import.module_name + "." + std::string{canonical_name})
             return true;
           for (const ast::ImportDeclaration::Symbol &symbol : import.symbols)
             if (symbol.name == canonical_name &&
@@ -1268,6 +1269,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           target.module_name != global.module_name)
         throw CompileError{location, "global constant '" + dependency_key +
                                          "' is private"};
+      const std::string spelling =
+          qualified_module.has_value()
+              ? *qualified_module + "." + std::string{name}
+              : std::string{name};
+      if (!import_allows(global.module_name, target.module_name,
+                         target.declaration.name, spelling))
+        throw CompileError{location,
+                           "global value '" + spelling +
+                               "' is not imported in this module"};
       if (target.declaration.is_mutable)
         throw CompileError{
             location, "global constant initializer cannot depend on mutable "
@@ -3501,6 +3511,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   throw CompileError{node.location, "global value '" + *module +
                                                         "." + node.member +
                                                         "' is private"};
+                const std::string spelling = *module + "." + node.member;
+                if (!import_allows(
+                        context_module, global->declaration->module_name,
+                        global->declaration->declaration.name, spelling))
+                  throw CompileError{
+                      node.location,
+                      "global value '" + spelling +
+                          "' is not imported in this module"};
+                result.qualified_global_reads.insert_or_assign(
+                    &node, global_key(global->declaration->module_name,
+                                      global->declaration->declaration.name));
                 return global->symbol.type;
               }
               const SemanticType object_type = expression_type(*node.object);
@@ -4644,11 +4665,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 throw CompileError{assignment->location,
                                    "global value '" + assignment->object + "." +
                                        assignment->name + "' is private"};
+              const std::string spelling =
+                  assignment->object + "." + assignment->name;
+              if (!import_allows(
+                      context_module, global->declaration->module_name,
+                      global->declaration->declaration.name, spelling))
+                throw CompileError{
+                    assignment->location,
+                    "global value '" + spelling +
+                        "' is not imported in this module"};
               if (!global->symbol.is_mutable)
                 throw CompileError{assignment->location,
                                    "cannot assign to immutable global value '" +
                                        assignment->object + "." +
                                        assignment->name + "'"};
+              result.qualified_global_writes.insert_or_assign(
+                  assignment,
+                  global_key(global->declaration->module_name,
+                             global->declaration->declaration.name));
               validate_expression(assignment->expression, global->symbol.type,
                                   assignment->location);
               continue;

@@ -1,0 +1,7 @@
+import bridge_access
+
+val leaked : int = shared_access.limit
+
+def main() : int {
+    return leaked
+}

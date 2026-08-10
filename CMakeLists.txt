@@ -1379,6 +1379,14 @@ if(BUILD_TESTING)
             JANUS_GLOBALS_ENTRY="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_entry.janus"
             JANUS_GLOBALS_PRIVATE_ACCESS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_private_access.janus"
             JANUS_GLOBALS_PUBLIC_COLLISION="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_public_collision.janus"
+            JANUS_GLOBALS_UNIMPORTED_MUTABLE_READ="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_unimported_mutable_read.janus"
+            JANUS_GLOBALS_UNIMPORTED_MUTABLE_WRITE="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_unimported_mutable_write.janus"
+            JANUS_GLOBALS_UNIMPORTED_IMMUTABLE_READ="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_unimported_immutable_read.janus"
+            JANUS_GLOBALS_UNIMPORTED_IMMUTABLE_INITIALIZER="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_unimported_immutable_initializer.janus"
+            JANUS_GLOBALS_EXPLICIT_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_explicit_import.janus"
+            JANUS_GLOBALS_ALIASED_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_aliased_import.janus"
+            JANUS_GLOBALS_SELECTIVE_IMPORT_BYPASS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_selective_import_bypass.janus"
+            JANUS_GLOBALS_ALIAS_CANONICAL_BYPASS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_alias_canonical_bypass.janus"
     )
     target_compile_options(global_variable_test
         PRIVATE
