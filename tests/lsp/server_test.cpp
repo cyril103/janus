@@ -182,6 +182,15 @@ public:
           "entry = \"src/main.janus\"\n");
     write(workspace_ / "src/main.janus",
           "def main() : int { val diskValue = 2 return @0 }\n");
+    write(workspace_ / "src/indexed_method_b.janus",
+          "module indexed_method_b\n\n"
+          "class Box() { def combine(left : int, right : int) : int { return "
+          "left } def combine(left : int, middle : int, right : int) : int { "
+          "return middle } }\n");
+    write(workspace_ / "src/indexed-method-consumer.janus",
+          "import indexed_method_b as mb\n\n"
+          "def main() : int { val box : mb.Box = new mb.Box() return "
+          "box.combine(1, 2) }\n");
 #ifndef _WIN32
     write(root_ / "symlink-target.janus",
           "def leaked() : int { val symlinkSecret = 9 return @0 }\n");
@@ -775,7 +784,9 @@ int main(int argc, char **argv) {
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///method_a.janus","text":"module method_a\n\nclass Box() { def combine(value : string) : string { return value } }\n"}}})"));
   static_cast<void>(server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///method_b.janus","text":"module method_b\n\nclass Box() { def combine(left : int, right : int) : int { return left } }\n"}}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///method_b.janus","text":"module method_b\n\nclass Box() { def combine(left : int, right : int) : int { return left } def combine(left : int, middle : int, right : int) : int { return middle } }\n"}}})"));
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///method_c.janus","text":"module method_c\n\nclass Box() {}\n"}}})"));
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///qualified-method-consumer.janus","text":"import method_a\nimport method_b\n\ndef main() : int { val box : method_b.Box = new method_b.Box() return box.combine(1, 2) }\n"}}})"));
   const std::vector<std::string> qualified_method_signature = server.handle(
@@ -784,9 +795,40 @@ int main(int argc, char **argv) {
                     "combine(left : int, right : int) : int") !=
                 std::string::npos);
   JANUS_REQUIRE(qualified_method_signature.front().find(
+                    "combine(left : int, middle : int, right : int) : int") !=
+                std::string::npos);
+  JANUS_REQUIRE(qualified_method_signature.front().find(
                     "combine(value : string)") == std::string::npos);
   JANUS_REQUIRE(qualified_method_signature.front().find(
                     "\"activeParameter\":1") != std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///aliased-method-consumer.janus","text":"import method_a\nimport method_b as mb\n\ndef main() : int { val box : mb.Box = new mb.Box() return box.combine(1, 2) }\n"}}})"));
+  const std::vector<std::string> aliased_method_signature = server.handle(
+      R"({"jsonrpc":"2.0","id":43,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///aliased-method-consumer.janus"},"position":{"line":3,"character":73}}})");
+  JANUS_REQUIRE(aliased_method_signature == qualified_method_signature);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///second-aliased-method-consumer.janus","text":"import method_b as boxes\n\ndef main() : int { val box : boxes.Box = new boxes.Box() return box.combine(1, 2) }\n"}}})"));
+  const std::vector<std::string> second_aliased_method_signature =
+      server.handle(
+          R"({"jsonrpc":"2.0","id":43,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///second-aliased-method-consumer.janus"},"position":{"line":2,"character":79}}})");
+  JANUS_REQUIRE(second_aliased_method_signature == qualified_method_signature);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///colliding-method-alias.janus","text":"import method_a as boxes\nimport method_b as boxes\n\ndef main() : int { val box : boxes.Box = new boxes.Box() return box.combine(1, 2) }\n"}}})"));
+  const std::vector<std::string> colliding_method_signature = server.handle(
+      R"({"jsonrpc":"2.0","id":44,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///colliding-method-alias.janus"},"position":{"line":3,"character":79}}})");
+  JANUS_REQUIRE(colliding_method_signature.front().find("\"result\":null") !=
+                std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///colliding-method-owner-alias.janus","text":"import method_b as boxes\nimport method_c as boxes\n\ndef main() : int { val box : boxes.Box = new boxes.Box() return box.combine(1, 2) }\n"}}})"));
+  const std::vector<std::string> colliding_method_owner_signature =
+      server.handle(
+          R"({"jsonrpc":"2.0","id":45,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///colliding-method-owner-alias.janus"},"position":{"line":3,"character":79}}})");
+  JANUS_REQUIRE(colliding_method_owner_signature.front().find(
+                    "\"result\":null") != std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///homonym-consumer.janus"},"contentChanges":[{"text":"import homonym_b\n\nval foo : int = 7\ndef main() : int { return helper(1, true, 2, foo) }\n"}]}})"));
@@ -918,6 +960,34 @@ int main(int argc, char **argv) {
   require_nonempty_source_results(indexed, "diskValue");
   JANUS_REQUIRE(indexed.formatting != opened.formatting);
   JANUS_REQUIRE(indexed.semantic_tokens != opened.semantic_tokens);
+
+  const std::string indexed_method_consumer_uri =
+      file_uri(workspace / "src/indexed-method-consumer.janus");
+  const std::string indexed_method_module_uri =
+      file_uri(workspace / "src/indexed_method_b.janus");
+  static_cast<void>(source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_module_uri +
+      "\",\"text\":\"module indexed_method_b\\n\"}}}"));
+  static_cast<void>(source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didClose\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_module_uri + "\"}}}"));
+  static_cast<void>(source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_consumer_uri +
+      "\",\"text\":\"import indexed_method_b as mb\\n\\ndef main() : int { "
+      "val box : mb.Box = new mb.Box() return box.combine(1, 2) }\\n\"}}}"));
+  const std::vector<std::string> indexed_aliased_method_signature =
+      source_server.handle(
+          "{\"jsonrpc\":\"2.0\",\"id\":109,\"method\":\"textDocument/signatureHelp\",\"params\":{\"textDocument\":{\"uri\":\"" +
+          indexed_method_consumer_uri +
+          "\"},\"position\":{\"line\":2,\"character\":73}}}");
+  JANUS_REQUIRE(indexed_aliased_method_signature.front().find(
+                    "combine(left : int, right : int) : int") !=
+                std::string::npos);
+  JANUS_REQUIRE(indexed_aliased_method_signature.front().find(
+                    "combine(left : int, middle : int, right : int) : int") !=
+                std::string::npos);
 
   const SourceResponses unknown = source_requests(unknown_uri, 109);
   require_empty_source_results(unknown);
