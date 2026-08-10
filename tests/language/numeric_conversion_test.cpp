@@ -4,6 +4,7 @@
 #include "janus/semantic/analyzer.hpp"
 
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include <iostream>
@@ -44,18 +45,19 @@ void expect_compile_error(std::string_view source,
 int main() {
   constexpr std::string_view source = R"(
 enum NumericCastError derives Copy {
-    Overflow,
-    Underflow,
-    IncompatibleSign,
-    NonFinite,
+    PrecisionLoss,
     FractionalLoss,
-    PrecisionLoss
+    NonFinite,
+    IncompatibleSign,
+    Underflow,
+    Overflow
 }
-enum Result[T, E] { Ok(T), Error(E) }
+enum Result[T, E] { Error(E), Ok(T) }
 
 val foldedSigned : byte = saturatingCast[byte](300)
 val foldedUnsigned : ubyte = truncatingCast[ubyte](-1)
 val directFloat : float = 0.1f
+val exponentFloat : float = 1e3f
 
 def main() : int {
     val signedValue : long = long(-129)
@@ -85,6 +87,11 @@ def main() : int {
   janus::backend::llvm::IrGenerator generator{context};
   const std::unique_ptr<llvm::Module> module =
       generator.generate(program, "numeric_conversion");
+  std::string verification_error;
+  llvm::raw_string_ostream verification_output{verification_error};
+  expect(!llvm::verifyModule(*module, &verification_output),
+         "numeric conversion IR passes llvm::verifyModule: " +
+             verification_output.str());
   std::string ir;
   llvm::raw_string_ostream output{ir};
   module->print(output, nullptr);
@@ -96,6 +103,8 @@ def main() : int {
          "truncating casts participate in constant folding");
   expect(ir.find("float 0x3FB99999A0000000") != std::string::npos,
          "f-suffixed literal is represented directly as float");
+  expect(ir.find("float 1.000000e+03") != std::string::npos,
+         "scientific f-suffixed literal is represented as float");
 
   expect_compile_error(
       "def main() : int { val x : int = saturatingCast[int](true) return x }",

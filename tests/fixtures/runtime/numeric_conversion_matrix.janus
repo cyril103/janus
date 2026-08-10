@@ -1,0 +1,59 @@
+import std.numeric
+import std.result
+
+def main() : int {
+    var bmax : long = 127
+    var ubmax : long = 255
+    var smax : long = 32767
+    var usmax : long = 65535
+    var imax : long = 2147483647
+    var aboveInt : long = 2147483648
+    var uimax : ulong = 4294967295
+    var aboveUint : ulong = 4294967296
+    var lmin : long = -9223372036854775808
+    var ulmax : ulong = 18446744073709551615
+    var negative : long = -1
+    var halfByte : double = 127.5
+    var halfUbyte : double = 255.5
+    var zero : double = 0.0
+    var infinity : double = 1.0 / zero
+    var nan : double = zero / zero
+    var preciseFloatInteger : long = 16777216
+    var impreciseFloatInteger : long = 16777217
+    var exponent : float = 1e3f
+
+    println(match checkedCast[byte](127) { Ok(v) => int(v), Error(e) => -100 - int(e) })
+    println(match checkedCast[byte](bmax) { Ok(v) => int(v), Error(e) => -100 - int(e) })
+    println(match checkedCast[byte](127.5) { Ok(v) => int(v), Error(e) => -100 - int(e) })
+    println(match checkedCast[byte](halfByte) { Ok(v) => int(v), Error(e) => -100 - int(e) })
+    println(match checkedCast[ubyte](255) { Ok(v) => int(v), Error(e) => -100 - int(e) })
+    println(match checkedCast[ubyte](ubmax) { Ok(v) => int(v), Error(e) => -100 - int(e) })
+    println(match checkedCast[ubyte](255.5) { Ok(v) => int(v), Error(e) => -100 - int(e) })
+    println(match checkedCast[ubyte](halfUbyte) { Ok(v) => int(v), Error(e) => -100 - int(e) })
+    println(match checkedCast[ubyte](negative) { Ok(v) => int(v), Error(e) => -100 - int(e) })
+    println(match checkedCast[short](smax) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[short](32768) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[ushort](usmax) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[ushort](65536) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[int](imax) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[int](aboveInt) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[uint](uimax) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[uint](aboveUint) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[long](lmin) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[long](9223372036854775808.0) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[ulong](ulmax) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[ulong](18446744073709551616.0) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[isize](lmin) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[isize](9223372036854775808.0) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[usize](ulmax) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[usize](18446744073709551616.0) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[int](12.5) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[int](infinity) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[int](nan) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[float](preciseFloatInteger) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[float](impreciseFloatInteger) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[double](exponent) { Ok(v) => int(v), Error(e) => -100 - int(e) })
+    println(match checkedCast[double](lmin) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    println(match checkedCast[double](imax) { Ok(v) => 1, Error(e) => -100 - int(e) })
+    return 0
+}

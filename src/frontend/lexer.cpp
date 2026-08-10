@@ -131,6 +131,21 @@ Token Lexer::next() {
       }
     }
 
+    if (!at_end() && (current() == 'e' || current() == 'E')) {
+      const std::size_t exponent_start = position_;
+      advance();
+      if (!at_end() && (current() == '+' || current() == '-'))
+        advance();
+      const std::size_t digits_start = position_;
+      while (!at_end() &&
+             std::isdigit(static_cast<unsigned char>(current())) != 0)
+        advance();
+      if (position_ != digits_start)
+        kind = TokenKind::DoubleLiteral;
+      else
+        position_ = exponent_start;
+    }
+
     if (kind == TokenKind::DoubleLiteral && !at_end() && current() == 'f') {
       kind = TokenKind::FloatLiteral;
       advance();

@@ -40,6 +40,12 @@ def main() : int {
     println(match checkedCast[int](infinity) {
         Ok(item) => item, Error(error) => -100 - int(error)
     })
+    println(match checkedCast[byte](127.5) {
+        Ok(item) => int(item), Error(error) => -100 - int(error)
+    })
+    println(match checkedCast[ubyte](255.5) {
+        Ok(item) => int(item), Error(error) => -100 - int(error)
+    })
     println(match checkedCast[float](16777217) {
         Ok(item) => item,
         Error(error) => numericCast[float](100 + int(error))

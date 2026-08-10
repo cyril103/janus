@@ -1048,8 +1048,20 @@ private:
   ::llvm::Value *emit_checked_numeric_cast(
       ::llvm::Value *source, const janus::Type &source_type,
       const janus::Type &destination, ::llvm::IRBuilder<> &builder) {
+    const auto error_declaration =
+        find_type_in_active_module(enums_, "NumericCastError");
+    const janus::Type &error_type = ensure_enum(error_declaration->first, {});
+    const auto result_declaration = find_type_in_active_module(enums_, "Result");
+    const janus::Type &result_type = ensure_enum(
+        result_declaration->first, {&destination, &error_type});
+    const auto error_case_value = [&](std::string_view case_name) {
+      return static_cast<std::uint32_t>(
+          enum_case_value(error_type.name(), case_name));
+    };
+
     ::llvm::Value *success = builder.getTrue();
-    ::llvm::Value *error_code = builder.getInt32(0);
+    ::llvm::Value *error_code =
+        builder.getInt32(error_case_value("Overflow"));
     const auto fail = [&](::llvm::Value *condition, std::uint32_t code) {
       ::llvm::Value *was_success = success;
       error_code = builder.CreateSelect(
@@ -1070,37 +1082,52 @@ private:
                                     ::llvm::Intrinsic::fabs, source),
                                 ::llvm::ConstantFP::getInfinity(
                                     source->getType())));
-      fail(non_finite, 3);
+      fail(non_finite, error_case_value("NonFinite"));
       if (destination.is_integer()) {
         const unsigned bits = destination.bit_width();
         const double lower = destination.is_signed()
                                  ? -std::ldexp(1.0, static_cast<int>(bits - 1))
                                  : 0.0;
-        const double upper = std::ldexp(
+        const double safety_exclusive_maximum = std::ldexp(
             1.0, static_cast<int>(bits - (destination.is_signed() ? 1 : 0)));
+        const double diagnostic_maximum =
+            destination.is_signed()
+                ? static_cast<double>((std::uint64_t{1} << (bits - 1)) - 1)
+                : (bits == 64
+                       ? static_cast<double>(
+                             std::numeric_limits<std::uint64_t>::max())
+                       : static_cast<double>((std::uint64_t{1} << bits) - 1));
         if (!destination.is_signed())
           fail(builder.CreateFCmpOLT(
                    source, ::llvm::ConstantFP::get(source->getType(), 0.0)),
-               2);
+               error_case_value("IncompatibleSign"));
         else
           fail(builder.CreateFCmpOLT(
                    source,
                    ::llvm::ConstantFP::get(source->getType(), lower)),
-               1);
-        fail(builder.CreateFCmpOGE(
-                 source, ::llvm::ConstantFP::get(source->getType(), upper)),
-             0);
+               error_case_value("Underflow"));
+        ::llvm::Value *above_maximum =
+            diagnostic_maximum == safety_exclusive_maximum
+                ? builder.CreateFCmpOGE(
+                      source, ::llvm::ConstantFP::get(
+                                  source->getType(), safety_exclusive_maximum))
+                : builder.CreateFCmpOGT(
+                      source, ::llvm::ConstantFP::get(source->getType(),
+                                                      diagnostic_maximum));
+        fail(above_maximum, error_case_value("Overflow"));
         ::llvm::Value *truncated = builder.CreateUnaryIntrinsic(
             ::llvm::Intrinsic::trunc, source);
-        fail(builder.CreateFCmpONE(source, truncated), 4);
+        fail(builder.CreateFCmpONE(source, truncated),
+             error_case_value("FractionalLoss"));
       } else if (destination.bit_width() < source_type.bit_width()) {
         ::llvm::Value *overflow = builder.CreateFCmpOEQ(
             builder.CreateUnaryIntrinsic(::llvm::Intrinsic::fabs, converted),
             ::llvm::ConstantFP::getInfinity(converted->getType()));
-        fail(overflow, 0);
+        fail(overflow, error_case_value("Overflow"));
         ::llvm::Value *roundtrip =
             builder.CreateFPExt(converted, source->getType());
-        fail(builder.CreateFCmpONE(source, roundtrip), 5);
+        fail(builder.CreateFCmpONE(source, roundtrip),
+             error_case_value("PrecisionLoss"));
       }
     } else if (destination.is_integer()) {
       auto *wide_type = builder.getInt128Ty();
@@ -1119,14 +1146,14 @@ private:
       if (!destination.is_signed() && source_type.is_signed())
         fail(builder.CreateICmpSLT(
                  wide, ::llvm::ConstantInt::get(wide_type, 0)),
-             2);
+             error_case_value("IncompatibleSign"));
       else
         fail(builder.CreateICmpSLT(
                  wide, ::llvm::ConstantInt::get(context_, minimum)),
-             1);
+             error_case_value("Underflow"));
       fail(builder.CreateICmpSGT(
                wide, ::llvm::ConstantInt::get(context_, maximum)),
-           0);
+           error_case_value("Overflow"));
     } else {
       const unsigned bits = source_type.bit_width();
       const double lower = source_type.is_signed()
@@ -1149,15 +1176,10 @@ private:
           source_type.is_signed()
               ? builder.CreateFPToSI(safe, source->getType())
               : builder.CreateFPToUI(safe, source->getType());
-      fail(builder.CreateICmpNE(source, roundtrip), 5);
+      fail(builder.CreateICmpNE(source, roundtrip),
+           error_case_value("PrecisionLoss"));
     }
 
-    const auto error_declaration =
-        find_type_in_active_module(enums_, "NumericCastError");
-    const janus::Type &error_type = ensure_enum(error_declaration->first, {});
-    const auto result_declaration = find_type_in_active_module(enums_, "Result");
-    const janus::Type &result_type = ensure_enum(
-        result_declaration->first, {&destination, &error_type});
     auto *llvm_error_type = ::llvm::cast<::llvm::StructType>(
         lower_type(error_type, context_));
     ::llvm::Value *error = builder.CreateInsertValue(
@@ -1168,12 +1190,18 @@ private:
     ::llvm::Value *result = ::llvm::UndefValue::get(llvm_result_type);
     result = builder.CreateInsertValue(
         result,
-        builder.CreateSelect(success, builder.getInt32(0), builder.getInt32(1)),
+        builder.CreateSelect(
+            success,
+            builder.getInt32(enum_case_value(result_type.name(), "Ok")),
+            builder.getInt32(enum_case_value(result_type.name(), "Error"))),
         0, "checked.result.tag");
-    result = builder.CreateInsertValue(result, converted, 1,
-                                       "checked.result.value");
-    return builder.CreateInsertValue(result, error, 2,
-                                     "checked.result.error");
+    result = builder.CreateInsertValue(
+        result, converted,
+        enum_case_payload_start(result_type.name(), "Ok"),
+        "checked.result.value");
+    return builder.CreateInsertValue(
+        result, error, enum_case_payload_start(result_type.name(), "Error"),
+        "checked.result.error");
   }
 
   std::string

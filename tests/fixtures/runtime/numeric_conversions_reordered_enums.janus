@@ -1,0 +1,47 @@
+enum NumericCastError derives Copy {
+    PrecisionLoss,
+    FractionalLoss,
+    NonFinite,
+    IncompatibleSign,
+    Underflow,
+    Overflow
+}
+
+enum Result[T, E] {
+    Error(E),
+    Ok(T)
+}
+
+def main() : int {
+    var zero : double = 0.0
+    var runtimeExact : long = 42
+    var runtimeOverflow : long = 128
+    var runtimeUnderflow : long = -129
+    var runtimeNegative : long = -1
+    var runtimeFraction : double = 12.5
+    var runtimeInfinity : double = 1.0 / zero
+    var runtimePrecision : long = 16777217
+
+    println(match checkedCast[byte](runtimeExact) {
+        Ok(value) => int(value), Error(error) => -100 - int(error)
+    })
+    println(match checkedCast[byte](runtimeOverflow) {
+        Ok(value) => int(value), Error(error) => -100 - int(error)
+    })
+    println(match checkedCast[byte](runtimeUnderflow) {
+        Ok(value) => int(value), Error(error) => -100 - int(error)
+    })
+    println(match checkedCast[ubyte](runtimeNegative) {
+        Ok(value) => int(value), Error(error) => -100 - int(error)
+    })
+    println(match checkedCast[int](runtimeFraction) {
+        Ok(value) => value, Error(error) => -100 - int(error)
+    })
+    println(match checkedCast[int](runtimeInfinity) {
+        Ok(value) => value, Error(error) => -100 - int(error)
+    })
+    println(match checkedCast[float](runtimePrecision) {
+        Ok(value) => int(value), Error(error) => -100 - int(error)
+    })
+    return 0
+}
