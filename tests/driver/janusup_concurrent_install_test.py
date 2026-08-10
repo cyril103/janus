@@ -290,11 +290,17 @@ def test_corrupt_and_missing_transaction_recovery(janusup: Path, root: Path) -> 
     activation_transaction.rmdir()
     activation_journal.write_text("truncated", encoding="utf-8")
     ambiguous = invoke(janusup, mismatch_home, "default", "alpha")
-    assert ambiguous.returncode != 0, (
-        "mismatched default/bin state was incorrectly accepted after journal loss"
-    )
-    repaired = invoke(janusup, mismatch_home, "default", "alpha")
-    assert repaired.returncode == 0, repaired.stdout + repaired.stderr
+    if os.name == "nt":
+        # Windows publishes independent copies. Byte-identical managed files are
+        # observationally a valid alpha generation and cannot dangle when beta
+        # is removed.
+        assert ambiguous.returncode == 0, ambiguous.stdout + ambiguous.stderr
+    else:
+        assert ambiguous.returncode != 0, (
+            "mismatched default/bin link targets were accepted after journal loss"
+        )
+        repaired = invoke(janusup, mismatch_home, "default", "alpha")
+        assert repaired.returncode == 0, repaired.stdout + repaired.stderr
     assert_selected(mismatch_home, "alpha", "mismatch-alpha")
 
     missing_home = root / "missing-transaction-home"
