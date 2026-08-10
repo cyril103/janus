@@ -63,7 +63,7 @@ doivent être corrigés en exprimant l'intention, pas masqués mécaniquement.
 | `JANA0010` | allocation croissante dans une boucle | réutiliser ou libérer à chaque itération |
 | `JANA0011` | propriétaire capturé par une closure qui s'échappe | transférer explicitement avec `owningCapture` |
 | `JANA0012` | cast de pointeur dont la propriété est ambiguë | conserver un alias emprunté ou documenter le transfert |
-| `JANA0013` | conversion numérique susceptible de perdre de l'information | vérifier la plage puis utiliser `numericCast[T]` si voulu |
+| `JANA0013` | conversion numérique susceptible de perdre de l'information | choisir `checkedCast[T]`, `saturatingCast[T]` ou `truncatingCast[T]` selon l'intention |
 | `JANA0014` | valeur calculée mais inutilisée | supprimer l'expression ou exploiter son résultat |
 | `JANA0015` | buffer propriétaire libéré sans nettoyage des éléments | détruire/déplacer les éléments puis `freeStorage` |
 | `JANA0016` | élément propriétaire écrasé dans un pointeur | extraire ou nettoyer l'ancienne valeur |
@@ -82,6 +82,9 @@ Les opérations `numericCast`, `owningCapture`, `freeStorage`,
 `reallocPreserving` et `adoptReallocation` affirment une précondition au
 compilateur. Elles ne rendent pas une opération sûre à l'exécution : leur usage
 doit être accompagné du contrôle ou de l'invariant correspondant.
+Les conversions `checkedCast`, `saturatingCast` et `truncatingCast` sont, elles,
+définies sur toutes les valeurs numériques ; leur
+[matrice de comportement](numeric-conversions.md) indique la politique exacte.
 
 Avant Janus 1.0, les codes, le contenu des notes et la structure peuvent
 changer entre deux versions mineures. Toute modification doit être annoncée

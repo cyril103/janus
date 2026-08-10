@@ -40,6 +40,7 @@ nav:
       - Vue d’ensemble: reference/index.md
       - Installation: reference/generated/getting-started.md
       - Guide du langage: reference/generated/language-guide.md
+      - Conversions numériques: reference/generated/numeric-conversions.md
       - Texte et parsing: reference/generated/text.md
       - Commandes et outils: reference/generated/tooling.md
       - Protocole du registre v1: reference/generated/registry-protocol-v1.md

@@ -157,6 +157,14 @@
       "symbols": ["gcd","lcm","is_prime","prime_factors","E","EF","PI","PIF","TAU","TAUF","acos","acosf","acosh","acoshf","asin","asinf","asinh","asinhf","atan","atan2","atan2f","atanf","atanh","atanhf","cbrt","cbrtf","ceil","ceilf","clamp","clampf","copysign","copysignf","cos","cosf","cosh","coshf","erf","erfc","erfcf","erff","exp","exp2","exp2f","expf","expm1","expm1f","fabs","fabsf","fdim","fdimf","floor","floorf","fmax","fmaxf","fmin","fminf","fmod","fmodf","hypot","hypotf","isfinite","isfinitef","isinf","isinff","isnan","isnanf","isnormal","isnormalf","lerp","lerpf","lgamma","lgammaf","log","log10","log10f","log1p","log1pf","log2","log2f","logf","nextafter","nextafterf","pow","powf","remainder","remainderf","round","roundf","signbit","signbitf","sin","sinf","sinh","sinhf","sqrt","sqrtf","tan","tanf","tanh","tanhf","tgamma","tgammaf","trunc","truncf"]
     },
     {
+      "name": "std.numeric",
+      "source": "stdlib/std/numeric.janus",
+      "documentation": ["docs/numeric-conversions.md", "docs/stdlib-reference.md", "docs/stability-contract.md"],
+      "status": "experimental",
+      "signature_digest": "3a47d68d3ee1ead72f9050fa371c25ad6fdda2dcef9f8ec6af6fd82292f127df",
+      "symbols": ["NumericCastError", "NumericCastError.Overflow", "NumericCastError.Underflow", "NumericCastError.IncompatibleSign", "NumericCastError.NonFinite", "NumericCastError.FractionalLoss", "NumericCastError.PrecisionLoss"]
+    },
+    {
       "name": "std.option",
       "source": "stdlib/std/option.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],

@@ -1,0 +1,20 @@
+/// Politiques explicites de conversion numérique.
+module std.numeric
+
+import std.result
+
+/// Décrit pourquoi [[checkedCast]] a refusé une conversion.
+enum NumericCastError derives Copy, Equality, Debug {
+    /// La valeur dépasse la borne maximale.
+    Overflow,
+    /// La valeur est inférieure à la borne minimale signée.
+    Underflow,
+    /// Une valeur négative ne peut pas être représentée par la cible non signée.
+    IncompatibleSign,
+    /// La source est `NaN` ou infinie.
+    NonFinite,
+    /// La source flottante possède une partie fractionnaire.
+    FractionalLoss,
+    /// La cible flottante ne peut pas représenter exactement la source.
+    PrecisionLoss
+}

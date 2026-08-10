@@ -95,6 +95,7 @@ symbole source non inventorié.
 | `std.io` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.iterator` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.math` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
+| `std.numeric` | `experimental` | [Conversions numériques](numeric-conversions.md) | Nouvelle surface pré-1.0. |
 | `std.option` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.path` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.random` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |

@@ -47,6 +47,10 @@ const Type *constant_cast_type(std::string_view name) {
   return nullptr;
 }
 
+bool is_policy_cast(std::string_view name) {
+  return name == "saturatingCast" || name == "truncatingCast";
+}
+
 std::optional<std::string>
 qualified_name(const janus::ast::Expression &expression) {
   if (const auto *identifier =
@@ -91,7 +95,8 @@ void collect_references(const janus::ast::Expression &expression,
             collect_references(*argument, modules, references);
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::CallExpression>) {
-          if (constant_cast_type(node.callee) == nullptr)
+          if (constant_cast_type(node.callee) == nullptr &&
+              !is_policy_cast(node.callee))
             references.push_back(
                 Reference{std::nullopt, node.callee, node.location});
           for (const auto &argument : node.arguments)
@@ -158,7 +163,8 @@ bool is_plan_scalar_constant_expression(
           return module.has_value() && modules.contains(*module);
         } else if constexpr (std::is_same_v<
                                  Node, janus::ast::CallExpression>) {
-          return constant_cast_type(node.callee) != nullptr &&
+          return (constant_cast_type(node.callee) != nullptr ||
+                  is_policy_cast(node.callee)) &&
                  node.arguments.size() == 1 &&
                  is_plan_scalar_constant_expression(*node.arguments.front(),
                                                     modules);
@@ -219,7 +225,8 @@ bool is_plan_constant_expression(
                      });
         } else if constexpr (std::is_same_v<
                                  Node, janus::ast::CallExpression>) {
-          return constant_cast_type(node.callee) != nullptr &&
+          return (constant_cast_type(node.callee) != nullptr ||
+                  is_policy_cast(node.callee)) &&
                  node.arguments.size() == 1 &&
                  is_plan_scalar_constant_expression(*node.arguments.front(),
                                                     modules);
@@ -366,6 +373,76 @@ Value cast_value(const Value &source, const Type &destination,
   if (destination.is_character())
     return Value{&destination, static_cast<char32_t>(converted)};
   return Value{&destination, converted};
+}
+
+__int128 integer_number(const Value &value) {
+  std::uint64_t bits = std::get<std::uint64_t>(value.data);
+  if (!value.type->is_signed())
+    return static_cast<__int128>(bits);
+  const unsigned width = value.type->bit_width();
+  if (width < 64) {
+    const std::uint64_t sign = std::uint64_t{1} << (width - 1);
+    const std::uint64_t mask = (std::uint64_t{1} << width) - 1;
+    bits &= mask;
+    if ((bits & sign) != 0)
+      bits |= ~mask;
+  }
+  return static_cast<__int128>(static_cast<std::int64_t>(bits));
+}
+
+Value policy_cast_value(const Value &source, const Type &destination,
+                        bool truncating) {
+  if (destination.is_floating_point()) {
+    double number = floating_value(source);
+    if (std::isnan(number))
+      number = 0.0;
+    const double maximum = destination.kind() == TypeKind::Float
+                               ? std::numeric_limits<float>::max()
+                               : std::numeric_limits<double>::max();
+    number = std::max(-maximum, std::min(number, maximum));
+    if (destination.kind() == TypeKind::Float)
+      number = static_cast<double>(static_cast<float>(number));
+    return Value{&destination, number};
+  }
+  const unsigned width = destination.bit_width();
+  if (!source.type->is_floating_point()) {
+    const __int128 number = integer_number(source);
+    if (truncating) {
+      std::uint64_t bits = static_cast<std::uint64_t>(number);
+      if (width < 64)
+        bits &= (std::uint64_t{1} << width) - 1;
+      return Value{&destination, bits};
+    }
+    const __int128 minimum =
+        destination.is_signed() ? -(__int128{1} << (width - 1)) : 0;
+    const unsigned __int128 unsigned_maximum =
+        width == 64 ? std::numeric_limits<std::uint64_t>::max()
+                    : (static_cast<unsigned __int128>(1) << width) - 1;
+    const __int128 maximum =
+        destination.is_signed()
+            ? (__int128{1} << (width - 1)) - 1
+            : static_cast<__int128>(unsigned_maximum);
+    const __int128 clamped = std::max(minimum, std::min(number, maximum));
+    return Value{&destination, static_cast<std::uint64_t>(clamped)};
+  }
+  const double number = std::get<double>(source.data);
+  if (std::isnan(number))
+    return Value{&destination, std::uint64_t{0}};
+  const long double minimum =
+      destination.is_signed()
+          ? -std::ldexp(static_cast<long double>(1), width - 1)
+          : 0.0L;
+  const long double upper = std::ldexp(
+      static_cast<long double>(1), width - (destination.is_signed() ? 1 : 0));
+  long double value = std::trunc(static_cast<long double>(number));
+  if (value < minimum)
+    value = minimum;
+  if (value >= upper)
+    value = upper - 1;
+  return Value{&destination,
+               destination.is_signed()
+                   ? static_cast<std::uint64_t>(static_cast<std::int64_t>(value))
+                   : static_cast<std::uint64_t>(value)};
 }
 
 Value evaluate_impl(const janus::ast::Expression &expression,
@@ -613,9 +690,11 @@ Value evaluate_impl(const janus::ast::Expression &expression,
         } else if constexpr (std::is_same_v<
                                  Node, janus::ast::DoubleLiteralExpression>) {
           const Type &type =
-              expected_type != nullptr && expected_type->is_floating_point()
+              !node.is_float && expected_type != nullptr &&
+                      expected_type->is_floating_point()
                   ? *expected_type
-                  : Type::double_type();
+                  : (node.is_float ? Type::float_type()
+                                   : Type::double_type());
           return Value{&type, node.value};
         } else if constexpr (std::is_same_v<
                                  Node, janus::ast::CharacterLiteralExpression>)
@@ -705,12 +784,17 @@ Value evaluate_impl(const janus::ast::Expression &expression,
         } else if constexpr (std::is_same_v<
                                  Node, janus::ast::CallExpression>) {
           const Type *destination = constant_cast_type(node.callee);
+          if (destination == nullptr && is_policy_cast(node.callee))
+            destination = expected_type;
           if (destination == nullptr || node.arguments.size() != 1)
             throw janus::CompileError{
                 node.location,
                 "global initializer is not a constant expression"};
           const Value source = evaluate_impl(
               *node.arguments.front(), nullptr, resolve, resolve_constructor);
+          if (is_policy_cast(node.callee))
+            return policy_cast_value(source, *destination,
+                                     node.callee == "truncatingCast");
           return cast_value(source, *destination, node.location);
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::UnaryExpression>) {
@@ -762,7 +846,8 @@ bool is_constant_expression(const ast::Expression &expression) {
         else if constexpr (std::is_same_v<Node, ast::MemberAccessExpression>)
           return qualified_name(*node.object).has_value();
         else if constexpr (std::is_same_v<Node, ast::CallExpression>)
-          return constant_cast_type(node.callee) != nullptr &&
+          return (constant_cast_type(node.callee) != nullptr ||
+                  is_policy_cast(node.callee)) &&
                  node.arguments.size() == 1 &&
                  is_constant_expression(*node.arguments.front());
         else if constexpr (std::is_same_v<Node, ast::UnaryExpression>)

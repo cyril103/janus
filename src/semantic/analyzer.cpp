@@ -5,6 +5,7 @@
 #include "janus/ownership/classifier.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -2547,7 +2548,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               return SemanticType{&Type::int_type(), {}};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::DoubleLiteralExpression>) {
-              return SemanticType{&Type::double_type(), {}};
+              return SemanticType{node.is_float ? &Type::float_type()
+                                                : &Type::double_type(), {}};
             } else if constexpr (std::is_same_v<
                                      Node, ast::CharacterLiteralExpression>) {
               return SemanticType{&Type::char_type(), {}};
@@ -3011,12 +3013,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 return SemanticType{&Type::unit_type()};
               }
-              if (node.callee == "numericCast") {
+              if (node.callee == "numericCast" ||
+                  node.callee == "checkedCast" ||
+                  node.callee == "saturatingCast" ||
+                  node.callee == "truncatingCast") {
+                const std::string policy = node.callee;
                 if (node.type_arguments.size() != 1 ||
                     node.arguments.size() != 1)
                   throw CompileError{
                       node.location,
-                      "numericCast expects one destination type and one "
+                      policy + " expects one destination type and one "
                       "value argument"};
                 SemanticType destination_type = resolve_type(
                     node.type_arguments.front(), *active_type_parameters,
@@ -3030,16 +3036,119 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     source_type.is_concrete() &&
                     (source_type.concrete->is_integer() ||
                      source_type.concrete->is_floating_point());
-                const bool destination_numeric =
-                    destination_type.is_concrete() &&
-                    (destination_type.concrete->is_integer() ||
-                     destination_type.concrete->is_floating_point());
-                if (!source_numeric || !destination_numeric ||
-                    !can_explicitly_cast(source_type, destination_type))
+                if (!destination_type.is_concrete())
                   throw CompileError{
                       node.location,
-                      "numericCast requires compatible numeric source and "
-                      "destination types"};
+                      policy +
+                          " requires a concrete numeric destination type"};
+                const bool destination_numeric =
+                    destination_type.concrete->is_integer() ||
+                    destination_type.concrete->is_floating_point();
+                if (!source_numeric || !destination_numeric ||
+                    (destination_type.is_concrete() &&
+                     !can_explicitly_cast(source_type, destination_type)))
+                  throw CompileError{
+                      node.location,
+                      policy == "numericCast"
+                          ? "numericCast requires compatible numeric source "
+                            "and destination types"
+                          : policy + " requires numeric source and "
+                                         "destination types"};
+                if (policy == "checkedCast") {
+                  const auto error_iterator = find_in_context(
+                      enums, context_module, "NumericCastError");
+                  const auto result_iterator =
+                      find_in_context(enums, context_module, "Result");
+                  const auto visible_type_name =
+                      [&](const ast::EnumDeclaration &declaration) {
+                        if (declaration.module_name == context_module)
+                          return declaration.name;
+                        for (const ast::ImportDeclaration &import :
+                             program.imports) {
+                          if (import.importing_module != context_module ||
+                              import.module_name != declaration.module_name)
+                            continue;
+                          for (const ast::ImportDeclaration::Symbol &symbol :
+                               import.symbols)
+                            if (symbol.name == declaration.name)
+                              return symbol.alias.value_or(symbol.name);
+                          if (import.module_alias.has_value())
+                            return *import.module_alias + "." + declaration.name;
+                          if (!import.is_qualified() && !import.is_selective())
+                            return declaration.name;
+                        }
+                        return declaration.name;
+                      };
+                  const std::string error_name =
+                      error_iterator == enums.end()
+                          ? "NumericCastError"
+                          : visible_type_name(*error_iterator->second);
+                  const std::string result_name =
+                      result_iterator == enums.end()
+                          ? "Result"
+                          : visible_type_name(*result_iterator->second);
+                  ast::TypeReference error_type{error_name, node.location, {}};
+                  ast::TypeReference result_type{
+                      result_name, node.location,
+                      {node.type_arguments.front(), error_type}};
+                  SemanticType resolved_result = resolve_type(
+                      result_type, *active_type_parameters, &class_arities,
+                      context_module, &scoped_type_aliases);
+
+                  const auto find_case = [](const ast::EnumDeclaration &type,
+                                            std::string_view name) {
+                    return std::find_if(
+                        type.cases.begin(), type.cases.end(),
+                        [&](const ast::EnumDeclaration::Case &item) {
+                          return item.name == name;
+                        });
+                  };
+                  constexpr std::array<std::string_view, 6> error_cases{
+                      "Overflow", "Underflow", "IncompatibleSign",
+                      "NonFinite", "FractionalLoss", "PrecisionLoss"};
+                  if (error_iterator == enums.end() ||
+                      error_iterator->second->type_parameters.size() != 0 ||
+                      std::any_of(
+                          error_cases.begin(), error_cases.end(),
+                          [&](std::string_view name) {
+                            const auto item =
+                                find_case(*error_iterator->second, name);
+                            return item == error_iterator->second->cases.end() ||
+                                   !item->payload_types.empty();
+                          }))
+                    throw CompileError{
+                        node.location,
+                        "checkedCast requires NumericCastError to define "
+                        "payload-free Overflow, Underflow, IncompatibleSign, "
+                        "NonFinite, FractionalLoss and PrecisionLoss cases"};
+
+                  bool valid_result = result_iterator != enums.end() &&
+                                      result_iterator->second->type_parameters.size() ==
+                                          2;
+                  if (valid_result) {
+                    const ast::EnumDeclaration &declaration =
+                        *result_iterator->second;
+                    const auto ok = find_case(declaration, "Ok");
+                    const auto error = find_case(declaration, "Error");
+                    valid_result =
+                        ok != declaration.cases.end() &&
+                        error != declaration.cases.end() &&
+                        ok->payload_types.size() == 1 &&
+                        error->payload_types.size() == 1 &&
+                        ok->payload_types.front().name ==
+                            declaration.type_parameters[0] &&
+                        ok->payload_types.front().type_arguments.empty() &&
+                        error->payload_types.front().name ==
+                            declaration.type_parameters[1] &&
+                        error->payload_types.front().type_arguments.empty();
+                  }
+                  if (!valid_result)
+                    throw CompileError{
+                        node.location,
+                        "checkedCast requires Result to define Ok(T) and "
+                        "Error(E)"};
+                  return resolved_result;
+                }
                 return destination_type;
               }
               const bool is_builtin_cast = builtin_type(node.callee) != nullptr;
@@ -3140,8 +3249,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "explicit cast from '" + source_type.name() + "' to '" +
                           destination_type.name() +
                           "' may lose range or precision",
-                      {"validate the value before converting to the narrower "
-                       "or differently signed type"});
+                      {"use checkedCast[T] to reject altered values, "
+                       "saturatingCast[T] to clamp them, or "
+                       "truncatingCast[T] for intentional truncation"});
                 return destination_type;
               }
               const auto callee_iterator =

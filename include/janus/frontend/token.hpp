@@ -43,6 +43,7 @@ enum class TokenKind {
   DocumentationComment,
   Identifier,
   IntegerLiteral,
+  FloatLiteral,
   DoubleLiteral,
   CharacterLiteral,
   StringLiteral,
@@ -158,6 +159,8 @@ struct Token {
     return "identifier";
   case TokenKind::IntegerLiteral:
     return "integer literal";
+  case TokenKind::FloatLiteral:
+    return "float literal";
   case TokenKind::DoubleLiteral:
     return "double literal";
   case TokenKind::CharacterLiteral:

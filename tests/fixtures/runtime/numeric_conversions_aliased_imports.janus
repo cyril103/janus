@@ -1,0 +1,10 @@
+import std.numeric as numeric
+import std.result as result
+
+def main() : int {
+    var source : long = 42
+    val converted : result.Result[int, numeric.NumericCastError] =
+        checkedCast[int](source)
+    println(1)
+    return 0
+}

@@ -81,6 +81,21 @@ def main() : int {
 }
 ```
 
+### `std.numeric`
+
+```janus
+// doctest: doctest name=stdlib-std-numeric
+import std.numeric
+import std.result
+def main() : int {
+    val converted : Result[ubyte, NumericCastError] = checkedCast[ubyte](255)
+    return match converted { Ok(value) => 0, Error(error) => 1 }
+}
+```
+
+La [matrice des conversions numériques](numeric-conversions.md) documente les
+trois politiques et tous leurs cas limites.
+
 ## Collections et hachage
 
 ### `std.hash_probe`

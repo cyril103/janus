@@ -72,6 +72,9 @@ OWNER_MODULES = {
     "#147": {
         "std.testing",
     },
+    "#142": {
+        "std.numeric",
+    },
 }
 IMPORT_RE = re.compile(r"^\s*import\s+([\w.]+)", re.MULTILINE)
 DOCUMENTATION_BLOCK_RE = re.compile(

@@ -13,6 +13,7 @@ REPOSITORY = WEBSITE.parent
 EXPECTED_REFERENCE = {
     "getting-started.md",
     "language-guide.md",
+    "numeric-conversions.md",
     "text.md",
     "tooling.md",
     "testing.md",
@@ -51,6 +52,7 @@ EXPECTED_MODULES = {
     "std.io",
     "std.iterator",
     "std.math",
+    "std.numeric",
     "std.option",
     "std.path",
     "std.process",

@@ -13,10 +13,10 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **29 modules**, **9972 lignes** et **922 symboles publics** inventoriés ;
-- **930 blocs `///` publics pour 922 symboles** (couverture source du lot #115 : 100 %) ;
+- **30 modules**, **9992 lignes** et **929 symboles publics** inventoriés ;
+- **937 blocs `///` publics pour 929 symboles** (couverture source du lot #115 : 100 %) ;
 - **152 sites d'allocation**, **213 marqueurs de nettoyage**, **201/14/38** occurrences `move`/`consume`/destructeur ;
-- **21/29 modules** importés directement par au moins une fixture ou un test, soit **96 couples module-fichier de test** ;
+- **22/30 modules** importés directement par au moins une fixture ou un test, soit **102 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
 Ces métriques sont des indicateurs de risque et non des objectifs d'optimisation isolés. Un marqueur de nettoyage peut apparaître dans un nom d'API ; les tests sanitizers restent l'autorité sur les fuites et doubles destructions.
@@ -64,12 +64,13 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.io` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 33 | 888 | 33 | 8/0/4 | 21/14/0 | 16 | 29 | `std.option`, `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/io-streams.md`, `docs/stability-contract.md` |
 | `std.iterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 18 | 432 | 18 | 36/8/7 | 0/25/0 | 14 | 32 | `std.builder`, `std.option` | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.math` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 104 | 546 | 104 | 0/0/0 | 0/0/1 | 1 | 0 | `std.array` | 6 | `docs/language-guide.md`, `docs/stability-contract.md` |
+| `std.numeric` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) | 7 | 20 | 7 | 0/0/0 | 0/0/0 | 0 | 0 | `std.result` | 3 | `docs/numeric-conversions.md`, `docs/stdlib-reference.md`, `docs/stability-contract.md` |
 | `std.option` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 9 | 134 | 9 | 16/0/1 | 0/22/0 | 2 | 11 | — | 8 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.path` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 8 | 237 | 8 | 0/0/1 | 3/0/2 | 7 | 11 | `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
 | `std.random` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 6 | 80 | 6 | 0/0/0 | 0/0/2 | 2 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.process` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 13 | 248 | 13 | 0/0/2 | 2/5/0 | 7 | 5 | `std.array`, `std.option`, `std.result`, `std.system` | 1 | `docs/language-guide.md`, `docs/design/process-runtime.md`, `docs/stability-contract.md` |
 | `std.range` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 1 | 44 | 1 | 0/0/0 | 0/1/0 | 2 | 1 | `std.iterator`, `std.option` | 3 | `docs/language-guide.md` |
-| `std.result` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 12 | 184 | 12 | 28/0/1 | 18/8/0 | 2 | 17 | `std.option` | 10 | `docs/language-guide.md`, `docs/stability-contract.md` |
+| `std.result` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 12 | 184 | 12 | 28/0/1 | 18/8/0 | 2 | 17 | `std.option` | 13 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.system` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 28 | 244 | 28 | 0/0/1 | 5/0/0 | 3 | 7 | `std.result` | 2 | `docs/language-guide.md`, `docs/design/system-runtime.md`, `docs/stability-contract.md` |
 | `std.text` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 42 | 447 | 42 | 0/0/1 | 14/0/5 | 3 | 17 | `std.result` | 2 | `docs/text.md`, `docs/stability-contract.md` |
 | `std.testing` | `experimental` | `conservation` | [#147](https://github.com/cyril103/janus/issues/147) | 11 | 138 | 11 | 2/0/1 | 5/2/8 | 1 | 2 | `std.fs`, `std.option`, `std.path`, `std.result`, `std.system` | 0 | `docs/testing.md`, `docs/tooling.md` |
@@ -112,12 +113,13 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 | `std.io` | `tests/fixtures/runtime/io_streams.janus`, `tests/fixtures/runtime/processes.janus` |
 | `std.iterator` | `tests/fixtures/runtime/owned_iterator_borrow_error.janus`, `tests/fixtures/runtime/sequence_pipeline_stress.janus` |
 | `std.math` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/floating_math.janus`, `tests/fixtures/runtime/lcm_overflow.janus`, `tests/fixtures/runtime/lcm_overflow_reversed.janus`, `tests/fixtures/runtime/math_helpers.janus`, `tests/fixtures/runtime/prime_factors.janus` |
+| `std.numeric` | `tests/fixtures/runtime/numeric_conversion_matrix.janus`, `tests/fixtures/runtime/numeric_conversions.janus`, `tests/fixtures/runtime/numeric_conversions_aliased_imports.janus` |
 | `std.option` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/option_combinators.janus`, `tests/fixtures/runtime/owned_iterators.janus`, `tests/fixtures/runtime/owned_option_combinators.janus`, `tests/fixtures/runtime/owned_option_move_error.janus`, `tests/fixtures/runtime/owned_option_observe_temporary_error.janus`, `tests/fixtures/runtime/processes.janus` |
 | `std.path` | `tests/fixtures/runtime/io_streams.janus`, `tests/fixtures/runtime/path_fs_result.janus` |
 | `std.random` | `tests/fixtures/runtime/random_zero_bound.janus`, `tests/fixtures/runtime/time_random.janus` |
 | `std.process` | `tests/fixtures/runtime/processes.janus` |
 | `std.range` | `tests/fixtures/project-euler/production/problem1.janus`, `tests/fixtures/project-euler/production/problem5.janus`, `tests/fixtures/runtime/debug_struct_bool.janus` |
-| `std.result` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/owned_result_combinators.janus`, `tests/fixtures/runtime/owned_result_move_error.janus`, `tests/fixtures/runtime/owned_result_observe_temporary_error.janus`, `tests/fixtures/runtime/owned_result_try.janus`, `tests/fixtures/runtime/owned_result_try_move_error.janus`, `tests/fixtures/runtime/owned_result_try_reuse_error.janus`, `tests/fixtures/runtime/result_combinators.janus`, `tests/fixtures/runtime/text_api.janus` |
+| `std.result` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/numeric_conversion_matrix.janus`, `tests/fixtures/runtime/numeric_conversions.janus`, `tests/fixtures/runtime/numeric_conversions_aliased_imports.janus`, `tests/fixtures/runtime/owned_result_combinators.janus`, `tests/fixtures/runtime/owned_result_move_error.janus`, `tests/fixtures/runtime/owned_result_observe_temporary_error.janus`, `tests/fixtures/runtime/owned_result_try.janus`, `tests/fixtures/runtime/owned_result_try_move_error.janus`, `tests/fixtures/runtime/owned_result_try_reuse_error.janus`, `tests/fixtures/runtime/result_combinators.janus`, `tests/fixtures/runtime/text_api.janus` |
 | `std.system` | `tests/fixtures/runtime/processes.janus`, `tests/fixtures/runtime/system_result.janus` |
 | `std.text` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/text_api.janus` |
 | `std.testing` | aucune |
@@ -1011,6 +1013,18 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `tgammaf` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `trunc` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `truncf` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
+
+### `std.numeric`
+
+| Symbole | Surface actuelle | Décision 0.7.4 | Propriétaire de migration |
+| --- | --- | --- | --- |
+| `NumericCastError` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) |
+| `NumericCastError.Overflow` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) |
+| `NumericCastError.Underflow` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) |
+| `NumericCastError.IncompatibleSign` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) |
+| `NumericCastError.NonFinite` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) |
+| `NumericCastError.FractionalLoss` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) |
+| `NumericCastError.PrecisionLoss` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) |
 
 ### `std.option`
 
