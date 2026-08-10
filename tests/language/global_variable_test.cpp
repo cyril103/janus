@@ -41,6 +41,43 @@ void expect_compile_error(std::string_view source,
   }
 }
 
+void expect_loaded_compile_error(const std::filesystem::path &path,
+                                 std::string_view expected_message) {
+  try {
+    janus::frontend::ModuleLoader loader;
+    const janus::ast::Program program = loader.load(path);
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(program));
+    expect(false, "invalid imported global access must fail");
+  } catch (const janus::CompileError &error) {
+    if (std::string_view{error.what()}.find(expected_message) ==
+        std::string_view::npos) {
+      std::cerr << "FAILED: expected diagnostic containing '" << expected_message
+                << "', got '" << error.what() << "'\n";
+      ++failures;
+    }
+  }
+}
+
+void expect_backend_rejects_unanalyzed_program(
+    const std::filesystem::path &path, std::string_view expected_message) {
+  try {
+    janus::frontend::ModuleLoader loader;
+    const janus::ast::Program program = loader.load(path);
+    llvm::LLVMContext context;
+    janus::backend::llvm::IrGenerator generator{context};
+    static_cast<void>(generator.generate(program, "invalid_global_access"));
+    expect(false, "the backend must reject an unauthorized global access");
+  } catch (const janus::CompileError &error) {
+    if (std::string_view{error.what()}.find(expected_message) ==
+        std::string_view::npos) {
+      std::cerr << "FAILED: expected backend diagnostic containing '"
+                << expected_message << "', got '" << error.what() << "'\n";
+      ++failures;
+    }
+  }
+}
+
 } // namespace
 
 int main() {
@@ -476,6 +513,68 @@ def main() : int { return callback() }
              "ptr @__janus_global_other_config__visibleCount") !=
              std::string::npos,
          "qualified read targets the requested module global");
+
+  expect_loaded_compile_error(
+      std::filesystem::path{JANUS_GLOBALS_UNIMPORTED_MUTABLE_READ},
+      "global value 'shared_access.counter' is not imported in this module");
+  expect_loaded_compile_error(
+      std::filesystem::path{JANUS_GLOBALS_UNIMPORTED_MUTABLE_WRITE},
+      "global value 'shared_access.counter' is not imported in this module");
+  expect_loaded_compile_error(
+      std::filesystem::path{JANUS_GLOBALS_UNIMPORTED_IMMUTABLE_READ},
+      "global value 'shared_access.limit' is not imported in this module");
+  expect_loaded_compile_error(
+      std::filesystem::path{JANUS_GLOBALS_UNIMPORTED_IMMUTABLE_INITIALIZER},
+      "global value 'shared_access.limit' is not imported in this module");
+  expect_backend_rejects_unanalyzed_program(
+      std::filesystem::path{JANUS_GLOBALS_UNIMPORTED_MUTABLE_READ},
+      "global value 'shared_access.counter' is not imported in this module");
+  expect_loaded_compile_error(
+      std::filesystem::path{JANUS_GLOBALS_SELECTIVE_IMPORT_BYPASS},
+      "global value 'shared_access.counter' is not imported in this module");
+  expect_loaded_compile_error(
+      std::filesystem::path{JANUS_GLOBALS_ALIAS_CANONICAL_BYPASS},
+      "global value 'shared_access.counter' is not imported in this module");
+
+  const janus::ast::Program explicit_import_program =
+      loader.load(std::filesystem::path{JANUS_GLOBALS_EXPLICIT_IMPORT});
+  static_cast<void>(analyzer.analyze(explicit_import_program));
+  llvm::LLVMContext explicit_import_context;
+  janus::backend::llvm::IrGenerator explicit_import_generator{
+      explicit_import_context};
+  const std::unique_ptr<llvm::Module> explicit_import_module =
+      explicit_import_generator.generate(explicit_import_program,
+                                         "explicit_global_import");
+  std::string explicit_import_ir;
+  llvm::raw_string_ostream explicit_import_output{explicit_import_ir};
+  explicit_import_module->print(explicit_import_output, nullptr);
+  explicit_import_output.flush();
+  expect(explicit_import_ir.find(
+             "store i32 3, ptr @__janus_global_shared_access__counter") !=
+             std::string::npos,
+         "an explicitly imported mutable global remains writable");
+  expect(explicit_import_ir.find(
+             "ptr @__janus_global_shared_access__limit") !=
+             std::string::npos,
+         "an explicitly imported immutable global remains readable");
+
+  const janus::ast::Program aliased_import_program =
+      loader.load(std::filesystem::path{JANUS_GLOBALS_ALIASED_IMPORT});
+  static_cast<void>(analyzer.analyze(aliased_import_program));
+  llvm::LLVMContext aliased_import_context;
+  janus::backend::llvm::IrGenerator aliased_import_generator{
+      aliased_import_context};
+  const std::unique_ptr<llvm::Module> aliased_import_module =
+      aliased_import_generator.generate(aliased_import_program,
+                                        "aliased_global_import");
+  std::string aliased_import_ir;
+  llvm::raw_string_ostream aliased_import_output{aliased_import_ir};
+  aliased_import_module->print(aliased_import_output, nullptr);
+  aliased_import_output.flush();
+  expect(aliased_import_ir.find(
+             "store i32 5, ptr @__janus_global_shared_access__counter") !=
+             std::string::npos,
+         "an imported global alias resolves to canonical backend storage");
 
   try {
     const janus::ast::Program private_access_program =

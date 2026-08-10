@@ -56,6 +56,10 @@ using SymbolTable = std::unordered_map<std::string, Symbol>;
 struct AnalysisResult {
   SymbolTable globals;
   std::unordered_map<std::string, SymbolTable> functions;
+  std::unordered_map<const ast::MemberAccessExpression *, std::string>
+      qualified_global_reads;
+  std::unordered_map<const ast::AssignmentStatement *, std::string>
+      qualified_global_writes;
   std::vector<Diagnostic> diagnostics;
 };
 

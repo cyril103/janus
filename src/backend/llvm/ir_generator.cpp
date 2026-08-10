@@ -1,5 +1,7 @@
 #include "janus/backend/llvm/ir_generator.hpp"
 
+#include "janus/semantic/analyzer.hpp"
+
 #include "janus/backend/llvm/type_lowering.hpp"
 #include "janus/constant/evaluator.hpp"
 #include "janus/diagnostics/compile_error.hpp"
@@ -79,13 +81,14 @@ bool has_derivation(const std::vector<janus::ast::Derivation> &derivations,
 class Generator {
 public:
   Generator(::llvm::LLVMContext &context, const janus::ast::Program &program,
+            const janus::semantic::AnalysisResult &analysis,
             std::string_view module_name,
             janus::backend::llvm::PanicTraceMode panic_trace,
             bool dependencies_only)
       : context_{context}, module_{std::make_unique<::llvm::Module>(
                                std::string{module_name}, context)},
         source_name_{module_name}, panic_trace_{panic_trace},
-        entry_module_{program.module_name},
+        analysis_{analysis}, entry_module_{program.module_name},
         dependencies_only_{dependencies_only} {
 #if LLVM_VERSION_MAJOR >= 21
     module_->setTargetTriple(
@@ -180,8 +183,6 @@ public:
           public_global_keys_.emplace(
               alias,
               source_global_key(global.module_name, global.declaration.name));
-      if (global.module_name.has_value())
-        global_modules_.insert(*global.module_name);
     }
     initialization_plan_ = janus::constant::plan_initialization(program);
     if (dependencies_only_) {
@@ -389,10 +390,27 @@ private:
     return *find_storage(name, locals);
   }
 
-  const Local &resolve_qualified_global(std::string_view module,
-                                        std::string_view name) const {
-    return global_storage_.at(
-        source_global_key(std::optional<std::string>{module}, name));
+  const Local &resolve_qualified_global(
+      const janus::ast::MemberAccessExpression &access) const {
+    const auto resolved = analysis_.qualified_global_reads.find(&access);
+    if (resolved == analysis_.qualified_global_reads.end())
+      throw janus::CompileError{
+          access.location,
+          "backend has no semantically validated global read for '" +
+              qualified_expression_name(*access.object).value_or("<unknown>") +
+              "." + access.member + "'"};
+    return global_storage_.at(resolved->second);
+  }
+
+  const Local &resolve_qualified_global(
+      const janus::ast::AssignmentStatement &assignment) const {
+    const auto resolved = analysis_.qualified_global_writes.find(&assignment);
+    if (resolved == analysis_.qualified_global_writes.end())
+      throw janus::CompileError{
+          assignment.location,
+          "backend has no semantically validated global write for '" +
+              assignment.object + "." + assignment.name + "'"};
+    return global_storage_.at(resolved->second);
   }
 
   static std::optional<std::string>
@@ -1490,10 +1508,8 @@ private:
         if (const auto *assignment =
                 std::get_if<janus::ast::AssignmentStatement>(&statement)) {
           if (!assignment->object.empty()) {
-            if (!block_locals.contains(assignment->object) &&
-                global_modules_.contains(assignment->object)) {
-              const Local &global = resolve_qualified_global(assignment->object,
-                                                             assignment->name);
+            if (analysis_.qualified_global_writes.contains(assignment)) {
+              const Local &global = resolve_qualified_global(*assignment);
               builder.CreateStore(emit_expression(assignment->expression,
                                                   *global.type, substitutions,
                                                   block_locals, builder),
@@ -1955,10 +1971,8 @@ private:
               if (declaration != enums_.end())
                 return ensure_enum(declaration->first, {});
             }
-            if (const auto module = qualified_expression_name(*node.object);
-                module.has_value() && global_modules_.contains(*module) &&
-                !locals.contains(module->substr(0, module->find('.'))))
-              return *resolve_qualified_global(*module, node.member).type;
+            if (analysis_.qualified_global_reads.contains(&node))
+              return *resolve_qualified_global(node).type;
             const janus::Type &object_type =
                 expression_type(*node.object, substitutions, locals);
             return *find_field(object_type.name(), node.member).second;
@@ -3264,11 +3278,8 @@ private:
                       enum_case_value(enum_type.name(), node.member)),
                   0, "enum.value");
             }
-            if (const auto module = qualified_expression_name(*node.object);
-                module.has_value() && global_modules_.contains(*module) &&
-                !locals.contains(module->substr(0, module->find('.')))) {
-              const Local &global =
-                  resolve_qualified_global(*module, node.member);
+            if (analysis_.qualified_global_reads.contains(&node)) {
+              const Local &global = resolve_qualified_global(node);
               return builder.CreateLoad(lower_type(*global.type, context_),
                                         global.storage,
                                         node.member + ".global");
@@ -3809,7 +3820,7 @@ private:
       global_by_key_;
   std::unordered_map<std::string, Local> global_storage_;
   std::unordered_map<std::string, std::string> public_global_keys_;
-  std::unordered_set<std::string> global_modules_;
+  const janus::semantic::AnalysisResult &analysis_;
   janus::constant::InitializationPlan initialization_plan_;
   std::unordered_set<std::string> constant_global_keys_;
   std::unordered_map<std::string, int> constant_states_;
@@ -3860,8 +3871,11 @@ IrGenerator::IrGenerator(::llvm::LLVMContext &context) noexcept
 std::unique_ptr<::llvm::Module>
 IrGenerator::generate(const ast::Program &program, std::string_view module_name,
                       PanicTraceMode panic_trace, bool dependencies_only) {
-  return Generator{context_, program, module_name, panic_trace,
-                   dependencies_only}
+  semantic::Analyzer analyzer;
+  const semantic::AnalysisResult analysis =
+      analyzer.analyze(program, semantic::AnalysisOptions{false});
+  return Generator{context_, program, analysis, module_name, panic_trace,
+                    dependencies_only}
       .generate();
 }
 

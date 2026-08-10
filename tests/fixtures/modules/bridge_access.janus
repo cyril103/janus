@@ -1,0 +1,7 @@
+module bridge_access
+
+import shared_access
+
+def bridgeValue() : int {
+    return shared_access.limit
+}

@@ -1,0 +1,5 @@
+import shared_access as settings
+
+def main() : int {
+    return shared_access.counter
+}

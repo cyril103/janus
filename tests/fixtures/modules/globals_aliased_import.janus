@@ -1,0 +1,6 @@
+import shared_access as settings
+
+def main() : int {
+    settings.counter = 5
+    return settings.counter + settings.limit
+}

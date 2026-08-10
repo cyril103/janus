@@ -1,0 +1,5 @@
+module shared_access
+
+val limit : int = 4
+var counter : int = 1
+private val secret : int = 9

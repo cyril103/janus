@@ -1,0 +1,5 @@
+import bridge_access
+
+def main() : int {
+    return shared_access.limit
+}
