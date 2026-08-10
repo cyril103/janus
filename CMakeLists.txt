@@ -205,6 +205,7 @@ llvm_map_components_to_libnames(
 )
 target_link_libraries(janus_llvm_backend
     PRIVATE
+        janus_semantic
         ${JANUS_LLVM_LIBS}
 )
 target_compile_options(janus_llvm_backend
@@ -1317,6 +1318,21 @@ if(BUILD_TESTING)
             ${CMAKE_COMMAND}
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/verify_stdout_normalization.cmake"
     )
+
+    add_executable(backend_link_test
+        tests/language/backend_link_test.cpp
+    )
+    target_link_libraries(backend_link_test
+        PRIVATE
+            janus_llvm_backend
+    )
+    target_compile_options(backend_link_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME backend.link_contract COMMAND backend_link_test)
 
     add_executable(generic_function_test
         tests/language/generic_function_test.cpp
