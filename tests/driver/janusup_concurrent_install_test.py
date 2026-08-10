@@ -192,6 +192,33 @@ def test_global_lock_and_concurrent_uninstall(janusup: Path, root: Path) -> None
     assert_selected(home, target, target_identity)
 
 
+def test_update_does_not_override_concurrent_default(janusup: Path, root: Path) -> None:
+    home = root / "update-default-home"
+    alpha = package(root, "update-alpha")
+    alpha_update = package(root, "update-alpha-new")
+    beta = package(root, "update-beta")
+    install_ok(janusup, home, alpha, "alpha")
+    install_ok(janusup, home, beta, "beta")
+    selected = invoke(janusup, home, "default", "alpha")
+    assert selected.returncode == 0, selected.stdout + selected.stderr
+
+    marker = home / ".janusup-test/pause-update-after-active-read.ready"
+    update = start(
+        janusup, home, "replace-active", str(alpha_update),
+        pause="update-after-active-read"
+    )
+    wait_for(marker, update)
+    switched = invoke(janusup, home, "default", "beta")
+    assert switched.returncode == 0, switched.stdout + switched.stderr
+    release(marker.with_suffix(".release"))
+    update_output = update.communicate(timeout=30)
+    assert update.returncode != 0, update_output
+    assert_selected(home, "beta", "update-beta")
+    assert (home / "toolchains/alpha/identity").read_text(
+        encoding="utf-8"
+    ) == "update-alpha"
+
+
 def test_production_binary_has_no_hooks_or_replace(
     janusup: Path, production_janusup: Path, root: Path
 ) -> None:
@@ -359,6 +386,7 @@ def run(janusup: Path, production_janusup: Path) -> None:
         test_adversarial_names(janusup, root)
         test_same_name_processes(janusup, root)
         test_global_lock_and_concurrent_uninstall(janusup, root)
+        test_update_does_not_override_concurrent_default(janusup, root)
         test_production_binary_has_no_hooks_or_replace(janusup, production_janusup, root)
         test_activation_preserves_unmanaged_bin_entries(janusup, root)
         test_prejournal_orphan_cleanup(janusup, root)
@@ -367,6 +395,8 @@ def run(janusup: Path, production_janusup: Path) -> None:
 
 
 def main() -> int:
+    if not __debug__:
+        raise RuntimeError("janusup concurrency tests require assertions enabled")
     parser = argparse.ArgumentParser()
     parser.add_argument("--janusup", type=Path, required=True)
     parser.add_argument("--production-janusup", type=Path, required=True)
