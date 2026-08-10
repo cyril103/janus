@@ -974,6 +974,8 @@ int main(int argc, char **argv) {
   janus::lsp::Server import_priority_server{{later_search_path}};
   const std::string buffered_module_uri =
       file_uri(workspace / "src/priority.janus");
+  const std::string canonical_buffered_module_uri = file_uri(
+      std::filesystem::weakly_canonical(workspace / "src/priority.janus"));
   const std::string priority_consumer_uri =
       file_uri(workspace / "src/priority-consumer.janus");
   static_cast<void>(import_priority_server.handle(
@@ -989,6 +991,6 @@ int main(int argc, char **argv) {
           "{\"jsonrpc\":\"2.0\",\"id\":137,\"method\":\"textDocument/definition\",\"params\":{\"textDocument\":{\"uri\":\"" +
           priority_consumer_uri +
           "\"},\"position\":{\"line\":2,\"character\":31}}}");
-  JANUS_REQUIRE(buffered_import_definition.front().find(buffered_module_uri) !=
-                std::string::npos);
+  JANUS_REQUIRE(buffered_import_definition.front().find(
+                    canonical_buffered_module_uri) != std::string::npos);
 }

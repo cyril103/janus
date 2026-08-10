@@ -798,18 +798,39 @@ std::filesystem::path module_relative_path(std::string_view module) {
   return relative;
 }
 
+bool uri_paths_equal(const std::filesystem::path &left,
+                     const std::filesystem::path &right) {
+  std::string normalized_left = left.lexically_normal().generic_string();
+  std::string normalized_right = right.lexically_normal().generic_string();
+#ifdef _WIN32
+  const auto lowercase = [](std::string &path) {
+    std::transform(path.begin(), path.end(), path.begin(), [](char character) {
+      return static_cast<char>(
+          std::tolower(static_cast<unsigned char>(character)));
+    });
+  };
+  lowercase(normalized_left);
+  lowercase(normalized_right);
+#endif
+  return normalized_left == normalized_right;
+}
+
 std::optional<std::string> resolve_import_uri(
     std::string_view module, const std::filesystem::path &root,
     const std::vector<std::filesystem::path> &search_paths,
-    const std::unordered_set<std::string> &available_uris) {
+    const std::vector<std::string> &buffered_uris) {
   const std::filesystem::path relative = module_relative_path(module);
   std::vector<std::filesystem::path> roots{root};
   roots.insert(roots.end(), search_paths.begin(), search_paths.end());
   for (const std::filesystem::path &candidate_root : roots) {
     const std::filesystem::path candidate_path = candidate_root / relative;
+    for (const std::string &buffered_uri : buffered_uris) {
+      const std::optional<std::filesystem::path> buffered_path =
+          file_uri_path(buffered_uri);
+      if (buffered_path && uri_paths_equal(*buffered_path, candidate_path))
+        return buffered_uri;
+    }
     const std::string candidate_uri = file_uri(candidate_path);
-    if (available_uris.contains(candidate_uri))
-      return candidate_uri;
     if (std::filesystem::is_regular_file(candidate_path))
       return candidate_uri;
   }
@@ -846,6 +867,8 @@ SemanticIndex build_semantic_index(
   available_uris.reserve(open_documents.size() + workspace_uris.size());
   for (const auto &[uri, ignored] : open_documents)
     available_uris.push_back(uri);
+  std::vector<std::string> buffered_uris = available_uris;
+  std::sort(buffered_uris.begin(), buffered_uris.end());
   for (const std::string &uri : workspace_uris)
     available_uris.push_back(uri);
   std::sort(available_uris.begin(), available_uris.end());
@@ -881,7 +904,7 @@ SemanticIndex build_semantic_index(
     }
     for (const janus::ast::ImportDeclaration &import : program.imports) {
       const std::optional<std::string> imported_uri = resolve_import_uri(
-          import.module_name, *project_root, search_paths, indexed_uris);
+          import.module_name, *project_root, search_paths, buffered_uris);
       if (!imported_uri.has_value())
         continue;
       const std::string &uri = *imported_uri;
@@ -916,7 +939,7 @@ SemanticIndex build_semantic_index(
           for (const janus::ast::ImportDeclaration &import : imports)
             if (const auto imported = resolve_import_uri(
                     import.module_name, *project_root, search_paths,
-                    indexed_uris))
+                    buffered_uris))
               resolved_import_uris.insert_or_assign(import.module_name,
                                                      *imported);
       } catch (const std::exception &) {
