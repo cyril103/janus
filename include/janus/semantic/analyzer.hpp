@@ -1,6 +1,7 @@
 #pragma once
 
 #include "janus/ast/ast.hpp"
+#include "janus/constant/evaluator.hpp"
 
 #include <string>
 #include <unordered_map>
@@ -61,6 +62,8 @@ struct AnalysisResult {
   std::unordered_map<const ast::AssignmentStatement *, std::string>
       qualified_global_writes;
   std::unordered_map<const ast::ValueDeclaration *, SemanticType> local_types;
+  std::unordered_map<const ast::ValueDeclaration *, constant::Value>
+      local_constant_values;
   std::unordered_map<const ast::Expression *, std::vector<SemanticType>>
       inferred_generic_arguments;
   std::vector<Diagnostic> diagnostics;

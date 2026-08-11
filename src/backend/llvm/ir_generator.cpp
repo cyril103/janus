@@ -268,6 +268,7 @@ private:
   struct Local {
     ::llvm::Value *storage;
     const janus::Type *type;
+    bool is_constant{};
   };
 
   struct ClassSpecialization {
@@ -1853,6 +1854,14 @@ private:
           const janus::Type &type = declaration->declared_type
               ? resolve(*declaration->declared_type, substitutions)
               : resolve(analysis_.local_types.at(declaration));
+          if (declaration->is_constant) {
+            const janus::constant::Value &value =
+                analysis_.local_constant_values.at(declaration);
+            block_locals.emplace(
+                declaration->name,
+                Local{emit_static_initializer(value, type), &type, true});
+            continue;
+          }
           ::llvm::Value *storage = create_entry_alloca(
               builder, lower_type(type, context_), declaration->name);
           if (declaration->initializer.has_value()) {
@@ -3100,6 +3109,9 @@ private:
                                             expected_type.is_signed());
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
+            if (const auto local = locals.find(node.name);
+                local != locals.end() && local->second.is_constant)
+              return local->second.storage;
             std::string key = source_global_key(active_module_, node.name);
             if (!global_by_key_.contains(key)) {
               if (const auto exported = public_global_keys_.find(node.name);

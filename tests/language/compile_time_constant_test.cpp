@@ -84,6 +84,29 @@ def main() : int {
   expect(ir.find("ret i32 15") == std::string::npos,
          "ordinary val/var execution is not globally folded away");
 
+  janus::frontend::Parser local_parser{R"(
+const first : int = 99
+def main() : int {
+    const first : int = 20
+    const second : int = first + 22
+    return second
+}
+)"};
+  const janus::ast::Program local_program = local_parser.parse_program();
+  static_cast<void>(analyzer.analyze(local_program));
+  llvm::LLVMContext local_context;
+  janus::backend::llvm::IrGenerator local_generator{local_context};
+  const std::unique_ptr<llvm::Module> local_module =
+      local_generator.generate(local_program, "local_compile_time_constants");
+  std::string local_ir;
+  llvm::raw_string_ostream local_output{local_ir};
+  local_module->print(local_output, nullptr);
+  local_output.flush();
+  expect(local_ir.find("alloca") == std::string::npos,
+         "dependent local constants must be substituted without storage");
+  expect(local_ir.find("ret i32 42") != std::string::npos,
+         "local constants use the nearest lexical constant value");
+
   expect_compile_error(
       "var runtime : int = 1\nconst invalid : int = runtime\n"
       "def main() : int { return 0 }",

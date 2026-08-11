@@ -4967,9 +4967,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
     std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
         validate_block;
+    std::unordered_map<std::string, constant::Value> local_constants;
     validate_block = [&](const std::vector<ast::Statement> &statements,
                          SymbolTable &block_symbols) {
       SymbolTable *previous_symbols = active_symbols;
+      const auto previous_local_constants = local_constants;
       const auto previous_deferred_values = deferred_values;
       std::vector<std::pair<std::string, SourceLocation>> scope_declarations;
       active_symbols = &block_symbols;
@@ -5150,11 +5152,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   declaration->location,
                   "local const requires an initialized scalar type"};
             try {
-              static_cast<void>(constant::evaluate(
+              constant::Value local_value = constant::evaluate(
                   *declaration->initializer, declared_type.concrete,
                   [&](const std::optional<std::string> &module,
                       std::string_view name, SourceLocation)
                   -> std::optional<constant::Value> {
+                    if (!module.has_value()) {
+                      const auto local = local_constants.find(std::string{name});
+                      if (local != local_constants.end())
+                        return local->second;
+                    }
                     std::string key = global_key(module, name);
                     if (!module.has_value() && !globals.contains(key)) {
                       if (const auto exported =
@@ -5168,7 +5175,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       return std::nullopt;
                     return evaluate_global(key);
                   },
-                  {}, evaluate_constant_function));
+                  {}, evaluate_constant_function);
+              local_constants.insert_or_assign(declaration->name, local_value);
+              result.local_constant_values.insert_or_assign(declaration,
+                                                             std::move(local_value));
             } catch (const CompileError &error) {
               throw CompileError{
                   declaration->location,
@@ -5713,6 +5723,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         borrowed_values.erase(name);
       }
       active_symbols = previous_symbols;
+      local_constants = previous_local_constants;
       deferred_values = previous_deferred_values;
       return has_terminator;
     };
