@@ -45,6 +45,19 @@ private class HiddenOwner() { internal def hidden() : int { return 2 } }
       programs, {"fixture", "1.0.0"});
   expect(index.format_version == 1, "the index format is versioned");
   expect(index.symbols.size() == 3, "only public symbols are indexed");
+  janus::frontend::Parser constant_parser{
+      "module sample\nconst answer : int = 6 * 7\n"};
+  std::vector<janus::ast::Program> constant_programs;
+  constant_programs.push_back(constant_parser.parse_program());
+  const auto constant_index = janus::driver::build_api_index(
+      constant_programs, {"fixture", "1.0.0"});
+  const auto constant = constant_index.symbols.begin();
+  expect(constant != constant_index.symbols.end() &&
+             constant->signature.find("int:u64:000000000000002a") !=
+                 std::string::npos &&
+             constant->signature.find("origin sample.answer") !=
+                 std::string::npos,
+         "API constants expose type, canonical value, and origin");
   expect(index.symbols[0].module == "sample" &&
              index.symbols[0].required_import == "sample",
          "module and required import are always exposed");

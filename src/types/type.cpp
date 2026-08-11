@@ -82,6 +82,16 @@ const Type &Type::usize_type() {
   return type;
 }
 
+const Type &Type::isize_type(std::uint32_t pointer_width) {
+  static const Type type32{TypeKind::ISize, "isize", 32, true};
+  return pointer_width == 32 ? type32 : isize_type();
+}
+
+const Type &Type::usize_type(std::uint32_t pointer_width) {
+  static const Type type32{TypeKind::USize, "usize", 32, false};
+  return pointer_width == 32 ? type32 : usize_type();
+}
+
 Type Type::enum_type(std::string_view name) {
   return Type{TypeKind::Enum, name, 32, true};
 }

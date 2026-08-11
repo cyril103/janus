@@ -3,6 +3,7 @@
 #include "janus/ast/ast.hpp"
 #include "janus/constant/evaluator.hpp"
 #include "janus/frontend/parser.hpp"
+#include "janus/semantic/analyzer.hpp"
 #include "../frontend/module_resolution.hpp"
 
 #include <algorithm>
@@ -18,6 +19,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
+#include <tuple>
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -60,11 +62,21 @@ std::string canonical_identity(const BuildFingerprintInput &input,
     append_field(result, "option", option);
   append_field(result, "source-path", input.source_path);
   append_field(result, "source", input.source);
-  for (const DependencyFingerprintInput &dependency : input.dependencies) {
-    append_field(result, "dependency", dependency.name);
-    append_field(result, "interface", dependency.public_interface);
+  std::vector<const DependencyFingerprintInput *> dependencies;
+  dependencies.reserve(input.dependencies.size());
+  for (const DependencyFingerprintInput &dependency : input.dependencies)
+    dependencies.push_back(&dependency);
+  std::sort(dependencies.begin(), dependencies.end(), [](const auto *left,
+                                                          const auto *right) {
+    return std::tie(left->name, left->import_name) <
+           std::tie(right->name, right->import_name);
+  });
+  for (const DependencyFingerprintInput *dependency : dependencies) {
+    append_field(result, "dependency", dependency->name);
+    append_field(result, "import-name", dependency->import_name);
+    append_field(result, "interface", dependency->public_interface);
     if (include_implementation)
-      append_field(result, "implementation", dependency.implementation);
+      append_field(result, "implementation", dependency->implementation);
   }
   return result;
 }
@@ -131,6 +143,7 @@ void append_function(std::string &output,
   if (function.is_private || function.is_internal)
     return;
   output += "fn:";
+  output += function.is_constant ? "const:" : "runtime:";
   output += function.name;
   append_type_parameters(output, function.type_parameters);
   output += '(';
@@ -221,6 +234,20 @@ std::string_view declaration_source(std::string_view source,
 std::string public_interface(std::string_view source) {
   frontend::Parser parser{source};
   const ast::Program program = parser.parse_program();
+  semantic::AnalysisResult analysis;
+  const bool has_public_constant =
+      std::any_of(program.globals.begin(), program.globals.end(),
+                  [](const ast::GlobalDeclaration &global) {
+                    return global.declaration.is_constant &&
+                           !global.declaration.is_private &&
+                           !global.declaration.is_internal;
+                  });
+  if (has_public_constant && program.imports.empty()) {
+    semantic::Analyzer analyzer;
+    analysis = analyzer.analyze(
+        program, semantic::AnalysisOptions{.require_entry_point = false,
+                                           .target = {}});
+  }
   std::string output;
   if (program.module_name)
     append_field(output, "module", *program.module_name);
@@ -232,6 +259,23 @@ std::string public_interface(std::string_view source) {
     output += ':';
     append_type(output, global.declaration.declared_type);
     output += global.declaration.is_mutable ? ":mutable;" : ":immutable;";
+    if (global.declaration.is_constant) {
+      const std::string key = global.module_name.has_value()
+                                  ? *global.module_name + "." +
+                                        global.declaration.name
+                                  : global.declaration.name;
+      if (const auto value = analysis.global_constant_values.find(key);
+          value != analysis.global_constant_values.end()) {
+        output += ":const-value:";
+        output += constant::canonical_serialize(value->second);
+      } else {
+        output += ":const-expression:";
+        output += declaration_source(source, global.declaration.location.offset);
+      }
+      output += ':';
+      output += constant::evaluator_version;
+      output += ":target=pointer64;";
+    }
   }
   for (const auto &trait : program.traits) {
     if (trait.is_private)
@@ -327,8 +371,9 @@ std::string public_interface(std::string_view source) {
   // declarations, not unrelated private source from the same module.
   for (const auto &function : program.functions)
     if (!function.is_private && !function.is_internal &&
-        !function.type_parameters.empty())
-      append_field(output, "generic-implementation",
+        (function.is_constant || !function.type_parameters.empty()))
+      append_field(output, function.is_constant ? "constant-implementation"
+                                                : "generic-implementation",
                    declaration_source(source, function.location.offset));
   for (const auto &class_declaration : program.classes) {
     if (class_declaration.is_private)

@@ -1,0 +1,7 @@
+module const_access
+
+const answer : int = 40
+private const hidden : int = 1
+internal const internalValue : int = 2
+
+const def twice(value : int) : int { return value * 2 }

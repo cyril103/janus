@@ -1,0 +1,16 @@
+const def factorial(value : int) : int {
+    if value <= 1 {
+        return 1
+    } else {
+        return value * factorial(value - 1)
+    }
+}
+
+const compiled : int = factorial(5)
+
+def main() : int {
+    val runtimeInput : int = 5
+    println(compiled)
+    println(factorial(runtimeInput))
+    return 0
+}

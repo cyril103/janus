@@ -97,6 +97,23 @@ int main() {
               << janus::driver::format_source(local_types);
     return 1;
   }
+  const std::string constants =
+      "const answer : int = 42\n"
+      "const def choose(flag : bool) : int {\n"
+      "if flag {\nreturn answer\n} else {\nreturn 0\n}\n}\n"
+      "staticAssert(choose(true) == 42, \"stable\")\n";
+  const std::string formatted_constants =
+      "const answer : int = 42\n"
+      "const def choose(flag : bool) : int {\n"
+      "    if flag {\n        return answer\n    } else {\n"
+      "        return 0\n    }\n}\n"
+      "staticAssert(choose(true) == 42, \"stable\")\n";
+  if (janus::driver::format_source(constants) != formatted_constants ||
+      janus::driver::format_source(formatted_constants) !=
+          formatted_constants) {
+    std::cerr << "constant syntax formatting is not idempotent\n";
+    return 1;
+  }
   std::cout << "Janus formatting is deterministic\n";
   return 0;
 }

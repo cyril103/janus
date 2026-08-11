@@ -55,6 +55,7 @@ derives Equality, Hashing, Debug {
 
 | Mot-clé | Utilité | Exemple ou règle |
 | --- | --- | --- |
+| `const` | crée une valeur évaluée pendant la compilation | peut dépendre uniquement d'autres constantes admissibles |
 | `val` | crée une liaison non réassignable | l’objet pointé peut néanmoins avoir des champs `var` |
 | `var` | crée une liaison réassignable | une locale peut être déclarée avant initialisation |
 | `private` | limite une déclaration au module, ou un membre à sa classe | valide au niveau supérieur et dans les types |

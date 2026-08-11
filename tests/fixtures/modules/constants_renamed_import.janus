@@ -1,0 +1,5 @@
+import const_access.{answer as base, twice as doubled}
+
+const result : int = base + doubled(1)
+staticAssert(result == 42)
+def main() : int { return result }

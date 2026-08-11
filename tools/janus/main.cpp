@@ -800,6 +800,9 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
         janus::backend::llvm::PanicTraceMode panic_trace,
         CompilationTimings *timings = nullptr, bool dependencies_only = false,
         std::string_view source_name_override = {}) {
+  const janus::Target target{
+      llvm::sys::getDefaultTargetTriple(),
+      static_cast<std::uint32_t>(sizeof(void *) * 8)};
   std::vector<std::filesystem::path> search_paths{toolchain.stdlib};
   search_paths.insert(search_paths.end(), dependency_paths.begin(),
                       dependency_paths.end());
@@ -817,7 +820,9 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(
       program,
-      janus::semantic::AnalysisOptions{!program.module_name.has_value()});
+      janus::semantic::AnalysisOptions{
+          .require_entry_point = !program.module_name.has_value(),
+          .target = target});
   if (timings != nullptr)
     timings->analysis += std::chrono::steady_clock::now() - analysis_start;
   const std::string source_name = source_name_override.empty()
@@ -839,7 +844,7 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
   const auto generation_start = timings == nullptr
                                     ? CompilationTimings::Clock::time_point{}
                                     : CompilationTimings::Clock::now();
-  janus::backend::llvm::IrGenerator generator{context};
+  janus::backend::llvm::IrGenerator generator{context, target};
   std::unique_ptr<llvm::Module> module =
       generator.generate(program, source_name, panic_trace, dependencies_only);
   if (llvm::verifyModule(*module, &llvm::errs()))
@@ -914,7 +919,9 @@ int check_sources(const Options &options, const Toolchain &toolchain,
       const janus::semantic::AnalysisResult analysis =
           janus::semantic::Analyzer{}.analyze(
               program, janus::semantic::AnalysisOptions{
-                           !program.module_name.has_value()});
+                           .require_entry_point =
+                               !program.module_name.has_value(),
+                           .target = {}});
       batch.diagnostics = analysis.diagnostics;
       if (options.warn_high_growth_loops)
         for (const janus::diagnostics::HighGrowthLoopWarning &warning :

@@ -86,17 +86,16 @@ public:
             const janus::semantic::AnalysisResult &analysis,
             std::string_view module_name,
             janus::backend::llvm::PanicTraceMode panic_trace,
-            bool dependencies_only)
+            bool dependencies_only, const janus::Target &target)
       : context_{context}, module_{std::make_unique<::llvm::Module>(
                                std::string{module_name}, context)},
         source_name_{module_name}, panic_trace_{panic_trace},
         analysis_{analysis}, entry_module_{program.module_name},
-        dependencies_only_{dependencies_only} {
+        dependencies_only_{dependencies_only}, target_{target} {
 #if LLVM_VERSION_MAJOR >= 21
-    module_->setTargetTriple(
-        ::llvm::Triple{::llvm::sys::getDefaultTargetTriple()});
+    module_->setTargetTriple(::llvm::Triple{target.triple});
 #else
-    module_->setTargetTriple(::llvm::sys::getDefaultTargetTriple());
+    module_->setTargetTriple(target.triple);
 #endif
     module_->setPICLevel(::llvm::PICLevel::BigPIC);
     module_->setPIELevel(::llvm::PIELevel::Large);
@@ -268,6 +267,7 @@ private:
   struct Local {
     ::llvm::Value *storage;
     const janus::Type *type;
+    bool is_constant{};
   };
 
   struct ClassSpecialization {
@@ -336,6 +336,10 @@ private:
 
   const janus::Type &resolve(const janus::ast::TypeReference &reference,
                              const Substitutions &substitutions) {
+    if (reference.name == "isize")
+      return janus::Type::isize_type(target_.pointer_width);
+    if (reference.name == "usize")
+      return janus::Type::usize_type(target_.pointer_width);
     if (const janus::Type *type = builtin_type(reference.name))
       return *type;
     if (reference.name == "Function") {
@@ -480,6 +484,9 @@ private:
   evaluate_global_constant(const janus::ast::GlobalDeclaration &global) {
     const std::string key =
         source_global_key(global.module_name, global.declaration.name);
+    if (const auto analyzed = analysis_.global_constant_values.find(key);
+        analyzed != analysis_.global_constant_values.end())
+      return analyzed->second;
     const int state = constant_states_[key];
     if (state == 1)
       throw janus::CompileError{
@@ -577,8 +584,48 @@ private:
       return shape;
     };
     const janus::Type &type = resolve(global.declaration.declared_type, {});
+    std::function<std::optional<janus::constant::Value>(
+        std::string_view, const std::vector<janus::constant::Value> &,
+        janus::SourceLocation)>
+        call_constant_function;
+    call_constant_function =
+        [&](std::string_view name,
+            const std::vector<janus::constant::Value> &arguments,
+            janus::SourceLocation location)
+        -> std::optional<janus::constant::Value> {
+      const auto found = functions_.find(std::string{name});
+      if (found == functions_.end() || !found->second->is_constant)
+        return std::nullopt;
+      const janus::ast::FunctionDeclaration &function = *found->second;
+      if (arguments.size() != function.parameters.size())
+        throw janus::CompileError{
+            location, "const def received an invalid argument count"};
+      std::unordered_map<std::string, janus::constant::Value> locals;
+      for (std::size_t index = 0; index < arguments.size(); ++index)
+        locals.emplace(function.parameters[index].name, arguments[index]);
+      const janus::constant::Resolver function_resolver =
+          [&](const std::optional<std::string> &module, std::string_view value,
+              janus::SourceLocation reference_location)
+          -> std::optional<janus::constant::Value> {
+        if (!module.has_value())
+          if (const auto local = locals.find(std::string{value});
+              local != locals.end())
+            return local->second;
+        const std::string key = source_global_key(module, value);
+        if (const auto dependency = global_by_key_.find(key);
+            dependency != global_by_key_.end())
+          return evaluate_global_constant(*dependency->second);
+        throw janus::CompileError{reference_location,
+                                  "const def references non-constant value"};
+      };
+      const janus::Type &return_type = resolve(function.return_type, {});
+      return janus::constant::evaluate_statements(
+          function.body, &return_type, std::move(locals), function_resolver,
+          constructor_resolver, call_constant_function);
+    };
     janus::constant::Value value = janus::constant::evaluate(
-        *global.declaration.initializer, &type, resolver, constructor_resolver);
+        *global.declaration.initializer, &type, resolver, constructor_resolver,
+        call_constant_function);
     constant_states_[key] = 2;
     auto [iterator, inserted] = constant_values_.emplace(key, std::move(value));
     static_cast<void>(inserted);
@@ -642,6 +689,10 @@ private:
     const janus::Type &type = resolve(declaration.declared_type, {});
     const bool is_constant = constant_global_keys_.contains(
         source_global_key(global.module_name, declaration.name));
+    if (declaration.is_constant) {
+      static_cast<void>(evaluate_global_constant(global));
+      return;
+    }
     const auto linkage = declaration.is_private
                              ? ::llvm::GlobalValue::InternalLinkage
                              : ::llvm::GlobalValue::ExternalLinkage;
@@ -1801,6 +1852,14 @@ private:
           const janus::Type &type = declaration->declared_type
               ? resolve(*declaration->declared_type, substitutions)
               : resolve(analysis_.local_types.at(declaration));
+          if (declaration->is_constant) {
+            const janus::constant::Value &value =
+                analysis_.local_constant_values.at(declaration);
+            block_locals.emplace(
+                declaration->name,
+                Local{emit_static_initializer(value, type), &type, true});
+            continue;
+          }
           ::llvm::Value *storage = create_entry_alloca(
               builder, lower_type(type, context_), declaration->name);
           if (declaration->initializer.has_value()) {
@@ -2195,6 +2254,17 @@ private:
             return janus::Type::string_type();
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
+            std::string key = source_global_key(active_module_, node.name);
+            if (!global_by_key_.contains(key)) {
+              if (const auto exported = public_global_keys_.find(node.name);
+                  exported != public_global_keys_.end())
+                key = exported->second;
+            }
+            if (const auto global = global_by_key_.find(key);
+                global != global_by_key_.end() &&
+                global->second->declaration.is_constant)
+              return resolve(global->second->declaration.declared_type,
+                             substitutions);
             return *resolve_storage(node.name, locals).type;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::LambdaExpression>) {
@@ -3048,6 +3118,22 @@ private:
                                             expected_type.is_signed());
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
+            if (const auto local = locals.find(node.name);
+                local != locals.end() && local->second.is_constant)
+              return local->second.storage;
+            std::string key = source_global_key(active_module_, node.name);
+            if (!global_by_key_.contains(key)) {
+              if (const auto exported = public_global_keys_.find(node.name);
+                  exported != public_global_keys_.end())
+                key = exported->second;
+            }
+            if (const auto global = global_by_key_.find(key);
+                global != global_by_key_.end() &&
+                global->second->declaration.is_constant) {
+              const janus::constant::Value &value =
+                  evaluate_global_constant(*global->second);
+              return emit_static_initializer(value, *value.type);
+            }
             const Local &local = resolve_storage(node.name, locals);
             return builder.CreateLoad(lower_type(*local.type, context_),
                                       local.storage, node.name + ".value");
@@ -4254,23 +4340,26 @@ private:
   std::size_t lambda_index_{};
   std::optional<std::string> entry_module_;
   bool dependencies_only_{};
+  janus::Target target_;
 };
 
 } // namespace
 
 namespace janus::backend::llvm {
 
-IrGenerator::IrGenerator(::llvm::LLVMContext &context) noexcept
-    : context_{context} {}
+IrGenerator::IrGenerator(::llvm::LLVMContext &context, Target target) noexcept
+    : context_{context}, target_{std::move(target)} {}
 
 std::unique_ptr<::llvm::Module>
 IrGenerator::generate(const ast::Program &program, std::string_view module_name,
                       PanicTraceMode panic_trace, bool dependencies_only) {
   semantic::Analyzer analyzer;
   const semantic::AnalysisResult analysis =
-      analyzer.analyze(program, semantic::AnalysisOptions{false});
+      analyzer.analyze(program,
+                       semantic::AnalysisOptions{.require_entry_point = false,
+                                                 .target = target_});
   return Generator{context_, program, analysis, module_name, panic_trace,
-                    dependencies_only}
+                    dependencies_only, target_}
       .generate();
 }
 

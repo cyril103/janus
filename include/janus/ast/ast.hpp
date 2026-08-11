@@ -190,6 +190,7 @@ struct ValueDeclaration {
   bool is_internal{};
   std::string documentation;
   bool is_borrowed{};
+  bool is_constant{};
 };
 
 struct GlobalDeclaration {
@@ -305,6 +306,7 @@ struct FunctionDeclaration {
   bool is_internal{};
   std::string documentation;
   ReturnOwnership return_ownership{ReturnOwnership::Unspecified};
+  bool is_constant{};
 };
 
 struct DestructorDeclaration {
@@ -393,6 +395,13 @@ struct ImportDeclaration {
 };
 
 struct Program {
+  struct StaticAssertion {
+    Expression condition;
+    std::optional<std::string> message;
+    SourceLocation location;
+    std::optional<std::string> module_name;
+    std::filesystem::path source_path;
+  };
   std::optional<std::string> module_name;
   std::vector<ImportDeclaration> imports;
   std::vector<GlobalDeclaration> globals;
@@ -401,6 +410,7 @@ struct Program {
   std::vector<ClassDeclaration> classes;
   std::vector<FunctionDeclaration> functions;
   std::string documentation;
+  std::vector<StaticAssertion> static_assertions;
 };
 
 } // namespace janus::ast

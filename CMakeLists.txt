@@ -125,13 +125,18 @@ target_compile_options(janus_frontend
 add_library(janus_constant
     src/constant/evaluator.cpp
 )
+llvm_map_components_to_libnames(JANUS_CONSTANT_LLVM_LIBS Support)
 target_include_directories(janus_constant
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
+    SYSTEM PRIVATE
+        ${JANUS_LLVM_INCLUDE_DIR}
 )
 target_link_libraries(janus_constant
     PUBLIC
         janus_types
+    PRIVATE
+        ${JANUS_CONSTANT_LLVM_LIBS}
 )
 target_compile_options(janus_constant
     PRIVATE
@@ -256,6 +261,7 @@ target_link_libraries(janus_driver
         janus_frontend
     PRIVATE
         janus_constant
+        janus_semantic
 )
 llvm_map_components_to_libnames(JANUS_DRIVER_LLVM_LIBS Support)
 target_link_libraries(janus_driver PRIVATE ${JANUS_DRIVER_LLVM_LIBS})
@@ -614,6 +620,31 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME frontend.module_loader COMMAND module_loader_test)
+    add_executable(compile_time_constant_test
+        tests/language/compile_time_constant_test.cpp
+    )
+    target_link_libraries(compile_time_constant_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_include_directories(compile_time_constant_test SYSTEM PRIVATE
+        ${JANUS_LLVM_INCLUDE_DIR}
+    )
+    target_compile_options(compile_time_constant_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.compile_time_constants COMMAND compile_time_constant_test)
+    add_test(
+        NAME cli.compile_time_constant_probes
+        COMMAND "${CMAKE_COMMAND}"
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DWORK_DIR=${PROJECT_BINARY_DIR}/compile-time-constant-probes"
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_compile_time_constant_probes_cli.cmake"
+    )
     add_executable(documentation_comment_test
         tests/frontend/documentation_comment_test.cpp
     )
@@ -1440,6 +1471,13 @@ if(BUILD_TESTING)
             JANUS_GLOBALS_ALIASED_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_aliased_import.janus"
             JANUS_GLOBALS_SELECTIVE_IMPORT_BYPASS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_selective_import_bypass.janus"
             JANUS_GLOBALS_ALIAS_CANONICAL_BYPASS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_alias_canonical_bypass.janus"
+            JANUS_CONSTANTS_SIMPLE_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_simple_import.janus"
+            JANUS_CONSTANTS_SELECTIVE_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_selective_import.janus"
+            JANUS_CONSTANTS_RENAMED_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_renamed_import.janus"
+            JANUS_CONSTANTS_MODULE_ALIAS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_module_alias.janus"
+            JANUS_CONSTANTS_PRIVATE_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_private_import.janus"
+            JANUS_CONSTANTS_INTERNAL_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_internal_import.janus"
+            JANUS_CONSTANTS_LOADED_NOT_IMPORTED="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_loaded_not_imported.janus"
     )
     target_compile_options(global_variable_test
         PRIVATE
@@ -1448,6 +1486,18 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.global_variable COMMAND global_variable_test)
+    add_test(
+        NAME runtime.const_def_parity
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/const_def_parity.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/const_def_parity_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/const_def_parity.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
     add_test(
         NAME runtime.global_variable
         COMMAND

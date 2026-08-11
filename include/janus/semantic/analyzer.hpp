@@ -1,8 +1,11 @@
 #pragma once
 
 #include "janus/ast/ast.hpp"
+#include "janus/constant/evaluator.hpp"
+#include "janus/target/target.hpp"
 
 #include <string>
+#include <memory>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -54,6 +57,7 @@ struct Symbol {
 using SymbolTable = std::unordered_map<std::string, Symbol>;
 
 struct AnalysisResult {
+  Target target;
   SymbolTable globals;
   std::unordered_map<std::string, SymbolTable> functions;
   std::unordered_map<const ast::MemberAccessExpression *, std::string>
@@ -61,6 +65,11 @@ struct AnalysisResult {
   std::unordered_map<const ast::AssignmentStatement *, std::string>
       qualified_global_writes;
   std::unordered_map<const ast::ValueDeclaration *, SemanticType> local_types;
+  std::unordered_map<const ast::ValueDeclaration *, constant::Value>
+      local_constant_values;
+  std::unordered_map<std::string, constant::Value> global_constant_values;
+  // Keeps nominal types referenced by compile-time aggregate values alive.
+  std::vector<std::shared_ptr<Type>> constant_value_types;
   std::unordered_map<const ast::Expression *, std::vector<SemanticType>>
       inferred_generic_arguments;
   std::vector<Diagnostic> diagnostics;
@@ -68,6 +77,11 @@ struct AnalysisResult {
 
 struct AnalysisOptions {
   bool require_entry_point{true};
+  std::size_t constant_step_budget{10000};
+  std::size_t constant_recursion_budget{128};
+  std::size_t constant_memory_budget{16 * 1024 * 1024};
+  std::size_t constant_value_size_budget{1024 * 1024};
+  Target target;
 };
 
 class Analyzer final {

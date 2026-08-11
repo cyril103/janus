@@ -1,0 +1,5 @@
+import const_access.{answer, twice}
+
+const result : int = answer + twice(1)
+staticAssert(result == 42)
+def main() : int { return result }

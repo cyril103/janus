@@ -36,6 +36,8 @@ enum class TokenKind {
   Break,
   Continue,
   Return,
+  Const,
+  StaticAssert,
   Val,
   Var,
   True,
@@ -145,6 +147,10 @@ struct Token {
     return "'continue'";
   case TokenKind::Return:
     return "'return'";
+  case TokenKind::Const:
+    return "'const'";
+  case TokenKind::StaticAssert:
+    return "'staticAssert'";
   case TokenKind::Val:
     return "'val'";
   case TokenKind::Var:

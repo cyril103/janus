@@ -82,6 +82,49 @@ void test_fingerprint_covers_every_compatibility_input() {
           "dependency public interface is absent from the fingerprint");
 }
 
+void test_const_def_contract_includes_implementation() {
+  const std::string before =
+      "module library\nconst def answer() : int { return 1 }\n";
+  const std::string after =
+      "module library\nconst def answer() : int { return 2 }\n";
+  require(janus::driver::public_interface_fingerprint(before) !=
+              janus::driver::public_interface_fingerprint(after),
+          "const def implementation is absent from its public contract");
+}
+
+void test_dependency_contract_is_nominal_and_canonical() {
+  auto original = base_input();
+  original.dependencies.push_back(
+      {"transitive", "value-1", "implementation", "", "base"});
+  auto reordered = original;
+  std::reverse(reordered.dependencies.begin(), reordered.dependencies.end());
+  require(janus::driver::consumer_fingerprint(original) ==
+              janus::driver::consumer_fingerprint(reordered),
+          "dependency order changes the canonical fingerprint");
+  auto renamed = original;
+  renamed.dependencies.back().import_name = "renamed-base";
+  require(janus::driver::consumer_fingerprint(original) !=
+              janus::driver::consumer_fingerprint(renamed),
+          "nominal dependency spelling is absent from the fingerprint");
+  auto value_changed = original;
+  value_changed.dependencies.back().public_interface = "value-2";
+  require(janus::driver::consumer_fingerprint(original) !=
+              janus::driver::consumer_fingerprint(value_changed),
+          "transitive dependency value is absent from the fingerprint");
+}
+
+void test_imported_constant_interface_is_fingerprintable() {
+  const std::string before =
+      "module bridge\nimport base\nconst exported : int = base.answer\n";
+  const std::string after =
+      "module bridge\nimport base\nconst exported : int = base.other\n";
+  require(!janus::driver::public_interface_fingerprint(before).empty(),
+          "an imported constant contract cannot be fingerprinted");
+  require(janus::driver::public_interface_fingerprint(before) !=
+              janus::driver::public_interface_fingerprint(after),
+          "an imported constant dependency is absent from its contract");
+}
+
 void test_external_ownership_contract_changes_public_interface() {
   const std::string borrowed = janus::driver::public_interface_fingerprint(
       "extern def use(borrow data : Ptr[byte]) : Unit");
@@ -140,6 +183,37 @@ void test_public_interface_excludes_private_implementation() {
   require(janus::driver::public_interface_fingerprint(before) !=
               janus::driver::public_interface_fingerprint(public_change),
           "public signature change was not detected");
+
+  const std::string public_const_before =
+      "module library\nprivate const base : int = 1\n"
+      "const exported : int = base\n";
+  const std::string public_const_after =
+      "module library\nprivate const base : int = 2\n"
+      "const exported : int = base\n";
+  require(janus::driver::public_interface_fingerprint(public_const_before) !=
+              janus::driver::public_interface_fingerprint(public_const_after),
+          "transitive public constant value change was not detected");
+  const std::string aggregate_before =
+      "module library\nstruct Pair(val left : int, val right : int) {}\n"
+      "const exported : Pair = new Pair(1, 2)\n";
+  const std::string aggregate_after =
+      "module library\nstruct Pair(val left : int, val right : int) {}\n"
+      "const exported : Pair = new Pair(1, 3)\n";
+  require(janus::driver::public_interface_fingerprint(aggregate_before) !=
+              janus::driver::public_interface_fingerprint(aggregate_after),
+          "aggregate public constant fields were not serialized in the interface");
+  require(janus::driver::public_interface_fingerprint(
+              "module library\nconst exported : int = 1\n") !=
+              janus::driver::public_interface_fingerprint(
+                  "module library\nconst exported : int = 2\n"),
+          "direct public constant value change was not detected");
+  require(janus::driver::public_interface_fingerprint(
+              "module library\nprivate const hidden : int = 1\n"
+              "const exported : int = 7\n") ==
+              janus::driver::public_interface_fingerprint(
+                  "module library\nprivate const hidden : int = 2\n"
+                  "const exported : int = 7\n"),
+          "unreferenced private constant leaked into the public interface");
 
   const std::string internal_before =
       "module library\n"
@@ -365,6 +439,9 @@ int main() {
   try {
     test_sha256_digest_vectors();
     test_fingerprint_covers_every_compatibility_input();
+    test_const_def_contract_includes_implementation();
+    test_dependency_contract_is_nominal_and_canonical();
+    test_imported_constant_interface_is_fingerprintable();
     test_external_ownership_contract_changes_public_interface();
     test_consumer_invalidation_uses_only_public_interface();
     test_public_interface_excludes_private_implementation();

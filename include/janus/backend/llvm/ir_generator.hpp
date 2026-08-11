@@ -1,6 +1,7 @@
 #pragma once
 
 #include "janus/ast/ast.hpp"
+#include "janus/target/target.hpp"
 
 #include <memory>
 #include <string_view>
@@ -21,7 +22,8 @@ enum class PanicTraceMode : unsigned {
 
 class IrGenerator final {
 public:
-  explicit IrGenerator(::llvm::LLVMContext &context) noexcept;
+  explicit IrGenerator(::llvm::LLVMContext &context,
+                       Target target = {}) noexcept;
 
   [[nodiscard]] std::unique_ptr<::llvm::Module>
   generate(const ast::Program &program,
@@ -31,6 +33,7 @@ public:
 
 private:
   ::llvm::LLVMContext &context_;
+  Target target_;
 };
 
 } // namespace janus::backend::llvm

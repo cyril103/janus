@@ -186,7 +186,8 @@ analyze_local_types(
 
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis =
-      analyzer.analyze(program, janus::semantic::AnalysisOptions{false});
+      analyzer.analyze(program, janus::semantic::AnalysisOptions{
+                                    .require_entry_point = false, .target = {}});
   std::unordered_map<std::size_t, std::string> result;
   for (const auto &[declaration, type] : analysis.local_types)
     if (entry_declarations.contains(declaration) &&
@@ -207,6 +208,7 @@ std::vector<DocumentSymbol> symbols(
   std::vector<DocumentSymbol> result;
   std::optional<std::string> module_name;
   std::unordered_map<std::string, std::string> function_details;
+  std::unordered_map<std::size_t, std::string> constant_details;
   std::unordered_map<std::size_t, std::string> analyzed_local_types;
   try {
     janus::frontend::Parser parser{source};
@@ -215,6 +217,45 @@ std::vector<DocumentSymbol> symbols(
     for (const janus::ast::FunctionDeclaration &function : program.functions)
       function_details.emplace(function.name,
                                "def " + function_signature(function));
+    try {
+      janus::semantic::Analyzer analyzer;
+      const janus::semantic::AnalysisResult analysis =
+          analyzer.analyze(program, janus::semantic::AnalysisOptions{
+                                        .require_entry_point = false,
+                                        .target = {}});
+      for (const janus::ast::GlobalDeclaration &global : program.globals) {
+      if (!global.declaration.is_constant)
+        continue;
+      const std::string key = global.module_name.has_value()
+                                  ? *global.module_name + "." +
+                                        global.declaration.name
+                                  : global.declaration.name;
+      const auto found = analysis.global_constant_values.find(key);
+      if (found == analysis.global_constant_values.end())
+        continue;
+      std::string value;
+      if (const auto *integer =
+              std::get_if<std::uint64_t>(&found->second.data))
+        value = found->second.type->is_signed()
+                    ? std::to_string(static_cast<std::int64_t>(*integer))
+                    : std::to_string(*integer);
+      else if (const auto *floating = std::get_if<double>(&found->second.data))
+        value = std::to_string(*floating);
+      else if (const auto *boolean = std::get_if<bool>(&found->second.data))
+        value = *boolean ? "true" : "false";
+      else if (const auto *character =
+                   std::get_if<char32_t>(&found->second.data))
+        value = std::to_string(static_cast<std::uint32_t>(*character));
+        else if (const auto *text =
+                     std::get_if<std::string>(&found->second.data))
+          value = "\"" + *text + "\"";
+        if (!value.empty())
+          constant_details.emplace(
+              global.declaration.location.offset,
+              " = " + value + "\n\norigin `" + key + "`");
+      }
+    } catch (const std::exception &) {
+    }
     analyzed_local_types = analyze_local_types(
         uri, source, module_search_paths, workspace_search_paths,
         open_documents);
@@ -254,8 +295,11 @@ std::vector<DocumentSymbol> symbols(
 
     std::string detail;
     bool is_parameter = false;
-    if (token.kind == TokenKind::Val || token.kind == TokenKind::Var) {
-      detail = token.kind == TokenKind::Val ? "val " : "var ";
+    if (token.kind == TokenKind::Const || token.kind == TokenKind::Val ||
+        token.kind == TokenKind::Var) {
+      detail = token.kind == TokenKind::Const
+                   ? "const "
+                   : (token.kind == TokenKind::Val ? "val " : "var ");
       detail += std::string{name.lexeme};
       if (index + 3 < document_tokens.size() &&
           document_tokens[index + 2].kind == TokenKind::Colon &&
@@ -265,6 +309,10 @@ std::vector<DocumentSymbol> symbols(
                    analyzed_local_types.find(token.location.offset);
                inferred != analyzed_local_types.end())
         detail += " : " + inferred->second;
+      if (token.kind == TokenKind::Const)
+        if (const auto constant = constant_details.find(token.location.offset);
+            constant != constant_details.end())
+          detail += constant->second;
     } else if (token.kind == TokenKind::Def) {
       const auto signature = function_details.find(std::string{name.lexeme});
       detail = signature == function_details.end()
@@ -297,7 +345,8 @@ std::vector<DocumentSymbol> symbols(
     } else {
       continue;
     }
-    const bool is_global = brace_depth == 0 && (token.kind == TokenKind::Val ||
+    const bool is_global = brace_depth == 0 && (token.kind == TokenKind::Const ||
+                                                token.kind == TokenKind::Val ||
                                                 token.kind == TokenKind::Var);
     const bool is_top_level = brace_depth == 0;
     const bool is_private =
@@ -1442,7 +1491,8 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
     }
     const bool is_module = program.module_name.has_value();
     return semantic::Analyzer{}
-        .analyze(program, semantic::AnalysisOptions{!is_module})
+        .analyze(program, semantic::AnalysisOptions{
+                              .require_entry_point = !is_module, .target = {}})
         .diagnostics;
   } catch (const CompileError &error) {
     return error.diagnostics();
@@ -2498,6 +2548,30 @@ std::vector<std::string> Server::handle(std::string_view message) {
             {"paddingRight", true},
         });
       }
+      for (const DocumentSymbol &symbol : symbols(
+               *uri, *document_source, module_search_paths_,
+               workspace_search_paths_, &documents_)) {
+        if (!symbol.detail.starts_with("const "))
+          continue;
+        const std::size_t value_start = symbol.detail.find(" = ");
+        const std::size_t origin_start = symbol.detail.find("\n\norigin `");
+        if (value_start == std::string::npos ||
+            origin_start == std::string::npos || origin_start <= value_start)
+          continue;
+        const std::size_t hint_offset =
+            symbol.location.offset + symbol.name.size();
+        if (hint_offset < *range_start || hint_offset >= *range_end)
+          continue;
+        hints.emplace_back(llvm::json::Object{
+            {"position", position_at_offset(*document_source, hint_offset)},
+            {"label", symbol.detail.substr(value_start,
+                                            origin_start - value_start)},
+            {"kind", 1},
+            {"paddingLeft", false},
+            {"paddingRight", true},
+            {"tooltip", symbol.detail.substr(origin_start + 2)},
+        });
+      }
     }
     return {response(request_id(*request), std::move(hints))};
   }
@@ -3246,7 +3320,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                             "bool", "string", "unit", "usize"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
-             {"val",     "var",    "def",    "class",  "struct",  "trait",
+             {"const",   "staticAssert", "val", "var", "def", "class", "struct", "trait",
               "enum",    "new",    "move",   "borrow", "consume", "owned",
               "derives", "delete", "defer",  "if",     "else",    "match",
               "for",     "while",  "return", "true",   "false"})

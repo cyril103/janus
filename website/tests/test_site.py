@@ -113,6 +113,7 @@ EXPECTED_KEYWORDS = {
     "break",
     "continue",
     "return",
+    "const",
     "val",
     "var",
     "true",
@@ -210,7 +211,7 @@ class SiteStructureTests(unittest.TestCase):
         reserved = set(re.findall(r'lexeme == "([a-z]+)"', lexer))
         self.assertEqual(EXPECTED_KEYWORDS, reserved)
         self.assertEqual(reserved, documented)
-        self.assertEqual(33, len(documented))
+        self.assertEqual(34, len(documented))
         self.assertIn("`owned` est un qualificateur contextuel", reference)
         self.assertNotIn("owned", documented)
 

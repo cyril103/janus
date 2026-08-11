@@ -508,6 +508,8 @@ std::string SemanticType::name() const {
 AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  AnalysisOptions options) const {
   AnalysisResult result;
+  options.target.validate();
+  result.target = options.target;
   std::unordered_map<std::string, const ast::FunctionDeclaration *> functions;
   std::unordered_map<std::string, const ast::ClassDeclaration *> classes;
   std::unordered_map<std::string, const ast::EnumDeclaration *> enums;
@@ -1188,7 +1190,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     if (globals.contains(key))
       throw CompileError{declaration.location,
                          "global value '" + key + "' is already declared"};
-    if (!declaration.is_private) {
+    if (!declaration.is_private && !declaration.is_internal) {
       if (const auto existing = public_globals.find(declaration.name);
           existing != public_globals.end())
         throw CompileError{declaration.location,
@@ -1200,8 +1202,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     if (global.module_name.has_value())
       global_modules.insert(*global.module_name);
-    const SemanticType type = resolve_type(*declaration.declared_type,
-                                           no_type_parameters, &class_arities);
+    SemanticType type = resolve_type(*declaration.declared_type,
+                                     no_type_parameters, &class_arities);
+    if (declaration.declared_type->name == "isize")
+      type.concrete = &Type::isize_type(options.target.pointer_width);
+    else if (declaration.declared_type->name == "usize")
+      type.concrete = &Type::usize_type(options.target.pointer_width);
     if (type.is_concrete() && type.concrete->kind() == TypeKind::Unit)
       throw CompileError{declaration.location,
                          "Unit cannot be used as a global value type"};
@@ -1219,7 +1225,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     globals.emplace(key, ResolvedGlobal{&global, symbol});
     for (const std::string &alias :
          imported_names(global.module_name, declaration.name)) {
-      if (!declaration.is_private)
+      if (!declaration.is_private && !declaration.is_internal)
         public_globals.insert_or_assign(alias, key);
       globals.emplace(alias, ResolvedGlobal{&global, symbol});
       if (const std::size_t dot = alias.rfind('.'); dot != std::string::npos)
@@ -1230,9 +1236,322 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   enum class ConstantState { Unvisited, Visiting, Complete };
   std::unordered_map<std::string, ConstantState> constant_states;
   std::unordered_map<std::string, constant::Value> constant_values;
+  std::unordered_map<std::string, const Type *> constant_nominal_types;
+  std::unordered_map<std::string, constant::ConstructorShape>
+      constant_constructor_shapes;
+
+  const auto constant_constructor_resolver =
+      [&](std::string_view name, const std::optional<std::string> &enum_case,
+          const std::vector<ast::TypeReference> &type_references,
+          SourceLocation location)
+      -> std::optional<constant::ConstructorShape> {
+    const std::string shape_key = std::string{name} +
+                                  (enum_case ? "." + *enum_case : "");
+    if (type_references.empty())
+      if (const auto cached = constant_constructor_shapes.find(shape_key);
+          cached != constant_constructor_shapes.end())
+        return cached->second;
+
+    const auto concrete_type = [&](const ast::TypeReference &reference,
+                                   const std::unordered_map<std::string,
+                                       const Type *> &substitutions)
+        -> const Type * {
+      if (const auto replacement = substitutions.find(reference.name);
+          replacement != substitutions.end() &&
+          reference.type_arguments.empty())
+        return replacement->second;
+      return builtin_type(reference.name);
+    };
+    if (enum_case.has_value()) {
+      const auto declaration = enums.find(std::string{name});
+      if (declaration == enums.end())
+        return std::nullopt;
+      const auto matched = std::find_if(
+          declaration->second->cases.begin(), declaration->second->cases.end(),
+          [&](const ast::EnumDeclaration::Case &candidate) {
+            return candidate.name == *enum_case;
+          });
+      if (matched == declaration->second->cases.end())
+        return std::nullopt;
+      if (type_references.size() != declaration->second->type_parameters.size())
+        return std::nullopt;
+      std::unordered_map<std::string, const Type *> substitutions;
+      for (std::size_t index = 0; index < type_references.size(); ++index) {
+        const Type *argument = builtin_type(type_references[index].name);
+        if (argument == nullptr)
+          return std::nullopt;
+        substitutions.emplace(declaration->second->type_parameters[index],
+                              argument);
+      }
+      const Type *nominal = nullptr;
+      if (const auto existing = constant_nominal_types.find(std::string{name});
+          existing != constant_nominal_types.end()) {
+        nominal = existing->second;
+      } else {
+        auto owned = std::make_shared<Type>(Type::enum_type(name));
+        nominal = owned.get();
+        result.constant_value_types.push_back(std::move(owned));
+        constant_nominal_types.emplace(name, nominal);
+      }
+      constant::ConstructorShape shape{nominal, matched->value, {}};
+      for (std::size_t index = 0; index < matched->payload_types.size(); ++index) {
+        const Type *payload = concrete_type(matched->payload_types[index], substitutions);
+        if (payload == nullptr)
+          throw CompileError{location,
+                             "constant enum payload type is not admissible"};
+        shape.fields.emplace_back(index + 1, payload);
+      }
+      constant_constructor_shapes.insert_or_assign(shape_key, shape);
+      return shape;
+    }
+    const auto declaration = classes.find(std::string{name});
+    if (declaration == classes.end() || !declaration->second->is_value_type ||
+        !declaration->second->type_parameters.empty())
+      return std::nullopt;
+    const Type *nominal = nullptr;
+    if (const auto existing = constant_nominal_types.find(std::string{name});
+        existing != constant_nominal_types.end()) {
+      nominal = existing->second;
+    } else {
+      auto owned = std::make_shared<Type>(Type::struct_type(name));
+      nominal = owned.get();
+      result.constant_value_types.push_back(std::move(owned));
+      constant_nominal_types.emplace(name, nominal);
+    }
+    constant::ConstructorShape shape{nominal, std::nullopt, {}};
+    for (std::size_t index = 0;
+         index < declaration->second->constructor_fields.size(); ++index) {
+      const Type *field = builtin_type(
+          declaration->second->constructor_fields[index].declared_type->name);
+      if (field == nullptr)
+        throw CompileError{location,
+                           "constant struct field type is not admissible"};
+      shape.fields.emplace_back(index, field);
+    }
+    constant_constructor_shapes.insert_or_assign(shape_key, shape);
+    return shape;
+  };
+
+  // A const function is a declaration-time purity contract.  Validate every
+  // body, even when no constant initializer happens to call it.
+  enum class PurityState { Unvisited, Visiting, Complete };
+  std::unordered_map<const ast::FunctionDeclaration *, PurityState>
+      purity_states;
+  const auto is_constant_builtin = [](std::string_view name) {
+    static constexpr std::array<std::string_view, 17> names{
+        "int",   "uint",  "long",  "ulong", "float", "double",
+        "byte",  "ubyte", "short", "ushort", "char",  "bool",
+        "isize", "usize", "saturatingCast", "truncatingCast", "abs"};
+    return std::find(names.begin(), names.end(), name) != names.end();
+  };
+  const auto find_constant_function =
+      [&](std::string_view name) -> const ast::FunctionDeclaration * {
+    const auto found = std::find_if(
+        program.functions.begin(), program.functions.end(),
+        [&](const ast::FunctionDeclaration &candidate) {
+          if (!candidate.is_constant)
+            return false;
+          if (candidate.name == name)
+            return !candidate.module_name.has_value() ||
+                   import_allows(program.module_name, candidate.module_name,
+                                 candidate.name, name);
+          const auto aliases = imported_names(candidate.module_name,
+                                              candidate.name);
+          return std::find(aliases.begin(), aliases.end(), name) !=
+                 aliases.end();
+        });
+    return found == program.functions.end() ? nullptr : &*found;
+  };
+  std::function<void(const ast::FunctionDeclaration &)> validate_const_purity;
+  validate_const_purity = [&](const ast::FunctionDeclaration &function) {
+    PurityState &state = purity_states[&function];
+    if (state == PurityState::Complete || state == PurityState::Visiting)
+      return;
+    state = PurityState::Visiting;
+    std::unordered_set<std::string> locals;
+    for (const auto &parameter : function.parameters)
+      locals.insert(parameter.name);
+    std::function<void(const ast::Expression &,
+                       const std::unordered_set<std::string> &)>
+        check_expression;
+    check_expression = [&](const ast::Expression &expression,
+                           const std::unordered_set<std::string> &scope) {
+      std::visit(
+          [&](const auto &node) {
+            using Node = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<Node, ast::IdentifierExpression>) {
+              if (scope.contains(node.name))
+                return;
+              std::string key = global_key(function.module_name, node.name);
+              if (!globals.contains(key)) {
+                if (const auto exported = public_globals.find(node.name);
+                    exported != public_globals.end())
+                  key = exported->second;
+              }
+              if (const auto global = globals.find(key);
+                  global != globals.end() &&
+                  global->second.declaration->declaration.is_mutable)
+                throw CompileError{
+                    node.location, "const def '" + function.name +
+                                       "' cannot observe mutable global '" +
+                                       key + "'"};
+            } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              for (const auto &argument : node.arguments)
+                check_expression(*argument, scope);
+              if (is_constant_builtin(node.callee))
+                return;
+              const auto *callee = find_constant_function(node.callee);
+              if (callee == nullptr)
+                throw CompileError{node.location,
+                                   "const def '" + function.name +
+                                       "' cannot call non-constant function '" +
+                                       node.callee + "'"};
+              validate_const_purity(*callee);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MethodCallExpression>) {
+              throw CompileError{node.location,
+                                 "const def '" + function.name +
+                                     "' cannot perform a method/FFI/I-O call"};
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MemberAccessExpression>) {
+              check_expression(*node.object, scope);
+            } else if constexpr (std::is_same_v<Node, ast::NewExpression>) {
+              for (const auto &argument : node.arguments)
+                check_expression(*argument, scope);
+            } else if constexpr (std::is_same_v<Node, ast::IfExpression>) {
+              check_expression(*node.condition, scope);
+              check_expression(*node.then_expression, scope);
+              check_expression(*node.else_expression, scope);
+            } else if constexpr (std::is_same_v<Node, ast::MatchExpression>) {
+              check_expression(*node.scrutinee, scope);
+              for (const auto &arm : node.arms) {
+                auto arm_scope = scope;
+                arm_scope.insert(arm.bindings.begin(), arm.bindings.end());
+                check_expression(*arm.expression, arm_scope);
+              }
+            } else if constexpr (std::is_same_v<Node, ast::MoveExpression> ||
+                                 std::is_same_v<Node, ast::TryExpression> ||
+                                 std::is_same_v<Node, ast::UnaryExpression>) {
+              check_expression(*node.operand, scope);
+            } else if constexpr (std::is_same_v<Node, ast::BinaryExpression>) {
+              check_expression(*node.left, scope);
+              check_expression(*node.right, scope);
+            }
+          },
+          expression.value);
+    };
+    std::function<void(const std::vector<ast::Statement> &,
+                       std::unordered_set<std::string>)>
+        check_statements;
+    check_statements = [&](const std::vector<ast::Statement> &statements,
+                           std::unordered_set<std::string> scope) {
+      for (const ast::Statement &statement : statements) {
+        if (const auto *declaration =
+                std::get_if<ast::ValueDeclaration>(&statement)) {
+          if (!declaration->is_constant || !declaration->initializer)
+            throw CompileError{declaration->location,
+                               "const def local declarations must be const"};
+          check_expression(*declaration->initializer, scope);
+          scope.insert(declaration->name);
+        } else if (const auto *returned =
+                       std::get_if<ast::ReturnStatement>(&statement)) {
+          if (!returned->expression)
+            throw CompileError{returned->location,
+                               "const def must return a constant value"};
+          check_expression(*returned->expression, scope);
+        } else if (const auto *conditional =
+                       std::get_if<std::shared_ptr<ast::IfStatement>>(
+                           &statement)) {
+          check_expression((*conditional)->condition, scope);
+          check_statements((*conditional)->then_body, scope);
+          check_statements((*conditional)->else_body, scope);
+        } else {
+          throw CompileError{function.location,
+                             "const def contains an operation with runtime "
+                             "effects"};
+        }
+      }
+    };
+    check_statements(function.body, locals);
+    state = PurityState::Complete;
+  };
+  for (const ast::FunctionDeclaration &function : program.functions)
+    if (function.is_constant)
+      validate_const_purity(function);
+
   const constant::InitializationPlan initialization_plan =
       constant::plan_initialization(program);
   std::function<const constant::Value &(const std::string &)> evaluate_global;
+  std::size_t constant_steps = 0;
+  std::size_t constant_depth = 0;
+  std::size_t constant_memory_used = 0;
+  constant::EvaluationBudget evaluation_budget{
+      options.constant_step_budget, options.constant_memory_budget,
+      options.constant_value_size_budget};
+  std::function<std::optional<constant::Value>(
+      std::string_view, const std::vector<constant::Value> &, SourceLocation)>
+      evaluate_constant_function;
+  evaluate_constant_function =
+      [&](std::string_view name, const std::vector<constant::Value> &arguments,
+          SourceLocation location) -> std::optional<constant::Value> {
+    const ast::FunctionDeclaration *found = find_constant_function(name);
+    if (found == nullptr)
+      return std::nullopt;
+    const ast::FunctionDeclaration &function = *found;
+    if (arguments.size() != function.parameters.size())
+      throw CompileError{location, "const def '" + function.name +
+                                       "' received an invalid argument count"};
+    if (++constant_steps > options.constant_step_budget)
+      throw CompileError{location,
+                         "constant evaluation step budget exceeded (" +
+                             std::to_string(options.constant_step_budget) + ")"};
+    if (++constant_depth > options.constant_recursion_budget)
+      throw CompileError{location,
+                         "constant evaluation recursion budget exceeded (" +
+                             std::to_string(options.constant_recursion_budget) + ")"};
+    struct DepthGuard {
+      std::size_t &depth;
+      ~DepthGuard() { --depth; }
+    } guard{constant_depth};
+    std::unordered_map<std::string, constant::Value> locals;
+    for (std::size_t index = 0; index < arguments.size(); ++index)
+      locals.emplace(function.parameters[index].name, arguments[index]);
+    const constant::Resolver local_resolver =
+        [&](const std::optional<std::string> &module, std::string_view value,
+            SourceLocation reference_location)
+        -> std::optional<constant::Value> {
+      if (!module.has_value())
+        if (const auto local = locals.find(std::string{value});
+            local != locals.end())
+          return local->second;
+      std::string key = global_key(module, value);
+      if (!module.has_value() && !globals.contains(key)) {
+        if (const auto exported = public_globals.find(std::string{value});
+            exported != public_globals.end())
+          key = exported->second;
+      }
+      if (!globals.contains(key))
+        return std::nullopt;
+      if (globals.at(key).declaration->declaration.is_mutable)
+        throw CompileError{reference_location,
+                           "const def cannot observe mutable global '" + key +
+                               "'"};
+      return evaluate_global(key);
+    };
+    const std::unordered_set<std::string> function_type_parameters{
+        function.type_parameters.begin(), function.type_parameters.end()};
+    const SemanticType return_type = resolve_type(
+        function.return_type, function_type_parameters, &class_arities);
+    const Type *constant_return_type = return_type.concrete;
+    if (function.return_type.name == "isize")
+      constant_return_type = &Type::isize_type(options.target.pointer_width);
+    else if (function.return_type.name == "usize")
+      constant_return_type = &Type::usize_type(options.target.pointer_width);
+    return constant::evaluate_statements(
+        function.body, constant_return_type, std::move(locals), local_resolver,
+        constant_constructor_resolver, evaluate_constant_function,
+        options.constant_step_budget, &evaluation_budget);
+  };
   evaluate_global = [&](const std::string &key) -> const constant::Value & {
     const ConstantState state = constant_states[key];
     if (state == ConstantState::Visiting)
@@ -1270,6 +1589,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           target.module_name != global.module_name)
         throw CompileError{location, "global constant '" + dependency_key +
                                          "' is private"};
+      if (target.declaration.is_internal &&
+          target.module_name != global.module_name)
+        throw CompileError{location, "global constant '" + dependency_key +
+                                         "' is internal"};
       const std::string spelling =
           qualified_module.has_value()
               ? *qualified_module + "." + std::string{name}
@@ -1286,19 +1609,101 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           dependency_key + "'"};
       return evaluate_global(dependency_key);
     };
-    constant::Value value =
-        constant::evaluate(*global.declaration.initializer,
-                           resolved.symbol.type.concrete, resolver);
+    constant::Value value = constant::evaluate(
+        *global.declaration.initializer, resolved.symbol.type.concrete,
+        resolver, constant_constructor_resolver, evaluate_constant_function,
+        &evaluation_budget);
+    const std::size_t value_size = constant::canonical_serialize(value).size();
+    if (value_size > options.constant_value_size_budget)
+      throw CompileError{global.declaration.location,
+                         "constant value size budget exceeded (" +
+                             std::to_string(options.constant_value_size_budget) +
+                             " bytes)"};
+    if (value_size > options.constant_memory_budget -
+                         std::min(options.constant_memory_budget,
+                                  constant_memory_used))
+      throw CompileError{global.declaration.location,
+                         "constant evaluation memory budget exceeded (" +
+                             std::to_string(options.constant_memory_budget) +
+                             " bytes)"};
+    constant_memory_used += value_size;
     constant_states[key] = ConstantState::Complete;
     auto [iterator, inserted] = constant_values.emplace(key, std::move(value));
     static_cast<void>(inserted);
+    result.global_constant_values.insert_or_assign(key, iterator->second);
     return iterator->second;
   };
-  for (const ast::GlobalDeclaration *global : initialization_plan.constants)
-    if (globals.at(global_key(global->module_name, global->declaration.name))
-            .symbol.type.concrete != nullptr)
+  for (const ast::GlobalDeclaration *global : initialization_plan.constants) {
+    const ResolvedGlobal &resolved =
+        globals.at(global_key(global->module_name, global->declaration.name));
+    if (global->declaration.is_constant || resolved.symbol.type.concrete != nullptr)
       static_cast<void>(evaluate_global(
           global_key(global->module_name, global->declaration.name)));
+  }
+
+  for (const ast::Program::StaticAssertion &assertion :
+       program.static_assertions) {
+    try {
+      const constant::Value condition = constant::evaluate(
+          assertion.condition, &Type::bool_type(),
+          [&](const std::optional<std::string> &module, std::string_view name,
+              SourceLocation location) -> std::optional<constant::Value> {
+            std::string key;
+            if (module.has_value()) {
+              key = global_key(module, name);
+            } else {
+              const std::string local = global_key(assertion.module_name, name);
+              if (globals.contains(local))
+                key = local;
+              else
+              if (const auto exported = public_globals.find(std::string{name});
+                  exported != public_globals.end())
+                key = exported->second;
+              else
+                return std::nullopt;
+            }
+            const auto found = globals.find(key);
+            if (found == globals.end() ||
+                !found->second.declaration->declaration.is_constant)
+              return std::nullopt;
+            const ast::GlobalDeclaration &target = *found->second.declaration;
+            if (target.declaration.is_private &&
+                target.module_name != assertion.module_name)
+              throw CompileError{location, "global constant '" + key +
+                                               "' is private"};
+            if (target.declaration.is_internal &&
+                target.module_name != assertion.module_name)
+              throw CompileError{location, "global constant '" + key +
+                                               "' is internal"};
+            const std::string spelling =
+                module.has_value() ? *module + "." + std::string{name}
+                                   : std::string{name};
+            if (!import_allows(assertion.module_name, target.module_name,
+                               target.declaration.name, spelling))
+              throw CompileError{location, "global value '" + spelling +
+                                               "' is not imported in this module"};
+            return evaluate_global(key);
+          },
+          constant_constructor_resolver, evaluate_constant_function,
+          &evaluation_budget);
+      if (!std::get<bool>(condition.data))
+        throw CompileError{Diagnostic{
+            DiagnosticSeverity::Error, DiagnosticCode::Unclassified,
+            "static assertion failed" +
+                (assertion.message.has_value() ? ": " + *assertion.message
+                                               : std::string{}),
+            assertion.location, {}, {}, {}, assertion.source_path}};
+    } catch (const CompileError &error) {
+      if (std::string_view{error.what()}.find("static assertion failed") !=
+          std::string_view::npos)
+        throw;
+      throw CompileError{Diagnostic{
+          DiagnosticSeverity::Error, DiagnosticCode::Unclassified,
+          "static assertion condition is not a constant expression: " +
+              std::string{error.what()},
+          assertion.location, {}, {}, {}, assertion.source_path}};
+    }
+  }
 
   struct TraitInstance {
     const ast::TraitDeclaration *declaration;
@@ -4857,9 +5262,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
     std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
         validate_block;
+    std::unordered_map<std::string, constant::Value> local_constants;
     validate_block = [&](const std::vector<ast::Statement> &statements,
                          SymbolTable &block_symbols) {
       SymbolTable *previous_symbols = active_symbols;
+      const auto previous_local_constants = local_constants;
       const auto previous_deferred_values = deferred_values;
       std::vector<std::pair<std::string, SourceLocation>> scope_declarations;
       active_symbols = &block_symbols;
@@ -5033,6 +5440,47 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               declaration->declared_type.has_value())
             validate_expression(*declaration->initializer, declared_type,
                                 declaration->location);
+          if (declaration->is_constant) {
+            if (!declaration->initializer.has_value() ||
+                declared_type.concrete == nullptr)
+              throw CompileError{
+                  declaration->location,
+                  "local const requires an initialized scalar type"};
+            try {
+              constant::Value local_value = constant::evaluate(
+                  *declaration->initializer, declared_type.concrete,
+                  [&](const std::optional<std::string> &module,
+                      std::string_view name, SourceLocation)
+                  -> std::optional<constant::Value> {
+                    if (!module.has_value()) {
+                      const auto local = local_constants.find(std::string{name});
+                      if (local != local_constants.end())
+                        return local->second;
+                    }
+                    std::string key = global_key(module, name);
+                    if (!module.has_value() && !globals.contains(key)) {
+                      if (const auto exported =
+                              public_globals.find(std::string{name});
+                          exported != public_globals.end())
+                        key = exported->second;
+                    }
+                    if (!globals.contains(key) ||
+                        !globals.at(key)
+                             .declaration->declaration.is_constant)
+                      return std::nullopt;
+                    return evaluate_global(key);
+                  },
+                  {}, evaluate_constant_function, &evaluation_budget);
+              local_constants.insert_or_assign(declaration->name, local_value);
+              result.local_constant_values.insert_or_assign(declaration,
+                                                             std::move(local_value));
+            } catch (const CompileError &error) {
+              throw CompileError{
+                  declaration->location,
+                  "local constant '" + declaration->name +
+                      "' is not a constant expression: " + error.what()};
+            }
+          }
           block_symbols.emplace(declaration->name,
                                 Symbol{declared_type, declaration->is_mutable,
                                        declaration->initializer.has_value()});
@@ -5570,6 +6018,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         borrowed_values.erase(name);
       }
       active_symbols = previous_symbols;
+      local_constants = previous_local_constants;
       deferred_values = previous_deferred_values;
       return has_terminator;
     };

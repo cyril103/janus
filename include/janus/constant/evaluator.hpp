@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -39,13 +40,28 @@ struct InitializationPlan {
   std::vector<const ast::GlobalDeclaration *> dynamic;
 };
 
+struct EvaluationBudget {
+  std::size_t step_limit{10000};
+  std::size_t memory_limit{16 * 1024 * 1024};
+  std::size_t value_size_limit{1024 * 1024};
+  std::size_t steps{};
+  std::size_t memory{};
+};
+
 using Resolver = std::function<std::optional<Value>(
     const std::optional<std::string> &, std::string_view, SourceLocation)>;
 using ConstructorResolver = std::function<std::optional<ConstructorShape>(
     std::string_view, const std::optional<std::string> &,
     const std::vector<ast::TypeReference> &, SourceLocation)>;
+using FunctionResolver = std::function<std::optional<Value>(
+    std::string_view, const std::vector<Value> &, SourceLocation)>;
 
 [[nodiscard]] bool is_constant_expression(const ast::Expression &expression);
+
+// Stable, locale-independent representation used by public interfaces,
+// documentation and incremental caches.
+[[nodiscard]] std::string canonical_serialize(const Value &value);
+inline constexpr std::string_view evaluator_version = "const-evaluator-v3";
 
 [[nodiscard]] InitializationPlan
 plan_initialization(const ast::Program &program);
@@ -54,6 +70,16 @@ plan_initialization(const ast::Program &program);
                              const Type *expected_type,
                              const Resolver &resolve,
                              const ConstructorResolver &resolve_constructor =
-                                 {});
+                                 {},
+                             const FunctionResolver &call_function = {},
+                             EvaluationBudget *budget = nullptr);
+
+[[nodiscard]] Value evaluate_statements(
+    const std::vector<ast::Statement> &statements, const Type *return_type,
+    std::unordered_map<std::string, Value> locals, const Resolver &resolve,
+    const ConstructorResolver &resolve_constructor = {},
+    const FunctionResolver &call_function = {},
+    std::size_t statement_budget = 10000,
+    EvaluationBudget *budget = nullptr);
 
 } // namespace janus::constant

@@ -2,6 +2,7 @@
 #include "janus/driver/api_index.hpp"
 
 #include "janus/frontend/parser.hpp"
+#include "janus/semantic/analyzer.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -272,6 +273,8 @@ std::string type_name(
 
 std::string function_signature(const janus::ast::FunctionDeclaration &value) {
   std::string signature;
+  if (value.is_constant)
+    signature += "const ";
   if (value.is_consuming)
     signature += "consume ";
   signature += "def " + value.name;
@@ -313,7 +316,9 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
 
 std::string value_signature(const janus::ast::ValueDeclaration &value) {
   return std::string{value.is_borrowed ? "borrow " : ""} +
-         std::string{value.is_mutable ? "var " : "val "} + value.name + " : " +
+         std::string{value.is_constant ? "const "
+                                       : (value.is_mutable ? "var " : "val ")} +
+         value.name + " : " +
          type_name(value.declared_type);
 }
 
@@ -423,10 +428,26 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
   std::vector<Symbol> symbols;
   for (const janus::ast::Program &program : programs) {
     const std::string module = program.module_name.value_or("root");
+    std::optional<janus::semantic::AnalysisResult> analysis;
+    try {
+      analysis = janus::semantic::Analyzer{}.analyze(
+          program, {.require_entry_point = false, .target = {}});
+    } catch (const std::exception &) {
+    }
     for (const janus::ast::GlobalDeclaration &global : program.globals) {
       if (!global.declaration.is_private && !global.declaration.is_internal) {
+        std::string signature = value_signature(global.declaration);
+        if (global.declaration.is_constant && analysis) {
+          const std::string origin = global.module_name.value_or("root") + "." +
+                                     global.declaration.name;
+          if (const auto value = analysis->global_constant_values.find(origin);
+              value != analysis->global_constant_values.end())
+            signature += " = " +
+                         janus::constant::canonical_serialize(value->second) +
+                         " [origin " + origin + "]";
+        }
         add_symbol(symbols, module, global.declaration.name, "global",
-                   value_signature(global.declaration),
+                   std::move(signature),
                    global.declaration.documentation);
       }
     }
