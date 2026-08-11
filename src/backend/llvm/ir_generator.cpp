@@ -591,17 +591,9 @@ private:
       if (found == functions_.end() || !found->second->is_constant)
         return std::nullopt;
       const janus::ast::FunctionDeclaration &function = *found->second;
-      if (arguments.size() != function.parameters.size() ||
-          function.body.size() != 1 ||
-          !std::holds_alternative<janus::ast::ReturnStatement>(
-              function.body.front()))
+      if (arguments.size() != function.parameters.size())
         throw janus::CompileError{
-            location, "const def requires one return expression"};
-      const auto &statement =
-          std::get<janus::ast::ReturnStatement>(function.body.front());
-      if (!statement.expression.has_value())
-        throw janus::CompileError{location,
-                                  "const def must return a value"};
+            location, "const def received an invalid argument count"};
       std::unordered_map<std::string, janus::constant::Value> locals;
       for (std::size_t index = 0; index < arguments.size(); ++index)
         locals.emplace(function.parameters[index].name, arguments[index]);
@@ -621,8 +613,8 @@ private:
                                   "const def references non-constant value"};
       };
       const janus::Type &return_type = resolve(function.return_type, {});
-      return janus::constant::evaluate(
-          *statement.expression, &return_type, function_resolver,
+      return janus::constant::evaluate_statements(
+          function.body, &return_type, std::move(locals), function_resolver,
           constructor_resolver, call_constant_function);
     };
     janus::constant::Value value = janus::constant::evaluate(

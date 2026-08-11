@@ -1107,4 +1107,91 @@ Value evaluate(const ast::Expression &expression, const Type *expected_type,
   return result;
 }
 
+Value evaluate_statements(
+    const std::vector<ast::Statement> &statements, const Type *return_type,
+    std::unordered_map<std::string, Value> locals, const Resolver &resolve,
+    const ConstructorResolver &resolve_constructor,
+    const FunctionResolver &call_function, std::size_t statement_budget) {
+  std::size_t steps = 0;
+  std::function<std::optional<Value>(const std::vector<ast::Statement> &,
+                                     std::unordered_map<std::string, Value>)>
+      execute;
+  execute = [&](const std::vector<ast::Statement> &body,
+                std::unordered_map<std::string, Value> scope)
+      -> std::optional<Value> {
+    const Resolver scoped_resolver =
+        [&](const std::optional<std::string> &module, std::string_view name,
+            SourceLocation location) -> std::optional<Value> {
+      if (!module.has_value()) {
+        const auto local = scope.find(std::string{name});
+        if (local != scope.end())
+          return local->second;
+      }
+      return resolve(module, name, location);
+    };
+    for (const ast::Statement &statement : body) {
+      const SourceLocation location = std::visit(
+          [](const auto &node) {
+            using Node = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<Node,
+                                         std::shared_ptr<ast::IfStatement>> ||
+                          std::is_same_v<Node,
+                                         std::shared_ptr<ast::WhileStatement>> ||
+                          std::is_same_v<Node,
+                                         std::shared_ptr<ast::ForStatement>>)
+              return node->location;
+            else
+              return node.location;
+          },
+          statement);
+      if (++steps > statement_budget)
+        throw CompileError{location,
+                           "constant evaluation statement budget exceeded (" +
+                               std::to_string(statement_budget) + ")"};
+      if (const auto *declaration =
+              std::get_if<ast::ValueDeclaration>(&statement)) {
+        if (!declaration->is_constant || !declaration->initializer ||
+            !declaration->declared_type)
+          throw CompileError{declaration->location,
+                             "const def local declarations must be explicit "
+                             "constants"};
+        const Type *type = constant_cast_type(declaration->declared_type->name);
+        if (type == nullptr)
+          throw CompileError{declaration->location,
+                             "unsupported local constant type in const def"};
+        scope.insert_or_assign(
+            declaration->name,
+            evaluate(*declaration->initializer, type, scoped_resolver,
+                     resolve_constructor, call_function));
+      } else if (const auto *returned =
+                     std::get_if<ast::ReturnStatement>(&statement)) {
+        if (!returned->expression)
+          throw CompileError{returned->location,
+                             "const def must return a value"};
+        return evaluate(*returned->expression, return_type, scoped_resolver,
+                        resolve_constructor, call_function);
+      } else if (const auto *conditional =
+                     std::get_if<std::shared_ptr<ast::IfStatement>>(
+                         &statement)) {
+        const Value condition =
+            evaluate((*conditional)->condition, &Type::bool_type(),
+                     scoped_resolver, resolve_constructor, call_function);
+        const auto &selected = std::get<bool>(condition.data)
+                                   ? (*conditional)->then_body
+                                   : (*conditional)->else_body;
+        if (auto result = execute(selected, scope))
+          return result;
+      } else {
+        throw CompileError{location,
+                           "unsupported statement in const def evaluation"};
+      }
+    }
+    return std::nullopt;
+  };
+  if (auto result = execute(statements, std::move(locals)))
+    return *result;
+  throw CompileError{SourceLocation{},
+                     "const def completed without returning a value"};
+}
+
 } // namespace janus::constant

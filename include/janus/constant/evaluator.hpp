@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -58,5 +59,12 @@ plan_initialization(const ast::Program &program);
                              const ConstructorResolver &resolve_constructor =
                                  {},
                              const FunctionResolver &call_function = {});
+
+[[nodiscard]] Value evaluate_statements(
+    const std::vector<ast::Statement> &statements, const Type *return_type,
+    std::unordered_map<std::string, Value> locals, const Resolver &resolve,
+    const ConstructorResolver &resolve_constructor = {},
+    const FunctionResolver &call_function = {},
+    std::size_t statement_budget = 10000);
 
 } // namespace janus::constant

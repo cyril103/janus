@@ -1405,17 +1405,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       std::size_t &depth;
       ~DepthGuard() { --depth; }
     } guard{constant_depth};
-    if (function.body.size() != 1 ||
-        !std::holds_alternative<ast::ReturnStatement>(function.body.front()))
-      throw CompileError{
-          function.location,
-          "const def must contain exactly one return expression in the first "
-          "constant-evaluation version"};
-    const auto &statement =
-        std::get<ast::ReturnStatement>(function.body.front());
-    if (!statement.expression.has_value())
-      throw CompileError{function.location,
-                         "const def must return a constant value"};
     std::unordered_map<std::string, constant::Value> locals;
     for (std::size_t index = 0; index < arguments.size(); ++index)
       locals.emplace(function.parameters[index].name, arguments[index]);
@@ -1443,9 +1432,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     };
     const SemanticType return_type =
         resolve_type(function.return_type, no_type_parameters, &class_arities);
-    return constant::evaluate(*statement.expression, return_type.concrete,
-                              local_resolver, {},
-                              evaluate_constant_function);
+    return constant::evaluate_statements(
+        function.body, return_type.concrete, std::move(locals), local_resolver,
+        {}, evaluate_constant_function);
   };
   evaluate_global = [&](const std::string &key) -> const constant::Value & {
     const ConstantState state = constant_states[key];

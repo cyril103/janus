@@ -107,6 +107,29 @@ def main() : int {
   expect(local_ir.find("ret i32 42") != std::string::npos,
          "local constants use the nearest lexical constant value");
 
+  janus::frontend::Parser body_parser{R"(
+const def magnitude(value : int) : int {
+    const zero : int = 0
+    if value > zero {
+        return value
+    } else {
+        return zero - value
+    }
+}
+const def factorial(value : int) : int {
+    if value <= 1 {
+        return 1
+    } else {
+        return value * factorial(value - 1)
+    }
+}
+const answer : int = magnitude(42)
+staticAssert(answer == 42)
+staticAssert(factorial(5) == 120)
+def main() : int { return answer }
+)"};
+  static_cast<void>(analyzer.analyze(body_parser.parse_program()));
+
   expect_compile_error(
       "var runtime : int = 1\nconst invalid : int = runtime\n"
       "def main() : int { return 0 }",
