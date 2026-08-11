@@ -1,11 +1,11 @@
-if(NOT DEFINED JANUS OR NOT DEFINED BUILD_DIR)
-    message(FATAL_ERROR "JANUS and BUILD_DIR are required")
+if(NOT DEFINED JANUS OR NOT DEFINED BUILD_DIR OR NOT DEFINED SOURCE_DIR)
+    message(FATAL_ERROR "JANUS, BUILD_DIR, and SOURCE_DIR are required")
 endif()
 
 set(TEST_ROOT "${BUILD_DIR}/cli-execution-contract")
 file(REMOVE_RECURSE "${TEST_ROOT}")
 file(MAKE_DIRECTORY "${TEST_ROOT}/empty" "${TEST_ROOT}/project/src"
-     "${TEST_ROOT}/project/tests")
+     "${TEST_ROOT}/project/tests" "${TEST_ROOT}/argument-project/src")
 
 set(TOP_LEVEL_USAGE
 "usage:
@@ -18,7 +18,7 @@ set(TOP_LEVEL_USAGE
   janus clean
   janus check [source.janus] [--all] [--deny-warnings] [--diagnostic-format human|json]
   janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache] [--deny-warnings]
-  janus run [source.janus] [--release] [--panic-trace full|short|off]
+  janus run [source.janus] [--release] [--panic-trace full|short|off] [-- [arguments...]]
   janus test [filter] [--doc] [--doc-path <path>] [--list] [--exact] [--ignored|--include-ignored] [--jobs <count>] [--timeout <duration>] [--fail-fast] [--fail-if-empty] [--format human|json|junit] [--release] [--panic-trace full|short|off]
   janus fmt [source.janus] [--check]
   janus doc [--stdlib] [-o directory] [--open] [--offline] [--search QUERY] [--format human|json] [--module NAME] [--kind KIND] [--package NAME]
@@ -34,7 +34,7 @@ set(BUILD_USAGE
 "usage: janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache] [--deny-warnings]
 ")
 set(RUN_USAGE
-"usage: janus run [source.janus] [--release] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops]
+"usage: janus run [source.janus] [--release] [--locked] [--offline] [--panic-trace full|short|off] [--warn-high-growth-loops] [-- [arguments...]]
 ")
 set(TEST_USAGE
 "usage: janus test [filter] [--doc] [--doc-path <path>] [--list] [--exact] [--ignored|--include-ignored] [--jobs <count>] [--timeout <duration>] [--fail-fast] [--fail-if-empty] [--format human|json|junit] [--release] [--locked] [--offline] [--panic-trace full|short|off]
@@ -201,6 +201,28 @@ execute_process(
 if(NOT CHILD_STATUS EQUAL 7)
     message(FATAL_ERROR
         "run did not preserve child status: ${CHILD_STATUS}\nstdout=[${CHILD_OUT}]\nstderr=[${CHILD_ERR}]")
+endif()
+
+# Everything after `--` is passed as an exact argv element without shell
+# interpretation, including options, whitespace, an empty string, Unicode,
+# command-substitution syntax and glob syntax.
+file(WRITE "${TEST_ROOT}/argument-project/janus.toml"
+     "[package]\nname = \"arguments\"\nversion = \"0.1.0\"\nentry = \"src/main.janus\"\n")
+file(COPY_FILE "${SOURCE_DIR}/tests/fixtures/run_arguments.janus"
+     "${TEST_ROOT}/argument-project/src/main.janus")
+execute_process(
+    COMMAND "${JANUS}" run --
+            "alpha" "--flag" "texte avec espaces" "" "漢字🙂"
+            "$(printf injected)" "*.janus" "backslash\\\"quote"
+            "texte avec espace\\"
+    WORKING_DIRECTORY "${TEST_ROOT}/argument-project"
+    RESULT_VARIABLE ARGUMENT_STATUS
+    OUTPUT_VARIABLE ARGUMENT_OUT
+    ERROR_VARIABLE ARGUMENT_ERR
+)
+if(NOT ARGUMENT_STATUS EQUAL 37)
+    message(FATAL_ERROR
+        "run did not preserve program arguments: ${ARGUMENT_STATUS}\nstdout=[${ARGUMENT_OUT}]\nstderr=[${ARGUMENT_ERR}]")
 endif()
 
 # Project test filtering is preserved, and malformed test diagnostics retain

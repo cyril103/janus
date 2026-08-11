@@ -1,0 +1,42 @@
+import std.process
+
+private def argumentEquals(index : usize, expected : string) : bool {
+    return match programArgument(index) {
+        Some(value) => value == expected,
+        None => false
+    }
+}
+
+def main() : int {
+    if programArgumentCount() != usize(10) {
+        return 20
+    }
+    if !argumentEquals(usize(1), "alpha") {
+        return 21
+    }
+    if !argumentEquals(usize(2), "--flag") {
+        return 22
+    }
+    if !argumentEquals(usize(3), "texte avec espaces") {
+        return 23
+    }
+    if !argumentEquals(usize(4), "") {
+        return 24
+    }
+    if !argumentEquals(usize(5), "漢字🙂") {
+        return 25
+    }
+    if !argumentEquals(usize(6), "$(printf injected)") {
+        return 26
+    }
+    if !argumentEquals(usize(7), "*.janus") {
+        return 27
+    }
+    if !argumentEquals(usize(8), "backslash\\\"quote") {
+        return 28
+    }
+    if !argumentEquals(usize(9), "texte avec espace\\") {
+        return 29
+    }
+    return 37
+}

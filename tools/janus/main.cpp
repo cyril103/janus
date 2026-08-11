@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <cctype>
 #include <chrono>
 #include <cstdint>
@@ -38,6 +39,7 @@
 #include <system_error>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 #ifndef _WIN32
 #include <csignal>
@@ -118,6 +120,7 @@ struct Options {
   std::vector<std::filesystem::path> dependency_paths;
   std::vector<std::filesystem::path> documentation_paths;
   std::string test_filter;
+  std::vector<std::string> program_arguments;
 };
 
 struct CompilationTimings {
@@ -240,7 +243,7 @@ void print_usage(std::ostream &output) {
             "[--diagnostic-format human|json] [--timings[=human|json]] "
             "[--no-cache] [--deny-warnings]\n"
          << "  janus run [source.janus] [--release] "
-            "[--panic-trace full|short|off]\n"
+            "[--panic-trace full|short|off] [-- [arguments...]]\n"
          << "  janus test [filter] [--doc] [--doc-path <path>] "
             "[--list] [--exact] [--ignored|--include-ignored] "
             "[--jobs <count>] [--timeout <duration>] [--fail-fast] "
@@ -272,7 +275,8 @@ void print_command_usage(std::ostream &output, std::string_view command) {
               "[--timings[=human|json]] [--no-cache] [--deny-warnings]\n";
   else if (command == "run")
     output << " [source.janus] [--release] [--locked] [--offline] "
-              "[--panic-trace full|short|off] [--warn-high-growth-loops]\n";
+              "[--panic-trace full|short|off] [--warn-high-growth-loops] "
+              "[-- [arguments...]]\n";
   else if (command == "test")
     output << " [filter] [--doc] [--doc-path <path>] [--list] [--exact] "
               "[--ignored|--include-ignored] [--jobs <count>] "
@@ -460,7 +464,14 @@ Options parse_options(int argc, char **argv) {
     throw UsageError{"", "unknown command '" + options.command + "'"};
   for (int index = 2; index < argc; ++index) {
     const std::string_view argument = argv[index];
-    if (argument == "-o") {
+    if (argument == "--") {
+      if (options.command != "run")
+        throw UsageError{options.command,
+                         "-- is only available for run arguments"};
+      for (++index; index < argc; ++index)
+        options.program_arguments.emplace_back(argv[index]);
+      break;
+    } else if (argument == "-o") {
       if (++index == argc)
         throw UsageError{options.command, "-o requires an output path"};
       options.output = argv[index];
@@ -757,34 +768,199 @@ Options parse_options(int argc, char **argv) {
   return options;
 }
 
-std::string shell_quote(const std::filesystem::path &path) {
-  const std::string value = path.string();
 #ifdef _WIN32
-  std::string quoted{"\""};
-  for (const char character : value) {
-    if (character == '"')
-      quoted += '\\';
-    quoted += character;
-  }
-  return quoted + '"';
-#else
-  std::string quoted{"'"};
-  for (const char character : value) {
-    if (character == '\'')
-      quoted += "'\\''";
-    else
-      quoted += character;
-  }
-  return quoted + '\'';
-#endif
+std::string utf8_argument(std::wstring_view argument) {
+  if (argument.empty())
+    return {};
+  const int size = WideCharToMultiByte(
+      CP_UTF8, WC_ERR_INVALID_CHARS, argument.data(),
+      static_cast<int>(argument.size()), nullptr, 0, nullptr, nullptr);
+  if (size <= 0)
+    throw std::system_error{static_cast<int>(GetLastError()),
+                            std::system_category(),
+                            "cannot decode command-line argument"};
+  std::string result(static_cast<std::size_t>(size), '\0');
+  if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, argument.data(),
+                          static_cast<int>(argument.size()), result.data(), size,
+                          nullptr, nullptr) != size)
+    throw std::system_error{static_cast<int>(GetLastError()),
+                            std::system_category(),
+                            "cannot decode command-line argument"};
+  return result;
 }
 
-int command_status(int status) {
-  if (status == -1)
-    return 1;
+std::vector<std::string> windows_command_line_arguments() {
+  using SplitCommandLine = wchar_t **(WINAPI *)(LPCWSTR, int *);
+  const HMODULE shell = LoadLibraryW(L"shell32.dll");
+  if (shell == nullptr)
+    throw std::system_error{static_cast<int>(GetLastError()),
+                            std::system_category(),
+                            "cannot load Windows command-line parser"};
+  const auto split = reinterpret_cast<SplitCommandLine>(
+      GetProcAddress(shell, "CommandLineToArgvW"));
+  if (split == nullptr) {
+    const DWORD error = GetLastError();
+    FreeLibrary(shell);
+    throw std::system_error{static_cast<int>(error), std::system_category(),
+                            "cannot load Windows command-line parser"};
+  }
+  int count = 0;
+  wchar_t **wide_arguments = split(GetCommandLineW(), &count);
+  if (wide_arguments == nullptr || count < 0) {
+    const DWORD error = GetLastError();
+    FreeLibrary(shell);
+    throw std::system_error{static_cast<int>(error), std::system_category(),
+                            "cannot parse Windows command line"};
+  }
+  std::vector<std::string> arguments;
+  arguments.reserve(static_cast<std::size_t>(count));
+  try {
+    for (int index = 0; index < count; ++index)
+      arguments.push_back(utf8_argument(wide_arguments[index]));
+  } catch (...) {
+    LocalFree(wide_arguments);
+    FreeLibrary(shell);
+    throw;
+  }
+  LocalFree(wide_arguments);
+  FreeLibrary(shell);
+  return arguments;
+}
+
+std::wstring wide_argument(std::string_view argument) {
+  if (argument.empty())
+    return {};
+  const int size = MultiByteToWideChar(
+      CP_UTF8, MB_ERR_INVALID_CHARS, argument.data(),
+      static_cast<int>(argument.size()), nullptr, 0);
+  if (size <= 0)
+    throw std::system_error{static_cast<int>(GetLastError()),
+                            std::system_category(),
+                            "program argument is not valid UTF-8"};
+  std::wstring result(static_cast<std::size_t>(size), L'\0');
+  if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, argument.data(),
+                          static_cast<int>(argument.size()), result.data(),
+                          size) != size)
+    throw std::system_error{static_cast<int>(GetLastError()),
+                            std::system_category(),
+                            "program argument is not valid UTF-8"};
+  return result;
+}
+
+std::wstring quote_windows_argument(std::wstring_view argument) {
+  if (!argument.empty() &&
+      argument.find_first_of(L" \t\n\v\"") == std::wstring_view::npos)
+    return std::wstring{argument};
+  std::wstring quoted{L'"'};
+  std::size_t backslashes = 0;
+  for (const wchar_t character : argument) {
+    if (character == L'\\') {
+      ++backslashes;
+      continue;
+    }
+    if (character == L'"')
+      quoted.append(backslashes * 2 + 1, L'\\');
+    else
+      quoted.append(backslashes, L'\\');
+    backslashes = 0;
+    quoted += character;
+  }
+  quoted.append(backslashes * 2, L'\\');
+  quoted += L'"';
+  return quoted;
+}
+#endif
+
+int run_program(const std::filesystem::path &executable,
+                const std::vector<std::string> &arguments) {
 #ifdef _WIN32
-  return status;
+  std::wstring command_line = quote_windows_argument(executable.wstring());
+  for (const std::string &argument : arguments) {
+    command_line += L' ';
+    command_line += quote_windows_argument(wide_argument(argument));
+  }
+  STARTUPINFOW startup{};
+  startup.cb = sizeof(startup);
+  PROCESS_INFORMATION process{};
+  if (!CreateProcessW(executable.c_str(), command_line.data(), nullptr, nullptr,
+                      TRUE, 0, nullptr, nullptr, &startup, &process))
+    throw std::system_error{static_cast<int>(GetLastError()),
+                            std::system_category(),
+                            "cannot run program"};
+  CloseHandle(process.hThread);
+  if (WaitForSingleObject(process.hProcess, INFINITE) == WAIT_FAILED) {
+    const DWORD error = GetLastError();
+    CloseHandle(process.hProcess);
+    throw std::system_error{static_cast<int>(error), std::system_category(),
+                            "cannot wait for program"};
+  }
+  DWORD exit_code = 1;
+  if (!GetExitCodeProcess(process.hProcess, &exit_code)) {
+    const DWORD error = GetLastError();
+    CloseHandle(process.hProcess);
+    throw std::system_error{static_cast<int>(error), std::system_category(),
+                            "cannot read program status"};
+  }
+  CloseHandle(process.hProcess);
+  return static_cast<int>(exit_code);
 #else
+  const std::string executable_string = executable.string();
+  std::vector<char *> child_arguments;
+  child_arguments.reserve(arguments.size() + 2);
+  child_arguments.push_back(const_cast<char *>(executable_string.c_str()));
+  for (const std::string &argument : arguments)
+    child_arguments.push_back(const_cast<char *>(argument.c_str()));
+  child_arguments.push_back(nullptr);
+
+  int error_pipe[2]{};
+  if (pipe(error_pipe) != 0)
+    throw std::system_error{errno, std::generic_category(),
+                            "cannot create program error pipe"};
+  if (fcntl(error_pipe[1], F_SETFD, FD_CLOEXEC) != 0) {
+    const int error = errno;
+    close(error_pipe[0]);
+    close(error_pipe[1]);
+    throw std::system_error{error, std::generic_category(),
+                            "cannot configure program error pipe"};
+  }
+  const pid_t child = fork();
+  if (child < 0) {
+    const int error = errno;
+    close(error_pipe[0]);
+    close(error_pipe[1]);
+    throw std::system_error{error, std::generic_category(),
+                            "cannot run program"};
+  }
+  if (child == 0) {
+    close(error_pipe[0]);
+    execv(executable_string.c_str(), child_arguments.data());
+    const int error = errno;
+    static_cast<void>(write(error_pipe[1], &error, sizeof(error)));
+    _exit(127);
+  }
+  close(error_pipe[1]);
+  int execution_error{};
+  ssize_t error_size{};
+  do {
+    error_size = read(error_pipe[0], &execution_error, sizeof(execution_error));
+  } while (error_size < 0 && errno == EINTR);
+  const int pipe_error = error_size < 0 ? errno : 0;
+  close(error_pipe[0]);
+  int status{};
+  while (waitpid(child, &status, 0) < 0) {
+    if (errno == EINTR)
+      continue;
+    throw std::system_error{errno, std::generic_category(),
+                            "cannot wait for program"};
+  }
+  if (pipe_error != 0)
+    throw std::system_error{pipe_error, std::generic_category(),
+                            "cannot read program launch status"};
+  if (error_size == static_cast<ssize_t>(sizeof(execution_error)))
+    throw std::system_error{execution_error, std::generic_category(),
+                            "cannot run program"};
+  if (error_size != 0)
+    throw std::runtime_error{"cannot read complete program launch status"};
   if (WIFEXITED(status))
     return WEXITSTATUS(status);
   return 1;
@@ -2271,6 +2447,21 @@ int format_sources(const Options &options) {
 } // namespace
 
 int main(int argc, char **argv) {
+#ifdef _WIN32
+  std::vector<std::string> utf8_arguments;
+  std::vector<char *> utf8_argument_pointers;
+  try {
+    utf8_arguments = windows_command_line_arguments();
+    utf8_argument_pointers.reserve(utf8_arguments.size());
+    for (std::string &argument : utf8_arguments)
+      utf8_argument_pointers.push_back(argument.data());
+    argc = static_cast<int>(utf8_argument_pointers.size());
+    argv = utf8_argument_pointers.data();
+  } catch (const std::exception &error) {
+    std::cerr << "janus: error: " << error.what() << '\n';
+    return 1;
+  }
+#endif
   if (argc == 2 && std::string_view{argv[1]} == "--help") {
     print_usage(std::cout);
     return 0;
@@ -2450,9 +2641,7 @@ int main(int argc, char **argv) {
     const int build_status = build(options, executable, toolchain);
     if (build_status != 0)
       return build_status;
-    const int run_status =
-        command_status(std::system(shell_quote(executable).c_str()));
-    return run_status;
+    return run_program(executable, options.program_arguments);
   } catch (const UsageError &error) {
     std::cerr << "janus";
     if (!error.command().empty())

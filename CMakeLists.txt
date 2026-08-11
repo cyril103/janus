@@ -1117,6 +1117,7 @@ if(BUILD_TESTING)
         NAME cli.execution_contract
         COMMAND "${CMAKE_COMMAND}"
                 -DBUILD_DIR=${PROJECT_BINARY_DIR}
+                -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
                 -DJANUS=$<TARGET_FILE:janus>
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_cli_execution_contract.cmake"
     )
