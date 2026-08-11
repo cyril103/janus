@@ -239,7 +239,9 @@ ast::Program Parser::parse_program() {
         if (is_private)
           throw CompileError{current_.location,
                              "staticAssert cannot be private"};
-        program.static_assertions.push_back(parse_static_assertion());
+        auto assertion = parse_static_assertion();
+        assertion.module_name = program.module_name;
+        program.static_assertions.push_back(std::move(assertion));
       } else if (current_.kind == TokenKind::Const) {
         const SourceLocation location = current_.location;
         advance();
@@ -1072,7 +1074,7 @@ ast::Program::StaticAssertion Parser::parse_static_assertion() {
     message = decode_string_literal(expect(TokenKind::StringLiteral));
   }
   static_cast<void>(expect(TokenKind::RightParen));
-  return {std::move(condition), std::move(message), assertion.location};
+  return {std::move(condition), std::move(message), assertion.location, {}, {}};
 }
 
 ast::AssignmentStatement Parser::parse_assignment_statement() {

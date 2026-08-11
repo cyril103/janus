@@ -125,13 +125,18 @@ target_compile_options(janus_frontend
 add_library(janus_constant
     src/constant/evaluator.cpp
 )
+llvm_map_components_to_libnames(JANUS_CONSTANT_LLVM_LIBS Support)
 target_include_directories(janus_constant
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
+    SYSTEM PRIVATE
+        ${JANUS_LLVM_INCLUDE_DIR}
 )
 target_link_libraries(janus_constant
     PUBLIC
         janus_types
+    PRIVATE
+        ${JANUS_CONSTANT_LLVM_LIBS}
 )
 target_compile_options(janus_constant
     PRIVATE
@@ -633,6 +638,13 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.compile_time_constants COMMAND compile_time_constant_test)
+    add_test(
+        NAME cli.compile_time_constant_probes
+        COMMAND "${CMAKE_COMMAND}"
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DWORK_DIR=${PROJECT_BINARY_DIR}/compile-time-constant-probes"
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_compile_time_constant_probes_cli.cmake"
+    )
     add_executable(documentation_comment_test
         tests/frontend/documentation_comment_test.cpp
     )

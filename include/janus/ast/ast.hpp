@@ -399,6 +399,8 @@ struct Program {
     Expression condition;
     std::optional<std::string> message;
     SourceLocation location;
+    std::optional<std::string> module_name;
+    std::filesystem::path source_path;
   };
   std::optional<std::string> module_name;
   std::vector<ImportDeclaration> imports;

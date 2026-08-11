@@ -1485,6 +1485,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::size_t constant_steps = 0;
   std::size_t constant_depth = 0;
   std::size_t constant_memory_used = 0;
+  constant::EvaluationBudget evaluation_budget{
+      options.constant_step_budget, options.constant_memory_budget,
+      options.constant_value_size_budget};
   std::function<std::optional<constant::Value>(
       std::string_view, const std::vector<constant::Value> &, SourceLocation)>
       evaluate_constant_function;
@@ -1539,10 +1542,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         function.type_parameters.begin(), function.type_parameters.end()};
     const SemanticType return_type = resolve_type(
         function.return_type, function_type_parameters, &class_arities);
+    const Type *constant_return_type = return_type.concrete;
+    if (function.return_type.name == "isize")
+      constant_return_type = &Type::isize_type(options.target.pointer_width);
+    else if (function.return_type.name == "usize")
+      constant_return_type = &Type::usize_type(options.target.pointer_width);
     return constant::evaluate_statements(
-        function.body, return_type.concrete, std::move(locals), local_resolver,
+        function.body, constant_return_type, std::move(locals), local_resolver,
         constant_constructor_resolver, evaluate_constant_function,
-        options.constant_step_budget);
+        options.constant_step_budget, &evaluation_budget);
   };
   evaluate_global = [&](const std::string &key) -> const constant::Value & {
     const ConstantState state = constant_states[key];
@@ -1603,7 +1611,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     };
     constant::Value value = constant::evaluate(
         *global.declaration.initializer, resolved.symbol.type.concrete,
-        resolver, constant_constructor_resolver, evaluate_constant_function);
+        resolver, constant_constructor_resolver, evaluate_constant_function,
+        &evaluation_budget);
     const std::size_t value_size = constant::canonical_serialize(value).size();
     if (value_size > options.constant_value_size_budget)
       throw CompileError{global.declaration.location,
@@ -1638,32 +1647,61 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const constant::Value condition = constant::evaluate(
           assertion.condition, &Type::bool_type(),
           [&](const std::optional<std::string> &module, std::string_view name,
-              SourceLocation) -> std::optional<constant::Value> {
-            std::string key = global_key(module, name);
-            if (!module.has_value() && !globals.contains(key)) {
+              SourceLocation location) -> std::optional<constant::Value> {
+            std::string key;
+            if (module.has_value()) {
+              key = global_key(module, name);
+            } else {
+              const std::string local = global_key(assertion.module_name, name);
+              if (globals.contains(local))
+                key = local;
+              else
               if (const auto exported = public_globals.find(std::string{name});
                   exported != public_globals.end())
                 key = exported->second;
+              else
+                return std::nullopt;
             }
-            if (!globals.contains(key) ||
-                !globals.at(key).declaration->declaration.is_constant)
+            const auto found = globals.find(key);
+            if (found == globals.end() ||
+                !found->second.declaration->declaration.is_constant)
               return std::nullopt;
+            const ast::GlobalDeclaration &target = *found->second.declaration;
+            if (target.declaration.is_private &&
+                target.module_name != assertion.module_name)
+              throw CompileError{location, "global constant '" + key +
+                                               "' is private"};
+            if (target.declaration.is_internal &&
+                target.module_name != assertion.module_name)
+              throw CompileError{location, "global constant '" + key +
+                                               "' is internal"};
+            const std::string spelling =
+                module.has_value() ? *module + "." + std::string{name}
+                                   : std::string{name};
+            if (!import_allows(assertion.module_name, target.module_name,
+                               target.declaration.name, spelling))
+              throw CompileError{location, "global value '" + spelling +
+                                               "' is not imported in this module"};
             return evaluate_global(key);
           },
-          constant_constructor_resolver, evaluate_constant_function);
+          constant_constructor_resolver, evaluate_constant_function,
+          &evaluation_budget);
       if (!std::get<bool>(condition.data))
-        throw CompileError{assertion.location,
-                           "static assertion failed" +
-                               (assertion.message.has_value()
-                                    ? ": " + *assertion.message
-                                    : std::string{})};
+        throw CompileError{Diagnostic{
+            DiagnosticSeverity::Error, DiagnosticCode::Unclassified,
+            "static assertion failed" +
+                (assertion.message.has_value() ? ": " + *assertion.message
+                                               : std::string{}),
+            assertion.location, {}, {}, {}, assertion.source_path}};
     } catch (const CompileError &error) {
       if (std::string_view{error.what()}.find("static assertion failed") !=
           std::string_view::npos)
         throw;
-      throw CompileError{assertion.location,
-                         "static assertion condition is not a constant "
-                         "expression: " + std::string{error.what()}};
+      throw CompileError{Diagnostic{
+          DiagnosticSeverity::Error, DiagnosticCode::Unclassified,
+          "static assertion condition is not a constant expression: " +
+              std::string{error.what()},
+          assertion.location, {}, {}, {}, assertion.source_path}};
     }
   }
 
@@ -5432,7 +5470,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       return std::nullopt;
                     return evaluate_global(key);
                   },
-                  {}, evaluate_constant_function);
+                  {}, evaluate_constant_function, &evaluation_budget);
               local_constants.insert_or_assign(declaration->name, local_value);
               result.local_constant_values.insert_or_assign(declaration,
                                                              std::move(local_value));

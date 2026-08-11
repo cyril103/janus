@@ -217,6 +217,8 @@ ModuleLoader::load_file(const std::filesystem::path &path,
     timings->parsing += std::chrono::steady_clock::now() - parsing_start;
 
   require_module_name(parsed, expected_module, normalized);
+  for (ast::Program::StaticAssertion &assertion : parsed.static_assertions)
+    assertion.source_path = normalized;
 
   std::unordered_map<std::string, std::string> imported_names;
   const auto reserve_local = [&](std::string_view name,
@@ -299,6 +301,10 @@ ModuleLoader::take_loaded_program(const std::filesystem::path &entry_path) {
     result.imports.insert(result.imports.end(),
                           std::make_move_iterator(program.imports.begin()),
                           std::make_move_iterator(program.imports.end()));
+    result.static_assertions.insert(
+        result.static_assertions.end(),
+        std::make_move_iterator(program.static_assertions.begin()),
+        std::make_move_iterator(program.static_assertions.end()));
     if (path == entry_path) {
       result.module_name = std::move(program.module_name);
       result.documentation = std::move(program.documentation);

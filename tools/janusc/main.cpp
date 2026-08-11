@@ -77,7 +77,11 @@ int main(int argc, char **argv) {
     module->print(llvm::outs(), nullptr);
   } catch (const janus::CompileError &error) {
     const janus::SourceLocation location = error.location();
-    std::cerr << path.string() << ':' << location.line << ':' << location.column
+    const std::filesystem::path diagnostic_path =
+        error.diagnostic().source_path.empty() ? path
+                                               : error.diagnostic().source_path;
+    std::cerr << diagnostic_path.string() << ':' << location.line << ':'
+              << location.column
               << ": error: ";
     if (error.diagnostic().code != janus::DiagnosticCode::Unclassified)
       std::cerr << '['

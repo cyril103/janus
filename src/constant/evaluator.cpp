@@ -12,6 +12,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <llvm/ADT/APFloat.h>
+
 static_assert(std::numeric_limits<float>::is_iec559 &&
                   std::numeric_limits<double>::is_iec559,
               "Janus constant evaluation requires IEEE-754 binary32/binary64");
@@ -21,6 +23,94 @@ namespace {
 using janus::Type;
 using janus::TypeKind;
 using janus::constant::Value;
+
+thread_local janus::constant::EvaluationBudget *active_budget{};
+
+class BudgetScope {
+public:
+  explicit BudgetScope(janus::constant::EvaluationBudget *budget)
+      : previous_{active_budget} {
+    if (budget != nullptr)
+      active_budget = budget;
+  }
+  ~BudgetScope() { active_budget = previous_; }
+private:
+  janus::constant::EvaluationBudget *previous_;
+};
+
+void charge_step(janus::SourceLocation location) {
+  if (active_budget != nullptr && ++active_budget->steps > active_budget->step_limit)
+    throw janus::CompileError{
+        location, "constant evaluation step budget exceeded (" +
+                      std::to_string(active_budget->step_limit) + ")"};
+  if (active_budget != nullptr &&
+      sizeof(Value) > active_budget->memory_limit -
+                          std::min(active_budget->memory_limit,
+                                   active_budget->memory))
+    throw janus::CompileError{
+        location, "constant evaluation memory budget exceeded (" +
+                      std::to_string(active_budget->memory_limit) + " bytes)"};
+  if (active_budget != nullptr)
+    active_budget->memory += sizeof(Value);
+}
+
+void charge_memory(std::size_t bytes, janus::SourceLocation location) {
+  if (active_budget == nullptr)
+    return;
+  if (bytes > active_budget->value_size_limit)
+    throw janus::CompileError{
+        location, "constant value size budget exceeded (" +
+                      std::to_string(active_budget->value_size_limit) +
+                      " bytes)"};
+  if (bytes > active_budget->memory_limit -
+                  std::min(active_budget->memory_limit, active_budget->memory))
+    throw janus::CompileError{
+        location, "constant evaluation memory budget exceeded (" +
+                      std::to_string(active_budget->memory_limit) + " bytes)"};
+  active_budget->memory += bytes;
+}
+
+double canonical_float(double value) {
+  llvm::APFloat number{value};
+  bool loses_information = false;
+  static_cast<void>(number.convert(llvm::APFloat::IEEEsingle(),
+                                   llvm::APFloat::rmNearestTiesToEven,
+                                   &loses_information));
+  return number.convertToDouble();
+}
+
+double floating_binary(double lhs, double rhs, janus::TypeKind kind,
+                       janus::ast::BinaryOperator operation) {
+  llvm::APFloat left{lhs};
+  llvm::APFloat right{rhs};
+  if (kind == janus::TypeKind::Float) {
+    bool loses_information = false;
+    static_cast<void>(left.convert(llvm::APFloat::IEEEsingle(),
+                                   llvm::APFloat::rmNearestTiesToEven,
+                                   &loses_information));
+    static_cast<void>(right.convert(llvm::APFloat::IEEEsingle(),
+                                    llvm::APFloat::rmNearestTiesToEven,
+                                    &loses_information));
+  }
+  using janus::ast::BinaryOperator;
+  switch (operation) {
+  case BinaryOperator::Add:
+    left.add(right, llvm::APFloat::rmNearestTiesToEven);
+    break;
+  case BinaryOperator::Subtract:
+    left.subtract(right, llvm::APFloat::rmNearestTiesToEven);
+    break;
+  case BinaryOperator::Multiply:
+    left.multiply(right, llvm::APFloat::rmNearestTiesToEven);
+    break;
+  case BinaryOperator::Divide:
+    left.divide(right, llvm::APFloat::rmNearestTiesToEven);
+    break;
+  default:
+    break;
+  }
+  return left.convertToDouble();
+}
 
 const Type *constant_cast_type(std::string_view name) {
   if (name == "int")
@@ -342,8 +432,7 @@ Value cast_value(const Value &source, const Type &destination,
   if (destination.is_floating_point()) {
     const double converted = floating_value(source);
     const double result = destination.kind() == TypeKind::Float
-                              ? static_cast<double>(
-                                    static_cast<float>(converted))
+                              ? canonical_float(converted)
                               : converted;
     if (!std::isfinite(result))
       throw janus::CompileError{
@@ -425,7 +514,7 @@ Value policy_cast_value(const Value &source, const Type &destination,
                                : std::numeric_limits<double>::max();
     number = std::max(-maximum, std::min(number, maximum));
     if (destination.kind() == TypeKind::Float)
-      number = static_cast<double>(static_cast<float>(number));
+      number = canonical_float(number);
     return Value{&destination, number};
   }
   const unsigned width = destination.bit_width();
@@ -638,27 +727,22 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
   if (left.type->is_floating_point()) {
     const double lhs = std::get<double>(left.data);
     const double rhs = std::get<double>(right.data);
-    double value = 0.0;
-    switch (binary.operation) {
-    case BinaryOperator::Add:
-      value = lhs + rhs;
-      break;
-    case BinaryOperator::Subtract:
-      value = lhs - rhs;
-      break;
-    case BinaryOperator::Multiply:
-      value = lhs * rhs;
-      break;
-    case BinaryOperator::Divide:
-      value = lhs / rhs;
-      break;
-    default:
+    if (binary.operation != BinaryOperator::Add &&
+        binary.operation != BinaryOperator::Subtract &&
+        binary.operation != BinaryOperator::Multiply &&
+        binary.operation != BinaryOperator::Divide)
       throw janus::CompileError{binary.location,
                                 "unsupported floating constant operator"};
-    }
+    const double value = floating_binary(lhs, rhs, left.type->kind(),
+                                         binary.operation);
     if (!std::isfinite(value))
       throw janus::CompileError{binary.location,
-                                "floating constant expression is not finite"};
+                                left.type->kind() == TypeKind::Float &&
+                                        !(binary.operation ==
+                                              BinaryOperator::Divide &&
+                                          rhs == 0.0)
+                                    ? "floating constant expression overflows type 'float'"
+                                    : "floating constant expression is not finite"};
     return Value{left.type, value};
   }
 
@@ -741,6 +825,8 @@ Value evaluate_impl(const janus::ast::Expression &expression,
                     const janus::constant::ConstructorResolver
                         &resolve_constructor,
                     const janus::constant::FunctionResolver &call_function) {
+  charge_step(std::visit([](const auto &node) { return node.location; },
+                         expression.value));
   return std::visit(
       [&](const auto &node) -> Value {
         using Node = std::decay_t<decltype(node)>;
@@ -762,7 +848,14 @@ Value evaluate_impl(const janus::ast::Expression &expression,
                   ? *expected_type
                   : (node.is_float ? Type::float_type()
                                    : Type::double_type());
-          return Value{&type, node.value};
+          double value = node.value;
+          if (type.kind() == TypeKind::Float)
+            value = canonical_float(value);
+          if (!std::isfinite(value))
+            throw janus::CompileError{
+                node.location, "floating constant literal overflows type '" +
+                                   std::string{type.name()} + "'"};
+          return Value{&type, value};
         } else if constexpr (std::is_same_v<
                                  Node, janus::ast::CharacterLiteralExpression>)
           return Value{&Type::char_type(), node.value};
@@ -860,7 +953,8 @@ Value evaluate_impl(const janus::ast::Expression &expression,
             std::vector<Value> arguments;
             arguments.reserve(node.arguments.size());
             for (const auto &argument : node.arguments)
-              arguments.push_back(evaluate_impl(*argument, nullptr, resolve,
+              arguments.push_back(evaluate_impl(
+                  *argument, node.arguments.size() == 1 ? expected_type : nullptr, resolve,
                                                 resolve_constructor,
                                                 call_function));
             if (auto value = call_function(node.callee, arguments,
@@ -938,7 +1032,10 @@ Value evaluate_impl(const janus::ast::Expression &expression,
               evaluate_impl(*node.operand, expected_type, resolve,
                             resolve_constructor, call_function);
           if (operand.type->is_floating_point())
-            return Value{operand.type, -std::get<double>(operand.data)};
+            return Value{operand.type,
+                         operand.type->kind() == TypeKind::Float
+                             ? canonical_float(-std::get<double>(operand.data))
+                             : -std::get<double>(operand.data)};
           if (!operand.type->is_integer() || !operand.type->is_signed())
             throw janus::CompileError{
                 node.location,
@@ -1152,6 +1249,14 @@ plan_initialization(const ast::Program &program) {
                           global_key(dependency->module_name,
                                      dependency->declaration.name) +
                           "'"};
+      if (global.declaration.is_constant &&
+          !dependency->declaration.is_constant)
+        throw CompileError{
+            location, "constant '" + global.declaration.name +
+                          "' cannot depend on non-constant global '" +
+                          global_key(dependency->module_name,
+                                     dependency->declaration.name) +
+                          "'"};
       if (!classify_constant(*dependency))
         result = false;
     }
@@ -1197,10 +1302,15 @@ plan_initialization(const ast::Program &program) {
 Value evaluate(const ast::Expression &expression, const Type *expected_type,
                const Resolver &resolve,
                const ConstructorResolver &resolve_constructor,
-               const FunctionResolver &call_function) {
+               const FunctionResolver &call_function,
+               EvaluationBudget *budget) {
+  BudgetScope budget_scope{budget};
   Value result =
       evaluate_impl(expression, expected_type, resolve, resolve_constructor,
                     call_function);
+  charge_memory(canonical_serialize(result).size(),
+                std::visit([](const auto &node) { return node.location; },
+                           expression.value));
   if (expected_type != nullptr && result.type->kind() != expected_type->kind())
     throw CompileError{
         std::visit([](const auto &node) { return node.location; },
@@ -1215,7 +1325,9 @@ Value evaluate_statements(
     const std::vector<ast::Statement> &statements, const Type *return_type,
     std::unordered_map<std::string, Value> locals, const Resolver &resolve,
     const ConstructorResolver &resolve_constructor,
-    const FunctionResolver &call_function, std::size_t statement_budget) {
+    const FunctionResolver &call_function, std::size_t statement_budget,
+    EvaluationBudget *budget) {
+  BudgetScope budget_scope{budget};
   std::size_t steps = 0;
   std::function<std::optional<Value>(const std::vector<ast::Statement> &,
                                      std::unordered_map<std::string, Value>)>
