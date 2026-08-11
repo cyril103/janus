@@ -2548,6 +2548,30 @@ std::vector<std::string> Server::handle(std::string_view message) {
             {"paddingRight", true},
         });
       }
+      for (const DocumentSymbol &symbol : symbols(
+               *uri, *document_source, module_search_paths_,
+               workspace_search_paths_, &documents_)) {
+        if (!symbol.detail.starts_with("const "))
+          continue;
+        const std::size_t value_start = symbol.detail.find(" = ");
+        const std::size_t origin_start = symbol.detail.find("\n\norigin `");
+        if (value_start == std::string::npos ||
+            origin_start == std::string::npos || origin_start <= value_start)
+          continue;
+        const std::size_t hint_offset =
+            symbol.location.offset + symbol.name.size();
+        if (hint_offset < *range_start || hint_offset >= *range_end)
+          continue;
+        hints.emplace_back(llvm::json::Object{
+            {"position", position_at_offset(*document_source, hint_offset)},
+            {"label", symbol.detail.substr(value_start,
+                                            origin_start - value_start)},
+            {"kind", 1},
+            {"paddingLeft", false},
+            {"paddingRight", true},
+            {"tooltip", symbol.detail.substr(origin_start + 2)},
+        });
+      }
     }
     return {response(request_id(*request), std::move(hints))};
   }

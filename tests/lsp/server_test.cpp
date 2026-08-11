@@ -552,6 +552,24 @@ int main(int argc, char **argv) {
                 std::string::npos);
   JANUS_REQUIRE(constant_hover.front().find("origin `constants.answer`") !=
                 std::string::npos);
+  const std::vector<std::string> constant_hints = server.handle(
+      R"({"jsonrpc":"2.0","id":621,"method":"textDocument/inlayHint","params":{"textDocument":{"uri":"file:///constant-hover.janus"},"range":{"start":{"line":0,"character":0},"end":{"line":2,"character":34}}}})");
+  JANUS_REQUIRE(constant_hints.front().find("\"label\":\" = 42\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(constant_hints.front().find("origin `constants.answer`") !=
+                std::string::npos);
+  const auto constant_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":622,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///constant-hover.janus"},"position":{"line":2,"character":27}}})");
+  JANUS_REQUIRE(constant_definition.front().find("\"line\":1") !=
+                std::string::npos);
+  const auto constant_references = server.handle(
+      R"({"jsonrpc":"2.0","id":623,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///constant-hover.janus"},"position":{"line":2,"character":27},"context":{"includeDeclaration":true}}})");
+  JANUS_REQUIRE(constant_references.front().find("constant-hover.janus") !=
+                std::string::npos);
+  const auto constant_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":624,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///constant-hover.janus"},"position":{"line":2,"character":25}}})");
+  JANUS_REQUIRE(constant_completion.front().find("const answer : int = 42") !=
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///aliased-hover.janus","text":"import settings.{sharedCount as count}\n\ndef main() : int { return count }"}}})"));
