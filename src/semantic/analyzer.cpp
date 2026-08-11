@@ -1230,6 +1230,145 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   enum class ConstantState { Unvisited, Visiting, Complete };
   std::unordered_map<std::string, ConstantState> constant_states;
   std::unordered_map<std::string, constant::Value> constant_values;
+
+  // A const function is a declaration-time purity contract.  Validate every
+  // body, even when no constant initializer happens to call it.
+  enum class PurityState { Unvisited, Visiting, Complete };
+  std::unordered_map<const ast::FunctionDeclaration *, PurityState>
+      purity_states;
+  const auto is_constant_builtin = [](std::string_view name) {
+    static constexpr std::array<std::string_view, 17> names{
+        "int",   "uint",  "long",  "ulong", "float", "double",
+        "byte",  "ubyte", "short", "ushort", "char",  "bool",
+        "isize", "usize", "saturatingCast", "truncatingCast", "abs"};
+    return std::find(names.begin(), names.end(), name) != names.end();
+  };
+  const auto find_constant_function =
+      [&](std::string_view name) -> const ast::FunctionDeclaration * {
+    const auto found = std::find_if(
+        program.functions.begin(), program.functions.end(),
+        [&](const ast::FunctionDeclaration &candidate) {
+          return candidate.name == name && candidate.is_constant;
+        });
+    return found == program.functions.end() ? nullptr : &*found;
+  };
+  std::function<void(const ast::FunctionDeclaration &)> validate_const_purity;
+  validate_const_purity = [&](const ast::FunctionDeclaration &function) {
+    PurityState &state = purity_states[&function];
+    if (state == PurityState::Complete || state == PurityState::Visiting)
+      return;
+    state = PurityState::Visiting;
+    std::unordered_set<std::string> locals;
+    for (const auto &parameter : function.parameters)
+      locals.insert(parameter.name);
+    std::function<void(const ast::Expression &,
+                       const std::unordered_set<std::string> &)>
+        check_expression;
+    check_expression = [&](const ast::Expression &expression,
+                           const std::unordered_set<std::string> &scope) {
+      std::visit(
+          [&](const auto &node) {
+            using Node = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<Node, ast::IdentifierExpression>) {
+              if (scope.contains(node.name))
+                return;
+              std::string key = global_key(function.module_name, node.name);
+              if (!globals.contains(key)) {
+                if (const auto exported = public_globals.find(node.name);
+                    exported != public_globals.end())
+                  key = exported->second;
+              }
+              if (const auto global = globals.find(key);
+                  global != globals.end() &&
+                  global->second.declaration->declaration.is_mutable)
+                throw CompileError{
+                    node.location, "const def '" + function.name +
+                                       "' cannot observe mutable global '" +
+                                       key + "'"};
+            } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              for (const auto &argument : node.arguments)
+                check_expression(*argument, scope);
+              if (is_constant_builtin(node.callee))
+                return;
+              const auto *callee = find_constant_function(node.callee);
+              if (callee == nullptr)
+                throw CompileError{node.location,
+                                   "const def '" + function.name +
+                                       "' cannot call non-constant function '" +
+                                       node.callee + "'"};
+              validate_const_purity(*callee);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MethodCallExpression>) {
+              throw CompileError{node.location,
+                                 "const def '" + function.name +
+                                     "' cannot perform a method/FFI/I-O call"};
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MemberAccessExpression>) {
+              check_expression(*node.object, scope);
+            } else if constexpr (std::is_same_v<Node, ast::NewExpression>) {
+              for (const auto &argument : node.arguments)
+                check_expression(*argument, scope);
+            } else if constexpr (std::is_same_v<Node, ast::IfExpression>) {
+              check_expression(*node.condition, scope);
+              check_expression(*node.then_expression, scope);
+              check_expression(*node.else_expression, scope);
+            } else if constexpr (std::is_same_v<Node, ast::MatchExpression>) {
+              check_expression(*node.scrutinee, scope);
+              for (const auto &arm : node.arms) {
+                auto arm_scope = scope;
+                arm_scope.insert(arm.bindings.begin(), arm.bindings.end());
+                check_expression(*arm.expression, arm_scope);
+              }
+            } else if constexpr (std::is_same_v<Node, ast::MoveExpression> ||
+                                 std::is_same_v<Node, ast::TryExpression> ||
+                                 std::is_same_v<Node, ast::UnaryExpression>) {
+              check_expression(*node.operand, scope);
+            } else if constexpr (std::is_same_v<Node, ast::BinaryExpression>) {
+              check_expression(*node.left, scope);
+              check_expression(*node.right, scope);
+            }
+          },
+          expression.value);
+    };
+    std::function<void(const std::vector<ast::Statement> &,
+                       std::unordered_set<std::string>)>
+        check_statements;
+    check_statements = [&](const std::vector<ast::Statement> &statements,
+                           std::unordered_set<std::string> scope) {
+      for (const ast::Statement &statement : statements) {
+        if (const auto *declaration =
+                std::get_if<ast::ValueDeclaration>(&statement)) {
+          if (!declaration->is_constant || !declaration->initializer)
+            throw CompileError{declaration->location,
+                               "const def local declarations must be const"};
+          check_expression(*declaration->initializer, scope);
+          scope.insert(declaration->name);
+        } else if (const auto *returned =
+                       std::get_if<ast::ReturnStatement>(&statement)) {
+          if (!returned->expression)
+            throw CompileError{returned->location,
+                               "const def must return a constant value"};
+          check_expression(*returned->expression, scope);
+        } else if (const auto *conditional =
+                       std::get_if<std::shared_ptr<ast::IfStatement>>(
+                           &statement)) {
+          check_expression((*conditional)->condition, scope);
+          check_statements((*conditional)->then_body, scope);
+          check_statements((*conditional)->else_body, scope);
+        } else {
+          throw CompileError{function.location,
+                             "const def contains an operation with runtime "
+                             "effects"};
+        }
+      }
+    };
+    check_statements(function.body, locals);
+    state = PurityState::Complete;
+  };
+  for (const ast::FunctionDeclaration &function : program.functions)
+    if (function.is_constant)
+      validate_const_purity(function);
+
   const constant::InitializationPlan initialization_plan =
       constant::plan_initialization(program);
   std::function<const constant::Value &(const std::string &)> evaluate_global;

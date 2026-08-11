@@ -112,6 +112,17 @@ def main() : int {
       "def main() : int { return 0 }",
       "constant 'invalid' cannot depend on mutable global 'runtime'");
   expect_compile_error(
+      "var state : int = 7\n"
+      "const def impure() : int { return state }\n"
+      "def main() : int { return 0 }",
+      "const def 'impure' cannot observe mutable global 'state'");
+  expect_compile_error(
+      "def io() : int { return 1 }\n"
+      "const def nested() : int { return io() }\n"
+      "const def outer() : int { return nested() }\n"
+      "def main() : int { return 0 }",
+      "cannot call non-constant function 'io'");
+  expect_compile_error(
       "const first : int = second\nconst second : int = first\n"
       "def main() : int { return 0 }",
       "cyclic constant definition");
