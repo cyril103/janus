@@ -3,6 +3,7 @@
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
 
+#include <llvm/Config/llvm-config.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -349,7 +350,13 @@ def main() : int { return identity[int](integer) }
       {.triple = "i686-unknown-linux-gnu", .pointer_width = 32}};
   const auto target32_module =
       target32_generator.generate(target32_program, "target32");
-  expect(target32_module->getTargetTriple() == "i686-unknown-linux-gnu",
+#if LLVM_VERSION_MAJOR >= 21
+  const std::string target32_triple =
+      target32_module->getTargetTriple().str();
+#else
+  const std::string target32_triple = target32_module->getTargetTriple();
+#endif
+  expect(target32_triple == "i686-unknown-linux-gnu",
          "backend emits the explicit target triple");
   std::string target32_ir;
   llvm::raw_string_ostream target32_output{target32_ir};
