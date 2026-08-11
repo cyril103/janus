@@ -131,6 +131,7 @@ void append_function(std::string &output,
   if (function.is_private || function.is_internal)
     return;
   output += "fn:";
+  output += function.is_constant ? "const:" : "runtime:";
   output += function.name;
   append_type_parameters(output, function.type_parameters);
   output += '(';
@@ -232,6 +233,15 @@ std::string public_interface(std::string_view source) {
     output += ':';
     append_type(output, global.declaration.declared_type);
     output += global.declaration.is_mutable ? ":mutable;" : ":immutable;";
+    if (global.declaration.is_constant) {
+      const std::size_t start = global.declaration.location.offset;
+      const std::size_t end = source.find('\n', start);
+      output += ":const-value:";
+      output += source.substr(start, end == std::string_view::npos
+                                        ? source.size() - start
+                                        : end - start);
+      output += ":const-evaluator-v1;";
+    }
   }
   for (const auto &trait : program.traits) {
     if (trait.is_private)

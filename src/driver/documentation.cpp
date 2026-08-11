@@ -272,6 +272,8 @@ std::string type_name(
 
 std::string function_signature(const janus::ast::FunctionDeclaration &value) {
   std::string signature;
+  if (value.is_constant)
+    signature += "const ";
   if (value.is_consuming)
     signature += "consume ";
   signature += "def " + value.name;
@@ -313,7 +315,9 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
 
 std::string value_signature(const janus::ast::ValueDeclaration &value) {
   return std::string{value.is_borrowed ? "borrow " : ""} +
-         std::string{value.is_mutable ? "var " : "val "} + value.name + " : " +
+         std::string{value.is_constant ? "const "
+                                       : (value.is_mutable ? "var " : "val ")} +
+         value.name + " : " +
          type_name(value.declared_type);
 }
 

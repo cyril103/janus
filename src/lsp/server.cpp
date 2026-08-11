@@ -254,8 +254,11 @@ std::vector<DocumentSymbol> symbols(
 
     std::string detail;
     bool is_parameter = false;
-    if (token.kind == TokenKind::Val || token.kind == TokenKind::Var) {
-      detail = token.kind == TokenKind::Val ? "val " : "var ";
+    if (token.kind == TokenKind::Const || token.kind == TokenKind::Val ||
+        token.kind == TokenKind::Var) {
+      detail = token.kind == TokenKind::Const
+                   ? "const "
+                   : (token.kind == TokenKind::Val ? "val " : "var ");
       detail += std::string{name.lexeme};
       if (index + 3 < document_tokens.size() &&
           document_tokens[index + 2].kind == TokenKind::Colon &&
@@ -297,7 +300,8 @@ std::vector<DocumentSymbol> symbols(
     } else {
       continue;
     }
-    const bool is_global = brace_depth == 0 && (token.kind == TokenKind::Val ||
+    const bool is_global = brace_depth == 0 && (token.kind == TokenKind::Const ||
+                                                token.kind == TokenKind::Val ||
                                                 token.kind == TokenKind::Var);
     const bool is_top_level = brace_depth == 0;
     const bool is_private =
@@ -3246,7 +3250,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                             "bool", "string", "unit", "usize"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
-             {"val",     "var",    "def",    "class",  "struct",  "trait",
+             {"const",   "staticAssert", "val", "var", "def", "class", "struct", "trait",
               "enum",    "new",    "move",   "borrow", "consume", "owned",
               "derives", "delete", "defer",  "if",     "else",    "match",
               "for",     "while",  "return", "true",   "false"})

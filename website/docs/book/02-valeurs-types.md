@@ -92,3 +92,51 @@ Déclarez un nombre de secondes immuable, calculez le nombre de minutes en `doub
     ```
 
 <div class="lesson-nav"><a href="../01-premiers-pas/">← Premiers pas</a><a href="../03-controle-fonctions/">Contrôle et fonctions →</a></div>
+# Constantes évaluées à la compilation
+
+`const` est distinct de `val` et `var` : une constante doit être calculable par
+le compilateur, tandis qu'un `val` peut être initialisé à l'exécution et qu'un
+`var` reste réaffectable.
+
+```janus
+const width : int = 80
+const height : int = 25
+const pixels : int = width * height
+
+const def align(value : usize, boundary : usize) : usize {
+    return ((value + boundary - usize(1)) / boundary) * boundary
+}
+
+staticAssert(pixels > 0, "dimensions invalides")
+```
+
+Une `const def` est aussi une fonction ordinaire appelable à l'exécution. Dans
+la première version de l'évaluateur, son corps constant contient exactement un
+`return` et n'est pas générique. Les appels récursifs sont bornés à 128 niveaux
+et une évaluation à 10 000 appels; le dépassement est diagnostiqué comme une
+limite de ressources, indépendamment d'une erreur de programme.
+
+Les expressions admises sont les littéraux, références à d'autres constantes,
+conversions numériques explicites, opérateurs arithmétiques/logiques et de
+comparaison, `if`, ainsi que `match` exhaustif sur un enum sans ressource. Les
+booléens, entiers, flottants finis, caractères, chaînes statiques, structs sans
+ressource et enums sans ressource sont admissibles au niveau module. Les
+tableaux, collections, pointeurs, classes propriétaires, valeurs avec
+destructeur et génériques constants sont volontairement exclus tant que leur
+identité, stockage statique et destruction ne sont pas spécifiés. Une constante
+locale suit les mêmes règles scalaires mais, dans cette version, ne référence
+pas encore une autre constante locale.
+
+Les entiers suivent la largeur du type Janus, non celle de la machine hôte : un
+débordement, une division par zéro ou une conversion hors plage est une erreur.
+`isize` et `usize` sont actuellement définis sur 64 bits pour toutes les cibles
+prises en charge, ce qui rend la compilation croisée indépendante de l'hôte.
+Les flottants utilisent IEEE-754 (`float` binaire32, `double` binaire64); les
+résultats non finis sont refusés. Les opérations bit à bit et décalages ne font
+pas partie de la syntaxe Janus actuelle et ne sont donc pas admises dans cette
+première version.
+
+Une constante publique appartient à l'interface : son initialiseur normalisé,
+son type, la version de l'évaluateur et la cible participent au cache. Les
+constantes scalaires de module sont substituées dans le code LLVM sans stockage
+global. `staticAssert` ne produit aucun code et exige un booléen constant.

@@ -119,7 +119,9 @@ std::vector<std::string> constraints(const std::vector<ast::TypeConstraint> &val
 }
 
 std::string function_signature(const ast::FunctionDeclaration &fn) {
-  std::string result = fn.is_consuming ? "consume def " : "def ";
+  std::string result = fn.is_constant
+                           ? "const def "
+                           : (fn.is_consuming ? "consume def " : "def ");
   result += fn.name;
   if (!fn.type_parameters.empty()) {
     result += '[';
@@ -395,7 +397,9 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
         continue;
       add(index, module, global.declaration.name, "global",
           std::string{global.declaration.is_borrowed ? "borrow " : ""} +
-              (global.declaration.is_mutable ? "var " : "val ") +
+              (global.declaration.is_constant
+                   ? "const "
+                   : (global.declaration.is_mutable ? "var " : "val ")) +
               global.declaration.name + " : " +
               type_name(global.declaration.declared_type),
           global.declaration.documentation);
