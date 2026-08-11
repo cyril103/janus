@@ -223,9 +223,18 @@ std::string_view declaration_source(std::string_view source,
 std::string public_interface(std::string_view source) {
   frontend::Parser parser{source};
   const ast::Program program = parser.parse_program();
-  semantic::Analyzer analyzer;
-  const semantic::AnalysisResult analysis =
-      analyzer.analyze(program, semantic::AnalysisOptions{false});
+  semantic::AnalysisResult analysis;
+  const bool has_public_constant =
+      std::any_of(program.globals.begin(), program.globals.end(),
+                  [](const ast::GlobalDeclaration &global) {
+                    return global.declaration.is_constant &&
+                           !global.declaration.is_private &&
+                           !global.declaration.is_internal;
+                  });
+  if (has_public_constant) {
+    semantic::Analyzer analyzer;
+    analysis = analyzer.analyze(program, semantic::AnalysisOptions{false});
+  }
   const auto normalized_constant = [](const constant::Value &value) {
     std::ostringstream normalized;
     normalized << value.type->name() << ':';
