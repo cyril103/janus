@@ -1,0 +1,4 @@
+import const_access
+
+const result : int = const_access.internalValue
+def main() : int { return result }

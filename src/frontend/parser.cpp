@@ -191,13 +191,13 @@ ast::Program Parser::parse_program() {
         documentation = take_documentation();
       if (current_.kind == TokenKind::End)
         break;
-      if (current_.kind == TokenKind::Internal)
-        throw CompileError{
-            current_.location,
-            "'internal' can only modify class fields and methods"};
       bool is_private = false;
+      bool is_internal = false;
       if (current_.kind == TokenKind::Private) {
         is_private = true;
+        advance();
+      } else if (current_.kind == TokenKind::Internal) {
+        is_internal = true;
         advance();
       }
       if (is_private && current_.kind != TokenKind::Const &&
@@ -211,6 +211,12 @@ ast::Program Parser::parse_program() {
             current_.location,
             "expected a top-level declaration after 'private', found " +
                 std::string{token_name(current_.kind)}};
+      if (is_internal && current_.kind != TokenKind::Const &&
+          current_.kind != TokenKind::Val && current_.kind != TokenKind::Var &&
+          current_.kind != TokenKind::Def && current_.kind != TokenKind::Extern)
+        throw CompileError{
+            current_.location,
+            "expected a value or function declaration after 'internal'"};
 
       if (current_.kind == TokenKind::Trait) {
         ast::TraitDeclaration declaration = parse_trait_declaration();
@@ -243,6 +249,7 @@ ast::Program Parser::parse_program() {
           ast::FunctionDeclaration declaration =
               parse_function_declaration(true);
           declaration.is_private = is_private;
+          declaration.is_internal = is_internal;
           declaration.module_name = program.module_name;
           declaration.documentation = std::move(documentation);
           program.functions.push_back(std::move(declaration));
@@ -254,6 +261,7 @@ ast::Program Parser::parse_program() {
                                "constant '" + declaration.name +
                                    "' requires an explicit type annotation"};
           declaration.is_private = is_private;
+          declaration.is_internal = is_internal;
           declaration.documentation = std::move(documentation);
           program.globals.push_back(ast::GlobalDeclaration{
               std::move(declaration), program.module_name});
@@ -267,12 +275,14 @@ ast::Program Parser::parse_program() {
               "global value '" + declaration.name +
                   "' requires an explicit type annotation"};
         declaration.is_private = is_private;
+        declaration.is_internal = is_internal;
         declaration.documentation = std::move(documentation);
         program.globals.push_back(ast::GlobalDeclaration{std::move(declaration),
                                                          program.module_name});
       } else {
         ast::FunctionDeclaration declaration = parse_function_declaration();
         declaration.is_private = is_private;
+        declaration.is_internal = is_internal;
         declaration.module_name = program.module_name;
         declaration.documentation = std::move(documentation);
         program.functions.push_back(std::move(declaration));

@@ -1190,7 +1190,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     if (globals.contains(key))
       throw CompileError{declaration.location,
                          "global value '" + key + "' is already declared"};
-    if (!declaration.is_private) {
+    if (!declaration.is_private && !declaration.is_internal) {
       if (const auto existing = public_globals.find(declaration.name);
           existing != public_globals.end())
         throw CompileError{declaration.location,
@@ -1225,7 +1225,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     globals.emplace(key, ResolvedGlobal{&global, symbol});
     for (const std::string &alias :
          imported_names(global.module_name, declaration.name)) {
-      if (!declaration.is_private)
+      if (!declaration.is_private && !declaration.is_internal)
         public_globals.insert_or_assign(alias, key);
       globals.emplace(alias, ResolvedGlobal{&global, symbol});
       if (const std::size_t dot = alias.rfind('.'); dot != std::string::npos)
@@ -1349,7 +1349,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const auto found = std::find_if(
         program.functions.begin(), program.functions.end(),
         [&](const ast::FunctionDeclaration &candidate) {
-          return candidate.name == name && candidate.is_constant;
+          if (!candidate.is_constant)
+            return false;
+          if (candidate.name == name)
+            return !candidate.module_name.has_value() ||
+                   import_allows(program.module_name, candidate.module_name,
+                                 candidate.name, name);
+          const auto aliases = imported_names(candidate.module_name,
+                                              candidate.name);
+          return std::find(aliases.begin(), aliases.end(), name) !=
+                 aliases.end();
         });
     return found == program.functions.end() ? nullptr : &*found;
   };
@@ -1482,12 +1491,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   evaluate_constant_function =
       [&](std::string_view name, const std::vector<constant::Value> &arguments,
           SourceLocation location) -> std::optional<constant::Value> {
-    const auto found = std::find_if(
-        program.functions.begin(), program.functions.end(),
-        [&](const ast::FunctionDeclaration &candidate) {
-          return candidate.name == name;
-        });
-    if (found == program.functions.end() || !found->is_constant)
+    const ast::FunctionDeclaration *found = find_constant_function(name);
+    if (found == nullptr)
       return std::nullopt;
     const ast::FunctionDeclaration &function = *found;
     if (arguments.size() != function.parameters.size())
@@ -1576,6 +1581,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           target.module_name != global.module_name)
         throw CompileError{location, "global constant '" + dependency_key +
                                          "' is private"};
+      if (target.declaration.is_internal &&
+          target.module_name != global.module_name)
+        throw CompileError{location, "global constant '" + dependency_key +
+                                         "' is internal"};
       const std::string spelling =
           qualified_module.has_value()
               ? *qualified_module + "." + std::string{name}

@@ -1,0 +1,5 @@
+import const_access as values
+
+const result : int = values.answer + 2
+staticAssert(result == 42)
+def main() : int { return result }

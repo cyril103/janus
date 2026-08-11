@@ -1,0 +1,4 @@
+import const_bridge
+
+const result : int = const_access.answer
+def main() : int { return result }

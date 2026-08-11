@@ -1459,6 +1459,13 @@ if(BUILD_TESTING)
             JANUS_GLOBALS_ALIASED_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_aliased_import.janus"
             JANUS_GLOBALS_SELECTIVE_IMPORT_BYPASS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_selective_import_bypass.janus"
             JANUS_GLOBALS_ALIAS_CANONICAL_BYPASS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/globals_alias_canonical_bypass.janus"
+            JANUS_CONSTANTS_SIMPLE_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_simple_import.janus"
+            JANUS_CONSTANTS_SELECTIVE_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_selective_import.janus"
+            JANUS_CONSTANTS_RENAMED_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_renamed_import.janus"
+            JANUS_CONSTANTS_MODULE_ALIAS="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_module_alias.janus"
+            JANUS_CONSTANTS_PRIVATE_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_private_import.janus"
+            JANUS_CONSTANTS_INTERNAL_IMPORT="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_internal_import.janus"
+            JANUS_CONSTANTS_LOADED_NOT_IMPORTED="${PROJECT_SOURCE_DIR}/tests/fixtures/modules/constants_loaded_not_imported.janus"
     )
     target_compile_options(global_variable_test
         PRIVATE

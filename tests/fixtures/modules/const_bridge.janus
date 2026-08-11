@@ -1,0 +1,4 @@
+module const_bridge
+import const_access
+
+const bridged : int = answer

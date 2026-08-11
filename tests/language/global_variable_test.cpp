@@ -536,6 +536,23 @@ def main() : int { return callback() }
       std::filesystem::path{JANUS_GLOBALS_ALIAS_CANONICAL_BYPASS},
       "global value 'shared_access.counter' is not imported in this module");
 
+  for (const char *constant_entry :
+       {JANUS_CONSTANTS_SIMPLE_IMPORT, JANUS_CONSTANTS_SELECTIVE_IMPORT,
+        JANUS_CONSTANTS_RENAMED_IMPORT, JANUS_CONSTANTS_MODULE_ALIAS}) {
+    const janus::ast::Program constant_program =
+        loader.load(std::filesystem::path{constant_entry});
+    const auto constant_analysis = analyzer.analyze(constant_program);
+    expect(constant_analysis.global_constant_values.contains("result"),
+           "imported const and const def resolve to a compile-time value");
+  }
+  expect_loaded_compile_error(
+      std::filesystem::path{JANUS_CONSTANTS_PRIVATE_IMPORT}, "is private");
+  expect_loaded_compile_error(
+      std::filesystem::path{JANUS_CONSTANTS_INTERNAL_IMPORT}, "is internal");
+  expect_loaded_compile_error(
+      std::filesystem::path{JANUS_CONSTANTS_LOADED_NOT_IMPORTED},
+      "is not imported in this module");
+
   const janus::ast::Program explicit_import_program =
       loader.load(std::filesystem::path{JANUS_GLOBALS_EXPLICIT_IMPORT});
   static_cast<void>(analyzer.analyze(explicit_import_program));
