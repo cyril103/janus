@@ -175,8 +175,8 @@ def main() : int { return if x == 16777216.0f { 0 } else { 1 } }
       "const invalid : ulong = max * max\ndef main() : int { return 0 }",
       "constant integer expression overflows type 'ulong'");
   expect_compile_error(
-      "const invalid : byte = byte(128)\ndef main() : int { return 0 }",
-      "constant integer conversion is out of range");
+      "const invalid : int = int(1.0e300)\ndef main() : int { return 0 }",
+      "floating constant conversion overflows type 'int'");
   janus::frontend::Parser dead_branch_parser{
       "const safe : int = if true { 42 } else { 1 / 0 }\n"
       "staticAssert(safe == 42)\ndef main() : int { return 0 }"};

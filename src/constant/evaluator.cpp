@@ -372,29 +372,6 @@ Value cast_value(const Value &source, const Type &destination,
     else
       converted = static_cast<std::uint64_t>(truncated);
   } else {
-    if (source.type->is_integer()) {
-      const std::uint64_t bits = std::get<std::uint64_t>(source.data);
-      __int128 numeric = static_cast<__int128>(bits);
-      if (source.type->is_signed()) {
-        const unsigned width = source.type->bit_width();
-        std::uint64_t extended = bits;
-        if (width < 64) {
-          const std::uint64_t sign = std::uint64_t{1} << (width - 1);
-          const std::uint64_t mask = (std::uint64_t{1} << width) - 1;
-          extended &= mask;
-          if ((extended & sign) != 0)
-            extended |= ~mask;
-        }
-        numeric = static_cast<std::int64_t>(extended);
-      }
-      try {
-        require_integer_range(numeric, destination, location);
-      } catch (const janus::CompileError &) {
-        throw janus::CompileError{
-            location, "constant integer conversion is out of range for type '" +
-                          std::string{destination.name()} + "'"};
-      }
-    }
     converted = integer_bits(source);
     if (source.type->is_integer() && source.type->is_signed() &&
         source.type->bit_width() < 64) {
