@@ -27,7 +27,8 @@ void expect_compile_error(std::string_view source,
     janus::frontend::Parser parser{source};
     janus::semantic::Analyzer analyzer;
     static_cast<void>(analyzer.analyze(parser.parse_program()));
-    expect(false, "invalid constant program must fail");
+    expect(false, std::string{"invalid constant program must fail: "} +
+                      std::string{source});
   } catch (const janus::CompileError &error) {
     if (std::string_view{error.what()}.find(expected_message) ==
         std::string_view::npos) {
@@ -160,11 +161,26 @@ def main() : int { return if x == 16777216.0f { 0 } else { 1 } }
       "def main() : int { return 0 }",
       "cyclic constant definition");
   expect_compile_error(
+      "const first : int = second\nconst second : int = third\n"
+      "const third : int = first\ndef main() : int { return 0 }",
+      "first -> second -> third -> first");
+  expect_compile_error(
       "const invalid : byte = 127 + 1\ndef main() : int { return 0 }",
       "constant integer expression overflows type 'byte'");
   expect_compile_error(
       "const invalid : int = 1 / 0\ndef main() : int { return 0 }",
       "division by zero in constant expression");
+  expect_compile_error(
+      "const max : ulong = 18446744073709551615\n"
+      "const invalid : ulong = max * max\ndef main() : int { return 0 }",
+      "constant integer expression overflows type 'ulong'");
+  expect_compile_error(
+      "const invalid : byte = byte(128)\ndef main() : int { return 0 }",
+      "constant integer conversion is out of range");
+  janus::frontend::Parser dead_branch_parser{
+      "const safe : int = if true { 42 } else { 1 / 0 }\n"
+      "staticAssert(safe == 42)\ndef main() : int { return 0 }"};
+  static_cast<void>(analyzer.analyze(dead_branch_parser.parse_program()));
   expect_compile_error(
       "def runtime() : bool { return true }\nstaticAssert(runtime())\n"
       "def main() : int { return 0 }",

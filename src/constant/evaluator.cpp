@@ -372,6 +372,29 @@ Value cast_value(const Value &source, const Type &destination,
     else
       converted = static_cast<std::uint64_t>(truncated);
   } else {
+    if (source.type->is_integer()) {
+      const std::uint64_t bits = std::get<std::uint64_t>(source.data);
+      __int128 numeric = static_cast<__int128>(bits);
+      if (source.type->is_signed()) {
+        const unsigned width = source.type->bit_width();
+        std::uint64_t extended = bits;
+        if (width < 64) {
+          const std::uint64_t sign = std::uint64_t{1} << (width - 1);
+          const std::uint64_t mask = (std::uint64_t{1} << width) - 1;
+          extended &= mask;
+          if ((extended & sign) != 0)
+            extended |= ~mask;
+        }
+        numeric = static_cast<std::int64_t>(extended);
+      }
+      try {
+        require_integer_range(numeric, destination, location);
+      } catch (const janus::CompileError &) {
+        throw janus::CompileError{
+            location, "constant integer conversion is out of range for type '" +
+                          std::string{destination.name()} + "'"};
+      }
+    }
     converted = integer_bits(source);
     if (source.type->is_integer() && source.type->is_signed() &&
         source.type->bit_width() < 64) {
@@ -659,6 +682,46 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
     throw janus::CompileError{binary.location,
                               "constant arithmetic requires numeric operands"};
   const bool signed_type = left.type->is_signed();
+  if (!signed_type) {
+    const unsigned __int128 lhs = unsigned_integer(left);
+    const unsigned __int128 rhs = unsigned_integer(right);
+    unsigned __int128 value = 0;
+    switch (binary.operation) {
+    case BinaryOperator::Add:
+      value = lhs + rhs;
+      break;
+    case BinaryOperator::Subtract:
+      if (rhs > lhs)
+        throw janus::CompileError{
+            binary.location, "constant integer expression overflows type '" +
+                                 std::string{left.type->name()} + "'"};
+      value = lhs - rhs;
+      break;
+    case BinaryOperator::Multiply:
+      value = lhs * rhs;
+      break;
+    case BinaryOperator::Divide:
+    case BinaryOperator::Remainder:
+      if (rhs == 0)
+        throw janus::CompileError{binary.location,
+                                  "division by zero in constant expression"};
+      value = binary.operation == BinaryOperator::Divide ? lhs / rhs
+                                                          : lhs % rhs;
+      break;
+    default:
+      throw janus::CompileError{binary.location,
+                                "unsupported integer constant operator"};
+    }
+    const unsigned width = left.type->bit_width();
+    const unsigned __int128 maximum =
+        width == 64 ? std::numeric_limits<std::uint64_t>::max()
+                    : (static_cast<unsigned __int128>(1) << width) - 1;
+    if (value > maximum)
+      throw janus::CompileError{
+          binary.location, "constant integer expression overflows type '" +
+                               std::string{left.type->name()} + "'"};
+    return Value{left.type, static_cast<std::uint64_t>(value)};
+  }
   const __int128 lhs =
       signed_type ? signed_integer(left) : unsigned_integer(left);
   const __int128 rhs =
@@ -1016,16 +1079,28 @@ plan_initialization(const ast::Program &program) {
 
   std::unordered_map<std::string, int> constant_states;
   std::unordered_map<std::string, bool> constant_results;
+  std::vector<std::string> constant_stack;
   std::function<bool(const ast::GlobalDeclaration &)> classify_constant;
   classify_constant = [&](const ast::GlobalDeclaration &global) {
     const std::string key =
         global_key(global.module_name, global.declaration.name);
-    if (constant_states[key] == 1)
+    if (constant_states[key] == 1) {
+      const auto cycle_start =
+          std::find(constant_stack.begin(), constant_stack.end(), key);
+      std::string chain;
+      for (auto iterator = cycle_start; iterator != constant_stack.end();
+           ++iterator) {
+        if (!chain.empty())
+          chain += " -> ";
+        chain += *iterator;
+      }
+      chain += " -> " + key;
       throw CompileError{
           global.declaration.location,
           global.declaration.is_constant
-              ? "cyclic constant definition involving '" + key + "'"
+              ? "cyclic constant definition: " + chain
               : "cyclic global constant dependency involving '" + key + "'"};
+    }
     if (constant_states[key] == 2)
       return constant_results.at(key);
     if (!global.declaration.is_constant &&
@@ -1036,6 +1111,7 @@ plan_initialization(const ast::Program &program) {
       return false;
     }
     constant_states[key] = 1;
+    constant_stack.push_back(key);
     bool result = true;
     for (const auto &[dependency, location] : dependencies(global)) {
       if (dependency->declaration.is_mutable)
@@ -1053,6 +1129,7 @@ plan_initialization(const ast::Program &program) {
         result = false;
     }
     constant_states[key] = 2;
+    constant_stack.pop_back();
     constant_results.emplace(key, result);
     return result;
   };
