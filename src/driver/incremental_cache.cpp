@@ -3,6 +3,7 @@
 #include "janus/ast/ast.hpp"
 #include "janus/constant/evaluator.hpp"
 #include "janus/frontend/parser.hpp"
+#include "janus/semantic/analyzer.hpp"
 #include "../frontend/module_resolution.hpp"
 
 #include <algorithm>
@@ -222,6 +223,26 @@ std::string_view declaration_source(std::string_view source,
 std::string public_interface(std::string_view source) {
   frontend::Parser parser{source};
   const ast::Program program = parser.parse_program();
+  semantic::Analyzer analyzer;
+  const semantic::AnalysisResult analysis =
+      analyzer.analyze(program, semantic::AnalysisOptions{false});
+  const auto normalized_constant = [](const constant::Value &value) {
+    std::ostringstream normalized;
+    normalized << value.type->name() << ':';
+    if (const auto *integer = std::get_if<std::uint64_t>(&value.data))
+      normalized << *integer;
+    else if (const auto *floating = std::get_if<double>(&value.data))
+      normalized << std::hexfloat << *floating;
+    else if (const auto *character = std::get_if<char32_t>(&value.data))
+      normalized << static_cast<std::uint32_t>(*character);
+    else if (const auto *boolean = std::get_if<bool>(&value.data))
+      normalized << (*boolean ? "true" : "false");
+    else if (const auto *text = std::get_if<std::string>(&value.data))
+      normalized << text->size() << ':' << *text;
+    else
+      normalized << "aggregate";
+    return normalized.str();
+  };
   std::string output;
   if (program.module_name)
     append_field(output, "module", *program.module_name);
@@ -234,13 +255,13 @@ std::string public_interface(std::string_view source) {
     append_type(output, global.declaration.declared_type);
     output += global.declaration.is_mutable ? ":mutable;" : ":immutable;";
     if (global.declaration.is_constant) {
-      const std::size_t start = global.declaration.location.offset;
-      const std::size_t end = source.find('\n', start);
       output += ":const-value:";
-      output += source.substr(start, end == std::string_view::npos
-                                        ? source.size() - start
-                                        : end - start);
-      output += ":const-evaluator-v1;";
+      const std::string key = global.module_name.has_value()
+                                  ? *global.module_name + "." +
+                                        global.declaration.name
+                                  : global.declaration.name;
+      output += normalized_constant(analysis.global_constant_values.at(key));
+      output += ":const-evaluator-v2;";
     }
   }
   for (const auto &trait : program.traits) {

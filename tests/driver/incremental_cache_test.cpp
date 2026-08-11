@@ -141,6 +141,28 @@ void test_public_interface_excludes_private_implementation() {
               janus::driver::public_interface_fingerprint(public_change),
           "public signature change was not detected");
 
+  const std::string public_const_before =
+      "module library\nprivate const base : int = 1\n"
+      "const exported : int = base\n";
+  const std::string public_const_after =
+      "module library\nprivate const base : int = 2\n"
+      "const exported : int = base\n";
+  require(janus::driver::public_interface_fingerprint(public_const_before) !=
+              janus::driver::public_interface_fingerprint(public_const_after),
+          "transitive public constant value change was not detected");
+  require(janus::driver::public_interface_fingerprint(
+              "module library\nconst exported : int = 1\n") !=
+              janus::driver::public_interface_fingerprint(
+                  "module library\nconst exported : int = 2\n"),
+          "direct public constant value change was not detected");
+  require(janus::driver::public_interface_fingerprint(
+              "module library\nprivate const hidden : int = 1\n"
+              "const exported : int = 7\n") ==
+              janus::driver::public_interface_fingerprint(
+                  "module library\nprivate const hidden : int = 2\n"
+                  "const exported : int = 7\n"),
+          "unreferenced private constant leaked into the public interface");
+
   const std::string internal_before =
       "module library\n"
       "class Box() { internal def helper(value : int) : int { return value } }\n"

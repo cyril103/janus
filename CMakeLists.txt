@@ -256,6 +256,7 @@ target_link_libraries(janus_driver
         janus_frontend
     PRIVATE
         janus_constant
+        janus_semantic
 )
 llvm_map_components_to_libnames(JANUS_DRIVER_LLVM_LIBS Support)
 target_link_libraries(janus_driver PRIVATE ${JANUS_DRIVER_LLVM_LIBS})
