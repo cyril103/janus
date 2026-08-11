@@ -3,42 +3,67 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
-## Non publié
+## [0.10.0] - 2026-08-11
+
+Cette version mineure étend le langage avec des imports précis, l’inférence
+locale et l’évaluation à la compilation, ajoute un framework de tests natif et
+renforce les frontières de sécurité de la toolchain. Janus reste pré-1.0.
 
 ### Langage et diagnostics
 
+- ajout des imports qualifiés, sélectifs et renommés, avec visibilité confinée
+  au module importeur et résolution canonique dans les graphes en diamant ;
+- extension de l’inférence de type aux variables locales, avec diagnostics
+  ciblés et conservation des contrats de propriété ;
+- ajout de `const`, `const def` et `staticAssert`, avec évaluation déterministe
+  à la compilation, contrôle de pureté, budgets de ressources et prise en
+  charge des dépendances inter-modules ;
 - ajout de `checkedCast`, `saturatingCast` et `truncatingCast`, du suffixe de
   littéral `float` (`0.5f`) et de diagnostics orientant vers la politique de
   conversion adaptée ;
 - définition portable des bornes, signes, fractions, valeurs non finies et
   pertes de précision, identique entre repliement constant et backend LLVM.
 
+### Outils et serveur de langage
+
+- ajout d’un index partagé de découverte des API, consommé par la CLI, la
+  documentation et le serveur de langage ;
+- correction de la navigation et de l’aide à la signature pour les alias,
+  imports et documents fermés, avec plages ancrées dans le document demandé ;
+- intégration des constantes à la documentation générée, au LSP, au formateur
+  et au cache incrémental.
+
 ### Bibliothèque standard
 
-- ajout de `std.numeric` et de l'enum public `NumericCastError`.
-
-### Documentation
-
-- publication de la matrice exhaustive des conversions numériques explicites.
-
-### Sécurité
-
-- validation défensive des archives de toolchain avant extraction dans
-  `janusup`, les installateurs POSIX et PowerShell : confinement de la racine,
-  refus des liens, types spéciaux et noms ambigus, détection des collisions et
-  limites de décompression.
+- ajout de `std.numeric` et de l’enum public `NumericCastError` ;
+- ajout de `std.testing` pour les assertions des tests natifs.
 
 ### Tests
 
 - ajout des fonctions `/// @test`, de `std.testing` et de l’isolation par
   processus avec paniques attendues, tests ignorés ou série ;
 - ajout du filtrage exact, du parallélisme, des timeouts, de la politique de
-  suite vide et des rapports humains, JSON versionné et JUnit.
+  suite vide et des rapports humains, JSON versionné et JUnit ;
+- suppression des avertissements de sûreté dans les 36 exemples Janus et ajout
+  d’une gate CI qui refuse toute nouvelle régression.
 
-### Exemples
+### Sécurité et fiabilité
 
-- suppression des avertissements de sûreté dans les 36 exemples Janus et
-  ajout d'une gate CI qui refuse toute nouvelle régression.
+- validation défensive des archives de toolchain avant extraction dans
+  `janusup`, les installateurs POSIX et PowerShell : confinement de la racine,
+  refus des liens, types spéciaux et noms ambigus, détection des collisions et
+  limites de décompression ;
+- exigence d’attestations officielles pour les distributions et
+  transactionnalisation des installations concurrentes de `janusup` ;
+- sérialisation des remplacements du cache de registre et durcissement des
+  assertions de tests en configuration Release ;
+- épinglage immuable des GitHub Actions utilisées par le dépôt.
+
+### Documentation
+
+- publication de la matrice exhaustive des conversions numériques explicites ;
+- mise à jour du Book, de la référence et du site pour les imports, les tests,
+  l’inférence locale et les constantes à la compilation.
 
 ## [0.9.0] - 2026-08-02
 
@@ -601,6 +626,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.10.0]: https://github.com/cyril103/janus/releases/tag/v0.10.0
 [0.9.0]: https://github.com/cyril103/janus/releases/tag/v0.9.0
 [0.8.1]: https://github.com/cyril103/janus/releases/tag/v0.8.1
 [0.8.0]: https://github.com/cyril103/janus/releases/tag/v0.8.0
