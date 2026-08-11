@@ -289,7 +289,9 @@ def main() : int { return identity[int](integer) }
              target64.global_constant_values.at("wide").type->bit_width() == 64,
          "constant evaluation uses the explicit 64-bit target model");
   janus::frontend::Parser target32_parser{
-      "const width : usize = 32\ndef main() : int { return int(width) }"};
+      "const width : usize = 32\n"
+      "def preserve(value : usize) : usize { return value }\n"
+      "def main() : int { return int(preserve(width)) }"};
   const janus::ast::Program target32_program = target32_parser.parse_program();
   llvm::LLVMContext target32_context;
   janus::backend::llvm::IrGenerator target32_generator{
@@ -299,6 +301,14 @@ def main() : int { return identity[int](integer) }
       target32_generator.generate(target32_program, "target32");
   expect(target32_module->getTargetTriple() == "i686-unknown-linux-gnu",
          "backend emits the explicit target triple");
+  std::string target32_ir;
+  llvm::raw_string_ostream target32_output{target32_ir};
+  target32_module->print(target32_output, nullptr);
+  target32_output.flush();
+  const std::size_t preserve = target32_ir.find("preserve");
+  expect(preserve != std::string::npos &&
+             target32_ir.substr(preserve, 160).find("i32") != std::string::npos,
+         "backend lowers usize as i32 for an explicit 32-bit target");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

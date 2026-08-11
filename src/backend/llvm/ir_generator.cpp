@@ -91,7 +91,7 @@ public:
                                std::string{module_name}, context)},
         source_name_{module_name}, panic_trace_{panic_trace},
         analysis_{analysis}, entry_module_{program.module_name},
-        dependencies_only_{dependencies_only} {
+        dependencies_only_{dependencies_only}, target_{target} {
 #if LLVM_VERSION_MAJOR >= 21
     module_->setTargetTriple(::llvm::Triple{target.triple});
 #else
@@ -336,6 +336,10 @@ private:
 
   const janus::Type &resolve(const janus::ast::TypeReference &reference,
                              const Substitutions &substitutions) {
+    if (reference.name == "isize")
+      return janus::Type::isize_type(target_.pointer_width);
+    if (reference.name == "usize")
+      return janus::Type::usize_type(target_.pointer_width);
     if (const janus::Type *type = builtin_type(reference.name))
       return *type;
     if (reference.name == "Function") {
@@ -4336,6 +4340,7 @@ private:
   std::size_t lambda_index_{};
   std::optional<std::string> entry_module_;
   bool dependencies_only_{};
+  janus::Target target_;
 };
 
 } // namespace
