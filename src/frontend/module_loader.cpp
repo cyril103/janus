@@ -137,6 +137,11 @@ void reserve_import_name(std::unordered_map<std::string, std::string> &names,
 ModuleLoader::ModuleLoader(std::vector<std::filesystem::path> search_paths)
     : search_paths_{std::move(search_paths)} {}
 
+void ModuleLoader::set_source_override(const std::filesystem::path &path,
+                                       std::string source) {
+  source_overrides_.insert_or_assign(normalize_path(path), std::move(source));
+}
+
 ast::Program ModuleLoader::load(const std::filesystem::path &entry_path,
                                 ModuleLoadTimings *timings) {
   visiting_paths_.clear();
@@ -181,8 +186,11 @@ ModuleLoader::load_file(const std::filesystem::path &path,
   const auto loading_start = timings == nullptr
                                  ? std::chrono::steady_clock::time_point{}
                                  : std::chrono::steady_clock::now();
+  const auto configured_override = source_overrides_.find(normalized);
   if (source_override != nullptr) {
     source = *source_override;
+  } else if (configured_override != source_overrides_.end()) {
+    source = configured_override->second;
   } else {
     std::ifstream input{normalized, std::ios::binary};
     if (!input)
@@ -330,7 +338,29 @@ std::filesystem::path detail::resolve_module_import(
 std::filesystem::path
 ModuleLoader::resolve_import(std::string_view module,
                              const std::filesystem::path &project_root) const {
-  return detail::resolve_module_import(module, project_root, search_paths_);
+  std::filesystem::path relative;
+  std::size_t start = 0;
+  while (start < module.size()) {
+    const std::size_t separator = module.find('.', start);
+    relative /= module.substr(start, separator == std::string_view::npos
+                                         ? module.size() - start
+                                         : separator - start);
+    if (separator == std::string_view::npos)
+      break;
+    start = separator + 1;
+  }
+  relative += ".janus";
+  std::vector<std::filesystem::path> roots{project_root};
+  roots.insert(roots.end(), search_paths_.begin(), search_paths_.end());
+  for (const std::filesystem::path &root : roots) {
+    const std::filesystem::path candidate = normalize_path(root / relative);
+    if (source_overrides_.contains(candidate) ||
+        std::filesystem::is_regular_file(candidate))
+      return candidate;
+  }
+  throw CompileError{DiagnosticCode::ModuleNotFound, SourceLocation{},
+                     "cannot resolve imported module '" +
+                         std::string{module} + "'"};
 }
 
 } // namespace janus::frontend

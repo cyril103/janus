@@ -33,15 +33,97 @@ void expect_compile_error(std::string_view source,
     static_cast<void>(analyzer.analyze(program));
     expect(false, "invalid source must produce a compile error");
   } catch (const janus::CompileError &error) {
-    expect(std::string_view{error.what()}.find(expected_message) !=
-               std::string_view::npos,
-           "compile error contains the expected explanation");
+    if (std::string_view{error.what()}.find(expected_message) ==
+        std::string_view::npos) {
+      std::cerr << "FAILED: expected diagnostic containing '" << expected_message
+                << "', got '" << error.what() << "'\n";
+      ++failures;
+    }
   }
 }
 
 } // namespace
 
 int main() {
+  janus::frontend::Parser inferred_parser{
+      "def main() : int { val inferred = 5 return inferred }"};
+  const janus::ast::Program inferred_program = inferred_parser.parse_program();
+  const auto &inferred_declaration =
+      std::get<janus::ast::ValueDeclaration>(
+          inferred_program.functions.front().body.front());
+  expect(!inferred_declaration.declared_type.has_value(),
+         "an inferred local explicitly omits its AST type annotation");
+  janus::semantic::Analyzer inferred_analyzer;
+  const janus::semantic::AnalysisResult inferred_analysis =
+      inferred_analyzer.analyze(inferred_program);
+  expect(inferred_analysis.functions.at("main").at("inferred").type.name() ==
+             "int",
+         "the analyzer records the canonical inferred local type");
+  expect(inferred_analysis.local_types.at(&inferred_declaration).name() ==
+             "int",
+         "analysis exposes the canonical type keyed by the local AST node");
+
+  llvm::LLVMContext inferred_context;
+  janus::backend::llvm::IrGenerator inferred_generator{inferred_context};
+  const std::unique_ptr<llvm::Module> inferred_module =
+      inferred_generator.generate(inferred_program, "inferred_local");
+  std::string inferred_ir;
+  llvm::raw_string_ostream inferred_output{inferred_ir};
+  inferred_module->print(inferred_output, nullptr);
+  inferred_output.flush();
+  expect(inferred_ir.find("%inferred = alloca i32") != std::string::npos,
+         "the backend consumes the analyzed inferred type");
+
+  janus::frontend::Parser expression_parser{R"(
+struct Point(val x : int) derives Copy {}
+class Box(val value : int) { def get() : int { return value } }
+class Resource(val value : int) {}
+enum Choice { Number(int), Empty }
+def identity[T](value : T) : T { return value }
+def makePoint() : Point { return new Point(7) }
+def main() : int {
+  val point = makePoint()
+  val constructed = new Box(point.x)
+  val field = constructed.value
+  val method = constructed.get()
+  val selected = if true { field } else { method }
+  val choice = Choice.Number(selected)
+  val matched = match choice { Number(value) => value, Empty => 0 }
+  val operated = matched + 1
+  val generic = identity(operated)
+  val resource = new Resource(9)
+  val moved = move resource
+  borrow val pointer = null[int]()
+  delete constructed
+  delete moved
+  return generic
+}
+)"};
+  const janus::ast::Program expression_program = expression_parser.parse_program();
+  const janus::semantic::AnalysisResult expression_analysis =
+      inferred_analyzer.analyze(expression_program);
+  const auto &expression_symbols = expression_analysis.functions.at("main");
+  expect(expression_symbols.at("point").type.name() == "Point",
+         "function calls infer their return type");
+  expect(expression_symbols.at("constructed").type.name() == "Box",
+         "constructors infer their class type");
+  expect(expression_symbols.at("field").type.name() == "int" &&
+             expression_symbols.at("method").type.name() == "int",
+         "field and method accesses infer their result type");
+  expect(expression_symbols.at("selected").type.name() == "int" &&
+             expression_symbols.at("matched").type.name() == "int",
+         "convergent if and exhaustive match expressions infer a type");
+  expect(expression_symbols.at("operated").type.name() == "int" &&
+             expression_symbols.at("generic").type.name() == "int",
+         "operators and fully constrained generic calls infer a type");
+  expect(expression_symbols.at("moved").type.name() == "Resource" &&
+             expression_symbols.at("pointer").type.name() == "Ptr[int]",
+         "move and borrow preserve the inferred semantic type");
+  const std::unique_ptr<llvm::Module> expression_module =
+      inferred_generator.generate(expression_program, "inferred_expressions");
+  expect(expression_module != nullptr,
+         "the backend emits all supported inferred expression types");
+
   janus::frontend::Parser parser{
       "def main() : int { val x : int = 5 return 0 }"};
   const janus::ast::Program program = parser.parse_program();
@@ -58,7 +140,9 @@ int main() {
         std::get<janus::ast::ValueDeclaration>(
             program.functions.front().body.front());
     expect(declaration.name == "x", "the identifier is x");
-    expect(declaration.declared_type.name == "int", "the declared type is int");
+    expect(declaration.declared_type.has_value() &&
+               declaration.declared_type->name == "int",
+           "the declared type is int");
     expect(!declaration.is_mutable, "a val declaration is immutable");
     expect(std::get<janus::ast::IntegerLiteralExpression>(
                declaration.initializer->value)
@@ -136,7 +220,22 @@ def main() : int {
          "string literal data is stored in a private global constant");
 
   expect_compile_error("def main() : int { val x int = 5 return 0 }",
-                       "expected ':'");
+                       "inferred local 'x' requires an initializer");
+  expect_compile_error("val global = 5 def main() : int { return 0 }",
+                       "global value 'global' requires an explicit type annotation");
+  expect_compile_error(
+      "class Bad() { val field = 1 } def main() : int { return 0 }",
+      "field 'field' requires an explicit type annotation");
+  expect_compile_error(
+      "def main() : int { val value = null() return 0 }",
+      "cannot infer type of 'value'");
+  expect_compile_error(
+      "class Collection[T]() {} def main() : int { "
+      "val empty = new Collection() return 0 }",
+      "cannot infer type of 'empty'");
+  expect_compile_error(
+      "def main() : int { val value = if true { 1 } else { false } return 0 }",
+      "cannot infer type of 'value'");
   expect_compile_error("def main() : int { val x : unknown = 5 return 0 }",
                        "unknown type 'unknown'");
   expect_compile_error("def main() : int { val x : int = 2147483648 return 0 }",

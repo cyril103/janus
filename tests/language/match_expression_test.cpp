@@ -46,7 +46,8 @@ enum Option[T] {
 }
 
 def main() : int {
-    val option : Option[int] = Option.Some[int](42)
+    val option = Option.Some(42)
+    val empty : Option[int] = Option.None()
     return match option {
         Some(value) => value,
         None => 0

@@ -233,6 +233,11 @@ ast::Program Parser::parse_program() {
       } else if (current_.kind == TokenKind::Val ||
                  current_.kind == TokenKind::Var) {
         ast::ValueDeclaration declaration = parse_variable_declaration();
+        if (!declaration.declared_type.has_value())
+          throw CompileError{
+              declaration.location,
+              "global value '" + declaration.name +
+                  "' requires an explicit type annotation"};
         declaration.is_private = is_private;
         declaration.documentation = std::move(documentation);
         program.globals.push_back(ast::GlobalDeclaration{std::move(declaration),
@@ -739,6 +744,10 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
         throw CompileError{current_.location,
                            "consume can only modify a method"};
       ast::ValueDeclaration field = parse_variable_declaration();
+      if (!field.declared_type.has_value())
+        throw CompileError{field.location,
+                           "field '" + field.name +
+                               "' requires an explicit type annotation"};
       field.is_private = is_private;
       field.is_internal = is_internal;
       field.documentation = std::move(documentation);
@@ -972,12 +981,20 @@ ast::ValueDeclaration Parser::parse_variable_declaration() {
   const Token declaration =
       expect(is_mutable ? TokenKind::Var : TokenKind::Val);
   const Token identifier = expect(TokenKind::Identifier);
-  static_cast<void>(expect(TokenKind::Colon));
-  ast::TypeReference declared_type = parse_type();
+  std::optional<ast::TypeReference> declared_type;
+  if (current_.kind == TokenKind::Colon) {
+    advance();
+    declared_type.emplace(parse_type());
+  }
   std::optional<ast::Expression> initializer;
   if (current_.kind == TokenKind::Equal) {
     advance();
     initializer.emplace(parse_expression());
+  } else if (!declared_type.has_value()) {
+    throw CompileError{declaration.location,
+                       "inferred local '" + std::string{identifier.lexeme} +
+                           "' requires an initializer; help: add an explicit "
+                           "type annotation"};
   } else if (!is_mutable) {
     static_cast<void>(expect(TokenKind::Equal));
   }

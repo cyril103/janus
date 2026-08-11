@@ -49,8 +49,9 @@ class Converter[T]() {
 def main() : int {
     val converter : Converter[int] = new Converter[int]()
     val result : double = converter.identity[double](2.5)
+    val inferred = converter.identity(42)
     delete converter
-    return int(result)
+    return int(result) + inferred - 42
 }
 )";
 
@@ -77,6 +78,8 @@ def main() : int {
   expect(ir.find("define double @Converter__int__identity__double(ptr %this, "
                  "double %value)") != std::string::npos,
          "generic methods are monomorphized for class and method types");
+  expect(ir.find("Converter__int__identity__int") != std::string::npos,
+         "method arguments infer omitted generic method type arguments");
 
   expect_compile_error(
       "class Box[T]() { def invalid[T](value : T) : T { return value } } "
@@ -91,10 +94,10 @@ def main() : int {
       "def main() : int { return 0 }",
       "unknown type 'Unknown'");
   expect_compile_error(
-      "class Box() { def identity[T](value : T) : T { return value } } "
+      "class Box() { def choose[T](value : int) : int { return value } } "
       "def main() : int { val box : Box = new Box() "
-      "val value : int = box.identity(1) delete box return value }",
-      "expects 1 type argument");
+      "val value = box.choose(1) delete box return value }",
+      "is not constrained by call arguments");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

@@ -60,6 +60,9 @@ struct AnalysisResult {
       qualified_global_reads;
   std::unordered_map<const ast::AssignmentStatement *, std::string>
       qualified_global_writes;
+  std::unordered_map<const ast::ValueDeclaration *, SemanticType> local_types;
+  std::unordered_map<const ast::Expression *, std::vector<SemanticType>>
+      inferred_generic_arguments;
   std::vector<Diagnostic> diagnostics;
 };
 

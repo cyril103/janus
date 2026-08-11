@@ -320,8 +320,13 @@ visibles dans leur propre fichier, mais ne sont proposées ni résolues depuis u
 autre module.
 
 Les indications de types déduits sont activées par défaut. Un client peut les
-désactiver avec `janus.inlayHints.inferredTypes: false` dans les paramètres
-transmis par `workspace/didChangeConfiguration`.
+désactiver avec `janus.inlayHints.inferredTypes: false` dans les paramètres de
+l'éditeur transmis par `workspace/didChangeConfiguration`. Lorsque l'analyse
+sémantique du document aboutit, ces indices et le survol utilisent son type
+canonique, y compris pour les appels et méthodes. Pendant l'édition d'un
+document temporairement invalide, le serveur conserve seulement un repli
+conservateur pour les littéraux dont le type par défaut est non ambigu. Une
+annotation explicite ne reçoit pas d'indice et le document n'est pas modifié.
 
 Le serveur demande au client de surveiller `**/*.janus` et `**/janus.toml`.
 Les créations, modifications, suppressions, sauvegardes et changements de

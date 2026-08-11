@@ -44,17 +44,36 @@ def identity[T](value : T) : T {
     return value
 }
 
+struct Box[T](val value : T) derives Copy {}
+class Resource() {}
+
+def unbox[T](value : Box[T]) : T {
+    return value.value
+}
+
+def create[T](ignored : int) : Ptr[T] {
+    return null[T]()
+}
+
 def main() : int {
     val integer : int = identity[int](5)
     val floating : double = identity[double](2.5)
     val message : string = identity[string]("Janus")
-    return integer
+    val inferred = identity(6)
+    val boxed : Box[int] = new Box[int](7)
+    val nested = unbox(boxed)
+    val resource : Resource = new Resource()
+    val moved = identity(move resource)
+    delete moved
+    val pointer : Ptr[int] = create(0)
+    delete pointer
+    return integer + inferred + nested
 }
 )";
 
   janus::frontend::Parser parser{source};
   const janus::ast::Program program = parser.parse_program();
-  expect(program.functions.size() == 2, "two functions are parsed");
+  expect(program.functions.size() == 4, "four functions are parsed");
   expect(program.functions.front().type_parameters.size() == 1,
          "identity declares one type parameter");
   expect(program.functions.front().type_parameters.front() == "T",
@@ -86,6 +105,10 @@ def main() : int {
          "identity[double] is monomorphized with double");
   expect(ir.find("call i32 @identity__int(i32 5)") != std::string::npos,
          "main calls the int specialization");
+  expect(ir.find("call i32 @identity__int(i32 6)") != std::string::npos,
+         "call arguments fully constrain an omitted generic type argument");
+  expect(ir.find("call i32 @unbox__int(") != std::string::npos,
+         "nested generic argument types constrain omitted type arguments");
   expect(ir.find("call double @identity__double(double 2.500000e+00)") !=
              std::string::npos,
          "main calls the double specialization");
@@ -93,9 +116,21 @@ def main() : int {
              std::string::npos,
          "identity[string] is monomorphized with the string structure");
 
-  expect_compile_error("def identity[T](x : T) : T { return x } "
-                       "def main() : int { return identity(1) }",
-                       "expects 1 type argument");
+  janus::frontend::Parser warning_parser{
+      "def identity[T](value : T) : T { return value } "
+      "def main() : int { val inferred = identity(int(2.5)) return inferred }"};
+  const janus::semantic::AnalysisResult warning_analysis =
+      analyzer.analyze(warning_parser.parse_program());
+  std::size_t lossy_cast_warnings = 0;
+  for (const janus::Diagnostic &diagnostic : warning_analysis.diagnostics)
+    if (diagnostic.code == janus::DiagnosticCode::AnalyzerLossyNumericCast)
+      ++lossy_cast_warnings;
+  expect(lossy_cast_warnings == 1,
+         "speculative generic inference does not duplicate diagnostics");
+
+  expect_compile_error("def choose[T](x : int) : int { return x } "
+                       "def main() : int { return choose(1) }",
+                       "is not constrained by call arguments");
   expect_compile_error("def identity[T](x : T) : T { return x } "
                        "def main() : int { return identity[bool](1) }",
                        "expression of type 'int'");

@@ -90,6 +90,12 @@ void append_type(std::string &output, const ast::TypeReference &type) {
   }
 }
 
+void append_type(std::string &output,
+                 const std::optional<ast::TypeReference> &type) {
+  if (type)
+    append_type(output, *type);
+}
+
 void append_constraints(std::string &output,
                         const std::vector<ast::TypeConstraint> &constraints) {
   for (const auto &constraint : constraints) {

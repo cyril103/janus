@@ -390,6 +390,18 @@ if(BUILD_TESTING)
     set(CLANG_EXECUTABLE "${JANUS_CLANG_EXECUTABLE}")
 
     add_test(
+        NAME language.local_type_inference.cli
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/local_type_inference.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/local_type_inference_cli"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+
+    add_test(
         NAME tests.no_standard_assert
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/scripts/check-test-asserts.py"

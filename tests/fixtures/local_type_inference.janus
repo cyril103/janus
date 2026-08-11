@@ -1,0 +1,12 @@
+class Box(val value : int) {
+    def get() : int { return value }
+}
+
+def identity[T](value : T) : T { return value }
+
+def main() : int {
+    val box = new Box(40)
+    val result = identity(box.get() + 2)
+    delete box
+    return result - 42
+}

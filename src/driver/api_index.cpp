@@ -66,6 +66,10 @@ std::string type_name(const ast::TypeReference &type) {
   return result;
 }
 
+std::string type_name(const std::optional<ast::TypeReference> &type) {
+  return type ? type_name(*type) : std::string{};
+}
+
 std::string anchor(std::string_view value) {
   std::string result;
   for (unsigned char c : value) {

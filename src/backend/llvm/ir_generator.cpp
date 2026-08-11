@@ -370,6 +370,43 @@ private:
     return ensure_class(declaration->first, type_arguments);
   }
 
+  const janus::Type &
+  resolve(const std::optional<janus::ast::TypeReference> &reference,
+          const Substitutions &substitutions) {
+    if (!reference.has_value())
+      throw std::logic_error{"an explicit type is required in this context"};
+    return resolve(*reference, substitutions);
+  }
+
+  const janus::Type &resolve(const janus::semantic::SemanticType &type) {
+    if (type.is_concrete())
+      return *type.concrete;
+    std::vector<const janus::Type *> arguments;
+    arguments.reserve(type.type_arguments.size());
+    for (const auto &argument : type.type_arguments)
+      arguments.push_back(&resolve(argument));
+    if (type.is_function()) {
+      if (arguments.empty())
+        throw std::logic_error{
+            "analyzed function type has no return type for codegen"};
+      std::vector<const janus::Type *> parameters{arguments.begin(),
+                                                  arguments.end() - 1};
+      return ensure_function_type(parameters, *arguments.back());
+    }
+    if (type.is_pointer())
+      return ensure_pointer(*arguments.front());
+    if (type.is_enum()) {
+      const auto declaration =
+          find_type_in_active_module(enums_, type.parameter);
+      return ensure_enum(declaration->first, arguments);
+    }
+    const auto declaration =
+        find_type_in_active_module(classes_, type.parameter);
+    if (declaration == classes_.end())
+      throw std::logic_error{"analyzed local type is not available to codegen"};
+    return ensure_class(declaration->first, arguments);
+  }
+
   const Local *
   find_storage(std::string_view name,
                const std::unordered_map<std::string, Local> &locals) const {
@@ -1761,8 +1798,9 @@ private:
 
         if (const auto *declaration =
                 std::get_if<janus::ast::ValueDeclaration>(&statement)) {
-          const janus::Type &type =
-              resolve(declaration->declared_type, substitutions);
+          const janus::Type &type = declaration->declared_type
+              ? resolve(*declaration->declared_type, substitutions)
+              : resolve(analysis_.local_types.at(declaration));
           ::llvm::Value *storage = create_entry_alloca(
               builder, lower_type(type, context_), declaration->name);
           if (declaration->initializer.has_value()) {
@@ -2237,9 +2275,18 @@ private:
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::NewExpression>) {
             std::vector<const janus::Type *> type_arguments;
-            for (const janus::ast::TypeReference &argument :
-                 node.type_arguments)
-              type_arguments.push_back(&resolve(argument, substitutions));
+            if (node.type_arguments.empty()) {
+              if (const auto inferred =
+                      analysis_.inferred_generic_arguments.find(&expression);
+                  inferred != analysis_.inferred_generic_arguments.end())
+                for (const janus::semantic::SemanticType &argument :
+                     inferred->second)
+                  type_arguments.push_back(&resolve(argument));
+            } else {
+              for (const janus::ast::TypeReference &argument :
+                   node.type_arguments)
+                type_arguments.push_back(&resolve(argument, substitutions));
+            }
             const auto declaration =
                 find_type_in_active_module(classes_, node.class_name);
             return ensure_class(declaration->first, type_arguments);
@@ -2286,9 +2333,19 @@ private:
                   find_type_in_active_module(enums_, identifier->name);
               if (declaration != enums_.end()) {
                 std::vector<const janus::Type *> type_arguments;
-                for (const janus::ast::TypeReference &argument :
-                     node.type_arguments)
-                  type_arguments.push_back(&resolve(argument, substitutions));
+                if (node.type_arguments.empty()) {
+                  if (const auto inferred =
+                          analysis_.inferred_generic_arguments.find(&expression);
+                      inferred != analysis_.inferred_generic_arguments.end())
+                    for (const janus::semantic::SemanticType &argument :
+                         inferred->second)
+                      type_arguments.push_back(&resolve(argument));
+                } else {
+                  for (const janus::ast::TypeReference &argument :
+                       node.type_arguments)
+                    type_arguments.push_back(
+                        &resolve(argument, substitutions));
+                }
                 return ensure_enum(declaration->first, type_arguments);
               }
             }
@@ -2477,6 +2534,7 @@ private:
       const std::vector<janus::ast::TypeReference> &call_type_arguments,
       const std::vector<std::unique_ptr<janus::ast::Expression>>
           &call_arguments,
+      const janus::ast::Expression *expression_key,
       std::string_view result_name, const Substitutions &substitutions,
       const std::unordered_map<std::string, Local> &locals,
       ::llvm::IRBuilder<> &builder) {
@@ -2484,6 +2542,12 @@ private:
     type_arguments.reserve(call_type_arguments.size());
     for (const janus::ast::TypeReference &argument : call_type_arguments)
       type_arguments.push_back(&resolve(argument, substitutions));
+    if (call_type_arguments.empty())
+      if (const auto inferred =
+              analysis_.inferred_generic_arguments.find(expression_key);
+          inferred != analysis_.inferred_generic_arguments.end())
+        for (const auto &argument : inferred->second)
+          type_arguments.push_back(&resolve(argument));
     ::llvm::Function *target = emit_function(callee, type_arguments);
 
     Substitutions callee_substitutions;
@@ -3419,6 +3483,13 @@ private:
             for (const janus::ast::TypeReference &argument :
                  node.type_arguments)
               type_arguments.push_back(&resolve(argument, substitutions));
+            if (node.type_arguments.empty())
+              if (const auto inferred =
+                      analysis_.inferred_generic_arguments.find(
+                          &expression);
+                  inferred != analysis_.inferred_generic_arguments.end())
+                for (const auto &argument : inferred->second)
+                  type_arguments.push_back(&resolve(argument));
             ::llvm::Function *target = emit_function(callee, type_arguments);
 
             Substitutions callee_substitutions;
@@ -3465,9 +3536,18 @@ private:
                 find_type_in_active_module(classes_, node.class_name);
             const auto &class_declaration = *class_iterator->second;
             std::vector<const janus::Type *> type_arguments;
-            for (const janus::ast::TypeReference &argument :
-                 node.type_arguments)
-              type_arguments.push_back(&resolve(argument, substitutions));
+            if (node.type_arguments.empty()) {
+              if (const auto inferred =
+                      analysis_.inferred_generic_arguments.find(&expression);
+                  inferred != analysis_.inferred_generic_arguments.end())
+                for (const janus::semantic::SemanticType &argument :
+                     inferred->second)
+                  type_arguments.push_back(&resolve(argument));
+            } else {
+              for (const janus::ast::TypeReference &argument :
+                   node.type_arguments)
+                type_arguments.push_back(&resolve(argument, substitutions));
+            }
             const janus::Type &object_type =
                 ensure_class(class_iterator->first, type_arguments);
             const ClassSpecialization &specialization =
@@ -3624,7 +3704,7 @@ private:
                   function != functions_.end())
                 return emit_declared_call(
                     *function->second, node.type_arguments, node.arguments,
-                    qualified, substitutions, locals, builder);
+                    &expression, qualified, substitutions, locals, builder);
             }
             const auto *identifier =
                 std::get_if<janus::ast::IdentifierExpression>(
@@ -3639,9 +3719,18 @@ private:
                  !locals.contains(
                      enum_name->substr(0, enum_name->find('.'))))) {
               std::vector<const janus::Type *> type_arguments;
-              for (const janus::ast::TypeReference &argument :
-                   node.type_arguments)
-                type_arguments.push_back(&resolve(argument, substitutions));
+              if (node.type_arguments.empty()) {
+                if (const auto inferred =
+                        analysis_.inferred_generic_arguments.find(&expression);
+                    inferred != analysis_.inferred_generic_arguments.end())
+                  for (const janus::semantic::SemanticType &argument :
+                       inferred->second)
+                    type_arguments.push_back(&resolve(argument));
+              } else {
+                for (const janus::ast::TypeReference &argument :
+                     node.type_arguments)
+                  type_arguments.push_back(&resolve(argument, substitutions));
+              }
               const janus::Type &enum_type =
                   ensure_enum(enum_declaration->first, type_arguments);
               const EnumSpecialization &specialization =
@@ -3732,6 +3821,12 @@ private:
                  node.type_arguments)
               method_type_arguments.push_back(
                   &resolve(argument, substitutions));
+            if (node.type_arguments.empty())
+              if (const auto inferred =
+                      analysis_.inferred_generic_arguments.find(&expression);
+                  inferred != analysis_.inferred_generic_arguments.end())
+                for (const auto &argument : inferred->second)
+                  method_type_arguments.push_back(&resolve(argument));
             ::llvm::Function *target = emit_function(
                 *method, method_type_arguments, &class_declaration,
                 &specialization.substitutions, object_type.name());
