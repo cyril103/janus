@@ -1495,6 +1495,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     constant_states[key] = ConstantState::Complete;
     auto [iterator, inserted] = constant_values.emplace(key, std::move(value));
     static_cast<void>(inserted);
+    result.global_constant_values.insert_or_assign(key, iterator->second);
     return iterator->second;
   };
   for (const ast::GlobalDeclaration *global : initialization_plan.constants)

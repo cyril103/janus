@@ -481,6 +481,13 @@ private:
   evaluate_global_constant(const janus::ast::GlobalDeclaration &global) {
     const std::string key =
         source_global_key(global.module_name, global.declaration.name);
+    if (const auto analyzed = analysis_.global_constant_values.find(key);
+        analyzed != analysis_.global_constant_values.end() &&
+        (analyzed->second.type->is_integer() ||
+         analyzed->second.type->is_floating_point() ||
+         analyzed->second.type->is_boolean() ||
+         analyzed->second.type->is_character()))
+      return analyzed->second;
     const int state = constant_states_[key];
     if (state == 1)
       throw janus::CompileError{
@@ -2248,6 +2255,17 @@ private:
             return janus::Type::string_type();
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
+            std::string key = source_global_key(active_module_, node.name);
+            if (!global_by_key_.contains(key)) {
+              if (const auto exported = public_global_keys_.find(node.name);
+                  exported != public_global_keys_.end())
+                key = exported->second;
+            }
+            if (const auto global = global_by_key_.find(key);
+                global != global_by_key_.end() &&
+                global->second->declaration.is_constant)
+              return resolve(global->second->declaration.declared_type,
+                             substitutions);
             return *resolve_storage(node.name, locals).type;
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::LambdaExpression>) {

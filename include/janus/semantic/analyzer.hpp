@@ -64,6 +64,7 @@ struct AnalysisResult {
   std::unordered_map<const ast::ValueDeclaration *, SemanticType> local_types;
   std::unordered_map<const ast::ValueDeclaration *, constant::Value>
       local_constant_values;
+  std::unordered_map<std::string, constant::Value> global_constant_values;
   std::unordered_map<const ast::Expression *, std::vector<SemanticType>>
       inferred_generic_arguments;
   std::vector<Diagnostic> diagnostics;

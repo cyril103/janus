@@ -130,6 +130,16 @@ def main() : int { return answer }
 )"};
   static_cast<void>(analyzer.analyze(body_parser.parse_program()));
 
+  janus::frontend::Parser float_parser{R"(
+const x : float = 16777216.0f + 1.0f
+def main() : int { return if x == 16777216.0f { 0 } else { 1 } }
+)"};
+  const janus::ast::Program float_program = float_parser.parse_program();
+  static_cast<void>(analyzer.analyze(float_program));
+  llvm::LLVMContext float_context;
+  janus::backend::llvm::IrGenerator float_generator{float_context};
+  static_cast<void>(float_generator.generate(float_program, "float_constant"));
+
   expect_compile_error(
       "var runtime : int = 1\nconst invalid : int = runtime\n"
       "def main() : int { return 0 }",
