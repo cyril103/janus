@@ -117,6 +117,18 @@ sans ajouter d'usage. `janus run` transmet le code de sortie du programme
 exécuté. Les diagnostics de compilation utilisent la forme
 `chemin:ligne:colonne: error: [code] message`, y compris pour `janus test`.
 
+Pour transmettre des arguments au programme, séparez-les des options de Janus
+avec `--` :
+
+```bash
+janus run -- 10 -2 4 8
+janus run src/main.janus -- --verbose "texte avec espaces"
+```
+
+Chaque élément situé après `--` est transmis tel quel, y compris une chaîne
+vide ou un argument commençant par `-`. Janus lance directement l’exécutable :
+aucun shell n’interprète les variables, jokers ou substitutions de commande.
+
 `janus check` et `janus build` acceptent
 `--diagnostic-format human|json`. Le format humain est la valeur par défaut et
 ajoute un extrait de source avec repère. Le format JSON est destiné aux outils,
