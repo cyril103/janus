@@ -239,6 +239,25 @@ def main() : int { return answer }
       "constant evaluation memory budget exceeded (20 bytes)",
       {.require_entry_point = true, .constant_memory_budget = 20});
 
+  janus::frontend::Parser generic_parser{R"(
+const def identity[T](value : T) : T { return value }
+struct Pair(val left : int, val right : int) derives Copy {}
+enum Flag derives Copy { On, Off }
+const integer : int = identity[int](42)
+const truth : bool = identity[bool](true)
+const pair : Pair = identity[Pair](new Pair(20, 22))
+const flag : Flag = identity[Flag](Flag.On)
+staticAssert(integer == 42)
+staticAssert(truth)
+def main() : int { return identity[int](integer) }
+)"};
+  const janus::ast::Program generic_program = generic_parser.parse_program();
+  static_cast<void>(analyzer.analyze(generic_program));
+  llvm::LLVMContext generic_context;
+  janus::backend::llvm::IrGenerator generic_generator{generic_context};
+  static_cast<void>(generic_generator.generate(generic_program,
+                                               "generic_constant"));
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;

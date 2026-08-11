@@ -482,11 +482,7 @@ private:
     const std::string key =
         source_global_key(global.module_name, global.declaration.name);
     if (const auto analyzed = analysis_.global_constant_values.find(key);
-        analyzed != analysis_.global_constant_values.end() &&
-        (analyzed->second.type->is_integer() ||
-         analyzed->second.type->is_floating_point() ||
-         analyzed->second.type->is_boolean() ||
-         analyzed->second.type->is_character()))
+        analyzed != analysis_.global_constant_values.end())
       return analyzed->second;
     const int state = constant_states_[key];
     if (state == 1)

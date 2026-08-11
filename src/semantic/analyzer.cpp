@@ -1484,10 +1484,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     if (found == program.functions.end() || !found->is_constant)
       return std::nullopt;
     const ast::FunctionDeclaration &function = *found;
-    if (!function.type_parameters.empty())
-      throw CompileError{location,
-                         "generic const def is not supported in the first "
-                         "constant-evaluation version"};
     if (arguments.size() != function.parameters.size())
       throw CompileError{location, "const def '" + function.name +
                                        "' received an invalid argument count"};
@@ -1528,8 +1524,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "'"};
       return evaluate_global(key);
     };
-    const SemanticType return_type =
-        resolve_type(function.return_type, no_type_parameters, &class_arities);
+    const std::unordered_set<std::string> function_type_parameters{
+        function.type_parameters.begin(), function.type_parameters.end()};
+    const SemanticType return_type = resolve_type(
+        function.return_type, function_type_parameters, &class_arities);
     return constant::evaluate_statements(
         function.body, return_type.concrete, std::move(locals), local_resolver,
         constant_constructor_resolver, evaluate_constant_function,
