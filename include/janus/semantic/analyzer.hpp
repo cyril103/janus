@@ -4,6 +4,7 @@
 #include "janus/constant/evaluator.hpp"
 
 #include <string>
+#include <memory>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -65,6 +66,8 @@ struct AnalysisResult {
   std::unordered_map<const ast::ValueDeclaration *, constant::Value>
       local_constant_values;
   std::unordered_map<std::string, constant::Value> global_constant_values;
+  // Keeps nominal types referenced by compile-time aggregate values alive.
+  std::vector<std::shared_ptr<Type>> constant_value_types;
   std::unordered_map<const ast::Expression *, std::vector<SemanticType>>
       inferred_generic_arguments;
   std::vector<Diagnostic> diagnostics;

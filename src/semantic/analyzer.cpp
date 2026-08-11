@@ -1230,6 +1230,101 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   enum class ConstantState { Unvisited, Visiting, Complete };
   std::unordered_map<std::string, ConstantState> constant_states;
   std::unordered_map<std::string, constant::Value> constant_values;
+  std::unordered_map<std::string, const Type *> constant_nominal_types;
+  std::unordered_map<std::string, constant::ConstructorShape>
+      constant_constructor_shapes;
+
+  const auto constant_constructor_resolver =
+      [&](std::string_view name, const std::optional<std::string> &enum_case,
+          const std::vector<ast::TypeReference> &type_references,
+          SourceLocation location)
+      -> std::optional<constant::ConstructorShape> {
+    const std::string shape_key = std::string{name} +
+                                  (enum_case ? "." + *enum_case : "");
+    if (type_references.empty())
+      if (const auto cached = constant_constructor_shapes.find(shape_key);
+          cached != constant_constructor_shapes.end())
+        return cached->second;
+
+    const auto concrete_type = [&](const ast::TypeReference &reference,
+                                   const std::unordered_map<std::string,
+                                       const Type *> &substitutions)
+        -> const Type * {
+      if (const auto replacement = substitutions.find(reference.name);
+          replacement != substitutions.end() &&
+          reference.type_arguments.empty())
+        return replacement->second;
+      return builtin_type(reference.name);
+    };
+    if (enum_case.has_value()) {
+      const auto declaration = enums.find(std::string{name});
+      if (declaration == enums.end())
+        return std::nullopt;
+      const auto matched = std::find_if(
+          declaration->second->cases.begin(), declaration->second->cases.end(),
+          [&](const ast::EnumDeclaration::Case &candidate) {
+            return candidate.name == *enum_case;
+          });
+      if (matched == declaration->second->cases.end())
+        return std::nullopt;
+      if (type_references.size() != declaration->second->type_parameters.size())
+        return std::nullopt;
+      std::unordered_map<std::string, const Type *> substitutions;
+      for (std::size_t index = 0; index < type_references.size(); ++index) {
+        const Type *argument = builtin_type(type_references[index].name);
+        if (argument == nullptr)
+          return std::nullopt;
+        substitutions.emplace(declaration->second->type_parameters[index],
+                              argument);
+      }
+      const Type *nominal = nullptr;
+      if (const auto existing = constant_nominal_types.find(std::string{name});
+          existing != constant_nominal_types.end()) {
+        nominal = existing->second;
+      } else {
+        auto owned = std::make_shared<Type>(Type::enum_type(name));
+        nominal = owned.get();
+        result.constant_value_types.push_back(std::move(owned));
+        constant_nominal_types.emplace(name, nominal);
+      }
+      constant::ConstructorShape shape{nominal, matched->value, {}};
+      for (std::size_t index = 0; index < matched->payload_types.size(); ++index) {
+        const Type *payload = concrete_type(matched->payload_types[index], substitutions);
+        if (payload == nullptr)
+          throw CompileError{location,
+                             "constant enum payload type is not admissible"};
+        shape.fields.emplace_back(index + 1, payload);
+      }
+      constant_constructor_shapes.insert_or_assign(shape_key, shape);
+      return shape;
+    }
+    const auto declaration = classes.find(std::string{name});
+    if (declaration == classes.end() || !declaration->second->is_value_type ||
+        !declaration->second->type_parameters.empty())
+      return std::nullopt;
+    const Type *nominal = nullptr;
+    if (const auto existing = constant_nominal_types.find(std::string{name});
+        existing != constant_nominal_types.end()) {
+      nominal = existing->second;
+    } else {
+      auto owned = std::make_shared<Type>(Type::struct_type(name));
+      nominal = owned.get();
+      result.constant_value_types.push_back(std::move(owned));
+      constant_nominal_types.emplace(name, nominal);
+    }
+    constant::ConstructorShape shape{nominal, std::nullopt, {}};
+    for (std::size_t index = 0;
+         index < declaration->second->constructor_fields.size(); ++index) {
+      const Type *field = builtin_type(
+          declaration->second->constructor_fields[index].declared_type->name);
+      if (field == nullptr)
+        throw CompileError{location,
+                           "constant struct field type is not admissible"};
+      shape.fields.emplace_back(index, field);
+    }
+    constant_constructor_shapes.insert_or_assign(shape_key, shape);
+    return shape;
+  };
 
   // A const function is a declaration-time purity contract.  Validate every
   // body, even when no constant initializer happens to call it.
@@ -1434,7 +1529,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         resolve_type(function.return_type, no_type_parameters, &class_arities);
     return constant::evaluate_statements(
         function.body, return_type.concrete, std::move(locals), local_resolver,
-        {}, evaluate_constant_function);
+        constant_constructor_resolver, evaluate_constant_function);
   };
   evaluate_global = [&](const std::string &key) -> const constant::Value & {
     const ConstantState state = constant_states[key];
@@ -1491,18 +1586,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     };
     constant::Value value = constant::evaluate(
         *global.declaration.initializer, resolved.symbol.type.concrete,
-        resolver, {}, evaluate_constant_function);
+        resolver, constant_constructor_resolver, evaluate_constant_function);
     constant_states[key] = ConstantState::Complete;
     auto [iterator, inserted] = constant_values.emplace(key, std::move(value));
     static_cast<void>(inserted);
     result.global_constant_values.insert_or_assign(key, iterator->second);
     return iterator->second;
   };
-  for (const ast::GlobalDeclaration *global : initialization_plan.constants)
-    if (globals.at(global_key(global->module_name, global->declaration.name))
-            .symbol.type.concrete != nullptr)
+  for (const ast::GlobalDeclaration *global : initialization_plan.constants) {
+    const ResolvedGlobal &resolved =
+        globals.at(global_key(global->module_name, global->declaration.name));
+    if (global->declaration.is_constant || resolved.symbol.type.concrete != nullptr)
       static_cast<void>(evaluate_global(
           global_key(global->module_name, global->declaration.name)));
+  }
 
   for (const ast::Program::StaticAssertion &assertion :
        program.static_assertions) {
@@ -1522,7 +1619,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               return std::nullopt;
             return evaluate_global(key);
           },
-          {}, evaluate_constant_function);
+          constant_constructor_resolver, evaluate_constant_function);
       if (!std::get<bool>(condition.data))
         throw CompileError{assertion.location,
                            "static assertion failed" +

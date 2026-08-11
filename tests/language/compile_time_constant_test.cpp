@@ -181,6 +181,34 @@ def main() : int { return if x == 16777216.0f { 0 } else { 1 } }
       "const safe : int = if true { 42 } else { 1 / 0 }\n"
       "staticAssert(safe == 42)\ndef main() : int { return 0 }"};
   static_cast<void>(analyzer.analyze(dead_branch_parser.parse_program()));
+
+  janus::frontend::Parser match_parser{R"(
+enum Option[T] { Some(T), None }
+const selected : Option[int] = Option.Some[int](42)
+const answer : int = match selected {
+    Some(value) => value,
+    None => 1 / 0
+}
+staticAssert(answer == 42)
+def main() : int { return answer }
+)"};
+  const janus::ast::Program match_program = match_parser.parse_program();
+  const janus::semantic::AnalysisResult match_analysis =
+      analyzer.analyze(match_program);
+  expect(match_analysis.global_constant_values.contains("selected"),
+         "analysis evaluates enum constants through constructor resolution");
+  expect(match_analysis.global_constant_values.contains("answer"),
+         "analysis evaluates constant match payload bindings");
+  llvm::LLVMContext match_context;
+  janus::backend::llvm::IrGenerator match_generator{match_context};
+  const std::unique_ptr<llvm::Module> match_module =
+      match_generator.generate(match_program, "constant_match");
+  std::string match_ir;
+  llvm::raw_string_ostream match_output{match_ir};
+  match_module->print(match_output, nullptr);
+  match_output.flush();
+  expect(match_ir.find("ret i32 42") != std::string::npos,
+         "backend folds the selected match arm and does not evaluate dead arms");
   expect_compile_error(
       "def runtime() : bool { return true }\nstaticAssert(runtime())\n"
       "def main() : int { return 0 }",
