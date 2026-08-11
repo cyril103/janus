@@ -182,7 +182,7 @@ struct Expression {
 
 struct ValueDeclaration {
   std::string name;
-  TypeReference declared_type;
+  std::optional<TypeReference> declared_type;
   bool is_mutable;
   std::optional<Expression> initializer;
   SourceLocation location;

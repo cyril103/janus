@@ -38,6 +38,28 @@ var count : int = 0
 count = count + 1
 ```
 
+Dans une fonction, une déclaration initialisée peut omettre son annotation
+lorsque l'initialiseur détermine un type unique :
+
+```janus
+val result = compute()
+var state = 0
+val resource = new Resource()
+```
+
+La grammaire des déclarations locales est
+`("borrow"? ("val" | "var") identifier (":" type)? "=" expression)` ou,
+uniquement pour une `var` annotée, `("var" identifier ":" type)`. Le type
+inféré d'une `var` est fixé à sa déclaration ; une affectation ne le modifie
+jamais. Les littéraux entiers, réels et caractères gardent respectivement les
+types par défaut `int`, `double` et `char`.
+
+L'annotation reste obligatoire pour les globales, champs, paramètres et types
+de retour. Elle est également nécessaire pour `null()` sans argument de type,
+une collection vide sans type d'élément, des branches incompatibles ou un
+générique dont tous les paramètres ne sont pas contraints. Le diagnostic
+`cannot infer type of 'name'` propose alors d'ajouter une annotation.
+
 Une `var` peut être déclarée sans valeur, mais elle doit être initialisée avant
 sa première lecture :
 
@@ -47,7 +69,7 @@ result = 42
 ```
 
 `val` et `var` peuvent aussi être déclarées au niveau du module. Une globale
-doit toujours avoir un initialiseur :
+doit toujours avoir un type explicite et un initialiseur :
 
 ```janus
 val answer : int = 42

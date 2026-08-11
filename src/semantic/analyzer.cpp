@@ -753,7 +753,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     check_function_signature_visibility(function, function.module_name);
   for (const ast::GlobalDeclaration &global : program.globals)
     check_type_visibility(check_type_visibility,
-                          global.declaration.declared_type, global.module_name);
+                          *global.declaration.declared_type, global.module_name);
   for (const ast::EnumDeclaration &declaration : program.enums)
     for (const ast::EnumDeclaration::Case &enum_case : declaration.cases)
       for (const ast::TypeReference &payload : enum_case.payload_types)
@@ -771,10 +771,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       check_type_visibility(check_type_visibility, parameter.type,
                             declaration.module_name);
     for (const ast::ValueDeclaration &field : declaration.constructor_fields)
-      check_type_visibility(check_type_visibility, field.declared_type,
+      check_type_visibility(check_type_visibility, *field.declared_type,
                             declaration.module_name);
     for (const ast::ValueDeclaration &field : declaration.fields)
-      check_type_visibility(check_type_visibility, field.declared_type,
+      check_type_visibility(check_type_visibility, *field.declared_type,
                             declaration.module_name);
     for (const ast::FunctionDeclaration &method : declaration.methods)
       check_function_signature_visibility(method, declaration.module_name);
@@ -859,7 +859,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       for (const ast::ValueDeclaration &field :
            declaration.constructor_fields) {
         SemanticType field_type =
-            resolve_type(field.declared_type, parameters, &class_arities);
+            resolve_type(*field.declared_type, parameters, &class_arities);
         visit(substitute(std::move(field_type), substitutions));
       }
       return;
@@ -923,7 +923,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       for (const ast::ValueDeclaration &field :
            declaration.constructor_fields) {
         const SemanticType field_type =
-            resolve_type(field.declared_type, parameters, &class_arities);
+            resolve_type(*field.declared_type, parameters, &class_arities);
         if (aggregate_owns_value(field_type)) {
           const auto copy = std::find_if(
               declaration.derivations.begin(), declaration.derivations.end(),
@@ -948,7 +948,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       if (field.is_borrowed)
         return;
       const SemanticType field_type =
-          resolve_type(field.declared_type, parameters, &class_arities);
+          resolve_type(*field.declared_type, parameters, &class_arities);
       if (!aggregate_owns_value(field_type))
         return;
       result.diagnostics.push_back(Diagnostic{
@@ -994,7 +994,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (field.is_borrowed)
           continue;
         SemanticType field_type =
-            resolve_type(field.declared_type, parameters, &class_arities);
+            resolve_type(*field.declared_type, parameters, &class_arities);
         self(self, substitute(std::move(field_type), substitutions), targets,
              visiting);
       }
@@ -1029,7 +1029,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       if (field.is_borrowed)
         return;
       const SemanticType field_type =
-          resolve_type(field.declared_type, parameters, &class_arities);
+          resolve_type(*field.declared_type, parameters, &class_arities);
       std::unordered_set<std::string> visiting;
       collect_owned_classes(collect_owned_classes, field_type, targets,
                             visiting);
@@ -1106,7 +1106,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             declaration.type_parameters.begin(),
             declaration.type_parameters.end()};
         for (const ast::ValueDeclaration &field : fields) {
-          const ast::TypeReference &type = field.declared_type;
+          const ast::TypeReference &type = *field.declared_type;
           bool supported = builtin_type(type.name) != nullptr ||
                            parameters.contains(type.name);
           if (type.name == "Ptr" || type.name == "Function")
@@ -1200,7 +1200,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     if (global.module_name.has_value())
       global_modules.insert(*global.module_name);
-    const SemanticType type = resolve_type(declaration.declared_type,
+    const SemanticType type = resolve_type(*declaration.declared_type,
                                            no_type_parameters, &class_arities);
     if (type.is_concrete() && type.concrete->kind() == TypeKind::Unit)
       throw CompileError{declaration.location,
@@ -1498,7 +1498,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                field.name +
                                                "' is already declared"};
       const SemanticType field_type =
-          resolve_type(field.declared_type, parameters, &class_arities);
+          resolve_type(*field.declared_type, parameters, &class_arities);
       if (field_type.is_concrete() &&
           field_type.concrete->kind() == TypeKind::Unit)
         throw CompileError{field.location,
@@ -1506,7 +1506,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     for (const ast::ValueDeclaration &field : class_declaration.fields) {
       const SemanticType field_type =
-          resolve_type(field.declared_type, parameters, &class_arities);
+          resolve_type(*field.declared_type, parameters, &class_arities);
       if (field_type.is_concrete() &&
           field_type.concrete->kind() == TypeKind::Unit)
         throw CompileError{field.location,
@@ -1816,7 +1816,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         owner_field_names.insert(field.name);
         symbols.emplace(
             field.name,
-            Symbol{resolve_type(field.declared_type, type_parameters,
+            Symbol{resolve_type(*field.declared_type, type_parameters,
                                 &class_arities, context_module,
                                 &scoped_type_aliases),
                    field.is_mutable, true});
@@ -1825,7 +1825,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         owner_field_names.insert(field.name);
         symbols.emplace(
             field.name,
-            Symbol{resolve_type(field.declared_type, type_parameters,
+            Symbol{resolve_type(*field.declared_type, type_parameters,
                                 &class_arities, context_module,
                                 &scoped_type_aliases),
                    field.is_mutable, field.initializer.has_value()});
@@ -1992,7 +1992,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               for (const ast::ValueDeclaration &field :
                    declaration.constructor_fields) {
                 SemanticType field_type = resolve_type(
-                    field.declared_type, parameters, &class_arities);
+                    *field.declared_type, parameters, &class_arities);
                 visit(substitute(std::move(field_type), substitutions));
               }
               return;
@@ -2049,7 +2049,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               declaration.type_parameters.end()};
           const auto check_field = [&](const ast::ValueDeclaration &field) {
             SemanticType field_type =
-                resolve_type(field.declared_type, parameters, &class_arities);
+                resolve_type(*field.declared_type, parameters, &class_arities);
             return self(self, substitute(std::move(field_type), substitutions));
           };
           for (const ast::ValueDeclaration &field :
@@ -2205,6 +2205,54 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::function<void(const ast::Expression &, const SemanticType &,
                        SourceLocation)>
         validate_expression;
+    const ast::Expression *contextual_expression = nullptr;
+    const SemanticType *contextual_expected_type = nullptr;
+    const auto speculative_expression_type = [&](const ast::Expression &value) {
+      SymbolTable *const active_symbols_before = active_symbols;
+      const SymbolTable symbols_before = *active_symbols_before;
+      const auto *const active_type_parameters_before = active_type_parameters;
+      const auto *const active_type_substitutions_before =
+          active_type_substitutions;
+      auto *const active_lambda_captures_before = active_lambda_captures;
+      const std::optional<std::string> context_module_before = context_module;
+      const std::size_t diagnostics_before = result.diagnostics.size();
+      const auto warned_leaks_before = warned_leak_locations;
+      const auto warned_returns_before = warned_unannotated_return_locations;
+      const auto used_locals_before = used_local_declarations;
+      const auto captures_before = lambda_captures;
+      const auto lambda_locations_before = local_lambda_locations;
+      const auto inferred_calls_before = result.inferred_generic_arguments;
+      const std::optional<std::unordered_set<std::string>> active_captures_before =
+          active_lambda_captures_before == nullptr
+              ? std::nullopt
+              : std::optional<std::unordered_set<std::string>>{
+                    *active_lambda_captures_before};
+      const auto restore = [&] {
+        active_symbols = active_symbols_before;
+        *active_symbols_before = symbols_before;
+        active_type_parameters = active_type_parameters_before;
+        active_type_substitutions = active_type_substitutions_before;
+        active_lambda_captures = active_lambda_captures_before;
+        context_module = context_module_before;
+        result.diagnostics.resize(diagnostics_before);
+        warned_leak_locations = warned_leaks_before;
+        warned_unannotated_return_locations = warned_returns_before;
+        used_local_declarations = used_locals_before;
+        lambda_captures = captures_before;
+        local_lambda_locations = lambda_locations_before;
+        result.inferred_generic_arguments = inferred_calls_before;
+        if (active_captures_before.has_value())
+          *active_lambda_captures_before = *active_captures_before;
+      };
+      try {
+        SemanticType candidate = expression_type(value);
+        restore();
+        return candidate;
+      } catch (...) {
+        restore();
+        throw;
+      }
+    };
     const auto is_borrowed_pointer_expression =
         [&](const ast::Expression &expression) {
           if (const auto *identifier =
@@ -2309,8 +2357,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         [&](const ast::FunctionDeclaration &callee,
             const std::vector<ast::TypeReference> &type_arguments,
             const std::vector<std::unique_ptr<ast::Expression>> &arguments,
-            SourceLocation location, std::string_view display_name) {
-          if (type_arguments.size() != callee.type_parameters.size())
+            SourceLocation location, std::string_view display_name,
+            const ast::Expression *expression_key) {
+          const bool infer_type_arguments = type_arguments.empty() &&
+                                            !callee.type_parameters.empty();
+          if (!infer_type_arguments &&
+              type_arguments.size() != callee.type_parameters.size())
             throw CompileError{
                 location, "function '" + std::string{display_name} +
                               "' expects " +
@@ -2336,6 +2388,66 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                &class_arities));
           const std::unordered_set<std::string> callee_parameters{
               callee.type_parameters.begin(), callee.type_parameters.end()};
+          if (infer_type_arguments) {
+            const auto infer_from_type = [&](const auto &self,
+                                             const SemanticType &pattern,
+                                             const SemanticType &candidate)
+                -> void {
+              const bool type_parameter =
+                  !pattern.is_concrete() && !pattern.is_class() &&
+                  !pattern.is_pointer() && !pattern.is_enum() &&
+                  !pattern.is_function() &&
+                  callee_parameters.contains(pattern.parameter);
+              if (type_parameter) {
+                const auto [existing, inserted] =
+                    substitutions.emplace(pattern.parameter, candidate);
+                if (!inserted && !same_type(existing->second, candidate))
+                  throw CompileError{
+                      location, "generic type parameter '" + pattern.parameter +
+                                    "' has incompatible argument types"};
+                return;
+              }
+              const bool same_outer_type =
+                  pattern.concrete == candidate.concrete &&
+                  pattern.parameter == candidate.parameter &&
+                  pattern.class_type == candidate.class_type &&
+                  pattern.pointer_type == candidate.pointer_type &&
+                  pattern.enum_type == candidate.enum_type &&
+                  pattern.function_type == candidate.function_type &&
+                  pattern.type_arguments.size() ==
+                      candidate.type_arguments.size();
+              if (!same_outer_type)
+                return;
+              for (std::size_t index = 0;
+                   index < pattern.type_arguments.size(); ++index)
+                self(self, pattern.type_arguments[index],
+                     candidate.type_arguments[index]);
+            };
+            for (std::size_t index = 0;
+                 index < arguments.size() && index < callee.parameters.size();
+                 ++index) {
+              const SemanticType pattern =
+                  resolve_type(callee.parameters[index].type, callee_parameters,
+                               &class_arities);
+              const SemanticType candidate =
+                  speculative_expression_type(*arguments[index]);
+              infer_from_type(infer_from_type, pattern, candidate);
+            }
+            if (contextual_expression == expression_key &&
+                contextual_expected_type != nullptr) {
+              const SemanticType return_pattern =
+                  resolve_type(callee.return_type, callee_parameters,
+                               &class_arities);
+              infer_from_type(infer_from_type, return_pattern,
+                              *contextual_expected_type);
+            }
+            for (const std::string &parameter : callee.type_parameters)
+              if (!substitutions.contains(parameter))
+                throw CompileError{
+                    location, "generic type parameter '" + parameter +
+                                  "' is not constrained by call arguments; "
+                                  "help: add explicit type arguments"};
+          }
           for (const ast::TypeConstraint &constraint :
                callee.type_constraints) {
             const SemanticType &candidate =
@@ -2421,9 +2533,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 previous_contextual_borrow_expression;
             contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
           }
-          return substitute(resolve_type(callee.return_type, callee_parameters,
-                                         &class_arities),
-                            substitutions);
+          if (infer_type_arguments) {
+            std::vector<SemanticType> inferred;
+            inferred.reserve(callee.type_parameters.size());
+            for (const std::string &parameter : callee.type_parameters)
+              inferred.push_back(substitutions.at(parameter));
+            result.inferred_generic_arguments.insert_or_assign(
+                expression_key, std::move(inferred));
+          }
+          SemanticType call_return =
+              substitute(resolve_type(callee.return_type, callee_parameters,
+                                      &class_arities),
+                         substitutions);
+          if (callee.is_external && call_return.is_pointer() &&
+              callee.return_ownership == ast::ReturnOwnership::Unspecified &&
+              warned_unannotated_return_locations.insert(location.offset).second)
+            emit_warning(
+                DiagnosticCode::AnalyzerUnannotatedExternReturn, location,
+                "external function '" + std::string{display_name} +
+                    "' returns a pointer without a borrow or owned ownership "
+                    "qualifier",
+                {"declare this external return as borrow or owned"});
+          return call_return;
         };
     const auto class_substitutions =
         [](const ast::ClassDeclaration &class_declaration,
@@ -2451,7 +2582,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         }
       }
 
-      const SemanticType actual = expression_type(expression);
+      const ast::Expression *previous_contextual_expression =
+          contextual_expression;
+      const SemanticType *previous_contextual_expected_type =
+          contextual_expected_type;
+      contextual_expression = &expression;
+      contextual_expected_type = &expected;
+      SemanticType actual;
+      try {
+        actual = expression_type(expression);
+      } catch (...) {
+        contextual_expression = previous_contextual_expression;
+        contextual_expected_type = previous_contextual_expected_type;
+        throw;
+      }
+      contextual_expression = previous_contextual_expression;
+      contextual_expected_type = previous_contextual_expected_type;
       if (same_type(actual, expected)) {
         if (contextual_borrow_expression && aggregate_owns_value(actual) &&
             !std::holds_alternative<ast::IdentifierExpression>(
@@ -2507,7 +2653,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             }
           }
 
-          const SemanticType actual = expression_type(expression);
+          const ast::Expression *previous_contextual_expression =
+              contextual_expression;
+          const SemanticType *previous_contextual_expected_type =
+              contextual_expected_type;
+          contextual_expression = &expression;
+          contextual_expected_type = &return_type;
+          SemanticType actual;
+          try {
+            actual = expression_type(expression);
+          } catch (...) {
+            contextual_expression = previous_contextual_expression;
+            contextual_expected_type = previous_contextual_expected_type;
+            throw;
+          }
+          contextual_expression = previous_contextual_expression;
+          contextual_expected_type = previous_contextual_expected_type;
           if (same_type(actual, return_type)) {
             if ((actual.is_enum() ||
                  (actual.is_class() &&
@@ -3276,146 +3437,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 throw CompileError{node.location,
                                    "function '" + node.callee +
                                        "' is not imported in this module"};
-              if (node.type_arguments.size() != callee.type_parameters.size()) {
-                throw CompileError{
-                    node.location,
-                    "function '" + node.callee + "' expects " +
-                        std::to_string(callee.type_parameters.size()) +
-                        " type argument(s), got " +
-                        std::to_string(node.type_arguments.size())};
-              }
-              if ((!callee.is_variadic &&
-                   node.arguments.size() != callee.parameters.size()) ||
-                  (callee.is_variadic &&
-                   node.arguments.size() < callee.parameters.size())) {
-                throw CompileError{
-                    node.location,
-                    "function '" + node.callee + "' expects " +
-                        (callee.is_variadic ? "at least " : "") +
-                        std::to_string(callee.parameters.size()) +
-                        " argument(s), got " +
-                        std::to_string(node.arguments.size())};
-              }
-
-              std::unordered_map<std::string, SemanticType> substitutions;
-              for (std::size_t index = 0; index < node.type_arguments.size();
-                   ++index) {
-                substitutions.emplace(callee.type_parameters[index],
-                                      resolve_type(node.type_arguments[index],
-                                                   type_parameters,
-                                                   &class_arities));
-              }
-              const std::unordered_set<std::string> callee_parameters{
-                  callee.type_parameters.begin(), callee.type_parameters.end()};
-              for (const ast::TypeConstraint &constraint :
-                   callee.type_constraints) {
-                const SemanticType &candidate =
-                    substitutions.at(constraint.parameter);
-                if (const auto kind =
-                        derivation_constraint(constraint.trait.name);
-                    kind.has_value() &&
-                    constraint.trait.type_arguments.empty()) {
-                  const bool satisfies =
-                      *kind == ast::DerivationKind::Copy
-                          ? satisfies_copy(candidate)
-                          : supports_derivation(candidate, *kind);
-                  if (!satisfies)
-                    throw CompileError{node.location,
-                                       "type '" + candidate.name() +
-                                           "' does not satisfy constraint '" +
-                                           constraint.trait.name +
-                                           "' for type "
-                                           "parameter '" +
-                                           constraint.parameter + "'"};
-                  continue;
-                }
-                TraitInstance requirement =
-                    resolve_trait(constraint.trait, callee_parameters);
-                for (SemanticType &argument : requirement.type_arguments)
-                  argument = substitute(std::move(argument), substitutions);
-                if (!satisfies_active_trait(candidate, requirement))
-                  throw CompileError{node.location,
-                                     "type '" + candidate.name() +
-                                         "' does not satisfy constraint '" +
-                                         requirement.declaration->name +
-                                         "' for type parameter '" +
-                                         constraint.parameter + "'"};
-              }
-              for (std::size_t index = 0; index < node.arguments.size();
-                   ++index) {
-                if (index >= callee.parameters.size()) {
-                  const SemanticType argument_type =
-                      expression_type(*node.arguments[index]);
-                  if (!is_c_variadic_type(argument_type))
-                    throw CompileError{
-                        expression_location(*node.arguments[index]),
-                        "variadic C argument has incompatible type '" +
-                            argument_type.name() + "'"};
-                  if (callee.is_external &&
-                      !is_borrowed_pointer_expression(*node.arguments[index]) &&
-                      (argument_type.is_pointer() ||
-                       potentially_owns_value(argument_type)))
-                    emit_warning(
-                        DiagnosticCode::AnalyzerUnannotatedExternOwnership,
-                        expression_location(*node.arguments[index]),
-                        "external variadic call receives value of type '" +
-                            argument_type.name() +
-                            "' without a verifiable ownership contract",
-                        {"document whether native code borrows, retains, or "
-                         "releases this value"});
-                  continue;
-                }
-                SemanticType expected =
-                    resolve_type(callee.parameters[index].type,
-                                 callee_parameters, &class_arities);
-                expected = substitute(std::move(expected), substitutions);
-                const bool observes_owned_enum =
-                    index == 0 &&
-                    ((callee.module_name ==
-                          std::optional<std::string>{"std.option"} &&
-                      (callee.name == "isSome" || callee.name == "isNone")) ||
-                     (callee.module_name ==
-                          std::optional<std::string>{"std.result"} &&
-                      (callee.name == "isOk" || callee.name == "isError")));
-                const bool previous_contextual_borrow_expression =
-                    contextual_borrow_expression;
-                const std::string_view previous_contextual_borrow_enum_name =
-                    contextual_borrow_enum_name;
-                contextual_borrow_expression = observes_owned_enum;
-                contextual_borrow_enum_name =
-                    callee.module_name ==
-                            std::optional<std::string>{"std.option"}
-                        ? "Option"
-                        : "Result";
-                validate_expression(
-                    *node.arguments[index], expected,
-                    expression_location(*node.arguments[index]));
-                apply_external_ownership_contract(
-                    callee, callee.parameters[index], *node.arguments[index],
-                    expected, node.callee);
-                contextual_borrow_expression =
-                    previous_contextual_borrow_expression;
-                contextual_borrow_enum_name =
-                    previous_contextual_borrow_enum_name;
-              }
-              SemanticType call_return =
-                  substitute(resolve_type(callee.return_type, callee_parameters,
-                                          &class_arities),
-                             substitutions);
-              if (callee.is_external && call_return.is_pointer() &&
-                  callee.return_ownership ==
-                      ast::ReturnOwnership::Unspecified &&
-                  warned_unannotated_return_locations
-                      .insert(node.location.offset)
-                      .second)
-                emit_warning(
-                    DiagnosticCode::AnalyzerUnannotatedExternReturn,
-                    node.location,
-                    "external function '" + node.callee +
-                        "' returns a pointer without a borrow or owned "
-                        "ownership qualifier",
-                    {"declare this external return as borrow or owned"});
-              return call_return;
+              return declared_call_type(callee, node.type_arguments,
+                                        node.arguments, node.location,
+                                        node.callee, &expression);
             } else if constexpr (std::is_same_v<Node, ast::NewExpression>) {
               const auto iterator =
                   find_in_context(classes, context_module, node.class_name);
@@ -3428,11 +3452,113 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   class_declaration.module_name != context_module)
                 throw CompileError{node.location,
                                    "type '" + node.class_name + "' is private"};
-              SemanticType instance_type = resolve_type(
-                  ast::TypeReference{node.class_name, node.location,
-                                     node.type_arguments},
-                  *active_type_parameters, &class_arities, context_module,
-                  &scoped_type_aliases);
+              const std::size_t parameter_count =
+                  class_declaration.constructor_parameters.size();
+              const std::size_t field_count =
+                  class_declaration.constructor_fields.size();
+              if (node.arguments.size() != parameter_count + field_count)
+                throw CompileError{
+                    node.location,
+                    "constructor '" + node.class_name + "' expects " +
+                        std::to_string(parameter_count + field_count) +
+                        " argument(s), got " +
+                        std::to_string(node.arguments.size())};
+              const std::unordered_set<std::string> class_parameters{
+                  class_declaration.type_parameters.begin(),
+                  class_declaration.type_parameters.end()};
+              const bool infer_type_arguments = node.type_arguments.empty() &&
+                                                !class_parameters.empty();
+              SemanticType instance_type;
+              if (infer_type_arguments) {
+                std::vector<ast::TypeReference> symbolic_arguments;
+                symbolic_arguments.reserve(class_declaration.type_parameters.size());
+                for (const std::string &parameter :
+                     class_declaration.type_parameters)
+                  symbolic_arguments.push_back(
+                      ast::TypeReference{parameter, node.location, {}});
+                const SemanticType instance_pattern = resolve_type(
+                    ast::TypeReference{node.class_name, node.location,
+                                       std::move(symbolic_arguments)},
+                    class_parameters, &class_arities, context_module,
+                    &scoped_type_aliases);
+                std::unordered_map<std::string, SemanticType> inferred;
+                const auto infer_from_type = [&](const auto &self,
+                                                 const SemanticType &pattern,
+                                                 const SemanticType &candidate)
+                    -> void {
+                  const bool type_parameter =
+                      !pattern.is_concrete() && !pattern.is_class() &&
+                      !pattern.is_pointer() && !pattern.is_enum() &&
+                      !pattern.is_function() &&
+                      class_parameters.contains(pattern.parameter);
+                  if (type_parameter) {
+                    const auto [existing, inserted] =
+                        inferred.emplace(pattern.parameter, candidate);
+                    if (!inserted && !same_type(existing->second, candidate))
+                      throw CompileError{
+                          node.location,
+                          "generic type parameter '" + pattern.parameter +
+                              "' has incompatible argument types"};
+                    return;
+                  }
+                  const bool same_outer_type =
+                      pattern.concrete == candidate.concrete &&
+                      pattern.parameter == candidate.parameter &&
+                      pattern.class_type == candidate.class_type &&
+                      pattern.pointer_type == candidate.pointer_type &&
+                      pattern.enum_type == candidate.enum_type &&
+                      pattern.function_type == candidate.function_type &&
+                      pattern.type_arguments.size() ==
+                          candidate.type_arguments.size();
+                  if (!same_outer_type)
+                    return;
+                  for (std::size_t index = 0;
+                       index < pattern.type_arguments.size(); ++index)
+                    self(self, pattern.type_arguments[index],
+                         candidate.type_arguments[index]);
+                };
+                for (std::size_t index = 0; index < node.arguments.size();
+                     ++index) {
+                  const ast::TypeReference &reference =
+                      index < parameter_count
+                          ? class_declaration.constructor_parameters[index].type
+                          : *class_declaration
+                                 .constructor_fields[index - parameter_count]
+                                 .declared_type;
+                  const SemanticType pattern = resolve_type(
+                      reference, class_parameters, &class_arities);
+                  const SemanticType candidate =
+                      speculative_expression_type(*node.arguments[index]);
+                  infer_from_type(infer_from_type, pattern, candidate);
+                }
+                if (contextual_expression == &expression &&
+                    contextual_expected_type != nullptr)
+                  infer_from_type(infer_from_type, instance_pattern,
+                                  *contextual_expected_type);
+                std::vector<SemanticType> ordered_arguments;
+                ordered_arguments.reserve(
+                    class_declaration.type_parameters.size());
+                for (const std::string &parameter :
+                     class_declaration.type_parameters) {
+                  const auto argument = inferred.find(parameter);
+                  if (argument == inferred.end())
+                    throw CompileError{
+                        node.location,
+                        "generic type parameter '" + parameter +
+                            "' is not constrained by constructor arguments or "
+                            "context; help: add explicit type arguments"};
+                  ordered_arguments.push_back(argument->second);
+                }
+                result.inferred_generic_arguments.insert_or_assign(
+                    &expression, ordered_arguments);
+                instance_type = substitute(instance_pattern, inferred);
+              } else {
+                instance_type = resolve_type(
+                    ast::TypeReference{node.class_name, node.location,
+                                       node.type_arguments},
+                    *active_type_parameters, &class_arities, context_module,
+                    &scoped_type_aliases);
+              }
               if (active_type_substitutions != nullptr)
                 instance_type = substitute(std::move(instance_type),
                                            *active_type_substitutions);
@@ -3449,9 +3575,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "DerivedHashing requires a type that derives Hashing; '" +
                           candidate.name() + "' does not"};
               }
-              const std::unordered_set<std::string> class_parameters{
-                  class_declaration.type_parameters.begin(),
-                  class_declaration.type_parameters.end()};
               for (const ast::TypeConstraint &constraint :
                    class_declaration.type_constraints) {
                 const SemanticType &candidate =
@@ -3486,17 +3609,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          "' for type parameter '" +
                                          constraint.parameter + "'"};
               }
-              const std::size_t parameter_count =
-                  class_declaration.constructor_parameters.size();
-              const std::size_t field_count =
-                  class_declaration.constructor_fields.size();
-              if (node.arguments.size() != parameter_count + field_count)
-                throw CompileError{
-                    node.location,
-                    "constructor '" + node.class_name + "' expects " +
-                        std::to_string(parameter_count + field_count) +
-                        " argument(s), got " +
-                        std::to_string(node.arguments.size())};
               SymbolTable initializer_symbols;
               for (std::size_t index = 0; index < parameter_count; ++index) {
                 const auto &parameter =
@@ -3514,7 +3626,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               for (std::size_t index = 0; index < field_count; ++index) {
                 const auto &field = class_declaration.constructor_fields[index];
                 const SemanticType field_type = resolve_type(
-                    field.declared_type, class_parameters, &class_arities);
+                    *field.declared_type, class_parameters, &class_arities);
                 const SemanticType concrete_field_type =
                     substitute(field_type, substitutions);
                 const ast::Expression &argument =
@@ -3550,7 +3662,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               for (const ast::ValueDeclaration &field :
                    class_declaration.fields) {
                 SemanticType field_type = resolve_type(
-                    field.declared_type, class_parameters, &class_arities,
+                    *field.declared_type, class_parameters, &class_arities,
                     context_module, &scoped_type_aliases);
                 field_type = substitute(std::move(field_type), substitutions);
                 if (field.initializer.has_value())
@@ -3661,7 +3773,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "field '" + node.member + "' is internal to module '" +
                             class_declaration.module_name.value_or("<entry>") +
                             "'"};
-                  return substitute(resolve_type(field.declared_type,
+                  return substitute(resolve_type(*field.declared_type,
                                                  class_parameters,
                                                  &class_arities),
                                     substitutions);
@@ -3683,7 +3795,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "field '" + node.member + "' is internal to module '" +
                             class_declaration.module_name.value_or("<entry>") +
                             "'"};
-                  return substitute(resolve_type(field.declared_type,
+                  return substitute(resolve_type(*field.declared_type,
                                                  class_parameters,
                                                  &class_arities),
                                     substitutions);
@@ -3714,7 +3826,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                            "' is not imported in this module"};
                   return declared_call_type(*function->second,
                                             node.type_arguments, node.arguments,
-                                            node.location, qualified);
+                                            node.location, qualified,
+                                            &expression);
                 }
               }
               const auto enum_name = qualified_expression_name(*node.object);
@@ -3732,10 +3845,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     enum_declaration.module_name != context_module)
                   throw CompileError{node.location,
                                      "type '" + *enum_name + "' is private"};
-                const SemanticType instance_type =
-                    resolve_type(ast::TypeReference{*enum_name, node.location,
-                                                    node.type_arguments},
-                                 *active_type_parameters, &class_arities);
                 const auto enum_case =
                     std::find_if(enum_declaration.cases.begin(),
                                  enum_declaration.cases.end(),
@@ -3754,14 +3863,110 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           std::to_string(enum_case->payload_types.size()) +
                           " argument(s), got " +
                           std::to_string(node.arguments.size())};
-                std::unordered_map<std::string, SemanticType> substitutions;
-                for (std::size_t index = 0;
-                     index < enum_declaration.type_parameters.size(); ++index)
-                  substitutions.emplace(enum_declaration.type_parameters[index],
-                                        instance_type.type_arguments[index]);
                 const std::unordered_set<std::string> enum_parameters{
                     enum_declaration.type_parameters.begin(),
                     enum_declaration.type_parameters.end()};
+                const bool infer_type_arguments = node.type_arguments.empty() &&
+                                                  !enum_parameters.empty();
+                SemanticType instance_type;
+                std::unordered_map<std::string, SemanticType> substitutions;
+                if (infer_type_arguments) {
+                  std::vector<ast::TypeReference> symbolic_arguments;
+                  symbolic_arguments.reserve(
+                      enum_declaration.type_parameters.size());
+                  for (const std::string &parameter :
+                       enum_declaration.type_parameters)
+                    symbolic_arguments.push_back(
+                        ast::TypeReference{parameter, node.location, {}});
+                  const SemanticType instance_pattern = resolve_type(
+                      ast::TypeReference{*enum_name, node.location,
+                                         std::move(symbolic_arguments)},
+                      enum_parameters, &class_arities, context_module,
+                      &scoped_type_aliases);
+                  const auto infer_from_type = [&](const auto &self,
+                                                   const SemanticType &pattern,
+                                                   const SemanticType &candidate)
+                      -> void {
+                    const bool type_parameter =
+                        !pattern.is_concrete() && !pattern.is_class() &&
+                        !pattern.is_pointer() && !pattern.is_enum() &&
+                        !pattern.is_function() &&
+                        enum_parameters.contains(pattern.parameter);
+                    if (type_parameter) {
+                      const auto [existing, inserted] =
+                          substitutions.emplace(pattern.parameter, candidate);
+                      if (!inserted && !same_type(existing->second, candidate))
+                        throw CompileError{
+                            node.location,
+                            "generic type parameter '" + pattern.parameter +
+                                "' has incompatible argument types"};
+                      return;
+                    }
+                    const bool same_outer_type =
+                        pattern.concrete == candidate.concrete &&
+                        pattern.parameter == candidate.parameter &&
+                        pattern.class_type == candidate.class_type &&
+                        pattern.pointer_type == candidate.pointer_type &&
+                        pattern.enum_type == candidate.enum_type &&
+                        pattern.function_type == candidate.function_type &&
+                        pattern.type_arguments.size() ==
+                            candidate.type_arguments.size();
+                    if (!same_outer_type)
+                      return;
+                    for (std::size_t index = 0;
+                         index < pattern.type_arguments.size(); ++index)
+                      self(self, pattern.type_arguments[index],
+                           candidate.type_arguments[index]);
+                  };
+                  for (std::size_t index = 0; index < node.arguments.size();
+                       ++index) {
+                    const SemanticType pattern = resolve_type(
+                        enum_case->payload_types[index], enum_parameters,
+                        &class_arities);
+                    const SemanticType candidate =
+                        speculative_expression_type(*node.arguments[index]);
+                    infer_from_type(infer_from_type, pattern, candidate);
+                  }
+                  if (contextual_expression == &expression &&
+                      contextual_expected_type != nullptr)
+                    infer_from_type(infer_from_type, instance_pattern,
+                                    *contextual_expected_type);
+                  std::vector<SemanticType> ordered_arguments;
+                  ordered_arguments.reserve(
+                      enum_declaration.type_parameters.size());
+                  for (const std::string &parameter :
+                       enum_declaration.type_parameters) {
+                    const auto argument = substitutions.find(parameter);
+                    if (argument == substitutions.end())
+                      throw CompileError{
+                          node.location,
+                          "generic type parameter '" + parameter +
+                              "' is not constrained by enum payloads or "
+                              "context; help: add explicit type arguments"};
+                    ordered_arguments.push_back(argument->second);
+                  }
+                  result.inferred_generic_arguments.insert_or_assign(
+                      &expression, ordered_arguments);
+                  instance_type = substitute(instance_pattern, substitutions);
+                } else {
+                  instance_type = resolve_type(
+                      ast::TypeReference{*enum_name, node.location,
+                                         node.type_arguments},
+                      *active_type_parameters, &class_arities, context_module,
+                      &scoped_type_aliases);
+                  for (std::size_t index = 0;
+                       index < enum_declaration.type_parameters.size(); ++index)
+                    substitutions.emplace(
+                        enum_declaration.type_parameters[index],
+                        instance_type.type_arguments[index]);
+                }
+                if (active_type_substitutions != nullptr) {
+                  instance_type = substitute(std::move(instance_type),
+                                             *active_type_substitutions);
+                  for (auto &[parameter, argument] : substitutions)
+                    argument = substitute(std::move(argument),
+                                          *active_type_substitutions);
+                }
                 for (std::size_t index = 0; index < node.arguments.size();
                      ++index) {
                   SemanticType expected =
@@ -3898,13 +4103,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "method '" + node.method + "' is internal to module '" +
                         class_declaration->module_name.value_or("<entry>") +
                         "'"};
-              if (node.type_arguments.size() != method->type_parameters.size())
+              const bool infer_method_type_arguments =
+                  node.type_arguments.empty() &&
+                  !method->type_parameters.empty();
+              if (!infer_method_type_arguments &&
+                  node.type_arguments.size() != method->type_parameters.size())
                 throw CompileError{
                     node.location,
                     "method '" + node.method + "' expects " +
                         std::to_string(method->type_parameters.size()) +
                         " type argument(s), got " +
                         std::to_string(node.type_arguments.size())};
+              if (node.arguments.size() != method->parameters.size())
+                throw CompileError{
+                    node.location,
+                    "method '" + node.method + "' expects " +
+                        std::to_string(method->parameters.size()) +
+                        " argument(s), got " +
+                        std::to_string(node.arguments.size())};
               if (class_declaration != nullptr &&
                   class_declaration->name == "Array" &&
                   class_declaration->module_name ==
@@ -3954,9 +4170,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "HashMap." + node.method +
                           " requires Copy for every returned element type"};
               }
+              method_parameters.insert(method->type_parameters.begin(),
+                                       method->type_parameters.end());
               for (std::size_t index = 0;
-                   index < method->type_parameters.size(); ++index) {
-                method_parameters.insert(method->type_parameters[index]);
+                   index < node.type_arguments.size(); ++index) {
                 SemanticType argument =
                     resolve_type(node.type_arguments[index],
                                  *active_type_parameters, &class_arities);
@@ -3965,6 +4182,80 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                         *active_type_substitutions);
                 substitutions.emplace(method->type_parameters[index],
                                       std::move(argument));
+              }
+              if (infer_method_type_arguments) {
+                const auto infer_from_type = [&](const auto &self,
+                                                 const SemanticType &pattern,
+                                                 const SemanticType &candidate)
+                    -> void {
+                  const bool type_parameter =
+                      !pattern.is_concrete() && !pattern.is_class() &&
+                      !pattern.is_pointer() && !pattern.is_enum() &&
+                      !pattern.is_function() &&
+                      std::find(method->type_parameters.begin(),
+                                method->type_parameters.end(),
+                                pattern.parameter) !=
+                          method->type_parameters.end();
+                  if (type_parameter) {
+                    const auto [existing, inserted] =
+                        substitutions.emplace(pattern.parameter, candidate);
+                    if (!inserted &&
+                        !same_type(existing->second, candidate))
+                      throw CompileError{
+                          node.location,
+                          "generic type parameter '" + pattern.parameter +
+                              "' has incompatible argument types"};
+                    return;
+                  }
+                  const bool same_outer_type =
+                      pattern.concrete == candidate.concrete &&
+                      pattern.parameter == candidate.parameter &&
+                      pattern.class_type == candidate.class_type &&
+                      pattern.pointer_type == candidate.pointer_type &&
+                      pattern.enum_type == candidate.enum_type &&
+                      pattern.function_type == candidate.function_type &&
+                      pattern.type_arguments.size() ==
+                          candidate.type_arguments.size();
+                  if (!same_outer_type)
+                    return;
+                  for (std::size_t index = 0;
+                       index < pattern.type_arguments.size(); ++index)
+                    self(self, pattern.type_arguments[index],
+                         candidate.type_arguments[index]);
+                };
+                for (std::size_t index = 0; index < node.arguments.size();
+                     ++index) {
+                  SemanticType pattern =
+                      resolve_type(method->parameters[index].type,
+                                   method_parameters, &class_arities);
+                  pattern = substitute(std::move(pattern), substitutions);
+                  const SemanticType candidate =
+                      speculative_expression_type(*node.arguments[index]);
+                  infer_from_type(infer_from_type, pattern, candidate);
+                }
+                if (contextual_expression == &expression &&
+                    contextual_expected_type != nullptr) {
+                  SemanticType return_pattern =
+                      resolve_type(method->return_type, method_parameters,
+                                   &class_arities);
+                  return_pattern =
+                      substitute(std::move(return_pattern), substitutions);
+                  infer_from_type(infer_from_type, return_pattern,
+                                  *contextual_expected_type);
+                }
+                std::vector<SemanticType> inferred;
+                inferred.reserve(method->type_parameters.size());
+                for (const std::string &parameter : method->type_parameters) {
+                  if (!substitutions.contains(parameter))
+                    throw CompileError{
+                        node.location,
+                        "generic type parameter '" + parameter +
+                            "' is not constrained by call arguments; help: "
+                            "add explicit type arguments"};
+                  inferred.push_back(substitutions.at(parameter));
+                }
+                result.inferred_generic_arguments.insert_or_assign(
+                    &expression, std::move(inferred));
               }
               for (const ast::TypeConstraint &constraint :
                    method->type_constraints) {
@@ -4000,13 +4291,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          "' for type parameter '" +
                                          constraint.parameter + "'"};
               }
-              if (node.arguments.size() != method->parameters.size())
-                throw CompileError{
-                    node.location,
-                    "method '" + node.method + "' expects " +
-                        std::to_string(method->parameters.size()) +
-                        " argument(s), got " +
-                        std::to_string(node.arguments.size())};
               for (std::size_t index = 0; index < node.arguments.size();
                    ++index) {
                 const SemanticType expected =
@@ -4711,9 +4995,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
         if (const auto *declaration =
                 std::get_if<ast::ValueDeclaration>(&statement)) {
-          const SemanticType declared_type = resolve_type(
-              declaration->declared_type, type_parameters, &class_arities,
-              context_module, &scoped_type_aliases);
+          SemanticType declared_type;
+          if (declaration->declared_type) {
+            declared_type = resolve_type(*declaration->declared_type,
+                                         type_parameters, &class_arities,
+                                         context_module, &scoped_type_aliases);
+          } else {
+            try {
+              declared_type = expression_type(*declaration->initializer);
+            } catch (const CompileError &error) {
+              throw CompileError{
+                  declaration->location,
+                  "cannot infer type of '" + declaration->name +
+                      "'; help: add an explicit type annotation; note: " +
+                      error.what()};
+            }
+          }
           if (declared_type.is_concrete() &&
               declared_type.concrete->kind() == TypeKind::Unit)
             throw CompileError{declaration->location,
@@ -4732,12 +5029,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   declaration->initializer->value))
             throw CompileError{declaration->location,
                                "a borrowed local cannot move its initializer"};
-          if (declaration->initializer.has_value())
+          if (declaration->initializer.has_value() &&
+              declaration->declared_type.has_value())
             validate_expression(*declaration->initializer, declared_type,
                                 declaration->location);
           block_symbols.emplace(declaration->name,
                                 Symbol{declared_type, declaration->is_mutable,
                                        declaration->initializer.has_value()});
+          result.local_types.insert_or_assign(declaration, declared_type);
           if (declaration->initializer.has_value() &&
               is_null_pointer_expression(*declaration->initializer))
             block_symbols.at(declaration->name).may_be_initialized = false;
@@ -4842,7 +5141,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  "cannot assign to immutable field '" +
                                      assignment->name + "'"};
             const SemanticType field_type =
-                substitute(resolve_type(matched->declared_type,
+                substitute(resolve_type(*matched->declared_type,
                                         class_parameters, &class_arities),
                            substitutions);
             validate_expression(assignment->expression, field_type,

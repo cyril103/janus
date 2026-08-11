@@ -57,12 +57,12 @@ def main() : int {
     val first : int = apply[int](increment, 41)
     delete increment
 
-    val addTen : (int) => int = makeAdder(10)
-    val second : int = addTen(first)
+    val addTen = makeAdder(10)
+    val second = addTen(first)
     delete addTen
 
-    val identity : (int) => int = makeIdentity[int]()
-    val result : int = identity(second)
+    val identity = makeIdentity[int]()
+    val result = identity(second)
     delete identity
     return result
 }
@@ -73,8 +73,9 @@ def main() : int {
   const auto &main_body = program.functions.back().body;
   const auto &increment =
       std::get<janus::ast::ValueDeclaration>(main_body.front());
-  expect(increment.declared_type.name == "Function" &&
-             increment.declared_type.type_arguments.size() == 2,
+  expect(increment.declared_type.has_value() &&
+             increment.declared_type->name == "Function" &&
+             increment.declared_type->type_arguments.size() == 2,
          "the parser retains function signatures");
   expect(std::holds_alternative<janus::ast::LambdaExpression>(
              increment.initializer->value),

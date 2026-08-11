@@ -226,7 +226,7 @@ public:
           "return middle } }\n");
     write(workspace_ / "src/indexed-method-consumer.janus",
           "import indexed_method_b as mb\n\n"
-          "def main() : int { val box : mb.Box = new mb.Box() return "
+          "def main() : int { val box = new mb.Box() return "
           "box.combine(1, 2) }\n");
 #ifndef _WIN32
     write(root_ / "symlink-target.janus",
@@ -737,10 +737,14 @@ int main(int argc, char **argv) {
                 8);
 
   static_cast<void>(server.handle(
-      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"def main() : int { val inferred = 42 return inferred }"}]}})"));
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///broken.janus"},"contentChanges":[{"text":"class Box() { def get() : int { return 42 } }\ndef main() : int { val box = new Box() val inferred = box.get() delete box return inferred }"}]}})"));
   const std::vector<std::string> default_hints = server.handle(
-      R"({"jsonrpc":"2.0","id":24,"method":"textDocument/inlayHint","params":{"textDocument":{"uri":"file:///broken.janus"},"range":{"start":{"line":0,"character":0},"end":{"line":1,"character":0}}}})");
+      R"({"jsonrpc":"2.0","id":24,"method":"textDocument/inlayHint","params":{"textDocument":{"uri":"file:///broken.janus"},"range":{"start":{"line":0,"character":0},"end":{"line":2,"character":0}}}})");
   JANUS_REQUIRE(default_hints.front().find("\": int\"") != std::string::npos);
+  JANUS_REQUIRE(default_hints.front().find("\": Box\"") != std::string::npos);
+  const std::vector<std::string> inferred_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":241,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":1,"character":82}}})");
+  require_hover_result(inferred_hover, "val inferred : int", 1, 82, 90);
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"workspace/didChangeConfiguration","params":{"settings":{"janus":{"inlayHints":{"inferredTypes":false}}}}})"));
   const std::vector<std::string> disabled_hints = server.handle(
@@ -1044,6 +1048,60 @@ int main(int argc, char **argv) {
                 std::string::npos);
   JANUS_REQUIRE(indexed_aliased_method_signature.front().find(
                     "combine(left : int, middle : int, right : int) : int") !=
+                std::string::npos);
+  static_cast<void>(source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_module_uri +
+      "\",\"text\":\"module indexed_method_b\\n\\n"
+      "struct Box() { def combine(left : int, right : int) : int { return "
+      "left + right } }\\n"
+      "struct LiveBox() { def combine(left : int, right : int) : int { "
+      "return left + right } }\\n\"}}}"));
+  const std::vector<std::string> inferred_import_change = source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_consumer_uri +
+      "\"},\"contentChanges\":[{\"text\":\"import indexed_method_b as mb\\n\\ndef main() : int { val box = new mb.LiveBox() return box.combine(1, 2) }\\n\"}]}}");
+  JANUS_REQUIRE(!inferred_import_change.empty());
+  JANUS_REQUIRE(inferred_import_change.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
+  const std::vector<std::string> imported_inlay_hints = source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"id\":110,\"method\":\"textDocument/inlayHint\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_consumer_uri +
+      "\"},\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":4,\"character\":0}}}}");
+  JANUS_REQUIRE(imported_inlay_hints.front().find(
+                    "\"label\":\": mb.LiveBox\"") != std::string::npos);
+
+  const std::string buffer_only_uri =
+      file_uri(workspace / "src/buffer_only.janus");
+  static_cast<void>(source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      buffer_only_uri +
+      "\",\"text\":\"module buffer_only\\n\\ndef value() : int { return "
+      "42 }\\n\"}}}"));
+  static_cast<void>(source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_consumer_uri +
+      "\"},\"contentChanges\":[{\"text\":\"import buffer_only as bo\\n\\ndef main() : int { val result = bo.value() return result }\\n\"}]}}"));
+  const std::vector<std::string> buffer_only_hints = source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"id\":111,\"method\":\"textDocument/inlayHint\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_consumer_uri +
+      "\"},\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":4,\"character\":0}}}}");
+  JANUS_REQUIRE(buffer_only_hints.front().find("\"label\":\": int\"") !=
+                std::string::npos);
+  const std::vector<std::string> buffer_only_hover = source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"id\":112,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_consumer_uri +
+      "\"},\"position\":{\"line\":2,\"character\":52}}}");
+  JANUS_REQUIRE(buffer_only_hover.front().find("result : int") !=
+                std::string::npos);
+  static_cast<void>(source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didClose\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      buffer_only_uri + "\"}}}"));
+  const std::vector<std::string> closed_buffer_hover = source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"id\":113,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_consumer_uri +
+      "\"},\"position\":{\"line\":2,\"character\":52}}}");
+  JANUS_REQUIRE(closed_buffer_hover.front().find("result : int") ==
                 std::string::npos);
 
   const SourceResponses unknown = source_requests(unknown_uri, 109);

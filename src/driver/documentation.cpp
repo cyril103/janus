@@ -265,6 +265,11 @@ std::string type_name(const janus::ast::TypeReference &type) {
   return rendered;
 }
 
+std::string type_name(
+    const std::optional<janus::ast::TypeReference> &type) {
+  return type ? type_name(*type) : std::string{};
+}
+
 std::string function_signature(const janus::ast::FunctionDeclaration &value) {
   std::string signature;
   if (value.is_consuming)

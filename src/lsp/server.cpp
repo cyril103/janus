@@ -117,15 +117,97 @@ qualified_type_name(const std::vector<janus::frontend::Token> &document_tokens,
 }
 
 std::string function_signature(const janus::ast::FunctionDeclaration &function);
+std::optional<std::filesystem::path> file_uri_path(std::string_view uri);
 
-std::vector<DocumentSymbol> symbols(std::string_view uri,
-                                    std::string_view source) {
+void collect_local_declarations(
+    const std::vector<janus::ast::Statement> &statements,
+    std::unordered_set<const janus::ast::ValueDeclaration *> &declarations) {
+  for (const janus::ast::Statement &statement : statements) {
+    if (const auto *declaration =
+            std::get_if<janus::ast::ValueDeclaration>(&statement)) {
+      declarations.insert(declaration);
+    } else if (const auto *branch =
+                   std::get_if<std::shared_ptr<janus::ast::IfStatement>>(
+                       &statement)) {
+      collect_local_declarations((*branch)->then_body, declarations);
+      collect_local_declarations((*branch)->else_body, declarations);
+    } else if (const auto *loop =
+                   std::get_if<std::shared_ptr<janus::ast::WhileStatement>>(
+                       &statement)) {
+      collect_local_declarations((*loop)->body, declarations);
+    } else if (const auto *loop =
+                   std::get_if<std::shared_ptr<janus::ast::ForStatement>>(
+                       &statement)) {
+      collect_local_declarations((*loop)->body, declarations);
+    }
+  }
+}
+
+std::unordered_map<std::size_t, std::string>
+analyze_local_types(
+    std::string_view uri, std::string_view source,
+    const std::vector<std::filesystem::path> &module_search_paths = {},
+    const std::vector<std::filesystem::path> &workspace_search_paths = {},
+    const std::unordered_map<std::string, std::string> *open_documents =
+        nullptr) {
+  janus::frontend::Parser syntax_parser{source};
+  janus::ast::Program syntax = syntax_parser.parse_program();
+  const std::optional<std::string> entry_module = syntax.module_name;
+
+  janus::ast::Program program;
+  if (const auto path = file_uri_path(uri); path.has_value()) {
+    std::vector<std::filesystem::path> search_paths = module_search_paths;
+    search_paths.insert(search_paths.end(), workspace_search_paths.begin(),
+                        workspace_search_paths.end());
+    search_paths.push_back(path->parent_path());
+    janus::frontend::ModuleLoader loader{std::move(search_paths)};
+    if (open_documents != nullptr)
+      for (const auto &[open_uri, open_source] : *open_documents)
+        if (const auto open_path = file_uri_path(open_uri);
+            open_path.has_value())
+          loader.set_source_override(*open_path, open_source);
+    program = loader.load(*path, source);
+  } else {
+    program = std::move(syntax);
+  }
+
+  std::unordered_set<const janus::ast::ValueDeclaration *> entry_declarations;
+  for (const janus::ast::FunctionDeclaration &function : program.functions)
+    if (function.module_name == entry_module)
+      collect_local_declarations(function.body, entry_declarations);
+  for (const janus::ast::ClassDeclaration &declaration : program.classes)
+    if (declaration.module_name == entry_module) {
+      for (const janus::ast::FunctionDeclaration &method : declaration.methods)
+        collect_local_declarations(method.body, entry_declarations);
+      if (declaration.destructor.has_value())
+        collect_local_declarations(declaration.destructor->body,
+                                   entry_declarations);
+    }
+
+  janus::semantic::Analyzer analyzer;
+  const janus::semantic::AnalysisResult analysis =
+      analyzer.analyze(program, janus::semantic::AnalysisOptions{false});
+  std::unordered_map<std::size_t, std::string> result;
+  for (const auto &[declaration, type] : analysis.local_types)
+    if (entry_declarations.contains(declaration) &&
+        !declaration->declared_type.has_value())
+      result.insert_or_assign(declaration->location.offset, type.name());
+  return result;
+}
+
+std::vector<DocumentSymbol> symbols(
+    std::string_view uri, std::string_view source,
+    const std::vector<std::filesystem::path> &module_search_paths = {},
+    const std::vector<std::filesystem::path> &workspace_search_paths = {},
+    const std::unordered_map<std::string, std::string> *open_documents =
+        nullptr) {
   using janus::frontend::Token;
   using janus::frontend::TokenKind;
   const std::vector<Token> document_tokens = tokens(source);
   std::vector<DocumentSymbol> result;
   std::optional<std::string> module_name;
   std::unordered_map<std::string, std::string> function_details;
+  std::unordered_map<std::size_t, std::string> analyzed_local_types;
   try {
     janus::frontend::Parser parser{source};
     const janus::ast::Program program = parser.parse_program();
@@ -133,6 +215,9 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
     for (const janus::ast::FunctionDeclaration &function : program.functions)
       function_details.emplace(function.name,
                                "def " + function_signature(function));
+    analyzed_local_types = analyze_local_types(
+        uri, source, module_search_paths, workspace_search_paths,
+        open_documents);
   } catch (const std::exception &) {
   }
   struct Scope {
@@ -176,6 +261,10 @@ std::vector<DocumentSymbol> symbols(std::string_view uri,
           document_tokens[index + 2].kind == TokenKind::Colon &&
           document_tokens[index + 3].kind == TokenKind::Identifier)
         detail += " : " + qualified_type_name(document_tokens, index + 3);
+      else if (const auto inferred =
+                   analyzed_local_types.find(token.location.offset);
+               inferred != analyzed_local_types.end())
+        detail += " : " + inferred->second;
     } else if (token.kind == TokenKind::Def) {
       const auto signature = function_details.find(std::string{name.lexeme});
       detail = signature == function_details.end()
@@ -1114,7 +1203,8 @@ void Server::index_workspace_file(const std::filesystem::path &path,
                   std::istreambuf_iterator<char>{});
   }
   DocumentIndex index{std::move(source), {}};
-  index.symbols = symbols(uri, index.source);
+  index.symbols = symbols(uri, index.source, module_search_paths_,
+                          workspace_search_paths_, &documents_);
   update_api_index(uri, index.source);
   index_cache_.insert_or_assign(uri, std::move(index));
   workspace_uris_.insert(uri);
@@ -1341,6 +1431,10 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
       search_paths.insert(search_paths.end(), workspace_search_paths_.begin(),
                           workspace_search_paths_.end());
       frontend::ModuleLoader loader{std::move(search_paths)};
+      for (const auto &[open_uri, open_source] : documents_)
+        if (const auto open_path = file_uri_path(open_uri);
+            open_path.has_value())
+          loader.set_source_override(*open_path, open_source);
       program = loader.load(*path, source);
     } else {
       frontend::Parser parser{source};
@@ -1678,6 +1772,19 @@ std::vector<std::string> Server::handle(std::string_view message) {
         uri = requested_uri->str();
     }
 
+  const auto refresh_open_document_symbols =
+      [&](std::string_view changed_uri) {
+        for (const auto &[open_uri, open_source] : documents_) {
+          if (open_uri == changed_uri)
+            continue;
+          const auto cached = index_cache_.find(open_uri);
+          if (cached != index_cache_.end())
+            cached->second.symbols =
+                symbols(open_uri, open_source, module_search_paths_,
+                        workspace_search_paths_, &documents_);
+        }
+      };
+
   if (*method == "textDocument/didOpen" && uri) {
     const std::optional<llvm::StringRef> text =
         text_document->getString("text");
@@ -1687,9 +1794,11 @@ std::vector<std::string> Server::handle(std::string_view message) {
               text_document->getInteger("version"))
         document_versions_.insert_or_assign(*uri, *version);
       DocumentIndex index{text->str(), {}};
-      index.symbols = symbols(*uri, index.source);
+      index.symbols = symbols(*uri, index.source, module_search_paths_,
+                                workspace_search_paths_, &documents_);
       update_api_index(*uri, index.source);
       index_cache_.insert_or_assign(*uri, std::move(index));
+      refresh_open_document_symbols(*uri);
       if (workspace_uris_.contains(*uri))
         refresh_workspace_metrics();
       return {diagnostics(*uri, *text)};
@@ -1708,9 +1817,11 @@ std::vector<std::string> Server::handle(std::string_view message) {
                 text_document->getInteger("version"))
           document_versions_.insert_or_assign(*uri, *version);
         DocumentIndex index{text->str(), {}};
-        index.symbols = symbols(*uri, index.source);
+        index.symbols = symbols(*uri, index.source, module_search_paths_,
+                                workspace_search_paths_, &documents_);
         update_api_index(*uri, index.source);
         index_cache_.insert_or_assign(*uri, std::move(index));
+        refresh_open_document_symbols(*uri);
         if (workspace_uris_.contains(*uri))
           refresh_workspace_metrics();
         return {diagnostics(*uri, *text)};
@@ -1740,6 +1851,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
       index_cache_.erase(*uri);
       document_api_indexes_.erase(*uri);
     }
+    refresh_open_document_symbols(*uri);
     if (const auto indexed = index_cache_.find(*uri);
         indexed != index_cache_.end())
       return {diagnostics(*uri, indexed->second.source)};
@@ -2101,8 +2213,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
         return std::int64_t{8};
       return std::int64_t{7};
     };
-    const std::vector<DocumentSymbol> semantic_symbols =
-        symbols(*uri, *document_source);
+    const std::vector<DocumentSymbol> semantic_symbols = symbols(
+        *uri, *document_source, module_search_paths_, workspace_search_paths_,
+        &documents_);
     for (const DocumentSymbol &symbol : semantic_symbols) {
       const std::int64_t kind = semantic_kind(symbol);
       std::int64_t modifiers = 1;
@@ -2346,6 +2459,14 @@ std::vector<std::string> Server::handle(std::string_view message) {
         *range_start <= *range_end) {
       const std::vector<frontend::Token> document_tokens =
           tokens(*document_source);
+      std::unordered_map<std::size_t, std::string> analyzed_types;
+      try {
+        analyzed_types =
+            analyze_local_types(*uri, *document_source, module_search_paths_,
+                                workspace_search_paths_, &documents_);
+      } catch (const std::exception &) {
+        analyzed_types.clear();
+      }
       for (std::size_t index = 0; index + 3 < document_tokens.size(); ++index) {
         if ((document_tokens[index].kind != frontend::TokenKind::Val &&
              document_tokens[index].kind != frontend::TokenKind::Var) ||
@@ -2353,9 +2474,13 @@ std::vector<std::string> Server::handle(std::string_view message) {
                 frontend::TokenKind::Identifier ||
             document_tokens[index + 2].kind != frontend::TokenKind::Equal)
           continue;
-        const std::optional<std::string> inferred =
-            inferred_literal_type(document_tokens, index + 3);
-        if (!inferred.has_value())
+        const auto analyzed =
+            analyzed_types.find(document_tokens[index].location.offset);
+        const std::optional<std::string> fallback =
+            analyzed == analyzed_types.end()
+                ? inferred_literal_type(document_tokens, index + 3)
+                : std::nullopt;
+        if (analyzed == analyzed_types.end() && !fallback.has_value())
           continue;
         const frontend::Token &name = document_tokens[index + 1];
         const std::size_t hint_offset =
@@ -2365,7 +2490,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
         hints.emplace_back(llvm::json::Object{
             {"position",
              position_at_offset(*document_source, hint_offset)},
-            {"label", ": " + *inferred},
+            {"label", ": " + (analyzed != analyzed_types.end()
+                                    ? analyzed->second
+                                    : *fallback)},
             {"kind", 1},
             {"paddingLeft", false},
             {"paddingRight", true},

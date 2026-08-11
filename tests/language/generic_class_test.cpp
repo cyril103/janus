@@ -52,13 +52,17 @@ class Box[T](var value : T) {
     }
 }
 
+class Empty[T]() {}
+
 def main() : int {
-    val integers : Box[int] = new Box[int](41)
+    val integers = new Box(41)
     val result : int = integers.set(42) + integers.get()
-    val text : Box[string] = new Box[string]("Janus")
-    val message : string = text.get()
-    val nested : Box[Box[int]] = new Box[Box[int]](integers)
-    val inner : Box[int] = nested.get()
+    val text = new Box("Janus")
+    val message = text.get()
+    val nested = new Box(integers)
+    val inner = nested.get()
+    val empty : Empty[int] = new Empty()
+    delete empty
     delete nested
     delete text
     delete integers
@@ -74,10 +78,12 @@ def main() : int {
          "the class type parameter is named T");
   const auto &integer_box =
       std::get<janus::ast::ValueDeclaration>(program.functions[0].body[0]);
-  expect(integer_box.declared_type.name == "Box" &&
-             integer_box.declared_type.type_arguments.size() == 1 &&
-             integer_box.declared_type.type_arguments[0].name == "int",
-         "Box[int] is represented as a parameterized type");
+  const auto *integer_constructor =
+      std::get_if<janus::ast::NewExpression>(&integer_box.initializer->value);
+  expect(!integer_box.declared_type.has_value() &&
+             integer_constructor != nullptr &&
+             integer_constructor->type_arguments.empty(),
+         "generic class arguments may be omitted with the local type");
 
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
@@ -117,9 +123,9 @@ def main() : int {
       "def main() : int { val box : Box = new Box[int](1) return 0 }",
       "expects 1 type argument");
   expect_compile_error(
-      "class Box[T](val value : T) {} "
-      "def main() : int { val box : Box[int] = new Box(1) return 0 }",
-      "expects 1 type argument");
+      "class Factory[T]() {} "
+      "def main() : int { val factory = new Factory() return 0 }",
+      "is not constrained by constructor arguments or context");
   expect_compile_error(
       "class Box[T](val value : T) {} "
       "def main() : int { val box : Box[int] = new Box[string](\"x\") "

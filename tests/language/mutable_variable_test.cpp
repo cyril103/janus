@@ -39,6 +39,20 @@ void expect_compile_error(std::string_view source,
 } // namespace
 
 int main() {
+  janus::frontend::Parser inferred_parser{R"(
+def main() : int {
+    var fixed = 5
+    fixed = 6
+    return fixed
+}
+)"};
+  const janus::ast::Program inferred_program = inferred_parser.parse_program();
+  janus::semantic::Analyzer inferred_analyzer;
+  const auto inferred_analysis = inferred_analyzer.analyze(inferred_program);
+  expect(inferred_analysis.functions.at("main").at("fixed").type.name() ==
+             "int",
+         "var fixes its inferred type at declaration");
+
   constexpr std::string_view source = R"(
 def main() : int {
     var x : int = 5
@@ -96,6 +110,11 @@ def main() : int {
                        "expression of type 'int'");
   expect_compile_error("def main() : int { var x : bool x = 1 return 0 }",
                        "expression of type 'int'");
+  expect_compile_error(
+      "def main() : int { var fixed = 1 fixed = false return fixed }",
+      "expression of type 'bool'");
+  expect_compile_error("def main() : int { var missing return 0 }",
+                       "inferred local 'missing' requires an initializer");
   expect_compile_error("def main() : int { missing = 1 return 0 }",
                        "unknown value 'missing'");
   expect_compile_error("def main() : int { val x : int return 0 }",

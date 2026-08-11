@@ -24,6 +24,27 @@ def main() : int {
 
 Les types usuels incluent `int`, `uint`, `long`, `ulong`, `float`, `double`, `byte`, `char`, `bool`, `string`, `isize`, `usize` et `Unit`. Leur taille est définie par le langage.
 
+## Inférence des variables locales
+
+Une `val` ou `var` locale initialisée peut omettre son type si l'expression
+produit un type unique. Une `var` conserve ce type pour toutes ses affectations.
+
+```janus
+// doctest: doctest name=inferred-locals
+def answer() : int { return 42 }
+def main() : int {
+    val result = answer()
+    var doubled = result + result
+    doubled = doubled + 1
+    return doubled - 85
+}
+```
+
+Les globales, champs, paramètres et retours restent annotés. Ajoutez aussi une
+annotation pour `null()` sans type, une collection vide, des branches de types
+différents ou un générique insuffisamment contraint. Les littéraux seuls
+gardent leurs types par défaut (`int`, `double`, `char`, `bool` et `string`).
+
 ## Conversions explicites
 
 Janus ne transforme pas silencieusement un `int` en `double` :

@@ -22,6 +22,9 @@ class ModuleLoader final {
 public:
   explicit ModuleLoader(std::vector<std::filesystem::path> search_paths = {});
 
+  void set_source_override(const std::filesystem::path &path,
+                           std::string source);
+
   [[nodiscard]] ast::Program load(const std::filesystem::path &entry_path,
                                   ModuleLoadTimings *timings = nullptr);
   [[nodiscard]] ast::Program load(const std::filesystem::path &entry_path,
@@ -42,6 +45,7 @@ private:
                  const std::filesystem::path &project_root) const;
 
   std::vector<std::filesystem::path> search_paths_;
+  std::unordered_map<std::filesystem::path, std::string> source_overrides_;
   std::unordered_set<std::filesystem::path> visiting_paths_;
   std::unordered_map<std::filesystem::path, std::unique_ptr<ast::Program>>
       loaded_programs_;

@@ -88,6 +88,15 @@ int main() {
     std::cerr << "selective import aliases are not preserved idempotently\n";
     return 1;
   }
+  const std::string local_types =
+      "def main() : int {\nval inferred=answer()\nval explicit:int=1\nreturn explicit\n}\n";
+  const std::string formatted_local_types =
+      "def main() : int {\n    val inferred=answer()\n    val explicit:int=1\n    return explicit\n}\n";
+  if (janus::driver::format_source(local_types) != formatted_local_types) {
+    std::cerr << "formatter changed omitted versus explicit local types:\n"
+              << janus::driver::format_source(local_types);
+    return 1;
+  }
   std::cout << "Janus formatting is deterministic\n";
   return 0;
 }
