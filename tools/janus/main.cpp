@@ -3,6 +3,7 @@
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/diagnostics/high_growth_loop_linter.hpp"
 #include "janus/diagnostics/renderer.hpp"
+#include "janus/driver/api_index.hpp"
 #include "janus/driver/dependency.hpp"
 #include "janus/driver/doctest.hpp"
 #include "janus/driver/documentation.hpp"
@@ -65,6 +66,7 @@ namespace {
 
 struct Toolchain {
   std::filesystem::path stdlib;
+  std::filesystem::path stdlib_api_index;
   std::filesystem::path runtime;
   std::filesystem::path clang;
 };
@@ -84,6 +86,12 @@ struct Options {
   bool format_check{};
   bool doc_open{};
   bool doc_stdlib{};
+  std::string doc_search;
+  std::string doc_format{"human"};
+  bool doc_format_set{};
+  std::string doc_module;
+  std::string doc_kind;
+  std::string doc_package;
   bool doctests_only{};
   bool test_list{};
   bool test_exact{};
@@ -166,6 +174,8 @@ Toolchain locate_toolchain(const char *argv0) {
   const std::filesystem::path root =
       executable_path(argv0).parent_path().parent_path();
   const std::filesystem::path installed_stdlib = root / "share/janus/stdlib";
+  const std::filesystem::path installed_stdlib_api_index =
+      root / "share/doc/janus/stdlib-reference/api-index.json";
 #ifdef _WIN32
   const std::filesystem::path installed_runtime =
       root / "lib/janus_runtime.lib";
@@ -179,6 +189,10 @@ Toolchain locate_toolchain(const char *argv0) {
       std::filesystem::exists(installed_stdlib)
           ? installed_stdlib
           : std::filesystem::path{JANUS_STDLIB_DIR},
+      std::filesystem::exists(installed_stdlib_api_index)
+          ? installed_stdlib_api_index
+          : std::filesystem::path{JANUS_STDLIB_DIR}.parent_path() /
+                "website/docs/reference/stdlib/api-index.json",
       std::filesystem::exists(installed_runtime)
           ? installed_runtime
           : std::filesystem::path{JANUS_RUNTIME_LIBRARY},
@@ -186,6 +200,26 @@ Toolchain locate_toolchain(const char *argv0) {
           ? bundled_clang
           : std::filesystem::path{JANUS_CLANG_PATH},
   };
+}
+
+janus::driver::ApiIndex load_index_or_sources(
+    const std::filesystem::path &index_path,
+    const std::vector<std::filesystem::path> &source_roots,
+    const janus::driver::ApiIndexMetadata &metadata) {
+  if (std::filesystem::is_regular_file(index_path))
+    return janus::driver::load_api_index(index_path);
+  return janus::driver::build_api_index_from_source_roots(source_roots,
+                                                           metadata);
+}
+
+std::filesystem::path
+first_api_index(const std::vector<std::filesystem::path> &candidates) {
+  const auto found = std::find_if(candidates.begin(), candidates.end(),
+                                  [](const auto &candidate) {
+                                    return std::filesystem::is_regular_file(
+                                        candidate);
+                                  });
+  return found == candidates.end() ? std::filesystem::path{} : *found;
 }
 
 void print_usage(std::ostream &output) {
@@ -213,7 +247,9 @@ void print_usage(std::ostream &output) {
             "[--fail-if-empty] [--format human|json|junit] [--release] "
             "[--panic-trace full|short|off]\n"
          << "  janus fmt [source.janus] [--check]\n"
-         << "  janus doc [--stdlib] [-o directory] [--open] [--offline]\n"
+         << "  janus doc [--stdlib] [-o directory] [--open] [--offline] "
+            "[--search QUERY] [--format human|json] "
+            "[--module NAME] [--kind KIND] [--package NAME]\n"
          << "  diagnostics: --warn-high-growth-loops for check, build, "
             "run\n"
          << "  dependency options: --locked --offline\n"
@@ -245,7 +281,9 @@ void print_command_usage(std::ostream &output, std::string_view command) {
               "[--locked] [--offline] "
               "[--panic-trace full|short|off]\n";
   else if (command == "doc")
-    output << " [--stdlib] [-o directory] [--open] [--offline]\n";
+    output << " [--stdlib] [-o directory] [--open] [--offline] "
+              "[--search QUERY] [--format human|json] "
+              "[--module NAME] [--kind KIND] [--package NAME]\n";
   else if (command == "clean")
     output << '\n';
   else
@@ -444,6 +482,29 @@ Options parse_options(int argc, char **argv) {
       options.doc_open = true;
     } else if (argument == "--stdlib" && options.command == "doc") {
       options.doc_stdlib = true;
+    } else if (argument == "--search" && options.command == "doc") {
+      if (++index == argc)
+        throw UsageError{options.command, "--search requires a query"};
+      options.doc_search = argv[index];
+    } else if (argument == "--module" && options.command == "doc") {
+      if (++index == argc)
+        throw UsageError{options.command, "--module requires a name"};
+      options.doc_module = argv[index];
+    } else if (argument == "--kind" && options.command == "doc") {
+      if (++index == argc)
+        throw UsageError{options.command, "--kind requires a kind"};
+      options.doc_kind = argv[index];
+    } else if (argument == "--package" && options.command == "doc") {
+      if (++index == argc)
+        throw UsageError{options.command, "--package requires a name"};
+      options.doc_package = argv[index];
+    } else if (argument == "--format" && options.command == "doc") {
+      if (++index == argc || (std::string_view{argv[index]} != "human" &&
+                             std::string_view{argv[index]} != "json"))
+        throw UsageError{options.command,
+                         "--format requires human or json"};
+      options.doc_format = argv[index];
+      options.doc_format_set = true;
     } else if (argument == "--doc" && options.command == "test") {
       options.doctests_only = true;
     } else if (argument == "--list" && options.command == "test") {
@@ -622,7 +683,18 @@ Options parse_options(int argc, char **argv) {
        options.warn_high_growth_loops || options.panic_trace_set ||
        options.diagnostic_format_set || options.no_cache))
     throw UsageError{options.command,
-                     "doc only accepts --stdlib, -o, --open, and --offline"};
+                     "doc only accepts --stdlib, -o, --open, --offline, "
+                     "--search, --format, --module, --kind, and --package"};
+  if (options.command == "doc" && options.doc_search.empty() &&
+      (!options.doc_module.empty() || !options.doc_kind.empty() ||
+       !options.doc_package.empty() || options.doc_format_set))
+    throw UsageError{
+        options.command,
+        "--module, --kind, --package, and --format require --search"};
+  if (options.command == "doc" && !options.doc_search.empty() &&
+      (!options.output.empty() || options.doc_open))
+    throw UsageError{options.command,
+                     "--search does not accept -o or --open"};
   if ((options.command == "test") && options.warn_high_growth_loops)
     throw UsageError{options.command,
                      "test does not accept --warn-high-growth-loops"};
@@ -660,6 +732,7 @@ Options parse_options(int argc, char **argv) {
   if (options.release && !options.panic_trace_set)
     options.panic_trace = janus::backend::llvm::PanicTraceMode::Short;
   if (options.source.empty() && !options.doc_stdlib &&
+      !(options.command == "doc" && !options.doc_search.empty()) &&
       options.command != "clean") {
     options.manifest = janus::driver::load_manifest(
         janus::driver::find_manifest(std::filesystem::current_path()));
@@ -670,6 +743,14 @@ Options parse_options(int argc, char **argv) {
     try {
       options.manifest = janus::driver::load_manifest(
           janus::driver::find_manifest(options.source));
+    } catch (const std::runtime_error &) {
+    }
+  } else if (options.source.empty() && options.command == "doc" &&
+             !options.doc_search.empty()) {
+    try {
+      options.manifest = janus::driver::load_manifest(
+          janus::driver::find_manifest(std::filesystem::current_path()));
+      options.source = options.manifest->entry_path();
     } catch (const std::runtime_error &) {
     }
   }
@@ -2227,6 +2308,42 @@ int main(int argc, char **argv) {
     if (options.command == "fmt")
       return format_sources(options);
     if (options.command == "doc") {
+      if (!options.doc_search.empty()) {
+        const Toolchain toolchain = locate_toolchain(argv[0]);
+        std::vector<janus::driver::ApiIndex> indexes;
+        indexes.push_back(load_index_or_sources(
+            toolchain.stdlib_api_index, {toolchain.stdlib / "std"},
+            {"stdlib", JANUS_VERSION}));
+        if (!options.doc_stdlib && options.manifest) {
+          const std::filesystem::path package_index = first_api_index(
+              {options.manifest->root() / "target/doc/api-index.json",
+               options.manifest->root() / "api-index.json"});
+          indexes.push_back(load_index_or_sources(
+              package_index, {options.manifest->root() / "src"},
+              {options.manifest->name, options.manifest->version}));
+          const auto dependencies = janus::driver::resolve_dependencies(
+              *options.manifest, {options.locked, true, false});
+          for (const auto &dependency : dependencies) {
+            const std::filesystem::path dependency_root = dependency.parent_path();
+            const auto dependency_manifest = janus::driver::load_manifest(
+                dependency_root / "janus.toml");
+            const std::filesystem::path dependency_index = first_api_index(
+                {dependency_root / "target/doc/api-index.json",
+                 dependency_root / "api-index.json",
+                 dependency_root / "docs/api-index.json"});
+            indexes.push_back(load_index_or_sources(
+                dependency_index, {dependency},
+                {dependency_manifest.name, dependency_manifest.version}));
+          }
+        }
+        const auto merged = janus::driver::merge_api_indexes(indexes);
+        const auto results = janus::driver::search_api(
+            merged, {options.doc_search, options.doc_module, options.doc_kind,
+                     options.doc_package});
+        std::cout << janus::driver::format_api_search(results,
+                                                     options.doc_format);
+        return results.empty() ? 1 : 0;
+      }
       const std::filesystem::path output =
           options.output.empty()
               ? options.doc_stdlib ? std::filesystem::current_path() /

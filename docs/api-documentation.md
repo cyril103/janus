@@ -66,12 +66,56 @@ janus doc --stdlib --offline -o target/stdlib-reference
 ```
 
 La sortie par défaut est `target/doc/index.html`. `api-index.json`, placé dans
-le même dossier, fournit l’index public trié utilisé par les outils. Les
+le même dossier, fournit l’index public trié utilisé par la documentation, le
+CLI et le LSP. Son contrat `format_version: 1` expose pour chaque symbole le
+nom simple et qualifié, le paquet, le module et l’import requis, la nature, la
+signature, les paramètres et leur type, le type de retour, les paramètres et
+contraintes génériques disponibles, le résumé, la documentation, la
+visibilité, le lien stable et les informations de dépréciation/remplacement.
+Les lecteurs refusent une version inconnue afin d’éviter une interprétation
+silencieuse incompatible. Les
 modules, types, variantes, traits, fonctions, globales et membres publics y
 sont recensés ; les déclarations `private` et les membres `internal` sont
 exclus. Les champs historiques sont conservés. Chaque entrée expose aussi
 `summary`, `details`, `parameters`, `returns` et `examples`, dans un ordre
 déterministe.
+
+## Recherche hors ligne
+
+`janus doc --search QUERY` interroge le même index public :
+
+```bash
+janus doc --search write
+janus doc --search std.fs.write --format json
+janus doc --search "atomic write" --module std.fs --kind function
+janus doc --search random --package stdlib
+```
+
+Le format `human` (par défaut) affiche signature, import, paquet, résumé et
+lien vers la documentation. Le format `json` est stable et scriptable. La
+commande fonctionne aussi hors d’un projet : elle recherche alors dans l’index
+installé de la bibliothèque standard. Depuis un projet, elle ajoute son index
+et ceux des dépendances résolues. Le classement déterministe privilégie le nom
+simple, le nom qualifié, la proximité lexicale, puis la signature et la
+documentation ; côté LSP, il favorise aussi le module déjà importé et la
+compatibilité du type de retour, de l’arité et de la généricité. Les égalités
+sont départagées par nom qualifié, signature et paquet. La recherche charge en
+priorité les `api-index.json` installés ou générés de la bibliothèque standard,
+du projet et des dépendances, puis utilise les sources locales comme repli
+lorsqu’un index manque. Aucun accès réseau n’est effectué.
+
+Dans l’éditeur, les complétions globales publiques indiquent leur module et
+ajoutent un `additionalTextEdits` pour l’import absent. Un import existant
+n’est jamais dupliqué. En cas de collision du même nom entre modules, les
+candidats restent visibles et explicites mais aucune édition d’import n’est
+attachée. Les complétions après `.` conservent le chemin typé existant.
+
+Limite syntaxique actuelle : Janus n’a pas encore d’attribut de dépréciation
+dédié. L’index reconnaît la directive documentaire
+`@deprecated use [[module.symbole]]` (le module peut être omis). Les
+contraintes génériques publiées correspondent aux contraintes représentables
+par l’AST courant ; aucun mot-clé ou score d’usage non déterministe n’est
+inventé.
 
 `--stdlib` documente directement les sources de la bibliothèque standard
 livrée avec la chaîne d’outils. Ce mode exige une documentation source pour

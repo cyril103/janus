@@ -1,4 +1,5 @@
 #include "janus/driver/documentation.hpp"
+#include "janus/driver/api_index.hpp"
 
 #include "janus/frontend/parser.hpp"
 
@@ -589,6 +590,8 @@ void write_structured_json(
     output << "{\"name\":\"" << json_escape(parameters[index].name)
            << "\",\"type\":\"" << json_escape(parameters[index].type)
            << "\",\"description\":\""
+           << json_escape(parameters[index].description)
+           << "\",\"documentation\":\""
            << json_escape(parameters[index].description) << "\"}";
   }
   output << "],\"returns\":";
@@ -659,6 +662,19 @@ generate_documentation(const std::vector<ast::Program> &programs,
 
   std::filesystem::create_directories(options.output_directory);
   const std::vector<Symbol> symbols = public_symbols(programs);
+  const ApiIndex discovery_index = build_api_index(
+      programs, {options.package_name, options.package_version});
+  if (symbols.size() != discovery_index.symbols.size())
+    throw std::runtime_error{"documentation and API discovery symbol sets differ"};
+  for (std::size_t position = 0; position < symbols.size(); ++position) {
+    const Symbol &documented = symbols[position];
+    const ApiSymbol &discovered = discovery_index.symbols[position];
+    if (documented.qualified_name != discovered.qualified_name ||
+        documented.kind != discovered.kind ||
+        documented.signature != discovered.signature)
+      throw std::runtime_error{"documentation and API discovery identity differ for '" +
+                               documented.qualified_name + "'"};
+  }
   std::map<std::string, std::string> module_documentation;
   std::map<std::string, StructuredDocumentation> structured_modules;
   for (const ast::Program &program : programs) {
@@ -932,9 +948,11 @@ generate_documentation(const std::vector<ast::Program> &programs,
       report.unresolved_links.end());
 
   std::ostringstream index;
-  index << "{\n  \"package\": \"" << json_escape(options.package_name)
+  index << "{\n  \"format_version\": " << api_index_format_version
+        << ",\n  \"package\": \"" << json_escape(options.package_name)
         << "\",\n  \"version\": \"" << json_escape(options.package_version)
-        << "\",\n  \"modules\": [";
+        << "\",\n  \"package_version\": \""
+        << json_escape(options.package_version) << "\",\n  \"modules\": [";
   std::size_t module_position = 0;
   for (const auto &[module, documentation] : module_documentation) {
     index << (module_position++ == 0 ? "\n" : ",\n") << "    {\"name\":\""
@@ -950,12 +968,44 @@ generate_documentation(const std::vector<ast::Program> &programs,
   index << "  ],\n  \"symbols\": [";
   for (std::size_t position = 0; position < symbols.size(); ++position) {
     const Symbol &symbol = symbols[position];
+    const ApiSymbol &shared = discovery_index.symbols[position];
     index << (position == 0 ? "\n" : ",\n") << "    {\"name\":\""
           << json_escape(symbol.qualified_name) << "\",\"kind\":\""
           << json_escape(symbol.kind) << "\",\"signature\":\""
           << json_escape(symbol.signature) << "\",\"documentation\":\""
           << json_escape(symbol.documentation) << "\",\"anchor\":\""
-          << json_escape(symbol.anchor) << '"';
+          << json_escape(symbol.anchor) << "\",\"simple_name\":\""
+          << json_escape(shared.simple_name)
+          << "\",\"qualified_name\":\""
+          << json_escape(symbol.qualified_name) << "\",\"package\":\""
+          << json_escape(options.package_name) << "\",\"module\":\""
+          << json_escape(symbol.module) << "\",\"required_import\":\""
+          << json_escape(symbol.module) << "\",\"visibility\":\"public\","
+          << "\"documentation_link\":\"#" << json_escape(symbol.anchor)
+          << "\",\"deprecated\":"
+          << (shared.deprecated ? "true" : "false")
+          << ",\"replacement\":";
+    if (shared.replacement)
+      index << '"' << json_escape(*shared.replacement) << '"';
+    else
+      index << "null";
+    index << ",\"generic_parameters\":[";
+    for (std::size_t item = 0; item < shared.generic_parameters.size();
+           ++item) {
+        if (item != 0)
+          index << ',';
+        index << '"' << json_escape(shared.generic_parameters[item]) << '"';
+      }
+    index << "],\"generic_constraints\":[";
+    for (std::size_t item = 0; item < shared.generic_constraints.size();
+           ++item) {
+        if (item != 0)
+          index << ',';
+        index << '"' << json_escape(shared.generic_constraints[item]) << '"';
+      }
+    index << "],\"return_type\":\""
+          << json_escape(shared.return_type)
+          << '"';
     write_structured_json(index, symbol.structured, symbol.parameters,
                           symbol.return_type, !symbol.return_type.empty());
     index << '}';

@@ -5,9 +5,10 @@ foreach(required JANUS BUILD_DIR)
 endforeach()
 
 set(PROJECT_DIR "${BUILD_DIR}/documentation-cli-fixture")
+set(NO_PROJECT_DIR "${BUILD_DIR}/documentation-search-no-project")
 set(OUTPUT_DIR "${PROJECT_DIR}/generated docs")
-file(REMOVE_RECURSE "${PROJECT_DIR}")
-file(MAKE_DIRECTORY "${PROJECT_DIR}/src")
+file(REMOVE_RECURSE "${PROJECT_DIR}" "${NO_PROJECT_DIR}")
+file(MAKE_DIRECTORY "${PROJECT_DIR}/src" "${NO_PROJECT_DIR}")
 file(WRITE "${PROJECT_DIR}/janus.toml"
 "[package]\n"
 "name = \"documented-package\"\n"
@@ -47,6 +48,21 @@ foreach(COMMAND check build run)
                 "(${COMMAND_RESULT}):\n${COMMAND_OUTPUT}\n${COMMAND_ERROR}")
     endif()
 endforeach()
+
+execute_process(
+    COMMAND "${JANUS}" doc --search Array.any --format json
+    WORKING_DIRECTORY "${NO_PROJECT_DIR}"
+    RESULT_VARIABLE NO_PROJECT_SEARCH_RESULT
+    OUTPUT_VARIABLE NO_PROJECT_SEARCH_OUTPUT
+    ERROR_VARIABLE NO_PROJECT_SEARCH_ERROR
+)
+if(NOT NO_PROJECT_SEARCH_RESULT EQUAL 0 OR
+   NOT NO_PROJECT_SEARCH_OUTPUT MATCHES "std.array.Array.any")
+    message(FATAL_ERROR
+            "stdlib API search must work outside a project "
+            "(${NO_PROJECT_SEARCH_RESULT}):\n"
+            "${NO_PROJECT_SEARCH_OUTPUT}\n${NO_PROJECT_SEARCH_ERROR}")
+endif()
 
 execute_process(
     COMMAND "${JANUS}" doc --offline -o "${OUTPUT_DIR}"
@@ -98,7 +114,92 @@ foreach(FIELD summary details parameters returns examples)
         message(FATAL_ERROR "api-index.json is missing '${FIELD}'")
     endif()
 endforeach()
+if(NOT API_INDEX_CONTENT MATCHES
+   "\"signature\":\"class Greeting\\(\\)\"")
+    message(FATAL_ERROR "class constructor signature is not shared with discovery")
+endif()
 file(SHA256 "${HTML}" FIRST_HASH)
+
+# Search must consume the generated package index instead of reparsing sources.
+file(MAKE_DIRECTORY "${PROJECT_DIR}/target/doc")
+file(COPY_FILE "${API_INDEX}" "${PROJECT_DIR}/target/doc/api-index.json")
+file(RENAME "${PROJECT_DIR}/src" "${PROJECT_DIR}/src.hidden")
+
+execute_process(
+    COMMAND "${JANUS}" doc --search "public greeting" --format human
+            --module documented --kind class --package documented-package
+    WORKING_DIRECTORY "${PROJECT_DIR}"
+    RESULT_VARIABLE SEARCH_RESULT
+    OUTPUT_VARIABLE SEARCH_HUMAN
+    ERROR_VARIABLE SEARCH_ERROR
+)
+if(NOT SEARCH_RESULT EQUAL 0 OR
+   NOT SEARCH_HUMAN MATCHES "documented.Greeting" OR
+   NOT SEARCH_HUMAN MATCHES "import documented" OR
+   SEARCH_HUMAN MATCHES "secret")
+    message(FATAL_ERROR "human API search failed:\n${SEARCH_HUMAN}\n${SEARCH_ERROR}")
+endif()
+execute_process(
+    COMMAND "${JANUS}" doc --search documented.greeting --format json
+    WORKING_DIRECTORY "${PROJECT_DIR}"
+    RESULT_VARIABLE JSON_SEARCH_RESULT
+    OUTPUT_VARIABLE FIRST_JSON_SEARCH
+)
+execute_process(
+    COMMAND "${JANUS}" doc --search documented.greeting --format json
+    WORKING_DIRECTORY "${PROJECT_DIR}"
+    OUTPUT_VARIABLE SECOND_JSON_SEARCH
+)
+if(NOT JSON_SEARCH_RESULT EQUAL 0 OR
+   NOT FIRST_JSON_SEARCH STREQUAL SECOND_JSON_SEARCH OR
+   NOT FIRST_JSON_SEARCH MATCHES "\"format_version\":1" OR
+   NOT FIRST_JSON_SEARCH MATCHES "\"required_import\":\"documented\"")
+    message(FATAL_ERROR "JSON API search is missing or non-deterministic")
+endif()
+file(RENAME "${PROJECT_DIR}/src.hidden" "${PROJECT_DIR}/src")
+
+# A resolved dependency path points at <dependency>/src. Search must locate the
+# index from its project root and retain manifest package metadata offline.
+set(DEPENDENCY_DIR "${BUILD_DIR}/documentation-cli-dependency")
+file(REMOVE_RECURSE "${DEPENDENCY_DIR}")
+file(MAKE_DIRECTORY "${DEPENDENCY_DIR}/src")
+file(WRITE "${DEPENDENCY_DIR}/janus.toml"
+"[package]\nname = \"real-dependency\"\nversion = \"3.2.1\"\nentry = \"src/main.janus\"\n")
+file(WRITE "${DEPENDENCY_DIR}/src/main.janus"
+"module dependency_api\n/// Found only in the dependency.\ndef offlineNeedle() : int { return 7 }\n")
+execute_process(
+    COMMAND "${JANUS}" doc --offline
+    WORKING_DIRECTORY "${DEPENDENCY_DIR}"
+    RESULT_VARIABLE DEPENDENCY_DOC_RESULT
+    ERROR_VARIABLE DEPENDENCY_DOC_ERROR
+)
+if(NOT DEPENDENCY_DOC_RESULT EQUAL 0)
+    message(FATAL_ERROR "dependency docs failed: ${DEPENDENCY_DOC_ERROR}")
+endif()
+file(APPEND "${PROJECT_DIR}/janus.toml"
+"\n[dependencies]\nreal-dependency = { path = \"../documentation-cli-dependency\" }\n")
+file(RENAME "${DEPENDENCY_DIR}/src/main.janus"
+            "${DEPENDENCY_DIR}/main.janus.hidden")
+file(REMOVE "${PROJECT_DIR}/janus.lock")
+execute_process(
+    COMMAND "${JANUS}" doc --search offlineNeedle --offline
+            --package real-dependency
+    WORKING_DIRECTORY "${PROJECT_DIR}"
+    RESULT_VARIABLE DEPENDENCY_SEARCH_RESULT
+    OUTPUT_VARIABLE DEPENDENCY_SEARCH_OUTPUT
+    ERROR_VARIABLE DEPENDENCY_SEARCH_ERROR
+)
+if(NOT DEPENDENCY_SEARCH_RESULT EQUAL 0 OR
+   NOT DEPENDENCY_SEARCH_OUTPUT MATCHES "dependency_api.offlineNeedle" OR
+   NOT DEPENDENCY_SEARCH_OUTPUT MATCHES "real-dependency")
+    message(FATAL_ERROR
+            "offline dependency index search failed:\n${DEPENDENCY_SEARCH_OUTPUT}\n${DEPENDENCY_SEARCH_ERROR}")
+endif()
+if(EXISTS "${PROJECT_DIR}/janus.lock")
+    message(FATAL_ERROR "read-only API search must not create janus.lock")
+endif()
+file(RENAME "${DEPENDENCY_DIR}/main.janus.hidden"
+            "${DEPENDENCY_DIR}/src/main.janus")
 
 execute_process(
     COMMAND "${JANUS}" doc --offline -o "${OUTPUT_DIR}"
@@ -121,7 +222,7 @@ execute_process(
     OUTPUT_VARIABLE HELP_OUTPUT
 )
 if(NOT HELP_RESULT EQUAL 0 OR
-   NOT HELP_OUTPUT MATCHES "janus doc \\[--stdlib\\] \\[-o directory\\] \\[--open\\]")
+   NOT HELP_OUTPUT MATCHES "janus doc \\[--stdlib\\] \\[-o directory\\] \\[--open\\] \\[--offline\\] \\[--search QUERY\\]")
     message(FATAL_ERROR "janus doc --help is not available")
 endif()
 
@@ -140,3 +241,4 @@ if(UNIX AND NOT APPLE)
 endif()
 
 file(REMOVE_RECURSE "${PROJECT_DIR}")
+file(REMOVE_RECURSE "${DEPENDENCY_DIR}")

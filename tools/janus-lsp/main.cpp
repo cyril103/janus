@@ -53,6 +53,15 @@ std::filesystem::path stdlib_path(const char *argv0) {
              : std::filesystem::path{JANUS_STDLIB_DIR};
 }
 
+std::filesystem::path stdlib_api_index_path(const char *argv0) {
+  const std::filesystem::path installed =
+      executable_path(argv0).parent_path().parent_path() /
+      "share/doc/janus/stdlib-reference/api-index.json";
+  return std::filesystem::is_regular_file(installed)
+             ? installed
+             : std::filesystem::path{JANUS_STDLIB_API_INDEX};
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -61,7 +70,8 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  janus::lsp::Server server{{stdlib_path(argv[0])}};
+  janus::lsp::Server server{{stdlib_path(argv[0])},
+                            {stdlib_api_index_path(argv[0])}};
   while (std::cin) {
     std::size_t content_length = 0;
     std::string header;

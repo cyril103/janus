@@ -236,6 +236,7 @@ target_compile_definitions(janusc
 )
 
 add_library(janus_driver
+    src/driver/api_index.cpp
     src/driver/documentation.cpp
     src/driver/doctest.cpp
     src/driver/formatter.cpp
@@ -376,6 +377,7 @@ target_compile_definitions(janus-lsp
     PRIVATE
         JANUS_VERSION="${PROJECT_VERSION}"
         JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+        JANUS_STDLIB_API_INDEX="${PROJECT_SOURCE_DIR}/website/docs/reference/stdlib/api-index.json"
 )
 
 include(CTest)
@@ -923,6 +925,14 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME driver.documentation COMMAND documentation_test)
+
+    add_executable(api_index_test tests/driver/api_index_test.cpp)
+    target_link_libraries(api_index_test PRIVATE janus_driver)
+    target_compile_definitions(api_index_test PRIVATE
+        JANUS_INSTALLED_API_INDEX=\"${PROJECT_SOURCE_DIR}/website/docs/reference/stdlib/api-index.json\"
+    )
+    target_compile_options(api_index_test PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME driver.api_index COMMAND api_index_test)
     add_executable(doctest_test
         tests/driver/doctest_test.cpp
     )

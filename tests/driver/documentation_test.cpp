@@ -1,4 +1,5 @@
 #include "janus/driver/documentation.hpp"
+#include "janus/driver/api_index.hpp"
 #include "janus/frontend/parser.hpp"
 
 #include <filesystem>
@@ -109,6 +110,12 @@ private def hidden() : int { return 0 }
 
   const std::string html = read(first.index_path);
   const std::string api_index = read(first.api_index_path);
+  const janus::driver::ApiIndex loaded_index =
+      janus::driver::load_api_index(first.api_index_path);
+  expect(loaded_index.package == "sample-package" &&
+             loaded_index.package_version == "1.2.3" &&
+             loaded_index.symbols.size() == first.symbol_count,
+         "the shared API-index reader loads generated documentation metadata");
   expect(html == read(second.index_path), "HTML generation is deterministic");
   expect(html.find("<title>sample-package 1.2.3 API</title>") !=
              std::string::npos,
