@@ -200,7 +200,8 @@ ast::Program Parser::parse_program() {
         is_private = true;
         advance();
       }
-      if (is_private && current_.kind != TokenKind::Val &&
+      if (is_private && current_.kind != TokenKind::Const &&
+          current_.kind != TokenKind::Val &&
           current_.kind != TokenKind::Var && current_.kind != TokenKind::Def &&
           current_.kind != TokenKind::Extern &&
           current_.kind != TokenKind::Class &&
@@ -230,6 +231,33 @@ ast::Program Parser::parse_program() {
         declaration.module_name = program.module_name;
         declaration.documentation = std::move(documentation);
         program.classes.push_back(std::move(declaration));
+      } else if (current_.kind == TokenKind::StaticAssert) {
+        if (is_private)
+          throw CompileError{current_.location,
+                             "staticAssert cannot be private"};
+        program.static_assertions.push_back(parse_static_assertion());
+      } else if (current_.kind == TokenKind::Const) {
+        const SourceLocation location = current_.location;
+        advance();
+        if (current_.kind == TokenKind::Def) {
+          ast::FunctionDeclaration declaration =
+              parse_function_declaration(true);
+          declaration.is_private = is_private;
+          declaration.module_name = program.module_name;
+          declaration.documentation = std::move(documentation);
+          program.functions.push_back(std::move(declaration));
+        } else {
+          ast::ValueDeclaration declaration =
+              parse_variable_declaration(true, location);
+          if (!declaration.declared_type.has_value())
+            throw CompileError{declaration.location,
+                               "constant '" + declaration.name +
+                                   "' requires an explicit type annotation"};
+          declaration.is_private = is_private;
+          declaration.documentation = std::move(documentation);
+          program.globals.push_back(ast::GlobalDeclaration{
+              std::move(declaration), program.module_name});
+        }
       } else if (current_.kind == TokenKind::Val ||
                  current_.kind == TokenKind::Var) {
         ast::ValueDeclaration declaration = parse_variable_declaration();
@@ -279,6 +307,8 @@ void Parser::synchronize_top_level() {
                                     current_.kind == TokenKind::Enum ||
                                     current_.kind == TokenKind::Class ||
                                     current_.kind == TokenKind::Struct ||
+                                    current_.kind == TokenKind::Const ||
+                                    current_.kind == TokenKind::StaticAssert ||
                                     current_.kind == TokenKind::Val ||
                                     current_.kind == TokenKind::Var ||
                                     current_.kind == TokenKind::Def ||
@@ -813,7 +843,8 @@ std::vector<ast::Statement> Parser::parse_block() {
   return body;
 }
 
-ast::FunctionDeclaration Parser::parse_function_declaration() {
+ast::FunctionDeclaration
+Parser::parse_function_declaration(bool is_constant) {
   const bool is_external = current_.kind == TokenKind::Extern;
   const SourceLocation declaration_location = current_.location;
   std::optional<std::string> external_symbol;
@@ -928,10 +959,16 @@ ast::FunctionDeclaration Parser::parse_function_declaration() {
                                        false,
                                        {},
                                        return_ownership};
+  declaration.is_constant = is_constant;
   return declaration;
 }
 
 ast::Statement Parser::parse_statement() {
+  if (current_.kind == TokenKind::Const) {
+    const SourceLocation location = current_.location;
+    advance();
+    return parse_variable_declaration(true, location);
+  }
   if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var ||
       current_.kind == TokenKind::Borrow) {
     return parse_variable_declaration();
@@ -970,7 +1007,9 @@ ast::Statement Parser::parse_statement() {
                          std::string{token_name(current_.kind)}};
 }
 
-ast::ValueDeclaration Parser::parse_variable_declaration() {
+ast::ValueDeclaration
+Parser::parse_variable_declaration(bool is_constant,
+                                   SourceLocation constant_location) {
   const bool is_borrowed = current_.kind == TokenKind::Borrow;
   if (is_borrowed)
     advance();
@@ -978,8 +1017,11 @@ ast::ValueDeclaration Parser::parse_variable_declaration() {
   if (is_borrowed && is_mutable)
     throw CompileError{current_.location,
                        "borrowed local values must be immutable"};
-  const Token declaration =
-      expect(is_mutable ? TokenKind::Var : TokenKind::Val);
+  const Token declaration = is_constant
+                                ? Token{TokenKind::Const, "const",
+                                        constant_location}
+                                : expect(is_mutable ? TokenKind::Var
+                                                    : TokenKind::Val);
   const Token identifier = expect(TokenKind::Identifier);
   std::optional<ast::TypeReference> declared_type;
   if (current_.kind == TokenKind::Colon) {
@@ -1008,7 +1050,21 @@ ast::ValueDeclaration Parser::parse_variable_declaration() {
                                false,
                                {}};
   result.is_borrowed = is_borrowed;
+  result.is_constant = is_constant;
   return result;
+}
+
+ast::Program::StaticAssertion Parser::parse_static_assertion() {
+  const Token assertion = expect(TokenKind::StaticAssert);
+  static_cast<void>(expect(TokenKind::LeftParen));
+  ast::Expression condition = parse_expression();
+  std::optional<std::string> message;
+  if (current_.kind == TokenKind::Comma) {
+    advance();
+    message = decode_string_literal(expect(TokenKind::StringLiteral));
+  }
+  static_cast<void>(expect(TokenKind::RightParen));
+  return {std::move(condition), std::move(message), assertion.location};
 }
 
 ast::AssignmentStatement Parser::parse_assignment_statement() {

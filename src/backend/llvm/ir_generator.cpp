@@ -577,8 +577,56 @@ private:
       return shape;
     };
     const janus::Type &type = resolve(global.declaration.declared_type, {});
+    std::function<std::optional<janus::constant::Value>(
+        std::string_view, const std::vector<janus::constant::Value> &,
+        janus::SourceLocation)>
+        call_constant_function;
+    call_constant_function =
+        [&](std::string_view name,
+            const std::vector<janus::constant::Value> &arguments,
+            janus::SourceLocation location)
+        -> std::optional<janus::constant::Value> {
+      const auto found = functions_.find(std::string{name});
+      if (found == functions_.end() || !found->second->is_constant)
+        return std::nullopt;
+      const janus::ast::FunctionDeclaration &function = *found->second;
+      if (arguments.size() != function.parameters.size() ||
+          function.body.size() != 1 ||
+          !std::holds_alternative<janus::ast::ReturnStatement>(
+              function.body.front()))
+        throw janus::CompileError{
+            location, "const def requires one return expression"};
+      const auto &statement =
+          std::get<janus::ast::ReturnStatement>(function.body.front());
+      if (!statement.expression.has_value())
+        throw janus::CompileError{location,
+                                  "const def must return a value"};
+      std::unordered_map<std::string, janus::constant::Value> locals;
+      for (std::size_t index = 0; index < arguments.size(); ++index)
+        locals.emplace(function.parameters[index].name, arguments[index]);
+      const janus::constant::Resolver function_resolver =
+          [&](const std::optional<std::string> &module, std::string_view value,
+              janus::SourceLocation reference_location)
+          -> std::optional<janus::constant::Value> {
+        if (!module.has_value())
+          if (const auto local = locals.find(std::string{value});
+              local != locals.end())
+            return local->second;
+        const std::string key = source_global_key(module, value);
+        if (const auto dependency = global_by_key_.find(key);
+            dependency != global_by_key_.end())
+          return evaluate_global_constant(*dependency->second);
+        throw janus::CompileError{reference_location,
+                                  "const def references non-constant value"};
+      };
+      const janus::Type &return_type = resolve(function.return_type, {});
+      return janus::constant::evaluate(
+          *statement.expression, &return_type, function_resolver,
+          constructor_resolver, call_constant_function);
+    };
     janus::constant::Value value = janus::constant::evaluate(
-        *global.declaration.initializer, &type, resolver, constructor_resolver);
+        *global.declaration.initializer, &type, resolver, constructor_resolver,
+        call_constant_function);
     constant_states_[key] = 2;
     auto [iterator, inserted] = constant_values_.emplace(key, std::move(value));
     static_cast<void>(inserted);
@@ -642,6 +690,10 @@ private:
     const janus::Type &type = resolve(declaration.declared_type, {});
     const bool is_constant = constant_global_keys_.contains(
         source_global_key(global.module_name, declaration.name));
+    if (declaration.is_constant) {
+      static_cast<void>(evaluate_global_constant(global));
+      return;
+    }
     const auto linkage = declaration.is_private
                              ? ::llvm::GlobalValue::InternalLinkage
                              : ::llvm::GlobalValue::ExternalLinkage;
@@ -3048,6 +3100,19 @@ private:
                                             expected_type.is_signed());
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
+            std::string key = source_global_key(active_module_, node.name);
+            if (!global_by_key_.contains(key)) {
+              if (const auto exported = public_global_keys_.find(node.name);
+                  exported != public_global_keys_.end())
+                key = exported->second;
+            }
+            if (const auto global = global_by_key_.find(key);
+                global != global_by_key_.end() &&
+                global->second->declaration.is_constant) {
+              const janus::constant::Value &value =
+                  evaluate_global_constant(*global->second);
+              return emit_static_initializer(value, *value.type);
+            }
             const Local &local = resolve_storage(node.name, locals);
             return builder.CreateLoad(lower_type(*local.type, context_),
                                       local.storage, node.name + ".value");

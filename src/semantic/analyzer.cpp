@@ -1233,6 +1233,81 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   const constant::InitializationPlan initialization_plan =
       constant::plan_initialization(program);
   std::function<const constant::Value &(const std::string &)> evaluate_global;
+  std::size_t constant_steps = 0;
+  std::size_t constant_depth = 0;
+  std::function<std::optional<constant::Value>(
+      std::string_view, const std::vector<constant::Value> &, SourceLocation)>
+      evaluate_constant_function;
+  evaluate_constant_function =
+      [&](std::string_view name, const std::vector<constant::Value> &arguments,
+          SourceLocation location) -> std::optional<constant::Value> {
+    const auto found = std::find_if(
+        program.functions.begin(), program.functions.end(),
+        [&](const ast::FunctionDeclaration &candidate) {
+          return candidate.name == name;
+        });
+    if (found == program.functions.end() || !found->is_constant)
+      return std::nullopt;
+    const ast::FunctionDeclaration &function = *found;
+    if (!function.type_parameters.empty())
+      throw CompileError{location,
+                         "generic const def is not supported in the first "
+                         "constant-evaluation version"};
+    if (arguments.size() != function.parameters.size())
+      throw CompileError{location, "const def '" + function.name +
+                                       "' received an invalid argument count"};
+    if (++constant_steps > 10000)
+      throw CompileError{location,
+                         "constant evaluation step budget exceeded (10000)"};
+    if (++constant_depth > 128)
+      throw CompileError{location,
+                         "constant evaluation recursion budget exceeded (128)"};
+    struct DepthGuard {
+      std::size_t &depth;
+      ~DepthGuard() { --depth; }
+    } guard{constant_depth};
+    if (function.body.size() != 1 ||
+        !std::holds_alternative<ast::ReturnStatement>(function.body.front()))
+      throw CompileError{
+          function.location,
+          "const def must contain exactly one return expression in the first "
+          "constant-evaluation version"};
+    const auto &statement =
+        std::get<ast::ReturnStatement>(function.body.front());
+    if (!statement.expression.has_value())
+      throw CompileError{function.location,
+                         "const def must return a constant value"};
+    std::unordered_map<std::string, constant::Value> locals;
+    for (std::size_t index = 0; index < arguments.size(); ++index)
+      locals.emplace(function.parameters[index].name, arguments[index]);
+    const constant::Resolver local_resolver =
+        [&](const std::optional<std::string> &module, std::string_view value,
+            SourceLocation reference_location)
+        -> std::optional<constant::Value> {
+      if (!module.has_value())
+        if (const auto local = locals.find(std::string{value});
+            local != locals.end())
+          return local->second;
+      std::string key = global_key(module, value);
+      if (!module.has_value() && !globals.contains(key)) {
+        if (const auto exported = public_globals.find(std::string{value});
+            exported != public_globals.end())
+          key = exported->second;
+      }
+      if (!globals.contains(key))
+        return std::nullopt;
+      if (globals.at(key).declaration->declaration.is_mutable)
+        throw CompileError{reference_location,
+                           "const def cannot observe mutable global '" + key +
+                               "'"};
+      return evaluate_global(key);
+    };
+    const SemanticType return_type =
+        resolve_type(function.return_type, no_type_parameters, &class_arities);
+    return constant::evaluate(*statement.expression, return_type.concrete,
+                              local_resolver, {},
+                              evaluate_constant_function);
+  };
   evaluate_global = [&](const std::string &key) -> const constant::Value & {
     const ConstantState state = constant_states[key];
     if (state == ConstantState::Visiting)
@@ -1286,9 +1361,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           dependency_key + "'"};
       return evaluate_global(dependency_key);
     };
-    constant::Value value =
-        constant::evaluate(*global.declaration.initializer,
-                           resolved.symbol.type.concrete, resolver);
+    constant::Value value = constant::evaluate(
+        *global.declaration.initializer, resolved.symbol.type.concrete,
+        resolver, {}, evaluate_constant_function);
     constant_states[key] = ConstantState::Complete;
     auto [iterator, inserted] = constant_values.emplace(key, std::move(value));
     static_cast<void>(inserted);
@@ -1299,6 +1374,41 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             .symbol.type.concrete != nullptr)
       static_cast<void>(evaluate_global(
           global_key(global->module_name, global->declaration.name)));
+
+  for (const ast::Program::StaticAssertion &assertion :
+       program.static_assertions) {
+    try {
+      const constant::Value condition = constant::evaluate(
+          assertion.condition, &Type::bool_type(),
+          [&](const std::optional<std::string> &module, std::string_view name,
+              SourceLocation) -> std::optional<constant::Value> {
+            std::string key = global_key(module, name);
+            if (!module.has_value() && !globals.contains(key)) {
+              if (const auto exported = public_globals.find(std::string{name});
+                  exported != public_globals.end())
+                key = exported->second;
+            }
+            if (!globals.contains(key) ||
+                !globals.at(key).declaration->declaration.is_constant)
+              return std::nullopt;
+            return evaluate_global(key);
+          },
+          {}, evaluate_constant_function);
+      if (!std::get<bool>(condition.data))
+        throw CompileError{assertion.location,
+                           "static assertion failed" +
+                               (assertion.message.has_value()
+                                    ? ": " + *assertion.message
+                                    : std::string{})};
+    } catch (const CompileError &error) {
+      if (std::string_view{error.what()}.find("static assertion failed") !=
+          std::string_view::npos)
+        throw;
+      throw CompileError{assertion.location,
+                         "static assertion condition is not a constant "
+                         "expression: " + std::string{error.what()}};
+    }
+  }
 
   struct TraitInstance {
     const ast::TraitDeclaration *declaration;
@@ -5033,6 +5143,39 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               declaration->declared_type.has_value())
             validate_expression(*declaration->initializer, declared_type,
                                 declaration->location);
+          if (declaration->is_constant) {
+            if (!declaration->initializer.has_value() ||
+                declared_type.concrete == nullptr)
+              throw CompileError{
+                  declaration->location,
+                  "local const requires an initialized scalar type"};
+            try {
+              static_cast<void>(constant::evaluate(
+                  *declaration->initializer, declared_type.concrete,
+                  [&](const std::optional<std::string> &module,
+                      std::string_view name, SourceLocation)
+                  -> std::optional<constant::Value> {
+                    std::string key = global_key(module, name);
+                    if (!module.has_value() && !globals.contains(key)) {
+                      if (const auto exported =
+                              public_globals.find(std::string{name});
+                          exported != public_globals.end())
+                        key = exported->second;
+                    }
+                    if (!globals.contains(key) ||
+                        !globals.at(key)
+                             .declaration->declaration.is_constant)
+                      return std::nullopt;
+                    return evaluate_global(key);
+                  },
+                  {}, evaluate_constant_function));
+            } catch (const CompileError &error) {
+              throw CompileError{
+                  declaration->location,
+                  "local constant '" + declaration->name +
+                      "' is not a constant expression: " + error.what()};
+            }
+          }
           block_symbols.emplace(declaration->name,
                                 Symbol{declared_type, declaration->is_mutable,
                                        declaration->initializer.has_value()});

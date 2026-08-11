@@ -44,6 +44,8 @@ using Resolver = std::function<std::optional<Value>(
 using ConstructorResolver = std::function<std::optional<ConstructorShape>(
     std::string_view, const std::optional<std::string> &,
     const std::vector<ast::TypeReference> &, SourceLocation)>;
+using FunctionResolver = std::function<std::optional<Value>(
+    std::string_view, const std::vector<Value> &, SourceLocation)>;
 
 [[nodiscard]] bool is_constant_expression(const ast::Expression &expression);
 
@@ -54,6 +56,7 @@ plan_initialization(const ast::Program &program);
                              const Type *expected_type,
                              const Resolver &resolve,
                              const ConstructorResolver &resolve_constructor =
-                                 {});
+                                 {},
+                             const FunctionResolver &call_function = {});
 
 } // namespace janus::constant

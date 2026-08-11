@@ -21,9 +21,13 @@ private:
   [[nodiscard]] std::vector<ast::Derivation> parse_derivations();
   [[nodiscard]] ast::DestructorDeclaration parse_destructor_declaration();
   [[nodiscard]] std::vector<ast::Statement> parse_block();
-  [[nodiscard]] ast::FunctionDeclaration parse_function_declaration();
+  [[nodiscard]] ast::FunctionDeclaration
+  parse_function_declaration(bool is_constant = false);
   [[nodiscard]] ast::Statement parse_statement();
-  [[nodiscard]] ast::ValueDeclaration parse_variable_declaration();
+  [[nodiscard]] ast::ValueDeclaration
+  parse_variable_declaration(bool is_constant = false,
+                             SourceLocation constant_location = {});
+  [[nodiscard]] ast::Program::StaticAssertion parse_static_assertion();
   [[nodiscard]] ast::AssignmentStatement parse_assignment_statement();
   [[nodiscard]] ast::DeleteStatement parse_delete_statement();
   [[nodiscard]] ast::DeferStatement parse_defer_statement();
