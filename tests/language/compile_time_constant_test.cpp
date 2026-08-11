@@ -7,6 +7,7 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <iostream>
+#include <cfenv>
 #include <string>
 #include <string_view>
 
@@ -137,7 +138,23 @@ const x : float = 16777216.0f + 1.0f
 def main() : int { return if x == 16777216.0f { 0 } else { 1 } }
 )"};
   const janus::ast::Program float_program = float_parser.parse_program();
-  static_cast<void>(analyzer.analyze(float_program));
+  const auto float_analysis = analyzer.analyze(float_program);
+  expect(std::get<double>(float_analysis.global_constant_values.at("x").data) ==
+             16777216.0,
+         "binary32 value is rounded in the semantic constant representation");
+  for (const int rounding_mode : {FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO}) {
+    std::fesetround(rounding_mode);
+    janus::frontend::Parser mode_parser{
+        "const x : float = 16777216.0f + 1.0f\n"
+        "staticAssert(x == 16777216.0f)\n"
+        "def main() : int { return 0 }"};
+    const auto mode_analysis = analyzer.analyze(mode_parser.parse_program());
+    expect(std::get<double>(
+               mode_analysis.global_constant_values.at("x").data) ==
+               16777216.0,
+           "binary32 evaluation is independent of the host rounding mode");
+  }
+  std::fesetround(FE_TONEAREST);
   llvm::LLVMContext float_context;
   janus::backend::llvm::IrGenerator float_generator{float_context};
   static_cast<void>(float_generator.generate(float_program, "float_constant"));
@@ -146,6 +163,10 @@ def main() : int { return if x == 16777216.0f { 0 } else { 1 } }
       "var runtime : int = 1\nconst invalid : int = runtime\n"
       "def main() : int { return 0 }",
       "constant 'invalid' cannot depend on mutable global 'runtime'");
+  expect_compile_error(
+      "val ordinary : int = 7\nconst invalid : int = ordinary\n"
+      "def main() : int { return invalid }",
+      "cannot depend on non-constant global 'ordinary'");
   expect_compile_error(
       "var state : int = 7\n"
       "const def impure() : int { return state }\n"
@@ -184,6 +205,9 @@ def main() : int { return if x == 16777216.0f { 0 } else { 1 } }
   expect_compile_error(
       "const invalid : double = 0.0 / 0.0\ndef main() : int { return 0 }",
       "floating constant expression is not finite");
+  expect_compile_error(
+      "const x : float = 3.4e38f * 2.0f\ndef main() : int { return 0 }",
+      "floating constant expression overflows type 'float'");
   expect(janus::constant::canonical_serialize(
              {&janus::Type::float_type(), 1.0}) == "float:f32:0x3f800000",
          "binary32 constants serialize as exact IEEE bits");
@@ -243,6 +267,10 @@ def main() : int { return answer }
       "constant evaluation step budget exceeded (0)",
       {.require_entry_point = true, .constant_step_budget = 0, .target = {}});
   expect_compile_error(
+      "const result : int = 1 + 1\ndef main() : int { return result }",
+      "constant evaluation step budget exceeded (0)",
+      {.require_entry_point = true, .constant_step_budget = 0, .target = {}});
+  expect_compile_error(
       "const text : string = \"123456789\"\ndef main() : int { return 0 }",
       "constant value size budget exceeded (8 bytes)",
       {.require_entry_point = true, .constant_value_size_budget = 8,
@@ -253,6 +281,13 @@ def main() : int { return answer }
       "constant evaluation memory budget exceeded (20 bytes)",
       {.require_entry_point = true, .constant_memory_budget = 20,
        .target = {}});
+  expect_compile_error(
+      "def main() : int {\n"
+      "    const text : string = \"arbitrarily large local constant\"\n"
+      "    return 0\n}",
+      "constant evaluation memory budget exceeded (1 bytes)",
+      {.require_entry_point = true, .constant_memory_budget = 1,
+       .constant_value_size_budget = 1, .target = {}});
 
   janus::frontend::Parser generic_parser{R"(
 const def identity[T](value : T) : T { return value }
@@ -268,6 +303,11 @@ def main() : int { return identity[int](integer) }
 )"};
   const janus::ast::Program generic_program = generic_parser.parse_program();
   static_cast<void>(analyzer.analyze(generic_program));
+  janus::frontend::Parser generic_wide_parser{
+      "const def identity[T](value : T) : T { return value }\n"
+      "const wide : long = identity[long](2147483648)\n"
+      "def main() : int { return int(wide) }"};
+  static_cast<void>(analyzer.analyze(generic_wide_parser.parse_program()));
   llvm::LLVMContext generic_context;
   janus::backend::llvm::IrGenerator generic_generator{generic_context};
   static_cast<void>(generic_generator.generate(generic_program,
@@ -288,6 +328,16 @@ def main() : int { return identity[int](integer) }
   expect(target64.target.pointer_width == 64 &&
              target64.global_constant_values.at("wide").type->bit_width() == 64,
          "constant evaluation uses the explicit 64-bit target model");
+  janus::frontend::Parser target32_const_def_parser{
+      "const def huge() : usize { return usize(1) }\n"
+      "const x : usize = huge()\ndef main() : int { return 0 }"};
+  const auto target32_const_def = analyzer.analyze(
+      target32_const_def_parser.parse_program(),
+      {.require_entry_point = true,
+       .target = {.triple = "i686-unknown-linux-gnu", .pointer_width = 32}});
+  expect(target32_const_def.global_constant_values.at("x").type->bit_width() ==
+             32,
+         "const def usize values preserve the target pointer width");
   janus::frontend::Parser target32_parser{
       "const width : usize = 32\n"
       "def preserve(value : usize) : usize { return value }\n"
