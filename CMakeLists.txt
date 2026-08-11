@@ -614,6 +614,24 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME frontend.module_loader COMMAND module_loader_test)
+    add_executable(compile_time_constant_test
+        tests/language/compile_time_constant_test.cpp
+    )
+    target_link_libraries(compile_time_constant_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_include_directories(compile_time_constant_test SYSTEM PRIVATE
+        ${JANUS_LLVM_INCLUDE_DIR}
+    )
+    target_compile_options(compile_time_constant_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.compile_time_constants COMMAND compile_time_constant_test)
     add_executable(documentation_comment_test
         tests/frontend/documentation_comment_test.cpp
     )
