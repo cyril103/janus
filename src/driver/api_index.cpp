@@ -1,6 +1,7 @@
 #include "janus/driver/api_index.hpp"
 
 #include "janus/frontend/parser.hpp"
+#include "janus/semantic/analyzer.hpp"
 
 #include "llvm/Support/JSON.h"
 
@@ -392,6 +393,12 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
   index.package_version = metadata.package_version;
   for (const auto &program : programs) {
     const std::string module = program.module_name.value_or("root");
+    std::optional<semantic::AnalysisResult> analysis;
+    try {
+      analysis = semantic::Analyzer{}.analyze(
+          program, {.require_entry_point = false, .target = {}});
+    } catch (const std::exception &) {
+    }
     for (const auto &global : program.globals) {
       if (global.declaration.is_private || global.declaration.is_internal)
         continue;
@@ -403,6 +410,15 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
               global.declaration.name + " : " +
               type_name(global.declaration.declared_type),
           global.declaration.documentation);
+      if (global.declaration.is_constant && analysis) {
+        const std::string origin = global.module_name.value_or("root") + "." +
+                                   global.declaration.name;
+        if (const auto value = analysis->global_constant_values.find(origin);
+            value != analysis->global_constant_values.end())
+          index.symbols.back().signature += " = " +
+              constant::canonical_serialize(value->second) +
+              " [origin " + origin + "]";
+      }
     }
     for (const auto &function : program.functions) {
       if (function.is_private || function.is_internal)
