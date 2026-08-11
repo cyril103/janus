@@ -440,6 +440,8 @@ resolve_dependencies(const Manifest &manifest,
           "janus.lock is out of date; run without --locked to update it"};
     return search_paths;
   }
+  if (!options.write_lockfile)
+    return search_paths;
   if (existing_lock == lock)
     return search_paths;
   write_lockfile_atomic(lock_path, lock);

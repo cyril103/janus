@@ -21,7 +21,7 @@ set(TOP_LEVEL_USAGE
   janus run [source.janus] [--release] [--panic-trace full|short|off]
   janus test [filter] [--doc] [--doc-path <path>] [--list] [--exact] [--ignored|--include-ignored] [--jobs <count>] [--timeout <duration>] [--fail-fast] [--fail-if-empty] [--format human|json|junit] [--release] [--panic-trace full|short|off]
   janus fmt [source.janus] [--check]
-  janus doc [--stdlib] [-o directory] [--open] [--offline]
+  janus doc [--stdlib] [-o directory] [--open] [--offline] [--search QUERY] [--format human|json] [--module NAME] [--kind KIND] [--package NAME]
   diagnostics: --warn-high-growth-loops for check, build, run
   dependency options: --locked --offline
   janus --help
@@ -40,7 +40,7 @@ set(TEST_USAGE
 "usage: janus test [filter] [--doc] [--doc-path <path>] [--list] [--exact] [--ignored|--include-ignored] [--jobs <count>] [--timeout <duration>] [--fail-fast] [--fail-if-empty] [--format human|json|junit] [--release] [--locked] [--offline] [--panic-trace full|short|off]
 ")
 set(DOC_USAGE
-"usage: janus doc [--stdlib] [-o directory] [--open] [--offline]
+"usage: janus doc [--stdlib] [-o directory] [--open] [--offline] [--search QUERY] [--format human|json] [--module NAME] [--kind KIND] [--package NAME]
 ")
 set(CLEAN_USAGE
 "usage: janus clean
@@ -119,6 +119,21 @@ assert_result(
     "doc invocation error" 2 ""
     "janus doc: error: doc does not accept a source path\n${DOC_USAGE}"
     doc source.janus
+)
+assert_result(
+    "doc filter requires search" 2 ""
+    "janus doc: error: --module, --kind, --package, and --format require --search\n${DOC_USAGE}"
+    doc --module std.text
+)
+assert_result(
+    "doc search rejects output" 2 ""
+    "janus doc: error: --search does not accept -o or --open\n${DOC_USAGE}"
+    doc --stdlib --search text -o ignored
+)
+assert_result(
+    "doc search rejects open" 2 ""
+    "janus doc: error: --search does not accept -o or --open\n${DOC_USAGE}"
+    doc --stdlib --search text --open
 )
 assert_result(
     "clean invocation error" 2 ""

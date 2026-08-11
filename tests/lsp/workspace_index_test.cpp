@@ -1,4 +1,5 @@
 #include "janus/lsp/server.hpp"
+#include "janus/driver/api_index.hpp"
 #include "janus/frontend/module_loader.hpp"
 
 #include "../support/require.hpp"
@@ -54,6 +55,22 @@ std::size_t occurrences(const std::string &text, std::string_view needle) {
     position += needle.size();
   }
   return count;
+}
+
+bool named_items_have_no_edits(const std::string &json, std::string_view label) {
+  const std::string marker = "\"label\":\"" + std::string{label} + "\"";
+  std::size_t position = 0;
+  bool found = false;
+  while ((position = json.find(marker, position)) != std::string::npos) {
+    found = true;
+    const std::size_t start = json.rfind('{', position);
+    if (start == std::string::npos ||
+        json.substr(start, position - start).find("additionalTextEdits") !=
+            std::string::npos)
+      return false;
+    position += marker.size();
+  }
+  return found;
 }
 
 struct TemporaryWorkspace {
@@ -117,6 +134,15 @@ int main(int argc, char **argv) {
       R"(","text":"import library\n\ndef main() : int {\n    return helper()\n}\n"}}})");
   JANUS_REQUIRE(opened.size() == 1);
   JANUS_REQUIRE(opened.front().find("\"diagnostics\":[]") != std::string::npos);
+  const std::vector<std::string> discovery_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":30,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      main_uri + R"("},"position":{"line":3,"character":11}}})");
+  JANUS_REQUIRE(discovery_completion.front().find(
+                    "\"label\":\"workspaceValue\"") != std::string::npos);
+  JANUS_REQUIRE(discovery_completion.front().find(
+                    "\"additionalTextEdits\"") != std::string::npos);
+  JANUS_REQUIRE(discovery_completion.front().find(
+                    "import unopened\\n") != std::string::npos);
 
   const std::vector<std::string> definition = server.handle(
       R"({"jsonrpc":"2.0","id":2,"method":"textDocument/definition","params":{"textDocument":{"uri":")" +
@@ -155,11 +181,77 @@ int main(int argc, char **argv) {
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
       module_a_uri +
-      R"(","text":"module a\n\ndef helper() : int { return 1 }\n"}}})"));
+      R"(","text":"module a\n\ndef helper() : int { return 1 }\ndef uniqueA() : int { return 4 }\n"}}})"));
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
       module_b_uri +
-      R"(","text":"module b\n\ndef helper() : int { return 2 }\ndef renamedQualified() : int { return 3 }\n"}}})"));
+      R"(","text":"module b\n\nclass Widget() {}\ntrait Printable {}\nenum Status { Ready }\ndef helper() : int { return 2 }\ndef renamedQualified() : int { return 3 }\ndef intMaker() : int { return 4 }\ndef stringMaker() : string { return \"x\" }\ndef unary(value : int) : int { return value }\ndef binary(left : int, right : int) : int { return left + right }\ndef zGeneric[T](value : T) : int { return 1 }\ndef aPair[T, U](value : T) : int { return 2 }\n"}}})"));
+  const std::string ambiguous_uri =
+      file_uri(workspace.path / "src/ambiguous.janus");
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      ambiguous_uri +
+      R"(","text":"def main() : int { return helper() }\n"}}})"));
+  const auto ambiguous_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":31,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      ambiguous_uri + R"("},"position":{"line":0,"character":28}}})");
+  JANUS_REQUIRE(ambiguous_completion.front().find("from a") !=
+                std::string::npos);
+  JANUS_REQUIRE(ambiguous_completion.front().find("from b") !=
+                std::string::npos);
+  JANUS_REQUIRE(named_items_have_no_edits(ambiguous_completion.front(),
+                                          "helper"));
+  JANUS_REQUIRE(occurrences(ambiguous_completion.front(),
+                            "\"label\":\"helper\"") >= 2);
+  const auto typed_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":33,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      ambiguous_uri + R"("},"position":{"line":0,"character":28}}})");
+  JANUS_REQUIRE(typed_completion.front().find(
+                    "\"detail\":\"class Widget() — from b (workspace)\",\"kind\":7") !=
+                std::string::npos);
+  JANUS_REQUIRE(typed_completion.front().find(
+                    "\"detail\":\"trait Printable — from b (workspace)\",\"kind\":8") !=
+                std::string::npos);
+  JANUS_REQUIRE(typed_completion.front().find(
+                    "\"detail\":\"enum Status — from b (workspace)\",\"kind\":13") !=
+                std::string::npos);
+  const std::string contextual_uri =
+      file_uri(workspace.path / "src/contextual.janus");
+  const std::string contextual_source =
+      "def main() : int { val result : int = maker; return 0 }\\n";
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      contextual_uri + R"(","text":")" + contextual_source + R"("}}})"));
+  const auto expected_type_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":34,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      contextual_uri + R"("},"position":{"line":0,"character":43}}})");
+  JANUS_REQUIRE(expected_type_completion.front().find("intMaker") <
+                expected_type_completion.front().find("stringMaker"));
+
+  const std::string argument_source =
+      "def main() : int { return candidate(1, 2) }\\n";
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":")" +
+      contextual_uri + R"("},"contentChanges":[{"text":")" +
+      argument_source + R"("}]}})"));
+  const auto argument_count_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":35,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      contextual_uri + R"("},"position":{"line":0,"character":35}}})");
+  JANUS_REQUIRE(argument_count_completion.front().find("binary") <
+                argument_count_completion.front().find("unary"));
+
+  const std::string generic_source =
+      "def main() : int { return candidate[int](1) }\\n";
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":")" +
+      contextual_uri + R"("},"contentChanges":[{"text":")" +
+      generic_source + R"("}]}})"));
+  const auto generic_count_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":43,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      contextual_uri + R"("},"position":{"line":0,"character":35}}})");
+  JANUS_REQUIRE(generic_count_completion.front().find("zGeneric") <
+                generic_count_completion.front().find("aPair"));
+
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
       qualified_consumer_uri +
@@ -193,6 +285,11 @@ int main(int argc, char **argv) {
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
       alias_consumer_uri +
       R"(","text":"import a as alpha\n\ndef main() : int { return alpha.helper() }\n"}}})"));
+  const auto alias_top_level_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":36,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      alias_consumer_uri + R"("},"position":{"line":2,"character":25}}})");
+  JANUS_REQUIRE(alias_top_level_completion.front().find(
+                    "\"label\":\"uniqueA\"") == std::string::npos);
   const std::vector<std::string> alias_definition = server.handle(
       R"({"jsonrpc":"2.0","id":18,"method":"textDocument/definition","params":{"textDocument":{"uri":")" +
       alias_consumer_uri + R"("},"position":{"line":2,"character":34}}})");
@@ -230,6 +327,168 @@ int main(int argc, char **argv) {
                 std::string::npos);
   JANUS_REQUIRE(local_alias_rename.front().find(module_a_uri) ==
                 std::string::npos);
+
+  const std::string selective_edit_uri =
+      file_uri(workspace.path / "src/selective-edit.janus");
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      selective_edit_uri +
+      R"(","text":"import a.{helper}\n\ndef main() : int { return uniqueA() }\n"}}})"));
+  const auto selective_edit_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":32,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      selective_edit_uri + R"("},"position":{"line":2,"character":28}}})");
+  JANUS_REQUIRE(selective_edit_completion.front().find(
+                    "import a.{helper, uniqueA}") != std::string::npos);
+  JANUS_REQUIRE(selective_edit_completion.front().find(
+                    "\"newText\":\"import a\\n\"") ==
+                std::string::npos);
+
+  TemporaryWorkspace indexed_workspace{
+      std::filesystem::temp_directory_path() /
+      ("janus-lsp-external-index-" + std::to_string(suffix))};
+  std::filesystem::create_directories(indexed_workspace.path / "src");
+  const std::filesystem::path external_index_path =
+      indexed_workspace.path / "stdlib-api-index.json";
+  janus::driver::ApiIndex external_index;
+  external_index.package = "offline-stdlib";
+  external_index.symbols.push_back(janus::driver::ApiSymbol{
+      "offlineClock", "std.time.offlineClock", "offline-stdlib", "std.time",
+      "std.time", "function", "def offlineClock() : int", {}, {}, {}, "int",
+      {}, {}, "public", {}, false, std::nullopt});
+  external_index.symbols.push_back(janus::driver::ApiSymbol{
+      "tick", "std.time.Clock.tick", "offline-stdlib", "std.time",
+      "std.time", "method", "def tick() : int", {}, {}, {}, "int", {}, {},
+      "public", {}, false, std::nullopt});
+  const std::filesystem::path peer_index_path =
+      indexed_workspace.path / "peer-api-index.json";
+  janus::driver::ApiIndex peer_index;
+  peer_index.package = "peer-package";
+  peer_index.symbols.push_back(janus::driver::ApiSymbol{
+      "sharedNeedle", "std.time.sharedNeedle", "peer-package", "std.time",
+      "std.time", "function", "def sharedNeedle() : int", {}, {}, {}, "int",
+      {}, {}, "public", {}, false, std::nullopt});
+  external_index.symbols.push_back(janus::driver::ApiSymbol{
+      "sharedNeedle", "std.time.sharedNeedle", "offline-stdlib", "std.time",
+      "std.time", "function", "def sharedNeedle() : int", {}, {}, {}, "int",
+      {}, {}, "public", {}, false, std::nullopt});
+  janus::driver::write_api_index(external_index, external_index_path);
+  janus::driver::write_api_index(peer_index, peer_index_path);
+  const std::filesystem::path indexed_main_path =
+      indexed_workspace.path / "src/main.janus";
+  {
+    std::ofstream output{indexed_main_path};
+    output << "def main() : int { return offlineClock() }\n";
+  }
+  janus::lsp::Server indexed_server{{},
+                                    {external_index_path, peer_index_path}};
+  const std::string indexed_root_uri = file_uri(indexed_workspace.path);
+  const std::string indexed_main_uri = file_uri(indexed_main_path);
+  static_cast<void>(indexed_server.handle(
+      R"({"jsonrpc":"2.0","id":37,"method":"initialize","params":{"rootUri":")" +
+      indexed_root_uri + R"("}})"));
+  static_cast<void>(indexed_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      indexed_main_uri +
+      R"(","text":"def main() : int { return offlineClock() }\n"}}})"));
+  const auto external_completion = indexed_server.handle(
+      R"({"jsonrpc":"2.0","id":38,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      indexed_main_uri + R"("},"position":{"line":0,"character":35}}})");
+  JANUS_REQUIRE(external_completion.front().find(
+                    "\"label\":\"offlineClock\"") != std::string::npos);
+  JANUS_REQUIRE(external_completion.front().find(
+                    "import std.time\\n") != std::string::npos);
+  JANUS_REQUIRE(external_completion.front().find("\"label\":\"tick\"") ==
+                std::string::npos);
+  const auto external_action = indexed_server.handle(
+      R"({"jsonrpc":"2.0","id":41,"method":"textDocument/codeAction","params":{"textDocument":{"uri":")" +
+      indexed_main_uri +
+      R"("},"range":{"start":{"line":0,"character":26},"end":{"line":0,"character":38}},"context":{"diagnostics":[]}}})");
+  JANUS_REQUIRE(external_action.front().find(
+                    "Import module `std.time`") != std::string::npos);
+
+  static_cast<void>(indexed_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":")" +
+      indexed_main_uri +
+      R"("},"contentChanges":[{"text":"def main() : int { return sharedNeedle() }\n"}]}})"));
+  const auto collision_completion = indexed_server.handle(
+      R"({"jsonrpc":"2.0","id":44,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      indexed_main_uri + R"("},"position":{"line":0,"character":35}}})");
+  JANUS_REQUIRE(occurrences(collision_completion.front(),
+                            "\"label\":\"sharedNeedle\"") == 2);
+  JANUS_REQUIRE(named_items_have_no_edits(collision_completion.front(),
+                                          "sharedNeedle"));
+  const auto collision_action = indexed_server.handle(
+      R"({"jsonrpc":"2.0","id":45,"method":"textDocument/codeAction","params":{"textDocument":{"uri":")" +
+      indexed_main_uri +
+      R"("},"range":{"start":{"line":0,"character":26},"end":{"line":0,"character":38}},"context":{"diagnostics":[]}}})");
+  JANUS_REQUIRE(collision_action.front().find("Import module `std.time`") ==
+                std::string::npos);
+
+  static_cast<void>(indexed_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":")" +
+      indexed_main_uri +
+      R"("},"contentChanges":[{"text":"import std.time as time\n\ndef main() : int { return time.offlineClock() }\n"}]}})"));
+  const auto external_member_completion = indexed_server.handle(
+      R"({"jsonrpc":"2.0","id":42,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      indexed_main_uri + R"("},"position":{"line":2,"character":31}}})");
+  JANUS_REQUIRE(external_member_completion.front().find(
+                    "\"label\":\"offlineClock\"") != std::string::npos);
+  JANUS_REQUIRE(named_items_have_no_edits(external_member_completion.front(),
+                                          "offlineClock"));
+
+  TemporaryWorkspace indexed_dependency_workspace{
+      std::filesystem::temp_directory_path() /
+      ("janus-lsp-indexed-dependency-" + std::to_string(suffix))};
+  std::filesystem::create_directories(indexed_dependency_workspace.path /
+                                      "src");
+  std::filesystem::create_directories(indexed_dependency_workspace.path /
+                                      "deps/offline/target/doc");
+  {
+    std::ofstream output{indexed_dependency_workspace.path / "janus.toml"};
+    output << "[package]\nname = \"consumer\"\nversion = \"0.1.0\"\n"
+              "entry = \"src/main.janus\"\n\n[dependencies]\n"
+              "offline = { path = \"deps/offline\" }\n";
+  }
+  {
+    std::ofstream output{indexed_dependency_workspace.path /
+                         "deps/offline/janus.toml"};
+    output << "[package]\nname = \"offline\"\nversion = \"0.1.0\"\n"
+              "entry = \"src/missing.janus\"\n";
+  }
+  const std::filesystem::path indexed_dependency_main =
+      indexed_dependency_workspace.path / "src/main.janus";
+  {
+    std::ofstream output{indexed_dependency_main};
+    output << "def main() : int { return cachedDependency() }\n";
+  }
+  janus::driver::ApiIndex dependency_index;
+  dependency_index.package = "offline";
+  dependency_index.symbols.push_back(janus::driver::ApiSymbol{
+      "cachedDependency", "offline.api.cachedDependency", "offline",
+      "offline.api", "offline.api", "function",
+      "def cachedDependency() : int", {}, {}, {}, "int", {}, {}, "public",
+      {}, false, std::nullopt});
+  janus::driver::write_api_index(
+      dependency_index, indexed_dependency_workspace.path /
+                            "deps/offline/target/doc/api-index.json");
+  janus::lsp::Server dependency_index_server;
+  const std::string dependency_index_root_uri =
+      file_uri(indexed_dependency_workspace.path);
+  const std::string dependency_index_main_uri = file_uri(indexed_dependency_main);
+  static_cast<void>(dependency_index_server.handle(
+      R"({"jsonrpc":"2.0","id":39,"method":"initialize","params":{"rootUri":")" +
+      dependency_index_root_uri + R"("}})"));
+  static_cast<void>(dependency_index_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      dependency_index_main_uri +
+      R"(","text":"def main() : int { return cachedDependency() }\n"}}})"));
+  const auto dependency_index_completion = dependency_index_server.handle(
+      R"({"jsonrpc":"2.0","id":40,"method":"textDocument/completion","params":{"textDocument":{"uri":")" +
+      dependency_index_main_uri + R"("},"position":{"line":0,"character":42}}})");
+  JANUS_REQUIRE(dependency_index_completion.front().find(
+                    "\"label\":\"cachedDependency\"") != std::string::npos);
+  JANUS_REQUIRE(dependency_index_completion.front().find(
+                    "import offline.api\\n") != std::string::npos);
 
   const std::string library_uri =
       file_uri(workspace.path / "deps/library/src/library.janus");

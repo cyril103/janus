@@ -21,6 +21,11 @@
 | `janus fmt --check` | vérifier le formatage |
 | `janus doc` | générer la documentation d’API hors ligne |
 | `janus doc --open` | générer puis ouvrir la documentation |
+| `janus doc --search <requête>` | rechercher les API publiques hors ligne |
+| `janus doc --search <requête> --format human|json` | choisir le format de recherche déterministe |
+| `janus doc --search <requête> --module <nom>` | filtrer la recherche par module |
+| `janus doc --search <requête> --kind <nature>` | filtrer la recherche par nature de symbole |
+| `janus doc --search <requête> --package <nom>` | filtrer la recherche par paquet |
 
 Pour compiler un fichier isolé :
 

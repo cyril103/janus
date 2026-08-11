@@ -1,6 +1,7 @@
 #pragma once
 
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/driver/api_index.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -42,7 +43,9 @@ struct WorkspaceIndexMetrics {
 
 class Server final {
 public:
-  explicit Server(std::vector<std::filesystem::path> module_search_paths = {});
+  explicit Server(
+      std::vector<std::filesystem::path> module_search_paths = {},
+      std::vector<std::filesystem::path> api_index_paths = {});
 
   [[nodiscard]] std::vector<std::string> handle(std::string_view message);
   [[nodiscard]] const WorkspaceIndexMetrics &
@@ -58,6 +61,10 @@ private:
   void initialize_workspace(const std::vector<std::filesystem::path> &roots);
   void index_workspace_file(const std::filesystem::path &path, bool dependency);
   void remove_workspace_file(std::string_view uri);
+  void update_api_index(std::string_view uri, std::string_view source);
+  [[nodiscard]] driver::ApiIndex
+  combined_api_index(std::optional<std::string_view> excluded_uri =
+                         std::nullopt) const;
   void refresh_workspace_metrics(std::uint64_t startup_milliseconds = 0);
 
   std::vector<std::filesystem::path> module_search_paths_;
@@ -67,6 +74,9 @@ private:
   std::unordered_map<std::string, std::string> documents_;
   std::unordered_map<std::string, std::int64_t> document_versions_;
   std::unordered_map<std::string, DocumentIndex> index_cache_;
+  std::unordered_map<std::string, driver::ApiIndex> document_api_indexes_;
+  std::vector<driver::ApiIndex> configured_api_indexes_;
+  std::vector<driver::ApiIndex> dependency_api_indexes_;
   std::unordered_set<std::string> workspace_uris_;
   std::unordered_set<std::string> dependency_uris_;
   WorkspaceIndexMetrics workspace_metrics_;

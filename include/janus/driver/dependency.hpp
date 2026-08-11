@@ -10,6 +10,7 @@ namespace janus::driver {
 struct DependencyOptions {
   bool locked{};
   bool offline{};
+  bool write_lockfile{true};
 };
 
 [[nodiscard]] std::vector<std::filesystem::path>

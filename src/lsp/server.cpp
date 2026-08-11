@@ -2,6 +2,7 @@
 
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/driver/dependency.hpp"
+#include "janus/driver/api_index.hpp"
 #include "janus/driver/formatter.hpp"
 #include "janus/driver/manifest.hpp"
 #include "janus/frontend/lexer.hpp"
@@ -474,6 +475,85 @@ std::optional<CallSite> call_at(std::string_view source,
     } else if (token.kind == janus::frontend::TokenKind::Comma && depth == 0) {
       ++commas;
     }
+  }
+  return std::nullopt;
+}
+
+std::optional<std::string> expected_type_at(std::string_view source,
+                                            std::size_t cursor) {
+  const std::size_t line_start = source.rfind('\n', cursor) ==
+                                         std::string_view::npos
+                                     ? 0
+                                     : source.rfind('\n', cursor) + 1;
+  const std::string_view prefix = source.substr(line_start, cursor - line_start);
+  const std::size_t equals = prefix.rfind('=');
+  const std::size_t colon = equals == std::string_view::npos
+                                ? std::string_view::npos
+                                : prefix.rfind(':', equals);
+  if (colon == std::string_view::npos)
+    return std::nullopt;
+  std::string type{prefix.substr(colon + 1, equals - colon - 1)};
+  type.erase(type.begin(), std::find_if(type.begin(), type.end(), [](char c) {
+               return !std::isspace(static_cast<unsigned char>(c));
+             }));
+  type.erase(std::find_if(type.rbegin(), type.rend(), [](char c) {
+               return !std::isspace(static_cast<unsigned char>(c));
+             }).base(),
+             type.end());
+  return type.empty() ? std::nullopt
+                      : std::optional<std::string>{std::move(type)};
+}
+
+std::optional<std::size_t> argument_count_at(std::string_view source,
+                                             std::size_t cursor) {
+  while (cursor < source.size() &&
+         (std::isalnum(static_cast<unsigned char>(source[cursor])) ||
+          source[cursor] == '_'))
+    ++cursor;
+  if (cursor == source.size() || source[cursor] != '(')
+    return std::nullopt;
+  std::size_t depth = 0;
+  std::size_t count = 0;
+  bool has_argument = false;
+  for (++cursor; cursor < source.size(); ++cursor) {
+    const char character = source[cursor];
+    if (character == '(' || character == '[' || character == '{')
+      ++depth;
+    else if (character == ')' && depth == 0)
+      return has_argument ? count + 1 : 0;
+    else if (character == ')' || character == ']' || character == '}')
+      --depth;
+    else if (character == ',' && depth == 0)
+      ++count;
+    else if (!std::isspace(static_cast<unsigned char>(character)))
+      has_argument = true;
+  }
+  return std::nullopt;
+}
+
+std::optional<std::size_t> generic_argument_count_at(std::string_view source,
+                                                     std::size_t cursor) {
+  while (cursor < source.size() &&
+         (std::isalnum(static_cast<unsigned char>(source[cursor])) ||
+          source[cursor] == '_'))
+    ++cursor;
+  if (cursor == source.size() || source[cursor] != '[')
+    return std::nullopt;
+  std::size_t depth = 0;
+  std::size_t count = 0;
+  bool has_argument = false;
+  for (++cursor; cursor < source.size(); ++cursor) {
+    const char character = source[cursor];
+    if (character == '[')
+      ++depth;
+    else if (character == ']' && depth == 0)
+      return has_argument ? count + 1 : 0;
+    else if (character == ']')
+      --depth;
+    else if (character == ',' && depth == 0)
+      ++count;
+    else if (!std::isspace(static_cast<unsigned char>(character)))
+      has_argument = true;
   }
   return std::nullopt;
 }
@@ -958,8 +1038,40 @@ SemanticIndex build_semantic_index(
 
 namespace janus::lsp {
 
-Server::Server(std::vector<std::filesystem::path> module_search_paths)
-    : module_search_paths_{std::move(module_search_paths)} {}
+Server::Server(std::vector<std::filesystem::path> module_search_paths,
+               std::vector<std::filesystem::path> api_index_paths)
+    : module_search_paths_{std::move(module_search_paths)} {
+  for (const std::filesystem::path &path : api_index_paths)
+    if (std::filesystem::is_regular_file(path))
+      configured_api_indexes_.push_back(driver::load_api_index(path));
+}
+
+void Server::update_api_index(std::string_view uri, std::string_view source) {
+  try {
+    frontend::Parser parser{source};
+    std::vector<ast::Program> programs;
+    programs.push_back(parser.parse_program());
+    driver::ApiIndex index =
+        driver::build_api_index(programs, {"workspace", {}});
+    std::erase_if(index.symbols, [](const driver::ApiSymbol &symbol) {
+      return symbol.qualified_name != symbol.module + "." + symbol.simple_name;
+    });
+    document_api_indexes_.insert_or_assign(std::string{uri}, std::move(index));
+  } catch (const std::exception &) {
+    document_api_indexes_.erase(std::string{uri});
+  }
+}
+
+driver::ApiIndex
+Server::combined_api_index(std::optional<std::string_view> excluded_uri) const {
+  std::vector<driver::ApiIndex> indexes = configured_api_indexes_;
+  indexes.insert(indexes.end(), dependency_api_indexes_.begin(),
+                 dependency_api_indexes_.end());
+  for (const auto &[uri, index] : document_api_indexes_)
+    if (!excluded_uri || uri != *excluded_uri)
+      indexes.push_back(index);
+  return driver::merge_api_indexes(indexes);
+}
 
 void Server::refresh_workspace_metrics(std::uint64_t startup_milliseconds) {
   WorkspaceIndexMetrics metrics;
@@ -1003,6 +1115,7 @@ void Server::index_workspace_file(const std::filesystem::path &path,
   }
   DocumentIndex index{std::move(source), {}};
   index.symbols = symbols(uri, index.source);
+  update_api_index(uri, index.source);
   index_cache_.insert_or_assign(uri, std::move(index));
   workspace_uris_.insert(uri);
   if (dependency)
@@ -1016,6 +1129,7 @@ void Server::remove_workspace_file(std::string_view uri) {
   dependency_uris_.erase(std::string{uri});
   if (!documents_.contains(std::string{uri}))
     index_cache_.erase(std::string{uri});
+  document_api_indexes_.erase(std::string{uri});
   refresh_workspace_metrics();
 }
 
@@ -1029,6 +1143,8 @@ void Server::initialize_workspace(
   dependency_uris_.clear();
   workspace_roots_.clear();
   dependency_roots_.clear();
+  dependency_api_indexes_.clear();
+  document_api_indexes_.clear();
   workspace_search_paths_.clear();
 
   const auto add_search_path = [&](const std::filesystem::path &path) {
@@ -1075,14 +1191,30 @@ void Server::initialize_workspace(
     if (dependency)
       dependency_roots_.push_back(normalized);
     add_search_path(normalized / "src");
-    scan_directory(normalized / "src", dependency);
+    bool has_dependency_index = false;
+    if (dependency) {
+      for (const std::filesystem::path &candidate :
+           {normalized / "target/doc/api-index.json",
+            normalized / "api-index.json", normalized / "docs/api-index.json"})
+        if (std::filesystem::is_regular_file(candidate)) {
+          try {
+            dependency_api_indexes_.push_back(driver::load_api_index(candidate));
+            has_dependency_index = true;
+          } catch (const std::exception &) {
+          }
+          break;
+        }
+    }
+    if (!has_dependency_index)
+      scan_directory(normalized / "src", dependency);
     if (!dependency)
       scan_directory(normalized / "tests", false);
     if (!std::filesystem::is_regular_file(manifest_path))
       return;
     try {
       const driver::Manifest manifest = driver::load_manifest(manifest_path);
-      index_workspace_file(manifest.entry_path(), dependency);
+      if (!has_dependency_index)
+        index_workspace_file(manifest.entry_path(), dependency);
       for (const driver::Dependency &child : manifest.dependencies)
         if (!child.path.empty())
           self(self, (manifest.root() / child.path).lexically_normal(), true);
@@ -1092,8 +1224,24 @@ void Server::initialize_workspace(
                driver::resolve_dependencies(
                    manifest, driver::DependencyOptions{true, true})) {
             add_search_path(search_path);
-            scan_directory(search_path, true);
-            dependency_roots_.push_back(search_path.parent_path());
+            const std::filesystem::path dependency_root = search_path.parent_path();
+            bool loaded = false;
+            for (const std::filesystem::path &candidate :
+                 {dependency_root / "target/doc/api-index.json",
+                  dependency_root / "api-index.json",
+                  dependency_root / "docs/api-index.json"})
+              if (std::filesystem::is_regular_file(candidate)) {
+                try {
+                  dependency_api_indexes_.push_back(
+                      driver::load_api_index(candidate));
+                  loaded = true;
+                } catch (const std::exception &) {
+                }
+                break;
+              }
+            if (!loaded)
+              scan_directory(search_path, true);
+            dependency_roots_.push_back(dependency_root);
           }
         } catch (const std::exception &) {
         }
@@ -1540,6 +1688,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
         document_versions_.insert_or_assign(*uri, *version);
       DocumentIndex index{text->str(), {}};
       index.symbols = symbols(*uri, index.source);
+      update_api_index(*uri, index.source);
       index_cache_.insert_or_assign(*uri, std::move(index));
       if (workspace_uris_.contains(*uri))
         refresh_workspace_metrics();
@@ -1560,6 +1709,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
           document_versions_.insert_or_assign(*uri, *version);
         DocumentIndex index{text->str(), {}};
         index.symbols = symbols(*uri, index.source);
+        update_api_index(*uri, index.source);
         index_cache_.insert_or_assign(*uri, std::move(index));
         if (workspace_uris_.contains(*uri))
           refresh_workspace_metrics();
@@ -1588,6 +1738,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
       refresh_workspace_metrics();
     } else {
       index_cache_.erase(*uri);
+      document_api_indexes_.erase(*uri);
     }
     if (const auto indexed = index_cache_.find(*uri);
         indexed != index_cache_.end())
@@ -1731,7 +1882,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
                    suggestion.replacement, true);
       }
 
-      if (diagnostic.code == DiagnosticCode::AnalyzerUnknownValue) {
+      if (diagnostic.code == DiagnosticCode::AnalyzerUnknownValue ||
+          diagnostic.message.starts_with("unknown function '")) {
         std::optional<std::string> unknown_name;
         for (const frontend::Token &token : tokens(source))
           if (token.kind == frontend::TokenKind::Identifier &&
@@ -1739,27 +1891,88 @@ std::vector<std::string> Server::handle(std::string_view message) {
             unknown_name = std::string{token.lexeme};
             break;
           }
-        std::unordered_set<std::string> modules;
+        std::unordered_map<std::string, std::string> origins;
+        const janus::driver::ApiIndex action_index = combined_api_index(*uri);
         if (unknown_name)
-          for (const auto &[indexed_uri, index] : index_cache_) {
-            if (indexed_uri == *uri)
-              continue;
-            for (const IndexedSymbol &symbol : index.symbols)
-              if (symbol.name == *unknown_name && symbol.is_top_level &&
-                  !symbol.is_private && symbol.module_name.has_value())
-                modules.insert(*symbol.module_name);
+          for (const auto &candidate : janus::driver::search_api(
+                   action_index, {*unknown_name}))
+            if (candidate.score >= 9000)
+              origins.emplace(candidate.symbol->package + "\n" +
+                                  candidate.symbol->required_import,
+                              candidate.symbol->required_import);
+        if (origins.size() == 1) {
+          const std::string &module = origins.begin()->second;
+          bool exposed = false;
+          bool edited_selective_import = false;
+          bool has_module_import = false;
+          try {
+            frontend::Parser parser{source};
+            const ast::Program program = parser.parse_program();
+            for (const ast::ImportDeclaration &import : program.imports) {
+              if (import.module_name != module)
+                continue;
+              has_module_import = true;
+              if (import.is_qualified()) {
+                exposed = true;
+                break;
+              }
+              if (!import.is_qualified() && !import.is_selective()) {
+                exposed = true;
+                break;
+              }
+              if (import.is_selective()) {
+                const auto existing = std::find_if(
+                    import.symbols.begin(), import.symbols.end(),
+                    [&](const ast::ImportDeclaration::Symbol &symbol) {
+                      return symbol.name == *unknown_name;
+                    });
+                if (existing != import.symbols.end()) {
+                  exposed = !existing->alias.has_value();
+                  break;
+                }
+                const std::size_t line_start =
+                    source.rfind('\n', import.location.offset) ==
+                            std::string_view::npos
+                        ? 0
+                        : source.rfind('\n', import.location.offset) + 1;
+                const std::size_t line_end =
+                    source.find('\n', import.location.offset);
+                const std::size_t closing =
+                    source.find('}', import.location.offset);
+                if (closing != std::string_view::npos &&
+                    (line_end == std::string_view::npos ||
+                     closing < line_end)) {
+                  const std::size_t end =
+                      line_end == std::string_view::npos ? source.size()
+                                                         : line_end;
+                  add_action(
+                      "Import `" + *unknown_name + "` from `" + module + "`",
+                      llvm::json::Object{
+                          {"start", position_at_offset(source, line_start)},
+                          {"end", position_at_offset(source, end)},
+                      },
+                      std::string{source.substr(line_start,
+                                                closing - line_start)} +
+                          ", " + *unknown_name + "}",
+                      false);
+                  edited_selective_import = true;
+                }
+                break;
+              }
+            }
+          } catch (const std::exception &) {
           }
-        if (modules.size() == 1) {
-          const std::string &module = *modules.begin();
-          const std::string import_line = "import " + module;
-          if (source.find(import_line) == std::string_view::npos) {
+          if (!exposed && !edited_selective_import) {
             const std::size_t insertion = import_insertion_offset(source);
             add_action("Import module `" + module + "`",
                        llvm::json::Object{
                            {"start", position_at_offset(source, insertion)},
                            {"end", position_at_offset(source, insertion)},
                        },
-                       import_line + "\n", false);
+                       has_module_import
+                           ? "import " + module + ".{" + *unknown_name + "}\n"
+                           : "import " + module + "\n",
+                       false);
           }
         }
       }
@@ -2715,16 +2928,61 @@ std::vector<std::string> Server::handle(std::string_view message) {
       llvm::json::Array items;
       std::vector<std::string> labels;
       const auto add_item = [&](std::string label, std::string detail,
-                                std::int64_t kind) {
-        if (std::find(labels.begin(), labels.end(), label) != labels.end())
+                                std::int64_t kind,
+                                std::optional<std::string> import_module =
+                                    std::nullopt) {
+        const std::string import_symbol = label;
+        const std::string key = label + "\n" + detail;
+        if (std::find(labels.begin(), labels.end(), key) != labels.end())
           return;
-        labels.push_back(label);
-        items.emplace_back(llvm::json::Object{
+        labels.push_back(key);
+        llvm::json::Object item{
             {"label", std::move(label)},
             {"kind", kind},
             {"detail", std::move(detail)},
-        });
+        };
+        if (import_module) {
+          std::size_t insertion = import_insertion_offset(document->second);
+          std::size_t end = insertion;
+          std::string new_text = "import " + *import_module + "\n";
+          for (const ast::ImportDeclaration &import :
+               semantic_index.documents.front().imports) {
+            if (import.module_name != *import_module || !import.is_selective())
+              continue;
+            const std::size_t line_start =
+                document->second.rfind('\n', import.location.offset) ==
+                        std::string::npos
+                    ? 0
+                    : document->second.rfind('\n', import.location.offset) + 1;
+            const std::size_t line_end =
+                document->second.find('\n', import.location.offset);
+            const std::size_t closing =
+                document->second.find('}', import.location.offset);
+            if (closing != std::string::npos &&
+                (line_end == std::string::npos || closing < line_end)) {
+              insertion = line_start;
+              end = line_end == std::string::npos ? document->second.size()
+                                                   : line_end;
+              new_text = document->second.substr(line_start, closing - line_start) +
+                         ", " + import_symbol + "}";
+            }
+            break;
+          }
+          llvm::json::Object edit_range{
+              {"start", position_at_offset(document->second, insertion)},
+              {"end", position_at_offset(document->second, end)}};
+          llvm::json::Object edit{
+              {"range", std::move(edit_range)},
+              {"newText", std::move(new_text)}};
+          llvm::json::Array edits;
+          edits.emplace_back(std::move(edit));
+          item["additionalTextEdits"] = std::move(edits);
+        }
+        items.emplace_back(std::move(item));
       };
+
+      const janus::driver::ApiIndex completion_index =
+          combined_api_index(*uri);
 
       bool module_member_context = false;
       if (member_qualifier.has_value()) {
@@ -2753,6 +3011,27 @@ std::vector<std::string> Server::handle(std::string_view message) {
             }
           }
         }
+        for (const janus::driver::ApiSymbol &symbol : completion_index.symbols) {
+          if (symbol.qualified_name !=
+              symbol.module + "." + symbol.simple_name)
+            continue;
+          bool matching_module = symbol.module == *member_qualifier;
+          for (const ast::ImportDeclaration &import :
+               semantic_index.documents.front().imports)
+            if (import.module_name == symbol.required_import &&
+                import.module_alias == member_qualifier)
+              matching_module = true;
+          if (!matching_module)
+            continue;
+          module_member_context = true;
+          const std::int64_t kind =
+              symbol.kind == "function" ? 3
+              : symbol.kind == "class"  ? 7
+              : symbol.kind == "trait"  ? 8
+              : symbol.kind == "enum"   ? 13
+                                         : 6;
+          add_item(symbol.simple_name, symbol.signature, kind);
+        }
       }
 
       for (const DocumentSymbol &symbol : document_symbols) {
@@ -2771,20 +3050,70 @@ std::vector<std::string> Server::handle(std::string_view message) {
         }
       }
       if (!member_context) {
-        for (const IndexedDocument &candidate : semantic_index.documents) {
-          if (candidate.uri == *uri)
+        const std::optional<std::size_t> completion_offset = offset_from_position(
+            document->second, static_cast<std::uint32_t>(*line),
+            static_cast<std::uint32_t>(*character));
+        const std::optional<std::string> expected_type =
+            completion_offset
+                ? expected_type_at(document->second, *completion_offset)
+                : std::nullopt;
+        const std::optional<std::size_t> argument_count =
+            completion_offset
+                ? argument_count_at(document->second, *completion_offset)
+                : std::nullopt;
+        const std::optional<std::size_t> generic_argument_count =
+            completion_offset
+                ? generic_argument_count_at(document->second, *completion_offset)
+                : std::nullopt;
+        std::vector<std::string> imported_modules;
+        for (const ast::ImportDeclaration &import :
+             semantic_index.documents.front().imports)
+          imported_modules.push_back(import.module_name);
+        const auto ranked = janus::driver::search_api(
+            completion_index,
+            {"", {}, {}, {}, expected_type, argument_count,
+             std::move(imported_modules), generic_argument_count});
+        std::unordered_map<std::string, std::unordered_set<std::string>> origins;
+        for (const auto &symbol : completion_index.symbols)
+          origins[symbol.simple_name].insert(symbol.package + "\n" +
+                                             symbol.required_import);
+        for (const auto &result : ranked) {
+          const auto &symbol = *result.symbol;
+          if (symbol.qualified_name !=
+              symbol.module + "." + symbol.simple_name)
             continue;
-          for (const DocumentSymbol &symbol : candidate.index->symbols)
-            if (symbol.is_top_level && !symbol.is_private) {
-              const std::int64_t kind =
-                  symbol.detail.starts_with("def ") ? 3
-                  : symbol.detail.starts_with("class ") ||
-                          symbol.detail.starts_with("trait ") ||
-                          symbol.detail.starts_with("enum ")
-                      ? 7
-                      : 6;
-              add_item(symbol.name, symbol.detail, kind);
-            }
+          const std::int64_t kind =
+              symbol.kind == "function" ? 3
+              : symbol.kind == "class"  ? 7
+              : symbol.kind == "trait"  ? 8
+              : symbol.kind == "enum"   ? 13
+                                         : 6;
+          bool imported = false;
+          bool renamed = false;
+          bool qualified = false;
+          for (const ast::ImportDeclaration &value :
+               semantic_index.documents.front().imports) {
+            if (value.module_name != symbol.required_import)
+              continue;
+            qualified = value.is_qualified();
+            if (!value.is_qualified() && !value.is_selective())
+              imported = true;
+            for (const ast::ImportDeclaration::Symbol &item : value.symbols)
+              if (item.name == symbol.simple_name) {
+                imported = !item.alias.has_value();
+                renamed = item.alias.has_value();
+              }
+          }
+          const bool ambiguous = origins[symbol.simple_name].size() > 1;
+          if (renamed || qualified)
+            continue;
+          add_item(symbol.simple_name,
+                   symbol.signature + " — from " + symbol.module + " (" +
+                       symbol.package + ")",
+                   kind,
+                   imported || ambiguous || symbol.module.empty()
+                       ? std::nullopt
+                       : std::optional<std::string>{symbol.required_import});
         }
         for (const std::string_view type : {"int", "double", "byte", "char",
                                             "bool", "string", "unit", "usize"})
