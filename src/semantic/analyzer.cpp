@@ -1469,6 +1469,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::function<const constant::Value &(const std::string &)> evaluate_global;
   std::size_t constant_steps = 0;
   std::size_t constant_depth = 0;
+  std::size_t constant_memory_used = 0;
   std::function<std::optional<constant::Value>(
       std::string_view, const std::vector<constant::Value> &, SourceLocation)>
       evaluate_constant_function;
@@ -1490,12 +1491,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     if (arguments.size() != function.parameters.size())
       throw CompileError{location, "const def '" + function.name +
                                        "' received an invalid argument count"};
-    if (++constant_steps > 10000)
+    if (++constant_steps > options.constant_step_budget)
       throw CompileError{location,
-                         "constant evaluation step budget exceeded (10000)"};
-    if (++constant_depth > 128)
+                         "constant evaluation step budget exceeded (" +
+                             std::to_string(options.constant_step_budget) + ")"};
+    if (++constant_depth > options.constant_recursion_budget)
       throw CompileError{location,
-                         "constant evaluation recursion budget exceeded (128)"};
+                         "constant evaluation recursion budget exceeded (" +
+                             std::to_string(options.constant_recursion_budget) + ")"};
     struct DepthGuard {
       std::size_t &depth;
       ~DepthGuard() { --depth; }
@@ -1529,7 +1532,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         resolve_type(function.return_type, no_type_parameters, &class_arities);
     return constant::evaluate_statements(
         function.body, return_type.concrete, std::move(locals), local_resolver,
-        constant_constructor_resolver, evaluate_constant_function);
+        constant_constructor_resolver, evaluate_constant_function,
+        options.constant_step_budget);
   };
   evaluate_global = [&](const std::string &key) -> const constant::Value & {
     const ConstantState state = constant_states[key];
@@ -1587,6 +1591,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     constant::Value value = constant::evaluate(
         *global.declaration.initializer, resolved.symbol.type.concrete,
         resolver, constant_constructor_resolver, evaluate_constant_function);
+    const std::size_t value_size = constant::canonical_serialize(value).size();
+    if (value_size > options.constant_value_size_budget)
+      throw CompileError{global.declaration.location,
+                         "constant value size budget exceeded (" +
+                             std::to_string(options.constant_value_size_budget) +
+                             " bytes)"};
+    if (value_size > options.constant_memory_budget -
+                         std::min(options.constant_memory_budget,
+                                  constant_memory_used))
+      throw CompileError{global.declaration.location,
+                         "constant evaluation memory budget exceeded (" +
+                             std::to_string(options.constant_memory_budget) +
+                             " bytes)"};
+    constant_memory_used += value_size;
     constant_states[key] = ConstantState::Complete;
     auto [iterator, inserted] = constant_values.emplace(key, std::move(value));
     static_cast<void>(inserted);

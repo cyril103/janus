@@ -75,6 +75,10 @@ struct AnalysisResult {
 
 struct AnalysisOptions {
   bool require_entry_point{true};
+  std::size_t constant_step_budget{10000};
+  std::size_t constant_recursion_budget{128};
+  std::size_t constant_memory_budget{16 * 1024 * 1024};
+  std::size_t constant_value_size_budget{1024 * 1024};
 };
 
 class Analyzer final {

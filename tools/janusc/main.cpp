@@ -5,6 +5,7 @@
 #include "janus/semantic/analyzer.hpp"
 
 #include <filesystem>
+#include <charconv>
 #include <iostream>
 #include <string>
 
@@ -13,12 +14,42 @@
 #include <llvm/Support/raw_ostream.h>
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    std::cerr << "usage: janusc <source.janus>\n";
+  janus::semantic::AnalysisOptions analysis_options;
+  std::filesystem::path path;
+  for (int index = 1; index < argc; ++index) {
+    const std::string_view argument{argv[index]};
+    auto parse_budget = [&](std::size_t &destination) {
+      if (++index == argc)
+        return false;
+      const std::string_view value{argv[index]};
+      const auto [end, error] = std::from_chars(
+          value.data(), value.data() + value.size(), destination);
+      return error == std::errc{} && end == value.data() + value.size();
+    };
+    bool valid = true;
+    if (argument == "--const-steps")
+      valid = parse_budget(analysis_options.constant_step_budget);
+    else if (argument == "--const-depth")
+      valid = parse_budget(analysis_options.constant_recursion_budget);
+    else if (argument == "--const-memory")
+      valid = parse_budget(analysis_options.constant_memory_budget);
+    else if (argument == "--const-value-size")
+      valid = parse_budget(analysis_options.constant_value_size_budget);
+    else if (argument.starts_with('-') || !path.empty())
+      valid = false;
+    else
+      path = argument;
+    if (!valid) {
+      std::cerr << "janusc: invalid constant-evaluation option\n";
+      return 2;
+    }
+  }
+  if (path.empty()) {
+    std::cerr << "usage: janusc [--const-steps N] [--const-depth N] "
+                 "[--const-memory BYTES] [--const-value-size BYTES] "
+                 "<source.janus>\n";
     return 2;
   }
-
-  const std::filesystem::path path = argv[1];
 
   try {
     janus::frontend::ModuleLoader loader{
@@ -26,7 +57,8 @@ int main(int argc, char **argv) {
     const janus::ast::Program program = loader.load(path);
 
     janus::semantic::Analyzer analyzer;
-    const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
+    const janus::semantic::AnalysisResult analysis =
+        analyzer.analyze(program, analysis_options);
     if (!analysis.diagnostics.empty())
       std::cerr << janus::diagnostics::render_diagnostics(
           path, {}, analysis.diagnostics,

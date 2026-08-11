@@ -22,11 +22,12 @@ void expect(bool condition, std::string_view message) {
 }
 
 void expect_compile_error(std::string_view source,
-                          std::string_view expected_message) {
+                          std::string_view expected_message,
+                          janus::semantic::AnalysisOptions options = {}) {
   try {
     janus::frontend::Parser parser{source};
     janus::semantic::Analyzer analyzer;
-    static_cast<void>(analyzer.analyze(parser.parse_program()));
+    static_cast<void>(analyzer.analyze(parser.parse_program(), options));
     expect(false, std::string{"invalid constant program must fail: "} +
                       std::string{source});
   } catch (const janus::CompileError &error) {
@@ -217,6 +218,26 @@ def main() : int { return answer }
       "staticAssert(1 == 2, \"numbers disagree\")\n"
       "def main() : int { return 0 }",
       "static assertion failed: numbers disagree");
+  expect_compile_error(
+      "const def recurse(value : int) : int { return recurse(value + 1) }\n"
+      "const answer : int = recurse(0)\ndef main() : int { return 0 }",
+      "constant evaluation recursion budget exceeded (2)",
+      {.require_entry_point = true, .constant_step_budget = 100,
+       .constant_recursion_budget = 2});
+  expect_compile_error(
+      "const def identity(value : int) : int { return value }\n"
+      "const answer : int = identity(1)\ndef main() : int { return 0 }",
+      "constant evaluation step budget exceeded (0)",
+      {.require_entry_point = true, .constant_step_budget = 0});
+  expect_compile_error(
+      "const text : string = \"123456789\"\ndef main() : int { return 0 }",
+      "constant value size budget exceeded (8 bytes)",
+      {.require_entry_point = true, .constant_value_size_budget = 8});
+  expect_compile_error(
+      "const first : string = \"1234\"\nconst second : string = \"5678\"\n"
+      "def main() : int { return 0 }",
+      "constant evaluation memory budget exceeded (20 bytes)",
+      {.require_entry_point = true, .constant_memory_budget = 20});
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
