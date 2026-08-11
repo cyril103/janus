@@ -207,6 +207,7 @@ std::vector<DocumentSymbol> symbols(
   std::vector<DocumentSymbol> result;
   std::optional<std::string> module_name;
   std::unordered_map<std::string, std::string> function_details;
+  std::unordered_map<std::size_t, std::string> constant_details;
   std::unordered_map<std::size_t, std::string> analyzed_local_types;
   try {
     janus::frontend::Parser parser{source};
@@ -215,6 +216,43 @@ std::vector<DocumentSymbol> symbols(
     for (const janus::ast::FunctionDeclaration &function : program.functions)
       function_details.emplace(function.name,
                                "def " + function_signature(function));
+    try {
+      janus::semantic::Analyzer analyzer;
+      const janus::semantic::AnalysisResult analysis =
+          analyzer.analyze(program, janus::semantic::AnalysisOptions{false});
+      for (const janus::ast::GlobalDeclaration &global : program.globals) {
+      if (!global.declaration.is_constant)
+        continue;
+      const std::string key = global.module_name.has_value()
+                                  ? *global.module_name + "." +
+                                        global.declaration.name
+                                  : global.declaration.name;
+      const auto found = analysis.global_constant_values.find(key);
+      if (found == analysis.global_constant_values.end())
+        continue;
+      std::string value;
+      if (const auto *integer =
+              std::get_if<std::uint64_t>(&found->second.data))
+        value = found->second.type->is_signed()
+                    ? std::to_string(static_cast<std::int64_t>(*integer))
+                    : std::to_string(*integer);
+      else if (const auto *floating = std::get_if<double>(&found->second.data))
+        value = std::to_string(*floating);
+      else if (const auto *boolean = std::get_if<bool>(&found->second.data))
+        value = *boolean ? "true" : "false";
+      else if (const auto *character =
+                   std::get_if<char32_t>(&found->second.data))
+        value = std::to_string(static_cast<std::uint32_t>(*character));
+        else if (const auto *text =
+                     std::get_if<std::string>(&found->second.data))
+          value = "\"" + *text + "\"";
+        if (!value.empty())
+          constant_details.emplace(
+              global.declaration.location.offset,
+              " = " + value + "\n\norigin `" + key + "`");
+      }
+    } catch (const std::exception &) {
+    }
     analyzed_local_types = analyze_local_types(
         uri, source, module_search_paths, workspace_search_paths,
         open_documents);
@@ -268,6 +306,10 @@ std::vector<DocumentSymbol> symbols(
                    analyzed_local_types.find(token.location.offset);
                inferred != analyzed_local_types.end())
         detail += " : " + inferred->second;
+      if (token.kind == TokenKind::Const)
+        if (const auto constant = constant_details.find(token.location.offset);
+            constant != constant_details.end())
+          detail += constant->second;
     } else if (token.kind == TokenKind::Def) {
       const auto signature = function_details.find(std::string{name.lexeme});
       detail = signature == function_details.end()

@@ -542,6 +542,16 @@ int main(int argc, char **argv) {
   require_hover_result(global_hover, "val sharedCount : int", 2, 26, 37);
   JANUS_REQUIRE(global_hover.front().find("module `settings`") !=
                 std::string::npos);
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///constant-hover.janus","text":"module constants\nconst answer : int = 6 * 7\ndef main() : int { return answer }"}}})")
+                    );
+  const std::vector<std::string> constant_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":62,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///constant-hover.janus"},"position":{"line":2,"character":27}}})");
+  JANUS_REQUIRE(constant_hover.size() == 1);
+  JANUS_REQUIRE(constant_hover.front().find("const answer : int = 42") !=
+                std::string::npos);
+  JANUS_REQUIRE(constant_hover.front().find("origin `constants.answer`") !=
+                std::string::npos);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///aliased-hover.janus","text":"import settings.{sharedCount as count}\n\ndef main() : int { return count }"}}})"));
