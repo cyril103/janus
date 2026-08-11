@@ -211,12 +211,10 @@ ast::Program Parser::parse_program() {
             current_.location,
             "expected a top-level declaration after 'private', found " +
                 std::string{token_name(current_.kind)}};
-      if (is_internal && current_.kind != TokenKind::Const &&
-          current_.kind != TokenKind::Val && current_.kind != TokenKind::Var &&
-          current_.kind != TokenKind::Def && current_.kind != TokenKind::Extern)
+      if (is_internal && current_.kind != TokenKind::Const)
         throw CompileError{
             current_.location,
-            "expected a value or function declaration after 'internal'"};
+            "'internal' can only modify class fields and methods"};
 
       if (current_.kind == TokenKind::Trait) {
         ast::TraitDeclaration declaration = parse_trait_declaration();
