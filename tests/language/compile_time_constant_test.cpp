@@ -178,6 +178,19 @@ def main() : int { return if x == 16777216.0f { 0 } else { 1 } }
   expect_compile_error(
       "const invalid : int = int(1.0e300)\ndef main() : int { return 0 }",
       "floating constant conversion overflows type 'int'");
+  expect_compile_error(
+      "const invalid : float = 1.0f / 0.0f\ndef main() : int { return 0 }",
+      "floating constant expression is not finite");
+  expect_compile_error(
+      "const invalid : double = 0.0 / 0.0\ndef main() : int { return 0 }",
+      "floating constant expression is not finite");
+  expect(janus::constant::canonical_serialize(
+             {&janus::Type::float_type(), 1.0}) == "float:f32:0x3f800000",
+         "binary32 constants serialize as exact IEEE bits");
+  expect(janus::constant::canonical_serialize(
+             {&janus::Type::double_type(), 1.0}) ==
+             "double:f64:0x3ff0000000000000",
+         "binary64 constants serialize as exact IEEE bits");
   janus::frontend::Parser dead_branch_parser{
       "const safe : int = if true { 42 } else { 1 / 0 }\n"
       "staticAssert(safe == 42)\ndef main() : int { return 0 }"};

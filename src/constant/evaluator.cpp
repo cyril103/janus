@@ -12,6 +12,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
+static_assert(std::numeric_limits<float>::is_iec559 &&
+                  std::numeric_limits<double>::is_iec559,
+              "Janus constant evaluation requires IEEE-754 binary32/binary64");
+
 namespace {
 
 using janus::Type;
@@ -967,8 +971,12 @@ std::string canonical_serialize(const Value &value) {
            << *integer;
   } else if (const auto *floating = std::get_if<double>(&value.data)) {
     output << "f" << value.type->bit_width() << ":0x" << std::hex
-           << std::setfill('0') << std::setw(16)
-           << std::bit_cast<std::uint64_t>(*floating);
+           << std::setfill('0');
+    if (value.type->kind() == TypeKind::Float)
+      output << std::setw(8)
+             << std::bit_cast<std::uint32_t>(static_cast<float>(*floating));
+    else
+      output << std::setw(16) << std::bit_cast<std::uint64_t>(*floating);
   } else if (const auto *character = std::get_if<char32_t>(&value.data)) {
     output << "char:" << std::hex << std::setw(8) << std::setfill('0')
            << static_cast<std::uint32_t>(*character);
