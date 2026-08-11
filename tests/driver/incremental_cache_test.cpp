@@ -150,6 +150,15 @@ void test_public_interface_excludes_private_implementation() {
   require(janus::driver::public_interface_fingerprint(public_const_before) !=
               janus::driver::public_interface_fingerprint(public_const_after),
           "transitive public constant value change was not detected");
+  const std::string aggregate_before =
+      "module library\nstruct Pair(val left : int, val right : int) {}\n"
+      "const exported : Pair = new Pair(1, 2)\n";
+  const std::string aggregate_after =
+      "module library\nstruct Pair(val left : int, val right : int) {}\n"
+      "const exported : Pair = new Pair(1, 3)\n";
+  require(janus::driver::public_interface_fingerprint(aggregate_before) !=
+              janus::driver::public_interface_fingerprint(aggregate_after),
+          "aggregate public constant fields were not serialized in the interface");
   require(janus::driver::public_interface_fingerprint(
               "module library\nconst exported : int = 1\n") !=
               janus::driver::public_interface_fingerprint(

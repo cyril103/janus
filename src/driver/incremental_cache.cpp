@@ -235,23 +235,6 @@ std::string public_interface(std::string_view source) {
     semantic::Analyzer analyzer;
     analysis = analyzer.analyze(program, semantic::AnalysisOptions{false});
   }
-  const auto normalized_constant = [](const constant::Value &value) {
-    std::ostringstream normalized;
-    normalized << value.type->name() << ':';
-    if (const auto *integer = std::get_if<std::uint64_t>(&value.data))
-      normalized << *integer;
-    else if (const auto *floating = std::get_if<double>(&value.data))
-      normalized << std::hexfloat << *floating;
-    else if (const auto *character = std::get_if<char32_t>(&value.data))
-      normalized << static_cast<std::uint32_t>(*character);
-    else if (const auto *boolean = std::get_if<bool>(&value.data))
-      normalized << (*boolean ? "true" : "false");
-    else if (const auto *text = std::get_if<std::string>(&value.data))
-      normalized << text->size() << ':' << *text;
-    else
-      normalized << "aggregate";
-    return normalized.str();
-  };
   std::string output;
   if (program.module_name)
     append_field(output, "module", *program.module_name);
@@ -269,8 +252,11 @@ std::string public_interface(std::string_view source) {
                                   ? *global.module_name + "." +
                                         global.declaration.name
                                   : global.declaration.name;
-      output += normalized_constant(analysis.global_constant_values.at(key));
-      output += ":const-evaluator-v2;";
+      output += constant::canonical_serialize(
+          analysis.global_constant_values.at(key));
+      output += ':';
+      output += constant::evaluator_version;
+      output += ":target=pointer64;";
     }
   }
   for (const auto &trait : program.traits) {

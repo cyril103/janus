@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <bit>
+#include <iomanip>
+#include <sstream>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -951,6 +954,42 @@ Value evaluate_impl(const janus::ast::Expression &expression,
 } // namespace
 
 namespace janus::constant {
+
+std::string canonical_serialize(const Value &value) {
+  std::ostringstream output;
+  output.imbue(std::locale::classic());
+  output << value.type->name() << ':';
+  if (const auto *integer = std::get_if<std::uint64_t>(&value.data)) {
+    output << "u64:" << std::hex << std::setfill('0') << std::setw(16)
+           << *integer;
+  } else if (const auto *floating = std::get_if<double>(&value.data)) {
+    output << "f" << value.type->bit_width() << ":0x" << std::hex
+           << std::setfill('0') << std::setw(16)
+           << std::bit_cast<std::uint64_t>(*floating);
+  } else if (const auto *character = std::get_if<char32_t>(&value.data)) {
+    output << "char:" << std::hex << std::setw(8) << std::setfill('0')
+           << static_cast<std::uint32_t>(*character);
+  } else if (const auto *boolean = std::get_if<bool>(&value.data)) {
+    output << "bool:" << (*boolean ? '1' : '0');
+  } else if (const auto *text = std::get_if<std::string>(&value.data)) {
+    output << "string:" << text->size() << ':' << *text;
+  } else {
+    const auto &aggregate = **std::get_if<std::shared_ptr<AggregateValue>>(
+        &value.data);
+    output << "aggregate:tag=";
+    if (aggregate.tag)
+      output << *aggregate.tag;
+    else
+      output << '-';
+    output << ":fields=" << aggregate.fields.size() << '[';
+    for (const auto &[index, field] : aggregate.fields) {
+      const std::string serialized = canonical_serialize(field);
+      output << index << ':' << serialized.size() << ':' << serialized << ';';
+    }
+    output << ']';
+  }
+  return output.str();
+}
 
 bool is_constant_expression(const ast::Expression &expression) {
   return std::visit(

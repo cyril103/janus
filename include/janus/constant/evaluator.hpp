@@ -50,6 +50,11 @@ using FunctionResolver = std::function<std::optional<Value>(
 
 [[nodiscard]] bool is_constant_expression(const ast::Expression &expression);
 
+// Stable, locale-independent representation used by public interfaces,
+// documentation and incremental caches.
+[[nodiscard]] std::string canonical_serialize(const Value &value);
+inline constexpr std::string_view evaluator_version = "const-evaluator-v3";
+
 [[nodiscard]] InitializationPlan
 plan_initialization(const ast::Program &program);
 
