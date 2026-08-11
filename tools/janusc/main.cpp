@@ -11,10 +11,14 @@
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/TargetParser/Host.h>
 #include <llvm/Support/raw_ostream.h>
 
 int main(int argc, char **argv) {
   janus::semantic::AnalysisOptions analysis_options;
+  analysis_options.target = {
+      llvm::sys::getDefaultTargetTriple(),
+      static_cast<std::uint32_t>(sizeof(void *) * 8)};
   std::filesystem::path path;
   for (int index = 1; index < argc; ++index) {
     const std::string_view argument{argv[index]};
@@ -65,7 +69,8 @@ int main(int argc, char **argv) {
           janus::diagnostics::DiagnosticFormat::Human);
 
     llvm::LLVMContext context;
-    janus::backend::llvm::IrGenerator generator{context};
+    janus::backend::llvm::IrGenerator generator{context,
+                                                 analysis_options.target};
     std::unique_ptr<llvm::Module> module =
         generator.generate(program, path.string());
 
