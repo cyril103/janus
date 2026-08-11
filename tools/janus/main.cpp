@@ -817,7 +817,9 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(
       program,
-      janus::semantic::AnalysisOptions{!program.module_name.has_value()});
+      janus::semantic::AnalysisOptions{
+          .require_entry_point = !program.module_name.has_value(),
+          .target = {}});
   if (timings != nullptr)
     timings->analysis += std::chrono::steady_clock::now() - analysis_start;
   const std::string source_name = source_name_override.empty()
@@ -914,7 +916,9 @@ int check_sources(const Options &options, const Toolchain &toolchain,
       const janus::semantic::AnalysisResult analysis =
           janus::semantic::Analyzer{}.analyze(
               program, janus::semantic::AnalysisOptions{
-                           !program.module_name.has_value()});
+                           .require_entry_point =
+                               !program.module_name.has_value(),
+                           .target = {}});
       batch.diagnostics = analysis.diagnostics;
       if (options.warn_high_growth_loops)
         for (const janus::diagnostics::HighGrowthLoopWarning &warning :

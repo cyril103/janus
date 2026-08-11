@@ -86,17 +86,16 @@ public:
             const janus::semantic::AnalysisResult &analysis,
             std::string_view module_name,
             janus::backend::llvm::PanicTraceMode panic_trace,
-            bool dependencies_only)
+            bool dependencies_only, const janus::Target &target)
       : context_{context}, module_{std::make_unique<::llvm::Module>(
                                std::string{module_name}, context)},
         source_name_{module_name}, panic_trace_{panic_trace},
         analysis_{analysis}, entry_module_{program.module_name},
         dependencies_only_{dependencies_only} {
 #if LLVM_VERSION_MAJOR >= 21
-    module_->setTargetTriple(
-        ::llvm::Triple{::llvm::sys::getDefaultTargetTriple()});
+    module_->setTargetTriple(::llvm::Triple{target.triple});
 #else
-    module_->setTargetTriple(::llvm::sys::getDefaultTargetTriple());
+    module_->setTargetTriple(target.triple);
 #endif
     module_->setPICLevel(::llvm::PICLevel::BigPIC);
     module_->setPIELevel(::llvm::PIELevel::Large);
@@ -4343,17 +4342,19 @@ private:
 
 namespace janus::backend::llvm {
 
-IrGenerator::IrGenerator(::llvm::LLVMContext &context) noexcept
-    : context_{context} {}
+IrGenerator::IrGenerator(::llvm::LLVMContext &context, Target target) noexcept
+    : context_{context}, target_{std::move(target)} {}
 
 std::unique_ptr<::llvm::Module>
 IrGenerator::generate(const ast::Program &program, std::string_view module_name,
                       PanicTraceMode panic_trace, bool dependencies_only) {
   semantic::Analyzer analyzer;
   const semantic::AnalysisResult analysis =
-      analyzer.analyze(program, semantic::AnalysisOptions{false});
+      analyzer.analyze(program,
+                       semantic::AnalysisOptions{.require_entry_point = false,
+                                                 .target = target_});
   return Generator{context_, program, analysis, module_name, panic_trace,
-                    dependencies_only}
+                    dependencies_only, target_}
       .generate();
 }
 

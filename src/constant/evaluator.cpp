@@ -847,6 +847,9 @@ Value evaluate_impl(const janus::ast::Expression &expression,
         } else if constexpr (std::is_same_v<
                                  Node, janus::ast::CallExpression>) {
           const Type *destination = constant_cast_type(node.callee);
+          if ((node.callee == "isize" || node.callee == "usize") &&
+              expected_type != nullptr && expected_type->name() == node.callee)
+            destination = expected_type;
           if (destination == nullptr && is_policy_cast(node.callee))
             destination = expected_type;
           if (destination == nullptr && call_function) {

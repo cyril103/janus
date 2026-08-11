@@ -186,7 +186,8 @@ analyze_local_types(
 
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis =
-      analyzer.analyze(program, janus::semantic::AnalysisOptions{false});
+      analyzer.analyze(program, janus::semantic::AnalysisOptions{
+                                    .require_entry_point = false, .target = {}});
   std::unordered_map<std::size_t, std::string> result;
   for (const auto &[declaration, type] : analysis.local_types)
     if (entry_declarations.contains(declaration) &&
@@ -219,7 +220,9 @@ std::vector<DocumentSymbol> symbols(
     try {
       janus::semantic::Analyzer analyzer;
       const janus::semantic::AnalysisResult analysis =
-          analyzer.analyze(program, janus::semantic::AnalysisOptions{false});
+          analyzer.analyze(program, janus::semantic::AnalysisOptions{
+                                        .require_entry_point = false,
+                                        .target = {}});
       for (const janus::ast::GlobalDeclaration &global : program.globals) {
       if (!global.declaration.is_constant)
         continue;
@@ -1488,7 +1491,8 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
     }
     const bool is_module = program.module_name.has_value();
     return semantic::Analyzer{}
-        .analyze(program, semantic::AnalysisOptions{!is_module})
+        .analyze(program, semantic::AnalysisOptions{
+                              .require_entry_point = !is_module, .target = {}})
         .diagnostics;
   } catch (const CompileError &error) {
     return error.diagnostics();

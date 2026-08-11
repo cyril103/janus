@@ -223,21 +223,23 @@ def main() : int { return answer }
       "const answer : int = recurse(0)\ndef main() : int { return 0 }",
       "constant evaluation recursion budget exceeded (2)",
       {.require_entry_point = true, .constant_step_budget = 100,
-       .constant_recursion_budget = 2});
+       .constant_recursion_budget = 2, .target = {}});
   expect_compile_error(
       "const def identity(value : int) : int { return value }\n"
       "const answer : int = identity(1)\ndef main() : int { return 0 }",
       "constant evaluation step budget exceeded (0)",
-      {.require_entry_point = true, .constant_step_budget = 0});
+      {.require_entry_point = true, .constant_step_budget = 0, .target = {}});
   expect_compile_error(
       "const text : string = \"123456789\"\ndef main() : int { return 0 }",
       "constant value size budget exceeded (8 bytes)",
-      {.require_entry_point = true, .constant_value_size_budget = 8});
+      {.require_entry_point = true, .constant_value_size_budget = 8,
+       .target = {}});
   expect_compile_error(
       "const first : string = \"1234\"\nconst second : string = \"5678\"\n"
       "def main() : int { return 0 }",
       "constant evaluation memory budget exceeded (20 bytes)",
-      {.require_entry_point = true, .constant_memory_budget = 20});
+      {.require_entry_point = true, .constant_memory_budget = 20,
+       .target = {}});
 
   janus::frontend::Parser generic_parser{R"(
 const def identity[T](value : T) : T { return value }
@@ -257,6 +259,33 @@ def main() : int { return identity[int](integer) }
   janus::backend::llvm::IrGenerator generic_generator{generic_context};
   static_cast<void>(generic_generator.generate(generic_program,
                                                "generic_constant"));
+
+  constexpr std::string_view target_source =
+      "const wide : usize = 4294967296\n"
+      "def main() : int { return 0 }";
+  expect_compile_error(
+      target_source, "overflows type 'usize'",
+      {.require_entry_point = true,
+       .target = {.triple = "i686-unknown-linux-gnu", .pointer_width = 32}});
+  janus::frontend::Parser target64_parser{target_source};
+  const auto target64 = analyzer.analyze(
+      target64_parser.parse_program(),
+      {.require_entry_point = true,
+       .target = {.triple = "x86_64-unknown-linux-gnu", .pointer_width = 64}});
+  expect(target64.target.pointer_width == 64 &&
+             target64.global_constant_values.at("wide").type->bit_width() == 64,
+         "constant evaluation uses the explicit 64-bit target model");
+  janus::frontend::Parser target32_parser{
+      "const width : usize = 32\ndef main() : int { return int(width) }"};
+  const janus::ast::Program target32_program = target32_parser.parse_program();
+  llvm::LLVMContext target32_context;
+  janus::backend::llvm::IrGenerator target32_generator{
+      target32_context,
+      {.triple = "i686-unknown-linux-gnu", .pointer_width = 32}};
+  const auto target32_module =
+      target32_generator.generate(target32_program, "target32");
+  expect(target32_module->getTargetTriple() == "i686-unknown-linux-gnu",
+         "backend emits the explicit target triple");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

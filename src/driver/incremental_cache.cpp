@@ -233,7 +233,9 @@ std::string public_interface(std::string_view source) {
                   });
   if (has_public_constant) {
     semantic::Analyzer analyzer;
-    analysis = analyzer.analyze(program, semantic::AnalysisOptions{false});
+    analysis = analyzer.analyze(
+        program, semantic::AnalysisOptions{.require_entry_point = false,
+                                           .target = {}});
   }
   std::string output;
   if (program.module_name)

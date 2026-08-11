@@ -2,6 +2,7 @@
 
 #include "janus/ast/ast.hpp"
 #include "janus/constant/evaluator.hpp"
+#include "janus/target/target.hpp"
 
 #include <string>
 #include <memory>
@@ -56,6 +57,7 @@ struct Symbol {
 using SymbolTable = std::unordered_map<std::string, Symbol>;
 
 struct AnalysisResult {
+  Target target;
   SymbolTable globals;
   std::unordered_map<std::string, SymbolTable> functions;
   std::unordered_map<const ast::MemberAccessExpression *, std::string>
@@ -79,6 +81,7 @@ struct AnalysisOptions {
   std::size_t constant_recursion_budget{128};
   std::size_t constant_memory_budget{16 * 1024 * 1024};
   std::size_t constant_value_size_budget{1024 * 1024};
+  Target target;
 };
 
 class Analyzer final {

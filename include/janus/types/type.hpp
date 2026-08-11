@@ -48,6 +48,8 @@ public:
   [[nodiscard]] static const Type &unit_type();
   [[nodiscard]] static const Type &isize_type();
   [[nodiscard]] static const Type &usize_type();
+  [[nodiscard]] static const Type &isize_type(std::uint32_t pointer_width);
+  [[nodiscard]] static const Type &usize_type(std::uint32_t pointer_width);
   [[nodiscard]] static Type enum_type(std::string_view name);
   [[nodiscard]] static Type function_type(std::string_view name);
   [[nodiscard]] static Type pointer_type(std::string_view name);

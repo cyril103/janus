@@ -508,6 +508,8 @@ std::string SemanticType::name() const {
 AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  AnalysisOptions options) const {
   AnalysisResult result;
+  options.target.validate();
+  result.target = options.target;
   std::unordered_map<std::string, const ast::FunctionDeclaration *> functions;
   std::unordered_map<std::string, const ast::ClassDeclaration *> classes;
   std::unordered_map<std::string, const ast::EnumDeclaration *> enums;
@@ -1200,8 +1202,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     if (global.module_name.has_value())
       global_modules.insert(*global.module_name);
-    const SemanticType type = resolve_type(*declaration.declared_type,
-                                           no_type_parameters, &class_arities);
+    SemanticType type = resolve_type(*declaration.declared_type,
+                                     no_type_parameters, &class_arities);
+    if (declaration.declared_type->name == "isize")
+      type.concrete = &Type::isize_type(options.target.pointer_width);
+    else if (declaration.declared_type->name == "usize")
+      type.concrete = &Type::usize_type(options.target.pointer_width);
     if (type.is_concrete() && type.concrete->kind() == TypeKind::Unit)
       throw CompileError{declaration.location,
                          "Unit cannot be used as a global value type"};
