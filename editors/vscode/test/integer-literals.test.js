@@ -19,6 +19,12 @@ test("TextMate does not recognize malformed integer spellings", () => {
     assert.doesNotMatch(spelling, regexp);
 });
 
-test("TextMate keeps decimal floating literals intact", () => {
-  assert.equal("42.5".match(new RegExp(numeric.match))?.[0], "42.5");
+test("TextMate recognizes every supported floating spelling as one scope", () => {
+  for (const spelling of ["42.5", "1e10", "1E-10", "42.5e+3", "42.5f", "42.5e3f"])
+    assert.equal(spelling.match(new RegExp(numeric.match))?.[0], spelling);
+});
+
+test("TextMate does not accept incomplete exponents as complete literals", () => {
+  for (const spelling of ["1e", "1e+"])
+    assert.doesNotMatch(spelling, regexp);
 });
