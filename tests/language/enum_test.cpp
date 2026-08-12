@@ -44,7 +44,8 @@ enum Direction {
     North,
     East = 4,
     South,
-    West = -2
+    West = -0b10,
+    Mask = 0x10
 }
 
 enum Option[T] {
@@ -67,7 +68,7 @@ def main() : int {
   janus::frontend::Parser parser{source};
   const janus::ast::Program program = parser.parse_program();
   expect(program.enums.size() == 2, "parser retains enum declarations");
-  expect(program.enums.front().cases.size() == 4,
+  expect(program.enums.front().cases.size() == 5,
          "parser retains every enum case");
   expect(program.enums.front().cases[0].value == 0,
          "implicit discriminants start at zero");
@@ -75,6 +76,8 @@ def main() : int {
          "implicit discriminants continue after an explicit value");
   expect(program.enums.front().cases[3].value == -2,
          "negative explicit discriminants are supported");
+  expect(program.enums.front().cases[4].value == 16,
+         "prefixed integer enum discriminants are canonicalized");
 
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);

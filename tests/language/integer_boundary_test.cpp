@@ -72,10 +72,20 @@ def acceptUnsigned(value : uint) : uint {
 }
 
 def main() : int {
+    val tiny : byte = -0x80
+    val unsignedTiny : ubyte = 0xFF
+    val small : short = -0x8000
+    val unsignedSmall : ushort = 0XFFFF
     val minimum : int = -2147483648
+    val hexadecimalMinimum : int = -0x8000_0000
     val maximumUnsigned : uint = 4294967295
+    val binaryUnsigned : uint = 0b11111111_11111111_11111111_11111111
     val maximumUnsignedLong : ulong = 18446744073709551615
     val minimumLong : long = -9223372036854775808
+    val hexadecimalLong : long = -0x8000_0000_0000_0000
+    val binaryUlong : ulong = 0b11111111111111111111111111111111_11111111111111111111111111111111
+    val signedSize : isize = -0x80
+    val unsignedSize : usize = 0x200
     val passedUnsigned : uint = acceptUnsigned(4294967295)
     val wrapped : int = -minimum
     val divisor : int = -1
@@ -85,7 +95,10 @@ def main() : int {
     val unsignedDivisor : usize = usize(3)
     val unsignedQuotient : usize = unsignedDividend / unsignedDivisor
     val unsignedRemainder : usize = unsignedDividend % unsignedDivisor
-    return wrapped + quotient + remainder + int(unsignedQuotient) +
+    return int(tiny) + int(unsignedTiny) + int(small) + int(unsignedSmall) +
+        hexadecimalMinimum + int(binaryUnsigned) + int(hexadecimalLong) +
+        int(binaryUlong) + int(signedSize) + int(unsignedSize) + wrapped +
+        quotient + remainder + int(unsignedQuotient) +
         int(unsignedRemainder)
 }
 )");
@@ -147,6 +160,11 @@ def main() : int {
   expect_compile_error("def main() : int { val value : int = -(2147483648) "
                        "return value }",
                        "integer literal is outside the signed 32-bit range");
+  expect_compile_error("def main() : int { val value : byte = -0x81 return 0 }",
+                       "integer literal is outside the signed 8-bit range");
+  expect_compile_error(
+      "def main() : int { val value : int = -0x8000_0001 return value }",
+      "integer literal is outside the signed 32-bit range");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

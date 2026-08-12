@@ -24,6 +24,27 @@ def main() : int {
 
 Les types usuels incluent `int`, `uint`, `long`, `ulong`, `float`, `double`, `byte`, `char`, `bool`, `string`, `isize`, `usize` et `Unit`. Leur taille est définie par le langage.
 
+## Écrire les entiers
+
+Les entiers acceptent les bases décimale, hexadécimale (`0x`/`0X`) et binaire
+(`0b`/`0B`). Un `_` peut apparaître uniquement entre deux chiffres de la base :
+`1_000`, `0xA2_0A` et `0b1111_0000` sont valides, contrairement à `0x_FF`,
+`0xFF_` et `0xF__F`.
+
+```janus
+// doctest: doctest name=integer-literal-bases
+def main() : int {
+    val opcode : uint = 0xA2_0A
+    val sprite : ubyte = 0b1111_0000
+    val minimum : byte = -0x80
+    return if opcode == uint(41_482) && sprite == ubyte(240) && minimum == byte(-128) { 0 } else { 1 }
+}
+```
+
+La base n'affecte pas le type : sans contexte, le type reste `int`; une
+annotation choisit l'un des dix types entiers et applique sa plage habituelle.
+Une magnitude supérieure à `uint64` est toujours rejetée.
+
 ## Inférence des variables locales
 
 Une `val` ou `var` locale initialisée peut omettre son type si l'expression

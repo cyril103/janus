@@ -114,6 +114,17 @@ int main() {
     std::cerr << "constant syntax formatting is not idempotent\n";
     return 1;
   }
+  const std::string integer_spellings =
+      "def bits() : uint {\nreturn 0xA2_0A + 0B1111_0000 + 1_000\n}\n";
+  const std::string formatted_integer_spellings =
+      "def bits() : uint {\n    return 0xA2_0A + 0B1111_0000 + 1_000\n}\n";
+  if (janus::driver::format_source(integer_spellings) !=
+          formatted_integer_spellings ||
+      janus::driver::format_source(formatted_integer_spellings) !=
+          formatted_integer_spellings) {
+    std::cerr << "formatter did not preserve integer base and separators\n";
+    return 1;
+  }
   std::cout << "Janus formatting is deterministic\n";
   return 0;
 }

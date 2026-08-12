@@ -1,4 +1,7 @@
 def main() : int {
+    println(uint(0x200))
+    println(ubyte(0b1111_0000))
+    println(1_000)
     val intWrap : int = 2147483647 + 1
     println(intWrap)
     println(-(-2147483648))

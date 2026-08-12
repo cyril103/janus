@@ -50,6 +50,8 @@ const width : int = 80
 const height : int = 25
 const capacity : int = width * height
 const selected : int = if capacity == 2000 { 7 } else { 9 }
+const opcode : uint = 0xA2_0A
+const sprite : ubyte = 0b1111_0000
 
 const def align(value : usize, boundary : usize) : usize {
     return ((value + boundary - usize(1)) / boundary) * boundary
@@ -58,6 +60,8 @@ const def align(value : usize, boundary : usize) : usize {
 const bufferSize : usize = align(usize(1000), usize(64))
 staticAssert(capacity == 2000)
 staticAssert(bufferSize == usize(1024), "alignment must remain stable")
+staticAssert(opcode == 41_482, "hexadecimal const evaluation must match decimal")
+staticAssert(sprite == ubyte(240), "binary const evaluation must match decimal")
 
 def main() : int {
     val runtime : usize = align(usize(5), usize(4))
