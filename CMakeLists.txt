@@ -1596,6 +1596,15 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
     )
     add_test(
+        NAME language.owned_array_rejects_sort
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_array_sort_error.janus"
+            "-DEXPECTED_ERROR=Array.sortWith requires a Copy element type"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
+    )
+    add_test(
         NAME language.owned_array_requires_move
         COMMAND
             ${CMAKE_COMMAND}

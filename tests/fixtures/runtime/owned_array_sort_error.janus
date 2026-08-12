@@ -1,0 +1,16 @@
+import std.array
+
+class Resource() {}
+
+def main() : int {
+    val values : Array[Resource] = new Array[Resource](usize(2))
+    defer delete values
+    val first : Resource = new Resource()
+    val second : Resource = new Resource()
+    values.push(move first)
+    values.push(move second)
+    values.sortWith(
+    (left : Resource, right : Resource) => false
+    )
+    return 0
+}

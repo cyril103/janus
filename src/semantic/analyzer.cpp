@@ -2319,7 +2319,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       return name == "iterator" || name == "get" || name == "getOption" ||
              name == "map" || name == "filter" || name == "find" ||
              name == "fold" || name == "any" || name == "all" ||
-             name == "count";
+             name == "count" || name == "sortWith";
     };
     if (!is_destructor && owner != nullptr && owner->name == "Array" &&
         owner->module_name == std::optional<std::string>{"std.array"} &&

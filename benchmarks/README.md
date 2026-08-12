@@ -9,11 +9,15 @@ compiler timing workflow and its non-blocking trend dashboard.
 ## `array_sort.janus`
 
 This benchmark sorts 100,000 deterministic pseudo-random integers through
-`Array.sortWith`. It verifies both ordering and a checksum before printing
-`true`, so the sort remains observable. The runtime test
-`benchmarks.array_sort_smoke` locks that deterministic result; local wall-clock
-measurements can use the same optimized build and `/usr/bin/time` workflow as
-the benchmarks below.
+`Array.sortWith`. It verifies both ordering and a checksum, so the sort remains
+observable. It also sorts the same 2,048 reverse-ordered integers with
+`Array.sortWith` and a deliberately naive insertion sort, counts comparator
+calls, and requires the hybrid sort to use fewer comparisons. Comparator calls
+are a deterministic, machine-independent proxy for the algorithmic improvement;
+wall-clock time remains informational and is not a noisy CI gate. The runtime
+test `benchmarks.array_sort_smoke` locks the combined result to `true`; local
+timings can use the same optimized build and `/usr/bin/time` workflow as the
+benchmarks below.
 
 ## `prime_factors.janus`
 

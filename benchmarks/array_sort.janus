@@ -1,5 +1,34 @@
 import std.array
 
+class ComparisonCounter(private var count : int) {
+    def less(left : int, right : int) : bool {
+        count = count + 1
+        return left < right
+    }
+
+    def value() : int {
+        return count
+    }
+}
+
+def insertionSort(values : Array[int], counter : ComparisonCounter) : Unit {
+    var index : usize = usize(1)
+    while index < values.size() {
+        val candidate : int = values.get(index)
+        var destination : usize = index
+        while destination > usize(0) &&
+        counter.less(candidate, values.get(destination - usize(1))) {
+            values.set(
+            destination,
+            values.get(destination - usize(1))
+            )
+            destination = destination - usize(1)
+        }
+        values.set(destination, candidate)
+        index = index + usize(1)
+    }
+}
+
 def main() : int {
     val values : Array[int] = new Array[int](usize(100000))
     defer delete values
@@ -25,6 +54,31 @@ def main() : int {
         }
         cursor = cursor + usize(1)
     }
-    println(sorted && before == after)
+    val comparisonSize : int = 2048
+    val hybrid : Array[int] = new Array[int](usize(2048))
+    defer delete hybrid
+    val naive : Array[int] = new Array[int](usize(2048))
+    defer delete naive
+    index = 0
+    while index < comparisonSize {
+        val value : int = comparisonSize - index
+        hybrid.push(value)
+        naive.push(value)
+        index = index + 1
+    }
+
+    val hybridCounter : ComparisonCounter = new ComparisonCounter(0)
+    defer delete hybridCounter
+    val comparison : (int, int) => bool =
+    (left : int, right : int) => hybridCounter.less(left, right)
+    defer delete comparison
+    hybrid.sortWith(comparison)
+
+    val insertionCounter : ComparisonCounter = new ComparisonCounter(0)
+    defer delete insertionCounter
+    insertionSort(naive, insertionCounter)
+
+    println(sorted && before == after &&
+    hybridCounter.value() < insertionCounter.value())
     return 0
 }
