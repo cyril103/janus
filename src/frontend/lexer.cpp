@@ -7,6 +7,18 @@
 
 namespace janus::frontend {
 
+namespace {
+
+bool is_digit_for_base(char character, unsigned base) {
+  if (character >= '0' && character <= '9')
+    return static_cast<unsigned>(character - '0') < base;
+  if (base == 16 && character >= 'a' && character <= 'f')
+    return true;
+  return base == 16 && character >= 'A' && character <= 'F';
+}
+
+} // namespace
+
 Lexer::Lexer(std::string_view source) noexcept : source_{source} {}
 
 Token Lexer::next() {
@@ -119,10 +131,63 @@ Token Lexer::next() {
   }
 
   if (std::isdigit(static_cast<unsigned char>(character)) != 0) {
+    if (character == '0' && position_ + 1 < source_.size() &&
+        (source_[position_ + 1] == 'x' || source_[position_ + 1] == 'X' ||
+         source_[position_ + 1] == 'b' || source_[position_ + 1] == 'B')) {
+      const unsigned base = source_[position_ + 1] == 'x' ||
+                                    source_[position_ + 1] == 'X'
+                                ? 16
+                                : 2;
+      advance();
+      advance();
+      const std::size_t digits_start = position_;
+      while (!at_end() &&
+             (std::isalnum(static_cast<unsigned char>(current())) != 0 ||
+              current() == '_'))
+        advance();
+      const std::string_view lexeme =
+          source_.substr(start_position, position_ - start_position);
+      if (position_ == digits_start)
+        throw CompileError{start,
+                           "prefixed integer literal requires at least one digit"};
+      for (std::size_t index = digits_start; index < position_; ++index) {
+        const char digit = source_[index];
+        if (digit == '_') {
+          if (index == digits_start || index + 1 == position_ ||
+              !is_digit_for_base(source_[index - 1], base) ||
+              !is_digit_for_base(source_[index + 1], base))
+            throw CompileError{start,
+                               "integer separator must be between two valid digits"};
+        } else if (!is_digit_for_base(digit, base)) {
+          throw CompileError{start, "invalid digit in base-" +
+                                        std::to_string(base) +
+                                        " integer literal"};
+        }
+      }
+      return Token{TokenKind::IntegerLiteral, lexeme, start};
+    }
+
     do {
       advance();
     } while (!at_end() &&
-             std::isdigit(static_cast<unsigned char>(current())) != 0);
+             (std::isdigit(static_cast<unsigned char>(current())) != 0 ||
+              current() == '_'));
+
+    if (position_ > start_position && source_[position_ - 1] == '_') {
+      while (!at_end() &&
+             (std::isalnum(static_cast<unsigned char>(current())) != 0 ||
+              current() == '_'))
+        advance();
+      throw CompileError{start,
+                         "integer separator must be between two valid digits"};
+    }
+    for (std::size_t index = start_position + 1; index + 1 < position_;
+         ++index) {
+      if (source_[index] == '_' &&
+          (source_[index - 1] == '_' || source_[index + 1] == '_'))
+        throw CompileError{start,
+                           "integer separator must be between two valid digits"};
+    }
 
     TokenKind kind = TokenKind::IntegerLiteral;
     if (!at_end() && current() == '.' && position_ + 1 < source_.size() &&

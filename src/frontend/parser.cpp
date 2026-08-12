@@ -161,6 +161,35 @@ std::string decode_string_literal(const janus::frontend::Token &token) {
 
 namespace janus::frontend {
 
+namespace {
+
+std::optional<std::uint64_t> parse_integer_literal(std::string_view spelling) {
+  int base = 10;
+  std::size_t start = 0;
+  if (spelling.size() >= 2 && spelling[0] == '0') {
+    if (spelling[1] == 'x' || spelling[1] == 'X') {
+      base = 16;
+      start = 2;
+    } else if (spelling[1] == 'b' || spelling[1] == 'B') {
+      base = 2;
+      start = 2;
+    }
+  }
+  std::string digits;
+  digits.reserve(spelling.size() - start);
+  for (std::size_t index = start; index < spelling.size(); ++index)
+    if (spelling[index] != '_')
+      digits.push_back(spelling[index]);
+  std::uint64_t value{};
+  const auto result =
+      std::from_chars(digits.data(), digits.data() + digits.size(), value, base);
+  if (result.ec != std::errc{} || result.ptr != digits.data() + digits.size())
+    return std::nullopt;
+  return value;
+}
+
+} // namespace
+
 Parser::Parser(std::string_view source)
     : lexer_{source}, current_{lexer_.next()} {}
 
@@ -491,17 +520,15 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
         advance();
       }
       const Token literal = expect(TokenKind::IntegerLiteral);
-      std::uint64_t magnitude{};
-      const auto result = std::from_chars(
-          literal.lexeme.data(), literal.lexeme.data() + literal.lexeme.size(),
-          magnitude);
+      const auto parsed_magnitude = parse_integer_literal(literal.lexeme);
+      const std::uint64_t magnitude = parsed_magnitude.value_or(0);
       const std::uint64_t limit =
           negative ? static_cast<std::uint64_t>(
                          std::numeric_limits<std::int32_t>::max()) +
                          1
                    : static_cast<std::uint64_t>(
                          std::numeric_limits<std::int32_t>::max());
-      if (result.ec != std::errc{} || magnitude > limit)
+      if (!parsed_magnitude || magnitude > limit)
         throw CompileError{
             literal.location,
             "enum discriminant is outside the signed 32-bit range"};
@@ -1286,16 +1313,14 @@ ast::Expression Parser::parse_unary() {
     if (operation.kind == TokenKind::Minus &&
         current_.kind == TokenKind::IntegerLiteral) {
       const Token literal = expect(TokenKind::IntegerLiteral);
-      std::uint64_t magnitude{};
-      const auto result = std::from_chars(
-          literal.lexeme.data(), literal.lexeme.data() + literal.lexeme.size(),
-          magnitude);
-      if (result.ec != std::errc{}) {
+      const auto magnitude = parse_integer_literal(literal.lexeme);
+      if (!magnitude) {
         throw CompileError{
             literal.location,
             "integer literal is outside the unsigned 64-bit range"};
       }
-      return ast::IntegerLiteralExpression{magnitude, true, operation.location};
+      return ast::IntegerLiteralExpression{*magnitude, true,
+                                           operation.location};
     }
     return ast::UnaryExpression{
         operation.kind == TokenKind::Minus ? ast::UnaryOperator::Negate
@@ -1461,18 +1486,14 @@ ast::Expression Parser::parse_primary() {
 
   if (current_.kind == TokenKind::IntegerLiteral) {
     const Token literal = expect(TokenKind::IntegerLiteral);
-    std::uint64_t value{};
-    const auto result =
-        std::from_chars(literal.lexeme.data(),
-                        literal.lexeme.data() + literal.lexeme.size(), value);
-
-    if (result.ec != std::errc{}) {
+    const auto value = parse_integer_literal(literal.lexeme);
+    if (!value) {
       throw CompileError{
           literal.location,
           "integer literal is outside the unsigned 64-bit range"};
     }
 
-    return ast::IntegerLiteralExpression{value, false, literal.location};
+    return ast::IntegerLiteralExpression{*value, false, literal.location};
   }
 
   if (current_.kind == TokenKind::DoubleLiteral ||

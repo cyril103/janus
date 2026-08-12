@@ -54,6 +54,21 @@ inféré d'une `var` est fixé à sa déclaration ; une affectation ne le modifi
 jamais. Les littéraux entiers, réels et caractères gardent respectivement les
 types par défaut `int`, `double` et `char`.
 
+### Littéraux entiers
+
+Un entier s'écrit en décimal (`42`), en hexadécimal avec `0x` ou `0X`
+(`0xA2_0A`), ou en binaire avec `0b` ou `0B` (`0b1111_0000`). Les chiffres
+hexadécimaux ne sont pas sensibles à la casse. `_` peut séparer deux chiffres
+valides de la base, mais ne peut ni suivre le préfixe, ni terminer le littéral,
+ni être doublé.
+
+La notation ne change ni la valeur ni le typage. Sans contexte, un littéral a
+le type `int`; une annotation ou un argument attendu peut sélectionner
+`byte`, `ubyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`, `isize` ou
+`usize`. La valeur doit tenir dans ce type. La négation autorise donc exactement
+les minima signés, par exemple `-0x80 : byte` et `-0x8000_0000 : int`. Avant le
+typage contextuel, toute magnitude doit tenir dans un `uint64`.
+
 L'annotation reste obligatoire pour les globales, champs, paramètres et types
 de retour. Elle est également nécessaire pour `null()` sans argument de type,
 une collection vide sans type d'élément, des branches incompatibles ou un

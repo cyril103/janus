@@ -670,6 +670,17 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME parser.derivation_syntax COMMAND derivation_syntax_test)
+    add_executable(integer_literal_test
+        tests/frontend/integer_literal_test.cpp
+    )
+    target_link_libraries(integer_literal_test PRIVATE janus_frontend)
+    target_compile_options(integer_literal_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME parser.integer_literals COMMAND integer_literal_test)
     add_executable(diagnostic_model_test
         tests/diagnostics/diagnostic_model_test.cpp
     )

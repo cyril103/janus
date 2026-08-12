@@ -679,6 +679,16 @@ int main(int argc, char **argv) {
                 std::string::npos);
 
   static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///integer-literals.janus","text":"def bits() : int { return 0xA2_0A + 0b1111_0000 + 1_000 }\n"}}})"));
+  const std::string integer_semantic_tokens = require_lsp_result(
+      server.handle(
+          R"({"jsonrpc":"2.0","id":43,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///integer-literals.janus"}}})"),
+      LspResultShape::SemanticTokens);
+  JANUS_REQUIRE(semantic_token_type_at(integer_semantic_tokens, 0, 26) == 12);
+  JANUS_REQUIRE(semantic_token_type_at(integer_semantic_tokens, 0, 36) == 12);
+  JANUS_REQUIRE(semantic_token_type_at(integer_semantic_tokens, 0, 50) == 12);
+
+  static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-kinds.janus","text":"class C() { def f(x : C) : int { val local : C = x return local } }\ndef top(value : int) : int { return value }\ndef shadow(f : int) : int { return f() }\nprivate def hidden() : int { return 0 }\n"}}})"));
   const std::vector<std::string> classified_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":44,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-kinds.janus"}}})");
