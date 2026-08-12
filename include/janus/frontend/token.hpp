@@ -72,6 +72,10 @@ enum class TokenKind {
   Greater,
   GreaterEqual,
   Ampersand,
+  Pipe,
+  Caret,
+  ShiftLeft,
+  ShiftRight,
   AmpAmp,
   PipePipe,
   Semicolon,
@@ -219,6 +223,14 @@ struct Token {
     return "'>='";
   case TokenKind::Ampersand:
     return "'&'";
+  case TokenKind::Pipe:
+    return "'|'";
+  case TokenKind::Caret:
+    return "'^'";
+  case TokenKind::ShiftLeft:
+    return "'<<'";
+  case TokenKind::ShiftRight:
+    return "'>>'";
   case TokenKind::AmpAmp:
     return "'&&'";
   case TokenKind::PipePipe:

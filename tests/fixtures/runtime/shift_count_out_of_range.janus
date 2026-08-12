@@ -1,0 +1,7 @@
+def shifted(count : usize) : ubyte {
+    return ubyte(1) << count
+}
+
+def main() : int {
+    return int(shifted(8))
+}

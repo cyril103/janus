@@ -1210,15 +1210,48 @@ ast::Expression Parser::parse_logical_or() {
 }
 
 ast::Expression Parser::parse_logical_and() {
-  ast::Expression expression = parse_equality();
+  ast::Expression expression = parse_bitwise_or();
   while (current_.kind == TokenKind::AmpAmp) {
     const Token operation = current_;
     advance();
     expression = ast::BinaryExpression{
         ast::BinaryOperator::LogicalAnd,
         std::make_unique<ast::Expression>(std::move(expression)),
-        std::make_unique<ast::Expression>(parse_equality()),
+        std::make_unique<ast::Expression>(parse_bitwise_or()),
         operation.location};
+  }
+  return expression;
+}
+
+ast::Expression Parser::parse_bitwise_or() {
+  ast::Expression expression = parse_bitwise_xor();
+  while (current_.kind == TokenKind::Pipe) {
+    const Token operation = current_; advance();
+    expression = ast::BinaryExpression{ast::BinaryOperator::BitwiseOr,
+      std::make_unique<ast::Expression>(std::move(expression)),
+      std::make_unique<ast::Expression>(parse_bitwise_xor()), operation.location};
+  }
+  return expression;
+}
+
+ast::Expression Parser::parse_bitwise_xor() {
+  ast::Expression expression = parse_bitwise_and();
+  while (current_.kind == TokenKind::Caret) {
+    const Token operation = current_; advance();
+    expression = ast::BinaryExpression{ast::BinaryOperator::BitwiseXor,
+      std::make_unique<ast::Expression>(std::move(expression)),
+      std::make_unique<ast::Expression>(parse_bitwise_and()), operation.location};
+  }
+  return expression;
+}
+
+ast::Expression Parser::parse_bitwise_and() {
+  ast::Expression expression = parse_equality();
+  while (current_.kind == TokenKind::Ampersand) {
+    const Token operation = current_; advance();
+    expression = ast::BinaryExpression{ast::BinaryOperator::BitwiseAnd,
+      std::make_unique<ast::Expression>(std::move(expression)),
+      std::make_unique<ast::Expression>(parse_equality()), operation.location};
   }
   return expression;
 }
@@ -1240,7 +1273,7 @@ ast::Expression Parser::parse_equality() {
 }
 
 ast::Expression Parser::parse_comparison() {
-  ast::Expression expression = parse_additive();
+  ast::Expression expression = parse_shift();
   while (current_.kind == TokenKind::Less ||
          current_.kind == TokenKind::LessEqual ||
          current_.kind == TokenKind::Greater ||
@@ -1258,8 +1291,20 @@ ast::Expression Parser::parse_comparison() {
     expression = ast::BinaryExpression{
         binary_operation,
         std::make_unique<ast::Expression>(std::move(expression)),
-        std::make_unique<ast::Expression>(parse_additive()),
+        std::make_unique<ast::Expression>(parse_shift()),
         operation.location};
+  }
+  return expression;
+}
+
+ast::Expression Parser::parse_shift() {
+  ast::Expression expression = parse_additive();
+  while (current_.kind == TokenKind::ShiftLeft || current_.kind == TokenKind::ShiftRight) {
+    const Token operation = current_; advance();
+    expression = ast::BinaryExpression{
+      operation.kind == TokenKind::ShiftLeft ? ast::BinaryOperator::ShiftLeft : ast::BinaryOperator::ShiftRight,
+      std::make_unique<ast::Expression>(std::move(expression)),
+      std::make_unique<ast::Expression>(parse_additive()), operation.location};
   }
   return expression;
 }

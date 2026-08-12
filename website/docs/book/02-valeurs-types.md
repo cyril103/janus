@@ -153,9 +153,19 @@ débordement, une division par zéro ou une conversion hors plage est une erreur
 `isize` et `usize` sont actuellement définis sur 64 bits pour toutes les cibles
 prises en charge, ce qui rend la compilation croisée indépendante de l'hôte.
 Les flottants utilisent IEEE-754 (`float` binaire32, `double` binaire64); les
-résultats non finis sont refusés. Les opérations bit à bit et décalages ne font
-pas partie de la syntaxe Janus actuelle et ne sont donc pas admises dans cette
-première version.
+résultats non finis sont refusés. Les constantes acceptent aussi `&`, `^`, `|`,
+`<<` et `>>` avec les mêmes contrôles qu'à l'exécution.
+
+## Bits et décalages
+
+`&`, `^` et `|` combinent deux entiers exactement du même type. Pour `<<` et
+`>>`, le compte est un `usize` et le résultat garde le type gauche. `>>`
+propage le signe pour un type signé et insère des zéros pour un type non signé.
+Un compte supérieur ou égal à la largeur (8, 16, 32 ou 64) est refusé en
+constante et provoque un `panic` déterministe à l'exécution.
+
+Priorité décroissante : `* / %`, `+ -`, `<< >>`, comparaisons, égalité, `&`,
+`^`, `|`, `&&`, `||`.
 
 Une constante publique appartient à l'interface : son initialiseur normalisé,
 son type, la version de l'évaluateur et la cible participent au cache. Les

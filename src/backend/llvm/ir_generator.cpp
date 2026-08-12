@@ -4150,6 +4150,36 @@ private:
                 expression_type(*node.left, substitutions, locals);
             ::llvm::Value *left = emit_expression(
                 *node.left, operand_type, substitutions, locals, builder);
+            const bool is_shift =
+                node.operation == janus::ast::BinaryOperator::ShiftLeft ||
+                node.operation == janus::ast::BinaryOperator::ShiftRight;
+            if (is_shift) {
+              ::llvm::Value *count = emit_expression(
+                  *node.right, janus::Type::usize_type(), substitutions, locals,
+                  builder);
+              ::llvm::Value *invalid = builder.CreateICmpUGE(
+                  count, ::llvm::ConstantInt::get(count->getType(),
+                                                  operand_type.bit_width()),
+                  "shift.count.invalid");
+              ::llvm::Function *function = builder.GetInsertBlock()->getParent();
+              auto *panic_block = ::llvm::BasicBlock::Create(
+                  context_, "shift.count.panic", function);
+              auto *valid_block = ::llvm::BasicBlock::Create(
+                  context_, "shift.count.valid");
+              builder.CreateCondBr(invalid, panic_block, valid_block);
+              builder.SetInsertPoint(panic_block);
+              emit_integer_panic("shift count exceeds operand width\n",
+                                 node.location, builder);
+              function->insert(function->end(), valid_block);
+              builder.SetInsertPoint(valid_block);
+              count = builder.CreateIntCast(count, left->getType(), false,
+                                            "shift.count");
+              if (node.operation == janus::ast::BinaryOperator::ShiftLeft)
+                return builder.CreateShl(left, count, "shift.left");
+              return operand_type.is_signed()
+                         ? builder.CreateAShr(left, count, "shift.right")
+                         : builder.CreateLShr(left, count, "shift.right");
+            }
             ::llvm::Value *right = emit_expression(
                 *node.right, operand_type, substitutions, locals, builder);
             const bool derived_aggregate_equality =
@@ -4198,6 +4228,15 @@ private:
               return emit_integer_division(left, right, operand_type, true,
                                            is_unsigned_integer, node.location,
                                            builder);
+            case janus::ast::BinaryOperator::BitwiseAnd:
+              return builder.CreateAnd(left, right, "bitwise.and");
+            case janus::ast::BinaryOperator::BitwiseXor:
+              return builder.CreateXor(left, right, "bitwise.xor");
+            case janus::ast::BinaryOperator::BitwiseOr:
+              return builder.CreateOr(left, right, "bitwise.or");
+            case janus::ast::BinaryOperator::ShiftLeft:
+            case janus::ast::BinaryOperator::ShiftRight:
+              return nullptr;
             case janus::ast::BinaryOperator::Less:
               if (is_floating)
                 return builder.CreateFCmpOLT(left, right, "cmp");

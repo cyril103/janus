@@ -301,6 +301,10 @@ Token Lexer::next() {
       kind = TokenKind::AmpAmp;
     } else if (character == '|' && next_character == '|') {
       kind = TokenKind::PipePipe;
+    } else if (character == '<' && next_character == '<') {
+      kind = TokenKind::ShiftLeft;
+    } else if (character == '>' && next_character == '>') {
+      kind = TokenKind::ShiftRight;
     } else {
       is_two_character_token = false;
     }
@@ -353,6 +357,10 @@ Token Lexer::next() {
   case '&':
     return Token{TokenKind::Ampersand, source_.substr(start_position, 1),
                  start};
+  case '|':
+    return Token{TokenKind::Pipe, source_.substr(start_position, 1), start};
+  case '^':
+    return Token{TokenKind::Caret, source_.substr(start_position, 1), start};
   case '<':
     return Token{TokenKind::Less, source_.substr(start_position, 1), start};
   case '>':

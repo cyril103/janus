@@ -52,6 +52,17 @@ const capacity : int = width * height
 const selected : int = if capacity == 2000 { 7 } else { 9 }
 const opcode : uint = 0xA2_0A
 const sprite : ubyte = 0b1111_0000
+const masked : ubyte = (sprite | ubyte(15)) & ubyte(63) ^ ubyte(3)
+const shifted : ubyte = masked << 1 >> 1
+const signedShift : byte = byte(-128) >> 7
+const signedShiftLeft8 : byte = byte(64) << 1
+const signedShiftRight16 : short = short(-32768) >> 15
+const signedShiftRight32 : int = -0x8000_0000 >> 31
+const signedMinimum64 : long = -0x8000_0000_0000_0000
+const signedShiftRight64 : long = signedMinimum64 >> 63
+const signedAnd : byte = byte(-1) & byte(1)
+const signedOr : short = short(-32768) | short(1)
+const signedXor : int = int(-1) ^ int(1)
 
 const def align(value : usize, boundary : usize) : usize {
     return ((value + boundary - usize(1)) / boundary) * boundary
@@ -62,6 +73,16 @@ staticAssert(capacity == 2000)
 staticAssert(bufferSize == usize(1024), "alignment must remain stable")
 staticAssert(opcode == 41_482, "hexadecimal const evaluation must match decimal")
 staticAssert(sprite == ubyte(240), "binary const evaluation must match decimal")
+staticAssert(shifted == ubyte(60), "bitwise constants preserve ubyte width")
+staticAssert(signedShift == byte(-1), "signed constant right shift is arithmetic")
+staticAssert(signedShift + byte(1) == byte(0), "signed byte shift result stays canonical")
+staticAssert(signedShiftLeft8 + byte(1) == byte(-127), "signed byte left shift keeps its bit pattern")
+staticAssert(signedShiftRight16 + short(1) == short(0), "signed short shift result stays canonical")
+staticAssert(signedShiftRight32 + 1 == 0, "signed int shift result stays canonical")
+staticAssert(signedShiftRight64 + long(1) == long(0), "signed long shift result stays canonical")
+staticAssert(signedAnd + byte(1) == byte(2), "signed bitwise and stays canonical")
+staticAssert(signedOr + short(32767) == short(0), "signed bitwise or stays canonical")
+staticAssert(signedXor + int(2) == int(0), "signed bitwise xor stays canonical")
 
 def main() : int {
     val runtime : usize = align(usize(5), usize(4))
@@ -197,6 +218,12 @@ def main() : int { return if x == 16777216.0f { 0 } else { 1 } }
   expect_compile_error(
       "const invalid : int = 1 / 0\ndef main() : int { return 0 }",
       "division by zero in constant expression");
+  expect_compile_error(
+      "const invalid : ubyte = ubyte(1) << 8\ndef main() : int { return 0 }",
+      "shift count must be less than the left operand width");
+  expect_compile_error(
+      "const invalid : ushort = ushort(1) >> 17\ndef main() : int { return 0 }",
+      "shift count must be less than the left operand width");
   expect_compile_error(
       "const max : ulong = 18446744073709551615\n"
       "const invalid : ulong = max * max\ndef main() : int { return 0 }",

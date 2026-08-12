@@ -24,6 +24,10 @@
       "match": "\\b(true|false)\\b"
     },
     {
+      "name": "keyword.operator.bitwise.janus",
+      "match": "(?<![&|])(?:<<|>>|[&|^])(?![&|])"
+    },
+    {
       "name": "string.quoted.double.janus",
       "begin": "\"",
       "end": "\"",
