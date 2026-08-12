@@ -1,0 +1,30 @@
+import std.array
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(100000))
+    defer delete values
+    var state : int = 1729
+    var before : long = long(0)
+    var index : int = 0
+    while index < 100000 {
+        state = (state * 25173 + 13849) % 65521
+        values.push(state)
+        before = before + long(state)
+        index = index + 1
+    }
+
+    values.sortWith((left : int, right : int) => left < right)
+    var sorted : bool = true
+    var after : long = long(0)
+    var cursor : usize = usize(0)
+    while cursor < values.size() {
+        val value : int = values.get(cursor)
+        after = after + long(value)
+        if cursor > usize(0) && value < values.get(cursor - usize(1)) {
+            sorted = false
+        }
+        cursor = cursor + usize(1)
+    }
+    println(sorted && before == after)
+    return 0
+}

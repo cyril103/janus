@@ -6,6 +6,15 @@ Wall-clock times are informational only and are not CI gates. See
 [`docs/compiler-performance.md`](../docs/compiler-performance.md) for the
 compiler timing workflow and its non-blocking trend dashboard.
 
+## `array_sort.janus`
+
+This benchmark sorts 100,000 deterministic pseudo-random integers through
+`Array.sortWith`. It verifies both ordering and a checksum before printing
+`true`, so the sort remains observable. The runtime test
+`benchmarks.array_sort_smoke` locks that deterministic result; local wall-clock
+measurements can use the same optimized build and `/usr/bin/time` workflow as
+the benchmarks below.
+
 ## `prime_factors.janus`
 
 This benchmark exercises `std.math.prime_factors` through the public API over

@@ -466,6 +466,123 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return matches
     }
 
+    private def insertionSortRange(
+    first : usize,
+    last : usize,
+    less : (T, T) => bool
+    ) : Unit {
+        var index : usize = first + usize(1)
+        while index < last {
+            val candidate : T = data.load(index)
+            var destination : usize = index
+            while destination > first &&
+            less(candidate, data.load(destination - usize(1))) {
+                this.set(
+                destination,
+                data.load(destination - usize(1))
+                )
+                destination = destination - usize(1)
+            }
+            this.set(destination, move candidate)
+            index = index + usize(1)
+        }
+    }
+
+    private def mergeRange(
+    buffer : Array[T],
+    first : usize,
+    middle : usize,
+    last : usize,
+    less : (T, T) => bool
+    ) : Unit {
+        var left : usize = first
+        var right : usize = middle
+        var output : usize = first
+        while left < middle && right < last {
+            if less(data.load(right), data.load(left)) {
+                buffer.set(output, data.load(right))
+                right = right + usize(1)
+            } else {
+                buffer.set(output, data.load(left))
+                left = left + usize(1)
+            }
+            output = output + usize(1)
+        }
+        while left < middle {
+            buffer.set(output, data.load(left))
+            left = left + usize(1)
+            output = output + usize(1)
+        }
+        while right < last {
+            buffer.set(output, data.load(right))
+            right = right + usize(1)
+            output = output + usize(1)
+        }
+    }
+
+    /// Trie le tableau sur place selon un ordre total strict et conserve la stabilité.
+    ///
+    /// `less(left, right)` doit définir de façon cohérente si `left` précède
+    /// strictement `right`. Deux valeurs sont équivalentes lorsque le comparateur renvoie
+    /// `false` dans les deux sens; leur ordre d’origine est alors préservé.
+    /// L’algorithme hybride trie de petits segments par insertion puis les
+    /// fusionne. Son coût est `O(n log n)` dans le pire cas, `O(n)` en mémoire
+    /// auxiliaire, et le tableau vide ou singleton est laissé inchangé. Cette
+    /// méthode observe et duplique temporairement les éléments et exige donc que
+    /// `T` satisfasse `Copy`.
+    /// @param less Comparateur strict cohérent avec un ordre total.
+    def sortWith(less : (T, T) => bool) : Unit {
+        if length < usize(2) {
+            return
+        }
+
+        val insertionRun : usize = usize(16)
+        var first : usize = usize(0)
+        while first < length {
+            var last : usize = first + insertionRun
+            if last < first || last > length {
+                last = length
+            }
+            this.insertionSortRange(first, last, less)
+            first = last
+        }
+
+        val buffer : Array[T] = new Array[T](length)
+        defer delete buffer
+        var index : usize = usize(0)
+        while index < length {
+            buffer.push(data.load(index))
+            index = index + usize(1)
+        }
+
+        var width : usize = insertionRun
+        while width < length {
+            first = usize(0)
+            while first < length {
+                var middle : usize = first + width
+                if middle < first || middle > length {
+                    middle = length
+                }
+                var last : usize = middle + width
+                if last < middle || last > length {
+                    last = length
+                }
+                this.mergeRange(buffer, first, middle, last, less)
+                first = last
+            }
+            index = usize(0)
+            while index < length {
+                this.set(index, buffer.data.load(index))
+                index = index + usize(1)
+            }
+            if width > length / usize(2) {
+                width = length
+            } else {
+                width = width * usize(2)
+            }
+        }
+    }
+
     destructor {
         this.clear()
         freeStorage(data)
