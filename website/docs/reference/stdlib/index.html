@@ -50,7 +50,7 @@ complètes sont linéaires.</p></div></div><section class="module-example doc-se
 values.push(10)<br>
 values.push(20)<br>
 val doubled : Array[int] = values.map[int]((value : int) =&gt; value * 2)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">25</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">26</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-array-array" data-symbol data-search="std.array.Array class class Array[T](initialCapacity : usize) Tableau dynamique contigu qui possède ses éléments.
 
@@ -291,6 +291,28 @@ détruite. Si l’indice est invalide, `value` est détruite avant `panic`.</p><
 <p class="doc-summary">Retourne le nombre d’éléments stockés.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de valeurs initialisées, distinct de la capacité.</p></section>
 <div class="qualified">std.array.Array.size</div></div><a class="permalink" href="#std-array-array-size" aria-label="Permanent link to std.array.Array.size">#</a></article>
+<article class="symbol-card kind-method child" id="std-array-array-sortwith" data-symbol data-search="std.array.Array.sortWith method def sortWith(less : Function[T, T, bool]) : Unit Trie le tableau sur place selon un ordre total strict et conserve la stabilité.
+
+`less(left, right)` doit définir de façon cohérente si `left` précède
+strictement `right`. Deux valeurs sont équivalentes lorsque le comparateur renvoie
+`false` dans les deux sens; leur ordre d’origine est alors préservé.
+L’algorithme hybride trie de petits segments par insertion puis les
+fusionne. Son coût est `O(n log n)` dans le pire cas, `O(n)` en mémoire
+auxiliaire, et le tableau vide ou singleton est laissé inchangé. Cette
+méthode observe et duplique temporairement les éléments et exige donc que
+`T` satisfasse `Copy`.
+@param less Comparateur strict cohérent avec un ordre total."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def sortWith(less : Function[T, T, bool]) : Unit</code></h3>
+<p class="doc-summary">Trie le tableau sur place selon un ordre total strict et conserve la stabilité.</p>
+<div class="doc-details"><p>`less(left, right)` doit définir de façon cohérente si `left` précède<br>
+strictement `right`. Deux valeurs sont équivalentes lorsque le comparateur renvoie<br>
+`false` dans les deux sens; leur ordre d’origine est alors préservé.<br>
+L’algorithme hybride trie de petits segments par insertion puis les<br>
+fusionne. Son coût est `O(n log n)` dans le pire cas, `O(n)` en mémoire<br>
+auxiliaire, et le tableau vide ou singleton est laissé inchangé. Cette<br>
+méthode observe et duplique temporairement les éléments et exige donc que<br>
+`T` satisfasse `Copy`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>less</code></td><td><code>Function[T, T, bool]</code></td><td>Comparateur strict cohérent avec un ordre total.</td></tr></tbody></table></section>
+<div class="qualified">std.array.Array.sortWith</div></div><a class="permalink" href="#std-array-array-sortwith" aria-label="Permanent link to std.array.Array.sortWith">#</a></article>
 <article class="symbol-card kind-method child" id="std-array-array-withvalue" data-symbol data-search="std.array.Array.withValue method def withValue(index : usize, action : Function[T, Unit]) : Unit Exécute une action sur une copie de l’élément à un indice donné.
 
 Le tableau conserve son élément. Déclenche `panic` si `index` est hors

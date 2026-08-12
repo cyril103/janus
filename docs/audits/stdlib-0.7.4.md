@@ -13,10 +13,10 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **30 modules**, **9992 lignes** et **929 symboles publics** inventoriés ;
-- **937 blocs `///` publics pour 929 symboles** (couverture source du lot #115 : 100 %) ;
-- **152 sites d'allocation**, **213 marqueurs de nettoyage**, **201/14/38** occurrences `move`/`consume`/destructeur ;
-- **22/30 modules** importés directement par au moins une fixture ou un test, soit **103 couples module-fichier de test** ;
+- **30 modules**, **10109 lignes** et **930 symboles publics** inventoriés ;
+- **938 blocs `///` publics pour 930 symboles** (couverture source du lot #115 : 100 %) ;
+- **153 sites d'allocation**, **215 marqueurs de nettoyage**, **202/14/38** occurrences `move`/`consume`/destructeur ;
+- **22/30 modules** importés directement par au moins une fixture ou un test, soit **105 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
 Ces métriques sont des indicateurs de risque et non des objectifs d'optimisation isolés. Un marqueur de nettoyage peut apparaître dans un nom d'API ; les tests sanitizers restent l'autorité sur les fuites et doubles destructions.
@@ -46,7 +46,7 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 
 | Module | Surface | Décision | Propriétaire | Symboles | Lignes | Blocs `///` | Propriété M/C/D | Erreurs R/O/P | Alloc. | Nettoyages | Imports | Fixtures | Documentation |
 | --- | --- | --- | --- | ---: | ---: | ---: | --- | --- | ---: | ---: | --- | ---: | --- |
-| `std.array` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 25 | 473 | 25 | 14/1/2 | 0/6/9 | 8 | 13 | `std.iterator`, `std.option` | 21 | `docs/language-guide.md` |
+| `std.array` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 26 | 590 | 26 | 15/1/2 | 0/6/9 | 9 | 15 | `std.iterator`, `std.option` | 23 | `docs/language-guide.md` |
 | `std.array_builder` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 7 | 78 | 7 | 2/0/1 | 0/0/0 | 4 | 4 | `std.array`, `std.builder`, `std.iterator` | 4 | `docs/language-guide.md` |
 | `std.builder` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 3 | 22 | 3 | 0/0/0 | 0/0/0 | 1 | 0 | — | 0 | `docs/language-guide.md` |
 | `std.c` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 5 | 39 | 5 | 0/0/0 | 0/0/0 | 0 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
@@ -95,7 +95,7 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 
 | Module | Fixtures ou tests qui importent directement le module |
 | --- | --- |
-| `std.array` | `tests/compatibility/stdlib.janus`, `tests/fixtures/project-euler/production/problem11.janus`, `tests/fixtures/project-euler/production/problem13.janus`, `tests/fixtures/project-euler/production/problem16.janus`, `tests/fixtures/project-euler/production/problem18.janus`, `tests/fixtures/project-euler/production/problem20.janus`, `tests/fixtures/project-euler/production/problem8.janus`, `tests/fixtures/runtime/array_out_of_bounds.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/owned_array.janus`, `tests/fixtures/runtime/owned_array_copy_error.janus`, `tests/fixtures/runtime/owned_array_move_error.janus`, `tests/fixtures/runtime/owned_array_panic.janus`, `tests/fixtures/runtime/owned_iterator_borrow_error.janus`, `tests/fixtures/runtime/owned_iterator_for_copy_error.janus`, `tests/fixtures/runtime/owned_iterator_panic.janus`, `tests/fixtures/runtime/owned_iterators.janus`, `tests/fixtures/runtime/prime_factors.janus`, `tests/fixtures/runtime/processes.janus`, `tests/fixtures/runtime/sequence_pipeline_stress.janus`, `tests/frontend/parser_top_level_declaration_test.cpp` |
+| `std.array` | `tests/compatibility/stdlib.janus`, `tests/fixtures/project-euler/production/problem11.janus`, `tests/fixtures/project-euler/production/problem13.janus`, `tests/fixtures/project-euler/production/problem16.janus`, `tests/fixtures/project-euler/production/problem18.janus`, `tests/fixtures/project-euler/production/problem20.janus`, `tests/fixtures/project-euler/production/problem8.janus`, `tests/fixtures/runtime/array_out_of_bounds.janus`, `tests/fixtures/runtime/array_sort.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/owned_array.janus`, `tests/fixtures/runtime/owned_array_copy_error.janus`, `tests/fixtures/runtime/owned_array_move_error.janus`, `tests/fixtures/runtime/owned_array_panic.janus`, `tests/fixtures/runtime/owned_array_sort_error.janus`, `tests/fixtures/runtime/owned_iterator_borrow_error.janus`, `tests/fixtures/runtime/owned_iterator_for_copy_error.janus`, `tests/fixtures/runtime/owned_iterator_panic.janus`, `tests/fixtures/runtime/owned_iterators.janus`, `tests/fixtures/runtime/prime_factors.janus`, `tests/fixtures/runtime/processes.janus`, `tests/fixtures/runtime/sequence_pipeline_stress.janus`, `tests/frontend/parser_top_level_declaration_test.cpp` |
 | `std.array_builder` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/owned_hash_collections.janus`, `tests/fixtures/runtime/owned_iterators.janus` |
 | `std.builder` | aucune |
 | `std.c` | `tests/fixtures/runtime/text_api.janus`, `tests/interop/c_abi.janus` |
@@ -130,8 +130,8 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 
 | Motif normalisé | Modules | Occurrences |
 | --- | --- | ---: |
-| `index = index + usize(1)` | `std.array`, `std.hashmap`, `std.hashset`, `std.io`, `std.iterator`, `std.process`, `std.text` | 24 |
-| `var index : usize = usize(0)` | `std.array`, `std.hashmap`, `std.hashset`, `std.io`, `std.process`, `std.text` | 15 |
+| `index = index + usize(1)` | `std.array`, `std.hashmap`, `std.hashset`, `std.io`, `std.iterator`, `std.process`, `std.text` | 27 |
+| `var index : usize = usize(0)` | `std.array`, `std.hashmap`, `std.hashset`, `std.io`, `std.process`, `std.text` | 16 |
 | `state, () => state.dispose()` | `std.array`, `std.hashmap`, `std.hashset`, `std.iterator` | 14 |
 | `borrow path : Ptr[byte],` | `std.fs`, `std.io`, `std.path`, `std.system` | 13 |
 | `private var index : usize` | `std.array`, `std.hashmap`, `std.hashset`, `std.iterator` | 9 |
@@ -178,6 +178,7 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `Array.any` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.all` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.count` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Array.sortWith` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 
 ### `std.array_builder`
 
