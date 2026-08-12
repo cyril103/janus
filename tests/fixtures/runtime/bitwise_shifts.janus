@@ -1,0 +1,22 @@
+def verify8(count : usize) : bool {
+    return (ubyte(1) << count) == ubyte(128) && (ubyte(128) >> count) == ubyte(1) && (byte(-128) >> count) == byte(-1)
+}
+
+def verify16(count : usize) : bool {
+    return (ushort(1) << count) == ushort(32768) && (short(-32768) >> count) == short(-1)
+}
+
+def verify32(count : usize) : bool {
+    val highestBit : uint = 0x8000_0000
+    return (uint(1) << count) == highestBit && (int(-2147483647 - 1) >> count) == -1
+}
+
+def verify64(count : usize) : bool {
+    return (ulong(-1) >> count) == ulong(1) && (long(-1) >> count) == long(-1)
+}
+
+def main() : int {
+    val zero : usize = usize(0)
+    val bitwise : ubyte = (ubyte(240) | ubyte(15)) & ubyte(63) ^ ubyte(3)
+    return if bitwise == ubyte(60) && (bitwise << zero) == bitwise && verify8(7) && verify16(15) && verify32(31) && verify64(63) { 0 } else { 1 }
+}

@@ -34,6 +34,17 @@ Cette section publie les guides canoniques du dépôt. Ils sont copiés à chaqu
 
 </div>
 
+## Référence canonique des opérateurs entiers
+
+`&`, `^` et `|` exigent deux entiers du même type. `<<` et `>>` exigent un
+entier à gauche et un `usize` à droite. Le résultat conserve le type gauche ;
+`>>` est logique sur un type non signé et arithmétique sur un type signé. Le
+compte valide est `0..largeur-1`; sinon la compilation constante diagnostique
+l'erreur ou l'exécution panique avant l'instruction de décalage.
+
+Priorité décroissante : `* / %`, `+ -`, `<< >>`, `< <= > >=`, `== !=`, `&`,
+`^`, `|`, `&&`, `||`.
+
 !!! warning "Version pré-1.0"
     Cette référence décrit **Janus 0.10.0**. L’inventaire 0.5.x reste publié
     comme source symbolique de l’audit 0.8. Avant la version 1.0, seules les

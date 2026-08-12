@@ -30,9 +30,12 @@ void expect_compile_error(std::string_view source,
     static_cast<void>(analyzer.analyze(program));
     expect(false, "invalid primitive operation must fail");
   } catch (const janus::CompileError &error) {
-    expect(std::string_view{error.what()}.find(expected_message) !=
-               std::string_view::npos,
-           "primitive operation error contains the expected explanation");
+    const bool matches = std::string_view{error.what()}.find(expected_message) !=
+                         std::string_view::npos;
+    if (!matches)
+      std::cerr << "expected diagnostic containing '" << expected_message
+                << "', got '" << error.what() << "'\n";
+    expect(matches, "primitive operation error contains the expected explanation");
   }
 }
 
@@ -92,7 +95,18 @@ def main() : int {
     val secondCharacter : char = 'b'
     val characters : bool = firstCharacter < secondCharacter
     val logical : bool = !false || false
+    val mask : ubyte = ubyte(240) | ubyte(15) & ubyte(63) ^ ubyte(3)
+    val shifted : ubyte = mask << 1
+    val restored : ubyte = shifted >> 1
+    val signedShift : byte = byte(-128) >> 7
+    val precedence : bool = 1 + 2 << 1 < 7 && (ubyte(1) & ubyte(3) ^ ubyte(2) | ubyte(4)) == ubyte(7) || false
     return result
+}
+def bitOps(a : ubyte, b : ubyte, count : usize) : ubyte {
+    return ((a & b) | (a ^ b)) << count >> count
+}
+def signedBits(value : byte, count : usize) : byte {
+    return value >> count
 }
 )";
 
@@ -168,6 +182,18 @@ def main() : int {
   expect(ir.find("add nsw") == std::string::npos &&
              ir.find("add nuw") == std::string::npos,
          "integer arithmetic keeps modulo overflow semantics");
+  expect(ir.find("and i8") != std::string::npos,
+         "bitwise and is emitted");
+  expect(ir.find("or i8") != std::string::npos,
+         "bitwise or is emitted");
+  expect(ir.find("xor i8") != std::string::npos,
+         "bitwise xor is emitted");
+  expect(ir.find("shl i8") != std::string::npos,
+         "left shift is emitted");
+  expect(ir.find("lshr i8") != std::string::npos,
+         "unsigned right shift is logical");
+  expect(ir.find("ashr i8") != std::string::npos,
+         "signed right shift is arithmetic");
 
   expect_compile_error("def main() : int { val x : double = 1 + 2.0 return 0 }",
                        "operands must have the same type");
@@ -194,6 +220,20 @@ def main() : int {
       "comparison operators require");
   expect_compile_error("def main() : int { val x : bool = 1 && 2 return 0 }",
                        "logical operators require");
+  expect_compile_error("def main() : int { val x : bool = true & false return 0 }",
+                       "bitwise operators require integer operands");
+  expect_compile_error("def main() : int { val x : double = 1.0 | 2.0 return 0 }",
+                       "bitwise operators require integer operands");
+  expect_compile_error("def main() : int { val x : string = \"a\" ^ \"b\" return 0 }",
+                       "bitwise operators require integer operands");
+  expect_compile_error("struct Pair(val x : int) { } def main() : int { val a : Pair = Pair(1) val x : Pair = a & a return 0 }",
+                       "bitwise operators require integer operands");
+  expect_compile_error("def main() : int { val x : int = 1 & uint(1) return 0 }",
+                       "operands must have the same integer type");
+  expect_compile_error("def main() : int { val x : int = 1 << int(1) return 0 }",
+                       "shift count must have type usize");
+  expect_compile_error("def main() : int { val x : int = 1 << -1 return 0 }",
+                       "integer literal is outside the unsigned");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

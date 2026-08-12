@@ -5146,11 +5146,43 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             } else {
               static_assert(std::is_same_v<Node, ast::BinaryExpression>);
               const SemanticType left_type = expression_type(*node.left);
-              const SemanticType right_type = expression_type(*node.right);
+              const bool is_shift =
+                  node.operation == ast::BinaryOperator::ShiftLeft ||
+                  node.operation == ast::BinaryOperator::ShiftRight;
+              SemanticType right_type;
+              if (is_shift && std::holds_alternative<ast::IntegerLiteralExpression>(
+                                  node.right->value)) {
+                if (!integer_literal_fits(*node.right, Type::usize_type()))
+                  throw CompileError{node.location,
+                                     "integer literal is outside the unsigned usize range"};
+                right_type = SemanticType{&Type::usize_type(), {}};
+              } else if (is_shift &&
+                         std::holds_alternative<ast::UnaryExpression>(node.right->value)) {
+                throw CompileError{node.location,
+                                   "integer literal is outside the unsigned usize range"};
+              } else {
+                right_type = expression_type(*node.right);
+              }
+              if (is_shift) {
+                if (!left_type.is_concrete() ||
+                    !left_type.concrete->is_integer())
+                  throw CompileError{node.location,
+                                     "shift operators require an integer left operand"};
+                if (!right_type.is_concrete() ||
+                    right_type.concrete->kind() != TypeKind::USize)
+                  throw CompileError{node.location,
+                                     "shift count must have type usize"};
+                return left_type;
+              }
               if (!same_type(left_type, right_type)) {
+                const bool bitwise =
+                    node.operation == ast::BinaryOperator::BitwiseAnd ||
+                    node.operation == ast::BinaryOperator::BitwiseXor ||
+                    node.operation == ast::BinaryOperator::BitwiseOr;
                 throw CompileError{
                     node.location,
-                    "binary operator operands must have the same type, got '" +
+                    std::string{bitwise ? "bitwise operands must have the same integer type, got '"
+                                        : "binary operator operands must have the same type, got '"} +
                         left_type.name() + "' and '" + right_type.name() + "'"};
               }
 
@@ -5180,6 +5212,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   throw CompileError{node.location,
                                      "operator '%' requires integer operands"};
                 }
+                return left_type;
+              case ast::BinaryOperator::BitwiseAnd:
+              case ast::BinaryOperator::BitwiseXor:
+              case ast::BinaryOperator::BitwiseOr:
+                if (!is_concrete || !left_type.concrete->is_integer())
+                  throw CompileError{node.location,
+                                     "bitwise operators require integer operands"};
+                return left_type;
+              case ast::BinaryOperator::ShiftLeft:
+              case ast::BinaryOperator::ShiftRight:
                 return left_type;
               case ast::BinaryOperator::Less:
               case ast::BinaryOperator::LessEqual:

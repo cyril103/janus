@@ -28,3 +28,14 @@ test("TextMate does not accept incomplete exponents as complete literals", () =>
   for (const spelling of ["1e", "1e+"])
     assert.doesNotMatch(spelling, regexp);
 });
+
+test("TextMate scopes bitwise operators separately from logical operators", () => {
+  const bitwise = grammar.patterns.find(
+    (pattern) => pattern.name === "keyword.operator.bitwise.janus",
+  );
+  const operator = new RegExp(`^(?:${bitwise.match})$`);
+  for (const spelling of ["&", "|", "^", "<<", ">>"])
+    assert.match(spelling, operator);
+  for (const spelling of ["&&", "||", "<", ">"])
+    assert.doesNotMatch(spelling, operator);
+});

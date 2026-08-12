@@ -734,6 +734,22 @@ bool semantic_keyword(janus::frontend::TokenKind kind) {
          kind != TokenKind::DocumentationComment;
 }
 
+bool semantic_operator(janus::frontend::TokenKind kind) {
+  using janus::frontend::TokenKind;
+  switch (kind) {
+  case TokenKind::EqualEqual: case TokenKind::Bang: case TokenKind::BangEqual:
+  case TokenKind::Plus: case TokenKind::Minus: case TokenKind::Star:
+  case TokenKind::Slash: case TokenKind::Percent: case TokenKind::Less:
+  case TokenKind::LessEqual: case TokenKind::Greater: case TokenKind::GreaterEqual:
+  case TokenKind::Ampersand: case TokenKind::Pipe: case TokenKind::Caret:
+  case TokenKind::ShiftLeft: case TokenKind::ShiftRight: case TokenKind::AmpAmp:
+  case TokenKind::PipePipe: case TokenKind::Question:
+    return true;
+  default:
+    return false;
+  }
+}
+
 std::optional<char> character_before(std::string_view source,
                                      std::uint32_t requested_line,
                                      std::uint32_t requested_column) {
@@ -2404,6 +2420,8 @@ std::vector<std::string> Server::handle(std::string_view message) {
       } else if (token.kind == frontend::TokenKind::IntegerLiteral ||
                  token.kind == frontend::TokenKind::DoubleLiteral) {
         type = 12;
+      } else if (semantic_operator(token.kind)) {
+        type = 13;
       } else if (token.kind == frontend::TokenKind::Identifier) {
         const frontend::TokenKind previous =
             index == 0 ? frontend::TokenKind::End

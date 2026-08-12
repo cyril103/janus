@@ -114,6 +114,20 @@ Le compilateur signale les cycles de dépendances, débordements et divisions pa
 zéro. Un initialiseur non constant est exécuté avant `main`, dans l'ordre des
 imports puis des déclarations :
 
+### Opérateurs bit à bit et décalages
+
+`&`, `^` et `|` acceptent deux opérandes du même type entier et conservent ce
+type. `<<` et `>>` acceptent un entier à gauche et un `usize` à droite ; un
+littéral de compte est contextuellement typé `usize`. Le résultat conserve le
+type gauche. `>>` est logique pour les types non signés et arithmétique pour
+les types signés.
+
+Priorité décroissante : `* / %`, `+ -`, `<< >>`, `< <= > >=`, `== !=`, `&`,
+`^`, `|`, `&&`, `||`. Le compte valide va de zéro à `largeur - 1` pour les
+largeurs 8, 16, 32 et 64. Une constante hors borne est diagnostiquée ; une
+valeur hors borne à l'exécution déclenche un `panic` avant le décalage. Une
+valeur négative n'est pas un `usize` valide.
+
 ```janus
 val configuration : Configuration = loadConfiguration()
 private val callback : () => int = () => configuration.status()

@@ -3,6 +3,7 @@
 #include "janus/diagnostics/compile_error.hpp"
 
 #include <algorithm>
+
 #include <cmath>
 #include <limits>
 #include <bit>
@@ -365,7 +366,15 @@ bool same_type(const Value &left, const Value &right) {
 }
 
 std::int64_t signed_integer(const Value &value) {
-  return static_cast<std::int64_t>(std::get<std::uint64_t>(value.data));
+  const std::uint64_t bits = std::get<std::uint64_t>(value.data);
+  const unsigned width = value.type->bit_width();
+  if (width == 64)
+    return static_cast<std::int64_t>(bits);
+  const std::uint64_t mask = (std::uint64_t{1} << width) - 1;
+  const std::uint64_t sign_bit = std::uint64_t{1} << (width - 1);
+  const std::uint64_t value_bits = bits & mask;
+  return static_cast<std::int64_t>(
+      (value_bits & sign_bit) == 0 ? value_bits : value_bits | ~mask);
 }
 
 std::uint64_t unsigned_integer(const Value &value) {
@@ -396,6 +405,11 @@ void require_integer_range(__int128 value, const Type &type,
 Value integer_value(__int128 value, const Type &type,
                     janus::SourceLocation location) {
   require_integer_range(value, type, location);
+  if (type.is_signed() && type.bit_width() < 64) {
+    const std::uint64_t mask =
+        (std::uint64_t{1} << type.bit_width()) - 1;
+    return Value{&type, static_cast<std::uint64_t>(value) & mask};
+  }
   return Value{&type, static_cast<std::uint64_t>(value)};
 }
 
@@ -589,6 +603,37 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
     return Value{&Type::bool_type(), std::get<bool>(right.data)};
   }
 
+  const bool shift = binary.operation == BinaryOperator::ShiftLeft ||
+                     binary.operation == BinaryOperator::ShiftRight;
+  if (shift) {
+    const Value left = evaluate_impl(*binary.left, expected_type, resolve,
+                                     resolve_constructor, call_function);
+    const Value right = evaluate_impl(*binary.right, &Type::usize_type(), resolve,
+                                      resolve_constructor, call_function);
+    if (!left.type->is_integer() || right.type->kind() != TypeKind::USize)
+      throw janus::CompileError{binary.location,
+                                "invalid operands in constant shift"};
+    const std::uint64_t count = unsigned_integer(right);
+    const unsigned width = left.type->bit_width();
+    if (count >= width)
+      throw janus::CompileError{binary.location,
+                                "shift count must be less than the left operand width"};
+    const std::uint64_t mask = width == 64 ? ~std::uint64_t{0}
+                                           : (std::uint64_t{1} << width) - 1;
+    const std::uint64_t bits = unsigned_integer(left) & mask;
+    std::uint64_t value = 0;
+    if (binary.operation == BinaryOperator::ShiftLeft) {
+      value = (bits << count) & mask;
+    } else if (!left.type->is_signed()) {
+      value = bits >> count;
+    } else {
+      value = bits >> count;
+      if (count != 0 && (bits & (std::uint64_t{1} << (width - 1))) != 0)
+        value |= mask ^ ((std::uint64_t{1} << (width - count)) - 1);
+    }
+    return Value{left.type, value & mask};
+  }
+
   const bool comparison =
       binary.operation == BinaryOperator::Less ||
       binary.operation == BinaryOperator::LessEqual ||
@@ -776,6 +821,15 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
       value = binary.operation == BinaryOperator::Divide ? lhs / rhs
                                                           : lhs % rhs;
       break;
+    case BinaryOperator::BitwiseAnd:
+      value = lhs & rhs;
+      break;
+    case BinaryOperator::BitwiseXor:
+      value = lhs ^ rhs;
+      break;
+    case BinaryOperator::BitwiseOr:
+      value = lhs | rhs;
+      break;
     default:
       throw janus::CompileError{binary.location,
                                 "unsupported integer constant operator"};
@@ -790,10 +844,13 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
                                std::string{left.type->name()} + "'"};
     return Value{left.type, static_cast<std::uint64_t>(value)};
   }
-  const __int128 lhs =
-      signed_type ? signed_integer(left) : unsigned_integer(left);
-  const __int128 rhs =
-      signed_type ? signed_integer(right) : unsigned_integer(right);
+  const __int128 lhs = signed_type
+                           ? static_cast<__int128>(signed_integer(left))
+                           : static_cast<__int128>(unsigned_integer(left));
+  const __int128 rhs = signed_type
+                           ? static_cast<__int128>(signed_integer(right))
+                           : static_cast<__int128>(unsigned_integer(right));
+
   __int128 value = 0;
   switch (binary.operation) {
   case BinaryOperator::Add:
@@ -812,9 +869,26 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
                                 "division by zero in constant expression"};
     value = binary.operation == BinaryOperator::Divide ? lhs / rhs : lhs % rhs;
     break;
+  case BinaryOperator::BitwiseAnd:
+    value = static_cast<std::uint64_t>(lhs) & static_cast<std::uint64_t>(rhs);
+    break;
+  case BinaryOperator::BitwiseXor:
+    value = static_cast<std::uint64_t>(lhs) ^ static_cast<std::uint64_t>(rhs);
+    break;
+  case BinaryOperator::BitwiseOr:
+    value = static_cast<std::uint64_t>(lhs) | static_cast<std::uint64_t>(rhs);
+    break;
   default:
     throw janus::CompileError{binary.location,
                               "unsupported integer constant operator"};
+  }
+  if (binary.operation == BinaryOperator::BitwiseAnd ||
+      binary.operation == BinaryOperator::BitwiseXor ||
+      binary.operation == BinaryOperator::BitwiseOr) {
+    const unsigned width = left.type->bit_width();
+    const std::uint64_t mask = width == 64 ? ~std::uint64_t{0}
+                                           : (std::uint64_t{1} << width) - 1;
+    return Value{left.type, static_cast<std::uint64_t>(value) & mask};
   }
   return integer_value(value, *left.type, binary.location);
 }

@@ -125,6 +125,13 @@ int main() {
     std::cerr << "formatter did not preserve integer base and separators\n";
     return 1;
   }
+  const std::string bitwise =
+      "def bits(value : ubyte) : ubyte {\nreturn (value&ubyte(15))<<1|value>>2^ubyte(3)\n}\n";
+  const std::string formatted_bitwise = janus::driver::format_source(bitwise);
+  if (janus::driver::format_source(formatted_bitwise) != formatted_bitwise) {
+    std::cerr << "bitwise formatting is not idempotent\n";
+    return 1;
+  }
   std::cout << "Janus formatting is deterministic\n";
   return 0;
 }
