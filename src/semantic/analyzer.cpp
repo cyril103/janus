@@ -1427,7 +1427,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               for (const auto &arm : node.arms) {
                 auto arm_scope = scope;
                 arm_scope.insert(arm.bindings.begin(), arm.bindings.end());
-                if (arm.literal)
+                if (arm.literal && !ast::is_enum_binding_pattern(arm))
                   check_expression(*arm.literal, scope);
                 if (arm.guard)
                   check_expression(*arm.guard, arm_scope);

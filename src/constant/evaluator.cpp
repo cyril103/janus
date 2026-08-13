@@ -213,11 +213,22 @@ void collect_references(const janus::ast::Expression &expression,
                                             janus::ast::MatchExpression>) {
           collect_references(*node.scrutinee, modules, references);
           for (const auto &arm : node.arms) {
-            if (arm.literal)
+            if (arm.literal && !janus::ast::is_enum_binding_pattern(arm))
               collect_references(*arm.literal, modules, references);
+            const std::size_t arm_reference_begin = references.size();
             if (arm.guard)
               collect_references(*arm.guard, modules, references);
             collect_references(*arm.expression, modules, references);
+            references.erase(
+                std::remove_if(
+                    references.begin() +
+                        static_cast<std::ptrdiff_t>(arm_reference_begin),
+                    references.end(), [&](const Reference &reference) {
+                      return !reference.module.has_value() &&
+                             std::find(arm.bindings.begin(), arm.bindings.end(),
+                                       reference.name) != arm.bindings.end();
+                    }),
+                references.end());
           }
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::MoveExpression> ||
@@ -283,23 +294,6 @@ bool is_plan_scalar_constant_expression(
           return false;
       },
       expression.value);
-}
-
-bool is_binding_pattern(const janus::ast::MatchExpression::Arm &arm) {
-  if (arm.case_name.empty() || !arm.literal)
-    return false;
-  const auto *call =
-      std::get_if<janus::ast::CallExpression>(&arm.literal->value);
-  if (call == nullptr || call->callee != arm.case_name ||
-      call->arguments.size() != arm.bindings.size())
-    return false;
-  for (std::size_t index = 0; index < call->arguments.size(); ++index) {
-    const auto *identifier = std::get_if<janus::ast::IdentifierExpression>(
-        &call->arguments[index]->value);
-    if (identifier == nullptr || identifier->name != arm.bindings[index])
-      return false;
-  }
-  return true;
 }
 
 bool is_plan_constant_expression(
@@ -375,7 +369,7 @@ bool is_plan_constant_expression(
                                              aggregate_types) &&
                  std::all_of(node.arms.begin(), node.arms.end(),
                              [&](const auto &arm) {
-                               return (!arm.literal || is_binding_pattern(arm) ||
+                               return (!arm.literal || janus::ast::is_enum_binding_pattern(arm) ||
                                        is_plan_constant_expression(
                                            *arm.literal, modules,
                                            aggregate_types)) &&
@@ -1273,7 +1267,7 @@ bool is_constant_expression(const ast::Expression &expression) {
           return is_constant_expression(*node.scrutinee) &&
                  std::all_of(node.arms.begin(), node.arms.end(),
                              [](const auto &arm) {
-                               return (!arm.literal || is_binding_pattern(arm) ||
+                               return (!arm.literal || janus::ast::is_enum_binding_pattern(arm) ||
                                        is_constant_expression(*arm.literal)) &&
                                       (!arm.guard ||
                                        is_constant_expression(*arm.guard)) &&

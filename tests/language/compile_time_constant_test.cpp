@@ -323,6 +323,23 @@ def main() : int { return plannedZero + plannedPair + runtimeZero(zero) + runtim
       homonymous_enum_context};
   static_cast<void>(homonymous_enum_generator.generate(
       homonymous_enum_program, "homonymous_enum_constant_match"));
+  janus::frontend::Parser homonymous_binding_scope_parser{R"(
+enum E { int(int) }
+var x : int = 0
+val selected : int = match E.int(7) { int(x) => x }
+const def unwrap(e : E) : int { return match e { int(x) => x } }
+const answer : int = unwrap(E.int(7))
+def main() : int { return selected + answer }
+)"};
+  const janus::ast::Program homonymous_binding_scope_program =
+      homonymous_binding_scope_parser.parse_program();
+  const janus::semantic::AnalysisResult homonymous_binding_scope_analysis =
+      analyzer.analyze(homonymous_binding_scope_program);
+  expect(homonymous_binding_scope_analysis.global_constant_values.contains(
+             "selected") &&
+             homonymous_binding_scope_analysis.global_constant_values.contains(
+                 "answer"),
+         "enum pattern bindings shadow mutable globals in dependency and purity visitors");
   janus::frontend::Parser literal_match_parser{R"(
 const opcode : uint = uint(0x8001)
 const decoded : int = match opcode {

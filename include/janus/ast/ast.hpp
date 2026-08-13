@@ -188,6 +188,22 @@ struct Expression {
   Value value;
 };
 
+inline bool is_enum_binding_pattern(const MatchExpression::Arm &arm) {
+  if (arm.case_name.empty() || !arm.literal)
+    return false;
+  const auto *call = std::get_if<CallExpression>(&arm.literal->value);
+  if (call == nullptr || call->callee != arm.case_name ||
+      call->arguments.size() != arm.bindings.size())
+    return false;
+  for (std::size_t index = 0; index < call->arguments.size(); ++index) {
+    const auto *identifier =
+        std::get_if<IdentifierExpression>(&call->arguments[index]->value);
+    if (identifier == nullptr || identifier->name != arm.bindings[index])
+      return false;
+  }
+  return true;
+}
+
 struct ValueDeclaration {
   std::string name;
   std::optional<TypeReference> declared_type;
