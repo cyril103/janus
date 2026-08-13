@@ -10,6 +10,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--janus", required=True, type=pathlib.Path)
     parser.add_argument("--work-dir", required=True, type=pathlib.Path)
+    parser.add_argument("--no-cache", action="store_true")
     args = parser.parse_args()
 
     root = args.work_dir.resolve()
@@ -33,6 +34,8 @@ def main() -> int:
     )
 
     command = [str(args.janus.resolve()), "build"]
+    if args.no_cache:
+        command.append("--no-cache")
     suffix = ".exe" if sys.platform == "win32" else ""
     executable = project / "target" / "debug" / f"concurrent-cache{suffix}"
     cache = project / "target" / ".janus-cache" / "v1"
@@ -60,19 +63,20 @@ def main() -> int:
         if run.returncode != 9:
             raise AssertionError(f"concurrent output is invalid: exit={run.returncode}")
 
-        entries = list((cache / "entries").glob("*.entry"))
-        artifacts = list((cache / "artifacts").glob("*.bin"))
-        temporaries = list(cache.rglob("*.tmp-*"))
-        if len(entries) != 1 or len(artifacts) != 1 or temporaries:
-            raise AssertionError(
-                f"cache publication is not clean: entries={len(entries)}, "
-                f"artifacts={len(artifacts)}, temporaries={temporaries}"
-            )
+        if not args.no_cache:
+            entries = list((cache / "entries").glob("*.entry"))
+            artifacts = list((cache / "artifacts").glob("*.bin"))
+            temporaries = list(cache.rglob("*.tmp-*"))
+            if len(entries) != 1 or len(artifacts) != 1 or temporaries:
+                raise AssertionError(
+                    f"cache publication is not clean: entries={len(entries)}, "
+                    f"artifacts={len(artifacts)}, temporaries={temporaries}"
+                )
 
-        cached_digest = hashlib.sha256(artifacts[0].read_bytes()).digest()
-        output_digest = hashlib.sha256(executable.read_bytes()).digest()
-        if cached_digest != output_digest:
-            raise AssertionError("published cache artifact differs from final output")
+            cached_digest = hashlib.sha256(artifacts[0].read_bytes()).digest()
+            output_digest = hashlib.sha256(executable.read_bytes()).digest()
+            if cached_digest != output_digest:
+                raise AssertionError("published cache artifact differs from final output")
     return 0
 
 
