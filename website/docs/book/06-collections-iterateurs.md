@@ -72,4 +72,14 @@ Créez un tableau contenant `2`, `4`, `6`, parcourez-le et affichez leur somme.
     }
     ```
 
+# Littéraux de tableaux
+
+`[e1, e2]` produit un `Array[T]`. Le type `T` est fourni par une annotation
+`Array[T]` ou inféré d'éléments non vides homogènes; `[]` exige une annotation.
+Les éléments sont convertis vers `T`, évalués une seule fois de gauche à droite
+et transférés au tableau avec les règles d'ownership de `Array.push`. Détruisez
+le tableau avec `delete` (souvent via `defer`). Les constantes globales ne
+peuvent pas employer cette syntaxe (`JANA0023`), car `Array[T]` possède du
+stockage dynamique construit à l'exécution.
+
 <div class="lesson-nav"><a href="../05-erreurs-propriete/">← Erreurs et propriété</a><a href="../07-generiques-closures/">Génériques et closures →</a></div>

@@ -49,6 +49,7 @@ enum class DiagnosticCode {
   AnalyzerUnannotatedExternOwnership,
   AnalyzerPotentialOwnershipCycle,
   AnalyzerUnannotatedExternReturn,
+  AnalyzerInvalidArrayLiteral,
   ModuleNotFound,
   BackendCyclicGlobalConstant,
 };
@@ -106,6 +107,8 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0021";
   case DiagnosticCode::AnalyzerUnannotatedExternReturn:
     return "JANA0022";
+  case DiagnosticCode::AnalyzerInvalidArrayLiteral:
+    return "JANA0023";
   case DiagnosticCode::ModuleNotFound:
     return "JMOD0001";
   case DiagnosticCode::BackendCyclicGlobalConstant:

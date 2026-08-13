@@ -1376,6 +1376,27 @@ ast::Expression Parser::parse_unary() {
 }
 
 ast::Expression Parser::parse_primary() {
+  if (current_.kind == TokenKind::LeftBracket) {
+    const Token opening = expect(TokenKind::LeftBracket);
+    std::vector<std::unique_ptr<ast::Expression>> elements;
+    if (current_.kind != TokenKind::RightBracket) {
+      while (true) {
+        elements.push_back(
+            std::make_unique<ast::Expression>(parse_expression()));
+        if (current_.kind != TokenKind::Comma)
+          break;
+        advance();
+        if (current_.kind == TokenKind::RightBracket)
+          break;
+      }
+    }
+    if (current_.kind != TokenKind::RightBracket)
+      throw CompileError{current_.location,
+                         "expected ']' after array literal"};
+    advance();
+    return ast::ArrayLiteralExpression{std::move(elements), opening.location};
+  }
+
   if (current_.kind == TokenKind::Match) {
     const Token match_token = expect(TokenKind::Match);
     ast::Expression scrutinee = parse_expression();

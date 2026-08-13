@@ -88,6 +88,15 @@ int main() {
     std::cerr << "selective import aliases are not preserved idempotently\n";
     return 1;
   }
+  const std::string array_literals =
+      "def bytes() : Array[ubyte] {\nreturn [\n0xF0,\n0x90,\n0xF0\n]\n}\n";
+  const std::string formatted_arrays =
+      "def bytes() : Array[ubyte] {\n    return [\n        0xF0,\n        0x90,\n        0xF0\n    ]\n}\n";
+  if (janus::driver::format_source(array_literals) != formatted_arrays ||
+      janus::driver::format_source(formatted_arrays) != formatted_arrays) {
+    std::cerr << "array literal formatting is not stable and idempotent\n";
+    return 1;
+  }
   const std::string local_types =
       "def main() : int {\nval inferred=answer()\nval explicit:int=1\nreturn explicit\n}\n";
   const std::string formatted_local_types =

@@ -1002,6 +1002,15 @@ int main(int argc, char **argv) {
       R"({"jsonrpc":"2.0","id":6,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///broken.janus"},"options":{"tabSize":2,"insertSpaces":true}}})");
   JANUS_REQUIRE(formatting.front().find("\"newText\"") != std::string::npos);
 
+  const std::vector<std::string> array_diagnostics = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///array-literal.janus","text":"import std.array\n\ndef main() : int {\nval values : Array[int] = [\n1,\n2\n]\ndefer delete values\nreturn 0\n}\n"}}})");
+  JANUS_REQUIRE(array_diagnostics.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
+  const std::vector<std::string> array_formatting = server.handle(
+      R"({"jsonrpc":"2.0","id":60,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///array-literal.janus"},"options":{"tabSize":4,"insertSpaces":true}}})");
+  JANUS_REQUIRE(array_formatting.front().find("        1,") !=
+                std::string::npos);
+
   // Regression matrix for every advertised request that operates on source.
   TemporaryWorkspace temporary_workspace;
   const std::filesystem::path &workspace = temporary_workspace.path();

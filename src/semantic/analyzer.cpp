@@ -1395,6 +1395,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     node.location, "const def '" + function.name +
                                        "' cannot observe mutable global '" +
                                        key + "'"};
+            } else if constexpr (std::is_same_v<Node, ast::ArrayLiteralExpression>) {
+              for (const auto &element : node.elements)
+                check_expression(*element, scope);
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
               for (const auto &argument : node.arguments)
                 check_expression(*argument, scope);
@@ -3142,6 +3145,57 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             } else if constexpr (std::is_same_v<Node,
                                                 ast::StringLiteralExpression>) {
               return SemanticType{&Type::string_type(), {}};
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::ArrayLiteralExpression>) {
+              const auto array_class = classes.find("std.array.Array");
+              if (array_class == classes.end())
+                throw CompileError{
+                    DiagnosticCode::AnalyzerInvalidArrayLiteral, node.location,
+                    "array literal requires Array[T]; help: import std.array"};
+              const auto contextual_array_class =
+                  contextual_expected_type == nullptr
+                      ? classes.end()
+                      : classes.find(contextual_expected_type->parameter);
+              const bool has_contextual_array_type =
+                  contextual_expression == &expression &&
+                  contextual_expected_type != nullptr &&
+                  contextual_expected_type->is_class() &&
+                  contextual_array_class != classes.end() &&
+                  contextual_array_class->second->module_name ==
+                      std::optional<std::string>{"std.array"} &&
+                  contextual_array_class->second->name == "Array" &&
+                  contextual_expected_type->type_arguments.size() == 1;
+              SemanticType element_type;
+              if (has_contextual_array_type) {
+                element_type = contextual_expected_type->type_arguments.front();
+              } else {
+                if (node.elements.empty())
+                  throw CompileError{DiagnosticCode::AnalyzerInvalidArrayLiteral,
+                                     node.location,
+                                     "empty array literal requires an explicit Array[T] type"};
+                element_type = expression_type(*node.elements.front());
+              }
+              for (const auto &element : node.elements) {
+                if (aggregate_owns_value(element_type) &&
+                    std::holds_alternative<ast::IdentifierExpression>(
+                        element->value))
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerInvalidArrayLiteral,
+                      expression_location(*element),
+                      "owning array literal element requires an explicit move"};
+                try {
+                  validate_expression(*element, element_type, node.location);
+                } catch (const CompileError &error) {
+                  throw CompileError{DiagnosticCode::AnalyzerInvalidArrayLiteral,
+                                     expression_location(*element), error.what()};
+                }
+              }
+              result.inferred_generic_arguments.insert_or_assign(
+                  &expression, std::vector<SemanticType>{element_type});
+              if (has_contextual_array_type)
+                return *contextual_expected_type;
+              return SemanticType{nullptr, array_class->first, true,
+                                  {element_type}};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::IdentifierExpression>) {
               const auto iterator = active_symbols->find(node.name);
@@ -5619,6 +5673,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               declared_type = expression_type(*declaration->initializer);
             } catch (const CompileError &error) {
               throw CompileError{
+                  error.diagnostic().code,
                   declaration->location,
                   "cannot infer type of '" + declaration->name +
                       "'; help: add an explicit type annotation; note: " +

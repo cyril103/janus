@@ -1,0 +1,5 @@
+class Array[T]() {}
+def main() : int {
+    val values : Array[int] = [1]
+    return 0
+}

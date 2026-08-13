@@ -966,7 +966,13 @@ Value evaluate_impl(const janus::ast::Expression &expression,
                                           janus::ast::StringLiteralExpression>)
           return Value{&Type::string_type(), node.value};
         else if constexpr (std::is_same_v<Node,
-                                          janus::ast::IdentifierExpression>) {
+                                          janus::ast::ArrayLiteralExpression>) {
+          throw janus::CompileError{
+              janus::DiagnosticCode::AnalyzerInvalidArrayLiteral, node.location,
+              "array literals are not supported in global constants; "
+              "Array[T] requires runtime-owned storage"};
+        } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::IdentifierExpression>) {
           if (auto value = resolve(std::nullopt, node.name, node.location))
             return *value;
           throw janus::CompileError{

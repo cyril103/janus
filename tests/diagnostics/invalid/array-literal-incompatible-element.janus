@@ -1,0 +1,5 @@
+import std.array
+def main() : int {
+    val values : Array[int] = [1, "two"]
+    return 0
+}
