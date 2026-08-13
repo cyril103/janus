@@ -19,14 +19,22 @@ import downstream_canary  # noqa: E402
 SHA = "0123456789abcdef0123456789abcdef01234567"
 
 
-def archive(path: Path, *, binary=True, stdlib=True, revision=SHA):
+def archive(path: Path, *, binary=True, stdlib=True, revision=SHA,
+            identity_overrides=None):
     with tarfile.open(path, "w:gz") as output:
+        identity = {
+            "schema_version": 1, "version": "0.11.1", "revision": revision,
+            "dirty": False, "channel": "package",
+            "display_version": f"0.11.1+g{revision[:12]}",
+            "identity": f"0.11.1+g{revision[:12]}.package",
+            "target": "x86_64-Linux", "llvm": "18.1.8",
+            "source_digest": None,
+        }
+        identity.update(identity_overrides or {})
         entries = {
             "janus/bin/janus": "#!/bin/sh\nexit 0\n",
             "janus/share/janus/stdlib/std/core.janus": "module std.core\n",
-            "janus/share/janus/build-identity.json": json.dumps({
-                "schema_version": 1, "version": "0.11.0", "revision": revision,
-                "dirty": False, "channel": "package", "identity": f"0.11.0+g{revision}"}),
+            "janus/share/janus/build-identity.json": json.dumps(identity),
         }
         if not binary:
             entries.pop("janus/bin/janus")
@@ -89,6 +97,36 @@ class CandidateValidationTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "unsafe|ambiguous"):
                     downstream_canary.validate_archive(path, SHA)
 
+    def test_rejects_windows_absolute_multiple_roots_and_file_directory_conflicts(self):
+        for names in [
+            ["C:/escape"],
+            ["janus/bin/janus", "other/share/janus/stdlib/core.janus"],
+            ["janus/bin", "janus/bin/janus"],
+        ]:
+            with self.subTest(names=names), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "candidate.tar.gz"
+                with tarfile.open(path, "w:gz") as output:
+                    for name in names:
+                        info = tarfile.TarInfo(name)
+                        info.size = 1
+                        output.addfile(info, io.BytesIO(b"x"))
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                path.with_name(path.name + ".sha256").write_text(
+                    f"{digest}  {path.name}\n")
+                with self.assertRaisesRegex(ValueError, "unsafe|ambiguous|root"):
+                    downstream_canary.validate_archive(path, SHA)
+
+    def test_rejects_incomplete_or_inconsistent_identity(self):
+        for overrides in [
+            {"schema_version": 2}, {"version": "9.9.9"},
+            {"target": ""}, {"llvm": ""}, {"identity": "wrong"},
+        ]:
+            with self.subTest(overrides=overrides), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "candidate.tar.gz"
+                archive(path, identity_overrides=overrides)
+                with self.assertRaisesRegex(ValueError, "identity"):
+                    downstream_canary.validate_archive(path, SHA)
+
     def test_rejects_missing_or_mismatched_checksum(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "candidate.tar.gz"
@@ -121,6 +159,11 @@ class CandidateValidationTests(unittest.TestCase):
         self.assertLess(release.index(invocation), release.index("Publish GitHub release"))
         self.assertIn(downstream_canary.JANUS8_REVISION, nightly)
         self.assertIn(downstream_canary.JANUS8_REVISION, release)
+        release_job = release[release.index("  release:"):]
+        self.assertIn("vscode-extension", release_job[:release_job.index("runs-on:")])
+        canary_step = release[release.index("Janus8 downstream canary"):
+                              release.index("Attest release provenance")]
+        self.assertNotIn("find dist/release", canary_step)
 
 
 if __name__ == "__main__":

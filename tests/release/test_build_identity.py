@@ -72,6 +72,24 @@ class BuildIdentityTests(unittest.TestCase):
             second_dirty = build_identity.from_git("0.11.0", repo)
             self.assertNotEqual(first_dirty.identity, second_dirty.identity)
 
+    def test_untracked_unicode_and_quoted_paths_participate_in_dirty_digest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            subprocess.run(["git", "init", "-q", repo], check=True)
+            subprocess.run(["git", "-C", repo, "config", "user.email", "test@example.com"], check=True)
+            subprocess.run(["git", "-C", repo, "config", "user.name", "Test"], check=True)
+            (repo / "tracked").write_text("tracked\n")
+            subprocess.run(["git", "-C", repo, "add", "tracked"], check=True)
+            subprocess.run(["git", "-C", repo, "commit", "-qm", "base"], check=True)
+            unusual = repo / 'é space "quote".janus'
+            unusual.write_text("one\n")
+            first = build_identity.from_git("0.11.1", repo)
+            unusual.write_text("two\n")
+            second = build_identity.from_git("0.11.1", repo)
+            self.assertTrue(first.dirty)
+            self.assertNotEqual(first.source_digest, second.source_digest)
+            self.assertNotEqual(first.identity, second.identity)
+
 
 if __name__ == "__main__":
     unittest.main()

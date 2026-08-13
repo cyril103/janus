@@ -6,6 +6,7 @@ import argparse
 import dataclasses
 import hashlib
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -84,18 +85,23 @@ def from_git(version: str, repo: Path, *, injected_sha: str = "",
         return resolve(version, injected_sha, False, None, True,
                        target=target, llvm=llvm)
     revision = _git(repo, "rev-parse", "HEAD")
-    status = _git(repo, "status", "--porcelain", "--untracked-files=normal")
-    dirty = bool(status)
+    status_result = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain=v1", "-z",
+         "--untracked-files=normal"], capture_output=True, check=True)
+    status_bytes = status_result.stdout
+    dirty = bool(status_bytes)
     source_digest = ""
     if dirty:
         digest = hashlib.sha256()
-        digest.update(status.encode())
+        digest.update(status_bytes)
         digest.update(_git(repo, "diff", "--binary", "HEAD").encode())
-        for line in status.splitlines():
-            if line.startswith("?? "):
-                path = repo / line[3:]
+        records = [record for record in status_bytes.split(b"\0") if record]
+        for record in records:
+            if record.startswith(b"?? "):
+                raw_path = record[3:]
+                path = repo / os.fsdecode(raw_path)
                 if path.is_file():
-                    digest.update(line[3:].encode())
+                    digest.update(raw_path)
                     digest.update(path.read_bytes())
         source_digest = digest.hexdigest()
     exact_tag = _git(repo, "describe", "--tags", "--exact-match", check=False) or None
