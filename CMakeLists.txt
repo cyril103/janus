@@ -246,6 +246,7 @@ add_library(janus_driver
     src/driver/doctest.cpp
     src/driver/formatter.cpp
     src/driver/incremental_cache.cpp
+    src/driver/output_publication_lock.cpp
     src/driver/native_linker.cpp
     src/driver/manifest.cpp
     src/driver/native_test.cpp
