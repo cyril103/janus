@@ -77,6 +77,12 @@ def main() -> int:
             output_digest = hashlib.sha256(executable.read_bytes()).digest()
             if cached_digest != output_digest:
                 raise AssertionError("published cache artifact differs from final output")
+
+        output_temporaries = list(executable.parent.glob(executable.name + ".tmp-*"))
+        if output_temporaries:
+            raise AssertionError(
+                f"output publication left temporaries: {output_temporaries}"
+            )
     return 0
 
 
