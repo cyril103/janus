@@ -109,6 +109,10 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertIn(
             "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
             workflow)
+        self.assertIn(
+            'test -f "dist/janus-$EXPECTED_VERSION-Windows-AMD64.zip"',
+            workflow)
+        self.assertNotIn("Windows-x86_64.zip", workflow)
         self.assertNotIn("gh release upload nightly", workflow)
         self.assertNotIn("gh release upload channel-nightly", workflow)
         self.assertIn("git/refs/heads/nightly-channel", workflow)

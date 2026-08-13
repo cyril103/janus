@@ -158,7 +158,7 @@ jobs:
           test -n "$EXPECTED_VERSION"
           test -f "dist/janus-$EXPECTED_VERSION-Linux-x86_64.tar.gz"
           test -f "dist/janus-$EXPECTED_VERSION-Darwin-arm64.tar.gz"
-          test -f "dist/janus-$EXPECTED_VERSION-Windows-x86_64.zip"
+          test -f "dist/janus-$EXPECTED_VERSION-Windows-AMD64.zip"
           archive_count="$(find dist -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l)"
           test "$archive_count" -eq 3
           (cd dist && sha256sum --check *.sha256)
