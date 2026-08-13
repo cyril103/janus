@@ -117,6 +117,18 @@ class WorkflowPolicyTests(unittest.TestCase):
             text=True, capture_output=True)
         self.assertEqual(checker.returncode, 0, checker.stdout + checker.stderr)
 
+    def test_apple_disables_only_leak_detection_not_address_sanitizer(self):
+        scripts = [
+            ROOT / "tests/runtime/run_janus_example.cmake",
+            ROOT / "tests/runtime/run_janus_trap.cmake",
+            ROOT / "tests/interop/run_c_interop.cmake",
+        ]
+        for script in scripts:
+            text = script.read_text()
+            self.assertIn("APPLE", text, script)
+            self.assertIn("detect_leaks=0:halt_on_error=1", text, script)
+            self.assertIn("-fsanitize=", text, script)
+
 
 if __name__ == "__main__":
     unittest.main()
