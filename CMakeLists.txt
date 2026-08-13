@@ -2272,6 +2272,18 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.match_expression COMMAND match_expression_test)
+    add_test(
+        NAME runtime.match_literals_guards
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/match_literals_guards.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/match_literals_guards_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/match_literals_guards.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
 
     add_executable(try_operator_test
         tests/language/try_operator_test.cpp

@@ -105,6 +105,9 @@ struct MatchExpression {
   struct Arm {
     std::string case_name;
     std::vector<std::string> bindings;
+    std::unique_ptr<Expression> literal;
+    bool is_wildcard{false};
+    std::unique_ptr<Expression> guard;
     std::unique_ptr<Expression> expression;
     SourceLocation location;
   };

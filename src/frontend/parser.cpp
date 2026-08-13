@@ -1382,25 +1382,75 @@ ast::Expression Parser::parse_primary() {
     static_cast<void>(expect(TokenKind::LeftBrace));
     std::vector<ast::MatchExpression::Arm> arms;
     while (current_.kind != TokenKind::RightBrace) {
-      const Token case_name = expect(TokenKind::Identifier);
+      const Token pattern_token = current_;
+      std::string case_name;
       std::vector<std::string> bindings;
-      if (current_.kind == TokenKind::LeftParen) {
+      std::unique_ptr<ast::Expression> literal;
+      bool is_wildcard = false;
+      const bool literal_start =
+          current_.kind == TokenKind::IntegerLiteral ||
+          current_.kind == TokenKind::FloatLiteral ||
+          current_.kind == TokenKind::DoubleLiteral ||
+          current_.kind == TokenKind::StringLiteral ||
+          current_.kind == TokenKind::CharacterLiteral ||
+          current_.kind == TokenKind::Minus ||
+          current_.kind == TokenKind::True || current_.kind == TokenKind::False;
+      if (literal_start) {
+        literal = std::make_unique<ast::Expression>(parse_expression());
+      } else {
+        const Token name = expect(TokenKind::Identifier);
+        case_name = std::string{name.lexeme};
+        is_wildcard = case_name == "_";
+      }
+      if (!literal && !is_wildcard && current_.kind == TokenKind::LeftParen) {
         advance();
-        if (current_.kind != TokenKind::RightParen) {
+        const bool constructor_literal =
+            case_name == "byte" || case_name == "ubyte" ||
+            case_name == "short" || case_name == "ushort" ||
+            case_name == "int" || case_name == "uint" ||
+            case_name == "long" || case_name == "ulong" ||
+            case_name == "isize" || case_name == "usize" ||
+            case_name == "char" || case_name == "bool" ||
+            case_name == "string" || case_name == "float" ||
+            case_name == "double";
+        if (constructor_literal) {
+          std::vector<std::unique_ptr<ast::Expression>> arguments;
+          if (current_.kind != TokenKind::RightParen) {
+            arguments.push_back(
+                std::make_unique<ast::Expression>(parse_expression()));
+            while (current_.kind == TokenKind::Comma) {
+              advance();
+              arguments.push_back(
+                  std::make_unique<ast::Expression>(parse_expression()));
+            }
+          }
+          static_cast<void>(expect(TokenKind::RightParen));
+          literal = std::make_unique<ast::Expression>(ast::CallExpression{
+              std::move(case_name), {}, std::move(arguments),
+              pattern_token.location});
+        } else if (current_.kind != TokenKind::RightParen) {
           do {
             bindings.emplace_back(expect(TokenKind::Identifier).lexeme);
             if (current_.kind != TokenKind::Comma)
               break;
             advance();
           } while (true);
+          static_cast<void>(expect(TokenKind::RightParen));
+        } else {
+          static_cast<void>(expect(TokenKind::RightParen));
         }
-        static_cast<void>(expect(TokenKind::RightParen));
+      }
+      std::unique_ptr<ast::Expression> guard;
+      if (current_.kind == TokenKind::If) {
+        advance();
+        guard = std::make_unique<ast::Expression>(parse_expression());
       }
       static_cast<void>(expect(TokenKind::Arrow));
       arms.push_back(ast::MatchExpression::Arm{
-          std::string{case_name.lexeme}, std::move(bindings),
+          std::move(case_name), std::move(bindings),
+          std::move(literal), is_wildcard, std::move(guard),
           std::make_unique<ast::Expression>(parse_expression()),
-          case_name.location});
+          pattern_token.location});
       if (current_.kind == TokenKind::Comma ||
           current_.kind == TokenKind::Semicolon)
         advance();

@@ -132,6 +132,20 @@ int main() {
     std::cerr << "bitwise formatting is not idempotent\n";
     return 1;
   }
+  const std::string guarded_match =
+      "def decode(opcode:uint):int {\nreturn match opcode {\n"
+      "uint(0)=>0,\nuint(8) if opcode&uint(15)==uint(1)=>1,\n_=>-1\n}\n}\n";
+  const std::string formatted_guarded_match =
+      janus::driver::format_source(guarded_match);
+  if (formatted_guarded_match.find(
+          "uint(8) if opcode&uint(15)==uint(1)=>1") ==
+          std::string::npos ||
+      janus::driver::format_source(formatted_guarded_match) !=
+          formatted_guarded_match) {
+    std::cerr << "literal and guarded match formatting is not canonical and idempotent:\n"
+              << formatted_guarded_match;
+    return 1;
+  }
   std::cout << "Janus formatting is deterministic\n";
   return 0;
 }

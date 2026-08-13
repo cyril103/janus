@@ -30,9 +30,24 @@ void expect_compile_error(std::string_view source,
     static_cast<void>(analyzer.analyze(program));
     expect(false, "invalid match expression must fail");
   } catch (const janus::CompileError &error) {
-    expect(std::string_view{error.what()}.find(expected_message) !=
-               std::string_view::npos,
-           "match error contains the expected explanation");
+    if (std::string_view{error.what()}.find(expected_message) ==
+        std::string_view::npos) {
+      std::cerr << "FAILED: expected match diagnostic '" << expected_message
+                << "', got '" << error.what() << "'\n";
+      ++failures;
+    }
+  }
+}
+
+void expect_valid(std::string_view source, std::string_view message) {
+  try {
+    janus::frontend::Parser parser{source};
+    const janus::ast::Program program = parser.parse_program();
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(program));
+  } catch (const std::exception &error) {
+    std::cerr << "FAILED: " << message << ": " << error.what() << '\n';
+    ++failures;
   }
 }
 
@@ -85,7 +100,7 @@ def main() : int {
 
   expect_compile_error(
       "enum E { A } def main() : int { return match 1 { A => 0 } }",
-      "match requires an enum value");
+      "literal match requires a literal or '_' pattern");
   expect_compile_error(
       "enum E { A(int) } def main() : int { val e : E = E.A(1) "
       "return match e { A => 0 } }",
@@ -102,6 +117,92 @@ def main() : int {
   expect_compile_error("enum E { A, B } def main() : int { val e : E = E.A() "
                        "return match e { A => 0, A => 1, B => 2 } }",
                        "match case 'A' is already handled");
+
+  expect_valid(R"(
+def classify(value : uint) : int {
+    return match value { uint(1) => 10, uint(2) => 20, _ => 0 }
+}
+def main() : int { return classify(uint(2)) }
+)", "integer literal patterns parse and type-check");
+  expect_valid(R"(
+def classify(value : bool) : int {
+    return match value { true => 1, false => 0 }
+}
+def main() : int { return classify(true) }
+)", "boolean literal patterns are exhaustive");
+  expect_valid(R"(
+def classify(value : string) : int {
+    return match value { "chip8" => 8, _ => 0 }
+}
+def main() : int { return classify("chip8") }
+)", "string literal patterns are supported");
+  expect_valid(R"(
+def classify(value : double) : int {
+    return match value { 1.5 => 15, _ => 0 }
+}
+def main() : int { return classify(1.5) }
+)", "floating literal patterns are supported");
+  expect_valid(R"(
+def classify(value : bool) : int {
+    return match value { bool(1) => 1, false => 0 }
+}
+def main() : int { return classify(true) }
+)", "converted boolean patterns contribute to exhaustiveness");
+  expect_valid(R"(
+enum Opcode { Family(uint) }
+def classify(opcode : Opcode) : int {
+    return match opcode {
+        Family(value) if value == uint(1) => 1,
+        Family(value) => 0
+    }
+}
+def main() : int { return classify(Opcode.Family(uint(1))) }
+)", "guards see enum pattern bindings");
+  expect_compile_error(
+      "def main() : int { return match 1 { true => 1, _ => 0 } }",
+      "literal pattern type 'bool' does not match scrutinee type 'int'");
+  expect_compile_error(
+      "enum E { A(int) } def main() : int { val e = E.A(1) "
+      "return match e { A(value) if value => 1, A(value) => 0 } }",
+      "match guard must have type 'bool'");
+  expect_compile_error(
+      "def main() : int { return match 1 { 1 => 1, 1 => 2, _ => 0 } }",
+      "literal pattern '1' is already handled");
+  expect_compile_error(
+      "def main() : int { return match 1 { 1 => 1, 1 if true => 2, _ => 0 } }",
+      "literal pattern '1' is already handled");
+  expect_compile_error(
+      "def main() : int { return match 1 { 1 => 1, int(1) if true => 2, _ => 0 } }",
+      "literal pattern '1' is already handled");
+  expect_compile_error(
+      "def main() : int { return match 1 { 1 => 1, int(byte(1)) => 2, _ => 0 } }",
+      "literal pattern '1' is already handled");
+  expect_compile_error(
+      "def main() : int { return match true { true => 1, bool(1) => 2, false => 0 } }",
+      "literal pattern 'true' is already handled");
+  expect_compile_error(
+      "enum E { A } def main() : int { val e = E.A() return match e { A => 1, A if true => 2 } }",
+      "match case 'A' is already handled");
+  expect_compile_error(
+      "def main() : int { val expected = 1 return match 1 { int(expected) => 1, _ => 0 } }",
+      "match pattern must be a literal");
+  expect_compile_error(
+      "def main() : int { return match 3 { 1 + 2 => 1, _ => 0 } }",
+      "match pattern must be a literal");
+  expect_compile_error(
+      "def main() : int { return match 1 { _ => 0, 1 => 1 } }",
+      "match arm is unreachable after wildcard pattern");
+  expect_compile_error(
+      "def main() : int { return match 1 { 1 if true => 1 } }",
+      "non-exhaustive match");
+  expect_compile_error(
+      "enum E { A } def main() : int { val e = E.A() "
+      "return match e { A if true => 1 } }",
+      "non-exhaustive match for enum 'E': missing case(s): A");
+  expect_compile_error(
+      "enum E { A(int) } def main() : int { val e = E.A(1) "
+      "val x = match e { A(value) => value } return value }",
+      "unknown value 'value'");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

@@ -2,8 +2,12 @@ import std.option
 
 def main() : int {
     val option : Option[int] = Option.Some[int](42)
-    return match option {
+    val extracted = match option {
         Some(value) => value,
         None => 0
+    }
+    return match extracted {
+        42 if extracted == 42 => 8,
+        _ => 0
     }
 }

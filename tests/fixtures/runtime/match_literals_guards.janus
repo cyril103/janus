@@ -1,0 +1,38 @@
+enum Opcode {
+    Family(uint)
+}
+
+def decodeFamily(suffix : uint) : int {
+    return match suffix {
+        uint(0) => 80,
+        uint(1) => 81,
+        uint(2) => 82,
+        _ => -1
+    }
+}
+
+def decode(opcode : Opcode) : int {
+    return match opcode {
+        Family(value) if (value & uint(0xF000)) == uint(0x8000) =>
+            decodeFamily(value & uint(0x000F)),
+        Family(value) if value == uint(0) => 0,
+        Family(value) => -1
+    }
+}
+
+def boolCode(value : bool) : int {
+    return match value { true => 1, false => 0 }
+}
+
+def machineCode(value : string) : int {
+    return match value { "chip8" => 8, _ => -1 }
+}
+
+def main() : int {
+    println(decode(Opcode.Family(uint(0x8001))))
+    println(decode(Opcode.Family(uint(0x8002))))
+    println(decode(Opcode.Family(uint(0))))
+    println(boolCode(true))
+    println(machineCode("chip8"))
+    return 0
+}

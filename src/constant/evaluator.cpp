@@ -9,6 +9,7 @@
 #include <bit>
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -211,8 +212,13 @@ void collect_references(const janus::ast::Expression &expression,
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::MatchExpression>) {
           collect_references(*node.scrutinee, modules, references);
-          for (const auto &arm : node.arms)
+          for (const auto &arm : node.arms) {
+            if (arm.literal)
+              collect_references(*arm.literal, modules, references);
+            if (arm.guard)
+              collect_references(*arm.guard, modules, references);
             collect_references(*arm.expression, modules, references);
+          }
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::MoveExpression> ||
                              std::is_same_v<Node,
@@ -1061,24 +1067,41 @@ Value evaluate_impl(const janus::ast::Expression &expression,
           const Value scrutinee = evaluate_impl(
               *node.scrutinee, nullptr, resolve, resolve_constructor,
               call_function);
-          if (scrutinee.type->kind() != TypeKind::Enum ||
-              !resolve_constructor)
-            throw janus::CompileError{
-                node.location,
-                "constant match currently requires a resource-free enum"};
-          const auto &aggregate = *std::get<std::shared_ptr<
-              janus::constant::AggregateValue>>(scrutinee.data);
           for (const auto &arm : node.arms) {
-            const auto shape = resolve_constructor(
-                scrutinee.type->name(), arm.case_name, {}, arm.location);
-            if (!shape.has_value() || shape->tag != aggregate.tag)
-              continue;
             std::unordered_map<std::string, Value> bindings;
-            for (std::size_t index = 0;
-                 index < arm.bindings.size() && index < aggregate.fields.size();
-                 ++index)
-              bindings.emplace(arm.bindings[index],
-                               aggregate.fields[index].second);
+            bool matches = arm.is_wildcard;
+            if (arm.literal) {
+              const Value literal = evaluate_impl(
+                  *arm.literal, scrutinee.type, resolve, resolve_constructor,
+                  call_function);
+              const auto *literal_floating =
+                  std::get_if<double>(&literal.data);
+              const auto *scrutinee_floating =
+                  std::get_if<double>(&scrutinee.data);
+              matches =
+                  (literal_floating == nullptr ||
+                   !std::isnan(*literal_floating)) &&
+                  (scrutinee_floating == nullptr ||
+                   !std::isnan(*scrutinee_floating)) &&
+                  canonical_match_key(literal) ==
+                      canonical_match_key(scrutinee);
+            } else if (!arm.is_wildcard &&
+                       scrutinee.type->kind() == TypeKind::Enum &&
+                       resolve_constructor) {
+              const auto &aggregate = *std::get<std::shared_ptr<
+                  janus::constant::AggregateValue>>(scrutinee.data);
+              const auto shape = resolve_constructor(
+                  scrutinee.type->name(), arm.case_name, {}, arm.location);
+              matches = shape.has_value() && shape->tag == aggregate.tag;
+              if (matches)
+                for (std::size_t index = 0;
+                     index < arm.bindings.size() &&
+                     index < aggregate.fields.size(); ++index)
+                  bindings.emplace(arm.bindings[index],
+                                   aggregate.fields[index].second);
+            }
+            if (!matches)
+              continue;
             const janus::constant::Resolver arm_resolver =
                 [&](const std::optional<std::string> &module,
                     std::string_view name, janus::SourceLocation location)
@@ -1089,6 +1112,13 @@ Value evaluate_impl(const janus::ast::Expression &expression,
                   return binding->second;
               return resolve(module, name, location);
             };
+            if (arm.guard) {
+              const Value guard = evaluate_impl(
+                  *arm.guard, &Type::bool_type(), arm_resolver,
+                  resolve_constructor, call_function);
+              if (!std::get<bool>(guard.data))
+                continue;
+            }
             return evaluate_impl(*arm.expression, expected_type, arm_resolver,
                                  resolve_constructor, call_function);
           }
@@ -1132,6 +1162,19 @@ Value evaluate_impl(const janus::ast::Expression &expression,
 } // namespace
 
 namespace janus::constant {
+
+std::string canonical_match_key(const Value &value) {
+  if (const auto *floating = std::get_if<double>(&value.data)) {
+    if (std::isnan(*floating))
+      throw std::invalid_argument{"NaN cannot be used as a match pattern"};
+    if (*floating == 0.0) {
+      Value normalized = value;
+      normalized.data = 0.0;
+      return canonical_serialize(normalized);
+    }
+  }
+  return canonical_serialize(value);
+}
 
 std::string canonical_serialize(const Value &value) {
   std::ostringstream output;
@@ -1204,7 +1247,11 @@ bool is_constant_expression(const ast::Expression &expression) {
           return is_constant_expression(*node.scrutinee) &&
                  std::all_of(node.arms.begin(), node.arms.end(),
                              [](const auto &arm) {
-                               return is_constant_expression(*arm.expression);
+                               return (!arm.literal ||
+                                       is_constant_expression(*arm.literal)) &&
+                                      (!arm.guard ||
+                                       is_constant_expression(*arm.guard)) &&
+                                      is_constant_expression(*arm.expression);
                              });
         else
           return false;

@@ -61,6 +61,9 @@ using FunctionResolver = std::function<std::optional<Value>(
 // Stable, locale-independent representation used by public interfaces,
 // documentation and incremental caches.
 [[nodiscard]] std::string canonical_serialize(const Value &value);
+// Canonical representation of a scalar match value. Unlike serialization,
+// this follows runtime equality (in particular, -0.0 and 0.0 are identical).
+[[nodiscard]] std::string canonical_match_key(const Value &value);
 inline constexpr std::string_view evaluator_version = "const-evaluator-v3";
 
 [[nodiscard]] InitializationPlan
