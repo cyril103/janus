@@ -73,7 +73,9 @@ OutputPublicationLock::OutputPublicationLock(
     CloseHandle(mutex_);
     mutex_ = nullptr;
     if (error == ERROR_TIMEOUT)
-      throw std::runtime_error{"timed out waiting for output publication lock"};
+      throw std::runtime_error{
+          "timed out waiting for output publication lock for '" +
+          output.string() + "'"};
     throw std::runtime_error{
         "cannot acquire output publication lock: " +
         std::system_category().message(static_cast<int>(error))};
@@ -115,10 +117,13 @@ void publish_output(const std::filesystem::path &staged,
                                    std::filesystem::copy_options::none,
                                    copy_error))
       break;
-    adjacent.clear();
-    if (copy_error != std::errc::file_exists)
+    if (copy_error != std::errc::file_exists) {
+      std::error_code ignored;
+      std::filesystem::remove(adjacent, ignored);
       throw std::runtime_error{"cannot stage output '" + output.string() +
                                "': " + copy_error.message()};
+    }
+    adjacent.clear();
   }
   if (adjacent.empty())
     throw std::runtime_error{"cannot reserve output staging path for '" +
