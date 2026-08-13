@@ -113,6 +113,10 @@ class WorkflowPolicyTests(unittest.TestCase):
             'test -f "dist/janus-$EXPECTED_VERSION-Windows-AMD64.zip"',
             workflow)
         self.assertNotIn("Windows-x86_64.zip", workflow)
+        self.assertIn("re.fullmatch(r\"[0-9a-f]{40}\", old)", workflow)
+        self.assertIn('payload.update({"parents":[old]} if old else {})', workflow)
+        self.assertNotIn('--jq .object.sha 2>/dev/null || true', workflow)
+        self.assertIn('else\n            old=""', workflow)
         self.assertNotIn("gh release upload nightly", workflow)
         self.assertNotIn("gh release upload channel-nightly", workflow)
         self.assertIn("git/refs/heads/nightly-channel", workflow)

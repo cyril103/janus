@@ -202,14 +202,18 @@ jobs:
           RELEASE: ${{ steps.identity.outputs.release }}
         run: |
           python3 scripts/nightly_release.py write-manifest --version "$VERSION" --release "$RELEASE" --source-sha "$GITHUB_SHA" --published-at '${{ steps.identity.outputs.published }}' --output "$RUNNER_TEMP/version"
-          old="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/nightly-channel" --jq .object.sha 2>/dev/null || true)"
+          if old="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/nightly-channel" --jq .object.sha 2>/dev/null)"; then
+            :
+          else
+            old=""
+          fi
           blob="$(gh api "repos/$GITHUB_REPOSITORY/git/blobs" \
             --method POST -f content="$(cat "$RUNNER_TEMP/version")" \
             -f encoding=utf-8 --jq .sha)"
           BLOB="$blob" python3 -c 'import json,os; print(json.dumps({"tree":[{"path":"version","mode":"100644","type":"blob","sha":os.environ["BLOB"]}]}))' > "$RUNNER_TEMP/tree.json"
           tree="$(gh api "repos/$GITHUB_REPOSITORY/git/trees" \
             --method POST --input "$RUNNER_TEMP/tree.json" --jq .sha)"
-          TREE="$tree" OLD="$old" SOURCE="$GITHUB_SHA" python3 -c 'import json,os; payload={"message":"nightly: point channel at " + os.environ["SOURCE"],"tree":os.environ["TREE"]}; old=os.environ["OLD"]; payload.update({"parents":[old]} if old else {}); print(json.dumps(payload))' > "$RUNNER_TEMP/commit.json"
+          TREE="$tree" OLD="$old" SOURCE="$GITHUB_SHA" python3 -c 'import json,os,re; payload={"message":"nightly: point channel at " + os.environ["SOURCE"],"tree":os.environ["TREE"]}; old=os.environ["OLD"]; assert not old or re.fullmatch(r"[0-9a-f]{40}", old), f"invalid nightly-channel parent: {old!r}"; payload.update({"parents":[old]} if old else {}); print(json.dumps(payload))' > "$RUNNER_TEMP/commit.json"
           commit="$(gh api "repos/$GITHUB_REPOSITORY/git/commits" \
             --method POST --input "$RUNNER_TEMP/commit.json" --jq .sha)"
           if test -n "$old"; then
