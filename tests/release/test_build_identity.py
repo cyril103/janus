@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -81,7 +82,13 @@ class BuildIdentityTests(unittest.TestCase):
             (repo / "tracked").write_text("tracked\n")
             subprocess.run(["git", "-C", repo, "add", "tracked"], check=True)
             subprocess.run(["git", "-C", repo, "commit", "-qm", "base"], check=True)
-            unusual = repo / 'é space "quote".janus'
+            # Windows forbids quotes in filenames and the MSYS2 runner may not
+            # round-trip non-ASCII temporary paths through native Python. POSIX
+            # keeps the full regression; Windows still exercises NUL-delimited
+            # parsing with a path containing spaces.
+            unusual_name = ("space name.janus" if os.name == "nt" else
+                            'é space "quote".janus')
+            unusual = repo / unusual_name
             unusual.write_text("one\n")
             first = build_identity.from_git("0.11.1", repo)
             unusual.write_text("two\n")
