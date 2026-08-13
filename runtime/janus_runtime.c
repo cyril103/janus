@@ -538,8 +538,29 @@ uint32_t janus_parse_char(const char *data, uint64_t length, int *error) {
 
 static void (*janus_panic_cleanup)(void);
 
+typedef struct JanusPanicCleanupFrame {
+  struct JanusPanicCleanupFrame *previous;
+  void (*cleanup)(void *);
+  void *context;
+} JanusPanicCleanupFrame;
+
+static JanusPanicCleanupFrame *janus_active_panic_cleanup;
+
 void janus_set_panic_cleanup(void (*cleanup)(void)) {
   janus_panic_cleanup = cleanup;
+}
+
+void janus_push_panic_cleanup(JanusPanicCleanupFrame *frame,
+                              void (*cleanup)(void *), void *context) {
+  frame->previous = janus_active_panic_cleanup;
+  frame->cleanup = cleanup;
+  frame->context = context;
+  janus_active_panic_cleanup = frame;
+}
+
+void janus_pop_panic_cleanup(JanusPanicCleanupFrame *frame) {
+  if (janus_active_panic_cleanup == frame)
+    janus_active_panic_cleanup = frame->previous;
 }
 
 static void janus_write_panic_trace(void) {
@@ -573,6 +594,11 @@ _Noreturn void janus_panic_with_context(const char *data, uint64_t size,
                   function == NULL ? "<unknown>" : function);
     if (trace_mode >= 2)
       janus_write_panic_trace();
+  }
+  while (janus_active_panic_cleanup != NULL) {
+    JanusPanicCleanupFrame *frame = janus_active_panic_cleanup;
+    janus_active_panic_cleanup = frame->previous;
+    frame->cleanup(frame->context);
   }
   if (janus_panic_cleanup != NULL) {
     void (*cleanup)(void) = janus_panic_cleanup;

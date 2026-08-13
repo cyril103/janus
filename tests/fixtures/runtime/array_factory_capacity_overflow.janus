@@ -1,0 +1,9 @@
+import std.array
+
+def main() : int {
+    val overflowingCount : usize =
+        usize(-1) / sizeof[int]() + usize(1)
+    val values : Array[int] = filledArray[int](overflowingCount, 0)
+    delete values
+    return 0
+}

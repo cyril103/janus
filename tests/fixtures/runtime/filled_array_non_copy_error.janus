@@ -1,0 +1,11 @@
+import std.array
+
+class Resource() {}
+
+def main() : int {
+    val resource : Resource = new Resource()
+    val values : Array[Resource] =
+    filledArray[Resource](usize(2), move resource)
+    delete values
+    return 0
+}

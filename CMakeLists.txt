@@ -1599,6 +1599,82 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(
+        NAME runtime.array_factories
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/array_factories.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/array_factories_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/array_factories.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.array_factory_panic_cleanup
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/array_factory_panic_cleanup.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/array_factory_panic_cleanup_runtime"
+            "-DEXPECTED_ERROR=array factory failure"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/array_factory_panic_cleanup.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME runtime.nested_callback_panic_cleanup
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/nested_callback_panic_cleanup.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/nested_callback_panic_cleanup_runtime"
+            "-DEXPECTED_ERROR=nested callback failure"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/nested_callback_panic_cleanup.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME runtime.callback_panic_cleanup_pop
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/callback_panic_cleanup_pop.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/callback_panic_cleanup_pop_runtime"
+            "-DEXPECTED_ERROR=after callback return"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/callback_panic_cleanup_pop.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME runtime.callback_argument_panic_cleanup
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/callback_argument_panic_cleanup.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/callback_argument_panic_cleanup_runtime"
+            "-DEXPECTED_ERROR=callback argument failure"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/callback_argument_panic_cleanup.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME runtime.array_factory_capacity_overflow
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/array_factory_capacity_overflow.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/array_factory_capacity_overflow_runtime"
+            "-DEXPECTED_ERROR=Array capacity overflow"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
         NAME runtime.array_literals
         COMMAND
             ${CMAKE_COMMAND}
@@ -1656,6 +1732,15 @@ if(BUILD_TESTING)
             "-DJANUSC=$<TARGET_FILE:janusc>"
             "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_array_copy_error.janus"
             "-DEXPECTED_ERROR=Array.get requires a Copy element type"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
+    )
+    add_test(
+        NAME language.filled_array_rejects_non_copy
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/filled_array_non_copy_error.janus"
+            "-DEXPECTED_ERROR=does not satisfy constraint 'Copy'"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
     )
     add_test(

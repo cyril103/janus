@@ -1,0 +1,20 @@
+class Resource(val id : int) {
+    destructor {
+        println(id)
+    }
+}
+
+def failArgument() : int {
+    panic("callback argument failure\n")
+}
+
+def invoke(callback : (int) => Unit) : Unit {
+    val resource : Resource = new Resource(77)
+    defer delete resource
+    callback(failArgument())
+}
+
+def main() : int {
+    invoke((value : int) => println(value))
+    return 0
+}
