@@ -20,4 +20,7 @@ private:
 #endif
 };
 
+void publish_output(const std::filesystem::path &staged,
+                    const std::filesystem::path &output);
+
 } // namespace janus::driver

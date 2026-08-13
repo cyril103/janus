@@ -1049,6 +1049,14 @@ if(BUILD_TESTING)
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_incremental_cache_cli.cmake"
     )
     add_test(
+        NAME cli.incremental_cache_concurrent_no_cache
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/driver/run_incremental_cache_concurrent.py"
+                --janus "$<TARGET_FILE:janus>"
+                --work-dir "${PROJECT_BINARY_DIR}/incremental-cache-concurrent-no-cache"
+                --no-cache
+    )
+    add_test(
         NAME cli.incremental_cache_concurrent
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/tests/driver/run_incremental_cache_concurrent.py"

@@ -408,6 +408,23 @@ void test_restore_replaces_an_existing_output() {
   std::filesystem::remove_all(root);
 }
 
+void test_publish_output_replaces_an_existing_output() {
+  const auto root = temporary_root();
+  const auto staged = root / "staged.bin";
+  const auto output = root / "output.bin";
+  std::ofstream{staged, std::ios::binary} << "complete-output";
+  std::ofstream{output, std::ios::binary} << "old-output";
+  janus::driver::publish_output(staged, output);
+  require(!std::filesystem::exists(staged),
+          "published staging file was not consumed");
+  std::ifstream published{output, std::ios::binary};
+  require(std::string{std::istreambuf_iterator<char>{published},
+                      std::istreambuf_iterator<char>{}} == "complete-output",
+          "final output does not contain the staged bytes");
+  published.close();
+  std::filesystem::remove_all(root);
+}
+
 void test_output_publication_lock_serializes_publishers() {
 #ifdef _WIN32
   const auto root = temporary_root();
@@ -480,6 +497,7 @@ int main() {
     test_corrupt_consumer_is_invalidated_and_repaired();
     test_interrupted_entry_is_ignored();
     test_restore_replaces_an_existing_output();
+    test_publish_output_replaces_an_existing_output();
     test_output_publication_lock_serializes_publishers();
     test_rejects_untrusted_cache_keys();
   } catch (const std::exception &error) {

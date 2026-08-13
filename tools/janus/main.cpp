@@ -9,6 +9,7 @@
 #include "janus/driver/documentation.hpp"
 #include "janus/driver/formatter.hpp"
 #include "janus/driver/incremental_cache.hpp"
+#include "janus/driver/output_publication_lock.hpp"
 #include "janus/driver/manifest.hpp"
 #include "janus/driver/native_linker.hpp"
 #include "janus/driver/native_test.hpp"
@@ -1571,13 +1572,10 @@ int build(const Options &options, const std::filesystem::path &output,
       return 0;
     }
   }
-  std::optional<janus::driver::TemporaryDirectory> staged_output_directory;
-  std::filesystem::path compilation_output = output;
-  if (cache.has_value()) {
-    staged_output_directory.emplace(
-        janus::driver::TemporaryDirectory::create("janus-cache-output"));
-    compilation_output = staged_output_directory->path() / output.filename();
-  }
+  janus::driver::TemporaryDirectory staged_output_directory =
+      janus::driver::TemporaryDirectory::create("janus-build-output");
+  const std::filesystem::path compilation_output =
+      staged_output_directory.path() / output.filename();
   std::optional<janus::driver::TemporaryDirectory> source_snapshot_directory;
   std::filesystem::path compilation_source = options.source;
   Toolchain compilation_toolchain = toolchain;
@@ -1764,6 +1762,8 @@ int build(const Options &options, const std::filesystem::path &output,
     if (cache->restore(cache_key, cache_identity, output) !=
         janus::driver::CacheLookup::Hit)
       throw std::runtime_error{"cannot restore newly cached build output"};
+  } else {
+    janus::driver::publish_output(compilation_output, output);
   }
   return 0;
 }
