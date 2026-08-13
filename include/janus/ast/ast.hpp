@@ -54,6 +54,11 @@ struct IdentifierExpression {
 
 struct Expression;
 
+struct ArrayLiteralExpression {
+  std::vector<std::unique_ptr<Expression>> elements;
+  SourceLocation location;
+};
+
 struct LambdaExpression {
   struct Parameter {
     std::string name;
@@ -171,6 +176,7 @@ struct Expression {
       std::variant<IntegerLiteralExpression, DoubleLiteralExpression,
                    CharacterLiteralExpression, BooleanLiteralExpression,
                    StringLiteralExpression, IdentifierExpression,
+                   ArrayLiteralExpression,
                    LambdaExpression, CallExpression, NewExpression,
                    MemberAccessExpression, MethodCallExpression, IfExpression,
                    MatchExpression, MoveExpression, TryExpression,

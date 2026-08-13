@@ -1,0 +1,7 @@
+import std.array
+class Resource() {}
+def main() : int {
+    val resource : Resource = new Resource()
+    val values : Array[Resource] = [resource]
+    return 0
+}

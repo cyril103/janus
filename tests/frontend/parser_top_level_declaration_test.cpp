@@ -51,6 +51,38 @@ def main() : int { return answer }
     expect(secret.declaration.is_private, "private global keeps its visibility");
   }
 
+  janus::frontend::Parser array_parser{
+      "def literals() : int { val values : Array[int] = [1, 2, 3] "
+      "val empty : Array[int] = [] return 0 }"};
+  const janus::ast::Program arrays = array_parser.parse_program();
+  const auto &body = arrays.functions.front().body;
+  const auto *values = std::get_if<janus::ast::ValueDeclaration>(&body[0]);
+  const auto *literal = values == nullptr || !values->initializer
+                            ? nullptr
+                            : std::get_if<janus::ast::ArrayLiteralExpression>(
+                                  &values->initializer->value);
+  expect(literal != nullptr && literal->elements.size() == 3,
+         "non-empty array literals retain their ordered elements");
+  const auto *empty = std::get_if<janus::ast::ValueDeclaration>(&body[1]);
+  const auto *empty_literal = empty == nullptr || !empty->initializer
+                                  ? nullptr
+                                  : std::get_if<janus::ast::ArrayLiteralExpression>(
+                                        &empty->initializer->value);
+  expect(empty_literal != nullptr && empty_literal->elements.empty(),
+         "empty array literals are represented explicitly");
+
+  bool missing_close_rejected = false;
+  try {
+    janus::frontend::Parser malformed{
+        "def bad() : int { val values : Array[int] = [1, 2 return 0 }"};
+    static_cast<void>(malformed.parse_program());
+  } catch (const janus::CompileError &error) {
+    missing_close_rejected =
+        std::string_view{error.what()}.find("expected ']' after array literal") !=
+        std::string_view::npos;
+  }
+  expect(missing_close_rejected, "array literal delimiter errors are targeted");
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;

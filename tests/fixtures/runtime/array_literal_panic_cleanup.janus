@@ -1,0 +1,12 @@
+import std.array
+
+class Resource(val id : int) {
+    destructor { println(id) }
+}
+
+def main() : int {
+    val values : Array[Resource] =
+        [new Resource(1), new Resource(1 / 0)]
+    defer delete values
+    return 0
+}

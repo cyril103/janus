@@ -28,6 +28,14 @@
       "match": "(?<![&|])(?:<<|>>|[&|^])(?![&|])"
     },
     {
+      "name": "punctuation.definition.array.janus",
+      "match": "[\\[\\]]"
+    },
+    {
+      "name": "punctuation.separator.array.janus",
+      "match": ","
+    },
+    {
       "name": "string.quoted.double.janus",
       "begin": "\"",
       "end": "\"",

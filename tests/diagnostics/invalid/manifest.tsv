@@ -3,3 +3,8 @@ lexer-unexpected-character.janus	JLEX0001	unexpected character
 parser-expected-expression.janus	JPAR0001	expected expression
 analyzer-unknown-value.janus	JANA0001	unknown value
 module-not-found.janus	JMOD0001	cannot resolve imported module
+array-literal-empty-inference.janus	JANA0023	empty array literal requires an explicit Array[T] type
+array-literal-incompatible-element.janus	JANA0023	where type 'int' is required
+array-literal-global-constant.janus	JANA0023	array literals are not supported in global constants
+array-literal-owned-element-move.janus	JANA0023	owning array literal element requires an explicit move
+array-literal-requires-stdlib-array.janus	JANA0023	array literal requires Array[T]; help: import std.array

@@ -287,8 +287,7 @@ private:
 
   struct CleanupScope {
     const std::vector<const janus::ast::DeferStatement *> *actions;
-    const std::vector<std::pair<::llvm::Value *, const janus::Type *>>
-        *owned_values;
+    std::vector<std::pair<::llvm::Value *, const janus::Type *>> *owned_values;
     std::unordered_map<std::string, Local> *locals;
     const Substitutions *substitutions;
   };
@@ -2258,6 +2257,15 @@ private:
                                    Node, janus::ast::StringLiteralExpression>) {
             return janus::Type::string_type();
           } else if constexpr (std::is_same_v<
+                                   Node, janus::ast::ArrayLiteralExpression>) {
+            const auto inferred =
+                analysis_.inferred_generic_arguments.find(&expression);
+            std::vector<const janus::Type *> arguments;
+            arguments.push_back(&resolve(inferred->second.front()));
+            const auto declaration =
+                find_type_in_active_module(classes_, "Array");
+            return ensure_class(declaration->first, arguments);
+          } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
             std::string key = source_global_key(active_module_, node.name);
             if (!global_by_key_.contains(key)) {
@@ -3124,6 +3132,71 @@ private:
                                             : node.magnitude;
             return ::llvm::ConstantInt::get(llvm_type, value,
                                             expected_type.is_signed());
+          } else if constexpr (std::is_same_v<
+                                   Node, janus::ast::ArrayLiteralExpression>) {
+            const ClassSpecialization &specialization =
+                class_specializations_.at(std::string{expected_type.name()});
+            const auto &class_declaration = *specialization.declaration;
+            ::llvm::StructType *class_type =
+                llvm_class_types_.at(std::string{expected_type.name()});
+            ::llvm::FunctionCallee malloc_function =
+                module_->getOrInsertFunction(
+                    "janus_alloc",
+                    ::llvm::FunctionType::get(builder.getPtrTy(),
+                                              {builder.getInt64Ty()}, false));
+            ::llvm::Value *object = builder.CreateCall(
+                malloc_function, {::llvm::ConstantExpr::getSizeOf(class_type)},
+                "array.literal");
+
+            auto initializer_locals = locals;
+            ::llvm::Value *capacity = create_entry_alloca(
+                builder, lower_type(janus::Type::usize_type(), context_),
+                "array.literal.capacity");
+            builder.CreateStore(builder.getInt64(node.elements.size()), capacity);
+            initializer_locals.insert_or_assign(
+                class_declaration.constructor_parameters.front().name,
+                Local{capacity, &janus::Type::usize_type()});
+            unsigned field_index = 0;
+            for (const auto &field_declaration : class_declaration.fields) {
+              ::llvm::Value *field =
+                  builder.CreateStructGEP(class_type, object, field_index++);
+              const janus::Type &field_type = resolve(
+                  field_declaration.declared_type,
+                  specialization.substitutions);
+              builder.CreateStore(
+                  emit_expression(*field_declaration.initializer, field_type,
+                                  specialization.substitutions,
+                                  initializer_locals, builder),
+                  field);
+              initializer_locals.insert_or_assign(
+                  field_declaration.name, Local{field, &field_type});
+            }
+
+            const janus::ast::FunctionDeclaration *push = nullptr;
+            for (const auto &method : class_declaration.methods)
+              if (method.name == "push")
+                push = &method;
+            ::llvm::Function *push_function = emit_function(
+                *push, {}, &class_declaration, &specialization.substitutions,
+                expected_type.name());
+            const janus::Type &element_type =
+                *specialization.substitutions.at(
+                    class_declaration.type_parameters.front());
+            // Until construction completes, make the temporary participate in
+            // the same panic/early-exit cleanup stack as other owned values.
+            // Array's destructor uses its current length, so only successfully
+            // pushed elements are destroyed.
+            if (!active_cleanup_scopes_.empty())
+              active_cleanup_scopes_.back().owned_values->push_back(
+                  {object, &expected_type});
+            for (const auto &element : node.elements) {
+              ::llvm::Value *value = emit_expression(
+                  *element, element_type, substitutions, locals, builder);
+              builder.CreateCall(push_function, {object, value});
+            }
+            if (!active_cleanup_scopes_.empty())
+              active_cleanup_scopes_.back().owned_values->pop_back();
+            return object;
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
             if (const auto local = locals.find(node.name);

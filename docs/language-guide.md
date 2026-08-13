@@ -619,6 +619,37 @@ val doubled : Array[int] =
 defer delete doubled
 ```
 
+### Littéraux de tableaux
+
+La syntaxe `[e1, e2]` construit directement un `Array[T]`. Pour un littéral
+non vide, `T` vient du contexte attendu (`val bytes : Array[ubyte] = [...]`)
+ou, sans annotation, du type homogène des éléments. Chaque élément est vérifié
+et converti contextuellement vers `T`; un littéral vide exige toujours une
+annotation explicite, par exemple `val empty : Array[int] = []`. Les littéraux
+imbriqués suivent les mêmes règles à chaque niveau.
+
+```janus
+val bytes : Array[ubyte] = [0xF0, 0x90, 0x90, 0x90, 0xF0]
+defer delete bytes
+val names = ["chip", "eight"]
+defer delete names
+val empty : Array[int] = []
+defer delete empty
+```
+
+Les expressions sont évaluées exactement une fois, de gauche à droite. Le
+littéral possède le tableau produit et transfère ses éléments selon les mêmes
+règles que `Array.push`; une valeur non `Copy` déjà nommée doit donc être
+écrite avec `move`. La destruction du tableau détruit les éléments construits
+et libère son stockage; si une panique interrompt la construction, les éléments
+déjà insérés suivent le mécanisme normal de nettoyage partiel de `Array`.
+
+Les constantes globales n'acceptent pas les littéraux de tableaux : `Array[T]`
+utilise un stockage dynamique propriétaire et le compilateur n'a pas de
+représentation constante équivalente. Le diagnostic `JANA0023` demande de
+construire le tableau à l'exécution. Les `val` et `var` globaux ordinaires
+restent des initialisations d'exécution.
+
 Les opérations directes de tableau qui retournent un élément par copie restent
 réservées aux éléments `Copy`. `withValue` et `foreach` observent en revanche
 une valeur propriétaire dans une lambda littérale bornée : son paramètre ne

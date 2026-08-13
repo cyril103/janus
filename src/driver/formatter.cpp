@@ -39,9 +39,9 @@ std::pair<int, int> braces(std::string_view line) {
     }
     if (character == '/' && index + 1 < line.size() && line[index + 1] == '/')
       break;
-    if (character == '{')
+    if (character == '{' || character == '[')
       ++opens;
-    else if (character == '}')
+    else if (character == '}' || character == ']')
       ++closes;
   }
   return {opens, closes};
@@ -105,7 +105,8 @@ std::string format_source(std::string_view source,
       continue;
     }
     blank_lines = 0;
-    const bool starts_with_close = content.front() == '}';
+    const bool starts_with_close =
+        content.front() == '}' || content.front() == ']';
     const int line_indentation =
         std::max(0, indentation - (starts_with_close ? 1 : 0));
     output << std::string(static_cast<std::size_t>(line_indentation) *

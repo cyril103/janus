@@ -48,3 +48,15 @@ test("TextMate recognizes literal patterns and match guards", () => {
   assert.match("8", regexp);
   assert.match(source, /"chip8"/);
 });
+
+test("TextMate recognizes array literal delimiters and separators", () => {
+  const punctuation = grammar.patterns.find(
+    (pattern) => pattern.name === "punctuation.definition.array.janus",
+  );
+  const separator = grammar.patterns.find(
+    (pattern) => pattern.name === "punctuation.separator.array.janus",
+  );
+  assert.match("[", new RegExp(`^(?:${punctuation.match})$`));
+  assert.match("]", new RegExp(`^(?:${punctuation.match})$`));
+  assert.match(",", new RegExp(`^(?:${separator.match})$`));
+});
