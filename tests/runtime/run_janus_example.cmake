@@ -62,7 +62,7 @@ if(NOT CLANG_RESULT EQUAL 0)
 endif()
 
 set(ASAN_OPTIONS "detect_leaks=1:halt_on_error=1")
-if(WIN32 OR (DEFINED DISABLE_LEAK_SANITIZER
+if(WIN32 OR APPLE OR (DEFINED DISABLE_LEAK_SANITIZER
              AND DISABLE_LEAK_SANITIZER))
     set(ASAN_OPTIONS "detect_leaks=0:halt_on_error=1")
 endif()
