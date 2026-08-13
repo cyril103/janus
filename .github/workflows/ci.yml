@@ -177,6 +177,7 @@ jobs:
           -DCMAKE_C_COMPILER="$MATRIX_CC"
           -DCMAKE_CXX_COMPILER="$MATRIX_CXX"
           -DLLVM_DIR="$MATRIX_LLVM_DIR"
+          -DJANUS_SOURCE_SHA="$GITHUB_SHA"
 
       - name: Configure on Windows
         if: runner.os == 'Windows'
@@ -187,6 +188,7 @@ jobs:
           -DCMAKE_C_COMPILER=/clang64/bin/clang.exe
           -DCMAKE_CXX_COMPILER=/clang64/bin/clang++.exe
           -DLLVM_DIR=/clang64/lib/cmake/llvm
+          -DJANUS_SOURCE_SHA="$GITHUB_SHA"
 
       - name: Build
         run: cmake --build build --parallel
@@ -449,6 +451,16 @@ jobs:
               --name "$artifact" \
               --dir dist/release
           done
+
+      - name: Janus8 downstream canary from candidate archive
+        id: downstream-canary
+        run: |
+          git clone https://github.com/cyril103/janus8.git janus8
+          git -C janus8 checkout b962b69ea14a47016556f9e2a111c7dab1e2e02d
+          archive="$(find dist/release -name 'janus-*-Linux-x86_64.tar.gz' -print -quit)"
+          test -n "$archive"
+          python3 scripts/downstream_canary.py --archive "$archive" \
+            --expected-revision "$GITHUB_SHA" --checkout janus8
 
       - name: Attest release provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4

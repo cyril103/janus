@@ -1,4 +1,5 @@
 #include "janus/lsp/server.hpp"
+#include "janus/build_identity.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -66,7 +67,12 @@ std::filesystem::path stdlib_api_index_path(const char *argv0) {
 
 int main(int argc, char **argv) {
   if (argc == 2 && std::string_view{argv[1]} == "--version") {
-    std::cout << "janus-lsp " << JANUS_VERSION << '\n';
+    std::cout << "janus-lsp " << janus::build::display_version << '\n';
+    return 0;
+  }
+  if (argc == 3 && std::string_view{argv[1]} == "--version" &&
+      std::string_view{argv[2]} == "--json") {
+    std::cout << janus::build::json() << '\n';
     return 0;
   }
 

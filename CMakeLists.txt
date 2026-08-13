@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 project(
     janus
-    VERSION 0.10.0
+    VERSION 0.11.0
     DESCRIPTION "A compiler with an LLVM backend"
     LANGUAGES C CXX
 )
@@ -17,6 +17,7 @@ if(JANUS_SOURCE_SHA AND
 endif()
 set(JANUS_PACKAGE_VERSION "${PROJECT_VERSION}" CACHE STRING
     "Unique package version (nightly workflows override this)")
+find_program(JANUS_PYTHON_EXECUTABLE NAMES python3 python REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,6 +28,34 @@ include(GNUInstallDirs)
 include(cmake/resolve_toolchain_executable.cmake)
 
 find_package(LLVM REQUIRED CONFIG)
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/generated")
+execute_process(
+    COMMAND "${JANUS_PYTHON_EXECUTABLE}"
+            "${PROJECT_SOURCE_DIR}/scripts/build_identity.py"
+            --version "${PROJECT_VERSION}"
+            --source "${PROJECT_SOURCE_DIR}"
+            --source-sha "${JANUS_SOURCE_SHA}"
+            --target "${CMAKE_SYSTEM_PROCESSOR}-${CMAKE_SYSTEM_NAME}"
+            --llvm "${LLVM_PACKAGE_VERSION}"
+            --json-output "${PROJECT_BINARY_DIR}/build-identity.json"
+            --header-output "${PROJECT_BINARY_DIR}/generated/janus-build-identity.hpp"
+    COMMAND_ERROR_IS_FATAL ANY
+)
+add_custom_target(janus_build_identity ALL
+    COMMAND "${JANUS_PYTHON_EXECUTABLE}"
+            "${PROJECT_SOURCE_DIR}/scripts/build_identity.py"
+            --version "${PROJECT_VERSION}"
+            --source "${PROJECT_SOURCE_DIR}"
+            --source-sha "${JANUS_SOURCE_SHA}"
+            --target "${CMAKE_SYSTEM_PROCESSOR}-${CMAKE_SYSTEM_NAME}"
+            --llvm "${LLVM_PACKAGE_VERSION}"
+            --json-output "${PROJECT_BINARY_DIR}/build-identity.json"
+            --header-output "${PROJECT_BINARY_DIR}/generated/janus-build-identity.hpp"
+    BYPRODUCTS "${PROJECT_BINARY_DIR}/build-identity.json"
+               "${PROJECT_BINARY_DIR}/generated/janus-build-identity.hpp"
+    VERBATIM
+)
+include_directories("${PROJECT_BINARY_DIR}/generated")
 list(GET LLVM_INCLUDE_DIRS 0 JANUS_LLVM_INCLUDE_DIR)
 find_program(JANUS_CLANG_EXECUTABLE clang REQUIRED)
 find_program(JANUS_LLD_EXECUTABLE NAMES ld.lld lld-link ld64.lld REQUIRED)
@@ -299,7 +328,7 @@ target_compile_definitions(janus_driver
 add_executable(janus
     tools/janus/main.cpp
 )
-add_dependencies(janus janus_runtime)
+add_dependencies(janus janus_runtime janus_build_identity)
 target_link_libraries(janus
     PRIVATE
         janus_driver
@@ -333,9 +362,12 @@ add_executable(janusup
     tools/janusup/main.cpp
 )
 function(configure_janusup_target target)
+    add_dependencies(${target} janus_build_identity)
     target_include_directories(${target}
         SYSTEM PRIVATE
             ${JANUS_LLVM_INCLUDE_DIR}
+        PRIVATE
+            ${PROJECT_SOURCE_DIR}/include
     )
     target_link_libraries(${target}
         PRIVATE
@@ -357,9 +389,11 @@ configure_janusup_target(janusup)
 add_executable(janus-lsp
     tools/janus-lsp/main.cpp
 )
+add_dependencies(janus-lsp janus_build_identity)
 add_library(janus_lsp
     src/lsp/server.cpp
 )
+add_dependencies(janus_lsp janus_build_identity)
 target_include_directories(janus_lsp
     SYSTEM PRIVATE
         ${JANUS_LLVM_INCLUDE_DIR}
@@ -2958,6 +2992,8 @@ install(
     FILES README.md CHANGELOG.md LICENSE NOTICE
     DESTINATION ${CMAKE_INSTALL_DOCDIR}
 )
+install(FILES "${PROJECT_BINARY_DIR}/build-identity.json"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/janus)
 if(JANUS_SOURCE_SHA)
     file(WRITE "${PROJECT_BINARY_DIR}/janus-source-sha" "${JANUS_SOURCE_SHA}\n")
     install(FILES "${PROJECT_BINARY_DIR}/janus-source-sha"

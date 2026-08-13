@@ -1,4 +1,5 @@
 #include "janus/lsp/server.hpp"
+#include "janus/build_identity.hpp"
 
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/driver/dependency.hpp"
@@ -1681,7 +1682,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
                   }},
              }},
             {"serverInfo", llvm::json::Object{{"name", "janus-lsp"},
-                                              {"version", JANUS_VERSION}}},
+                                              {"version", janus::build::display_version}}},
         })};
   }
   if (*method == "shutdown") {

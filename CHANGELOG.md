@@ -3,6 +3,43 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.11.0] - 2026-08-13
+
+Cette version mineure enrichit les entiers, le pattern matching et les tableaux,
+et rend les toolchains candidates identifiables et vérifiables de bout en bout.
+
+### Langage et bibliothèque standard
+
+- ajout des littéraux entiers binaires, octaux et hexadécimaux, ainsi que des
+  opérateurs bit à bit et de décalage avec sémantique portable et diagnostics
+  pour les comptes invalides ;
+- ajout des patterns littéraux, des gardes de `match` et des contrôles de
+  propriété, de portée et d’homonymie associés ;
+- ajout des littéraux de tableaux typés et des fabriques `Array`, avec gestion
+  sûre des paniques, débordements de capacité et nettoyages imbriqués ;
+- ajout d’un tri hybride stable pour `Array` et transmission des arguments à
+  l’exécutable lancé par `janus run`.
+
+### Toolchain, distribution et CI
+
+- ajout d’une identité cohérente pour `janus`, `janus-lsp`, `janusup`, les
+  archives et le cache : version, SHA, canal, état dirty, cible et LLVM sont
+  disponibles via `--version --json` et dans les métadonnées packagées ;
+- ajout d’un canari Janus8 épinglé qui consomme exclusivement l’archive Linux
+  candidate et bloque release comme nightly avant publication ;
+- création du canal nightly multi-plateforme atomique, avec version immuable,
+  checksums, attestations, validation par `janusup` et promotion tardive ;
+- sérialisation et staging transactionnel des sorties, lockfiles et écritures
+  de cache concurrentes, y compris le mode `--no-cache` et Windows ;
+- alignement des outils runtime et des noms d’archives Linux, macOS et Windows.
+
+### Outils et qualité
+
+- correction de la reconnaissance des littéraux flottants complets par
+  l’extension VS Code ;
+- conservation de l’AddressSanitizer sur macOS tout en neutralisant uniquement
+  le bruit connu de détection des fuites système.
+
 ## [0.10.0] - 2026-08-11
 
 Cette version mineure étend le langage avec des imports précis, l’inférence
@@ -626,6 +663,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.11.0]: https://github.com/cyril103/janus/releases/tag/v0.11.0
 [0.10.0]: https://github.com/cyril103/janus/releases/tag/v0.10.0
 [0.9.0]: https://github.com/cyril103/janus/releases/tag/v0.9.0
 [0.8.1]: https://github.com/cyril103/janus/releases/tag/v0.8.1

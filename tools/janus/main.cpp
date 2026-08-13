@@ -1,5 +1,6 @@
 #include "janus/backend/llvm/ir_generator.hpp"
 #include "janus/backend/llvm/object_emitter.hpp"
+#include "janus/build_identity.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/diagnostics/high_growth_loop_linter.hpp"
 #include "janus/diagnostics/renderer.hpp"
@@ -1534,7 +1535,7 @@ int build(const Options &options, const std::filesystem::path &output,
         options.warn_high_growth_loops ? "warn-high-growth-loops=on"
                                        : "warn-high-growth-loops=off"};
     return janus::driver::inspect_build_inputs(
-        options.source, search_paths, JANUS_VERSION,
+        options.source, search_paths, janus::build::identity,
         llvm::sys::getDefaultTargetTriple(), std::move(compilation_options));
   };
   if (!options.no_cache && !options.warn_high_growth_loops) {
@@ -2467,7 +2468,12 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (argc == 2 && std::string_view{argv[1]} == "--version") {
-    std::cout << "janus " << JANUS_VERSION << '\n';
+    std::cout << "janus " << janus::build::display_version << '\n';
+    return 0;
+  }
+  if (argc == 3 && std::string_view{argv[1]} == "--version" &&
+      std::string_view{argv[2]} == "--json") {
+    std::cout << janus::build::json() << '\n';
     return 0;
   }
   if (argc == 3 && is_execution_command(argv[1]) &&

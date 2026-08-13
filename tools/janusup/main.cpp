@@ -1,3 +1,5 @@
+#include "janus/build_identity.hpp"
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -1430,7 +1432,12 @@ void usage() {
 int main(int argc, char **argv) {
   try {
     if (argc == 2 && std::string_view{argv[1]} == "--version") {
-      std::cout << "janusup " << JANUS_VERSION << '\n';
+      std::cout << "janusup " << janus::build::display_version << '\n';
+      return 0;
+    }
+    if (argc == 3 && std::string_view{argv[1]} == "--version" &&
+        std::string_view{argv[2]} == "--json") {
+      std::cout << janus::build::json() << '\n';
       return 0;
     }
     if (argc == 2 && std::string_view{argv[1]} == "home") {
