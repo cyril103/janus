@@ -104,6 +104,13 @@ janusup default 0.4.0
 janusup list
 ```
 
+Le canal `nightly` est résolu par le manifeste atomique de la branche dédiée
+`nightly-channel` et pointe vers un snapshot immuable de `main`. Son identité
+complète (release, SHA source et date UTC) est conservée dans
+`toolchains/nightly/.janus-version` et `share/janus/janus-source-sha`. La
+[politique nightly](nightly-release.md) décrit les contrôles de fraîcheur, la
+publication transactionnelle et le rollback.
+
 ## Créer un projet
 
 ```bash

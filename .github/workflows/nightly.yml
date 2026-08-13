@@ -1,0 +1,208 @@
+name: Janus nightly snapshot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-publication
+  cancel-in-progress: false
+
+jobs:
+  identity:
+    name: Compute immutable candidate identity
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Compute identity once for every platform
+        id: identity
+        shell: bash
+        run: |
+          test "$GITHUB_SHA" = "$(git rev-parse HEAD)"
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch origin main --depth=1
+          test "$GITHUB_SHA" = "$(git rev-parse origin/main)"
+          base="$(python3 scripts/nightly_release.py project-version --source CMakeLists.txt)"
+          echo "version=$base-nightly.$(date -u +%Y%m%d).$GITHUB_SHA.$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+
+  freshness:
+    name: Check published channel freshness
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Compare nightly with stable and seven-day threshold
+        id: freshness
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p manifests/nightly manifests/stable
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            https://raw.githubusercontent.com/cyril103/janus/nightly-channel/version \
+            --output manifests/nightly/version
+          gh release download channel-stable --pattern version --dir manifests/stable
+          nightly_release="$(awk '{if (NF != 2 && NF != 4) exit 2; print $2}' manifests/nightly/version)"
+          stable_release="$(awk '{if (NF != 2 && NF != 4) exit 2; print $2}' manifests/stable/version)"
+          nightly_published="$(gh release view "$nightly_release" --json publishedAt --jq .publishedAt)"
+          stable_published="$(gh release view "$stable_release" --json publishedAt --jq .publishedAt)"
+          python3 scripts/nightly_release.py check-times --nightly-published "$nightly_published" --stable-published "$stable_published" --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --maximum-age-hours 168
+      - name: Report stale public channel
+        if: steps.freshness.outcome == 'failure'
+        run: |
+          echo '::warning title=Stale Janus nightly channel::The public nightly is older than stable or exceeds seven days. The previous valid pointer remains available while this run prepares a replacement.'
+          echo '## Stale nightly channel detected' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Publication continues; the pointer advances only after every candidate gate passes.' >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Build and smoke ${{ matrix.os }}
+    needs: identity
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            llvm: /usr/lib/llvm-18/lib/cmake/llvm
+            cc: /usr/lib/llvm-18/bin/clang
+            cxx: /usr/lib/llvm-18/bin/clang++
+          - os: macos-14
+            llvm: /opt/homebrew/opt/llvm/lib/cmake/llvm
+            cc: /usr/bin/clang
+            cxx: /usr/bin/clang++
+          - os: windows-2025
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes clang-18 lld-18 llvm-18-dev ninja-build
+      - if: runner.os == 'macOS'
+        run: brew install llvm lld ninja
+      - if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-lld mingw-w64-clang-x86_64-ninja mingw-w64-clang-x86_64-llvm
+      - name: Configure
+        if: runner.os != 'Windows'
+        shell: bash
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER='${{ matrix.cc }}' -DCMAKE_CXX_COMPILER='${{ matrix.cxx }}' -DLLVM_DIR='${{ matrix.llvm }}' -DJANUS_SOURCE_SHA="$GITHUB_SHA" -DJANUS_PACKAGE_VERSION='${{ needs.identity.outputs.version }}'
+      - name: Configure Windows
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/clang64/bin/clang.exe -DCMAKE_CXX_COMPILER=/clang64/bin/clang++.exe -DLLVM_DIR=/clang64/lib/cmake/llvm -DJANUS_SOURCE_SHA="$GITHUB_SHA" -DJANUS_PACKAGE_VERSION='${{ needs.identity.outputs.version }}'
+      - run: cmake --build build --parallel
+      - name: Safety test gate
+        run: ctest --test-dir build --output-on-failure --stop-on-failure --timeout 60
+      - run: cmake --build build --target dist
+      - if: runner.os != 'Windows'
+        run: scripts/smoke-test-package.sh build/janus-*.tar.gz
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: scripts/smoke-test-package.ps1 build/janus-*.zip
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: nightly-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            build/janus-*.tar.gz*
+            build/janus-*.zip*
+          if-no-files-found: error
+
+  publish:
+    name: Validate candidate then atomically advance channel
+    needs: [identity, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@37930b1c6c39f0c5b9bc99e2d1283e2c56b7c3fe # v8.0.0
+        with:
+          pattern: nightly-*
+          path: dist
+          merge-multiple: true
+      - name: Prepare identity and validate checksums
+        id: identity
+        shell: bash
+        env:
+          EXPECTED_VERSION: ${{ needs.identity.outputs.version }}
+        run: |
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test -n "$EXPECTED_VERSION"
+          test -f "dist/janus-$EXPECTED_VERSION-Linux-x86_64.tar.gz"
+          test -f "dist/janus-$EXPECTED_VERSION-Darwin-arm64.tar.gz"
+          test -f "dist/janus-$EXPECTED_VERSION-Windows-x86_64.zip"
+          archive_count="$(find dist -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l)"
+          test "$archive_count" -eq 3
+          (cd dist && sha256sum --check *.sha256)
+          echo "version=$EXPECTED_VERSION" >> "$GITHUB_OUTPUT"
+          echo "release=nightly-$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          echo "published=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+      - name: Upload immutable candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ steps.identity.outputs.release }}
+        run: gh release create "$RELEASE" dist/* --title "Janus nightly $GITHUB_SHA" --prerelease --latest=false --target "$GITHUB_SHA"
+      - name: Verify published candidate attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for archive in dist/*.tar.gz dist/*.zip; do gh attestation verify "$archive" --repo "$GITHUB_REPOSITORY"; done
+      - name: E2E janusup and Janus8 smoke against candidate
+        env:
+          VERSION: ${{ steps.identity.outputs.version }}
+          RELEASE: ${{ steps.identity.outputs.release }}
+        run: |
+          mkdir -p local-dist/"$RELEASE" local-dist/channel-nightly root
+          cp dist/* local-dist/"$RELEASE"/
+          python3 scripts/nightly_release.py write-manifest --version "$VERSION" --release "$RELEASE" --source-sha "$GITHUB_SHA" --published-at '${{ steps.identity.outputs.published }}' --output local-dist/channel-nightly/version
+          tar -xzf dist/janus-*-Linux-x86_64.tar.gz -C root
+          JANUSUP_HOME="$RUNNER_TEMP/janus-home" JANUS_DIST_SERVER="$PWD/local-dist" JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1 root/*/bin/janusup install nightly
+          grep -Fx "$VERSION $RELEASE $GITHUB_SHA ${{ steps.identity.outputs.published }}" "$RUNNER_TEMP/janus-home/toolchains/nightly/.janus-version"
+          grep -Fx "$GITHUB_SHA" "$RUNNER_TEMP/janus-home/toolchains/nightly/share/janus/janus-source-sha"
+          git clone https://github.com/cyril103/janus8.git janus8
+          git -C janus8 checkout b962b69ea14a47016556f9e2a111c7dab1e2e02d
+          (cd janus8 && PATH="$RUNNER_TEMP/janus-home/bin:$PATH" janus build)
+      - name: Atomically advance the channel branch (commit point)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.identity.outputs.version }}
+          RELEASE: ${{ steps.identity.outputs.release }}
+        run: |
+          python3 scripts/nightly_release.py write-manifest --version "$VERSION" --release "$RELEASE" --source-sha "$GITHUB_SHA" --published-at '${{ steps.identity.outputs.published }}' --output "$RUNNER_TEMP/version"
+          old="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/nightly-channel" --jq .object.sha 2>/dev/null || true)"
+          blob="$(gh api "repos/$GITHUB_REPOSITORY/git/blobs" \
+            --method POST -f content="$(cat "$RUNNER_TEMP/version")" \
+            -f encoding=utf-8 --jq .sha)"
+          BLOB="$blob" python3 -c 'import json,os; print(json.dumps({"tree":[{"path":"version","mode":"100644","type":"blob","sha":os.environ["BLOB"]}]}))' > "$RUNNER_TEMP/tree.json"
+          tree="$(gh api "repos/$GITHUB_REPOSITORY/git/trees" \
+            --method POST --input "$RUNNER_TEMP/tree.json" --jq .sha)"
+          TREE="$tree" OLD="$old" SOURCE="$GITHUB_SHA" python3 -c 'import json,os; payload={"message":"nightly: point channel at " + os.environ["SOURCE"],"tree":os.environ["TREE"]}; old=os.environ["OLD"]; payload.update({"parents":[old]} if old else {}); print(json.dumps(payload))' > "$RUNNER_TEMP/commit.json"
+          commit="$(gh api "repos/$GITHUB_REPOSITORY/git/commits" \
+            --method POST --input "$RUNNER_TEMP/commit.json" --jq .sha)"
+          if test -n "$old"; then
+            gh api "repos/$GITHUB_REPOSITORY/git/refs/heads/nightly-channel" \
+              --method PATCH -f "sha=$commit" -F force=false >/dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" --method POST \
+              -f ref=refs/heads/nightly-channel -f "sha=$commit" >/dev/null
+          fi
