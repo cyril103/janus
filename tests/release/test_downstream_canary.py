@@ -161,6 +161,8 @@ class CandidateValidationTests(unittest.TestCase):
         self.assertIn(downstream_canary.JANUS8_REVISION, release)
         release_job = release[release.index("  release:"):]
         self.assertIn("vscode-extension", release_job[:release_job.index("runs-on:")])
+        self.assertNotIn("awk -v current", release)
+        self.assertIn(".tagName != \\\"$current_tag\\\"", release)
         canary_step = release[release.index("Janus8 downstream canary"):
                               release.index("Attest release provenance")]
         self.assertNotIn("find dist/release", canary_step)
