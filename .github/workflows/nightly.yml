@@ -165,6 +165,13 @@ jobs:
           echo "version=$EXPECTED_VERSION" >> "$GITHUB_OUTPUT"
           echo "release=nightly-$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
           echo "published=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - name: Janus8 downstream canary from candidate archive
+        run: |
+          git clone https://github.com/cyril103/janus8.git janus8
+          git -C janus8 checkout b962b69ea14a47016556f9e2a111c7dab1e2e02d
+          python3 scripts/downstream_canary.py \
+            --archive "dist/janus-${{ needs.identity.outputs.version }}-Linux-x86_64.tar.gz" \
+            --expected-revision "$GITHUB_SHA" --checkout janus8
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: |
@@ -192,9 +199,6 @@ jobs:
           JANUSUP_HOME="$RUNNER_TEMP/janus-home" JANUS_DIST_SERVER="$PWD/local-dist" JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1 root/*/bin/janusup install nightly
           grep -Fx "$VERSION $RELEASE $GITHUB_SHA ${{ steps.identity.outputs.published }}" "$RUNNER_TEMP/janus-home/toolchains/nightly/.janus-version"
           grep -Fx "$GITHUB_SHA" "$RUNNER_TEMP/janus-home/toolchains/nightly/share/janus/janus-source-sha"
-          git clone https://github.com/cyril103/janus8.git janus8
-          git -C janus8 checkout b962b69ea14a47016556f9e2a111c7dab1e2e02d
-          (cd janus8 && PATH="$RUNNER_TEMP/janus-home/bin:$PATH" janus build)
       - name: Atomically advance the channel branch (commit point)
         env:
           GH_TOKEN: ${{ github.token }}
