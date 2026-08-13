@@ -408,6 +408,14 @@ std::string distribution_location(const std::string &version,
          filename;
 }
 
+std::string channel_manifest_location(const std::string &name) {
+  const char *configured = std::getenv("JANUS_DIST_SERVER");
+  if (configured == nullptr && name == "nightly")
+    return "https://raw.githubusercontent.com/cyril103/janus/"
+           "nightly-channel/version";
+  return distribution_location("channel-" + name, "version");
+}
+
 bool ascii_iequals(std::string_view left, std::string_view right) {
   return left.size() == right.size() &&
          std::equal(left.begin(), left.end(), right.begin(),
@@ -461,7 +469,29 @@ struct ToolchainSpec {
   std::string name;
   std::string version;
   std::string release;
+  std::string source_sha;
+  std::string published_at;
 };
+
+bool full_source_sha(std::string_view value) {
+  return value.size() == 40 &&
+         std::ranges::all_of(value, [](unsigned char character) {
+           return std::isdigit(character) ||
+                  (character >= 'a' && character <= 'f');
+         });
+}
+
+bool utc_publication_time(std::string_view value) {
+  if (value.size() != 20 || value[4] != '-' || value[7] != '-' ||
+      value[10] != 'T' || value[13] != ':' || value[16] != ':' ||
+      value[19] != 'Z')
+    return false;
+  for (const std::size_t index : {0U, 1U, 2U, 3U, 5U, 6U, 8U, 9U, 11U,
+                                  12U, 14U, 15U, 17U, 18U})
+    if (!std::isdigit(static_cast<unsigned char>(value[index])))
+      return false;
+  return true;
+}
 
 bool is_channel(const std::string &name) {
   return name == "stable" || name == "beta" || name == "nightly";
@@ -471,17 +501,24 @@ ToolchainSpec resolve_spec(const std::string &name,
                            const std::filesystem::path &temporary) {
   validate_name(name);
   if (!is_channel(name))
-    return {name, name, "v" + name};
+    return {name, name, "v" + name, {}, {}};
 
   const std::filesystem::path manifest = temporary / (name + ".channel");
-  fetch(distribution_location("channel-" + name, "version"), manifest);
+  fetch(channel_manifest_location(name), manifest);
   std::ifstream input{manifest};
-  ToolchainSpec result{name, {}, {}};
+  ToolchainSpec result{name, {}, {}, {}, {}};
   input >> result.version >> result.release;
   validate_name(result.version);
   validate_name(result.release);
   if (!input)
     throw std::runtime_error{"invalid '" + name + "' channel manifest"};
+  input >> std::ws;
+  if (!input.eof()) {
+    input >> result.source_sha >> result.published_at >> std::ws;
+    if (!input.eof() || !full_source_sha(result.source_sha) ||
+        !utc_publication_time(result.published_at))
+      throw std::runtime_error{"invalid '" + name + "' channel manifest"};
+  }
   return result;
 }
 
@@ -1261,7 +1298,10 @@ void install_directory(const std::filesystem::path &source,
     validate_package(staging);
     if (metadata != nullptr) {
       std::ofstream output{staging / ".janus-version", std::ios::trunc};
-      output << metadata->version << ' ' << metadata->release << '\n';
+      output << metadata->version << ' ' << metadata->release;
+      if (!metadata->source_sha.empty())
+        output << ' ' << metadata->source_sha << ' ' << metadata->published_at;
+      output << '\n';
       if (!output)
         throw std::runtime_error{"cannot write toolchain metadata"};
     }

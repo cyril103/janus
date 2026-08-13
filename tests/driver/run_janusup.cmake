@@ -363,8 +363,15 @@ endif()
 
 foreach(CHANNEL stable beta nightly)
     file(MAKE_DIRECTORY "${TEST_ROOT}/dist/channel-${CHANNEL}")
-    file(WRITE "${TEST_ROOT}/dist/channel-${CHANNEL}/version"
-         "${REMOTE_VERSION} v${REMOTE_VERSION}\n")
+    if(CHANNEL STREQUAL "nightly")
+        set(CHANNEL_SOURCE_SHA
+            "0123456789abcdef0123456789abcdef01234567")
+        file(WRITE "${TEST_ROOT}/dist/channel-${CHANNEL}/version"
+             "${REMOTE_VERSION} v${REMOTE_VERSION} ${CHANNEL_SOURCE_SHA} 2026-08-13T03:17:00Z\n")
+    else()
+        file(WRITE "${TEST_ROOT}/dist/channel-${CHANNEL}/version"
+             "${REMOTE_VERSION} v${REMOTE_VERSION}\n")
+    endif()
     execute_process(
         COMMAND "${CMAKE_COMMAND}" -E env
                 "JANUSUP_HOME=${TEST_ROOT}/home"
@@ -379,6 +386,63 @@ foreach(CHANNEL stable beta nightly)
         message(FATAL_ERROR "${CHANNEL} install failed: ${CHANNEL_ERROR}")
     endif()
 endforeach()
+
+file(READ "${TEST_ROOT}/home/toolchains/nightly/.janus-version"
+     NIGHTLY_METADATA)
+if(NOT NIGHTLY_METADATA STREQUAL
+   "${REMOTE_VERSION} v${REMOTE_VERSION} ${CHANNEL_SOURCE_SHA} 2026-08-13T03:17:00Z\n")
+    message(FATAL_ERROR "nightly source identity was not installed")
+endif()
+
+file(WRITE "${TEST_ROOT}/dist/channel-nightly/version"
+     "${REMOTE_VERSION} v${REMOTE_VERSION} ${CHANNEL_SOURCE_SHA} 2026-08-13T03:17:00Z trailing\n")
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env
+            "JANUSUP_HOME=${TEST_ROOT}/invalid-manifest-home"
+            "JANUS_DIST_SERVER=${TEST_ROOT}/dist"
+            "JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1"
+            "${JANUSUP}" install nightly
+    RESULT_VARIABLE INVALID_MANIFEST_STATUS
+    ERROR_VARIABLE INVALID_MANIFEST_ERROR
+)
+if(INVALID_MANIFEST_STATUS EQUAL 0
+   OR NOT INVALID_MANIFEST_ERROR MATCHES "invalid 'nightly' channel manifest")
+    message(FATAL_ERROR "janusup accepted trailing channel garbage")
+endif()
+file(WRITE "${TEST_ROOT}/dist/channel-nightly/version"
+     "${REMOTE_VERSION} v${REMOTE_VERSION}\ntrailing\n")
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env
+            "JANUSUP_HOME=${TEST_ROOT}/invalid-multiline-manifest-home"
+            "JANUS_DIST_SERVER=${TEST_ROOT}/dist"
+            "JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1"
+            "${JANUSUP}" install nightly
+    RESULT_VARIABLE INVALID_MULTILINE_MANIFEST_STATUS
+    ERROR_VARIABLE INVALID_MULTILINE_MANIFEST_ERROR
+)
+if(INVALID_MULTILINE_MANIFEST_STATUS EQUAL 0
+   OR NOT INVALID_MULTILINE_MANIFEST_ERROR MATCHES
+          "invalid 'nightly' channel manifest")
+    message(FATAL_ERROR "janusup accepted a second manifest line")
+endif()
+file(WRITE "${TEST_ROOT}/dist/channel-nightly/version"
+     "${REMOTE_VERSION} v${REMOTE_VERSION} ${CHANNEL_SOURCE_SHA} not-a-time\n")
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env
+            "JANUSUP_HOME=${TEST_ROOT}/invalid-time-manifest-home"
+            "JANUS_DIST_SERVER=${TEST_ROOT}/dist"
+            "JANUS_ALLOW_UNVERIFIED_PRIVATE_MIRROR=1"
+            "${JANUSUP}" install nightly
+    RESULT_VARIABLE INVALID_TIME_MANIFEST_STATUS
+    ERROR_VARIABLE INVALID_TIME_MANIFEST_ERROR
+)
+if(INVALID_TIME_MANIFEST_STATUS EQUAL 0
+   OR NOT INVALID_TIME_MANIFEST_ERROR MATCHES
+          "invalid 'nightly' channel manifest")
+    message(FATAL_ERROR "janusup accepted an invalid publication timestamp")
+endif()
+file(WRITE "${TEST_ROOT}/dist/channel-nightly/version"
+     "${REMOTE_VERSION} v${REMOTE_VERSION} ${CHANNEL_SOURCE_SHA} 2026-08-13T03:17:00Z\n")
 
 execute_process(
     COMMAND "${CMAKE_COMMAND}" -E env

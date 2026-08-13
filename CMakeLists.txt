@@ -7,6 +7,17 @@ project(
     LANGUAGES C CXX
 )
 
+set(JANUS_SOURCE_SHA "" CACHE STRING "Full source commit SHA embedded in packages")
+string(LENGTH "${JANUS_SOURCE_SHA}" JANUS_SOURCE_SHA_LENGTH)
+if(JANUS_SOURCE_SHA AND
+   (NOT JANUS_SOURCE_SHA_LENGTH EQUAL 40 OR
+    NOT JANUS_SOURCE_SHA MATCHES "^[0-9a-f]+$"))
+    message(FATAL_ERROR
+            "JANUS_SOURCE_SHA must be a full lowercase 40-character SHA")
+endif()
+set(JANUS_PACKAGE_VERSION "${PROJECT_VERSION}" CACHE STRING
+    "Unique package version (nightly workflows override this)")
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -431,6 +442,13 @@ if(BUILD_TESTING)
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/scripts/check-github-actions-pins.py"
                 --self-test
+    )
+    add_test(
+        NAME release.nightly_policy
+        COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+                -s "${PROJECT_SOURCE_DIR}/tests/release"
+                -p "test_*.py"
+                -v
     )
 
     add_executable(graphics_runtime_test
@@ -2830,6 +2848,11 @@ install(
     FILES README.md CHANGELOG.md LICENSE NOTICE
     DESTINATION ${CMAKE_INSTALL_DOCDIR}
 )
+if(JANUS_SOURCE_SHA)
+    file(WRITE "${PROJECT_BINARY_DIR}/janus-source-sha" "${JANUS_SOURCE_SHA}\n")
+    install(FILES "${PROJECT_BINARY_DIR}/janus-source-sha"
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/janus)
+endif()
 if(UNIX)
     # Toolchain archives are consumed by strict extractors which reject every
     # link entry. Materialize dependency SONAME links in the staging tree so
@@ -2860,7 +2883,7 @@ set(CPACK_PACKAGE_VENDOR "Janus")
 set(CPACK_PACKAGE_CONTACT "Janus contributors")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
 set(CPACK_PACKAGE_FILE_NAME
-    "janus-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${JANUS_PACKAGE_ARCH}")
+    "janus-${JANUS_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}-${JANUS_PACKAGE_ARCH}")
 set(JANUS_PACKAGE_BASENAME "${CPACK_PACKAGE_FILE_NAME}")
 set(CPACK_STRIP_FILES ON)
 if(WIN32)

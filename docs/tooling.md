@@ -250,6 +250,13 @@ janusup uninstall 0.1.0
 janusup home
 ```
 
+`nightly` résout, via la branche dédiée `nightly-channel`, un snapshot immuable
+identifiable par son SHA source. Le
+manifeste public n'est basculé qu'après les tests multiplateformes, checksums,
+attestations et smoke downstream. Voir la
+[politique de publication nightly](nightly-release.md) pour la fraîcheur, la
+rétention et le rollback.
+
 Les téléchargements sont contrôlés par SHA-256 et leur provenance est vérifiée
 obligatoirement avec GitHub CLI avant extraction. L'archive est ensuite
 inventoriée sans écrire sur disque : `janusup` et les installateurs refusent les
