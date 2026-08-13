@@ -1,4 +1,5 @@
 #include "janus/driver/dependency.hpp"
+#include "janus/driver/output_publication_lock.hpp"
 #include "janus/driver/registry.hpp"
 #include "janus/driver/semver.hpp"
 
@@ -292,6 +293,7 @@ void write_lockfile_atomic(const std::filesystem::path &path,
       if (!output)
         throw std::runtime_error{"cannot write janus.lock"};
     }
+    janus::driver::OutputPublicationLock publication_lock{path};
     std::error_code error;
 #ifdef _WIN32
     if (!MoveFileExW(temporary.c_str(), path.c_str(),
