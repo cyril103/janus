@@ -1,4 +1,5 @@
 #include "janus/driver/incremental_cache.hpp"
+#include "janus/driver/output_publication_lock.hpp"
 
 #include "janus/ast/ast.hpp"
 #include "janus/constant/evaluator.hpp"
@@ -526,6 +527,7 @@ bool atomic_replace_copy_if_digest(const std::filesystem::path &source,
       std::filesystem::remove_all(temporary.parent_path(), ignored);
       return false;
     }
+    OutputPublicationLock publication_lock{destination};
     replace_temporary(temporary, destination, "output");
     return true;
   } catch (...) {

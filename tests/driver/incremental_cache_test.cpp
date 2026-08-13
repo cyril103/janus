@@ -1,5 +1,7 @@
 #include "janus/driver/incremental_cache.hpp"
+#include "janus/driver/output_publication_lock.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -406,6 +408,35 @@ void test_restore_replaces_an_existing_output() {
   std::filesystem::remove_all(root);
 }
 
+void test_output_publication_lock_serializes_publishers() {
+#ifdef _WIN32
+  const auto root = temporary_root();
+  const auto output = root / "shared-output.exe";
+  const auto equivalent_output = root / "SHARED-OUTPUT.EXE";
+  std::atomic<int> inside{};
+  std::atomic<int> maximum{};
+  std::vector<std::thread> publishers;
+  for (int index = 0; index < 8; ++index) {
+    publishers.emplace_back([&, index] {
+      janus::driver::OutputPublicationLock lock{
+          index % 2 == 0 ? output : equivalent_output};
+      const int current = inside.fetch_add(1) + 1;
+      int observed = maximum.load();
+      while (observed < current &&
+             !maximum.compare_exchange_weak(observed, current)) {
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds{10});
+      inside.fetch_sub(1);
+    });
+  }
+  for (auto &publisher : publishers)
+    publisher.join();
+  require(maximum.load() == 1,
+          "output publication lock admitted concurrent publishers");
+  std::filesystem::remove_all(root);
+#endif
+}
+
 void test_rejects_untrusted_cache_keys() {
   const auto root = temporary_root();
   janus::driver::IncrementalCache cache{root / "cache"};
@@ -449,6 +480,7 @@ int main() {
     test_corrupt_consumer_is_invalidated_and_repaired();
     test_interrupted_entry_is_ignored();
     test_restore_replaces_an_existing_output();
+    test_output_publication_lock_serializes_publishers();
     test_rejects_untrusted_cache_keys();
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';
