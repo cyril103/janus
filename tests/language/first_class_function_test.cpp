@@ -40,7 +40,13 @@ void expect_compile_error(std::string_view source,
 
 int main() {
   constexpr std::string_view source = R"(
+class CallScope() {
+    destructor {}
+}
+
 def apply[T](function : (T) => T, value : T) : T {
+    val scope : CallScope = new CallScope()
+    defer delete scope
     return function(value)
 }
 
@@ -102,6 +108,19 @@ def main() : int {
          "lambda bodies lower to internal LLVM functions");
   expect(ir.find("call i32 %") != std::string::npos,
          "function values are invoked through indirect calls");
+  const std::size_t push_cleanup =
+      ir.find("call void @janus_push_panic_cleanup");
+  const std::size_t indirect_call = ir.find("call i32 %", push_cleanup);
+  const std::size_t pop_cleanup =
+      ir.find("call void @janus_pop_panic_cleanup", indirect_call);
+  expect(push_cleanup != std::string::npos &&
+             indirect_call != std::string::npos &&
+             pop_cleanup != std::string::npos &&
+             push_cleanup < indirect_call && indirect_call < pop_cleanup,
+         "indirect calls register and unregister active caller cleanups");
+  expect(ir.find("define internal void @__janus_panic_cleanup_") !=
+             std::string::npos,
+         "active caller cleanups lower to context-aware panic thunks");
   expect(ir.find("call void @janus_free(ptr") != std::string::npos,
          "delete releases closure environments");
   expect(ir.find("define { ptr, ptr } @makeIdentity__int()") !=

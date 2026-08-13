@@ -1,0 +1,68 @@
+import std.array
+
+var nextExpectedIndex : usize = usize(0)
+var factoryCalls : usize = usize(0)
+
+class Resource(val id : int) {
+    destructor {
+        println(id)
+    }
+}
+
+def orderedSquare(index : usize) : int {
+    println(index == nextExpectedIndex)
+    nextExpectedIndex = nextExpectedIndex + usize(1)
+    factoryCalls = factoryCalls + usize(1)
+    return int(index * index)
+}
+
+def ownedResource(index : usize) : Resource {
+    return new Resource(int(index) + 10)
+}
+
+def main() : int {
+    val integers : Array[int] = filledArray[int](usize(3), 7)
+    defer delete integers
+    println(integers.size())
+    println(integers.get(usize(0)))
+    println(integers.get(usize(2)))
+
+    val booleans : Array[bool] = filledArray[bool](usize(2), true)
+    defer delete booleans
+    println(booleans.size())
+    println(booleans.get(usize(0)))
+
+    val emptyFilled : Array[byte] =
+    filledArray[byte](usize(0), byte(0))
+    defer delete emptyFilled
+    println(emptyFilled.size())
+
+    val squares : Array[int] =
+    generateArray[int](
+    usize(4),
+    (index : usize) => orderedSquare(index)
+    )
+    defer delete squares
+    println(factoryCalls)
+    println(squares.size())
+    println(squares.get(usize(0)))
+    println(squares.get(usize(3)))
+
+    val emptyGenerated : Array[int] =
+    generateArray[int](
+    usize(0),
+    (index : usize) => orderedSquare(index)
+    )
+    defer delete emptyGenerated
+    println(factoryCalls)
+    println(emptyGenerated.size())
+
+    val owned : Array[Resource] =
+    generateArray[Resource](
+    usize(2),
+    (index : usize) => ownedResource(index)
+    )
+    defer delete owned
+    println(owned.size())
+    return 0
+}

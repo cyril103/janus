@@ -1,0 +1,20 @@
+class Resource(val id : int) {
+    destructor {
+        println(id)
+    }
+}
+
+def invoke(marker : int, callback : () => Unit) : Unit {
+    val resource : Resource = new Resource(marker)
+    defer delete resource
+    callback()
+}
+
+def fail() : Unit {
+    panic("nested callback failure\n")
+}
+
+def main() : int {
+    invoke(10, () => invoke(20, () => fail()))
+    return 0
+}

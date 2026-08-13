@@ -1,0 +1,24 @@
+import std.array
+
+class Resource(val id : int) {
+    destructor {
+        println(id)
+    }
+}
+
+def failAtThird(index : usize) : Resource {
+    if index == usize(2) {
+        panic("array factory failure\n")
+    }
+    return new Resource(int(index) + 20)
+}
+
+def main() : int {
+    val values : Array[Resource] =
+    generateArray[Resource](
+    usize(4),
+    (index : usize) => failAtThird(index)
+    )
+    delete values
+    return 0
+}
