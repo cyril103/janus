@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -71,6 +72,30 @@ class BuildIdentityTests(unittest.TestCase):
             (repo / "tracked").write_text("different dirty contents\n")
             second_dirty = build_identity.from_git("0.11.0", repo)
             self.assertNotEqual(first_dirty.identity, second_dirty.identity)
+
+    def test_untracked_unicode_and_quoted_paths_participate_in_dirty_digest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            subprocess.run(["git", "init", "-q", repo], check=True)
+            subprocess.run(["git", "-C", repo, "config", "user.email", "test@example.com"], check=True)
+            subprocess.run(["git", "-C", repo, "config", "user.name", "Test"], check=True)
+            (repo / "tracked").write_text("tracked\n")
+            subprocess.run(["git", "-C", repo, "add", "tracked"], check=True)
+            subprocess.run(["git", "-C", repo, "commit", "-qm", "base"], check=True)
+            # Windows forbids quotes in filenames and the MSYS2 runner may not
+            # round-trip non-ASCII temporary paths through native Python. POSIX
+            # keeps the full regression; Windows still exercises NUL-delimited
+            # parsing with a path containing spaces.
+            unusual_name = ("space name.janus" if os.name == "nt" else
+                            'é space "quote".janus')
+            unusual = repo / unusual_name
+            unusual.write_text("one\n")
+            first = build_identity.from_git("0.11.1", repo)
+            unusual.write_text("two\n")
+            second = build_identity.from_git("0.11.1", repo)
+            self.assertTrue(first.dirty)
+            self.assertNotEqual(first.source_digest, second.source_digest)
+            self.assertNotEqual(first.identity, second.identity)
 
 
 if __name__ == "__main__":

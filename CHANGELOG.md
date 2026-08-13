@@ -3,6 +3,23 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.11.1] - 2026-08-13
+
+Cette version corrective renforce les garanties de publication introduites en
+0.11.0 après une revue indépendante tardive du candidat.
+
+### Fiabilité et sécurité de release
+
+- le digest des worktrees sales couvre désormais sans ambiguïté les fichiers
+  non suivis dont le chemin contient espaces, Unicode, guillemets ou antislashs ;
+- le canari refuse les chemins Windows absolus, racines multiples, conflits
+  fichier/répertoire, types spéciaux et archives excessives avant extraction ;
+- l’identité empaquetée est validée complètement puis comparée à celle du
+  binaire extrait ; les répertoires temporaires, cache, registre et XDG sont
+  isolés ;
+- la publication attend explicitement l’artefact VS Code et sélectionne
+  l’archive Linux candidate par son nom exact.
+
 ## [0.11.0] - 2026-08-13
 
 Cette version mineure enrichit les entiers, le pattern matching et les tableaux,
@@ -663,6 +680,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.11.1]: https://github.com/cyril103/janus/releases/tag/v0.11.1
 [0.11.0]: https://github.com/cyril103/janus/releases/tag/v0.11.0
 [0.10.0]: https://github.com/cyril103/janus/releases/tag/v0.10.0
 [0.9.0]: https://github.com/cyril103/janus/releases/tag/v0.9.0

@@ -356,11 +356,11 @@ class ReferenceSyncTests(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertIn(
-                "github.com/cyril103/janus/blob/v0.11.0/docs/registry-protocol-v1.md",
+                "github.com/cyril103/janus/blob/v0.11.1/docs/registry-protocol-v1.md",
                 registry,
             )
             self.assertIn(
-                "github.com/cyril103/janus/tree/v0.11.0/docs/schemas/registry-v1",
+                "github.com/cyril103/janus/tree/v0.11.1/docs/schemas/registry-v1",
                 registry,
             )
 
@@ -371,16 +371,16 @@ class ReferenceSyncTests(unittest.TestCase):
             module.sync(REPOSITORY, destination)
             language = (destination / "language-guide.md").read_text(encoding="utf-8")
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.11.0/stdlib/std",
+                "https://github.com/cyril103/janus/tree/v0.11.1/stdlib/std",
                 language,
             )
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.11.0/examples",
+                "https://github.com/cyril103/janus/tree/v0.11.1/examples",
                 language,
             )
             graphics = (destination / "graphics.md").read_text(encoding="utf-8")
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.11.0/examples/snake",
+                "https://github.com/cyril103/janus/tree/v0.11.1/examples/snake",
                 graphics,
             )
             local_links = re.findall(r"\[[^]]+\]\((?!https?://|#|mailto:)([^)]+)\)", language)

@@ -419,7 +419,7 @@ jobs:
     name: Publish release
     if: startsWith(github.ref, 'refs/tags/v')
     needs:
-      [toolchain, linux-compatibility, release-compatibility, release-readiness]
+      [toolchain, vscode-extension, linux-compatibility, release-compatibility, release-readiness]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -458,8 +458,9 @@ jobs:
         run: |
           git clone https://github.com/cyril103/janus8.git janus8
           git -C janus8 checkout b962b69ea14a47016556f9e2a111c7dab1e2e02d
-          archive="$(find dist/release -name 'janus-*-Linux-x86_64.tar.gz' -print -quit)"
-          test -n "$archive"
+          version="${GITHUB_REF_NAME#v}"
+          archive="dist/release/janus-${version}-Linux-x86_64.tar.gz"
+          test -f "$archive" && test -f "$archive.sha256"
           python3 scripts/downstream_canary.py --archive "$archive" \
             --expected-revision "$GITHUB_SHA" --checkout janus8
 

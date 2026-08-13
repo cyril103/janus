@@ -6,7 +6,7 @@ hide:
 
 <div class="home-shell">
   <section class="home-hero">
-    <div class="eyebrow">JANUS / VERSION 0.11.0 / PRÉ-1.0</div>
+    <div class="eyebrow">JANUS / VERSION 0.11.1 / PRÉ-1.0</div>
     <h1>Décider si Janus vous convient.<br><em>Puis apprendre en construisant.</em></h1>
     <p class="hero-lede">Un langage compilé, fortement typé et natif, où les abstractions de haut niveau côtoient la propriété explicite, LLVM et l’interopérabilité C.</p>
     <div class="hero-actions">
@@ -65,7 +65,7 @@ def main() : int {
     ```bash
     sudo apt update && sudo apt install build-essential curl
     curl --proto '=https' --tlsv1.2 -fsSL \
-      https://raw.githubusercontent.com/cyril103/janus/v0.11.0/scripts/install.sh | sh
+      https://raw.githubusercontent.com/cyril103/janus/v0.11.1/scripts/install.sh | sh
     export PATH="$HOME/.janus/bin:$PATH"
     ```
 
@@ -74,13 +74,13 @@ def main() : int {
     ```bash
     xcode-select --install
     curl --proto '=https' --tlsv1.2 -fsSL \
-      https://raw.githubusercontent.com/cyril103/janus/v0.11.0/scripts/install.sh | sh
+      https://raw.githubusercontent.com/cyril103/janus/v0.11.1/scripts/install.sh | sh
     ```
 
 === "Windows x86_64"
 
     ```powershell
-    irm https://raw.githubusercontent.com/cyril103/janus/v0.11.0/scripts/install.ps1 | iex
+    irm https://raw.githubusercontent.com/cyril103/janus/v0.11.1/scripts/install.ps1 | iex
     ```
 
 ```bash
@@ -105,19 +105,19 @@ Quinze chapitres vont des valeurs et fonctions à la propriété, aux dérivatio
 [Consulter le livre →](book/index.md)
 
 ### 03 — Approfondir sans intermédiaire
-La documentation canonique décrit précisément le langage 0.11.0, les outils, le texte et le graphisme.
+La documentation canonique décrit précisément le langage 0.11.1, les outils, le texte et le graphisme.
 
 [Entrer dans la référence →](reference/index.md)
 
 </div>
 
 <div class="release-note" markdown>
-**Ce que 0.11.0 apporte.** Janus ajoute les littéraux entiers préfixés, les
-opérateurs bit à bit, les patterns littéraux avec gardes et les littéraux de
-tableaux typés. La stdlib gagne le tri stable et les fabriques `Array`, tandis
-que les archives deviennent identifiables par SHA et validées sur Janus8 avant
-publication. Cette version mineure reste explicitement pré-1.0.
-[Lire le changelog](https://github.com/cyril103/janus/blob/v0.11.0/CHANGELOG.md),
+**Ce que 0.11.1 consolide.** Cette version corrective durcit l’identité des
+worktrees sales, la validation des archives candidates et l’ordre des gates de
+publication. Les nouveautés fonctionnelles restent celles de 0.11.0 : littéraux
+entiers préfixés, patterns avec gardes, tableaux typés et fabriques `Array`.
+Cette version reste explicitement pré-1.0.
+[Lire le changelog](https://github.com/cyril103/janus/blob/v0.11.1/CHANGELOG.md),
 [la documentation des tests](reference/generated/testing.md) ou
 [la référence de la stdlib](reference/stdlib/index.html).
 </div>
