@@ -106,6 +106,9 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertIn('echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"', workflow)
         self.assertIn("install: git mingw-w64-clang-x86_64-clang", workflow)
         self.assertIn("shell: msys2 {0}", workflow)
+        self.assertIn(
+            "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+            workflow)
         self.assertNotIn("gh release upload nightly", workflow)
         self.assertNotIn("gh release upload channel-nightly", workflow)
         self.assertIn("git/refs/heads/nightly-channel", workflow)
