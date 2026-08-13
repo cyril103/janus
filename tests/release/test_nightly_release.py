@@ -95,6 +95,9 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertIn(
             "nightly-$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT", workflow)
         self.assertIn("$GITHUB_SHA.$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT", workflow)
+        self.assertIn("needs: identity", workflow)
+        self.assertIn("JANUS_PACKAGE_VERSION='${{ needs.identity.outputs.version }}'", workflow)
+        self.assertIn("EXPECTED_VERSION: ${{ needs.identity.outputs.version }}", workflow)
         self.assertNotIn("gh release upload nightly", workflow)
         self.assertNotIn("gh release upload channel-nightly", workflow)
         self.assertIn("git/refs/heads/nightly-channel", workflow)

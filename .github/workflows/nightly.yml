@@ -13,6 +13,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  identity:
+    name: Compute immutable candidate identity
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Compute identity once for every platform
+        id: identity
+        shell: bash
+        run: |
+          test "$GITHUB_SHA" = "$(git rev-parse HEAD)"
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch origin main --depth=1
+          test "$GITHUB_SHA" = "$(git rev-parse origin/main)"
+          base="$(python3 scripts/nightly_release.py project-version --source CMakeLists.txt)"
+          echo "version=$base-nightly.$(date -u +%Y%m%d).$GITHUB_SHA.$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+
   freshness:
     name: Check published channel freshness
     runs-on: ubuntu-24.04
@@ -45,6 +65,7 @@ jobs:
 
   build:
     name: Build and smoke ${{ matrix.os }}
+    needs: identity
     strategy:
       fail-fast: false
       matrix:
@@ -73,24 +94,14 @@ jobs:
           msystem: CLANG64
           update: true
           install: mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-lld mingw-w64-clang-x86_64-ninja mingw-w64-clang-x86_64-llvm
-      - name: Compute immutable identity
-        id: identity
-        shell: bash
-        run: |
-          test "$GITHUB_SHA" = "$(git rev-parse HEAD)"
-          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
-          git fetch origin main --depth=1
-          test "$GITHUB_SHA" = "$(git rev-parse origin/main)"
-          base="$(python3 scripts/nightly_release.py project-version --source CMakeLists.txt)"
-          echo "version=$base-nightly.$(date -u +%Y%m%d).$GITHUB_SHA.$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
       - name: Configure
         if: runner.os != 'Windows'
         shell: bash
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER='${{ matrix.cc }}' -DCMAKE_CXX_COMPILER='${{ matrix.cxx }}' -DLLVM_DIR='${{ matrix.llvm }}' -DJANUS_SOURCE_SHA="$GITHUB_SHA" -DJANUS_PACKAGE_VERSION='${{ steps.identity.outputs.version }}'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER='${{ matrix.cc }}' -DCMAKE_CXX_COMPILER='${{ matrix.cxx }}' -DLLVM_DIR='${{ matrix.llvm }}' -DJANUS_SOURCE_SHA="$GITHUB_SHA" -DJANUS_PACKAGE_VERSION='${{ needs.identity.outputs.version }}'
       - name: Configure Windows
         if: runner.os == 'Windows'
         shell: msys2 {0}
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/clang64/bin/clang.exe -DCMAKE_CXX_COMPILER=/clang64/bin/clang++.exe -DLLVM_DIR=/clang64/lib/cmake/llvm -DJANUS_SOURCE_SHA="$GITHUB_SHA" -DJANUS_PACKAGE_VERSION='${{ steps.identity.outputs.version }}'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/clang64/bin/clang.exe -DCMAKE_CXX_COMPILER=/clang64/bin/clang++.exe -DLLVM_DIR=/clang64/lib/cmake/llvm -DJANUS_SOURCE_SHA="$GITHUB_SHA" -DJANUS_PACKAGE_VERSION='${{ needs.identity.outputs.version }}'
       - run: cmake --build build --parallel
       - name: Safety test gate
         run: ctest --test-dir build --output-on-failure --stop-on-failure --timeout 60
@@ -110,7 +121,7 @@ jobs:
 
   publish:
     name: Validate candidate then atomically advance channel
-    needs: build
+    needs: [identity, build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -127,12 +138,18 @@ jobs:
       - name: Prepare identity and validate checksums
         id: identity
         shell: bash
+        env:
+          EXPECTED_VERSION: ${{ needs.identity.outputs.version }}
         run: |
           [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
-          version="$(find dist -type f \( -name '*.tar.gz' -o -name '*.zip' \) -printf '%f\n' | sed -n 's/^janus-\(.*\)-Linux-x86_64\.tar\.gz$/\1/p')"
-          test -n "$version"
+          test -n "$EXPECTED_VERSION"
+          test -f "dist/janus-$EXPECTED_VERSION-Linux-x86_64.tar.gz"
+          test -f "dist/janus-$EXPECTED_VERSION-Darwin-arm64.tar.gz"
+          test -f "dist/janus-$EXPECTED_VERSION-Windows-x86_64.zip"
+          archive_count="$(find dist -type f \( -name '*.tar.gz' -o -name '*.zip' \) | wc -l)"
+          test "$archive_count" -eq 3
           (cd dist && sha256sum --check *.sha256)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version=$EXPECTED_VERSION" >> "$GITHUB_OUTPUT"
           echo "release=nightly-$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
           echo "published=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
