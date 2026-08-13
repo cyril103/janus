@@ -2454,7 +2454,7 @@ private:
             const janus::ast::MatchExpression::Arm &arm = node.arms.front();
             std::unordered_map<std::string, Local> arm_locals = locals;
             if (match_type.kind() == janus::TypeKind::Enum &&
-                !arm.is_wildcard && !arm.literal) {
+                !arm.is_wildcard) {
               const EnumSpecialization &specialization =
                   enum_specializations_.at(std::string{match_type.name()});
               const auto enum_case = std::find_if(
@@ -3982,8 +3982,7 @@ private:
                 match_type.kind() == janus::TypeKind::Enum &&
                 std::all_of(node.arms.begin(), node.arms.end(),
                             [](const auto &arm) {
-                              return !arm.literal && !arm.is_wildcard &&
-                                     !arm.guard;
+                              return !arm.is_wildcard && !arm.guard;
                             });
             if (simple_enum) {
             const janus::Type &enum_type =
@@ -4083,7 +4082,7 @@ private:
                                      : ::llvm::BasicBlock::Create(
                                            context_, "match.next", function);
               ::llvm::Value *matches = builder.getTrue();
-              if (arm.literal) {
+              if (arm.literal && specialization == nullptr) {
                 ::llvm::Value *literal = emit_expression(
                     *arm.literal, match_type, substitutions, locals, builder);
                 matches = emit_structural_equal(scrutinee, literal, match_type,

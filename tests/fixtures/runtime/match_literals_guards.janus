@@ -2,6 +2,10 @@ enum Opcode {
     Family(uint)
 }
 
+enum Homonym {
+    int(int)
+}
+
 def decodeFamily(suffix : uint) : int {
     return match suffix {
         uint(0) => 80,
@@ -29,6 +33,8 @@ def machineCode(value : string) : int {
 }
 
 def main() : int {
+    val homonym : Homonym = Homonym.int(42)
+    println(match homonym { int(value) => value })
     println(decode(Opcode.Family(uint(0x8001))))
     println(decode(Opcode.Family(uint(0x8002))))
     println(decode(Opcode.Family(uint(0))))

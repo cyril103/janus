@@ -285,6 +285,23 @@ bool is_plan_scalar_constant_expression(
       expression.value);
 }
 
+bool is_binding_pattern(const janus::ast::MatchExpression::Arm &arm) {
+  if (arm.case_name.empty() || !arm.literal)
+    return false;
+  const auto *call =
+      std::get_if<janus::ast::CallExpression>(&arm.literal->value);
+  if (call == nullptr || call->callee != arm.case_name ||
+      call->arguments.size() != arm.bindings.size())
+    return false;
+  for (std::size_t index = 0; index < call->arguments.size(); ++index) {
+    const auto *identifier = std::get_if<janus::ast::IdentifierExpression>(
+        &call->arguments[index]->value);
+    if (identifier == nullptr || identifier->name != arm.bindings[index])
+      return false;
+  }
+  return true;
+}
+
 bool is_plan_constant_expression(
     const janus::ast::Expression &expression,
     const std::unordered_set<std::string> &modules,
@@ -358,8 +375,17 @@ bool is_plan_constant_expression(
                                              aggregate_types) &&
                  std::all_of(node.arms.begin(), node.arms.end(),
                              [&](const auto &arm) {
-                               return is_plan_constant_expression(
-                                   *arm.expression, modules, aggregate_types);
+                               return (!arm.literal || is_binding_pattern(arm) ||
+                                       is_plan_constant_expression(
+                                           *arm.literal, modules,
+                                           aggregate_types)) &&
+                                      (!arm.guard ||
+                                       is_plan_constant_expression(
+                                           *arm.guard, modules,
+                                           aggregate_types)) &&
+                                      is_plan_constant_expression(
+                                          *arm.expression, modules,
+                                          aggregate_types);
                              });
         else
           return false;
@@ -1070,7 +1096,7 @@ Value evaluate_impl(const janus::ast::Expression &expression,
           for (const auto &arm : node.arms) {
             std::unordered_map<std::string, Value> bindings;
             bool matches = arm.is_wildcard;
-            if (arm.literal) {
+            if (arm.literal && scrutinee.type->kind() != TypeKind::Enum) {
               const Value literal = evaluate_impl(
                   *arm.literal, scrutinee.type, resolve, resolve_constructor,
                   call_function);
@@ -1247,7 +1273,7 @@ bool is_constant_expression(const ast::Expression &expression) {
           return is_constant_expression(*node.scrutinee) &&
                  std::all_of(node.arms.begin(), node.arms.end(),
                              [](const auto &arm) {
-                               return (!arm.literal ||
+                               return (!arm.literal || is_binding_pattern(arm) ||
                                        is_constant_expression(*arm.literal)) &&
                                       (!arm.guard ||
                                        is_constant_expression(*arm.guard)) &&
