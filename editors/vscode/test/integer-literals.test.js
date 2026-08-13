@@ -39,3 +39,12 @@ test("TextMate scopes bitwise operators separately from logical operators", () =
   for (const spelling of ["&&", "||", "<", ">"])
     assert.doesNotMatch(spelling, operator);
 });
+
+test("TextMate recognizes literal patterns and match guards", () => {
+  const source = 'match opcode { uint(8) if opcode == uint(8) => "chip8", _ => "other" }';
+  const keyword = grammar.patterns.find((pattern) => pattern.name === "keyword.control.janus");
+  const keywords = [...source.matchAll(new RegExp(keyword.match, "g"))].map((match) => match[0]);
+  assert.deepEqual(keywords, ["match", "if"]);
+  assert.match("8", regexp);
+  assert.match(source, /"chip8"/);
+});

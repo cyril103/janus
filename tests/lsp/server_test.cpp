@@ -688,6 +688,18 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(semantic_token_type_at(integer_semantic_tokens, 0, 36) == 12);
   JANUS_REQUIRE(semantic_token_type_at(integer_semantic_tokens, 0, 50) == 12);
 
+  const std::vector<std::string> guarded_match_diagnostics = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///guarded-match.janus","text":"def decode(opcode : uint) : int { return match opcode { uint(8) if opcode == uint(8) => 8, _ => 0 } }\ndef main() : int { return decode(uint(8)) }\n"}}})");
+  JANUS_REQUIRE(guarded_match_diagnostics.size() == 1);
+  JANUS_REQUIRE(guarded_match_diagnostics.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
+  const std::string guarded_match_tokens = require_lsp_result(
+      server.handle(
+          R"({"jsonrpc":"2.0","id":55,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///guarded-match.janus"}}})"),
+      LspResultShape::SemanticTokens);
+  JANUS_REQUIRE(semantic_token_type_at(guarded_match_tokens, 0, 61) == 12);
+  JANUS_REQUIRE(semantic_token_type_at(guarded_match_tokens, 0, 64) == 10);
+
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///bitwise.janus","text":"def bits(value : ubyte) : ubyte { return value << 1 | value & ubyte(3) ^ value >> 2 }\n"}}})"));
   const std::string bitwise_semantic_tokens = require_lsp_result(

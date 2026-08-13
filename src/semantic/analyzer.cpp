@@ -1427,6 +1427,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               for (const auto &arm : node.arms) {
                 auto arm_scope = scope;
                 arm_scope.insert(arm.bindings.begin(), arm.bindings.end());
+                if (arm.literal)
+                  check_expression(*arm.literal, scope);
+                if (arm.guard)
+                  check_expression(*arm.guard, arm_scope);
                 check_expression(*arm.expression, arm_scope);
               }
             } else if constexpr (std::is_same_v<Node, ast::MoveExpression> ||
@@ -4901,50 +4905,166 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 static_cast<void>(symbol);
                 transfer_protected_values.insert(name);
               }
-              if (!scrutinee_type.is_enum())
-                throw CompileError{node.location,
-                                   "match requires an enum value, got '" +
-                                       scrutinee_type.name() + "'"};
               if (node.arms.empty())
                 throw CompileError{node.location,
                                    "match requires at least one case"};
 
-              const ast::EnumDeclaration &enum_declaration =
-                  *enums.at(scrutinee_type.parameter);
+              const ast::EnumDeclaration *enum_declaration =
+                  scrutinee_type.is_enum()
+                      ? enums.at(scrutinee_type.parameter)
+                      : nullptr;
               std::unordered_map<std::string, SemanticType> substitutions;
               for (std::size_t index = 0;
-                   index < enum_declaration.type_parameters.size(); ++index) {
-                substitutions.emplace(enum_declaration.type_parameters[index],
+                   enum_declaration != nullptr &&
+                   index < enum_declaration->type_parameters.size(); ++index) {
+                substitutions.emplace(enum_declaration->type_parameters[index],
                                       scrutinee_type.type_arguments[index]);
               }
-              const std::unordered_set<std::string> enum_parameters{
-                  enum_declaration.type_parameters.begin(),
-                  enum_declaration.type_parameters.end()};
+              const std::unordered_set<std::string> enum_parameters =
+                  enum_declaration == nullptr
+                      ? std::unordered_set<std::string>{}
+                      : std::unordered_set<std::string>{
+                            enum_declaration->type_parameters.begin(),
+                            enum_declaration->type_parameters.end()};
               std::unordered_set<std::string> matched_cases;
+              std::unordered_set<std::string> matched_literals;
+              std::unordered_map<std::string, std::string>
+                  matched_literal_spellings;
+              bool wildcard_handled = false;
+              bool true_handled = false;
+              bool false_handled = false;
               std::optional<SemanticType> result_type;
               for (const ast::MatchExpression::Arm &arm : node.arms) {
-                const auto enum_case = std::find_if(
-                    enum_declaration.cases.begin(),
-                    enum_declaration.cases.end(),
-                    [&](const ast::EnumDeclaration::Case &candidate) {
-                      return candidate.name == arm.case_name;
-                    });
-                if (enum_case == enum_declaration.cases.end())
-                  throw CompileError{arm.location, "enum '" +
-                                                       enum_declaration.name +
-                                                       "' has no case '" +
-                                                       arm.case_name + "'"};
-                if (!matched_cases.insert(arm.case_name).second)
-                  throw CompileError{arm.location, "match case '" +
-                                                       arm.case_name +
-                                                       "' is already handled"};
-                if (arm.bindings.size() != enum_case->payload_types.size())
+                if (wildcard_handled)
+                  throw CompileError{arm.location,
+                                     "match arm is unreachable after wildcard pattern"};
+                const ast::EnumDeclaration::Case *enum_case = nullptr;
+                if (enum_declaration != nullptr && !arm.is_wildcard &&
+                    arm.literal == nullptr) {
+                  const auto found = std::find_if(
+                      enum_declaration->cases.begin(),
+                      enum_declaration->cases.end(),
+                      [&](const ast::EnumDeclaration::Case &candidate) {
+                        return candidate.name == arm.case_name;
+                      });
+                  if (found == enum_declaration->cases.end())
+                    throw CompileError{arm.location, "enum '" +
+                                                         enum_declaration->name +
+                                                         "' has no case '" +
+                                                         arm.case_name + "'"};
+                  enum_case = &*found;
+                  if (matched_cases.contains(arm.case_name))
+                    throw CompileError{arm.location, "match case '" +
+                                                         arm.case_name +
+                                                         "' is already handled"};
+                  if (!arm.guard)
+                    matched_cases.insert(arm.case_name);
+                } else if (enum_declaration != nullptr && !arm.is_wildcard) {
+                  throw CompileError{arm.location,
+                                     "enum matches require enum case patterns"};
+                } else if (enum_declaration == nullptr && !arm.is_wildcard &&
+                           arm.literal == nullptr) {
+                  throw CompileError{arm.location,
+                                     "literal match requires a literal or '_' pattern"};
+                }
+                if (enum_case != nullptr &&
+                    arm.bindings.size() != enum_case->payload_types.size())
                   throw CompileError{
                       arm.location,
                       "enum case '" + arm.case_name + "' contains " +
                           std::to_string(enum_case->payload_types.size()) +
                           " value(s), but the pattern binds " +
                           std::to_string(arm.bindings.size())};
+
+                if (arm.literal) {
+                  const auto is_literal_pattern =
+                      [&](const ast::Expression &expression,
+                          const auto &self) -> bool {
+                    return std::visit(
+                        [&](const auto &literal_node) -> bool {
+                          using Literal =
+                              std::decay_t<decltype(literal_node)>;
+                          if constexpr (
+                              std::is_same_v<Literal,
+                                             ast::IntegerLiteralExpression> ||
+                              std::is_same_v<Literal,
+                                             ast::DoubleLiteralExpression> ||
+                              std::is_same_v<Literal,
+                                             ast::BooleanLiteralExpression> ||
+                              std::is_same_v<Literal,
+                                             ast::StringLiteralExpression> ||
+                              std::is_same_v<Literal,
+                                             ast::CharacterLiteralExpression>)
+                            return true;
+                          else if constexpr (std::is_same_v<
+                                                 Literal,
+                                                 ast::CallExpression>) {
+                            static const std::unordered_set<std::string>
+                                literal_conversions{
+                                    "byte",  "ubyte", "short", "ushort",
+                                    "int",   "uint",  "long",  "ulong",
+                                    "isize", "usize", "char",  "bool",
+                                    "string", "float", "double"};
+                            if (!literal_conversions.contains(
+                                    literal_node.callee) ||
+                                literal_node.arguments.size() != 1)
+                              return false;
+                            return self(*literal_node.arguments.front(), self);
+                          } else if constexpr (std::is_same_v<
+                                                 Literal,
+                                                 ast::UnaryExpression>) {
+                            return literal_node.operation ==
+                                       ast::UnaryOperator::Negate &&
+                                   self(*literal_node.operand, self);
+                          } else
+                            return false;
+                        },
+                        expression.value);
+                  };
+                  if (!is_literal_pattern(*arm.literal, is_literal_pattern))
+                    throw CompileError{arm.location,
+                                       "match pattern must be a literal"};
+                  const SemanticType literal_type = expression_type(*arm.literal);
+                  if (!same_type(literal_type, scrutinee_type))
+                    throw CompileError{
+                        arm.location, "literal pattern type '" +
+                                          literal_type.name() +
+                                          "' does not match scrutinee type '" +
+                                          scrutinee_type.name() + "'"};
+                  const constant::Value literal_value = constant::evaluate(
+                      *arm.literal, scrutinee_type.concrete,
+                      [](const std::optional<std::string> &, std::string_view,
+                         SourceLocation) -> std::optional<constant::Value> {
+                        return std::nullopt;
+                      });
+                  const std::string key =
+                      constant::canonical_match_key(literal_value);
+                  std::string spelling = key;
+                  if (const auto *boolean =
+                          std::get_if<bool>(&literal_value.data))
+                    spelling = *boolean ? "true" : "false";
+                  else if (const auto *integer =
+                               std::get_if<std::uint64_t>(&literal_value.data))
+                    spelling = std::to_string(*integer);
+                  const auto previous_spelling =
+                      matched_literal_spellings.find(key);
+                  if (arm.guard && matched_literals.contains(key))
+                    throw CompileError{arm.location, "literal pattern '" +
+                                                         previous_spelling->second +
+                                                         "' is already handled"};
+                  if (!arm.guard && !matched_literals.insert(key).second)
+                    throw CompileError{arm.location, "literal pattern '" +
+                                                         previous_spelling->second +
+                                                         "' is already handled"};
+                  if (!arm.guard) {
+                    matched_literal_spellings.emplace(key, spelling);
+                    if (const auto *boolean =
+                            std::get_if<bool>(&literal_value.data))
+                      (*boolean ? true_handled : false_handled) = true;
+                  }
+                }
+                if (arm.is_wildcard && !arm.guard)
+                  wildcard_handled = true;
 
                 SymbolTable arm_symbols = *active_symbols;
                 std::unordered_set<std::string> binding_names;
@@ -4973,6 +5093,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (borrows_scrutinee)
                   for (const std::string &binding : arm.bindings)
                     borrowed_values.insert(binding);
+                if (arm.guard) {
+                  const SemanticType guard_type = expression_type(*arm.guard);
+                  if (!guard_type.is_concrete() ||
+                      guard_type.concrete->kind() != TypeKind::Bool)
+                    throw CompileError{arm.location,
+                                       "match guard must have type 'bool', got '" +
+                                           guard_type.name() + "'"};
+                }
                 const SemanticType arm_type = expression_type(*arm.expression);
                 transfer_protected_values = arm_transfer_protected;
                 borrowed_values = arm_borrowed_values;
@@ -4993,8 +5121,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
               }
               std::string missing_cases;
+              if (enum_declaration != nullptr && !wildcard_handled)
               for (const ast::EnumDeclaration::Case &enum_case :
-                   enum_declaration.cases) {
+                   enum_declaration->cases) {
                 if (matched_cases.contains(enum_case.name))
                   continue;
                 if (!missing_cases.empty())
@@ -5004,8 +5133,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               if (!missing_cases.empty())
                 throw CompileError{node.location,
                                    "non-exhaustive match for enum '" +
-                                       enum_declaration.name +
+                                       enum_declaration->name +
                                        "': missing case(s): " + missing_cases};
+              if (enum_declaration == nullptr && !wildcard_handled &&
+                  !(scrutinee_type.is_concrete() &&
+                    scrutinee_type.concrete->kind() == TypeKind::Bool &&
+                    true_handled && false_handled))
+                throw CompileError{node.location, "non-exhaustive match for type '" +
+                                                      scrutinee_type.name() + "'"};
               transfer_protected_values = previous_transfer_protected;
               return *result_type;
             } else if constexpr (std::is_same_v<Node, ast::MoveExpression>) {

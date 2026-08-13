@@ -279,6 +279,34 @@ def main() : int { return answer }
   match_output.flush();
   expect(match_ir.find("ret i32 42") != std::string::npos,
          "backend folds the selected match arm and does not evaluate dead arms");
+  janus::frontend::Parser literal_match_parser{R"(
+const opcode : uint = uint(0x8001)
+const decoded : int = match opcode {
+    uint(0x8000) => 0,
+    _ if (opcode & uint(0x000F)) == uint(1) => 1,
+    _ => -1
+}
+staticAssert(decoded == 1)
+def main() : int { return decoded }
+)"};
+  const janus::ast::Program literal_match_program =
+      literal_match_parser.parse_program();
+  const janus::semantic::AnalysisResult literal_match_analysis =
+      analyzer.analyze(literal_match_program);
+  expect(literal_match_analysis.global_constant_values.contains("decoded"),
+         "constant evaluator supports literal patterns and guards");
+  llvm::LLVMContext literal_match_context;
+  janus::backend::llvm::IrGenerator literal_match_generator{
+      literal_match_context};
+  const std::unique_ptr<llvm::Module> literal_match_module =
+      literal_match_generator.generate(literal_match_program,
+                                       "literal_constant_match");
+  std::string literal_match_ir;
+  llvm::raw_string_ostream literal_match_output{literal_match_ir};
+  literal_match_module->print(literal_match_output, nullptr);
+  literal_match_output.flush();
+  expect(literal_match_ir.find("ret i32 1") != std::string::npos,
+         "constant and backend literal match results have parity");
   expect_compile_error(
       "def runtime() : bool { return true }\nstaticAssert(runtime())\n"
       "def main() : int { return 0 }",

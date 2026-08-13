@@ -363,6 +363,37 @@ val result : int = match option {
 }
 ```
 
+Un motif peut aussi être un littéral entier, booléen ou chaîne, ou `_` pour le
+cas de repli. Une garde `if` est évaluée seulement après la correspondance du
+motif ; elle voit donc les bindings du motif. Les bras sont essayés de haut en
+bas et l'expression du premier motif dont la garde vaut `true` est évaluée. Les
+bindings restent limités à la garde et à l'expression de leur bras.
+
+```janus
+def classify(value : uint) : int {
+    return match value {
+        uint(1) => 10,
+        uint(2) => 20,
+        _ => 0
+    }
+}
+
+enum Opcode { Family(uint) }
+
+def decode(opcode : Opcode) : int {
+    return match opcode {
+        Family(bits) if (bits & uint(0xF000)) == uint(0x8000) => 8,
+        Family(bits) if bits == uint(0) => 0,
+        Family(bits) => -1
+    }
+}
+```
+
+Une garde doit avoir le type `bool`. Un bras gardé ne contribue pas à
+l'exhaustivité puisqu'une garde peut échouer ; un motif non gardé couvrant les
+cas restants est donc nécessaire. Un motif `_` non gardé rend les bras suivants
+inatteignables.
+
 La bibliothèque standard fournit `Option[T]` pour une valeur éventuellement
 absente et `Result[T, E]` pour une opération qui peut échouer. L'opérateur `?`
 propage automatiquement une absence ou une erreur depuis une fonction
