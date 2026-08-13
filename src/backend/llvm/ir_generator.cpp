@@ -2108,7 +2108,8 @@ private:
               for (const janus::ast::MatchExpression::Arm &arm : node.arms) {
                 auto arm_bound = active_bound;
                 arm_bound.insert(arm.bindings.begin(), arm.bindings.end());
-                if (arm.literal)
+                if (arm.literal &&
+                    !janus::ast::is_enum_binding_pattern(arm))
                   visit(*arm.literal, active_bound);
                 if (arm.guard)
                   visit(*arm.guard, arm_bound);
