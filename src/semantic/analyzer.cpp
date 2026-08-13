@@ -2522,8 +2522,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::string_view contextual_borrow_enum_name;
     std::size_t loop_depth = 0;
     std::unordered_set<std::string> transfer_protected_values;
+    std::unordered_set<std::string> match_guard_protected_values;
     std::unordered_set<std::string> deferred_values;
     std::unordered_set<std::string> borrowed_values;
+    const auto require_guard_transfer_allowed =
+        [&](const ast::Expression &expression, SourceLocation location) {
+          const auto *identifier =
+              std::get_if<ast::IdentifierExpression>(&expression.value);
+          if (identifier != nullptr &&
+              match_guard_protected_values.contains(identifier->name))
+            throw CompileError{
+                location, "pattern binding '" + identifier->name +
+                              "' cannot be transferred or destroyed in a match guard"};
+        };
     std::unordered_map<std::string, SourceLocation> local_declarations;
     std::unordered_set<std::size_t> warned_leak_locations;
     std::unordered_set<std::size_t> warned_unannotated_return_locations;
@@ -2719,6 +2730,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             return;
           }
 
+          require_guard_transfer_allowed(argument,
+                                         expression_location(argument));
           if (is_borrowed_pointer_expression(argument)) {
             const auto *call =
                 std::get_if<ast::CallExpression>(&argument.value);
@@ -3466,6 +3479,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 const SemanticType pointer_type{
                     nullptr, "Ptr", false, {element_type}, true};
                 for (const auto &argument : node.arguments) {
+                  require_guard_transfer_allowed(
+                      *argument, expression_location(*argument));
                   if (is_borrowed_pointer_expression(*argument))
                     throw CompileError{
                         expression_location(*argument),
@@ -3494,6 +3509,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 const auto *owner_identifier =
                     std::get_if<ast::IdentifierExpression>(
                         &node.arguments[0]->value);
+                require_guard_transfer_allowed(
+                    *node.arguments[0], expression_location(*node.arguments[0]));
                 if (owner_identifier == nullptr ||
                     !active_symbols->contains(owner_identifier->name))
                   throw CompileError{
@@ -3546,6 +3563,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   throw CompileError{
                       node.location,
                       "free expects one pointer argument and no type argument"};
+                require_guard_transfer_allowed(
+                    *node.arguments.front(),
+                    expression_location(*node.arguments.front()));
                 if (is_borrowed_pointer_expression(*node.arguments.front()))
                   throw CompileError{
                       node.location,
@@ -4793,6 +4813,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     previous_contextual_borrow;
               }
               if (method->is_consuming) {
+                require_guard_transfer_allowed(*node.object, node.location);
                 if (const auto *identifier =
                         std::get_if<ast::IdentifierExpression>(
                             &node.object->value)) {
@@ -4940,7 +4961,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      "match arm is unreachable after wildcard pattern"};
                 const ast::EnumDeclaration::Case *enum_case = nullptr;
                 if (enum_declaration != nullptr && !arm.is_wildcard &&
-                    arm.literal == nullptr) {
+                    !arm.case_name.empty()) {
                   const auto found = std::find_if(
                       enum_declaration->cases.begin(),
                       enum_declaration->cases.end(),
@@ -4976,7 +4997,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           " value(s), but the pattern binds " +
                           std::to_string(arm.bindings.size())};
 
-                if (arm.literal) {
+                if (arm.literal && enum_case == nullptr) {
                   const auto is_literal_pattern =
                       [&](const ast::Expression &expression,
                           const auto &self) -> bool {
@@ -5094,7 +5115,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   for (const std::string &binding : arm.bindings)
                     borrowed_values.insert(binding);
                 if (arm.guard) {
+                  for (const std::string &binding : arm.bindings) {
+                    transfer_protected_values.insert(binding);
+                    match_guard_protected_values.insert(binding);
+                  }
                   const SemanticType guard_type = expression_type(*arm.guard);
+                  for (const std::string &binding : arm.bindings) {
+                    match_guard_protected_values.erase(binding);
+                    transfer_protected_values.erase(binding);
+                  }
                   if (!guard_type.is_concrete() ||
                       guard_type.concrete->kind() != TypeKind::Bool)
                     throw CompileError{arm.location,
@@ -5153,6 +5182,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 throw CompileError{node.location, "borrowed value '" +
                                                       identifier->name +
                                                       "' cannot be moved"};
+              require_guard_transfer_allowed(*node.operand, node.location);
               if (transfer_protected_values.contains(identifier->name))
                 throw CompileError{
                     node.location,
@@ -5881,6 +5911,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
         if (const auto *deletion =
                 std::get_if<ast::DeleteStatement>(&statement)) {
+          require_guard_transfer_allowed(deletion->expression,
+                                         deletion->location);
           if (!std::holds_alternative<ast::IdentifierExpression>(
                   deletion->expression.value) &&
               is_borrowed_pointer_expression(deletion->expression))

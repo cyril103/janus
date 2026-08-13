@@ -1425,8 +1425,17 @@ ast::Expression Parser::parse_primary() {
             }
           }
           static_cast<void>(expect(TokenKind::RightParen));
+          for (const auto &argument : arguments) {
+            const auto *identifier =
+                std::get_if<ast::IdentifierExpression>(&argument->value);
+            if (identifier == nullptr) {
+              bindings.clear();
+              break;
+            }
+            bindings.push_back(identifier->name);
+          }
           literal = std::make_unique<ast::Expression>(ast::CallExpression{
-              std::move(case_name), {}, std::move(arguments),
+              case_name, {}, std::move(arguments),
               pattern_token.location});
         } else if (current_.kind != TokenKind::RightParen) {
           do {

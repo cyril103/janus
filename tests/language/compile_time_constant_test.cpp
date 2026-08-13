@@ -7,6 +7,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <algorithm>
 #include <iostream>
 #include <cfenv>
 #include <string>
@@ -279,6 +280,49 @@ def main() : int { return answer }
   match_output.flush();
   expect(match_ir.find("ret i32 42") != std::string::npos,
          "backend folds the selected match arm and does not evaluate dead arms");
+  janus::frontend::Parser homonymous_enum_parser{R"(
+enum Zero { int, Other }
+enum Pair { int(int, int), Other }
+const zero : Zero = Zero.int()
+const pair : Pair = Pair.int(20, 22)
+const zeroAnswer : int = match zero { int() => 7, Other => 0 }
+const pairAnswer : int = match pair { int(left, right) => left + right, Other => 0 }
+val plannedZero : int = match zero { int() => zeroAnswer, Other => 0 }
+val plannedPair : int = match pair { int(left, right) => left + right, Other => 0 }
+staticAssert(zeroAnswer == 7)
+staticAssert(pairAnswer == 42)
+def runtimeZero(value : Zero) : int { return match value { int() => 7, Other => 0 } }
+def runtimePair(value : Pair) : int { return match value { int(left, right) => left + right, Other => 0 } }
+def scalar(value : int) : int { return match value { int(42) => 1, _ => 0 } }
+def main() : int { return plannedZero + plannedPair + runtimeZero(zero) + runtimePair(pair) + scalar(42) }
+)"};
+  const janus::ast::Program homonymous_enum_program =
+      homonymous_enum_parser.parse_program();
+  const auto initializer_is_constant = [&](std::string_view name) {
+    const auto found = std::find_if(
+        homonymous_enum_program.globals.begin(),
+        homonymous_enum_program.globals.end(), [&](const auto &global) {
+          return global.declaration.name == name;
+        });
+    return found != homonymous_enum_program.globals.end() &&
+           janus::constant::is_constant_expression(
+               *found->declaration.initializer);
+  };
+  expect(initializer_is_constant("zeroAnswer") &&
+             initializer_is_constant("pairAnswer"),
+         "homonymous enum patterns pass structural constant classification");
+  const janus::semantic::AnalysisResult homonymous_enum_analysis =
+      analyzer.analyze(homonymous_enum_program);
+  expect(homonymous_enum_analysis.global_constant_values.contains("zeroAnswer") &&
+             homonymous_enum_analysis.global_constant_values.contains("pairAnswer") &&
+             homonymous_enum_analysis.global_constant_values.contains("plannedZero") &&
+             homonymous_enum_analysis.global_constant_values.contains("plannedPair"),
+         "homonymous enum patterns are classified in const and plan contexts");
+  llvm::LLVMContext homonymous_enum_context;
+  janus::backend::llvm::IrGenerator homonymous_enum_generator{
+      homonymous_enum_context};
+  static_cast<void>(homonymous_enum_generator.generate(
+      homonymous_enum_program, "homonymous_enum_constant_match"));
   janus::frontend::Parser literal_match_parser{R"(
 const opcode : uint = uint(0x8001)
 const decoded : int = match opcode {
@@ -307,6 +351,19 @@ def main() : int { return decoded }
   literal_match_output.flush();
   expect(literal_match_ir.find("ret i32 1") != std::string::npos,
          "constant and backend literal match results have parity");
+  expect_compile_error(
+      "def runtime() : int { return 1 }\n"
+      "val selected : int = match 1 { int(runtime()) => 1, _ => 0 }\n"
+      "def main() : int { return selected }",
+      "match pattern must be a literal");
+  janus::frontend::Parser dynamic_guard_parser{R"(
+def runtime() : bool { return true }
+val selected : int = match 1 { _ if runtime() => 7, _ => 0 }
+def main() : int { return selected }
+)"};
+  const janus::ast::Program dynamic_guard_program =
+      dynamic_guard_parser.parse_program();
+  static_cast<void>(analyzer.analyze(dynamic_guard_program));
   expect_compile_error(
       "def runtime() : bool { return true }\nstaticAssert(runtime())\n"
       "def main() : int { return 0 }",

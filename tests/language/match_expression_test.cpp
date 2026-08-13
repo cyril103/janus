@@ -158,6 +158,11 @@ def classify(opcode : Opcode) : int {
 }
 def main() : int { return classify(Opcode.Family(uint(1))) }
 )", "guards see enum pattern bindings");
+  expect_valid(R"(
+enum E { int(int) }
+def unwrap(e : E) : int { return match e { int(value) => value } }
+def main() : int { return unwrap(E.int(42)) }
+)", "enum constructors may share names with literal conversions");
   expect_compile_error(
       "def main() : int { return match 1 { true => 1, _ => 0 } }",
       "literal pattern type 'bool' does not match scrutinee type 'int'");
@@ -165,6 +170,78 @@ def main() : int { return classify(Opcode.Family(uint(1))) }
       "enum E { A(int) } def main() : int { val e = E.A(1) "
       "return match e { A(value) if value => 1, A(value) => 0 } }",
       "match guard must have type 'bool'");
+  expect_compile_error(R"(
+class Resource(val identifier : int) { destructor { println(identifier) } }
+enum Slot { Occupied(Resource), Empty }
+def burn(value : Resource) : bool { delete value return false }
+def main() : int {
+    val slot : Slot = Slot.Occupied(new Resource(9))
+    return match move slot {
+        Occupied(value) if burn(move value) => 1,
+        Occupied(value) => 2,
+        Empty => 0
+    }
+}
+)", "pattern binding 'value' cannot be transferred or destroyed in a match guard");
+  expect_compile_error(R"(
+class Resource(val identifier : int) { destructor { println(identifier) } }
+enum Slot { Occupied(Resource), Empty }
+def rejects(cleanup : () => Unit) : bool { return false }
+def main() : int {
+    val slot : Slot = Slot.Occupied(new Resource(9))
+    return match move slot {
+        Occupied(value) if rejects(owningCapture[Resource](value, () => println(value.identifier))) => 1,
+        Occupied(value) => 2,
+        Empty => 0
+    }
+}
+)", "pattern binding 'value' cannot be transferred or destroyed in a match guard");
+  expect_compile_error(R"(
+enum Slot { Occupied(Ptr[int]), Empty }
+def main() : int {
+    val slot : Slot = Slot.Occupied(alloc[int](usize(1)))
+    return match move slot {
+        Occupied(value) if adoptReallocation[int](value, null[int]()) => 1,
+        Occupied(value) => 2,
+        Empty => 0
+    }
+}
+)", "pattern binding 'value' cannot be transferred or destroyed in a match guard");
+  expect_compile_error(R"(
+enum Slot { Occupied(Ptr[int]), Empty }
+def main() : int {
+    val slot : Slot = Slot.Occupied(alloc[int](usize(1)))
+    return match move slot {
+        Occupied(value) if free(value) => 1,
+        Occupied(value) => 2,
+        Empty => 0
+    }
+}
+)", "pattern binding 'value' cannot be transferred or destroyed in a match guard");
+  expect_compile_error(R"(
+enum Slot { Occupied(Ptr[int]), Empty }
+def main() : int {
+    val slot : Slot = Slot.Occupied(alloc[int](usize(1)))
+    return match move slot {
+        Occupied(value) if freeStorage(value) => 1,
+        Occupied(value) => 2,
+        Empty => 0
+    }
+}
+)", "pattern binding 'value' cannot be transferred or destroyed in a match guard");
+  expect_valid(R"(
+class Resource(val identifier : int) { destructor { println(identifier) } }
+enum Slot { Occupied(Resource), Empty }
+def dispose(value : Resource) : int { val result = value.identifier delete value return result }
+def main() : int {
+    val slot : Slot = Slot.Occupied(new Resource(9))
+    return match move slot {
+        Occupied(value) if true => dispose(move value),
+        Occupied(value) => dispose(move value),
+        Empty => 0
+    }
+}
+)", "owning pattern bindings remain transferable after a successful guard");
   expect_compile_error(
       "def main() : int { return match 1 { 1 => 1, 1 => 2, _ => 0 } }",
       "literal pattern '1' is already handled");
