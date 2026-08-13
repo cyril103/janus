@@ -340,8 +340,7 @@ jobs:
           baseline_tag="$(
             gh release list --limit 50 \
               --json tagName,isDraft,isPrerelease \
-              --jq '.[] | select(.isDraft == false and .isPrerelease == false) | .tagName' \
-              | awk -v current="$current_tag" '$0 != current { print; exit }'
+              --jq "map(select(.isDraft == false and .isPrerelease == false and .tagName != \"$current_tag\"))[0].tagName // \"\""
           )"
           if [[ ! "$baseline_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Could not resolve the latest stable Janus baseline" >&2
