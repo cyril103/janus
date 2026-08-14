@@ -63,18 +63,35 @@ npm run package -- --out janus-language.vsix
 d'installation et de mise à jour gérées par `JANUS_HOME`. La CI reconstruit
 ensuite le bundle et le VSIX depuis le lockfile.
 
-## Publication Marketplace
+## Préparation et remise manuelle pour la Marketplace
 
-La publication est réservée à un tag stable `vX.Y.Z`. Le workflow
-`publish-vscode.yml` vérifie que le tag, `package.json` et `package-lock.json`
-portent exactement la même version, construit une seule fois
-`janus-language.vsix`, archive son SHA-256, puis transmet ce même fichier à
-`vsce publish --packagePath`.
+Pour chaque tag stable `vX.Y.Z`, le workflow **Prepare VS Code extension**
+checkout exactement le tag, vérifie que le tag, `package.json` et
+`package-lock.json` portent la même version, puis exécute l'installation depuis
+le lockfile, les tests et la création du VSIX. Il liste le contenu du paquet et
+dépose `janus-language.vsix` avec `janus-language.vsix.sha256` dans l'artifact
+de workflow `janus-vscode-vX.Y.Z`. Le déclenchement manuel accepte aussi un tag
+stable existant et reconstruit exclusivement son contenu.
 
-Le dépôt doit disposer de l'environnement GitHub
-`vscode-marketplace` et du secret `VSCE_PAT` associé au publisher
-`janus-lang`. Pour republier un tag existant après un incident de workflow,
-lancer manuellement **Publish VS Code extension** en indiquant ce tag ; le
-contenu reste alors celui du commit tagué. Une version déjà acceptée par la
-Marketplace ne doit jamais être remplacée : corriger, incrémenter la version et
-créer un nouveau tag.
+`janus-language.vsix` et son fichier `.sha256` restent aussi attachés à la
+GitHub Release principale par le workflow de release. Le mainteneur chargé de
+la publication Marketplace peut donc télécharger les deux fichiers depuis cette
+release ou, pour une reconstruction dédiée, depuis l'artifact **Prepare VS Code
+extension**. Depuis leur dossier de téléchargement, il vérifie impérativement
+l'empreinte avant l'upload :
+
+```bash
+sha256sum --check janus-language.vsix.sha256
+```
+
+La mise en ligne sur Visual Studio Marketplace appartient exclusivement au
+mainteneur autorisé et reste manuelle. Après validation du checksum, la commande
+informative qu'il peut exécuter lui-même avec ses propres accès locaux est :
+
+```bash
+npx vsce publish --packagePath janus-language.vsix
+```
+
+Le dépôt et la CI ne configurent, ne lisent et n'exigent aucun identifiant
+Marketplace. Une version déjà acceptée ne doit jamais être remplacée : il faut
+corriger, incrémenter la version et créer un nouveau tag.

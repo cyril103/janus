@@ -370,8 +370,11 @@ corrections structurées. Les quick fixes utilisent toujours un
 exporte le symbole ; les imports ambigus ne produisent aucune action. L'ajout
 de branches `match` reste une action explicite non préférée afin qu'elle ne
 soit jamais appliquée automatiquement. La matrice de compatibilité, les
-procédures d'installation/mise à jour et la publication Marketplace
-reproductible sont détaillées dans le README de l'extension.
+procédures d'installation/mise à jour et la préparation reproductible du VSIX
+pour remise manuelle au mainteneur autorisé sont détaillées dans le README de
+l'extension. La CI ne publie pas sur Marketplace : elle fournit le VSIX et son
+SHA-256 comme artifact, tandis que la GitHub Release principale conserve
+`janus-language.vsix` et son fichier `.sha256` parmi ses fichiers.
 
 ## Variables d'environnement
 

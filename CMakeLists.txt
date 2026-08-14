@@ -485,6 +485,19 @@ if(BUILD_TESTING)
                 "${PROJECT_SOURCE_DIR}"
     )
     add_test(
+        NAME ci.vscode_release_workflow_contract
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/check-vscode-release-workflows.py"
+                "${PROJECT_SOURCE_DIR}"
+    )
+    add_test(
+        NAME ci.vscode_release_workflow_contract.guard_self_test
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/check-vscode-release-workflows.py"
+                --self-test
+                "${PROJECT_SOURCE_DIR}"
+    )
+    add_test(
         NAME release.nightly_policy
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover
                 -s "${PROJECT_SOURCE_DIR}/tests/release"
