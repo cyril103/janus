@@ -495,6 +495,7 @@ if(BUILD_TESTING)
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/scripts/check-vscode-release-workflows.py"
                 --self-test
+                "${PROJECT_SOURCE_DIR}"
     )
     add_test(
         NAME release.nightly_policy

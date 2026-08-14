@@ -287,13 +287,33 @@ def _validate_download(step: Step, source: str, failures: list[str]) -> None:
 def validate(root: Path) -> list[str]:
     handoff_path = root / ".github/workflows/publish-vscode.yml"
     ci_path = root / ".github/workflows/ci.yml"
+    cmake_path = root / "CMakeLists.txt"
     failures: list[str] = []
     try:
         handoff_text = handoff_path.read_text(encoding="utf-8")
         handoff_jobs = parse_jobs(handoff_text, str(handoff_path.relative_to(root)))
         ci_jobs = parse_jobs(ci_path.read_text(encoding="utf-8"), str(ci_path.relative_to(root)))
+        cmake_text = cmake_path.read_text(encoding="utf-8")
     except (OSError, ValueError) as exc:
         return [str(exc)]
+
+    cmake_contract = """    add_test(
+        NAME ci.vscode_release_workflow_contract
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/check-vscode-release-workflows.py"
+                "${PROJECT_SOURCE_DIR}"
+    )
+    add_test(
+        NAME ci.vscode_release_workflow_contract.guard_self_test
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/check-vscode-release-workflows.py"
+                --self-test
+                "${PROJECT_SOURCE_DIR}"
+    )"""
+    if cmake_text.count(cmake_contract) != 1:
+        failures.append(
+            "CMakeLists.txt: workflow contract tests must both receive the source root"
+        )
 
     handoff_source = ".github/workflows/publish-vscode.yml"
     lowered_handoff = handoff_text.lower()
@@ -394,7 +414,8 @@ def validate(root: Path) -> list[str]:
 def self_test(root: Path) -> int:
     handoff = Path(".github/workflows/publish-vscode.yml")
     ci = Path(".github/workflows/ci.yml")
-    files = (handoff, ci)
+    cmake = Path("CMakeLists.txt")
+    files = (handoff, ci, cmake)
     originals = {path: (root / path).read_text(encoding="utf-8") for path in files}
     mutations = {
         "disabled handoff job": (handoff, "  handoff:\n", "  handoff:\n    if: false\n"),
@@ -422,6 +443,11 @@ def self_test(root: Path) -> int:
         "no-op command function": (ci, "          options=(--verify-tag --generate-notes)\n", "          command() { :; }\n          options=(--verify-tag --generate-notes)\n"),
         "missing handoff if-no-files-found": (handoff, "          if-no-files-found: error\n", ""),
         "disabled vscode package": (ci, "      - name: Package extension\n", "      - name: Package extension\n        if: ${{ always() && false }}\n"),
+        "missing CTest self-test root": (
+            cmake,
+            '                --self-test\n                "${PROJECT_SOURCE_DIR}"\n    )\n    add_test(\n        NAME release.nightly_policy',
+            '                --self-test\n    )\n    add_test(\n        NAME release.nightly_policy',
+        ),
     }
     checker = Path(__file__).resolve()
     modes = ((sys.executable,), (sys.executable, "-O"))
