@@ -1,0 +1,63 @@
+name: LLVM compatibility
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  supported-bounds:
+    name: LLVM ${{ matrix.llvm_version }} compatibility
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - llvm_version: "18.1.8"
+          - llvm_version: "21.1.8"
+
+    steps:
+      - name: Check out Janus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned LLVM toolchain
+        uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
+        with:
+          version: ${{ matrix.llvm_version }}
+          directory: ${{ runner.temp }}/llvm-${{ matrix.llvm_version }}
+          env: false
+
+      - name: Configure with coherent LLVM, Clang and LLD
+        shell: bash
+        run: |
+          cmake -S . -B build-llvm -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="${{ env.LLVM_PATH }}/bin/clang" \
+            -DCMAKE_CXX_COMPILER="${{ env.LLVM_PATH }}/bin/clang++" \
+            -DLLVM_DIR="${{ env.LLVM_PATH }}/lib/cmake/llvm" \
+            -DJANUS_CLANG_EXECUTABLE="${{ env.LLVM_PATH }}/bin/clang" \
+            -DJANUS_LLD_EXECUTABLE="${{ env.LLVM_PATH }}/bin/ld.lld" \
+            -DJANUS_SOURCE_SHA="$GITHUB_SHA"
+
+      - name: Build representative backend targets
+        run: >
+          cmake --build build-llvm --parallel
+          --target janus_llvm_backend compile_time_constant_test
+          backend_link_test janus
+
+      - name: Exercise backend, constants, object emission and linkage
+        run: >
+          ctest --test-dir build-llvm --output-on-failure
+          --tests-regex
+          '^(language\.compile_time_constants|backend\.link_contract|cli\.emit_llvm|cli\.emit_object|cli\.build|cli\.run)$'
+
+      - name: Build distribution
+        run: cmake --build build-llvm --parallel --target dist
+
+      - name: Smoke test packaged toolchain
+        shell: bash
+        run: scripts/smoke-test-package.sh build-llvm/janus-*.tar.gz

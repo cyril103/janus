@@ -28,6 +28,7 @@ include(GNUInstallDirs)
 include(cmake/resolve_toolchain_executable.cmake)
 
 find_package(LLVM REQUIRED CONFIG)
+include(cmake/validate_llvm_version.cmake)
 file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/generated")
 execute_process(
     COMMAND "${JANUS_PYTHON_EXECUTABLE}"
@@ -476,6 +477,12 @@ if(BUILD_TESTING)
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/scripts/check-github-actions-pins.py"
                 --self-test
+    )
+    add_test(
+        NAME build.llvm_support_policy
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/build/test_llvm_support_policy.py"
+                "${PROJECT_SOURCE_DIR}"
     )
     add_test(
         NAME release.nightly_policy
