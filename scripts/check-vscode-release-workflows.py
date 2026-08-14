@@ -316,19 +316,41 @@ def validate(root: Path) -> list[str]:
         )
 
     handoff_source = ".github/workflows/publish-vscode.yml"
-    lowered_handoff = handoff_text.lower()
-    for forbidden in ("vsce_pat", "secrets.", "vscode-marketplace"):
-        if forbidden in lowered_handoff:
-            failures.append(f"{handoff_source}: workflow contains forbidden {forbidden!r}")
-    for job in handoff_jobs.values():
-        for step in job.steps:
-            command_lines = map(_tokens, _active_lines(step.values.get("run", "")))
-            if any(
-                (tokens[1:] if tokens[:1] == ["command"] else tokens)[:3]
-                == ["npx", "vsce", "publish"]
-                for tokens in command_lines
-            ):
-                failures.append(f"{handoff_source}: workflow contains an active npx vsce publish command")
+    workflows: dict[Path, tuple[str, dict[str, Job]]] = {
+        handoff_path: (handoff_text, handoff_jobs),
+        ci_path: (ci_path.read_text(encoding="utf-8"), ci_jobs),
+    }
+    for workflow_path in sorted((root / ".github/workflows").glob("*.y*ml")):
+        if workflow_path in workflows:
+            continue
+        try:
+            workflow_text = workflow_path.read_text(encoding="utf-8")
+            workflows[workflow_path] = (
+                workflow_text,
+                parse_jobs(workflow_text, str(workflow_path.relative_to(root))),
+            )
+        except (OSError, ValueError) as exc:
+            failures.append(str(exc))
+
+    for workflow_path, (workflow_text, workflow_jobs) in workflows.items():
+        source = str(workflow_path.relative_to(root))
+        lowered = workflow_text.lower()
+        for forbidden in ("vsce_pat", "vscode-marketplace"):
+            if forbidden in lowered:
+                failures.append(f"{source}: workflow contains forbidden {forbidden!r}")
+        if workflow_path == handoff_path and "secrets." in lowered:
+            failures.append(f"{source}: workflow contains forbidden 'secrets.'")
+        for job in workflow_jobs.values():
+            for step in job.steps:
+                for tokens in map(_tokens, _active_lines(step.values.get("run", ""))):
+                    lowered_tokens = [token.lower() for token in tokens]
+                    if any(
+                        lowered_tokens[index : index + 2] == ["vsce", "publish"]
+                        for index in range(len(lowered_tokens) - 1)
+                    ):
+                        failures.append(
+                            f"{source}: workflow contains an active vsce publish command"
+                        )
     handoff = handoff_jobs.get("handoff")
     if handoff is None:
         failures.append(f"{handoff_source}: missing handoff job")
@@ -443,6 +465,11 @@ def self_test(root: Path) -> int:
         "no-op command function": (ci, "          options=(--verify-tag --generate-notes)\n", "          command() { :; }\n          options=(--verify-tag --generate-notes)\n"),
         "missing handoff if-no-files-found": (handoff, "          if-no-files-found: error\n", ""),
         "disabled vscode package": (ci, "      - name: Package extension\n", "      - name: Package extension\n        if: ${{ always() && false }}\n"),
+        "Marketplace publish hidden in main release": (
+            ci,
+            "      - name: Update release channel\n",
+            "      - name: Publish extension to Marketplace\n        run: npx vsce publish --packagePath dist/release/janus-language.vsix\n\n      - name: Update release channel\n",
+        ),
         "missing CTest self-test root": (
             cmake,
             '                --self-test\n                "${PROJECT_SOURCE_DIR}"\n    )\n    add_test(\n        NAME release.nightly_policy',
