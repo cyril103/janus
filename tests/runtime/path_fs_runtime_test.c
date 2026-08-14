@@ -30,6 +30,7 @@ int32_t janus_fs_create_temporary_directory(const char *prefix,
                                             char **output,
                                             uint64_t *output_length);
 int32_t janus_fs_remove_directory(const char *path, uint64_t length);
+int32_t janus_fs_remove_directory_all(const char *path, uint64_t length);
 int32_t janus_fs_metadata(const char *path, uint64_t length, int32_t *kind,
                           uint64_t *size);
 intptr_t janus_fs_directory_open(const char *path, uint64_t length);
@@ -148,22 +149,51 @@ int main(void) {
   CHECK(janus_fs_directory_close(directory) == 0);
 
 #if !defined(_WIN32)
+  char *outside = NULL;
+  uint64_t outside_length = 0;
+  CHECK(janus_fs_create_temporary_directory(
+            "janus-outside", (uint64_t)strlen("janus-outside"), &outside,
+            &outside_length) == 0);
+  char *outside_file = NULL;
+  uint64_t outside_file_length = 0;
+  CHECK(janus_path_join(outside, outside_length, "target.txt", 10,
+                        &outside_file, &outside_file_length) == 0);
+  CHECK(janus_fs_write_file_atomic(outside_file, outside_file_length, "safe",
+                                   4) == 0);
+  char *directory_link = NULL;
+  uint64_t directory_link_length = 0;
+  CHECK(janus_path_join(nested, nested_length, "directory-link", 14,
+                        &directory_link, &directory_link_length) == 0);
+  CHECK(symlink(outside, directory_link) == 0);
+  const intptr_t linked_directory =
+      janus_fs_directory_open(directory_link, directory_link_length);
+  CHECK(linked_directory >= 0);
+  CHECK(janus_fs_directory_close(linked_directory) == 0);
+  CHECK(janus_system_remove(directory_link, directory_link_length) == 0);
+  janus_fs_free(directory_link);
   char *link = NULL;
   uint64_t link_length = 0;
   CHECK(janus_path_join(nested, nested_length, "lien", (uint64_t)strlen("lien"),
                         &link, &link_length) == 0);
-  CHECK(symlink("données.txt", link) == 0);
+  CHECK(symlink(outside, link) == 0);
   CHECK(janus_fs_metadata(link, link_length, &kind, &size) == 0);
   CHECK(kind == JANUS_FS_SYMBOLIC_LINK);
-  CHECK(janus_system_remove(link, link_length) == 0);
-  CHECK(janus_fs_metadata(file, file_length, &kind, &size) == 0);
-  CHECK(kind == JANUS_FS_FILE);
   janus_fs_free(link);
 #endif
 
-  CHECK(janus_system_remove(file, file_length) == 0);
-  CHECK(janus_fs_remove_directory(nested, nested_length) == 0);
-  CHECK(janus_fs_remove_directory(temporary, temporary_length) == 0);
+  CHECK(janus_fs_remove_directory_all(temporary, temporary_length) == 0);
+  CHECK(janus_fs_remove_directory_all(temporary, temporary_length) == 0);
+#if !defined(_WIN32)
+  CHECK(janus_fs_metadata(outside, outside_length, &kind, &size) == 0);
+  CHECK(kind == JANUS_FS_DIRECTORY);
+  CHECK(janus_fs_metadata(outside_file, outside_file_length, &kind, &size) ==
+        0);
+  CHECK(kind == JANUS_FS_FILE);
+  CHECK(janus_system_remove(outside_file, outside_file_length) == 0);
+  CHECK(janus_fs_remove_directory(outside, outside_length) == 0);
+  janus_fs_free(outside_file);
+  janus_fs_free(outside);
+#endif
   janus_fs_free(file);
   janus_fs_free(nested);
   janus_fs_free(temporary);

@@ -59,6 +59,22 @@ les noms immédiats, sans `.` ni `..`, dans l’ordre natif non garanti. `close`
 invalide le handle avant la fermeture ; le destructeur ne ferme qu’un handle
 encore ouvert. `removeDirectory` ne supprime qu’un répertoire vide.
 
+`removeDirectoryAll` supprime les descendants profondeur d’abord puis la
+racine. Les métadonnées sont lues sans suivre le dernier lien et une entrée
+symbolique est supprimée comme entrée : sa cible reste intacte. La racine déjà
+absente, ou une entrée qui disparaît pendant le parcours, est un succès ; cette
+politique rend l’appel idempotent. Toute autre erreur arrête le parcours et
+conserve l’opération « directory.removeAll », la catégorie et le code natifs ainsi que la
+racine empruntée dans `SystemError.context`. Le type copiable `SystemError` ne
+possédant pas ses chaînes, exposer un chemin descendant alloué créerait soit
+une vue pendante soit une fuite ; la racine est donc le plus petit contexte
+stable permis par la représentation actuelle. Les handles de parcours sont
+fermés avant tout retour, en préservant l’erreur initiale si la fermeture de
+repli échoue. Le parcours reste fondé sur des chemins et ne garantit donc pas
+une opération atomique face à des substitutions hostiles concurrentes. Une
+entrée ou la racine qui disparaît avec `NotFound` reste néanmoins un succès
+idempotent.
+
 Depuis la révision 0.7.4, le handle invalidé est l'unique état de fermeture de
 `DirectoryIterator`. Une seconde fermeture retourne précisément l'opération
 « directory.close », la catégorie `InvalidInput`, le code natif zéro et le
@@ -86,5 +102,6 @@ Windows x86_64. Le cas de lien symbolique est exercé sur POSIX, où sa créatio
 ne requiert pas de privilège supplémentaire.
 
 Les fixtures 0.7.4 vérifient en plus les quatre champs des erreurs de fichier
-absent et de fermeture répétée. La surface publique est inchangée et ne
-requiert donc aucune migration.
+absent et de fermeture répétée. La révision #238 ajoute la suppression
+récursive et vérifie aussi qu’un lien POSIX vers une cible extérieure ne la
+supprime pas.

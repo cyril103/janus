@@ -40,6 +40,7 @@ enum {
 
 void janus_system_clear_error(void);
 void janus_system_set_error(uint32_t native_code, int32_t portable_category);
+int32_t janus_system_remove(const char *path, uint64_t length);
 int janus_system_valid_utf8(const unsigned char *data, uint64_t size);
 uint32_t janus_system_error_code(void);
 int32_t janus_system_error_category(void);
@@ -51,6 +52,127 @@ wchar_t *janus_system_windows_path(const char *path, uint64_t length);
 void janus_system_capture_posix_error(void);
 char *janus_system_posix_path(const char *path, uint64_t length);
 #endif
+
+void janus_fs_free(void *data);
+static unsigned char janus_path_native_separator(void);
+static void janus_fs_out_of_memory(void);
+static int janus_path_valid(const char *path, uint64_t length);
+int32_t janus_fs_remove_directory(const char *path, uint64_t length);
+int32_t janus_fs_metadata(const char *path, uint64_t length, int32_t *kind,
+                          uint64_t *size);
+intptr_t janus_fs_directory_open(const char *path, uint64_t length);
+int32_t janus_fs_directory_next(intptr_t handle, char **output,
+                                uint64_t *output_length);
+int32_t janus_fs_directory_close(intptr_t handle);
+
+#if !defined(_WIN32)
+static intptr_t janus_fs_directory_open_no_follow(const char *path,
+                                                  uint64_t length);
+#endif
+
+static int janus_fs_remove_directory_all_impl(const char *path,
+                                              uint64_t length) {
+  int32_t kind = JANUS_FS_OTHER;
+  uint64_t size = 0;
+  if (janus_fs_metadata(path, length, &kind, &size) != 0) {
+    if (janus_system_error_category() == JANUS_SYSTEM_NOT_FOUND) {
+      janus_system_clear_error();
+      return 0;
+    }
+    return -1;
+  }
+
+  if (kind != JANUS_FS_DIRECTORY) {
+    if (janus_system_remove(path, length) == 0)
+      return 0;
+#if defined(_WIN32)
+    if (kind == JANUS_FS_SYMBOLIC_LINK &&
+        janus_fs_remove_directory(path, length) == 0)
+      return 0;
+#endif
+    if (janus_system_error_category() == JANUS_SYSTEM_NOT_FOUND) {
+      janus_system_clear_error();
+      return 0;
+    }
+    return -1;
+  }
+
+#if defined(_WIN32)
+  const intptr_t handle = janus_fs_directory_open(path, length);
+#else
+  const intptr_t handle = janus_fs_directory_open_no_follow(path, length);
+#endif
+  if (handle < 0) {
+    if (janus_system_error_category() == JANUS_SYSTEM_NOT_FOUND) {
+      janus_system_clear_error();
+      return 0;
+    }
+    return -1;
+  }
+
+  for (;;) {
+    char *entry = NULL;
+    uint64_t entry_length = 0;
+    const int32_t next = janus_fs_directory_next(handle, &entry, &entry_length);
+    if (next < 0) {
+      const uint32_t code = janus_system_error_code();
+      const int32_t category = janus_system_error_category();
+      (void)janus_fs_directory_close(handle);
+      janus_system_set_error(code, category);
+      return -1;
+    }
+    if (next == 0)
+      break;
+    if (length > SIZE_MAX - (size_t)entry_length - 2) {
+      janus_fs_free(entry);
+      (void)janus_fs_directory_close(handle);
+      janus_fs_out_of_memory();
+      return -1;
+    }
+    const size_t child_length = (size_t)length + (size_t)entry_length + 1;
+    char *child = (char *)malloc(child_length + 1);
+    if (child == NULL) {
+      janus_fs_free(entry);
+      (void)janus_fs_directory_close(handle);
+      janus_fs_out_of_memory();
+      return -1;
+    }
+    memcpy(child, path, (size_t)length);
+    child[length] = (char)janus_path_native_separator();
+    memcpy(child + length + 1, entry, (size_t)entry_length);
+    child[child_length] = '\0';
+    janus_fs_free(entry);
+    const int removed =
+        janus_fs_remove_directory_all_impl(child, (uint64_t)child_length);
+    free(child);
+    if (removed != 0) {
+      const uint32_t code = janus_system_error_code();
+      const int32_t category = janus_system_error_category();
+      (void)janus_fs_directory_close(handle);
+      janus_system_set_error(code, category);
+      return -1;
+    }
+  }
+
+  if (janus_fs_directory_close(handle) != 0)
+    return -1;
+  if (janus_fs_remove_directory(path, length) == 0)
+    return 0;
+  if (janus_system_error_category() == JANUS_SYSTEM_NOT_FOUND) {
+    janus_system_clear_error();
+    return 0;
+  }
+  return -1;
+}
+
+int32_t janus_fs_remove_directory_all(const char *path, uint64_t length) {
+  if (!janus_path_valid(path, length))
+    return -1;
+  const int result = janus_fs_remove_directory_all_impl(path, length);
+  if (result == 0)
+    janus_system_clear_error();
+  return result;
+}
 
 void janus_fs_free(void *data) { free(data); }
 void janus_path_free(void *data) { free(data); }
@@ -1102,6 +1224,29 @@ intptr_t janus_fs_directory_open(const char *path, uint64_t length) {
   DIR *directory = opendir(native);
   free(native);
   if (directory == NULL) {
+    janus_system_capture_posix_error();
+    return -1;
+  }
+  janus_system_clear_error();
+  return (intptr_t)directory;
+}
+
+static intptr_t janus_fs_directory_open_no_follow(const char *path,
+                                                  uint64_t length) {
+  char *native = janus_system_posix_path(path, length);
+  if (native == NULL)
+    return -1;
+  const int descriptor = open(native, O_RDONLY | O_DIRECTORY | O_NOFOLLOW);
+  free(native);
+  if (descriptor < 0) {
+    janus_system_capture_posix_error();
+    return -1;
+  }
+  DIR *directory = fdopendir(descriptor);
+  if (directory == NULL) {
+    const int open_error = errno;
+    close(descriptor);
+    errno = open_error;
     janus_system_capture_posix_error();
     return -1;
   }

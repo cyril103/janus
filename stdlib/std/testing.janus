@@ -20,25 +20,45 @@ import std.system
 
 /// Possède un répertoire temporaire unique et le supprime à sa destruction.
 ///
-/// La suppression porte sur un répertoire vide. Détruisez ou supprimez son
-/// contenu avant l’objet ; `preserve` permet de conserver le répertoire pour
-/// une inspection après le test.
+/// [[cleanup]] expose le résultat du nettoyage récursif et idempotent. Le
+/// destructeur applique le même nettoyage en best-effort lorsque `preserve`
+/// vaut `false`; `true` conserve toute l’arborescence pour inspection.
 /// @param location Chemin propriétaire du répertoire déjà créé.
 /// @param preserve Politique de conservation appliquée à la destruction.
 class TestTemporaryDirectory(
 private val location : Path,
 private val preserve : bool
 ) {
+    private var cleaned : bool = false
+
     /// Emprunte le chemin natif du répertoire.
     /// @return Vue valide jusqu’à la destruction de cette ressource.
     def path() : string {
         return location.view()
     }
 
+    /// Supprime récursivement le répertoire temporaire de façon observable.
+    ///
+    /// Après un premier succès, les appels suivants retournent `Ok(true)` sans
+    /// retoucher le chemin, afin de ne pas supprimer une éventuelle ressource
+    /// recréée au même emplacement.
+    /// @return `Ok(true)` après nettoyage ou après un succès précédent, ou l’erreur structurée du premier échec.
+    def cleanup() : Result[bool, SystemError] {
+        if cleaned {
+            return Result.Ok[bool, SystemError](true)
+        }
+        val removed : Result[bool, SystemError] =
+        removeDirectoryAll(location.view())
+        if isOk[bool, SystemError](removed) {
+            cleaned = true
+        }
+        return removed
+    }
+
     destructor {
-        if !preserve {
+        if !preserve && !cleaned {
             val removed : Result[bool, SystemError] =
-            removeDirectory(location.view())
+            this.cleanup()
             isOk[bool, SystemError](removed)
         }
         delete location
