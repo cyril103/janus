@@ -118,11 +118,15 @@ jobs:
             llvm_dir: /usr/lib/llvm-18/lib/cmake/llvm
             cc: /usr/lib/llvm-18/bin/clang
             cxx: /usr/lib/llvm-18/bin/clang++
+            janus_clang: /usr/lib/llvm-18/bin/clang
+            janus_lld: /usr/lib/llvm-18/bin/ld.lld
           - name: macOS ARM64
             os: macos-14
-            llvm_dir: /opt/homebrew/opt/llvm/lib/cmake/llvm
+            llvm_dir: /opt/homebrew/opt/llvm@21/lib/cmake/llvm
             cc: /usr/bin/clang
             cxx: /usr/bin/clang++
+            janus_clang: /opt/homebrew/opt/llvm@21/bin/clang
+            janus_lld: /opt/homebrew/opt/lld@21/bin/ld.lld
           - name: Windows x86_64
             os: windows-2025
 
@@ -134,6 +138,8 @@ jobs:
       MATRIX_CC: ${{ matrix.cc }}
       MATRIX_CXX: ${{ matrix.cxx }}
       MATRIX_LLVM_DIR: ${{ matrix.llvm_dir }}
+      MATRIX_JANUS_CLANG: ${{ matrix.janus_clang }}
+      MATRIX_JANUS_LLD: ${{ matrix.janus_lld }}
 
     steps:
       - name: Check out Janus
@@ -149,9 +155,9 @@ jobs:
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install llvm lld ninja
-          echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
-          echo "/opt/homebrew/opt/lld/bin" >> "$GITHUB_PATH"
+          brew install llvm@21 lld@21 ninja
+          echo "/opt/homebrew/opt/llvm@21/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/opt/lld@21/bin" >> "$GITHUB_PATH"
 
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
@@ -169,6 +175,20 @@ jobs:
             mingw-w64-clang-x86_64-llvm
             mingw-w64-clang-x86_64-python
 
+      - name: Pin Windows LLVM stack to 21.1.8
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          base=https://repo.msys2.org/mingw/clang64
+          pacman --noconfirm -U \
+            "$base/mingw-w64-clang-x86_64-llvm-libs-21.1.8-4-any.pkg.tar.zst" \
+            "$base/mingw-w64-clang-x86_64-llvm-tools-21.1.8-4-any.pkg.tar.zst" \
+            "$base/mingw-w64-clang-x86_64-llvm-21.1.8-4-any.pkg.tar.zst" \
+            "$base/mingw-w64-clang-x86_64-compiler-rt-21.1.8-4-any.pkg.tar.zst" \
+            "$base/mingw-w64-clang-x86_64-lld-21.1.8-4-any.pkg.tar.zst" \
+            "$base/mingw-w64-clang-x86_64-clang-libs-21.1.8-4-any.pkg.tar.zst" \
+            "$base/mingw-w64-clang-x86_64-clang-21.1.8-4-any.pkg.tar.zst"
+
       - name: Configure
         if: runner.os != 'Windows'
         shell: bash
@@ -178,6 +198,8 @@ jobs:
           -DCMAKE_C_COMPILER="$MATRIX_CC"
           -DCMAKE_CXX_COMPILER="$MATRIX_CXX"
           -DLLVM_DIR="$MATRIX_LLVM_DIR"
+          -DJANUS_CLANG_EXECUTABLE="$MATRIX_JANUS_CLANG"
+          -DJANUS_LLD_EXECUTABLE="$MATRIX_JANUS_LLD"
           -DJANUS_SOURCE_SHA="$GITHUB_SHA"
 
       - name: Configure on Windows
@@ -189,6 +211,8 @@ jobs:
           -DCMAKE_C_COMPILER=/clang64/bin/clang.exe
           -DCMAKE_CXX_COMPILER=/clang64/bin/clang++.exe
           -DLLVM_DIR=/clang64/lib/cmake/llvm
+          -DJANUS_CLANG_EXECUTABLE=/clang64/bin/clang.exe
+          -DJANUS_LLD_EXECUTABLE=/clang64/bin/ld.lld.exe
           -DJANUS_SOURCE_SHA="$GITHUB_SHA"
 
       - name: Build

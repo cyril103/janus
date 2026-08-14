@@ -1,0 +1,83 @@
+name: LLVM compatibility
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  supported-bounds:
+    name: LLVM ${{ matrix.llvm_version }} compatibility
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - llvm_version: "18"
+          - llvm_version: "21.1.8"
+
+    steps:
+      - name: Check out Janus
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install LLVM 18 distribution packages
+        if: matrix.llvm_version == '18'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-18 lld-18 llvm-18-dev ninja-build
+
+      - name: Install pinned LLVM 21 toolchain
+        if: matrix.llvm_version == '21.1.8'
+        uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
+        with:
+          version: ${{ matrix.llvm_version }}
+          directory: ${{ runner.temp }}/llvm-${{ matrix.llvm_version }}
+          env: false
+
+      - name: Select coherent LLVM root
+        shell: bash
+        run: |
+          if [[ "${{ matrix.llvm_version }}" == "18" ]]; then
+            llvm_root=/usr/lib/llvm-18
+          else
+            llvm_root="$LLVM_PATH"
+          fi
+          test -x "$llvm_root/bin/clang"
+          test -x "$llvm_root/bin/ld.lld"
+          echo "LLVM_ROOT=$llvm_root" >> "$GITHUB_ENV"
+
+      - name: Configure with coherent LLVM, Clang and LLD
+        shell: bash
+        run: |
+          cmake -S . -B build-llvm -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_C_COMPILER="$LLVM_ROOT/bin/clang" \
+            -DCMAKE_CXX_COMPILER="$LLVM_ROOT/bin/clang++" \
+            -DLLVM_DIR="$LLVM_ROOT/lib/cmake/llvm" \
+            -DJANUS_CLANG_EXECUTABLE="$LLVM_ROOT/bin/clang" \
+            -DJANUS_LLD_EXECUTABLE="$LLVM_ROOT/bin/ld.lld" \
+            -DJANUS_SOURCE_SHA="$GITHUB_SHA"
+
+      - name: Build representative backend targets
+        run: >
+          cmake --build build-llvm --parallel
+          --target janus_llvm_backend compile_time_constant_test
+          backend_link_test janus
+
+      - name: Exercise backend, constants, object emission and linkage
+        run: >
+          ctest --test-dir build-llvm --output-on-failure
+          --tests-regex
+          '^(language\.compile_time_constants|backend\.link_contract|cli\.emit_llvm|cli\.emit_object|cli\.build|cli\.run)$'
+
+      - name: Build distribution
+        run: cmake --build build-llvm --parallel --target dist
+
+      - name: Smoke test packaged toolchain
+        shell: bash
+        run: scripts/smoke-test-package.sh build-llvm/janus-*.tar.gz

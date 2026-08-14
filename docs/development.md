@@ -8,10 +8,13 @@ Pour écrire des programmes Janus, utilisez plutôt les paquets officiels.
 - un compilateur C++20 ;
 - CMake 3.21 ou plus récent ;
 - Ninja ;
-- LLVM et ses fichiers de développement ;
-- Clang et LLD.
+- LLVM et ses fichiers de développement, version majeure 18 à 21 incluse ;
+- Clang et LLD issus de la même installation LLVM.
 
-La CI de référence utilise LLVM 18 sous Ubuntu.
+LLVM 18 est la version minimale officiellement supportée. LLVM 21 est la
+dernière version testée et la version maximale supportée ; la matrice Linux
+valide explicitement les versions exactes 18.1.8 et 21.1.8. CMake refuse une
+version majeure antérieure à 18 ou postérieure à 21 avec un diagnostic ciblé.
 
 Sur Ubuntu 24.04 :
 
@@ -32,6 +35,23 @@ cmake -S . -B build -G Ninja \
 
 cmake --build build --parallel
 ```
+
+Pour choisir une autre version supportée, utilisez une seule installation
+LLVM et gardez `LLVM_DIR`, les compilateurs Clang et LLD cohérents. Par exemple,
+si LLVM 21.1.8 est installé sous `/opt/llvm-21.1.8` :
+
+```bash
+cmake -S . -B build-llvm21 -G Ninja \
+  -DCMAKE_C_COMPILER=/opt/llvm-21.1.8/bin/clang \
+  -DCMAKE_CXX_COMPILER=/opt/llvm-21.1.8/bin/clang++ \
+  -DLLVM_DIR=/opt/llvm-21.1.8/lib/cmake/llvm \
+  -DJANUS_CLANG_EXECUTABLE=/opt/llvm-21.1.8/bin/clang \
+  -DJANUS_LLD_EXECUTABLE=/opt/llvm-21.1.8/bin/ld.lld
+```
+
+Ne mélangez pas un `LLVM_DIR` d'une version avec le Clang ou LLD d'une autre :
+Janus utilise LLVM pour générer les objets, puis ces outils pour compiler le
+runtime et effectuer l'édition de liens.
 
 Les principaux exécutables sont :
 
