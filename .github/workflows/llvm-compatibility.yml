@@ -18,9 +18,7 @@ jobs:
       matrix:
         include:
           - llvm_version: "18"
-            llvm_root: /usr/lib/llvm-18
           - llvm_version: "21.1.8"
-            llvm_root: ${{ github.workspace }}/.llvm/21.1.8
 
     steps:
       - name: Check out Janus
@@ -37,19 +35,31 @@ jobs:
         uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
         with:
           version: ${{ matrix.llvm_version }}
-          directory: ${{ matrix.llvm_root }}
+          directory: ${{ runner.temp }}/llvm-${{ matrix.llvm_version }}
           env: false
+
+      - name: Select coherent LLVM root
+        shell: bash
+        run: |
+          if [[ "${{ matrix.llvm_version }}" == "18" ]]; then
+            llvm_root=/usr/lib/llvm-18
+          else
+            llvm_root="$LLVM_PATH"
+          fi
+          test -x "$llvm_root/bin/clang"
+          test -x "$llvm_root/bin/ld.lld"
+          echo "LLVM_ROOT=$llvm_root" >> "$GITHUB_ENV"
 
       - name: Configure with coherent LLVM, Clang and LLD
         shell: bash
         run: |
           cmake -S . -B build-llvm -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER="${{ matrix.llvm_root }}/bin/clang" \
-            -DCMAKE_CXX_COMPILER="${{ matrix.llvm_root }}/bin/clang++" \
-            -DLLVM_DIR="${{ matrix.llvm_root }}/lib/cmake/llvm" \
-            -DJANUS_CLANG_EXECUTABLE="${{ matrix.llvm_root }}/bin/clang" \
-            -DJANUS_LLD_EXECUTABLE="${{ matrix.llvm_root }}/bin/ld.lld" \
+            -DCMAKE_C_COMPILER="$LLVM_ROOT/bin/clang" \
+            -DCMAKE_CXX_COMPILER="$LLVM_ROOT/bin/clang++" \
+            -DLLVM_DIR="$LLVM_ROOT/lib/cmake/llvm" \
+            -DJANUS_CLANG_EXECUTABLE="$LLVM_ROOT/bin/clang" \
+            -DJANUS_LLD_EXECUTABLE="$LLVM_ROOT/bin/ld.lld" \
             -DJANUS_SOURCE_SHA="$GITHUB_SHA"
 
       - name: Build representative backend targets

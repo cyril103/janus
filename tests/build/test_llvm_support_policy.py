@@ -124,16 +124,12 @@ def validate_workflow(document: str) -> list[str]:
         matrix = child_block(strategy, "matrix", 4)
         include = child_block(matrix, "include", 6)
         versions = []
-        roots = []
         for line in include:
             match = re.fullmatch(r"- llvm_version:\s*[\"']?([0-9.]+)[\"']?", line.text)
-            root_match = re.fullmatch(r"llvm_root:\s*(.+)", line.text)
             if line.indent == 10 and match:
                 versions.append(match.group(1))
-            elif line.indent == 12 and root_match:
-                roots.append(root_match.group(1))
             elif line.indent >= 10:
-                errors.append("matrix entries may only contain llvm_version and llvm_root")
+                errors.append("matrix entries may only contain llvm_version")
         steps = parse_steps(job)
     except ValueError as error:
         return [str(error)]
@@ -151,14 +147,13 @@ def validate_workflow(document: str) -> list[str]:
         errors.append("supported-bounds job must not have continue-on-error")
     if versions != ["18", "21.1.8"]:
         errors.append("matrix must contain exactly LLVM 18 and 21.1.8")
-    if roots != ["/usr/lib/llvm-18", "${{ github.workspace }}/.llvm/21.1.8"]:
-        errors.append("matrix must select the approved LLVM 18 and 21 roots")
 
     names = [step.get("name", "") for step in steps]
     expected_names = [
         "Check out Janus",
         "Install LLVM 18 distribution packages",
         "Install pinned LLVM 21 toolchain",
+        "Select coherent LLVM root",
         "Configure with coherent LLVM, Clang and LLD",
         "Build representative backend targets",
         "Exercise backend, constants, object emission and linkage",
@@ -183,23 +178,33 @@ def validate_workflow(document: str) -> list[str]:
         expected_names[1]: normalized("""sudo apt-get update
             sudo apt-get install --yes clang-18 lld-18 llvm-18-dev ninja-build"""),
         expected_names[3]: " ".join((
+            'if [[ "${{ matrix.llvm_version }}" == "18" ]]; then',
+            "llvm_root=/usr/lib/llvm-18",
+            "else",
+            'llvm_root="$LLVM_PATH"',
+            "fi",
+            'test -x "$llvm_root/bin/clang"',
+            'test -x "$llvm_root/bin/ld.lld"',
+            'echo "LLVM_ROOT=$llvm_root" >> "$GITHUB_ENV"',
+        )),
+        expected_names[4]: " ".join((
             "cmake -S . -B build-llvm -G Ninja \\",
             "-DCMAKE_BUILD_TYPE=Release \\",
-            '-DCMAKE_C_COMPILER="${{ matrix.llvm_root }}/bin/clang" \\',
-            '-DCMAKE_CXX_COMPILER="${{ matrix.llvm_root }}/bin/clang++" \\',
-            '-DLLVM_DIR="${{ matrix.llvm_root }}/lib/cmake/llvm" \\',
-            '-DJANUS_CLANG_EXECUTABLE="${{ matrix.llvm_root }}/bin/clang" \\',
-            '-DJANUS_LLD_EXECUTABLE="${{ matrix.llvm_root }}/bin/ld.lld" \\',
+            '-DCMAKE_C_COMPILER="$LLVM_ROOT/bin/clang" \\',
+            '-DCMAKE_CXX_COMPILER="$LLVM_ROOT/bin/clang++" \\',
+            '-DLLVM_DIR="$LLVM_ROOT/lib/cmake/llvm" \\',
+            '-DJANUS_CLANG_EXECUTABLE="$LLVM_ROOT/bin/clang" \\',
+            '-DJANUS_LLD_EXECUTABLE="$LLVM_ROOT/bin/ld.lld" \\',
             '-DJANUS_SOURCE_SHA="$GITHUB_SHA"',
         )),
-        expected_names[4]: normalized("""cmake --build build-llvm --parallel
+        expected_names[5]: normalized("""cmake --build build-llvm --parallel
             --target janus_llvm_backend compile_time_constant_test
             backend_link_test janus"""),
-        expected_names[5]: normalized("""ctest --test-dir build-llvm --output-on-failure
+        expected_names[6]: normalized("""ctest --test-dir build-llvm --output-on-failure
             --tests-regex
             '^(language\\.compile_time_constants|backend\\.link_contract|cli\\.emit_llvm|cli\\.emit_object|cli\\.build|cli\\.run)$'"""),
-        expected_names[6]: "cmake --build build-llvm --parallel --target dist",
-        expected_names[7]: "scripts/smoke-test-package.sh build-llvm/janus-*.tar.gz",
+        expected_names[7]: "cmake --build build-llvm --parallel --target dist",
+        expected_names[8]: "scripts/smoke-test-package.sh build-llvm/janus-*.tar.gz",
     }
     by_name = {step["name"]: step for step in steps}
     checkout = by_name[expected_names[0]].get("uses", "")
@@ -210,14 +215,16 @@ def validate_workflow(document: str) -> list[str]:
         errors.append("install-llvm-action must use the approved exact SHA")
     expected_install_inputs = {
         "with.version": "${{ matrix.llvm_version }}",
-        "with.directory": "${{ matrix.llvm_root }}",
+        "with.directory": "${{ runner.temp }}/llvm-${{ matrix.llvm_version }}",
         "with.env": "false",
     }
     if {key: install.get(key) for key in expected_install_inputs} != expected_install_inputs:
         errors.append("install-llvm-action inputs must select the pinned matrix toolchain")
     if by_name[expected_names[3]].get("shell") != "bash":
+        errors.append("LLVM root selection step must use bash")
+    if by_name[expected_names[4]].get("shell") != "bash":
         errors.append("configure step must use bash")
-    if by_name[expected_names[7]].get("shell") != "bash":
+    if by_name[expected_names[8]].get("shell") != "bash":
         errors.append("package smoke step must use bash")
     for name, command in expected_runs.items():
         if normalized(by_name[name].get("run", "")) != command:
@@ -324,9 +331,9 @@ class LlvmCompatibilityWorkflowTest(unittest.TestCase):
 
     def test_rejects_incoherent_llvm_clang_or_lld_path(self) -> None:
         mutations = (
-            ('LLVM_DIR="${{ matrix.llvm_root }}/lib/cmake/llvm"', 'LLVM_DIR="/opt/other/lib/cmake/llvm"'),
-            ('JANUS_CLANG_EXECUTABLE="${{ matrix.llvm_root }}/bin/clang"', 'JANUS_CLANG_EXECUTABLE="/usr/bin/clang"'),
-            ('JANUS_LLD_EXECUTABLE="${{ matrix.llvm_root }}/bin/ld.lld"', 'JANUS_LLD_EXECUTABLE="/usr/bin/ld.lld"'),
+            ('LLVM_DIR="$LLVM_ROOT/lib/cmake/llvm"', 'LLVM_DIR="/opt/other/lib/cmake/llvm"'),
+            ('JANUS_CLANG_EXECUTABLE="$LLVM_ROOT/bin/clang"', 'JANUS_CLANG_EXECUTABLE="/usr/bin/clang"'),
+            ('JANUS_LLD_EXECUTABLE="$LLVM_ROOT/bin/ld.lld"', 'JANUS_LLD_EXECUTABLE="/usr/bin/ld.lld"'),
         )
         for old, new in mutations:
             with self.subTest(old=old):
