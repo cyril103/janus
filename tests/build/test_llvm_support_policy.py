@@ -355,6 +355,23 @@ class LlvmCompatibilityWorkflowTest(unittest.TestCase):
                 self.assertIn(fragment, main_ci)
         self.assertNotIn("brew install llvm lld ninja", main_ci)
 
+    def test_main_windows_job_uses_pinned_coherent_llvm_21(self) -> None:
+        main_ci = MAIN_CI.read_text(encoding="utf-8")
+        required = (
+            "Install pinned Windows LLVM 21 toolchain",
+            f"KyleMayes/install-llvm-action@{INSTALL_LLVM_SHA}",
+            "version: 21.1.8",
+            '${{ runner.temp }}/llvm-21.1.8',
+            'llvm_root="$(cygpath -u "$LLVM_PATH")"',
+            '-DLLVM_DIR="$llvm_root/lib/cmake/llvm"',
+            '-DJANUS_CLANG_EXECUTABLE="$llvm_root/bin/clang.exe"',
+            '-DJANUS_LLD_EXECUTABLE="$llvm_root/bin/ld.lld.exe"',
+        )
+        for fragment in required:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, main_ci)
+        self.assertNotIn("mingw-w64-clang-x86_64-llvm\n", main_ci)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
