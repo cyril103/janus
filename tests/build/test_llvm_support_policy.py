@@ -358,20 +358,23 @@ class LlvmCompatibilityWorkflowTest(unittest.TestCase):
     def test_main_windows_job_uses_pinned_coherent_llvm_21(self) -> None:
         main_ci = MAIN_CI.read_text(encoding="utf-8")
         required = (
-            "Install pinned Windows LLVM 21 toolchain",
-            f"KyleMayes/install-llvm-action@{INSTALL_LLVM_SHA}",
-            "version: 21.1.8",
-            '${{ runner.temp }}/llvm-21.1.8',
-            'llvm_root="$(cygpath -u "$LLVM_PATH")"',
-            '-DCMAKE_RC_COMPILER="$llvm_root/bin/llvm-rc.exe"',
-            '-DLLVM_DIR="$llvm_root/lib/cmake/llvm"',
-            '-DJANUS_CLANG_EXECUTABLE="$llvm_root/bin/clang.exe"',
-            '-DJANUS_LLD_EXECUTABLE="$llvm_root/bin/ld.lld.exe"',
+            "Pin Windows LLVM stack to 21.1.8",
+            "https://repo.msys2.org/mingw/clang64",
+            "mingw-w64-clang-x86_64-llvm-libs-21.1.8-4-any.pkg.tar.zst",
+            "mingw-w64-clang-x86_64-llvm-tools-21.1.8-4-any.pkg.tar.zst",
+            "mingw-w64-clang-x86_64-llvm-21.1.8-4-any.pkg.tar.zst",
+            "mingw-w64-clang-x86_64-compiler-rt-21.1.8-4-any.pkg.tar.zst",
+            "mingw-w64-clang-x86_64-lld-21.1.8-4-any.pkg.tar.zst",
+            "mingw-w64-clang-x86_64-clang-libs-21.1.8-4-any.pkg.tar.zst",
+            "mingw-w64-clang-x86_64-clang-21.1.8-4-any.pkg.tar.zst",
+            "-DLLVM_DIR=/clang64/lib/cmake/llvm",
+            "-DJANUS_CLANG_EXECUTABLE=/clang64/bin/clang.exe",
+            "-DJANUS_LLD_EXECUTABLE=/clang64/bin/ld.lld.exe",
         )
         for fragment in required:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, main_ci)
-        self.assertNotIn("mingw-w64-clang-x86_64-llvm\n", main_ci)
+        self.assertEqual(main_ci.count("-21.1.8-4-any.pkg.tar.zst"), 7)
 
 
 if __name__ == "__main__":
