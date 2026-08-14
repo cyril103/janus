@@ -561,7 +561,7 @@ match loaded {<br>
     Ok(file) =&gt; println(file.view()),<br>
     Error(error) =&gt; println(error.context)<br>
 }<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">24</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">25</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-fs-directoryiterator" data-symbol data-search="std.fs.DirectoryIterator class class DirectoryIterator(var nativeHandle : isize, val directoryContext : string) Parcours propriétaire et à usage unique des entrées d’un répertoire.
 
@@ -686,6 +686,32 @@ Le répertoire est effectivement créé et reste à supprimer par l’appelant.
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>path</code></td><td><code>string</code></td><td>Chemin natif du répertoire ; aucun parcours récursif n’est réalisé par cette fonction.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[bool, SystemError]</code> — `Ok(true)` après suppression, ou `Error(SystemError)` avec l’opération `directory.remove`.</p></section>
 <div class="qualified">std.fs.removeDirectory</div></div><a class="permalink" href="#std-fs-removedirectory" aria-label="Permanent link to std.fs.removeDirectory">#</a></article>
+<article class="symbol-card kind-function" id="std-fs-removedirectoryall" data-symbol data-search="std.fs.removeDirectoryAll function def removeDirectoryAll(path : string) : Result[bool, SystemError] Supprime une arborescence sans suivre les liens symboliques.
+
+Les descendants sont supprimés profondeur d’abord, puis la racine. Une
+racine déjà absente et les entrées qui disparaissent pendant le parcours
+sont considérées comme nettoyées avec succès, ce qui rend l’opération
+idempotente. Toute autre erreur arrête le parcours au premier échec.
+Le parcours est fondé sur les chemins : il ne fournit pas de garantie
+atomique contre des substitutions hostiles concurrentes. En cas d’erreur,
+`SystemError.context` reste la racine empruntée fournie par l’appelant ; le
+descendant exact ne peut pas être exposé par ce type copiable sans créer
+une vue pendante.
+@param path Chemin natif de la racine à supprimer.
+@return `Ok(true)` lorsque la racine n’existe plus, ou `Error(SystemError)` avec l’opération `directory.removeAll` et la racine stable dans `context`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def removeDirectoryAll(path : string) : Result[bool, SystemError]</code></h3>
+<p class="doc-summary">Supprime une arborescence sans suivre les liens symboliques.</p>
+<div class="doc-details"><p>Les descendants sont supprimés profondeur d’abord, puis la racine. Une<br>
+racine déjà absente et les entrées qui disparaissent pendant le parcours<br>
+sont considérées comme nettoyées avec succès, ce qui rend l’opération<br>
+idempotente. Toute autre erreur arrête le parcours au premier échec.<br>
+Le parcours est fondé sur les chemins : il ne fournit pas de garantie<br>
+atomique contre des substitutions hostiles concurrentes. En cas d’erreur,<br>
+`SystemError.context` reste la racine empruntée fournie par l’appelant ; le<br>
+descendant exact ne peut pas être exposé par ce type copiable sans créer<br>
+une vue pendante.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>path</code></td><td><code>string</code></td><td>Chemin natif de la racine à supprimer.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[bool, SystemError]</code> — `Ok(true)` lorsque la racine n’existe plus, ou `Error(SystemError)` avec l’opération `directory.removeAll` et la racine stable dans `context`.</p></section>
+<div class="qualified">std.fs.removeDirectoryAll</div></div><a class="permalink" href="#std-fs-removedirectoryall" aria-label="Permanent link to std.fs.removeDirectoryAll">#</a></article>
 <article class="symbol-card kind-function" id="std-fs-removefile" data-symbol data-search="std.fs.removeFile function def removeFile(path : string) : Result[bool, SystemError] Supprime le fichier demandé.
 @param path Chemin natif transmis à [[removeSystemFile]].
 @return `Ok(true)` après suppression, ou l’`Error(SystemError)` renvoyée par le service système."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def removeFile(path : string) : Result[bool, SystemError]</code></h3>
@@ -5933,21 +5959,33 @@ Les paniques attendues se déclarent avec `/// @shouldPanic [message]` sur la<br
 fonction `/// @test` afin que le processus parent puisse les distinguer.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>import std.testing<br>
 assertEqual[int](2 + 2, 4)<br>
 assertTrue(true)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">11</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">12</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-testing-testtemporarydirectory" data-symbol data-search="std.testing.TestTemporaryDirectory class class TestTemporaryDirectory(val location : Path, val preserve : bool) Possède un répertoire temporaire unique et le supprime à sa destruction.
 
-La suppression porte sur un répertoire vide. Détruisez ou supprimez son
-contenu avant l’objet ; `preserve` permet de conserver le répertoire pour
-une inspection après le test.
+[[cleanup]] expose le résultat du nettoyage récursif et idempotent. Le
+destructeur applique le même nettoyage en best-effort lorsque `preserve`
+vaut `false`; `true` conserve toute l’arborescence pour inspection.
 @param location Chemin propriétaire du répertoire déjà créé.
 @param preserve Politique de conservation appliquée à la destruction."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class TestTemporaryDirectory(val location : Path, val preserve : bool)</code></h3>
 <p class="doc-summary">Possède un répertoire temporaire unique et le supprime à sa destruction.</p>
-<div class="doc-details"><p>La suppression porte sur un répertoire vide. Détruisez ou supprimez son<br>
-contenu avant l’objet ; `preserve` permet de conserver le répertoire pour<br>
-une inspection après le test.</p></div>
+<div class="doc-details"><p><a href="#std-testing-testtemporarydirectory-cleanup"><code>cleanup</code></a> expose le résultat du nettoyage récursif et idempotent. Le<br>
+destructeur applique le même nettoyage en best-effort lorsque `preserve`<br>
+vaut `false`; `true` conserve toute l’arborescence pour inspection.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>location</code></td><td><code>Path</code></td><td>Chemin propriétaire du répertoire déjà créé.</td></tr><tr><td><code>preserve</code></td><td><code>bool</code></td><td>Politique de conservation appliquée à la destruction.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.TestTemporaryDirectory</div></div><a class="permalink" href="#std-testing-testtemporarydirectory" aria-label="Permanent link to std.testing.TestTemporaryDirectory">#</a></article>
+<article class="symbol-card kind-method child" id="std-testing-testtemporarydirectory-cleanup" data-symbol data-search="std.testing.TestTemporaryDirectory.cleanup method def cleanup() : Result[bool, SystemError] Supprime récursivement le répertoire temporaire de façon observable.
+
+Après un premier succès, les appels suivants retournent `Ok(true)` sans
+retoucher le chemin, afin de ne pas supprimer une éventuelle ressource
+recréée au même emplacement.
+@return `Ok(true)` après nettoyage ou après un succès précédent, ou l’erreur structurée du premier échec."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.testing.TestTemporaryDirectory</div><h3><code>def cleanup() : Result[bool, SystemError]</code></h3>
+<p class="doc-summary">Supprime récursivement le répertoire temporaire de façon observable.</p>
+<div class="doc-details"><p>Après un premier succès, les appels suivants retournent `Ok(true)` sans<br>
+retoucher le chemin, afin de ne pas supprimer une éventuelle ressource<br>
+recréée au même emplacement.</p></div>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[bool, SystemError]</code> — `Ok(true)` après nettoyage ou après un succès précédent, ou l’erreur structurée du premier échec.</p></section>
+<div class="qualified">std.testing.TestTemporaryDirectory.cleanup</div></div><a class="permalink" href="#std-testing-testtemporarydirectory-cleanup" aria-label="Permanent link to std.testing.TestTemporaryDirectory.cleanup">#</a></article>
 <article class="symbol-card kind-method child" id="std-testing-testtemporarydirectory-path" data-symbol data-search="std.testing.TestTemporaryDirectory.path method def path() : string Emprunte le chemin natif du répertoire.
 @return Vue valide jusqu’à la destruction de cette ressource."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.testing.TestTemporaryDirectory</div><h3><code>def path() : string</code></h3>
 <p class="doc-summary">Emprunte le chemin natif du répertoire.</p>

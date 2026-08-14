@@ -45,6 +45,10 @@ private extern def janus_fs_remove_directory(
 borrow path : Ptr[byte],
 length : usize
 ) : int
+private extern def janus_fs_remove_directory_all(
+borrow path : Ptr[byte],
+length : usize
+) : int
 private extern def janus_fs_metadata(
 borrow path : Ptr[byte],
 length : usize,
@@ -373,6 +377,33 @@ path : string
     ) != 0 {
         return Result.Error[bool, SystemError](
         fsError("directory.remove", path)
+        )
+    }
+    return Result.Ok[bool, SystemError](true)
+}
+
+/// Supprime une arborescence sans suivre les liens symboliques.
+///
+/// Les descendants sont supprimés profondeur d’abord, puis la racine. Une
+/// racine déjà absente et les entrées qui disparaissent pendant le parcours
+/// sont considérées comme nettoyées avec succès, ce qui rend l’opération
+/// idempotente. Toute autre erreur arrête le parcours au premier échec.
+/// Le parcours est fondé sur les chemins : il ne fournit pas de garantie
+/// atomique contre des substitutions hostiles concurrentes. En cas d’erreur,
+/// `SystemError.context` reste la racine empruntée fournie par l’appelant ; le
+/// descendant exact ne peut pas être exposé par ce type copiable sans créer
+/// une vue pendante.
+/// @param path Chemin natif de la racine à supprimer.
+/// @return `Ok(true)` lorsque la racine n’existe plus, ou `Error(SystemError)` avec l’opération `directory.removeAll` et la racine stable dans `context`.
+def removeDirectoryAll(
+path : string
+) : Result[bool, SystemError] {
+    if janus_fs_remove_directory_all(
+    stringData(path),
+    stringLength(path)
+    ) != 0 {
+        return Result.Error[bool, SystemError](
+        fsError("directory.removeAll", path)
         )
     }
     return Result.Ok[bool, SystemError](true)

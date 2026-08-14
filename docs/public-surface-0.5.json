@@ -97,8 +97,8 @@
       "source": "stdlib/std/fs.janus",
       "documentation": ["docs/language-guide.md", "docs/design/path-filesystem.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "040328b63e248111a915d0936fd0f63d5caa92f9209ab8aedb427f701ddba44d",
-      "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.view", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeFile", "metadata", "readDirectory"]
+      "signature_digest": "72d2525707c2cb91d382fe772f6714333110a1a4d13583465b31604ce2d4cdd4",
+      "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.view", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeDirectoryAll", "removeFile", "metadata", "readDirectory"]
     },
     {
       "name": "std.hash_probe",
@@ -233,8 +233,8 @@
       "source": "stdlib/std/testing.janus",
       "documentation": ["docs/testing.md", "docs/tooling.md"],
       "status": "experimental",
-      "signature_digest": "5e945cfbdd7200eae4b0ca260bb7ed0f34570c799a9dbdd2ec769d9baa627048",
-      "symbols": ["TestTemporaryDirectory", "TestTemporaryDirectory.path", "testTemporaryDirectory", "assertTrue", "assertFalse", "assertEqual", "assertNotEqual", "assertSome", "assertNone", "assertOk", "assertError"]
+      "signature_digest": "12011e558e28b89dbf6799c6374895f6433abdb192982b4ad06a933abcbf5454",
+      "symbols": ["TestTemporaryDirectory", "TestTemporaryDirectory.path", "TestTemporaryDirectory.cleanup", "testTemporaryDirectory", "assertTrue", "assertFalse", "assertEqual", "assertNotEqual", "assertSome", "assertNone", "assertOk", "assertError"]
     },
     {
       "name": "std.time",

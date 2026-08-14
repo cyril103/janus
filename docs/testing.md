@@ -54,9 +54,16 @@ affichées avant la panique d’assertion. Le runner rattache chaque résultat �
 déclaration source du test.
 
 `testTemporaryDirectory(false)` retourne une ressource propriétaire enveloppée
-dans un `Result`. Son chemin est unique et son destructeur supprime le
-répertoire vide ; `true` permet de le conserver pour le débogage. Les fichiers
-créés à l’intérieur doivent être détruits avant la ressource.
+dans un `Result`. Son chemin est unique et son destructeur supprime
+récursivement l’arborescence en best-effort ; `true` la conserve intacte pour
+le débogage. `TestTemporaryDirectory.cleanup()` fournit le même nettoyage sous
+forme de `Result[bool, SystemError]`, observable et idempotent. Après un premier
+succès, les appels suivants ne retouchent pas le chemin, ce
+qui évite une double suppression dangereuse si ce nom était réutilisé.
+Comme pour toute ressource propriétaire locale susceptible de traverser une
+panique, utilisez
+`defer delete directory` afin d’inscrire son destructeur dans le nettoyage de
+panique du langage.
 
 ## CLI et rapports CI
 

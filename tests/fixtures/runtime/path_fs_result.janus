@@ -28,6 +28,19 @@ result : Result[FileData, SystemError]
     }
 }
 
+def invalidRemoveAllRejected(
+result : Result[bool, SystemError]
+) : bool {
+    return match result {
+        Ok(value) => false,
+        Error(error) =>
+        error.operation == "directory.removeAll" &&
+        error.category == SystemErrorCategory.InvalidInput &&
+        error.nativeCode > uint(0) &&
+        error.context == ""
+    }
+}
+
 def componentMatches(component : Path) : bool {
     val matches : bool = component.view() == "gamma"
     delete component
@@ -180,9 +193,8 @@ file : Path
     FileType.Directory
     ))
     println(directoryOk(readDirectory(nested.view())))
-    println(boolResult(removeFile(file.view())))
-    println(boolResult(removeDirectory(nested.view())))
-    println(boolResult(removeDirectory(root.view())))
+    println(boolResult(removeDirectoryAll(root.view())))
+    println(boolResult(removeDirectoryAll(root.view())))
     delete file
     return 0
 }
@@ -249,6 +261,9 @@ def main() : int {
     ))
     println(missingReadRejected(
     readFile("janus-fs-definitely-missing.file")
+    ))
+    println(invalidRemoveAllRejected(
+    removeDirectoryAll("")
     ))
     return temporaryResult(
     createTemporaryDirectory("janus-é")
