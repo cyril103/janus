@@ -151,7 +151,7 @@ def validate_workflow(document: str) -> list[str]:
         errors.append("supported-bounds job must not have continue-on-error")
     if versions != ["18", "21.1.8"]:
         errors.append("matrix must contain exactly LLVM 18 and 21.1.8")
-    if roots != ["/usr/lib/llvm-18", "${{ runner.temp }}/llvm-21.1.8"]:
+    if roots != ["/usr/lib/llvm-18", "${{ github.workspace }}/.llvm/21.1.8"]:
         errors.append("matrix must select the approved LLVM 18 and 21 roots")
 
     names = [step.get("name", "") for step in steps]

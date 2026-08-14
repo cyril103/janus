@@ -20,7 +20,7 @@ jobs:
           - llvm_version: "18"
             llvm_root: /usr/lib/llvm-18
           - llvm_version: "21.1.8"
-            llvm_root: ${{ runner.temp }}/llvm-21.1.8
+            llvm_root: ${{ github.workspace }}/.llvm/21.1.8
 
     steps:
       - name: Check out Janus
