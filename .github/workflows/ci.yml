@@ -126,7 +126,7 @@ jobs:
             cc: /usr/bin/clang
             cxx: /usr/bin/clang++
             janus_clang: /opt/homebrew/opt/llvm@21/bin/clang
-            janus_lld: /opt/homebrew/opt/llvm@21/bin/ld.lld
+            janus_lld: /opt/homebrew/opt/lld@21/bin/ld.lld
           - name: Windows x86_64
             os: windows-2025
 
@@ -155,8 +155,9 @@ jobs:
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install llvm@21 ninja
+          brew install llvm@21 lld@21 ninja
           echo "/opt/homebrew/opt/llvm@21/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/opt/lld@21/bin" >> "$GITHUB_PATH"
 
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
