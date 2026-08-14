@@ -1,4 +1,4 @@
-name: Publish VS Code extension
+name: Prepare VS Code extension
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to publish
+        description: Existing stable release tag to package
         required: true
         type: string
 
@@ -14,12 +14,9 @@ permissions:
   contents: read
 
 jobs:
-  marketplace:
-    name: Package and publish tagged VSIX
+  handoff:
+    name: Prepare tagged VSIX for manual handoff
     runs-on: ubuntu-24.04
-    environment: vscode-marketplace
-    env:
-      VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
     steps:
       - name: Resolve release tag
@@ -60,23 +57,26 @@ jobs:
             exit 1
           fi
 
-      - name: Require Marketplace credentials
-        run: |
-          if [[ -z "$VSCE_PAT" ]]; then
-            echo "VSCE_PAT is not configured in the vscode-marketplace environment" >&2
-            exit 1
-          fi
+      - name: Install locked dependencies
+        working-directory: editors/vscode
+        run: npm ci
 
-      - name: Install, test and package
+      - name: Test extension
+        working-directory: editors/vscode
+        run: npm test
+
+      - name: Package VSIX and list its content
         working-directory: editors/vscode
         run: |
-          npm ci
-          npm test
           npm run package -- --out janus-language.vsix
           npx vsce ls --tree
+
+      - name: Produce SHA-256 checksum
+        working-directory: editors/vscode
+        run: |
           sha256sum janus-language.vsix > janus-language.vsix.sha256
 
-      - name: Upload tagged VSIX
+      - name: Upload VSIX handoff artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: janus-vscode-${{ steps.release.outputs.tag }}
@@ -84,7 +84,3 @@ jobs:
             editors/vscode/janus-language.vsix
             editors/vscode/janus-language.vsix.sha256
           if-no-files-found: error
-
-      - name: Publish the packaged VSIX
-        working-directory: editors/vscode
-        run: npx vsce publish --packagePath janus-language.vsix
