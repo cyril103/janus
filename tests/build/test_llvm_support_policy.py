@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT = Path(sys.argv.pop()) if len(sys.argv) > 1 else Path(__file__).parents[2]
 VERSION_CHECK = ROOT / "cmake" / "validate_llvm_version.cmake"
 WORKFLOW = ROOT / ".github" / "workflows" / "llvm-compatibility.yml"
+MAIN_CI = ROOT / ".github" / "workflows" / "ci.yml"
 INSTALL_LLVM_SHA = "ebc0426251bc40c7cd31162802432c68818ab8f0"
 EXPECTED_TRIGGER_BLOCK = """on:
   push:
@@ -315,6 +316,22 @@ class LlvmCompatibilityWorkflowTest(unittest.TestCase):
         for old, new in mutations:
             with self.subTest(old=old):
                 self.assertMutationRejected(old, new)
+
+
+    def test_main_macos_job_uses_supported_coherent_llvm_21(self) -> None:
+        main_ci = MAIN_CI.read_text(encoding="utf-8")
+        required = (
+            "brew install llvm@21 ninja",
+            "/opt/homebrew/opt/llvm@21/lib/cmake/llvm",
+            "/opt/homebrew/opt/llvm@21/bin/clang",
+            "/opt/homebrew/opt/llvm@21/bin/ld.lld",
+            '-DJANUS_CLANG_EXECUTABLE="$MATRIX_JANUS_CLANG"',
+            '-DJANUS_LLD_EXECUTABLE="$MATRIX_JANUS_LLD"',
+        )
+        for fragment in required:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, main_ci)
+        self.assertNotIn("brew install llvm lld ninja", main_ci)
 
 
 if __name__ == "__main__":
