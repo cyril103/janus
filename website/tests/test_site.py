@@ -193,6 +193,10 @@ class SiteStructureTests(unittest.TestCase):
             text = (docs / relative).read_text(encoding="utf-8")
             self.assertIn("0.12.0", text, relative)
 
+        metadata = (WEBSITE / "overrides" / "main.html").read_text(encoding="utf-8")
+        self.assertIn("Janus 0.12.0", metadata)
+        self.assertNotIn("Janus 0.11.0", metadata)
+
     def test_dark_palette_inherits_material_tokens(self):
         config = (WEBSITE / "mkdocs.yml").read_text(encoding="utf-8")
         css = (WEBSITE / "docs" / "stylesheets" / "extra.css").read_text(encoding="utf-8")
