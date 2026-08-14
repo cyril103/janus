@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote
 
-VERSION = "v0.11.1"
+VERSION = "v0.12.0"
 REPOSITORY_URL = "https://github.com/cyril103/janus"
 DOCUMENTS = (
     "getting-started.md",

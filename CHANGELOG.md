@@ -3,6 +3,26 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [0.12.0] - 2026-08-14
+
+Cette version mineure étend les opérations de fichiers et de tests, formalise
+la plage LLVM prise en charge et sécurise la remise de l’extension VS Code.
+
+### Bibliothèque standard et tests
+
+- ajout de `std.fs.removeDirectoryAll`, suppression récursive idempotente qui
+  ne suit pas les liens symboliques, et de sa prise en charge native portable ;
+- ajout de `TestTemporaryDirectory.cleanup()` dans `std.testing`, avec
+  nettoyage récursif observable et nettoyage best-effort par le destructeur.
+
+### Toolchain et distribution
+
+- validation explicite de la plage LLVM supportée, de LLVM 18 à LLVM 21, dans
+  CMake et dans une matrice CI dédiée ;
+- production, test, inventaire et checksum du VSIX par la CI, puis remise au
+  mainteneur pour upload manuel : aucune publication Marketplace automatique
+  ni aucun secret Marketplace ne sont utilisés par le dépôt.
+
 ## [0.11.1] - 2026-08-13
 
 Cette version corrective renforce les garanties de publication introduites en
@@ -680,6 +700,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.12.0]: https://github.com/cyril103/janus/releases/tag/v0.12.0
 [0.11.1]: https://github.com/cyril103/janus/releases/tag/v0.11.1
 [0.11.0]: https://github.com/cyril103/janus/releases/tag/v0.11.0
 [0.10.0]: https://github.com/cyril103/janus/releases/tag/v0.10.0
