@@ -363,6 +363,7 @@ class LlvmCompatibilityWorkflowTest(unittest.TestCase):
             "version: 21.1.8",
             '${{ runner.temp }}/llvm-21.1.8',
             'llvm_root="$(cygpath -u "$LLVM_PATH")"',
+            '-DCMAKE_RC_COMPILER="$llvm_root/bin/llvm-rc.exe"',
             '-DLLVM_DIR="$llvm_root/lib/cmake/llvm"',
             '-DJANUS_CLANG_EXECUTABLE="$llvm_root/bin/clang.exe"',
             '-DJANUS_LLD_EXECUTABLE="$llvm_root/bin/ld.lld.exe"',
