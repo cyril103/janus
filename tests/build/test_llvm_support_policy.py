@@ -190,6 +190,7 @@ def validate_workflow(document: str) -> list[str]:
         expected_names[4]: " ".join((
             "cmake -S . -B build-llvm -G Ninja \\",
             "-DCMAKE_BUILD_TYPE=Release \\",
+            '-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \\',
             '-DCMAKE_C_COMPILER="$LLVM_ROOT/bin/clang" \\',
             '-DCMAKE_CXX_COMPILER="$LLVM_ROOT/bin/clang++" \\',
             '-DLLVM_DIR="$LLVM_ROOT/lib/cmake/llvm" \\',
