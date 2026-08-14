@@ -124,12 +124,16 @@ def validate_workflow(document: str) -> list[str]:
         matrix = child_block(strategy, "matrix", 4)
         include = child_block(matrix, "include", 6)
         versions = []
+        roots = []
         for line in include:
             match = re.fullmatch(r"- llvm_version:\s*[\"']?([0-9.]+)[\"']?", line.text)
+            root_match = re.fullmatch(r"llvm_root:\s*(.+)", line.text)
             if line.indent == 10 and match:
                 versions.append(match.group(1))
+            elif line.indent == 12 and root_match:
+                roots.append(root_match.group(1))
             elif line.indent >= 10:
-                errors.append("matrix entries may only contain llvm_version")
+                errors.append("matrix entries may only contain llvm_version and llvm_root")
         steps = parse_steps(job)
     except ValueError as error:
         return [str(error)]
@@ -145,13 +149,16 @@ def validate_workflow(document: str) -> list[str]:
         errors.append("supported-bounds job must not have an if key")
     if "continue-on-error" in direct_job_keys:
         errors.append("supported-bounds job must not have continue-on-error")
-    if versions != ["18.1.8", "21.1.8"]:
-        errors.append("matrix must contain exactly LLVM 18.1.8 and 21.1.8")
+    if versions != ["18", "21.1.8"]:
+        errors.append("matrix must contain exactly LLVM 18 and 21.1.8")
+    if roots != ["/usr/lib/llvm-18", "${{ runner.temp }}/llvm-21.1.8"]:
+        errors.append("matrix must select the approved LLVM 18 and 21 roots")
 
     names = [step.get("name", "") for step in steps]
     expected_names = [
         "Check out Janus",
-        "Install pinned LLVM toolchain",
+        "Install LLVM 18 distribution packages",
+        "Install pinned LLVM 21 toolchain",
         "Configure with coherent LLVM, Clang and LLD",
         "Build representative backend targets",
         "Exercise backend, constants, object emission and linkage",
@@ -161,48 +168,56 @@ def validate_workflow(document: str) -> list[str]:
     if names != expected_names:
         errors.append("required steps must each appear exactly once and in order")
         return errors
-    if any("if" in step for step in steps):
-        errors.append("required steps must not have an if key")
+    expected_conditions = {
+        expected_names[1]: "matrix.llvm_version == '18'",
+        expected_names[2]: "matrix.llvm_version == '21.1.8'",
+    }
+    for step in steps:
+        expected_if = expected_conditions.get(step.get("name", ""))
+        if step.get("if") != expected_if:
+            errors.append(f"unexpected if condition in step {step.get('name', '')!r}")
     if any("continue-on-error" in step for step in steps):
         errors.append("required steps must not have continue-on-error")
 
     expected_runs = {
-        expected_names[2]: " ".join((
+        expected_names[1]: normalized("""sudo apt-get update
+            sudo apt-get install --yes clang-18 lld-18 llvm-18-dev ninja-build"""),
+        expected_names[3]: " ".join((
             "cmake -S . -B build-llvm -G Ninja \\",
             "-DCMAKE_BUILD_TYPE=Release \\",
-            '-DCMAKE_C_COMPILER="${{ env.LLVM_PATH }}/bin/clang" \\',
-            '-DCMAKE_CXX_COMPILER="${{ env.LLVM_PATH }}/bin/clang++" \\',
-            '-DLLVM_DIR="${{ env.LLVM_PATH }}/lib/cmake/llvm" \\',
-            '-DJANUS_CLANG_EXECUTABLE="${{ env.LLVM_PATH }}/bin/clang" \\',
-            '-DJANUS_LLD_EXECUTABLE="${{ env.LLVM_PATH }}/bin/ld.lld" \\',
+            '-DCMAKE_C_COMPILER="${{ matrix.llvm_root }}/bin/clang" \\',
+            '-DCMAKE_CXX_COMPILER="${{ matrix.llvm_root }}/bin/clang++" \\',
+            '-DLLVM_DIR="${{ matrix.llvm_root }}/lib/cmake/llvm" \\',
+            '-DJANUS_CLANG_EXECUTABLE="${{ matrix.llvm_root }}/bin/clang" \\',
+            '-DJANUS_LLD_EXECUTABLE="${{ matrix.llvm_root }}/bin/ld.lld" \\',
             '-DJANUS_SOURCE_SHA="$GITHUB_SHA"',
         )),
-        expected_names[3]: normalized("""cmake --build build-llvm --parallel
+        expected_names[4]: normalized("""cmake --build build-llvm --parallel
             --target janus_llvm_backend compile_time_constant_test
             backend_link_test janus"""),
-        expected_names[4]: normalized("""ctest --test-dir build-llvm --output-on-failure
+        expected_names[5]: normalized("""ctest --test-dir build-llvm --output-on-failure
             --tests-regex
             '^(language\\.compile_time_constants|backend\\.link_contract|cli\\.emit_llvm|cli\\.emit_object|cli\\.build|cli\\.run)$'"""),
-        expected_names[5]: "cmake --build build-llvm --parallel --target dist",
-        expected_names[6]: "scripts/smoke-test-package.sh build-llvm/janus-*.tar.gz",
+        expected_names[6]: "cmake --build build-llvm --parallel --target dist",
+        expected_names[7]: "scripts/smoke-test-package.sh build-llvm/janus-*.tar.gz",
     }
     by_name = {step["name"]: step for step in steps}
     checkout = by_name[expected_names[0]].get("uses", "")
     if not re.fullmatch(r"actions/checkout@[0-9a-f]{40}", checkout):
         errors.append("checkout must be pinned to a full commit SHA")
-    install = by_name[expected_names[1]]
+    install = by_name[expected_names[2]]
     if install.get("uses") != f"KyleMayes/install-llvm-action@{INSTALL_LLVM_SHA}":
         errors.append("install-llvm-action must use the approved exact SHA")
     expected_install_inputs = {
         "with.version": "${{ matrix.llvm_version }}",
-        "with.directory": "${{ runner.temp }}/llvm-${{ matrix.llvm_version }}",
+        "with.directory": "${{ matrix.llvm_root }}",
         "with.env": "false",
     }
     if {key: install.get(key) for key in expected_install_inputs} != expected_install_inputs:
         errors.append("install-llvm-action inputs must select the pinned matrix toolchain")
-    if by_name[expected_names[2]].get("shell") != "bash":
+    if by_name[expected_names[3]].get("shell") != "bash":
         errors.append("configure step must use bash")
-    if by_name[expected_names[6]].get("shell") != "bash":
+    if by_name[expected_names[7]].get("shell") != "bash":
         errors.append("package smoke step must use bash")
     for name, command in expected_runs.items():
         if normalized(by_name[name].get("run", "")) != command:
@@ -309,9 +324,9 @@ class LlvmCompatibilityWorkflowTest(unittest.TestCase):
 
     def test_rejects_incoherent_llvm_clang_or_lld_path(self) -> None:
         mutations = (
-            ('LLVM_DIR="${{ env.LLVM_PATH }}/lib/cmake/llvm"', 'LLVM_DIR="/opt/other/lib/cmake/llvm"'),
-            ('JANUS_CLANG_EXECUTABLE="${{ env.LLVM_PATH }}/bin/clang"', 'JANUS_CLANG_EXECUTABLE="/usr/bin/clang"'),
-            ('JANUS_LLD_EXECUTABLE="${{ env.LLVM_PATH }}/bin/ld.lld"', 'JANUS_LLD_EXECUTABLE="/usr/bin/ld.lld"'),
+            ('LLVM_DIR="${{ matrix.llvm_root }}/lib/cmake/llvm"', 'LLVM_DIR="/opt/other/lib/cmake/llvm"'),
+            ('JANUS_CLANG_EXECUTABLE="${{ matrix.llvm_root }}/bin/clang"', 'JANUS_CLANG_EXECUTABLE="/usr/bin/clang"'),
+            ('JANUS_LLD_EXECUTABLE="${{ matrix.llvm_root }}/bin/ld.lld"', 'JANUS_LLD_EXECUTABLE="/usr/bin/ld.lld"'),
         )
         for old, new in mutations:
             with self.subTest(old=old):

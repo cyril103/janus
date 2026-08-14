@@ -17,18 +17,27 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - llvm_version: "18.1.8"
+          - llvm_version: "18"
+            llvm_root: /usr/lib/llvm-18
           - llvm_version: "21.1.8"
+            llvm_root: ${{ runner.temp }}/llvm-21.1.8
 
     steps:
       - name: Check out Janus
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install pinned LLVM toolchain
+      - name: Install LLVM 18 distribution packages
+        if: matrix.llvm_version == '18'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-18 lld-18 llvm-18-dev ninja-build
+
+      - name: Install pinned LLVM 21 toolchain
+        if: matrix.llvm_version == '21.1.8'
         uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2.0.9
         with:
           version: ${{ matrix.llvm_version }}
-          directory: ${{ runner.temp }}/llvm-${{ matrix.llvm_version }}
+          directory: ${{ matrix.llvm_root }}
           env: false
 
       - name: Configure with coherent LLVM, Clang and LLD
@@ -36,11 +45,11 @@ jobs:
         run: |
           cmake -S . -B build-llvm -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER="${{ env.LLVM_PATH }}/bin/clang" \
-            -DCMAKE_CXX_COMPILER="${{ env.LLVM_PATH }}/bin/clang++" \
-            -DLLVM_DIR="${{ env.LLVM_PATH }}/lib/cmake/llvm" \
-            -DJANUS_CLANG_EXECUTABLE="${{ env.LLVM_PATH }}/bin/clang" \
-            -DJANUS_LLD_EXECUTABLE="${{ env.LLVM_PATH }}/bin/ld.lld" \
+            -DCMAKE_C_COMPILER="${{ matrix.llvm_root }}/bin/clang" \
+            -DCMAKE_CXX_COMPILER="${{ matrix.llvm_root }}/bin/clang++" \
+            -DLLVM_DIR="${{ matrix.llvm_root }}/lib/cmake/llvm" \
+            -DJANUS_CLANG_EXECUTABLE="${{ matrix.llvm_root }}/bin/clang" \
+            -DJANUS_LLD_EXECUTABLE="${{ matrix.llvm_root }}/bin/ld.lld" \
             -DJANUS_SOURCE_SHA="$GITHUB_SHA"
 
       - name: Build representative backend targets
