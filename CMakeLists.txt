@@ -818,6 +818,7 @@ if(BUILD_TESTING)
     target_compile_definitions(lsp_server_test
         PRIVATE
             JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+            JANUS_STDLIB_API_INDEX="${PROJECT_SOURCE_DIR}/website/docs/reference/stdlib/api-index.json"
     )
     add_test(NAME lsp.server COMMAND lsp_server_test)
     add_executable(lsp_workspace_index_test

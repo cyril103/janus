@@ -271,7 +271,9 @@ int main(int argc, char **argv) {
   if (argc == 2 && std::string_view{argv[1]} == "--verify-require-failure")
     JANUS_REQUIRE(false);
 
-  janus::lsp::Server server{{std::filesystem::path{JANUS_STDLIB_DIR}}};
+  janus::lsp::Server server{
+      {std::filesystem::path{JANUS_STDLIB_DIR}},
+      {std::filesystem::path{JANUS_STDLIB_API_INDEX}}};
 
   const std::vector<std::string> initialized = server.handle(
       R"({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}})");
@@ -530,6 +532,33 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(completion.front().find("\"label\":\"return\"") !=
                 std::string::npos);
   JANUS_REQUIRE(completion.front().find("\"label\":\"derives\"") !=
+                std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///member-completion.janus","text":"class Basket() { def add(value : int) : Unit {} def size() : usize { return usize(0) } }\nclass Other() { def secret() : Unit {} }\ndef main() : int { val basket : Basket = new Basket() basket. return 0 }"}}})"));
+  const std::vector<std::string> typed_member_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":50,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///member-completion.janus"},"position":{"line":2,"character":61}}})");
+  JANUS_REQUIRE(typed_member_completion.front().find("\"label\":\"add\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(typed_member_completion.front().find("\"label\":\"size\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(typed_member_completion.front().find("\"label\":\"secret\"") ==
+                std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///array-member-completion.janus","text":"import std.array\n\ndef main() : int {\n    val xs = [1, 2, 3]\n    xs.\n    defer delete xs\n    return 0\n}\n"}}})"));
+  const std::vector<std::string> array_member_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":51,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///array-member-completion.janus"},"position":{"line":4,"character":7}}})");
+  JANUS_REQUIRE(array_member_completion.front().find("\"label\":\"push\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(array_member_completion.front().find("\"label\":\"get\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(array_member_completion.front().find("\"label\":\"size\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(array_member_completion.front().find("\"label\":\"main\"") ==
+                std::string::npos);
+  JANUS_REQUIRE(array_member_completion.front().find(
+                    "\"label\":\"takeForConsumingIterator\"") ==
                 std::string::npos);
 
   static_cast<void>(server.handle(
