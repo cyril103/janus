@@ -5,7 +5,7 @@
 
 - comprendre `janus.toml`, `janus.lock` et `target/` ;
 - utiliser les commandes quotidiennes ;
-- écrire tests, doctests et documentation API ;
+- écrire tests natifs, doctests et documentation API ;
 - profiter du formatter et du serveur de langage.
 
 ## Anatomie d’un paquet
@@ -50,14 +50,27 @@ janus build --release
 - `run` lance le point d’entrée.
 - `build` produit l’artefact natif, en profil debug ou release.
 
+Séparez les arguments du programme des options de Janus avec `--` :
+
+```bash
+janus run -- 10 -2 4 8
+janus run src/main.janus -- --verbose "texte avec espaces"
+```
+
+Chaque argument est transmis tel quel, sans interprétation par un shell, et le
+code de sortie du programme devient celui de `janus run`.
+
 `janus clean` retire les artefacts du paquet. `janus new` crée un dossier ; `janus init` initialise le dossier courant. `add` et `remove` modifient les dépendances. `search`, `publish` et les options de registre couvrent l’écosystème de paquets.
 
-## Tests exécutables
+## Tests natifs et exécutables
 
-Un fichier sous `tests/` est un programme dont `main` retourne `0` en cas de succès :
+Une fonction publique sans paramètre, non générique et retournant `Unit`
+devient un test natif avec la métadonnée `/// @test`. Le runner crée le point
+d'entrée et isole chaque fonction dans un processus :
 
 ```janus
-// doctest: doctest name=project-test
+import std.testing
+
 def maximum(left : int, right : int) : int {
     if left > right {
         return left
@@ -65,15 +78,25 @@ def maximum(left : int, right : int) : int {
     return right
 }
 
-def main() : int {
-    if maximum(7, 12) == 12 {
-        return 0
-    }
-    return 1
+/// @test
+def maximumKeepsLargestValue() : Unit {
+    assertEqual[int](maximum(7, 12), 12)
 }
 ```
 
-Cette convention teste aussi bien une fonction pure qu’une intégration avec le runtime. Une sortie non nulle ou un crash échoue.
+`@shouldPanic`, `@ignore` et `@serial` décrivent respectivement une panique
+attendue, un test exclu par défaut et un test à exécuter hors du groupe
+parallèle. `janus test` propose filtres, nombre de workers, timeouts et rapports
+humain, JSON ou JUnit. Les anciens fichiers sous `tests/` qui définissent un
+`main` restent exécutables comme un test unique ; une sortie non nulle ou un
+crash échoue.
+
+`std.testing.testTemporaryDirectory(false)` crée une ressource propriétaire
+dont le destructeur supprime récursivement l'arborescence en best-effort.
+`TestTemporaryDirectory.cleanup()` expose le même nettoyage sous forme de
+`Result`, observable et idempotent ; utilisez `true` pour conserver le dossier
+après le test lors d'un débogage. Enregistrez toujours `defer delete` dès que la
+ressource est extraite du `Result`.
 
 ## Doctests Markdown
 
@@ -117,6 +140,26 @@ L'analyse supplémentaire `--warn-high-growth-loops` est disponible sur
 dans les boucles.
 
 `janus-lsp` fournit diagnostics, survol, définition, références, symboles du document/workspace, complétion et formatage. Configurez l’extension de l’éditeur pour utiliser le binaire de la même version que le compilateur du projet.
+
+## Identifier la toolchain
+
+`janus`, `janus-lsp` et `janusup` partagent une identité de build. La sortie
+humaine convient au diagnostic rapide ; le JSON de schéma 1 expose notamment
+la version, la révision, le canal, la cible et LLVM :
+
+```bash
+janus --version
+janus --version --json
+```
+
+Cette identité complète participe au cache incrémental. `janus build
+--no-cache` permet de diagnostiquer un écart sans lire ni écrire ce cache. Pour
+compiler Janus lui-même, les versions majeures LLVM prises en charge sont 18 à
+21 incluses ; CMake refuse explicitement une version hors de cette plage.
+
+L'extension VS Code est produite et vérifiée comme VSIX par la CI. Sa
+publication sur la Marketplace reste une étape manuelle du mainteneur : le
+dépôt ne contient aucun secret ni automatisme de publication Marketplace.
 
 ## Une CI minimale
 

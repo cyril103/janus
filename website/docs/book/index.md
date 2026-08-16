@@ -2,6 +2,13 @@
 
 Ce livre couvre le langage Janus **0.12.0**, de la première fonction au modèle de propriété, aux dérivations, à la bibliothèque standard et au graphisme 2D. Il se lit dans l’ordre pour apprendre, ou par chapitre pour retrouver un concept précis.
 
+!!! info "Nouveautés 0.11 et 0.12"
+    Le parcours inclut maintenant les littéraux entiers préfixés, les motifs
+    littéraux et gardes de `match`, les littéraux et fabriques de tableaux, le
+    tri stable, les tests natifs, les arguments de `janus run` et le nettoyage
+    récursif des répertoires. Le chapitre sur les outils précise aussi
+    l’identité JSON de la toolchain et la plage LLVM 18 à 21.
+
 ## Parcours
 
 1. **Premiers pas** — installer, créer, compiler et exécuter.
@@ -17,7 +24,7 @@ Ce livre couvre le langage Janus **0.12.0**, de la première fonction au modèle
 11. **Bibliothèque standard** — texte, fichiers, processus, temps et hasard.
 12. **Graphisme 2D et audio** — fenêtre, dessin, images, textures, entrées et son.
 13. **Projets, tests et outils** — manifeste, paquets, documentation et LSP.
-14. **Tous les mots-clés** — index exhaustif des 32 mots-clés réservés et des qualificateurs contextuels.
+14. **Tous les mots-clés** — index exhaustif des 34 mots-clés réservés et des qualificateurs contextuels.
 15. **Projet final** — assembler les concepts dans une application native.
 
 Chaque chapitre contient des objectifs, des exemples, un exercice et une correction repliable. Les exemples marqués comme doctests sont compilés par le compilateur Janus lors de la validation du site.

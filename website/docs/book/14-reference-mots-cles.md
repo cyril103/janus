@@ -3,7 +3,7 @@
 
 ## Objectifs
 
-- retrouver les 33 mots-clés réservés de Janus 0.12.0 ;
+- retrouver les 34 mots-clés réservés de Janus 0.12.0 ;
 - comprendre leur utilité et leur contexte valide ;
 - ne pas confondre mots-clés, types primitifs, builtins et opérateurs.
 

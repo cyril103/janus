@@ -233,16 +233,30 @@ class SiteStructureTests(unittest.TestCase):
     def test_recent_language_surface_is_taught(self):
         book = WEBSITE / "docs" / "book"
         values = (book / "02-valeurs-types.md").read_text(encoding="utf-8")
+        modeling = (book / "04-modeliser-donnees.md").read_text(encoding="utf-8")
+        collections = (book / "06-collections-iterateurs.md").read_text(
+            encoding="utf-8"
+        )
         ownership = (book / "09-propriete-avancee.md").read_text(encoding="utf-8")
         ffi = (book / "10-modules-visibilite-ffi.md").read_text(encoding="utf-8")
         stdlib = (book / "11-bibliotheque-standard.md").read_text(encoding="utf-8")
         tooling = (book / "13-projets-tests-outils.md").read_text(encoding="utf-8")
         self.assertIn("numericCast", values)
+        self.assertIn("`0b`/`0B`", values)
+        self.assertIn("Motifs littéraux et gardes", modeling)
+        self.assertIn("generateArray", collections)
+        self.assertIn("sortWith", collections)
         self.assertIn("borrow val", ownership)
         self.assertIn(": owned Ptr[byte]", ffi)
         self.assertIn("hypot(3.0, 4.0)", stdlib)
+        self.assertIn("removeDirectoryAll", stdlib)
         self.assertIn("JANA0022", tooling)
         self.assertIn("generated/diagnostics.md", tooling)
+        self.assertIn("/// @test", tooling)
+        self.assertIn("TestTemporaryDirectory.cleanup()", tooling)
+        self.assertIn("janus run -- 10 -2 4 8", tooling)
+        self.assertIn("janus --version --json", tooling)
+        self.assertIn("LLVM prises en charge sont 18 à", tooling)
 
     def test_lesson_navigation_uses_output_relative_urls(self):
         chapters = sorted((WEBSITE / "docs" / "book").glob("[0-9][0-9]-*.md"))

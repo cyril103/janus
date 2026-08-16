@@ -5,6 +5,7 @@
 
 - choisir entre `val` et `var` ;
 - connaître les types primitifs courants ;
+- écrire des entiers avec un préfixe binaire ou hexadécimal ;
 - effectuer une conversion numérique explicite et interpréter `JANA0013`.
 
 ## Immuable ou réassignable
@@ -26,9 +27,9 @@ Les types usuels incluent `int`, `uint`, `long`, `ulong`, `float`, `double`, `by
 
 ## Écrire les entiers
 
-Les entiers acceptent les bases décimale, hexadécimale (`0x`/`0X`) et binaire
-(`0b`/`0B`). Un `_` peut apparaître uniquement entre deux chiffres de la base :
-`1_000`, `0xA2_0A` et `0b1111_0000` sont valides, contrairement à `0x_FF`,
+Les entiers acceptent les bases décimale, binaire (`0b`/`0B`) et hexadécimale
+(`0x`/`0X`). Un `_` peut apparaître uniquement entre deux chiffres de la base :
+`1_000`, `0b1111_0000` et `0xA2_0A` sont valides, contrairement à `0x_FF`,
 `0xFF_` et `0xF__F`.
 
 ```janus
@@ -98,22 +99,7 @@ une donnée externe.
 !!! note "Entiers"
     Les littéraux entiers sans cast ont le type `int`. Consultez la référence avant de dépendre des règles de débordement ou des limites d’un type.
 
-## Exercice
-
-Déclarez un nombre de secondes immuable, calculez le nombre de minutes en `double`, puis affichez-le.
-
-??? success "Correction"
-    ```janus
-    def main() : int {
-        val secondes : int = 90
-        val minutes : double = double(secondes) / 60.0
-        println(minutes)
-        return 0
-    }
-    ```
-
-<div class="lesson-nav"><a href="../01-premiers-pas/">← Premiers pas</a><a href="../03-controle-fonctions/">Contrôle et fonctions →</a></div>
-# Constantes évaluées à la compilation
+## Constantes évaluées à la compilation
 
 `const` est distinct de `val` et `var` : une constante doit être calculable par
 le compilateur, tandis qu'un `val` peut être initialisé à l'exécution et qu'un
@@ -171,3 +157,19 @@ Une constante publique appartient à l'interface : son initialiseur normalisé,
 son type, la version de l'évaluateur et la cible participent au cache. Les
 constantes scalaires de module sont substituées dans le code LLVM sans stockage
 global. `staticAssert` ne produit aucun code et exige un booléen constant.
+
+## Exercice
+
+Déclarez un nombre de secondes immuable, calculez le nombre de minutes en `double`, puis affichez-le.
+
+??? success "Correction"
+    ```janus
+    def main() : int {
+        val secondes : int = 90
+        val minutes : double = double(secondes) / 60.0
+        println(minutes)
+        return 0
+    }
+    ```
+
+<div class="lesson-nav"><a href="../01-premiers-pas/">← Premiers pas</a><a href="../03-controle-fonctions/">Contrôle et fonctions →</a></div>
