@@ -5,7 +5,8 @@
 
 - regrouper des valeurs dans un `struct` ;
 - représenter plusieurs cas avec un `enum` ;
-- extraire les données associées avec `match`.
+- extraire les données associées avec `match` ;
+- affiner une branche avec un motif littéral ou une garde.
 
 ## Structs copiés par valeur
 
@@ -47,6 +48,48 @@ def valeurOrZero(input : Temperature) : int {
 ```
 
 Le `match` doit traiter les variantes nécessaires et produit ici une valeur `int`.
+
+## Motifs littéraux et gardes
+
+Un `match` peut aussi comparer directement des littéraux. Le motif `_` couvre
+les valeurs restantes. Sur un enum, une garde placée après `if` peut utiliser
+les données extraites par le motif :
+
+```janus
+// doctest: doctest name=literal-match-guards
+enum Opcode {
+    Family(uint),
+    Halt
+}
+
+def commandCode(command : string) : int {
+    return match command {
+        "start" => 1,
+        "stop" => 0,
+        _ => -1
+    }
+}
+
+def decode(opcode : Opcode) : int {
+    return match opcode {
+        Family(bits) if (bits & uint(0xF000)) == uint(0x8000) => 8,
+        Family(bits) if bits == uint(0) => 0,
+        Family(bits) => -2,
+        Halt => -1
+    }
+}
+
+def main() : int {
+    return if commandCode("start") == 1 &&
+        decode(Opcode.Family(uint(0x8001))) == 8 { 0 } else { 1 }
+}
+```
+
+Les littéraux booléens, entiers, flottants, caractères et chaînes sont admis
+lorsque leur type correspond à la valeur examinée. Une garde doit être un
+`bool` et ne rend pas à elle seule le `match` exhaustif : prévoyez une branche
+sans garde ou `_`. Elle peut observer une liaison de motif, mais pas déplacer
+ni détruire une ressource qui devra peut-être servir à la branche suivante.
 
 ## Exercice
 

@@ -50,6 +50,13 @@ val content : Result[FileData, SystemError] =
 
 Ces API retournent des types propriétaires quand elles allouent une ressource. Examinez leur signature, transférez avec `move` lorsque demandé et placez le `defer delete` immédiatement après une extraction réussie.
 
+Pour supprimer une arborescence, `removeDirectoryAll(path)` parcourt les
+descendants en profondeur avant de retirer la racine. L'opération est
+idempotente : une racine déjà absente est un succès. Elle ne suit pas les liens
+symboliques, mais son parcours par chemins n'est pas atomique face à une
+substitution hostile concurrente. Utilisez `removeDirectory(path)` lorsque le
+répertoire doit être vide et que vous ne souhaitez aucun parcours récursif.
+
 `std.system` expose une couche plus basse autour des handles et erreurs système. Utilisez-la pour un besoin que `std.fs` ou `std.io` ne couvre pas, en conservant le contexte d’erreur.
 
 ## Arguments, environnement et processus
