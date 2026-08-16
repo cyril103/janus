@@ -119,6 +119,9 @@ qualified_type_name(const std::vector<janus::frontend::Token> &document_tokens,
 
 std::string function_signature(const janus::ast::FunctionDeclaration &function);
 std::optional<std::filesystem::path> file_uri_path(std::string_view uri);
+std::optional<std::string>
+inferred_literal_type(const std::vector<janus::frontend::Token> &items,
+                      std::size_t initializer);
 
 void collect_local_declarations(
     const std::vector<janus::ast::Statement> &statements,
@@ -310,6 +313,11 @@ std::vector<DocumentSymbol> symbols(
                    analyzed_local_types.find(token.location.offset);
                inferred != analyzed_local_types.end())
         detail += " : " + inferred->second;
+      else if (index + 3 < document_tokens.size() &&
+               document_tokens[index + 2].kind == TokenKind::Equal)
+        if (const auto inferred =
+                inferred_literal_type(document_tokens, index + 3))
+          detail += " : " + *inferred;
       if (token.kind == TokenKind::Const)
         if (const auto constant = constant_details.find(token.location.offset);
             constant != constant_details.end())
@@ -712,6 +720,8 @@ inferred_literal_type(const std::vector<janus::frontend::Token> &items,
     return "char";
   case TokenKind::StringLiteral:
     return "string";
+  case TokenKind::LeftBracket:
+    return "Array";
   case TokenKind::True:
   case TokenKind::False:
     return "bool";
@@ -2611,8 +2621,15 @@ std::vector<std::string> Server::handle(std::string_view message) {
     std::vector<std::filesystem::path> search_paths = module_search_paths_;
     search_paths.insert(search_paths.end(), workspace_search_paths_.begin(),
                         workspace_search_paths_.end());
+    std::string semantic_source = document->second;
+    if (*method == "textDocument/completion" && *character >= 1)
+      if (const auto cursor = offset_from_position(
+              semantic_source, static_cast<std::uint32_t>(*line),
+              static_cast<std::uint32_t>(*character));
+          cursor && *cursor != 0 && semantic_source[*cursor - 1] == '.')
+        semantic_source[*cursor - 1] = ' ';
     const SemanticIndex semantic_index =
-        build_semantic_index(*uri, document->second, documents_,
+        build_semantic_index(*uri, semantic_source, documents_,
                              workspace_uris_, search_paths, index_cache_);
     const std::vector<DocumentSymbol> &document_symbols =
         semantic_index.documents.front().index->symbols;
@@ -3254,11 +3271,136 @@ std::vector<std::string> Server::handle(std::string_view message) {
         }
       }
 
+      bool typed_member_context = false;
+      if (member_context && !module_member_context && *character >= 2) {
+        const std::optional<LocatedIdentifier> receiver = identifier_at(
+            document->second, static_cast<std::uint32_t>(*line),
+            static_cast<std::uint32_t>(*character - 2));
+        const auto bound_receiver =
+            receiver ? bind_symbol(semantic_index.documents.front(), *receiver)
+                     : std::nullopt;
+        if (bound_receiver) {
+          const std::size_t type_separator =
+              bound_receiver->second.detail.rfind(" : ");
+          if (type_separator != std::string::npos) {
+            typed_member_context = true;
+            std::string receiver_type =
+                bound_receiver->second.detail.substr(type_separator + 3);
+            if (const std::size_t arguments = receiver_type.find('[');
+                arguments != std::string::npos)
+              receiver_type.resize(arguments);
+            const std::size_t receiver_separator = receiver_type.rfind('.');
+            const std::string receiver_class =
+                receiver_separator == std::string::npos
+                    ? receiver_type
+                    : receiver_type.substr(receiver_separator + 1);
+            const std::optional<std::string> receiver_module =
+                receiver_separator == std::string::npos
+                    ? std::nullopt
+                    : std::optional<std::string>{
+                          receiver_type.substr(0, receiver_separator)};
+
+            const auto module_is_visible = [&](std::string_view module,
+                                               std::string_view required_import) {
+              if (receiver_module)
+                return module == *receiver_module ||
+                       std::any_of(
+                           semantic_index.documents.front().imports.begin(),
+                           semantic_index.documents.front().imports.end(),
+                           [&](const ast::ImportDeclaration &import) {
+                             return import.module_name == required_import &&
+                                    import.module_alias == receiver_module;
+                           });
+              if (semantic_index.documents.front().module_name == module)
+                return true;
+              return std::any_of(
+                  semantic_index.documents.front().imports.begin(),
+                  semantic_index.documents.front().imports.end(),
+                  [&](const ast::ImportDeclaration &import) {
+                    if (import.module_name != required_import)
+                      return false;
+                    if (!import.is_selective())
+                      return true;
+                    return std::any_of(
+                        import.symbols.begin(), import.symbols.end(),
+                        [&](const ast::ImportDeclaration::Symbol &symbol) {
+                          return symbol.name == receiver_class;
+                        });
+                  });
+            };
+
+            for (const janus::driver::ApiSymbol &symbol :
+                 completion_index.symbols) {
+              if (symbol.kind != "method" && symbol.kind != "field")
+                continue;
+              const std::size_t member_separator =
+                  symbol.qualified_name.rfind('.');
+              if (member_separator == std::string::npos)
+                continue;
+              const std::string_view owner = std::string_view{
+                  symbol.qualified_name}.substr(0, member_separator);
+              const std::size_t owner_separator = owner.rfind('.');
+              const std::string_view owner_name =
+                  owner_separator == std::string_view::npos
+                      ? owner
+                      : owner.substr(owner_separator + 1);
+              if (owner_name != receiver_class ||
+                  !module_is_visible(symbol.module, symbol.required_import))
+                continue;
+              add_item(symbol.simple_name, symbol.signature,
+                       symbol.kind == "method" ? 2 : 5);
+            }
+
+            for (const IndexedDocument &indexed : semantic_index.documents) {
+              bool visible = indexed.uri == *uri;
+              if (!visible && indexed.module_name)
+                visible = module_is_visible(*indexed.module_name,
+                                            *indexed.module_name);
+              if (!visible)
+                continue;
+              try {
+                std::string parse_source = indexed.index->source;
+                if (indexed.uri == *uri)
+                  if (const auto cursor = offset_from_position(
+                          parse_source, static_cast<std::uint32_t>(*line),
+                          static_cast<std::uint32_t>(*character));
+                      cursor && *cursor != 0 && parse_source[*cursor - 1] == '.')
+                    parse_source[*cursor - 1] = ' ';
+                frontend::Parser parser{parse_source};
+                const ast::Program program = parser.parse_program();
+                for (const ast::ClassDeclaration &declaration :
+                     program.classes) {
+                  if (declaration.name != receiver_class ||
+                      (declaration.is_private && indexed.uri != *uri))
+                    continue;
+                  for (const ast::ValueDeclaration &field :
+                       declaration.constructor_fields)
+                    if (indexed.uri == *uri ||
+                        (!field.is_private && !field.is_internal))
+                      add_item(field.name, "field " + field.name, 5);
+                  for (const ast::ValueDeclaration &field : declaration.fields)
+                    if (indexed.uri == *uri ||
+                        (!field.is_private && !field.is_internal))
+                      add_item(field.name, "field " + field.name, 5);
+                  for (const ast::FunctionDeclaration &member :
+                       declaration.methods)
+                    if (indexed.uri == *uri ||
+                        (!member.is_private && !member.is_internal))
+                      add_item(member.name, function_signature(member), 2);
+                }
+              } catch (const std::exception &) {
+              }
+            }
+          }
+        }
+      }
+
       for (const DocumentSymbol &symbol : document_symbols) {
         const bool member = symbol.detail.find("def ") != std::string::npos ||
                             symbol.detail.find("val ") != std::string::npos ||
                             symbol.detail.find("var ") != std::string::npos;
-        if (!module_member_context && (!member_context || member)) {
+        if (!module_member_context && !typed_member_context &&
+            (!member_context || member)) {
           const std::int64_t kind =
               symbol.detail.starts_with("def ") ? 3
               : symbol.detail.starts_with("class ") ||

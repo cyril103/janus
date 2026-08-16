@@ -73,8 +73,8 @@
       "source": "stdlib/std/graphics/input.janus",
       "documentation": ["docs/graphics.md"],
       "status": "experimental",
-      "signature_digest": "cea2fd111223256eb2e1c00f41ff4f91b2ac6e567de8f121b2758709ad418dcc",
-      "symbols": ["isKeyDown", "isKeyPressed", "keyPressed", "mouseX", "mouseY", "setMousePosition", "mouseWheelMove", "isMouseButtonDown", "isMouseButtonPressed", "showCursor", "hideCursor", "isCursorHidden", "enableCursor", "disableCursor", "isGamepadAvailable", "gamepadName", "isGamepadButtonDown", "isGamepadButtonPressed", "isGamepadButtonReleased", "gamepadButtonPressed", "gamepadAxisCount", "gamepadAxis", "setGamepadVibration"]
+      "signature_digest": "eb8a062491d473ab7ebffa06ebbd1077c8d3b2e6ce85e055cdcba382463ed566",
+      "symbols": ["isKeyDown", "isKeyPressed", "keyPressed", "characterPressed", "disableExitKey", "mouseX", "mouseY", "setMousePosition", "mouseWheelMove", "isMouseButtonDown", "isMouseButtonPressed", "showCursor", "hideCursor", "isCursorHidden", "enableCursor", "disableCursor", "isGamepadAvailable", "gamepadName", "isGamepadButtonDown", "isGamepadButtonPressed", "isGamepadButtonReleased", "gamepadButtonPressed", "gamepadAxisCount", "gamepadAxis", "setGamepadVibration"]
     },
     {
       "name": "std.graphics.resources",

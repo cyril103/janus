@@ -57,7 +57,7 @@ class StdlibAuditTests(unittest.TestCase):
         self.assertEqual(expected_modules, set(model.modules))
         self.assertEqual(expected_symbols, set(model.symbols))
         self.assertEqual(30, len(model.modules))
-        self.assertEqual(934, len(model.symbols))
+        self.assertEqual(936, len(model.symbols))
         self.assertTrue(all(module.owner for module in model.modules.values()))
         self.assertTrue(all(symbol.owner for symbol in model.symbols.values()))
         self.assertTrue(all(symbol.decision for symbol in model.symbols.values()))

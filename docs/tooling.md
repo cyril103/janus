@@ -330,6 +330,17 @@ actuellement en charge :
 - autocomplétion ;
 - formatage du document.
 
+La complétion après `.` résout le type du receveur et ne propose que ses
+méthodes et champs visibles. Elle couvre les types du workspace et ceux des
+index d'API, notamment les collections de la bibliothèque standard comme
+`Array`.
+
+Pour les clients qui ne disposent pas encore d'un processus LSP persistant,
+`janus-lsp --completion <workspace> <document> <snapshot> <line> <character>`
+exécute une requête ponctuelle sur le contenu de `snapshot`. La valeur `-` pour
+`workspace` évite l'indexation du projet et limite la réponse au document
+courant et aux index d'API configurés.
+
 À l'initialisation, le serveur lit `janus.toml` et indexe les fichiers `.janus`
 de `src/`, `tests/` et des dépendances résolues. Les dépendances par chemin sont
 suivies directement ; les dépendances git ou registre déjà verrouillées et
