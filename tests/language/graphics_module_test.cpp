@@ -132,6 +132,7 @@ def main() : int {
     val cubicPoint : Vector2 = splinePointBezierCubic(start, end, start, end, float(0.5))
     val overlaps : bool = collisionRectangles(area, area)
     val circlesOverlap : bool = collisionCircles(start, float(3.0), end, float(4.0))
+    disableExitKey()
     val circleArea : bool = collisionCircleRectangle(start, float(3.0), area)
     val circleLine : bool = collisionCircleLine(start, float(3.0), start, end)
     val pointArea : bool = collisionPointRectangle(start, area)

@@ -352,6 +352,8 @@ Entrées disponibles :
 - `keyPressed` pour lire la prochaine touche saisie ;
 - `characterPressed` pour lire le prochain caractère Unicode selon la
   disposition active du clavier, notamment AZERTY ou QWERTY ;
+- `disableExitKey` pour réserver `Escape` à une application modale sans fermer
+  automatiquement sa fenêtre ;
 - `mouseX`, `mouseY`, `setMousePosition` et `mouseWheelMove` ;
 - `isMouseButtonDown` et `isMouseButtonPressed` avec `MouseButton`.
 - `showCursor`, `hideCursor`, `enableCursor`, `disableCursor` et

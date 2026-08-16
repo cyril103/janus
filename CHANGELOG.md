@@ -9,7 +9,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 - ajout de `std.graphics.input.characterPressed`, qui retourne les caractères
   Unicode selon la disposition active du clavier et permet notamment une saisie
-  correcte avec les claviers AZERTY.
+  correcte avec les claviers AZERTY ;
+- ajout de `std.graphics.input.disableExitKey`, qui permet aux interfaces
+  modales d'utiliser `Escape` sans déclencher la fermeture de la fenêtre.
 
 ## [0.12.0] - 2026-08-14
 

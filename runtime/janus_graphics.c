@@ -406,6 +406,7 @@ typedef struct {
   bool (*IsKeyPressed)(int);
   int (*GetKeyPressed)(void);
   int (*GetCharPressed)(void);
+  void (*SetExitKey)(int);
   int (*GetMouseX)(void);
   int (*GetMouseY)(void);
   void (*SetMousePosition)(int, int);
@@ -744,6 +745,7 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(IsKeyPressed);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetKeyPressed);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetCharPressed);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetExitKey);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseX);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseY);
   JANUS_LOAD_GRAPHICS_SYMBOL(SetMousePosition);
@@ -2456,6 +2458,11 @@ int janus_graphics_key_pressed(void) {
 
 int janus_graphics_character_pressed(void) {
   return graphics_loaded ? graphics_api.GetCharPressed() : 0;
+}
+
+void janus_graphics_disable_exit_key(void) {
+  if (graphics_loaded)
+    graphics_api.SetExitKey(0);
 }
 
 int janus_graphics_mouse_x(void) {

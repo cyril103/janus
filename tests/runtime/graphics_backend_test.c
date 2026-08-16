@@ -166,6 +166,7 @@ extern bool janus_graphics_is_key_down(int key);
 extern bool janus_graphics_is_key_pressed(int key);
 extern int janus_graphics_key_pressed(void);
 extern int janus_graphics_character_pressed(void);
+extern void janus_graphics_disable_exit_key(void);
 extern int janus_graphics_mouse_x(void);
 extern int janus_graphics_mouse_y(void);
 extern void janus_graphics_set_mouse_position(int x, int y);
@@ -411,6 +412,7 @@ int main(void) {
     return 1;
   }
   janus_graphics_set_mouse_position(50, 60);
+  janus_graphics_disable_exit_key();
   janus_graphics_hide_cursor();
   if (!janus_graphics_is_cursor_hidden()) {
     fputs("graphics backend did not hide the cursor\n", stderr);

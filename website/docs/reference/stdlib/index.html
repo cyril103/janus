@@ -1713,7 +1713,7 @@ if isKeyPressed(Key.Space) {
 concernent le cadre courant d’une fenêtre initialisée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>if isKeyPressed(Key.Space) {<br>
     setMousePosition(320, 240)<br>
 }<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">24</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">25</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-function" id="std-graphics-input-characterpressed" data-symbol data-search="std.graphics.input.characterPressed function def characterPressed() : int Retire de la file le prochain caractère saisi selon la disposition active du clavier.
 
@@ -1728,6 +1728,14 @@ donc compte de la disposition AZERTY, QWERTY ou autre, ainsi que des modificateu
 <article class="symbol-card kind-function" id="std-graphics-input-disablecursor" data-symbol data-search="std.graphics.input.disableCursor function def disableCursor() : Unit Désactive le curseur dans la fenêtre et confie sa capture au backend."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def disableCursor() : Unit</code></h3>
 <p class="doc-summary">Désactive le curseur dans la fenêtre et confie sa capture au backend.</p>
 <div class="qualified">std.graphics.input.disableCursor</div></div><a class="permalink" href="#std-graphics-input-disablecursor" aria-label="Permanent link to std.graphics.input.disableCursor">#</a></article>
+<article class="symbol-card kind-function" id="std-graphics-input-disableexitkey" data-symbol data-search="std.graphics.input.disableExitKey function def disableExitKey() : Unit Désactive la fermeture automatique de la fenêtre par une touche clavier.
+
+Raylib utilise `Escape` comme touche de sortie par défaut. Après cet appel,
+[[windowShouldClose]] ne signale plus que les demandes de fermeture de la fenêtre."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def disableExitKey() : Unit</code></h3>
+<p class="doc-summary">Désactive la fermeture automatique de la fenêtre par une touche clavier.</p>
+<div class="doc-details"><p>Raylib utilise `Escape` comme touche de sortie par défaut. Après cet appel,<br>
+<a href="#std-graphics-drawing-windowshouldclose"><code>windowShouldClose</code></a> ne signale plus que les demandes de fermeture de la fenêtre.</p></div>
+<div class="qualified">std.graphics.input.disableExitKey</div></div><a class="permalink" href="#std-graphics-input-disableexitkey" aria-label="Permanent link to std.graphics.input.disableExitKey">#</a></article>
 <article class="symbol-card kind-function" id="std-graphics-input-enablecursor" data-symbol data-search="std.graphics.input.enableCursor function def enableCursor() : Unit Active le curseur et autorise son déplacement normal dans la fenêtre."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def enableCursor() : Unit</code></h3>
 <p class="doc-summary">Active le curseur et autorise son déplacement normal dans la fenêtre.</p>
 <div class="qualified">std.graphics.input.enableCursor</div></div><a class="permalink" href="#std-graphics-input-enablecursor" aria-label="Permanent link to std.graphics.input.enableCursor">#</a></article>
