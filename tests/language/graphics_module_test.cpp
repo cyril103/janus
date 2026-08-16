@@ -258,7 +258,7 @@ def main() : int {
     quadPoint.x + cubicPoint.x + imageArea.width + float(pixel.packed()) +
     overlapArea.width > float(0.0) {
         return mouseX() + mouseY() + screenWidth() + screenHeight() +
-            keyPressed()
+            keyPressed() + characterPressed()
     }
     return 0
 }

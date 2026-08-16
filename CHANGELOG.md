@@ -3,6 +3,14 @@
 Les changements notables de Janus sont documentés dans ce fichier. Le projet
 utilise le versionnage sémantique à partir de sa première version publique.
 
+## [Non publié]
+
+### Bibliothèque graphique
+
+- ajout de `std.graphics.input.characterPressed`, qui retourne les caractères
+  Unicode selon la disposition active du clavier et permet notamment une saisie
+  correcte avec les claviers AZERTY.
+
 ## [0.12.0] - 2026-08-14
 
 Cette version mineure étend les opérations de fichiers et de tests, formalise

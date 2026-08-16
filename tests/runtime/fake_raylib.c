@@ -1195,6 +1195,8 @@ RAYLIB_EXPORT bool IsKeyPressed(int key) { return key == 256; }
 
 RAYLIB_EXPORT int GetKeyPressed(void) { return 65; }
 
+RAYLIB_EXPORT int GetCharPressed(void) { return 233; }
+
 RAYLIB_EXPORT int GetMouseX(void) { return 123; }
 
 RAYLIB_EXPORT int GetMouseY(void) { return 234; }

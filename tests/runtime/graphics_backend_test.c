@@ -165,6 +165,7 @@ extern bool janus_graphics_music_is_playing(const void *handle);
 extern bool janus_graphics_is_key_down(int key);
 extern bool janus_graphics_is_key_pressed(int key);
 extern int janus_graphics_key_pressed(void);
+extern int janus_graphics_character_pressed(void);
 extern int janus_graphics_mouse_x(void);
 extern int janus_graphics_mouse_y(void);
 extern void janus_graphics_set_mouse_position(int x, int y);
@@ -400,8 +401,9 @@ int main(void) {
   janus_graphics_close_audio();
 
   if (!janus_graphics_is_key_down(263) || !janus_graphics_is_key_pressed(256) ||
-      janus_graphics_key_pressed() != 65 || janus_graphics_mouse_x() != 123 ||
-      janus_graphics_mouse_y() != 234 ||
+      janus_graphics_key_pressed() != 65 ||
+      janus_graphics_character_pressed() != 233 ||
+      janus_graphics_mouse_x() != 123 || janus_graphics_mouse_y() != 234 ||
       janus_graphics_mouse_wheel_move() != 1.5f ||
       !janus_graphics_is_mouse_button_down(0) ||
       !janus_graphics_is_mouse_button_pressed(1)) {

@@ -350,6 +350,8 @@ Entrées disponibles :
 
 - `isKeyDown` et `isKeyPressed` avec l'enum `Key` ;
 - `keyPressed` pour lire la prochaine touche saisie ;
+- `characterPressed` pour lire le prochain caractère Unicode selon la
+  disposition active du clavier, notamment AZERTY ou QWERTY ;
 - `mouseX`, `mouseY`, `setMousePosition` et `mouseWheelMove` ;
 - `isMouseButtonDown` et `isMouseButtonPressed` avec `MouseButton`.
 - `showCursor`, `hideCursor`, `enableCursor`, `disableCursor` et
