@@ -193,8 +193,8 @@
       "source": "stdlib/std/process.janus",
       "documentation": ["docs/language-guide.md", "docs/design/process-runtime.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "19fdf6a95f58a238c1ed0dc22973a685473d54f7c58748c1ec42b3dc4b6c6b62",
-      "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "environmentVariable", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.stderrData", "ProcessResult.stderrSize", "runProcess"]
+      "signature_digest": "9a6e426a2f3fd3b82bdbdc7936ccfbcc168f108c5a51b65890429350fa297fb2",
+      "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "WorkingDirectory", "WorkingDirectory.view", "environmentVariable", "currentWorkingDirectory", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.stderrData", "ProcessResult.stderrSize", "ChildProcess", "ChildProcess.write", "ChildProcess.writeText", "ChildProcess.read", "ChildProcess.closeInput", "spawnProcess", "runProcess"]
     },
     {
       "name": "std.range",

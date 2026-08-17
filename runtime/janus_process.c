@@ -54,6 +54,18 @@ typedef struct {
   janus_process_buffer standard_error;
 } janus_process_result;
 
+typedef struct {
+#if defined(_WIN32)
+  HANDLE process;
+  HANDLE standard_input;
+  HANDLE standard_output;
+#else
+  pid_t process;
+  int standard_input;
+  int standard_output;
+#endif
+} janus_interactive_process;
+
 uint32_t janus_process_last_error_code(void) {
   return janus_system_error_code();
 }
@@ -415,6 +427,57 @@ intptr_t janus_process_environment(const char *name, uint64_t length) {
   return (intptr_t)text;
 }
 
+intptr_t janus_process_current_directory(void) {
+  janus_process_text *text =
+      (janus_process_text *)calloc(1, sizeof(janus_process_text));
+  if (text == NULL) {
+#if defined(_WIN32)
+    janus_system_set_error(ERROR_OUTOFMEMORY, JANUS_SYSTEM_RESOURCE_EXHAUSTED);
+#else
+    janus_system_set_error((uint32_t)ENOMEM, JANUS_SYSTEM_RESOURCE_EXHAUSTED);
+#endif
+    return -1;
+  }
+#if defined(_WIN32)
+  const DWORD required = GetCurrentDirectoryW(0, NULL);
+  if (required == 0) {
+    free(text);
+    janus_system_capture_windows_error();
+    return -1;
+  }
+  wchar_t *wide = (wchar_t *)malloc((size_t)required * sizeof(wchar_t));
+  if (wide == NULL) {
+    free(text);
+    janus_system_set_error(ERROR_OUTOFMEMORY, JANUS_SYSTEM_RESOURCE_EXHAUSTED);
+    return -1;
+  }
+  const DWORD written = GetCurrentDirectoryW(required, wide);
+  if (written == 0 || written >= required) {
+    free(wide);
+    free(text);
+    janus_system_capture_windows_error();
+    return -1;
+  }
+  text->data = janus_process_utf8_from_wide(wide, (int)written, &text->size);
+  free(wide);
+  if (text->data == NULL) {
+    free(text);
+    return -1;
+  }
+#else
+  char *directory = getcwd(NULL, 0);
+  if (directory == NULL) {
+    free(text);
+    janus_system_capture_posix_error();
+    return -1;
+  }
+  text->data = directory;
+  text->size = (uint64_t)strlen(directory);
+#endif
+  janus_system_clear_error();
+  return (intptr_t)text;
+}
+
 const char *janus_process_text_data(intptr_t text) {
   return text > 0 ? ((janus_process_text *)text)->data : NULL;
 }
@@ -452,6 +515,248 @@ static int janus_process_pipe(int descriptors[2]) {
     return 0;
   }
   return 1;
+}
+
+intptr_t janus_process_spawn(const char *executable, uint64_t executable_length,
+                             const char *const *arguments,
+                             const uint64_t *argument_lengths,
+                             uint64_t argument_count,
+                             const char *working_directory,
+                             uint64_t working_directory_length) {
+  if (!janus_process_valid_text(executable, executable_length, 0) ||
+      (argument_count != 0 &&
+       (arguments == NULL || argument_lengths == NULL)) ||
+      (working_directory_length != 0 &&
+       !janus_process_valid_text(working_directory, working_directory_length,
+                                 0)) ||
+      argument_count > SIZE_MAX / sizeof(char *) - 2) {
+    janus_system_set_error((uint32_t)EINVAL, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  char *program = janus_system_posix_path(executable, executable_length);
+  if (program == NULL)
+    return -1;
+  char *directory = NULL;
+  if (working_directory_length != 0) {
+    directory =
+        janus_system_posix_path(working_directory, working_directory_length);
+    if (directory == NULL) {
+      free(program);
+      return -1;
+    }
+  }
+  char **argv = (char **)calloc((size_t)argument_count + 2, sizeof(char *));
+  if (argv == NULL) {
+    free(program);
+    free(directory);
+    janus_system_set_error((uint32_t)ENOMEM, JANUS_SYSTEM_RESOURCE_EXHAUSTED);
+    return -1;
+  }
+  argv[0] = program;
+  for (uint64_t index = 0; index < argument_count; ++index) {
+    argv[index + 1] =
+        janus_process_posix_text(arguments[index], argument_lengths[index], 1);
+    if (argv[index + 1] == NULL) {
+      for (uint64_t cleanup = 1; cleanup <= index; ++cleanup)
+        free(argv[cleanup]);
+      free(argv);
+      free(program);
+      free(directory);
+      return -1;
+    }
+  }
+
+  int input_pipe[2] = {-1, -1};
+  int output_pipe[2] = {-1, -1};
+  int launch_pipe[2] = {-1, -1};
+  if (!janus_process_pipe(input_pipe) || !janus_process_pipe(output_pipe) ||
+      !janus_process_pipe(launch_pipe)) {
+    janus_system_capture_posix_error();
+    goto interactive_fail_before_fork;
+  }
+  const pid_t child = fork();
+  if (child < 0) {
+    janus_system_capture_posix_error();
+    goto interactive_fail_before_fork;
+  }
+  if (child == 0) {
+    close(launch_pipe[0]);
+    close(input_pipe[1]);
+    close(output_pipe[0]);
+    if (dup2(input_pipe[0], STDIN_FILENO) < 0 ||
+        dup2(output_pipe[1], STDOUT_FILENO) < 0)
+      goto interactive_child_error;
+    janus_process_close_fd(&input_pipe[0]);
+    janus_process_close_fd(&output_pipe[1]);
+    if (directory != NULL && chdir(directory) != 0)
+      goto interactive_child_error;
+    execvp(program, argv);
+  interactive_child_error: {
+    const int child_errno = errno;
+    ssize_t written;
+    do {
+      written = write(launch_pipe[1], &child_errno, sizeof(child_errno));
+    } while (written < 0 && errno == EINTR);
+    (void)written;
+    _exit(127);
+  }
+  }
+
+  janus_process_close_fd(&input_pipe[0]);
+  janus_process_close_fd(&output_pipe[1]);
+  janus_process_close_fd(&launch_pipe[1]);
+  int child_error = 0;
+  ssize_t launch_read;
+  do {
+    launch_read = read(launch_pipe[0], &child_error, sizeof(child_error));
+  } while (launch_read < 0 && errno == EINTR);
+  janus_process_close_fd(&launch_pipe[0]);
+  if (launch_read < 0 || launch_read > 0) {
+    if (launch_read < 0)
+      janus_system_capture_posix_error();
+    else {
+      errno = child_error;
+      janus_system_capture_posix_error();
+    }
+    janus_process_close_fd(&input_pipe[1]);
+    janus_process_close_fd(&output_pipe[0]);
+    (void)waitpid(child, NULL, 0);
+    goto interactive_cleanup_arguments;
+  }
+
+  janus_interactive_process *process =
+      (janus_interactive_process *)calloc(1, sizeof(*process));
+  if (process == NULL) {
+    janus_process_close_fd(&input_pipe[1]);
+    janus_process_close_fd(&output_pipe[0]);
+    (void)kill(child, SIGKILL);
+    (void)waitpid(child, NULL, 0);
+    janus_system_set_error((uint32_t)ENOMEM, JANUS_SYSTEM_RESOURCE_EXHAUSTED);
+    goto interactive_cleanup_arguments;
+  }
+  process->process = child;
+  process->standard_input = input_pipe[1];
+  process->standard_output = output_pipe[0];
+  for (uint64_t index = 1; index <= argument_count; ++index)
+    free(argv[index]);
+  free(argv);
+  free(program);
+  free(directory);
+  janus_system_clear_error();
+  return (intptr_t)process;
+
+interactive_fail_before_fork:
+  janus_process_close_fd(&input_pipe[0]);
+  janus_process_close_fd(&input_pipe[1]);
+  janus_process_close_fd(&output_pipe[0]);
+  janus_process_close_fd(&output_pipe[1]);
+  janus_process_close_fd(&launch_pipe[0]);
+  janus_process_close_fd(&launch_pipe[1]);
+interactive_cleanup_arguments:
+  for (uint64_t index = 1; index <= argument_count; ++index)
+    free(argv[index]);
+  free(argv);
+  free(program);
+  free(directory);
+  return -1;
+}
+
+static ssize_t janus_process_pipe_write(int descriptor, const void *data,
+                                        size_t size) {
+  struct sigaction ignored = {0};
+  struct sigaction previous = {0};
+  ignored.sa_handler = SIG_IGN;
+  sigemptyset(&ignored.sa_mask);
+  if (sigaction(SIGPIPE, &ignored, &previous) != 0)
+    return -1;
+  ssize_t written;
+  do {
+    written = write(descriptor, data, size);
+  } while (written < 0 && errno == EINTR);
+  const int saved = errno;
+  (void)sigaction(SIGPIPE, &previous, NULL);
+  errno = saved;
+  return written;
+}
+
+int64_t janus_process_child_write(intptr_t handle, const void *data,
+                                  uint64_t size) {
+  if (handle <= 0 || (data == NULL && size != 0)) {
+    janus_system_set_error((uint32_t)EINVAL, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  janus_interactive_process *process = (janus_interactive_process *)handle;
+  if (process->standard_input < 0) {
+    janus_system_set_error((uint32_t)EBADF, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  uint64_t offset = 0;
+  while (offset < size) {
+    const size_t chunk = size - offset > (uint64_t)SSIZE_MAX
+                             ? (size_t)SSIZE_MAX
+                             : (size_t)(size - offset);
+    const ssize_t written = janus_process_pipe_write(
+        process->standard_input, (const char *)data + offset, chunk);
+    if (written <= 0) {
+      janus_system_capture_posix_error();
+      return -1;
+    }
+    offset += (uint64_t)written;
+  }
+  janus_system_clear_error();
+  return (int64_t)offset;
+}
+
+int64_t janus_process_child_read(intptr_t handle, void *data, uint64_t size) {
+  if (handle <= 0 || (data == NULL && size != 0)) {
+    janus_system_set_error((uint32_t)EINVAL, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  janus_interactive_process *process = (janus_interactive_process *)handle;
+  if (process->standard_output < 0) {
+    janus_system_set_error((uint32_t)EBADF, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  if (size == 0)
+    return 0;
+  const size_t requested =
+      size > (uint64_t)SSIZE_MAX ? (size_t)SSIZE_MAX : (size_t)size;
+  ssize_t count;
+  do {
+    count = read(process->standard_output, data, requested);
+  } while (count < 0 && errno == EINTR);
+  if (count < 0) {
+    janus_system_capture_posix_error();
+    return -1;
+  }
+  janus_system_clear_error();
+  return (int64_t)count;
+}
+
+int32_t janus_process_child_close_input(intptr_t handle) {
+  if (handle <= 0) {
+    janus_system_set_error((uint32_t)EINVAL, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  janus_interactive_process *process = (janus_interactive_process *)handle;
+  janus_process_close_fd(&process->standard_input);
+  janus_system_clear_error();
+  return 0;
+}
+
+void janus_process_child_destroy(intptr_t handle) {
+  if (handle <= 0)
+    return;
+  janus_interactive_process *process = (janus_interactive_process *)handle;
+  janus_process_close_fd(&process->standard_input);
+  janus_process_close_fd(&process->standard_output);
+  int status = 0;
+  const pid_t waited = waitpid(process->process, &status, WNOHANG);
+  if (waited == 0) {
+    (void)kill(process->process, SIGKILL);
+    (void)waitpid(process->process, &status, 0);
+  }
+  free(process);
 }
 
 intptr_t janus_process_run(const char *executable, uint64_t executable_length,
@@ -722,6 +1027,205 @@ static HANDLE janus_process_inheritable_standard(DWORD identifier,
                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 }
 
+intptr_t janus_process_spawn(const char *executable, uint64_t executable_length,
+                             const char *const *arguments,
+                             const uint64_t *argument_lengths,
+                             uint64_t argument_count,
+                             const char *working_directory,
+                             uint64_t working_directory_length) {
+  if (!janus_process_valid_text(executable, executable_length, 0) ||
+      (argument_count != 0 &&
+       (arguments == NULL || argument_lengths == NULL))) {
+    janus_system_set_error(ERROR_INVALID_PARAMETER, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  wchar_t *program = janus_process_wide_text(executable, executable_length, 0);
+  wchar_t *directory =
+      working_directory_length == 0
+          ? NULL
+          : janus_process_wide_text(working_directory, working_directory_length,
+                                    0);
+  if (program == NULL || (working_directory_length != 0 && directory == NULL)) {
+    free(program);
+    free(directory);
+    return -1;
+  }
+  janus_process_buffer command = {0};
+  if (!janus_process_quote_argument(&command, program))
+    goto interactive_windows_fail;
+  for (uint64_t index = 0; index < argument_count; ++index) {
+    wchar_t *argument =
+        janus_process_wide_text(arguments[index], argument_lengths[index], 1);
+    const wchar_t space = L' ';
+    if (argument == NULL ||
+        !janus_process_buffer_append(&command, &space, sizeof(space)) ||
+        !janus_process_quote_argument(&command, argument)) {
+      free(argument);
+      goto interactive_windows_fail;
+    }
+    free(argument);
+  }
+  const wchar_t terminator = L'\0';
+  if (!janus_process_buffer_append(&command, &terminator, sizeof(terminator)))
+    goto interactive_windows_fail;
+
+  SECURITY_ATTRIBUTES security = {sizeof(security), NULL, TRUE};
+  HANDLE input_read = NULL, input_write = NULL;
+  HANDLE output_read = NULL, output_write = NULL;
+  HANDLE inherited_error = NULL;
+  if (!CreatePipe(&input_read, &input_write, &security, 0) ||
+      !SetHandleInformation(input_write, HANDLE_FLAG_INHERIT, 0) ||
+      !CreatePipe(&output_read, &output_write, &security, 0) ||
+      !SetHandleInformation(output_read, HANDLE_FLAG_INHERIT, 0)) {
+    janus_system_capture_windows_error();
+    goto interactive_windows_handles;
+  }
+  inherited_error =
+      janus_process_inheritable_standard(STD_ERROR_HANDLE, GENERIC_WRITE);
+  if (inherited_error == NULL || inherited_error == INVALID_HANDLE_VALUE) {
+    janus_system_capture_windows_error();
+    goto interactive_windows_handles;
+  }
+  STARTUPINFOW startup = {0};
+  startup.cb = sizeof(startup);
+  startup.dwFlags = STARTF_USESTDHANDLES;
+  startup.hStdInput = input_read;
+  startup.hStdOutput = output_write;
+  startup.hStdError = inherited_error;
+  PROCESS_INFORMATION child = {0};
+  if (!CreateProcessW(NULL, (wchar_t *)command.data, NULL, NULL, TRUE, 0, NULL,
+                      directory, &startup, &child)) {
+    janus_system_capture_windows_error();
+    goto interactive_windows_handles;
+  }
+  CloseHandle(input_read);
+  input_read = NULL;
+  CloseHandle(output_write);
+  output_write = NULL;
+  CloseHandle(inherited_error);
+  inherited_error = NULL;
+  CloseHandle(child.hThread);
+
+  janus_interactive_process *process =
+      (janus_interactive_process *)calloc(1, sizeof(*process));
+  if (process == NULL) {
+    janus_system_set_error(ERROR_OUTOFMEMORY, JANUS_SYSTEM_RESOURCE_EXHAUSTED);
+    TerminateProcess(child.hProcess, 1);
+    WaitForSingleObject(child.hProcess, INFINITE);
+    CloseHandle(child.hProcess);
+    goto interactive_windows_handles;
+  }
+  process->process = child.hProcess;
+  process->standard_input = input_write;
+  process->standard_output = output_read;
+  free(command.data);
+  free(program);
+  free(directory);
+  janus_system_clear_error();
+  return (intptr_t)process;
+
+interactive_windows_handles:
+  if (input_read != NULL && input_read != INVALID_HANDLE_VALUE)
+    CloseHandle(input_read);
+  if (input_write != NULL && input_write != INVALID_HANDLE_VALUE)
+    CloseHandle(input_write);
+  if (output_read != NULL && output_read != INVALID_HANDLE_VALUE)
+    CloseHandle(output_read);
+  if (output_write != NULL && output_write != INVALID_HANDLE_VALUE)
+    CloseHandle(output_write);
+  if (inherited_error != NULL && inherited_error != INVALID_HANDLE_VALUE)
+    CloseHandle(inherited_error);
+interactive_windows_fail:
+  free(command.data);
+  free(program);
+  free(directory);
+  return -1;
+}
+
+int64_t janus_process_child_write(intptr_t handle, const void *data,
+                                  uint64_t size) {
+  if (handle <= 0 || (data == NULL && size != 0)) {
+    janus_system_set_error(ERROR_INVALID_PARAMETER, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  janus_interactive_process *process = (janus_interactive_process *)handle;
+  if (process->standard_input == NULL) {
+    janus_system_set_error(ERROR_INVALID_HANDLE, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  uint64_t offset = 0;
+  while (offset < size) {
+    const DWORD requested =
+        size - offset > UINT32_MAX ? UINT32_MAX : (DWORD)(size - offset);
+    DWORD written = 0;
+    if (!WriteFile(process->standard_input, (const char *)data + offset,
+                   requested, &written, NULL) ||
+        written == 0) {
+      janus_system_capture_windows_error();
+      return -1;
+    }
+    offset += written;
+  }
+  janus_system_clear_error();
+  return (int64_t)offset;
+}
+
+int64_t janus_process_child_read(intptr_t handle, void *data, uint64_t size) {
+  if (handle <= 0 || (data == NULL && size != 0)) {
+    janus_system_set_error(ERROR_INVALID_PARAMETER, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  janus_interactive_process *process = (janus_interactive_process *)handle;
+  if (process->standard_output == NULL) {
+    janus_system_set_error(ERROR_INVALID_HANDLE, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  if (size == 0)
+    return 0;
+  const DWORD requested = size > UINT32_MAX ? UINT32_MAX : (DWORD)size;
+  DWORD count = 0;
+  if (!ReadFile(process->standard_output, data, requested, &count, NULL)) {
+    if (GetLastError() == ERROR_BROKEN_PIPE) {
+      janus_system_clear_error();
+      return 0;
+    }
+    janus_system_capture_windows_error();
+    return -1;
+  }
+  janus_system_clear_error();
+  return (int64_t)count;
+}
+
+int32_t janus_process_child_close_input(intptr_t handle) {
+  if (handle <= 0) {
+    janus_system_set_error(ERROR_INVALID_PARAMETER, JANUS_SYSTEM_INVALID_INPUT);
+    return -1;
+  }
+  janus_interactive_process *process = (janus_interactive_process *)handle;
+  if (process->standard_input != NULL) {
+    CloseHandle(process->standard_input);
+    process->standard_input = NULL;
+  }
+  janus_system_clear_error();
+  return 0;
+}
+
+void janus_process_child_destroy(intptr_t handle) {
+  if (handle <= 0)
+    return;
+  janus_interactive_process *process = (janus_interactive_process *)handle;
+  if (process->standard_input != NULL)
+    CloseHandle(process->standard_input);
+  if (process->standard_output != NULL)
+    CloseHandle(process->standard_output);
+  if (WaitForSingleObject(process->process, 0) == WAIT_TIMEOUT) {
+    TerminateProcess(process->process, 1);
+    WaitForSingleObject(process->process, INFINITE);
+  }
+  CloseHandle(process->process);
+  free(process);
+}
+
 intptr_t janus_process_run(const char *executable, uint64_t executable_length,
                            const char *const *arguments,
                            const uint64_t *argument_lengths,
@@ -803,8 +1307,8 @@ intptr_t janus_process_run(const char *executable, uint64_t executable_length,
     startup.hStdError = capture_stderr ? error_write : inherited_error;
   }
   PROCESS_INFORMATION process = {0};
-  if (!CreateProcessW(NULL, (wchar_t *)command.data, NULL, NULL, TRUE, 0,
-                      NULL, directory, &startup, &process)) {
+  if (!CreateProcessW(NULL, (wchar_t *)command.data, NULL, NULL, TRUE, 0, NULL,
+                      directory, &startup, &process)) {
     janus_system_capture_windows_error();
     goto windows_inherited_handles;
   }

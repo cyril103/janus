@@ -1087,6 +1087,12 @@ de travail courant ; une autre valeur sélectionne celui de l’enfant. Le
 [contrat des processus](design/process-runtime.md) documente l’Unicode, la
 durée de vie des vues, les erreurs et le nettoyage.
 
+Pour un protocole persistant, `spawnProcess` retourne un `ChildProcess` dont
+`writeText` alimente stdin et dont `read` consomme stdout sans relancer
+l’exécutable. `closeInput` envoie une fin de flux ; le destructeur garantit le
+nettoyage de l’enfant. `currentWorkingDirectory` fournit parallèlement une vue
+propriétaire du répertoire courant.
+
 Des programmes complets sont disponibles dans [`examples`](../examples).
 
 ## Structures copiables et propriétaires

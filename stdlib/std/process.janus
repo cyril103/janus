@@ -23,6 +23,7 @@ private extern def janus_process_environment(
 borrow name : Ptr[byte],
 length : usize
 ) : isize
+private extern def janus_process_current_directory() : isize
 private extern def janus_process_text_data(text : isize) : borrow Ptr[byte]
 private extern def janus_process_text_size(text : isize) : usize
 private extern def janus_process_text_destroy(text : isize) : Unit
@@ -37,6 +38,27 @@ workingDirectoryLength : usize,
 captureStdout : bool,
 captureStderr : bool
 ) : isize
+private extern def janus_process_spawn(
+borrow executable : Ptr[byte],
+executableLength : usize,
+borrow arguments : Ptr[Ptr[byte]],
+borrow argumentLengths : Ptr[usize],
+argumentCount : usize,
+borrow workingDirectory : Ptr[byte],
+workingDirectoryLength : usize
+) : isize
+private extern def janus_process_child_write(
+process : isize,
+borrow data : Ptr[byte],
+size : usize
+) : isize
+private extern def janus_process_child_read(
+process : isize,
+borrow data : Ptr[byte],
+size : usize
+) : isize
+private extern def janus_process_child_close_input(process : isize) : int
+private extern def janus_process_child_destroy(process : isize) : Unit
 private extern def janus_process_result_exit_code(result : isize) : int
 private extern def janus_process_result_stdout_data(
 result : isize
@@ -71,6 +93,15 @@ context : string
 ) : SystemError {
     return new SystemError(
     "process.run",
+    SystemErrorCategory.ResourceExhausted,
+    uint(0),
+    context
+    )
+}
+
+private def processSpawnMemoryError(context : string) : SystemError {
+    return new SystemError(
+    "process.spawn",
     SystemErrorCategory.ResourceExhausted,
     uint(0),
     context
@@ -122,6 +153,24 @@ class EnvironmentValue(private var nativeText : isize) {
     }
 }
 
+/// Répertoire de travail courant possédant sa représentation native UTF-8.
+/// @param nativeText Stockage natif transféré par l’API de processus.
+class WorkingDirectory(private var nativeText : isize) {
+    /// Emprunte le chemin courant jusqu’à la destruction de cette valeur.
+    /// @return Vue UTF-8 valide pendant la vie de cette [[WorkingDirectory]].
+    def view() : string {
+        return stringView(
+        janus_process_text_data(nativeText),
+        janus_process_text_size(nativeText)
+        )
+    }
+
+    destructor {
+        janus_process_text_destroy(nativeText)
+        nativeText = isize(0)
+    }
+}
+
 /// Recherche une variable dans l’environnement du processus courant.
 /// @param name Nom exact de la variable, encodé comme une chaîne Janus.
 /// @return `Ok(Some(value))` si elle existe, `Ok(None)` si elle est absente, ou `Error(SystemError)` si la consultation native échoue.
@@ -144,6 +193,21 @@ name : string
     }
     return Result.Ok[Option[EnvironmentValue], SystemError](
     Option.Some[EnvironmentValue](new EnvironmentValue(text))
+    )
+}
+
+/// Capture le répertoire de travail courant du processus.
+/// @return Chemin UTF-8 propriétaire, ou une erreur système si l’hôte ne peut pas le fournir.
+def currentWorkingDirectory(
+) : Result[WorkingDirectory, SystemError] {
+    val text : isize = janus_process_current_directory()
+    if text < isize(0) {
+        return Result.Error[WorkingDirectory, SystemError](
+        processError("process.currentDirectory", "current directory")
+        )
+    }
+    return Result.Ok[WorkingDirectory, SystemError](
+    new WorkingDirectory(text)
     )
 }
 
@@ -187,6 +251,133 @@ class ProcessResult(private var nativeResult : isize) {
         janus_process_result_destroy(nativeResult)
         nativeResult = isize(0)
     }
+}
+
+/// Processus enfant persistant relié par des tubes à son entrée et sa sortie standard.
+///
+/// Les lectures sont bloquantes. Le destructeur ferme les tubes et termine l’enfant
+/// s’il n’a pas déjà quitté ; [[closeInput]] permet de lui signaler une fin de flux.
+/// @param nativeProcess Handle natif propriétaire créé par [[spawnProcess]].
+class ChildProcess(private var nativeProcess : isize) {
+    /// Écrit tous les octets demandés sur l’entrée standard de l’enfant.
+    /// @param data Zone lisible sur `size` octets.
+    /// @param size Nombre d’octets à écrire.
+    /// @return `Ok(size)` après écriture complète, ou une erreur système.
+    def write(
+    data : Ptr[byte],
+    size : usize
+    ) : Result[usize, SystemError] {
+        val count : isize = janus_process_child_write(
+        nativeProcess,
+        data,
+        size
+        )
+        if count < isize(0) {
+            return Result.Error[usize, SystemError](
+            processError("process.write", "child")
+            )
+        }
+        return Result.Ok[usize, SystemError](numericCast[usize](count))
+    }
+
+    /// Écrit les octets UTF-8 d’une chaîne sur l’entrée standard de l’enfant.
+    /// @param value Chaîne dont tous les octets sont transmis.
+    /// @return `Ok` avec la taille écrite, ou une erreur système.
+    def writeText(value : string) : Result[usize, SystemError] {
+        return this.write(stringData(value), stringLength(value))
+    }
+
+    /// Lit au plus `capacity` octets depuis la sortie standard de l’enfant.
+    ///
+    /// L’appel bloque jusqu’à la disponibilité de données ou la fin du flux.
+    /// @param target Zone inscriptible recevant au plus `capacity` octets.
+    /// @param capacity Capacité disponible dans `target`.
+    /// @return `Ok(0)` à la fin du flux, `Ok(count)` après lecture, ou une erreur système.
+    def read(
+    target : Ptr[byte],
+    capacity : usize
+    ) : Result[usize, SystemError] {
+        val count : isize = janus_process_child_read(
+        nativeProcess,
+        target,
+        capacity
+        )
+        if count < isize(0) {
+            return Result.Error[usize, SystemError](
+            processError("process.read", "child")
+            )
+        }
+        return Result.Ok[usize, SystemError](numericCast[usize](count))
+    }
+
+    /// Ferme l’entrée standard transmise à l’enfant de façon idempotente.
+    /// @return `Ok(true)` après fermeture ou si elle l’était déjà, sinon une erreur système.
+    def closeInput() : Result[bool, SystemError] {
+        if janus_process_child_close_input(nativeProcess) != 0 {
+            return Result.Error[bool, SystemError](
+            processError("process.closeInput", "child")
+            )
+        }
+        return Result.Ok[bool, SystemError](true)
+    }
+
+    destructor {
+        janus_process_child_destroy(nativeProcess)
+        nativeProcess = isize(0)
+    }
+}
+
+/// Lance un processus interactif sans attendre sa terminaison.
+///
+/// L’entrée et la sortie standard sont reliées à un [[ChildProcess]]. La sortie
+/// d’erreur reste héritée du parent afin qu’elle ne puisse pas bloquer l’enfant.
+/// @param executable Chemin ou nom de l’exécutable interprété par la plateforme.
+/// @param arguments Arguments transmis séparément à l’enfant.
+/// @param workingDirectory Répertoire de travail, ou chaîne vide pour hériter du parent.
+/// @return `Ok(ChildProcess)` après lancement, ou `Error(SystemError)` si l’enfant ne peut pas démarrer.
+def spawnProcess(
+executable : string,
+arguments : Array[string],
+workingDirectory : string
+) : Result[ChildProcess, SystemError] {
+    val count : usize = arguments.size()
+    val argumentData : Ptr[Ptr[byte]] =
+    alloc[Ptr[byte]](count)
+    defer freeStorage(argumentData)
+    if argumentData == null[Ptr[byte]]() && count != usize(0) {
+        return Result.Error[ChildProcess, SystemError](
+        processSpawnMemoryError(executable)
+        )
+    }
+    val argumentLengths : Ptr[usize] = alloc[usize](count)
+    defer free(argumentLengths)
+    if argumentLengths == null[usize]() && count != usize(0) {
+        return Result.Error[ChildProcess, SystemError](
+        processSpawnMemoryError(executable)
+        )
+    }
+    var index : usize = usize(0)
+    while index < count {
+        val argument : string = arguments.get(index)
+        argumentData.initialize(index, stringData(argument))
+        argumentLengths.store(index, stringLength(argument))
+        index = index + usize(1)
+    }
+    val process : isize = janus_process_spawn(
+    stringData(executable),
+    stringLength(executable),
+    argumentData,
+    argumentLengths,
+    count,
+    stringData(workingDirectory),
+    stringLength(workingDirectory)
+    )
+    if process < isize(0) {
+        return Result.Error[ChildProcess, SystemError](
+        processError("process.spawn", executable)
+        )
+    }
+    return Result.Ok[ChildProcess, SystemError](new ChildProcess(process))
 }
 
 /// Lance un processus, attend sa terminaison et restitue son résultat propriétaire.

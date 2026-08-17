@@ -132,6 +132,79 @@ def writeChildError(stream : OutputStream) : bool {
     return written && closed
 }
 
+def usizeResult(
+result : Result[usize, SystemError],
+expected : usize
+) : bool {
+    return match result {
+        Ok(value) => value == expected,
+        Error(error) => false
+    }
+}
+
+def useInteractiveInput(input : InputStream) : int {
+    val data : Ptr[byte] = alloc[byte](usize(5))
+    defer free(data)
+    val count : usize = match input.read(data, usize(5)) {
+        Ok(value) => value,
+        Error(error) => usize(0)
+    }
+    if count == usize(5) {
+        print(stringView(data, count))
+    }
+    delete input
+    return if count == usize(5) { 0 } else { 2 }
+}
+
+def interactiveChildMain() : int {
+    val result : Result[InputStream, SystemError] = standardInput()
+    return match move result {
+        Ok(input) => useInteractiveInput(move input),
+        Error(error) => 2
+    }
+}
+
+def exchangeWithChild(child : ChildProcess) : bool {
+    val sent : bool = usizeResult(child.writeText("ping\n"), usize(5))
+    val received : Ptr[byte] = alloc[byte](usize(5))
+    defer free(received)
+    val chunk : Ptr[byte] = alloc[byte](usize(5))
+    defer free(chunk)
+    var offset : usize = usize(0)
+    while offset < usize(5) {
+        val count : usize = match child.read(
+        chunk,
+        usize(5) - offset
+        ) {
+            Ok(value) => value,
+            Error(error) => usize(0)
+        }
+        if count == usize(0) {
+            delete child
+            return false
+        }
+        var index : usize = usize(0)
+        while index < count {
+            received.store(offset + index, chunk.load(index))
+            index = index + usize(1)
+        }
+        offset = offset + count
+    }
+    val matches : bool = stringView(received, usize(5)) == "ping\n"
+    val closed : bool = boolResult(child.closeInput())
+    delete child
+    return sent && matches && closed
+}
+
+def interactiveResult(
+result : Result[ChildProcess, SystemError]
+) : bool {
+    return match move result {
+        Ok(child) => exchangeWithChild(move child),
+        Error(error) => false
+    }
+}
+
 def markerMatches(
 result : Result[FileData, SystemError]
 ) : bool {
@@ -235,6 +308,15 @@ def runParent(root : Path, executable : string) : int {
     root.view()
     ))
     delete arguments
+    val interactiveArguments : Array[string] =
+    new Array[string](usize(1))
+    interactiveArguments.push("--interactive-child")
+    println(interactiveResult(spawnProcess(
+    executable,
+    interactiveArguments,
+    ""
+    )))
+    delete interactiveArguments
     val missingArguments : Array[string] =
     new Array[string](usize(0))
     println(missingProcess(runProcess(
@@ -287,6 +369,10 @@ def main() : int {
     if programArgumentCount() > usize(1) &&
     argumentEquals(usize(1), "--child") {
         return childMain()
+    }
+    if programArgumentCount() > usize(1) &&
+    argumentEquals(usize(1), "--interactive-child") {
+        return interactiveChildMain()
     }
     println(programArgumentCount() >= usize(1))
     println(environmentEquals(

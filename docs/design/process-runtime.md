@@ -3,7 +3,7 @@
 Statut : implémenté pour Janus 0.7.1.
 
 Le module `std.process` expose les arguments du programme, les variables
-d’environnement et l’exécution synchrone d’un enfant. Toutes les opérations
+d’environnement et l’exécution synchrone ou interactive d’un enfant. Toutes les opérations
 natives utilisent UTF-8 à la frontière Janus et retournent les échecs
 récupérables dans `Result[_, SystemError]`.
 
@@ -28,6 +28,10 @@ variable est absente, ou `Error(SystemError)` sur échec. La vue de
 `EnvironmentValue.view` reste valide jusqu’à la destruction de la valeur.
 Windows utilise les API larges ; POSIX copie la valeur UTF-8.
 
+`currentWorkingDirectory` capture de la même manière le répertoire courant dans
+une `WorkingDirectory` propriétaire. Sa vue reste stable jusqu’à la destruction
+de la valeur.
+
 ## Lancement sans shell
 
 `runProcess` reçoit séparément l’exécutable et un `Array[string]` d’arguments.
@@ -46,6 +50,21 @@ invalide ou un échec de création retournent `Error(SystemError)`. Après le
 retour, succès ou échec, tous les handles sont fermés et aucun enfant ne
 subsiste.
 
+## Processus interactif
+
+`spawnProcess` lance l’enfant sans attendre sa terminaison et retourne un
+`ChildProcess`. Son entrée et sa sortie standard sont reliées à des tubes :
+`write`/`writeText` transmettent une requête complète, `read` attend des octets
+ou la fin du flux, et `closeInput` signale explicitement EOF à l’enfant. La
+sortie d’erreur est héritée du parent afin qu’un tube non drainé ne puisse pas
+bloquer le processus.
+
+Les appels de lecture sont bloquants. Le destructeur ferme les tubes, récupère
+le processus déjà terminé ou le termine encore actif, puis libère tous les
+handles. Cette API convient notamment aux protocoles requête-réponse persistants
+comme LSP ; les applications graphiques doivent éviter de lire sans avoir envoyé
+une requête qui garantit une réponse.
+
 La révision 0.7.4 mutualise la construction des erreurs d'épuisement mémoire
 sans réduire leur diagnostic : l'opération reste « process.run », la catégorie
 `ResourceExhausted`, le code synthétique zéro et le contexte est
@@ -61,7 +80,8 @@ la commande absente, le refus d’exécution et le nettoyage. AddressSanitizer
 reste actif ; seule sa détection de fuites est désactivée pour cette fixture,
 car deux runtimes LeakSanitizer parent/enfant avec flux capturés peuvent
 attendre la fermeture mutuelle des descripteurs. Les allocations, handles et
-attentes d’enfant sont aussi exercés par le test runtime natif.
+attentes d’enfant sont aussi exercés par le test runtime natif, qui vérifie un
+aller-retour interactif avant la fermeture de l’entrée.
 
 La fixture 0.7.4 compare les quatre champs de `SystemError` pour une commande
 absente et un exécutable refusé, en plus des chemins succès et Unicode.
