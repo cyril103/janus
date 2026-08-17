@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Janus standard library 0.12.0 API</title>
+<title>Janus standard library 0.13.0 API</title>
 <style>
 :root{--ink:#173c50;--ink-strong:#102f40;--top:#123f54;--top-soft:#315d70;--paper:#edf1f3;--panel:#fff;--line:#d9e1e5;--signature:#c8d8e1;--accent:#087b51;--accent-bright:#62e6a7;--flare:#d95c36;--muted:#617784;--shadow:0 2px 9px rgba(16,47,64,.12);--mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;--sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:5.5rem}body{margin:0;background:var(--paper);color:var(--ink);font:13px/1.55 var(--sans)}a{color:#285d7c;text-decoration:underline;text-decoration-thickness:.06em;text-underline-offset:.14em}a:hover{color:var(--accent)}a:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid rgba(98,230,167,.68);outline-offset:2px}code{font-family:var(--mono)}
@@ -21,13 +21,13 @@
 </head>
 <body>
 <header class="topbar">
-<div class="brand"><strong>Janus standard library</strong><span class="version">0.12.0</span></div>
+<div class="brand"><strong>Janus standard library</strong><span class="version">0.13.0</span></div>
 <label class="search"><span class="sr-only" hidden>Search the API</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 3a6.5 6.5 0 1 0 4.1 11.55L19.05 20 20.5 18.55l-5.45-5.45A6.5 6.5 0 0 0 9.5 3Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"/></svg><input id="api-search" type="search" autocomplete="off" placeholder="Search modules, symbols and signatures" aria-controls="api-content"></label>
 <div id="search-status" class="search-status" aria-live="polite"></div><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="module-sidebar">Modules</button>
 </header>
 <div class="doc-layout">
 <main id="api-content" class="content">
-<header class="hero"><span class="hero-mark" aria-hidden="true">J</span><div><h1>Janus standard library API</h1><p>Offline reference · version 0.12.0</p></div></header>
+<header class="hero"><span class="hero-mark" aria-hidden="true">J</span><div><h1>Janus standard library API</h1><p>Offline reference · version 0.13.0</p></div></header>
 <div id="empty-state" class="empty-state"><strong>No API entries match this search.</strong><br>Try a module name, symbol or type.</div>
 <section class="module" id="module-std-array" data-module data-search="std.array Fournit un tableau dynamique propriétaire et ses opérations séquentielles.
 
@@ -5543,8 +5543,49 @@ d’environnement et résultats de commande possèdent en revanche leurs buffers
 <a href="#std-process-runprocess"><code>runProcess</code></a> attend la fin de l’enfant et peut capturer ses sorties en octets.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val args = new Array[string](usize(1))<br>
 args.push(&quot;--version&quot;)<br>
 val result = runProcess(&quot;janus&quot;, args, &quot;&quot;, true, true)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">13</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">22</span></h3>
 <div class="symbol-list">
+<article class="symbol-card kind-class" id="std-process-childprocess" data-symbol data-search="std.process.ChildProcess class class ChildProcess(var nativeProcess : isize) Processus enfant persistant relié par des tubes à son entrée et sa sortie standard.
+
+Les lectures sont bloquantes. Le destructeur ferme les tubes et termine l’enfant
+s’il n’a pas déjà quitté ; [[closeInput]] permet de lui signaler une fin de flux.
+@param nativeProcess Handle natif propriétaire créé par [[spawnProcess]]."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ChildProcess(var nativeProcess : isize)</code></h3>
+<p class="doc-summary">Processus enfant persistant relié par des tubes à son entrée et sa sortie standard.</p>
+<div class="doc-details"><p>Les lectures sont bloquantes. Le destructeur ferme les tubes et termine l’enfant<br>
+s’il n’a pas déjà quitté ; <a href="#std-process-childprocess-closeinput"><code>closeInput</code></a> permet de lui signaler une fin de flux.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeProcess</code></td><td><code>isize</code></td><td>Handle natif propriétaire créé par <a href="#std-process-spawnprocess"><code>spawnProcess</code></a>.</td></tr></tbody></table></section>
+<div class="qualified">std.process.ChildProcess</div></div><a class="permalink" href="#std-process-childprocess" aria-label="Permanent link to std.process.ChildProcess">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-childprocess-closeinput" data-symbol data-search="std.process.ChildProcess.closeInput method def closeInput() : Result[bool, SystemError] Ferme l’entrée standard transmise à l’enfant de façon idempotente.
+@return `Ok(true)` après fermeture ou si elle l’était déjà, sinon une erreur système."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ChildProcess</div><h3><code>def closeInput() : Result[bool, SystemError]</code></h3>
+<p class="doc-summary">Ferme l’entrée standard transmise à l’enfant de façon idempotente.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[bool, SystemError]</code> — `Ok(true)` après fermeture ou si elle l’était déjà, sinon une erreur système.</p></section>
+<div class="qualified">std.process.ChildProcess.closeInput</div></div><a class="permalink" href="#std-process-childprocess-closeinput" aria-label="Permanent link to std.process.ChildProcess.closeInput">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-childprocess-read" data-symbol data-search="std.process.ChildProcess.read method def read(target : Ptr[byte], capacity : usize) : Result[usize, SystemError] Lit au plus `capacity` octets depuis la sortie standard de l’enfant.
+
+L’appel bloque jusqu’à la disponibilité de données ou la fin du flux.
+@param target Zone inscriptible recevant au plus `capacity` octets.
+@param capacity Capacité disponible dans `target`.
+@return `Ok(0)` à la fin du flux, `Ok(count)` après lecture, ou une erreur système."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ChildProcess</div><h3><code>def read(target : Ptr[byte], capacity : usize) : Result[usize, SystemError]</code></h3>
+<p class="doc-summary">Lit au plus `capacity` octets depuis la sortie standard de l’enfant.</p>
+<div class="doc-details"><p>L’appel bloque jusqu’à la disponibilité de données ou la fin du flux.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>target</code></td><td><code>Ptr[byte]</code></td><td>Zone inscriptible recevant au plus `capacity` octets.</td></tr><tr><td><code>capacity</code></td><td><code>usize</code></td><td>Capacité disponible dans `target`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[usize, SystemError]</code> — `Ok(0)` à la fin du flux, `Ok(count)` après lecture, ou une erreur système.</p></section>
+<div class="qualified">std.process.ChildProcess.read</div></div><a class="permalink" href="#std-process-childprocess-read" aria-label="Permanent link to std.process.ChildProcess.read">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-childprocess-write" data-symbol data-search="std.process.ChildProcess.write method def write(data : Ptr[byte], size : usize) : Result[usize, SystemError] Écrit tous les octets demandés sur l’entrée standard de l’enfant.
+@param data Zone lisible sur `size` octets.
+@param size Nombre d’octets à écrire.
+@return `Ok(size)` après écriture complète, ou une erreur système."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ChildProcess</div><h3><code>def write(data : Ptr[byte], size : usize) : Result[usize, SystemError]</code></h3>
+<p class="doc-summary">Écrit tous les octets demandés sur l’entrée standard de l’enfant.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>data</code></td><td><code>Ptr[byte]</code></td><td>Zone lisible sur `size` octets.</td></tr><tr><td><code>size</code></td><td><code>usize</code></td><td>Nombre d’octets à écrire.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[usize, SystemError]</code> — `Ok(size)` après écriture complète, ou une erreur système.</p></section>
+<div class="qualified">std.process.ChildProcess.write</div></div><a class="permalink" href="#std-process-childprocess-write" aria-label="Permanent link to std.process.ChildProcess.write">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-childprocess-writetext" data-symbol data-search="std.process.ChildProcess.writeText method def writeText(value : string) : Result[usize, SystemError] Écrit les octets UTF-8 d’une chaîne sur l’entrée standard de l’enfant.
+@param value Chaîne dont tous les octets sont transmis.
+@return `Ok` avec la taille écrite, ou une erreur système."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ChildProcess</div><h3><code>def writeText(value : string) : Result[usize, SystemError]</code></h3>
+<p class="doc-summary">Écrit les octets UTF-8 d’une chaîne sur l’entrée standard de l’enfant.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>string</code></td><td>Chaîne dont tous les octets sont transmis.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[usize, SystemError]</code> — `Ok` avec la taille écrite, ou une erreur système.</p></section>
+<div class="qualified">std.process.ChildProcess.writeText</div></div><a class="permalink" href="#std-process-childprocess-writetext" aria-label="Permanent link to std.process.ChildProcess.writeText">#</a></article>
 <article class="symbol-card kind-class" id="std-process-environmentvalue" data-symbol data-search="std.process.EnvironmentValue class class EnvironmentValue(var nativeText : isize) Valeur d’environnement propriétaire obtenue par [[environmentVariable]].
 
 Sa vue emprunte un stockage natif libéré avec l’objet.
@@ -5598,6 +5639,21 @@ invalides à la destruction. Les données sont brutes et ne sont pas validées U
 <p class="doc-summary">Retourne la taille de la sortie standard capturée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets disponibles via <a href="#std-process-processresult-stdoutdata"><code>stdoutData</code></a>, zéro si rien n’a été capturé.</p></section>
 <div class="qualified">std.process.ProcessResult.stdoutSize</div></div><a class="permalink" href="#std-process-processresult-stdoutsize" aria-label="Permanent link to std.process.ProcessResult.stdoutSize">#</a></article>
+<article class="symbol-card kind-class" id="std-process-workingdirectory" data-symbol data-search="std.process.WorkingDirectory class class WorkingDirectory(var nativeText : isize) Répertoire de travail courant possédant sa représentation native UTF-8.
+@param nativeText Stockage natif transféré par l’API de processus."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class WorkingDirectory(var nativeText : isize)</code></h3>
+<p class="doc-summary">Répertoire de travail courant possédant sa représentation native UTF-8.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeText</code></td><td><code>isize</code></td><td>Stockage natif transféré par l’API de processus.</td></tr></tbody></table></section>
+<div class="qualified">std.process.WorkingDirectory</div></div><a class="permalink" href="#std-process-workingdirectory" aria-label="Permanent link to std.process.WorkingDirectory">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-workingdirectory-view" data-symbol data-search="std.process.WorkingDirectory.view method def view() : string Emprunte le chemin courant jusqu’à la destruction de cette valeur.
+@return Vue UTF-8 valide pendant la vie de cette [[WorkingDirectory]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.WorkingDirectory</div><h3><code>def view() : string</code></h3>
+<p class="doc-summary">Emprunte le chemin courant jusqu’à la destruction de cette valeur.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue UTF-8 valide pendant la vie de cette <a href="#std-process-workingdirectory"><code>WorkingDirectory</code></a>.</p></section>
+<div class="qualified">std.process.WorkingDirectory.view</div></div><a class="permalink" href="#std-process-workingdirectory-view" aria-label="Permanent link to std.process.WorkingDirectory.view">#</a></article>
+<article class="symbol-card kind-function" id="std-process-currentworkingdirectory" data-symbol data-search="std.process.currentWorkingDirectory function def currentWorkingDirectory() : Result[WorkingDirectory, SystemError] Capture le répertoire de travail courant du processus.
+@return Chemin UTF-8 propriétaire, ou une erreur système si l’hôte ne peut pas le fournir."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def currentWorkingDirectory() : Result[WorkingDirectory, SystemError]</code></h3>
+<p class="doc-summary">Capture le répertoire de travail courant du processus.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[WorkingDirectory, SystemError]</code> — Chemin UTF-8 propriétaire, ou une erreur système si l’hôte ne peut pas le fournir.</p></section>
+<div class="qualified">std.process.currentWorkingDirectory</div></div><a class="permalink" href="#std-process-currentworkingdirectory" aria-label="Permanent link to std.process.currentWorkingDirectory">#</a></article>
 <article class="symbol-card kind-function" id="std-process-environmentvariable" data-symbol data-search="std.process.environmentVariable function def environmentVariable(name : string) : Result[Option[EnvironmentValue], SystemError] Recherche une variable dans l’environnement du processus courant.
 @param name Nom exact de la variable, encodé comme une chaîne Janus.
 @return `Ok(Some(value))` si elle existe, `Ok(None)` si elle est absente, ou `Error(SystemError)` si la consultation native échoue."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def environmentVariable(name : string) : Result[Option[EnvironmentValue], SystemError]</code></h3>
@@ -5628,6 +5684,20 @@ invalides à la destruction. Les données sont brutes et ne sont pas validées U
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>executable</code></td><td><code>string</code></td><td>Chemin ou nom de l’exécutable interprété par la plateforme.</td></tr><tr><td><code>arguments</code></td><td><code>Array[string]</code></td><td>Arguments transmis à l’enfant, sans ajout implicite documenté du nom de l’exécutable.</td></tr><tr><td><code>workingDirectory</code></td><td><code>string</code></td><td>Répertoire de travail demandé ; le sens d’une chaîne vide dépend de l’implémentation native.</td></tr><tr><td><code>captureStdout</code></td><td><code>bool</code></td><td>Active la collecte de la sortie standard dans <a href="#std-process-processresult"><code>ProcessResult</code></a>.</td></tr><tr><td><code>captureStderr</code></td><td><code>bool</code></td><td>Active la collecte de la sortie d’erreur dans <a href="#std-process-processresult"><code>ProcessResult</code></a>.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[ProcessResult, SystemError]</code> — `Ok(ProcessResult)` même si l’enfant termine avec un code non nul, ou `Error(SystemError)` si l’allocation ou le lancement échoue.</p></section>
 <div class="qualified">std.process.runProcess</div></div><a class="permalink" href="#std-process-runprocess" aria-label="Permanent link to std.process.runProcess">#</a></article>
+<article class="symbol-card kind-function" id="std-process-spawnprocess" data-symbol data-search="std.process.spawnProcess function def spawnProcess(executable : string, arguments : Array[string], workingDirectory : string) : Result[ChildProcess, SystemError] Lance un processus interactif sans attendre sa terminaison.
+
+L’entrée et la sortie standard sont reliées à un [[ChildProcess]]. La sortie
+d’erreur reste héritée du parent afin qu’elle ne puisse pas bloquer l’enfant.
+@param executable Chemin ou nom de l’exécutable interprété par la plateforme.
+@param arguments Arguments transmis séparément à l’enfant.
+@param workingDirectory Répertoire de travail, ou chaîne vide pour hériter du parent.
+@return `Ok(ChildProcess)` après lancement, ou `Error(SystemError)` si l’enfant ne peut pas démarrer."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def spawnProcess(executable : string, arguments : Array[string], workingDirectory : string) : Result[ChildProcess, SystemError]</code></h3>
+<p class="doc-summary">Lance un processus interactif sans attendre sa terminaison.</p>
+<div class="doc-details"><p>L’entrée et la sortie standard sont reliées à un <a href="#std-process-childprocess"><code>ChildProcess</code></a>. La sortie<br>
+d’erreur reste héritée du parent afin qu’elle ne puisse pas bloquer l’enfant.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>executable</code></td><td><code>string</code></td><td>Chemin ou nom de l’exécutable interprété par la plateforme.</td></tr><tr><td><code>arguments</code></td><td><code>Array[string]</code></td><td>Arguments transmis séparément à l’enfant.</td></tr><tr><td><code>workingDirectory</code></td><td><code>string</code></td><td>Répertoire de travail, ou chaîne vide pour hériter du parent.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[ChildProcess, SystemError]</code> — `Ok(ChildProcess)` après lancement, ou `Error(SystemError)` si l’enfant ne peut pas démarrer.</p></section>
+<div class="qualified">std.process.spawnProcess</div></div><a class="permalink" href="#std-process-spawnprocess" aria-label="Permanent link to std.process.spawnProcess">#</a></article>
 </div></section>
 <section class="module" id="module-std-random" data-module data-search="std.random Fournit des suites pseudo-aléatoires déterministes ou automatiquement initialisées.
 

@@ -5,6 +5,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.13.0] - 2026-08-17
+
+Cette version mineure fournit les primitives nécessaires aux éditeurs natifs :
+saisie Unicode fidèle, serveur de langage persistant et processus enfants
+interactifs portables.
+
 ### Bibliothèque graphique
 
 - ajout de `std.graphics.input.characterPressed`, qui retourne les caractères
@@ -12,6 +18,22 @@ utilise le versionnage sémantique à partir de sa première version publique.
   correcte avec les claviers AZERTY ;
 - ajout de `std.graphics.input.disableExitKey`, qui permet aux interfaces
   modales d'utiliser `Escape` sans déclencher la fermeture de la fenêtre.
+
+### Processus et système
+
+- ajout de `std.process.currentWorkingDirectory` et du propriétaire
+  `WorkingDirectory` pour capturer le répertoire courant sans tampon fixe ;
+- ajout de `spawnProcess` et de `ChildProcess`, avec écriture sur l'entrée
+  standard, lecture incrémentale des sorties, fermeture explicite de l'entrée
+  et destruction sûre sur Linux, macOS et Windows.
+
+### Serveur de langage
+
+- prise en charge d'une session JSON-RPC persistante dans `janus-lsp`, avec
+  cycle `initialize`, synchronisation `didOpen`/`didChange`/`didClose` et
+  plusieurs requêtes successives sur le même processus ;
+- enrichissement de la complétion typée pour les symboles du workspace, les
+  membres d'`Array` et les classes déclarées dans le fichier courant.
 
 ## [0.12.0] - 2026-08-14
 
@@ -710,6 +732,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.13.0]: https://github.com/cyril103/janus/releases/tag/v0.13.0
 [0.12.0]: https://github.com/cyril103/janus/releases/tag/v0.12.0
 [0.11.1]: https://github.com/cyril103/janus/releases/tag/v0.11.1
 [0.11.0]: https://github.com/cyril103/janus/releases/tag/v0.11.0

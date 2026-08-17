@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 void janus_process_initialize(int argc, char **argv);
 uint64_t janus_process_argument_count(void);
 const char *janus_process_argument_data(uint64_t index);
@@ -54,6 +59,10 @@ enum {
 int main(int argc, char **argv) {
   janus_process_initialize(argc, argv);
   if (argc == 2 && strcmp(argv[1], "--interactive-child") == 0) {
+#if defined(_WIN32)
+    (void)_setmode(_fileno(stdin), _O_BINARY);
+    (void)_setmode(_fileno(stdout), _O_BINARY);
+#endif
     char buffer[32];
     while (fgets(buffer, sizeof(buffer), stdin) != NULL) {
       const size_t count = strlen(buffer);

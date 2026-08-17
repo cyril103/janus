@@ -87,7 +87,7 @@ if [ "${1:-}" = "--validate-archive" ]; then
   exit
 fi
 
-VERSION="${JANUS_VERSION:-0.12.0}"
+VERSION="${JANUS_VERSION:-0.13.0}"
 BASE_URL="${JANUS_DIST_SERVER:-https://github.com/cyril103/janus/releases/download/v${VERSION}}"
 HOME_DIR="${JANUSUP_HOME:-${HOME}/.janus}"
 

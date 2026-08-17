@@ -2,6 +2,7 @@
 #include "janus/lsp/server.hpp"
 
 #include <cstdint>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -11,6 +12,8 @@
 #include <system_error>
 
 #ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
 #include <windows.h>
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -199,6 +202,10 @@ std::filesystem::path stdlib_api_index_path(const char *argv0) {
 } // namespace
 
 int main(int argc, char **argv) {
+#ifdef _WIN32
+  static_cast<void>(_setmode(_fileno(stdin), _O_BINARY));
+  static_cast<void>(_setmode(_fileno(stdout), _O_BINARY));
+#endif
   if (argc == 2 && std::string_view{argv[1]} == "--version") {
     std::cout << "janus-lsp " << janus::build::display_version << '\n';
     return 0;
