@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Janus standard library 0.13.0 API</title>
+<title>Janus standard library 0.14.0 API</title>
 <style>
 :root{--ink:#173c50;--ink-strong:#102f40;--top:#123f54;--top-soft:#315d70;--paper:#edf1f3;--panel:#fff;--line:#d9e1e5;--signature:#c8d8e1;--accent:#087b51;--accent-bright:#62e6a7;--flare:#d95c36;--muted:#617784;--shadow:0 2px 9px rgba(16,47,64,.12);--mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;--sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:5.5rem}body{margin:0;background:var(--paper);color:var(--ink);font:13px/1.55 var(--sans)}a{color:#285d7c;text-decoration:underline;text-decoration-thickness:.06em;text-underline-offset:.14em}a:hover{color:var(--accent)}a:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid rgba(98,230,167,.68);outline-offset:2px}code{font-family:var(--mono)}
@@ -21,13 +21,13 @@
 </head>
 <body>
 <header class="topbar">
-<div class="brand"><strong>Janus standard library</strong><span class="version">0.13.0</span></div>
+<div class="brand"><strong>Janus standard library</strong><span class="version">0.14.0</span></div>
 <label class="search"><span class="sr-only" hidden>Search the API</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 3a6.5 6.5 0 1 0 4.1 11.55L19.05 20 20.5 18.55l-5.45-5.45A6.5 6.5 0 0 0 9.5 3Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"/></svg><input id="api-search" type="search" autocomplete="off" placeholder="Search modules, symbols and signatures" aria-controls="api-content"></label>
 <div id="search-status" class="search-status" aria-live="polite"></div><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="module-sidebar">Modules</button>
 </header>
 <div class="doc-layout">
 <main id="api-content" class="content">
-<header class="hero"><span class="hero-mark" aria-hidden="true">J</span><div><h1>Janus standard library API</h1><p>Offline reference · version 0.13.0</p></div></header>
+<header class="hero"><span class="hero-mark" aria-hidden="true">J</span><div><h1>Janus standard library API</h1><p>Offline reference · version 0.14.0</p></div></header>
 <div id="empty-state" class="empty-state"><strong>No API entries match this search.</strong><br>Try a module name, symbol or type.</div>
 <section class="module" id="module-std-array" data-module data-search="std.array Fournit un tableau dynamique propriétaire et ses opérations séquentielles.
 
@@ -1713,7 +1713,7 @@ if isKeyPressed(Key.Space) {
 concernent le cadre courant d’une fenêtre initialisée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>if isKeyPressed(Key.Space) {<br>
     setMousePosition(320, 240)<br>
 }<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">25</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">26</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-function" id="std-graphics-input-characterpressed" data-symbol data-search="std.graphics.input.characterPressed function def characterPressed() : int Retire de la file le prochain caractère saisi selon la disposition active du clavier.
 
@@ -1879,6 +1879,12 @@ Raylib utilise `Escape` comme touche de sortie par défaut. Après cet appel,
 <p class="doc-summary">Règle les moteurs de vibration de la manette.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>gamepad</code></td><td><code>int</code></td><td>Indice de la manette à faire vibrer.</td></tr><tr><td><code>leftMotor</code></td><td><code>float</code></td><td>Intensité transmise au moteur gauche.</td></tr><tr><td><code>rightMotor</code></td><td><code>float</code></td><td>Intensité transmise au moteur droit.</td></tr><tr><td><code>duration</code></td><td><code>float</code></td><td>Durée de vibration en secondes.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.input.setGamepadVibration</div></div><a class="permalink" href="#std-graphics-input-setgamepadvibration" aria-label="Permanent link to std.graphics.input.setGamepadVibration">#</a></article>
+<article class="symbol-card kind-function" id="std-graphics-input-setmousecursor" data-symbol data-search="std.graphics.input.setMouseCursor function def setMouseCursor(cursor : MouseCursor) : Unit Change la forme système du pointeur de souris.
+
+@param cursor Forme à afficher tant que la fenêtre est active."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def setMouseCursor(cursor : MouseCursor) : Unit</code></h3>
+<p class="doc-summary">Change la forme système du pointeur de souris.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>cursor</code></td><td><code>MouseCursor</code></td><td>Forme à afficher tant que la fenêtre est active.</td></tr></tbody></table></section>
+<div class="qualified">std.graphics.input.setMouseCursor</div></div><a class="permalink" href="#std-graphics-input-setmousecursor" aria-label="Permanent link to std.graphics.input.setMouseCursor">#</a></article>
 <article class="symbol-card kind-function" id="std-graphics-input-setmouseposition" data-symbol data-search="std.graphics.input.setMousePosition function def setMousePosition(x : int, y : int) : Unit Déplace le pointeur de souris.
 
 @param x Nouvelle abscisse en pixels écran.
@@ -2700,7 +2706,7 @@ val tint : Color = rgba(255, 128, 0, 255)
 <div class="module-summary"><p class="doc-summary">Définit les valeurs copiables partagées par les API graphiques.</p><div class="doc-details"><p>Les positions et dimensions utilisent des pixels flottants, les rotations des degrés et les<br>
 canaux de <a href="#std-graphics-types-color"><code>Color</code></a> des octets RGBA compris entre 0 et 255.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val point : Vector2 = vector2(10.0, 20.0)<br>
 val tint : Color = rgba(255, 128, 0, 255)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">223</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">235</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-global" id="std-graphics-types-black" data-symbol data-search="std.graphics.types.Black global val Black : Color Couleur noire opaque prédéfinie."><span class="kind-icon" aria-hidden="true">g</span><div><span class="kind">global</span><h3><code>val Black : Color</code></h3>
 <p class="doc-summary">Couleur noire opaque prédéfinie.</p>
@@ -3170,6 +3176,42 @@ val tint : Color = rgba(255, 128, 0, 255)<br>
 <article class="symbol-card kind-variant child" id="std-graphics-types-mousebutton-side" data-symbol data-search="std.graphics.types.MouseButton.Side variant Side Premier bouton latéral de la souris."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseButton</div><h3><code>Side</code></h3>
 <p class="doc-summary">Premier bouton latéral de la souris.</p>
 <div class="qualified">std.graphics.types.MouseButton.Side</div></div><a class="permalink" href="#std-graphics-types-mousebutton-side" aria-label="Permanent link to std.graphics.types.MouseButton.Side">#</a></article>
+<article class="symbol-card kind-enum" id="std-graphics-types-mousecursor" data-symbol data-search="std.graphics.types.MouseCursor enum enum MouseCursor Forme système utilisée pour le pointeur de souris."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum MouseCursor</code></h3>
+<p class="doc-summary">Forme système utilisée pour le pointeur de souris.</p>
+<div class="qualified">std.graphics.types.MouseCursor</div></div><a class="permalink" href="#std-graphics-types-mousecursor" aria-label="Permanent link to std.graphics.types.MouseCursor">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-arrow" data-symbol data-search="std.graphics.types.MouseCursor.Arrow variant Arrow Flèche standard de sélection."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>Arrow</code></h3>
+<p class="doc-summary">Flèche standard de sélection.</p>
+<div class="qualified">std.graphics.types.MouseCursor.Arrow</div></div><a class="permalink" href="#std-graphics-types-mousecursor-arrow" aria-label="Permanent link to std.graphics.types.MouseCursor.Arrow">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-crosshair" data-symbol data-search="std.graphics.types.MouseCursor.Crosshair variant Crosshair Croix de pointage précis."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>Crosshair</code></h3>
+<p class="doc-summary">Croix de pointage précis.</p>
+<div class="qualified">std.graphics.types.MouseCursor.Crosshair</div></div><a class="permalink" href="#std-graphics-types-mousecursor-crosshair" aria-label="Permanent link to std.graphics.types.MouseCursor.Crosshair">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-default" data-symbol data-search="std.graphics.types.MouseCursor.Default variant Default Forme choisie par défaut par la plateforme."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>Default</code></h3>
+<p class="doc-summary">Forme choisie par défaut par la plateforme.</p>
+<div class="qualified">std.graphics.types.MouseCursor.Default</div></div><a class="permalink" href="#std-graphics-types-mousecursor-default" aria-label="Permanent link to std.graphics.types.MouseCursor.Default">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-ibeam" data-symbol data-search="std.graphics.types.MouseCursor.IBeam variant IBeam Barre verticale destinée à la saisie de texte."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>IBeam</code></h3>
+<p class="doc-summary">Barre verticale destinée à la saisie de texte.</p>
+<div class="qualified">std.graphics.types.MouseCursor.IBeam</div></div><a class="permalink" href="#std-graphics-types-mousecursor-ibeam" aria-label="Permanent link to std.graphics.types.MouseCursor.IBeam">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-notallowed" data-symbol data-search="std.graphics.types.MouseCursor.NotAllowed variant NotAllowed Symbole indiquant une action interdite."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>NotAllowed</code></h3>
+<p class="doc-summary">Symbole indiquant une action interdite.</p>
+<div class="qualified">std.graphics.types.MouseCursor.NotAllowed</div></div><a class="permalink" href="#std-graphics-types-mousecursor-notallowed" aria-label="Permanent link to std.graphics.types.MouseCursor.NotAllowed">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-pointinghand" data-symbol data-search="std.graphics.types.MouseCursor.PointingHand variant PointingHand Main indiquant un élément activable."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>PointingHand</code></h3>
+<p class="doc-summary">Main indiquant un élément activable.</p>
+<div class="qualified">std.graphics.types.MouseCursor.PointingHand</div></div><a class="permalink" href="#std-graphics-types-mousecursor-pointinghand" aria-label="Permanent link to std.graphics.types.MouseCursor.PointingHand">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-resizeall" data-symbol data-search="std.graphics.types.MouseCursor.ResizeAll variant ResizeAll Flèches indiquant un déplacement dans toutes les directions."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>ResizeAll</code></h3>
+<p class="doc-summary">Flèches indiquant un déplacement dans toutes les directions.</p>
+<div class="qualified">std.graphics.types.MouseCursor.ResizeAll</div></div><a class="permalink" href="#std-graphics-types-mousecursor-resizeall" aria-label="Permanent link to std.graphics.types.MouseCursor.ResizeAll">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-resizeeastwest" data-symbol data-search="std.graphics.types.MouseCursor.ResizeEastWest variant ResizeEastWest Double flèche de redimensionnement horizontal."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>ResizeEastWest</code></h3>
+<p class="doc-summary">Double flèche de redimensionnement horizontal.</p>
+<div class="qualified">std.graphics.types.MouseCursor.ResizeEastWest</div></div><a class="permalink" href="#std-graphics-types-mousecursor-resizeeastwest" aria-label="Permanent link to std.graphics.types.MouseCursor.ResizeEastWest">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-resizenorthsouth" data-symbol data-search="std.graphics.types.MouseCursor.ResizeNorthSouth variant ResizeNorthSouth Double flèche de redimensionnement vertical."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>ResizeNorthSouth</code></h3>
+<p class="doc-summary">Double flèche de redimensionnement vertical.</p>
+<div class="qualified">std.graphics.types.MouseCursor.ResizeNorthSouth</div></div><a class="permalink" href="#std-graphics-types-mousecursor-resizenorthsouth" aria-label="Permanent link to std.graphics.types.MouseCursor.ResizeNorthSouth">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-resizenortheastsouthwest" data-symbol data-search="std.graphics.types.MouseCursor.ResizeNortheastSouthwest variant ResizeNortheastSouthwest Double flèche diagonale du nord-est au sud-ouest."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>ResizeNortheastSouthwest</code></h3>
+<p class="doc-summary">Double flèche diagonale du nord-est au sud-ouest.</p>
+<div class="qualified">std.graphics.types.MouseCursor.ResizeNortheastSouthwest</div></div><a class="permalink" href="#std-graphics-types-mousecursor-resizenortheastsouthwest" aria-label="Permanent link to std.graphics.types.MouseCursor.ResizeNortheastSouthwest">#</a></article>
+<article class="symbol-card kind-variant child" id="std-graphics-types-mousecursor-resizenorthwestsoutheast" data-symbol data-search="std.graphics.types.MouseCursor.ResizeNorthwestSoutheast variant ResizeNorthwestSoutheast Double flèche diagonale du nord-ouest au sud-est."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.graphics.types.MouseCursor</div><h3><code>ResizeNorthwestSoutheast</code></h3>
+<p class="doc-summary">Double flèche diagonale du nord-ouest au sud-est.</p>
+<div class="qualified">std.graphics.types.MouseCursor.ResizeNorthwestSoutheast</div></div><a class="permalink" href="#std-graphics-types-mousecursor-resizenorthwestsoutheast" aria-label="Permanent link to std.graphics.types.MouseCursor.ResizeNorthwestSoutheast">#</a></article>
 <article class="symbol-card kind-struct" id="std-graphics-types-npatchinfo" data-symbol data-search="std.graphics.types.NPatchInfo struct struct NPatchInfo(val source : Rectangle, val left : int, val top : int, val right : int, val bottom : int, val layout : NPatchLayout) Décrit les bordures fixes d’une texture neuf-patch."><span class="kind-icon" aria-hidden="true">s</span><div><span class="kind">struct</span><h3><code>struct NPatchInfo(val source : Rectangle, val left : int, val top : int, val right : int, val bottom : int, val layout : NPatchLayout)</code></h3>
 <p class="doc-summary">Décrit les bordures fixes d’une texture neuf-patch.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Rectangle</code></td><td>Région source découpée dans la texture.</td></tr><tr><td><code>left</code></td><td><code>int</code></td><td>Largeur fixe de la bordure gauche.</td></tr><tr><td><code>top</code></td><td><code>int</code></td><td>Hauteur fixe de la bordure supérieure.</td></tr><tr><td><code>right</code></td><td><code>int</code></td><td>Largeur fixe de la bordure droite.</td></tr><tr><td><code>bottom</code></td><td><code>int</code></td><td>Hauteur fixe de la bordure inférieure.</td></tr><tr><td><code>layout</code></td><td><code>NPatchLayout</code></td><td>Organisation des zones fixes et extensibles.</td></tr></tbody></table></section>

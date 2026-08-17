@@ -5,6 +5,18 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.14.0] - 2026-08-17
+
+Cette version mineure permet aux interfaces graphiques natives d'adapter le
+pointeur de souris au contexte d'interaction.
+
+### Bibliothèque graphique
+
+- ajout de l'enum public `MouseCursor`, qui expose les formes système usuelles,
+  notamment les pointeurs de redimensionnement horizontal et vertical ;
+- ajout de `std.graphics.input.setMouseCursor`, relayé dynamiquement vers
+  raylib sur Linux, macOS et Windows.
+
 ## [0.13.0] - 2026-08-17
 
 Cette version mineure fournit les primitives nécessaires aux éditeurs natifs :
@@ -732,6 +744,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.14.0]: https://github.com/cyril103/janus/releases/tag/v0.14.0
 [0.13.0]: https://github.com/cyril103/janus/releases/tag/v0.13.0
 [0.12.0]: https://github.com/cyril103/janus/releases/tag/v0.12.0
 [0.11.1]: https://github.com/cyril103/janus/releases/tag/v0.11.1

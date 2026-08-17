@@ -6,7 +6,7 @@ hide:
 
 <div class="home-shell">
   <section class="home-hero">
-    <div class="eyebrow">JANUS / VERSION 0.13.0 / PRÉ-1.0</div>
+    <div class="eyebrow">JANUS / VERSION 0.14.0 / PRÉ-1.0</div>
     <h1>Décider si Janus vous convient.<br><em>Puis apprendre en construisant.</em></h1>
     <p class="hero-lede">Un langage compilé, fortement typé et natif, où les abstractions de haut niveau côtoient la propriété explicite, LLVM et l’interopérabilité C.</p>
     <div class="hero-actions">
@@ -65,7 +65,7 @@ def main() : int {
     ```bash
     sudo apt update && sudo apt install build-essential curl
     curl --proto '=https' --tlsv1.2 -fsSL \
-      https://raw.githubusercontent.com/cyril103/janus/v0.13.0/scripts/install.sh | sh
+      https://raw.githubusercontent.com/cyril103/janus/v0.14.0/scripts/install.sh | sh
     export PATH="$HOME/.janus/bin:$PATH"
     ```
 
@@ -74,13 +74,13 @@ def main() : int {
     ```bash
     xcode-select --install
     curl --proto '=https' --tlsv1.2 -fsSL \
-      https://raw.githubusercontent.com/cyril103/janus/v0.13.0/scripts/install.sh | sh
+      https://raw.githubusercontent.com/cyril103/janus/v0.14.0/scripts/install.sh | sh
     ```
 
 === "Windows x86_64"
 
     ```powershell
-    irm https://raw.githubusercontent.com/cyril103/janus/v0.13.0/scripts/install.ps1 | iex
+    irm https://raw.githubusercontent.com/cyril103/janus/v0.14.0/scripts/install.ps1 | iex
     ```
 
 ```bash
@@ -105,20 +105,18 @@ Quinze chapitres vont des valeurs et fonctions à la propriété, aux dérivatio
 [Consulter le livre →](book/index.md)
 
 ### 03 — Approfondir sans intermédiaire
-La documentation canonique décrit précisément le langage 0.13.0, les outils, le texte et le graphisme.
+La documentation canonique décrit précisément le langage 0.14.0, les outils, le texte et le graphisme.
 
 [Entrer dans la référence →](reference/index.md)
 
 </div>
 
 <div class="release-note" markdown>
-**Ce que 0.13.0 apporte.** Les interfaces natives disposent d'une saisie
-Unicode fidèle, d'un serveur `janus-lsp` persistant avec complétion typée et de
-processus enfants interactifs portables. Ces briques permettent aux éditeurs
-Janus de conserver leur état et de dialoguer avec leurs outils sans relancer un
-processus à chaque action.
+**Ce que 0.14.0 apporte.** Les interfaces graphiques natives peuvent maintenant
+choisir la forme système du pointeur avec `setMouseCursor` et `MouseCursor`,
+notamment pour signaler clairement les séparateurs redimensionnables.
 Cette version reste explicitement pré-1.0.
-[Lire le changelog](https://github.com/cyril103/janus/blob/v0.13.0/CHANGELOG.md),
+[Lire le changelog](https://github.com/cyril103/janus/blob/v0.14.0/CHANGELOG.md),
 [la documentation des tests](reference/generated/testing.md) ou
 [la référence de la stdlib](reference/stdlib/index.html).
 </div>

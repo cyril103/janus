@@ -13,8 +13,8 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **30 modules**, **10453 lignes** et **945 symboles publics** inventoriés ;
-- **953 blocs `///` publics pour 945 symboles** (couverture source du lot #115 : 100 %) ;
+- **30 modules**, **10487 lignes** et **958 symboles publics** inventoriés ;
+- **966 blocs `///` publics pour 958 symboles** (couverture source du lot #115 : 100 %) ;
 - **163 sites d'allocation**, **230 marqueurs de nettoyage**, **205/14/41** occurrences `move`/`consume`/destructeur ;
 - **22/30 modules** importés directement par au moins une fixture ou un test, soit **115 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
@@ -53,9 +53,9 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.graphics` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 0 | 12 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.audio`, `std.graphics.drawing`, `std.graphics.input`, `std.graphics.resources`, `std.graphics.types` | 4 | `docs/graphics.md`, `docs/stability-contract.md` |
 | `std.graphics.audio` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 22 | 205 | 22 | 0/0/2 | 0/0/0 | 2 | 3 | `std.c` | 0 | `docs/graphics.md` |
 | `std.graphics.drawing` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 105 | 1245 | 105 | 0/0/0 | 0/0/0 | 0 | 0 | `std.c`, `std.graphics.types`, `std.time` | 0 | `docs/graphics.md` |
-| `std.graphics.input` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 25 | 250 | 25 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.types` | 0 | `docs/graphics.md` |
+| `std.graphics.input` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 26 | 258 | 26 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.types` | 0 | `docs/graphics.md` |
 | `std.graphics.resources` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 118 | 1359 | 118 | 0/0/6 | 0/0/0 | 25 | 8 | `std.c`, `std.graphics.types` | 0 | `docs/graphics.md` |
-| `std.graphics.types` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 223 | 575 | 223 | 0/0/0 | 0/0/0 | 8 | 2 | — | 0 | `docs/graphics.md` |
+| `std.graphics.types` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 235 | 601 | 235 | 0/0/0 | 0/0/0 | 8 | 2 | — | 0 | `docs/graphics.md` |
 | `std.fs` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 25 | 471 | 25 | 0/0/2 | 12/5/3 | 10 | 21 | `std.option`, `std.path`, `std.result`, `std.system` | 3 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
 | `std.hash_probe` | `internal-detail` | `refonte-interne` | [#112 / R074-3](https://github.com/cyril103/janus/issues/112) | 6 | 83 | 6 | 0/0/0 | 0/0/0 | 1 | 0 | — | 0 | `docs/public-surface-0.5.json` |
 | `std.hashing` | `stable-proposed` | `conservation` | [#112 / R074-3](https://github.com/cyril103/janus/issues/112) | 21 | 161 | 21 | 0/0/0 | 0/0/0 | 1 | 0 | — | 8 | `docs/language-guide.md`, `docs/stability-contract.md` |
@@ -367,6 +367,7 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `mouseX` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `mouseY` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `setMousePosition` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `setMouseCursor` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `mouseWheelMove` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `isMouseButtonDown` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `isMouseButtonPressed` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
@@ -626,6 +627,18 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `MouseButton.Extra` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `MouseButton.Forward` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `MouseButton.Back` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.Default` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.Arrow` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.IBeam` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.Crosshair` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.PointingHand` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.ResizeEastWest` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.ResizeNorthSouth` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.ResizeNorthwestSoutheast` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.ResizeNortheastSouthwest` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.ResizeAll` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
+| `MouseCursor.NotAllowed` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `TextureFilter` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `TextureFilter.Point` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |
 | `TextureFilter.Bilinear` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) |

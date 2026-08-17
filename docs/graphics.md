@@ -357,11 +357,15 @@ Entrées disponibles :
 - `mouseX`, `mouseY`, `setMousePosition` et `mouseWheelMove` ;
 - `isMouseButtonDown` et `isMouseButtonPressed` avec `MouseButton`.
 - `showCursor`, `hideCursor`, `enableCursor`, `disableCursor` et
-  `isCursorHidden`.
+  `isCursorHidden` ;
+- `setMouseCursor` avec `MouseCursor` pour choisir une forme système, par
+  exemple `ResizeEastWest` ou `ResizeNorthSouth` sur un séparateur déplaçable.
 
 L'enum `Key` couvre les lettres, chiffres, ponctuation, flèches, touches de
 fonction, pavé numérique et modificateurs. `MouseButton` couvre les sept
-boutons reconnus par raylib.
+boutons reconnus par raylib. `MouseCursor` couvre les formes système usuelles,
+dont la flèche, le curseur de texte, la main et les directions de
+redimensionnement.
 
 La fenêtre peut être inspectée avec `isWindowFullscreen`, `isWindowHidden`,
 `isWindowMinimized`, `isWindowMaximized`, `isWindowFocused` et

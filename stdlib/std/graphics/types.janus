@@ -243,16 +243,27 @@ enum MouseButton derives Copy, Equality, Debug {
 
 /// Forme système utilisée pour le pointeur de souris.
 enum MouseCursor derives Copy, Equality, Debug {
+    /// Forme choisie par défaut par la plateforme.
     Default,
+    /// Flèche standard de sélection.
     Arrow,
+    /// Barre verticale destinée à la saisie de texte.
     IBeam,
+    /// Croix de pointage précis.
     Crosshair,
+    /// Main indiquant un élément activable.
     PointingHand,
+    /// Double flèche de redimensionnement horizontal.
     ResizeEastWest,
+    /// Double flèche de redimensionnement vertical.
     ResizeNorthSouth,
+    /// Double flèche diagonale du nord-ouest au sud-est.
     ResizeNorthwestSoutheast,
+    /// Double flèche diagonale du nord-est au sud-ouest.
     ResizeNortheastSouthwest,
+    /// Flèches indiquant un déplacement dans toutes les directions.
     ResizeAll,
+    /// Symbole indiquant une action interdite.
     NotAllowed
 }
 
