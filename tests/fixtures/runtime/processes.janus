@@ -142,6 +142,28 @@ expected : usize
     }
 }
 
+def writeInteractiveOutput(
+stream : OutputStream,
+data : Ptr[byte],
+size : usize
+) : bool {
+    val written : bool = usizeResult(stream.write(data, size), size)
+    val closed : bool = boolResult(stream.close())
+    delete stream
+    return written && closed
+}
+
+def interactiveOutput(
+result : Result[OutputStream, SystemError],
+data : Ptr[byte],
+size : usize
+) : bool {
+    return match move result {
+        Ok(stream) => writeInteractiveOutput(move stream, data, size),
+        Error(error) => false
+    }
+}
+
 def useInteractiveInput(input : InputStream) : int {
     val data : Ptr[byte] = alloc[byte](usize(5))
     defer free(data)
@@ -149,11 +171,13 @@ def useInteractiveInput(input : InputStream) : int {
         Ok(value) => value,
         Error(error) => usize(0)
     }
-    if count == usize(5) {
-        print(stringView(data, count))
-    }
+    val echoed : bool = count == usize(5) && interactiveOutput(
+    standardOutput(),
+    data,
+    count
+    )
     delete input
-    return if count == usize(5) { 0 } else { 2 }
+    return if echoed { 0 } else { 2 }
 }
 
 def interactiveChildMain() : int {
