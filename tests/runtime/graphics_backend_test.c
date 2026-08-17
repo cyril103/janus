@@ -170,6 +170,7 @@ extern void janus_graphics_disable_exit_key(void);
 extern int janus_graphics_mouse_x(void);
 extern int janus_graphics_mouse_y(void);
 extern void janus_graphics_set_mouse_position(int x, int y);
+extern void janus_graphics_set_mouse_cursor(int cursor);
 extern float janus_graphics_mouse_wheel_move(void);
 extern bool janus_graphics_is_mouse_button_down(int button);
 extern bool janus_graphics_is_mouse_button_pressed(int button);
@@ -412,6 +413,7 @@ int main(void) {
     return 1;
   }
   janus_graphics_set_mouse_position(50, 60);
+  janus_graphics_set_mouse_cursor(5);
   janus_graphics_disable_exit_key();
   janus_graphics_hide_cursor();
   if (!janus_graphics_is_cursor_hidden()) {

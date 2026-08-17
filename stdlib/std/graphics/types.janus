@@ -241,6 +241,21 @@ enum MouseButton derives Copy, Equality, Debug {
     Back
 }
 
+/// Forme système utilisée pour le pointeur de souris.
+enum MouseCursor derives Copy, Equality, Debug {
+    Default,
+    Arrow,
+    IBeam,
+    Crosshair,
+    PointingHand,
+    ResizeEastWest,
+    ResizeNorthSouth,
+    ResizeNorthwestSoutheast,
+    ResizeNortheastSouthwest,
+    ResizeAll,
+    NotAllowed
+}
+
 /// Sélectionne l’échantillonnage appliqué lorsqu’une texture change de taille à l’écran.
 enum TextureFilter derives Copy, Equality, Debug {
     /// Choisit le texel le plus proche, ce qui conserve un aspect net et pixellisé.

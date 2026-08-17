@@ -1208,6 +1208,8 @@ RAYLIB_EXPORT void SetMousePosition(int x, int y) {
   (void)y;
 }
 
+RAYLIB_EXPORT void SetMouseCursor(int cursor) { (void)cursor; }
+
 RAYLIB_EXPORT float GetMouseWheelMove(void) { return 1.5f; }
 
 RAYLIB_EXPORT bool IsMouseButtonDown(int button) { return button == 0; }

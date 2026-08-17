@@ -410,6 +410,7 @@ typedef struct {
   int (*GetMouseX)(void);
   int (*GetMouseY)(void);
   void (*SetMousePosition)(int, int);
+  void (*SetMouseCursor)(int);
   float (*GetMouseWheelMove)(void);
   bool (*IsMouseButtonDown)(int);
   bool (*IsMouseButtonPressed)(int);
@@ -749,6 +750,7 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseX);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseY);
   JANUS_LOAD_GRAPHICS_SYMBOL(SetMousePosition);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetMouseCursor);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseWheelMove);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsMouseButtonDown);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsMouseButtonPressed);
@@ -2476,6 +2478,11 @@ int janus_graphics_mouse_y(void) {
 void janus_graphics_set_mouse_position(int x, int y) {
   if (graphics_loaded)
     graphics_api.SetMousePosition(x, y);
+}
+
+void janus_graphics_set_mouse_cursor(int cursor) {
+  if (graphics_loaded)
+    graphics_api.SetMouseCursor(cursor);
 }
 
 float janus_graphics_mouse_wheel_move(void) {

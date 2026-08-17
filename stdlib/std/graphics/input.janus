@@ -19,6 +19,7 @@ private extern def janus_graphics_disable_exit_key() : Unit
 private extern def janus_graphics_mouse_x() : int
 private extern def janus_graphics_mouse_y() : int
 private extern def janus_graphics_set_mouse_position(x : int, y : int) : Unit
+private extern def janus_graphics_set_mouse_cursor(cursor : int) : Unit
 private extern def janus_graphics_mouse_wheel_move() : float
 private extern def janus_graphics_is_mouse_button_down(button : int) : bool
 private extern def janus_graphics_is_mouse_button_pressed(button : int) : bool
@@ -110,6 +111,13 @@ def mouseY() : int {
 /// @param y Nouvelle ordonnée en pixels écran.
 def setMousePosition(x : int, y : int) : Unit {
     janus_graphics_set_mouse_position(x, y)
+}
+
+/// Change la forme système du pointeur de souris.
+///
+/// @param cursor Forme à afficher tant que la fenêtre est active.
+def setMouseCursor(cursor : MouseCursor) : Unit {
+    janus_graphics_set_mouse_cursor(int(cursor))
 }
 
 /// Lit le déplacement de la molette signalé pendant le cadre courant.
