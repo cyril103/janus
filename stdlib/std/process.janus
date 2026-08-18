@@ -57,7 +57,22 @@ process : isize,
 borrow data : Ptr[byte],
 size : usize
 ) : isize
+private extern def janus_process_child_try_write(
+process : isize,
+borrow data : Ptr[byte],
+size : usize
+) : isize
+private extern def janus_process_child_try_read(
+process : isize,
+borrow data : Ptr[byte],
+size : usize
+) : isize
 private extern def janus_process_child_close_input(process : isize) : int
+private extern def janus_process_child_terminate(process : isize) : int
+private extern def janus_process_child_try_wait(
+process : isize,
+borrow exitCode : Ptr[int]
+) : int
 private extern def janus_process_child_destroy(process : isize) : Unit
 private extern def janus_process_result_exit_code(result : isize) : int
 private extern def janus_process_result_stdout_data(
@@ -255,10 +270,82 @@ class ProcessResult(private var nativeResult : isize) {
 
 /// Processus enfant persistant relié par des tubes à son entrée et sa sortie standard.
 ///
-/// Les lectures sont bloquantes. Le destructeur ferme les tubes et termine l’enfant
-/// s’il n’a pas déjà quitté ; [[closeInput]] permet de lui signaler une fin de flux.
+/// [[ChildProcess.read]] est bloquante, tandis que [[tryRead]] retourne immédiatement. Le
+/// destructeur ferme les tubes et termine l’enfant s’il n’a pas déjà quitté ;
+/// [[closeInput]] permet de lui signaler une fin de flux.
+/// Cet objet propriétaire est mono-thread et non thread-safe : aucun autre thread
+/// ne doit effectuer d’entrée-sortie concurrente sur ses handles.
 /// @param nativeProcess Handle natif propriétaire créé par [[spawnProcess]].
 class ChildProcess(private var nativeProcess : isize) {
+    /// Demande la terminaison immédiate de l’enfant sans attendre sa sortie.
+    ///
+    /// Envoie `SIGKILL` sur POSIX et appelle `TerminateProcess` sur Windows.
+    /// Utilisez [[tryWait]] pour observer ensuite la terminaison sans bloquer.
+    /// @return `Ok(true)` si la demande a réussi ou si l’enfant était déjà terminé,
+    /// sinon une erreur système.
+    def terminate() : Result[bool, SystemError] {
+        if janus_process_child_terminate(nativeProcess) != 0 {
+            return Result.Error[bool, SystemError](
+            processError("process.terminate", "child")
+            )
+        }
+        return Result.Ok[bool, SystemError](true)
+    }
+
+    /// Observe la terminaison de l’enfant sans bloquer.
+    /// @return `Ok(None)` si l’enfant est encore actif, `Ok(Some(exitCode))`
+    /// s’il est terminé, sinon une erreur système.
+    def tryWait() : Result[Option[int], SystemError] {
+        val exitCode : Ptr[int] = alloc[int](usize(1))
+        defer free(exitCode)
+        if exitCode == null[int]() {
+            return Result.Error[Option[int], SystemError](
+            new SystemError(
+            "process.tryWait",
+            SystemErrorCategory.ResourceExhausted,
+            uint(0),
+            "child"
+            )
+            )
+        }
+        val state : int = janus_process_child_try_wait(nativeProcess, exitCode)
+        if state < 0 {
+            return Result.Error[Option[int], SystemError](
+            processError("process.tryWait", "child")
+            )
+        }
+        if state == 0 {
+            return Result.Ok[Option[int], SystemError](Option.None[int]())
+        }
+        return Result.Ok[Option[int], SystemError](
+        Option.Some[int](exitCode.load(usize(0)))
+        )
+    }
+
+    /// Tente d’écrire immédiatement une partie des octets sans bloquer.
+    ///
+    /// Une taille nulle réussit. Si aucun octet ne peut être accepté immédiatement,
+    /// retourne une erreur de catégorie `WouldBlock`.
+    /// @param data Zone lisible sur `size` octets.
+    /// @param size Nombre maximal d’octets à écrire.
+    /// @return `Ok(count)` après progression immédiate, ou une erreur système.
+    def tryWrite(
+    data : Ptr[byte],
+    size : usize
+    ) : Result[usize, SystemError] {
+        val count : isize = janus_process_child_try_write(
+        nativeProcess,
+        data,
+        size
+        )
+        if count < isize(0) {
+            return Result.Error[usize, SystemError](
+            processError("process.tryWrite", "child")
+            )
+        }
+        return Result.Ok[usize, SystemError](numericCast[usize](count))
+    }
+
     /// Écrit tous les octets demandés sur l’entrée standard de l’enfant.
     /// @param data Zone lisible sur `size` octets.
     /// @param size Nombre d’octets à écrire.
@@ -305,6 +392,30 @@ class ChildProcess(private var nativeProcess : isize) {
         if count < isize(0) {
             return Result.Error[usize, SystemError](
             processError("process.read", "child")
+            )
+        }
+        return Result.Ok[usize, SystemError](numericCast[usize](count))
+    }
+
+    /// Tente de lire immédiatement des octets sans bloquer.
+    ///
+    /// Une taille nulle réussit. `Ok(0)` indique exclusivement la fin du flux;
+    /// l’absence de progression immédiate retourne une erreur `WouldBlock`.
+    /// @param target Zone inscriptible recevant au plus `capacity` octets.
+    /// @param capacity Capacité disponible dans `target`.
+    /// @return `Ok(count)`, `Ok(0)` à EOF, ou une erreur système.
+    def tryRead(
+    target : Ptr[byte],
+    capacity : usize
+    ) : Result[usize, SystemError] {
+        val count : isize = janus_process_child_try_read(
+        nativeProcess,
+        target,
+        capacity
+        )
+        if count < isize(0) {
+            return Result.Error[usize, SystemError](
+            processError("process.tryRead", "child")
             )
         }
         return Result.Ok[usize, SystemError](numericCast[usize](count))

@@ -5585,16 +5585,22 @@ d’environnement et résultats de commande possèdent en revanche leurs buffers
 <a href="#std-process-runprocess"><code>runProcess</code></a> attend la fin de l’enfant et peut capturer ses sorties en octets.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val args = new Array[string](usize(1))<br>
 args.push(&quot;--version&quot;)<br>
 val result = runProcess(&quot;janus&quot;, args, &quot;&quot;, true, true)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">22</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">26</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-process-childprocess" data-symbol data-search="std.process.ChildProcess class class ChildProcess(var nativeProcess : isize) Processus enfant persistant relié par des tubes à son entrée et sa sortie standard.
 
-Les lectures sont bloquantes. Le destructeur ferme les tubes et termine l’enfant
-s’il n’a pas déjà quitté ; [[closeInput]] permet de lui signaler une fin de flux.
+[[ChildProcess.read]] est bloquante, tandis que [[tryRead]] retourne immédiatement. Le
+destructeur ferme les tubes et termine l’enfant s’il n’a pas déjà quitté ;
+[[closeInput]] permet de lui signaler une fin de flux.
+Cet objet propriétaire est mono-thread et non thread-safe : aucun autre thread
+ne doit effectuer d’entrée-sortie concurrente sur ses handles.
 @param nativeProcess Handle natif propriétaire créé par [[spawnProcess]]."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ChildProcess(var nativeProcess : isize)</code></h3>
 <p class="doc-summary">Processus enfant persistant relié par des tubes à son entrée et sa sortie standard.</p>
-<div class="doc-details"><p>Les lectures sont bloquantes. Le destructeur ferme les tubes et termine l’enfant<br>
-s’il n’a pas déjà quitté ; <a href="#std-process-childprocess-closeinput"><code>closeInput</code></a> permet de lui signaler une fin de flux.</p></div>
+<div class="doc-details"><p><a href="#std-process-childprocess-read"><code>ChildProcess.read</code></a> est bloquante, tandis que <a href="#std-process-childprocess-tryread"><code>tryRead</code></a> retourne immédiatement. Le<br>
+destructeur ferme les tubes et termine l’enfant s’il n’a pas déjà quitté ;<br>
+<a href="#std-process-childprocess-closeinput"><code>closeInput</code></a> permet de lui signaler une fin de flux.<br>
+Cet objet propriétaire est mono-thread et non thread-safe : aucun autre thread<br>
+ne doit effectuer d’entrée-sortie concurrente sur ses handles.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeProcess</code></td><td><code>isize</code></td><td>Handle natif propriétaire créé par <a href="#std-process-spawnprocess"><code>spawnProcess</code></a>.</td></tr></tbody></table></section>
 <div class="qualified">std.process.ChildProcess</div></div><a class="permalink" href="#std-process-childprocess" aria-label="Permanent link to std.process.ChildProcess">#</a></article>
 <article class="symbol-card kind-method child" id="std-process-childprocess-closeinput" data-symbol data-search="std.process.ChildProcess.closeInput method def closeInput() : Result[bool, SystemError] Ferme l’entrée standard transmise à l’enfant de façon idempotente.
@@ -5613,6 +5619,51 @@ L’appel bloque jusqu’à la disponibilité de données ou la fin du flux.
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>target</code></td><td><code>Ptr[byte]</code></td><td>Zone inscriptible recevant au plus `capacity` octets.</td></tr><tr><td><code>capacity</code></td><td><code>usize</code></td><td>Capacité disponible dans `target`.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[usize, SystemError]</code> — `Ok(0)` à la fin du flux, `Ok(count)` après lecture, ou une erreur système.</p></section>
 <div class="qualified">std.process.ChildProcess.read</div></div><a class="permalink" href="#std-process-childprocess-read" aria-label="Permanent link to std.process.ChildProcess.read">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-childprocess-terminate" data-symbol data-search="std.process.ChildProcess.terminate method def terminate() : Result[bool, SystemError] Demande la terminaison immédiate de l’enfant sans attendre sa sortie.
+
+Envoie `SIGKILL` sur POSIX et appelle `TerminateProcess` sur Windows.
+Utilisez [[tryWait]] pour observer ensuite la terminaison sans bloquer.
+@return `Ok(true)` si la demande a réussi ou si l’enfant était déjà terminé,
+sinon une erreur système."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ChildProcess</div><h3><code>def terminate() : Result[bool, SystemError]</code></h3>
+<p class="doc-summary">Demande la terminaison immédiate de l’enfant sans attendre sa sortie.</p>
+<div class="doc-details"><p>Envoie `SIGKILL` sur POSIX et appelle `TerminateProcess` sur Windows.<br>
+Utilisez <a href="#std-process-childprocess-trywait"><code>tryWait</code></a> pour observer ensuite la terminaison sans bloquer.<br>
+sinon une erreur système.</p></div>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[bool, SystemError]</code> — `Ok(true)` si la demande a réussi ou si l’enfant était déjà terminé,</p></section>
+<div class="qualified">std.process.ChildProcess.terminate</div></div><a class="permalink" href="#std-process-childprocess-terminate" aria-label="Permanent link to std.process.ChildProcess.terminate">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-childprocess-tryread" data-symbol data-search="std.process.ChildProcess.tryRead method def tryRead(target : Ptr[byte], capacity : usize) : Result[usize, SystemError] Tente de lire immédiatement des octets sans bloquer.
+
+Une taille nulle réussit. `Ok(0)` indique exclusivement la fin du flux;
+l’absence de progression immédiate retourne une erreur `WouldBlock`.
+@param target Zone inscriptible recevant au plus `capacity` octets.
+@param capacity Capacité disponible dans `target`.
+@return `Ok(count)`, `Ok(0)` à EOF, ou une erreur système."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ChildProcess</div><h3><code>def tryRead(target : Ptr[byte], capacity : usize) : Result[usize, SystemError]</code></h3>
+<p class="doc-summary">Tente de lire immédiatement des octets sans bloquer.</p>
+<div class="doc-details"><p>Une taille nulle réussit. `Ok(0)` indique exclusivement la fin du flux;<br>
+l’absence de progression immédiate retourne une erreur `WouldBlock`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>target</code></td><td><code>Ptr[byte]</code></td><td>Zone inscriptible recevant au plus `capacity` octets.</td></tr><tr><td><code>capacity</code></td><td><code>usize</code></td><td>Capacité disponible dans `target`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[usize, SystemError]</code> — `Ok(count)`, `Ok(0)` à EOF, ou une erreur système.</p></section>
+<div class="qualified">std.process.ChildProcess.tryRead</div></div><a class="permalink" href="#std-process-childprocess-tryread" aria-label="Permanent link to std.process.ChildProcess.tryRead">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-childprocess-trywait" data-symbol data-search="std.process.ChildProcess.tryWait method def tryWait() : Result[Option[int], SystemError] Observe la terminaison de l’enfant sans bloquer.
+@return `Ok(None)` si l’enfant est encore actif, `Ok(Some(exitCode))`
+s’il est terminé, sinon une erreur système."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ChildProcess</div><h3><code>def tryWait() : Result[Option[int], SystemError]</code></h3>
+<p class="doc-summary">Observe la terminaison de l’enfant sans bloquer.<br>
+s’il est terminé, sinon une erreur système.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[Option[int], SystemError]</code> — `Ok(None)` si l’enfant est encore actif, `Ok(Some(exitCode))`</p></section>
+<div class="qualified">std.process.ChildProcess.tryWait</div></div><a class="permalink" href="#std-process-childprocess-trywait" aria-label="Permanent link to std.process.ChildProcess.tryWait">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-childprocess-trywrite" data-symbol data-search="std.process.ChildProcess.tryWrite method def tryWrite(data : Ptr[byte], size : usize) : Result[usize, SystemError] Tente d’écrire immédiatement une partie des octets sans bloquer.
+
+Une taille nulle réussit. Si aucun octet ne peut être accepté immédiatement,
+retourne une erreur de catégorie `WouldBlock`.
+@param data Zone lisible sur `size` octets.
+@param size Nombre maximal d’octets à écrire.
+@return `Ok(count)` après progression immédiate, ou une erreur système."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ChildProcess</div><h3><code>def tryWrite(data : Ptr[byte], size : usize) : Result[usize, SystemError]</code></h3>
+<p class="doc-summary">Tente d’écrire immédiatement une partie des octets sans bloquer.</p>
+<div class="doc-details"><p>Une taille nulle réussit. Si aucun octet ne peut être accepté immédiatement,<br>
+retourne une erreur de catégorie `WouldBlock`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>data</code></td><td><code>Ptr[byte]</code></td><td>Zone lisible sur `size` octets.</td></tr><tr><td><code>size</code></td><td><code>usize</code></td><td>Nombre maximal d’octets à écrire.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[usize, SystemError]</code> — `Ok(count)` après progression immédiate, ou une erreur système.</p></section>
+<div class="qualified">std.process.ChildProcess.tryWrite</div></div><a class="permalink" href="#std-process-childprocess-trywrite" aria-label="Permanent link to std.process.ChildProcess.tryWrite">#</a></article>
 <article class="symbol-card kind-method child" id="std-process-childprocess-write" data-symbol data-search="std.process.ChildProcess.write method def write(data : Ptr[byte], size : usize) : Result[usize, SystemError] Écrit tous les octets demandés sur l’entrée standard de l’enfant.
 @param data Zone lisible sur `size` octets.
 @param size Nombre d’octets à écrire.

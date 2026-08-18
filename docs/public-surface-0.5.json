@@ -193,8 +193,8 @@
       "source": "stdlib/std/process.janus",
       "documentation": ["docs/language-guide.md", "docs/design/process-runtime.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "9a6e426a2f3fd3b82bdbdc7936ccfbcc168f108c5a51b65890429350fa297fb2",
-      "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "WorkingDirectory", "WorkingDirectory.view", "environmentVariable", "currentWorkingDirectory", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.stderrData", "ProcessResult.stderrSize", "ChildProcess", "ChildProcess.write", "ChildProcess.writeText", "ChildProcess.read", "ChildProcess.closeInput", "spawnProcess", "runProcess"]
+      "signature_digest": "014085acbe24bf74ebae3484c72ac8396a7fd2455b25be516006ddaee8b86a6d",
+      "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "WorkingDirectory", "WorkingDirectory.view", "environmentVariable", "currentWorkingDirectory", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.stderrData", "ProcessResult.stderrSize", "ChildProcess", "ChildProcess.terminate", "ChildProcess.tryWait", "ChildProcess.tryWrite", "ChildProcess.write", "ChildProcess.writeText", "ChildProcess.read", "ChildProcess.tryRead", "ChildProcess.closeInput", "spawnProcess", "runProcess"]
     },
     {
       "name": "std.range",
