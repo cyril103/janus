@@ -1089,9 +1089,12 @@ durée de vie des vues, les erreurs et le nettoyage.
 
 Pour un protocole persistant, `spawnProcess` retourne un `ChildProcess` dont
 `writeText` alimente stdin et dont `read` consomme stdout sans relancer
-l’exécutable. `closeInput` envoie une fin de flux ; le destructeur garantit le
-nettoyage de l’enfant. `currentWorkingDirectory` fournit parallèlement une vue
-propriétaire du répertoire courant.
+l’exécutable. `closeInput` envoie une fin de flux. Pour une fermeture de GUI
+sans attente, `terminate` demande l’arrêt immédiatement et `tryWait` permet un
+polling borné jusqu’au code de sortie ; le destructeur conserve son nettoyage
+bloquant historique lorsqu’il reste seul responsable de l’enfant.
+`currentWorkingDirectory` fournit parallèlement une vue propriétaire du
+répertoire courant.
 
 Des programmes complets sont disponibles dans [`examples`](../examples).
 

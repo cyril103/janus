@@ -54,22 +54,49 @@ subsiste.
 
 `spawnProcess` lance l’enfant sans attendre sa terminaison et retourne un
 `ChildProcess`. Son entrée et sa sortie standard sont reliées à des tubes :
+
+- `tryRead` et `tryWrite` ne bloquent jamais et signalent l’absence de
+  progression immédiate par `SystemErrorCategory.WouldBlock` ; `tryRead`
+  réserve `Ok(0)` à la fin du flux et les opérations de taille nulle réussissent ;
+- `read` et `write` conservent leur comportement bloquant historique. Sur
+  POSIX, les extrémités parent sont non bloquantes et ces méthodes attendent
+  leur disponibilité avec `poll`, sans boucle active. Sur Windows, stdout reste
+  un tube anonyme synchrone sondé par `PeekNamedPipe`. Stdin est un named pipe
+  byte en mode `PIPE_NOWAIT` : `tryWrite` écrit directement et traduit un état
+  transitoire sans progression en `WouldBlock`, tandis que `write` réessaie.
+- `terminate` envoie `SIGKILL` ou appelle `TerminateProcess` puis retourne sans
+  attendre. `tryWait` emploie la sonde non bloquante native de chaque plateforme
+  et retourne `None` tant que l’enfant est actif,
+  puis `Some(exitCode)`. Sur POSIX, le premier succès récupère l’enfant et
+  mémorise son statut afin que les appels suivants et le destructeur ne le
+  récupèrent ni ne le signalent une seconde fois.
+
+Comme les autres objets propriétaires Janus, `ChildProcess` est mono-thread et
+non thread-safe : aucune autre thread ne peut effectuer une entrée-sortie sur
+ses handles.
+
 `write`/`writeText` transmettent une requête complète, `read` attend des octets
 ou la fin du flux, et `closeInput` signale explicitement EOF à l’enfant. La
 sortie d’erreur est héritée du parent afin qu’un tube non drainé ne puisse pas
 bloquer le processus.
 
-Les appels de lecture sont bloquants. Le destructeur ferme les tubes, récupère
-le processus déjà terminé ou le termine encore actif, puis libère tous les
-handles. Cette API convient notamment aux protocoles requête-réponse persistants
-comme LSP ; les applications graphiques doivent éviter de lire sans avoir envoyé
-une requête qui garantit une réponse.
+Sans appel préalable à `terminate`, le destructeur historique ferme les tubes,
+récupère le processus déjà terminé ou le termine encore actif, puis libère tous
+les handles. Dès qu’un appel à `terminate` est tenté, y compris si l’OS refuse
+la demande, sa stratégie de repli est au contraire strictement bornée : sur
+POSIX, il tente une récupération immédiate non bloquante mais ne renvoie aucun
+signal et n’attend pas si l’enfant
+est encore actif (un zombie peut donc subsister jusqu’à la fin du parent) ; sur
+Windows, il ferme les handles sans attente infinie. Un appel intermédiaire à
+`tryWait` reste possible pour récupérer et mémoriser le statut, mais n’est pas
+nécessaire avant la destruction. Cette API convient notamment aux protocoles
+requête-réponse persistants comme LSP.
 
 La révision 0.7.4 mutualise la construction des erreurs d'épuisement mémoire
 sans réduire leur diagnostic : l'opération reste « process.run », la catégorie
 `ResourceExhausted`, le code synthétique zéro et le contexte est
 l'exécutable. Les erreurs natives conservent leur code non nul et le contexte
-fourni. La surface publique est inchangée.
+fourni.
 
 ## Validation
 

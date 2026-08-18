@@ -188,6 +188,76 @@ def interactiveChildMain() : int {
     }
 }
 
+def silentChildMain() : int {
+    val result : Result[InputStream, SystemError] = standardInput()
+    return match move result {
+        Ok(input) => waitForSilentInput(move input),
+        Error(error) => 2
+    }
+}
+
+def waitForSilentInput(input : InputStream) : int {
+    val data : Ptr[byte] = alloc[byte](usize(1))
+    defer free(data)
+    val ignored : Result[usize, SystemError] = input.read(data, usize(1))
+    delete input
+    return 0
+}
+
+def nonBlockingChild(child : ChildProcess) : bool {
+    val data : Ptr[byte] = alloc[byte](usize(1))
+    defer free(data)
+    val unavailable : bool = match child.tryRead(data, usize(1)) {
+        Ok(value) => false,
+        Error(error) => error.category == SystemErrorCategory.WouldBlock
+    }
+    val emptyRead : bool = usizeResult(child.tryRead(data, usize(0)), usize(0))
+    val emptyWrite : bool = usizeResult(child.tryWrite(data, usize(0)), usize(0))
+    delete child
+    return unavailable && emptyRead && emptyWrite
+}
+
+def nonBlockingResult(result : Result[ChildProcess, SystemError]) : bool {
+    return match move result {
+        Ok(child) => nonBlockingChild(move child),
+        Error(error) => false
+    }
+}
+
+def asynchronousStop(child : ChildProcess) : bool {
+    val running : bool = match child.tryWait() {
+        Ok(state) => match state {
+            Some(code) => false,
+            None => true
+        },
+        Error(error) => false
+    }
+    val stopped : bool = boolResult(child.terminate())
+    var finished : bool = false
+    var attempts : usize = usize(0)
+    while !finished && attempts < usize(10000000) {
+        finished = match child.tryWait() {
+            Ok(state) => match state {
+                Some(code) => true,
+                None => false
+            },
+            Error(error) => false
+        }
+        attempts = attempts + usize(1)
+    }
+    delete child
+    return running && stopped && finished
+}
+
+def asynchronousStopResult(
+result : Result[ChildProcess, SystemError]
+) : bool {
+    return match move result {
+        Ok(child) => asynchronousStop(move child),
+        Error(error) => false
+    }
+}
+
 def exchangeWithChild(child : ChildProcess) : bool {
     val sent : bool = usizeResult(child.writeText("ping\n"), usize(5))
     val received : Ptr[byte] = alloc[byte](usize(5))
@@ -341,6 +411,19 @@ def runParent(root : Path, executable : string) : int {
     ""
     )))
     delete interactiveArguments
+    val silentArguments : Array[string] = new Array[string](usize(1))
+    silentArguments.push("--silent-child")
+    println(nonBlockingResult(spawnProcess(
+    executable,
+    silentArguments,
+    ""
+    )))
+    println(asynchronousStopResult(spawnProcess(
+    executable,
+    silentArguments,
+    ""
+    )))
+    delete silentArguments
     val missingArguments : Array[string] =
     new Array[string](usize(0))
     println(missingProcess(runProcess(
@@ -397,6 +480,10 @@ def main() : int {
     if programArgumentCount() > usize(1) &&
     argumentEquals(usize(1), "--interactive-child") {
         return interactiveChildMain()
+    }
+    if programArgumentCount() > usize(1) &&
+    argumentEquals(usize(1), "--silent-child") {
+        return silentChildMain()
     }
     println(programArgumentCount() >= usize(1))
     println(environmentEquals(
