@@ -1,6 +1,9 @@
 # Migration de Janus 0.5 vers 0.8
 
-Cette synthèse complète les entrées détaillées du [changelog](../CHANGELOG.md).
+> Guide historique conservé pour les anciens projets.
+
+Cette synthèse complète les entrées détaillées du
+[changelog](../../CHANGELOG.md).
 Après chaque étape, régénérez `janus.lock`, lancez `janus fmt --check`, puis
 `janus check --locked --offline` une fois les dépendances mises en cache.
 
@@ -37,6 +40,6 @@ Après chaque étape, régénérez `janus.lock`, lancez `janus fmt --check`, pui
 - Consommez les diagnostics structurés plutôt que le texte humain et validez
   les archives par leur fichier SHA-256.
 
-Le [tableau de stabilité 0.8](stability-inventory-0.8.md) indique quelles
+Le [tableau de stabilité 0.8](../stability-inventory-0.8.md) indique quelles
 surfaces peuvent encore changer. Aucun élément expérimental ne doit être traité
 comme une promesse 1.0.

@@ -1,5 +1,7 @@
 # Migration de Janus 0.5 vers 0.6
 
+> Guide historique conservé pour les anciens projets.
+
 Janus 0.6.0 a été publié séparément. Les lots 0.6.1 à 0.6.3 décrits ci-dessous
 ont ensuite été livrés cumulativement avec Janus 0.7.4 ; ces numéros de lots ne
 correspondent pas à des tags publics distincts.

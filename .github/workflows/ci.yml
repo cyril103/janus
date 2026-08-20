@@ -410,7 +410,7 @@ jobs:
             -P tests/compatibility/run_compatibility.cmake
 
   release-readiness:
-    name: 0.8 public audit and critical gate
+    name: Public stability audit and critical gate
     runs-on: ubuntu-24.04
     permissions:
       contents: read

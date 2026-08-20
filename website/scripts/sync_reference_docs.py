@@ -27,14 +27,16 @@ DOCUMENTS = (
     "graphics.md",
     "stability-contract.md",
     "stability-inventory-0.8.md",
-    "known-limitations-0.8.md",
-    "readiness-1.0.md",
-    "release-severity-policy-0.8.md",
+    "audit-0.17.md",
+    "roadmap-1.0.md",
+    "release-severity-policy.md",
     "development.md",
-    "migration-0.5-to-0.6.md",
-    "migration-0.5-to-0.8.md",
 )
-DOCUMENT_VERSIONS = {}
+DOCUMENT_VERSIONS = {
+    "audit-0.17.md": "main",
+    "roadmap-1.0.md": "main",
+    "release-severity-policy.md": "main",
+}
 ASSETS = ("public-surface-0.5.json",)
 LINK_RE = re.compile(r"(?P<image>!)?\[(?P<label>[^]]*)\]\((?P<target>[^)]+)\)")
 NOTICE = """> **Documentation canonique** — Cette page est générée depuis

@@ -6,6 +6,11 @@ Statut : audit pré-1.0 du 30 juillet 2026. Cet inventaire décrit le candidat
 pas « garanti pour toujours ». `experimental` autorise encore une modification
 annoncée dans le changelog.
 
+> **Baseline historique automatisée** — La CI utilise encore cet inventaire
+> comme source de vérité jusqu'au rebaseline 0.18 prévu par la
+> [roadmap 1.0](roadmap-1.0.md). Pour l'état courant, consulter
+> l'[audit technique 0.17](audit-0.17.md).
+
 La source de vérité symbolique de la bibliothèque et de la CLI reste
 [l'inventaire public contrôlé](public-surface-0.5.json). Le présent document
 classe toutes ses surfaces publiques et les autres frontières du
@@ -110,11 +115,12 @@ symbole source non inventorié.
 
 ## Preuves de gel
 
-- La [migration 0.5 vers 0.8](migration-0.5-to-0.8.md) rassemble les changements
-  annoncés depuis 0.5.
+- La [migration 0.5 vers 0.8](archive/migration-0.5-to-0.8.md) rassemble les
+  changements annoncés depuis 0.5.
 - Les surfaces expérimentales sont toutes reprises dans les
-  [limites connues](known-limitations-0.8.md).
-- Le [rapport de préparation 1.0](readiness-1.0.md) rend une décision explicite.
+  [limites connues](archive/known-limitations-0.8.md).
+- Le [rapport de préparation 1.0](archive/readiness-1.0.md) rend une décision
+  explicite.
 - La CI tier-1 construit, teste les doctests, produit et teste les archives ;
   elle confronte aussi les fixtures au dernier Janus publié et au candidat.
 - Les quatre corpus de fuzzing versionnés sont exécutés sous ASan et UBSan

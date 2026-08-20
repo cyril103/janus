@@ -26,12 +26,10 @@ EXPECTED_REFERENCE = {
     "graphics.md",
     "stability-contract.md",
     "stability-inventory-0.8.md",
-    "known-limitations-0.8.md",
-    "readiness-1.0.md",
-    "release-severity-policy-0.8.md",
+    "audit-0.17.md",
+    "roadmap-1.0.md",
+    "release-severity-policy.md",
     "development.md",
-    "migration-0.5-to-0.6.md",
-    "migration-0.5-to-0.8.md",
 }
 EXPECTED_MODULES = {
     "std.array",

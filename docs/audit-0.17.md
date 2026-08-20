@@ -28,7 +28,7 @@ Il est concentré dans trois écarts :
 
 La priorité recommandée est donc de consolider la sémantique de propriété et
 les preuves de stabilité avant d'ajouter de grandes familles de fonctionnalités.
-La [roadmap vers Janus 1.0](../roadmap-1.0.md) traduit cet audit en jalons.
+La [roadmap vers Janus 1.0](roadmap-1.0.md) traduit cet audit en jalons.
 
 ## Périmètre et méthode
 
@@ -133,8 +133,10 @@ premier temps les retours empruntés ni les captures persistantes.
 
 ### A02 — P0 — Rebaser le contrat 1.0 sur la 0.17
 
-`readiness-1.0.md`, `known-limitations-0.8.md`, l'inventaire et la politique de
-sévérité restent ancrés en 0.8. Depuis, Janus a ajouté entre autres les
+Le [rapport de préparation](archive/readiness-1.0.md), les
+[limites connues](archive/known-limitations-0.8.md), l'inventaire et l'ancienne
+politique de sévérité restent ancrés en 0.8. Depuis, Janus a ajouté entre autres
+les
 constantes, les tests natifs, de nombreuses capacités LSP, des garanties de
 distribution et de nouvelles primitives graphiques.
 

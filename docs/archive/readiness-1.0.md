@@ -1,8 +1,8 @@
 # Rapport de préparation à Janus 1.0
 
 > Ce rapport conserve la décision historique prise sur le candidat 0.8. Pour
-> l'état courant du projet, consulter l'[audit technique 0.17](audits/janus-0.17.md)
-> et la [roadmap vers Janus 1.0](roadmap-1.0.md).
+> l'état courant du projet, consulter l'[audit technique 0.17](../audit-0.17.md)
+> et la [roadmap vers Janus 1.0](../roadmap-1.0.md).
 
 Date d'audit : 30 juillet 2026. Décision : **NO-GO pour 1.0**.
 

@@ -1,5 +1,8 @@
 # Limites connues de Janus 0.8
 
+> Document historique. Pour l'état courant, consulter
+> l'[audit technique 0.17](../audit-0.17.md).
+
 Janus 0.8 reste une version pré-1.0. Les surfaces ci-dessous sont conservées
 pour expérimentation, mais ne font pas partie du candidat stable.
 
@@ -22,4 +25,4 @@ pour expérimentation, mais ne font pas partie du candidat stable.
 Autres limites hors surface promise : format et ordre exacts des diagnostics,
 ABI des agrégats Janus, objets compilés entre plateformes, performances,
 contenu du cache et API C++ internes du compilateur. Elles sont détaillées dans
-le [contrat proposé](stability-contract.md).
+le [contrat proposé](../stability-contract.md).

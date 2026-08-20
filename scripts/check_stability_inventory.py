@@ -87,7 +87,7 @@ def main() -> int:
     root = args.root.resolve()
     inventory = root / "docs" / "stability-inventory-0.8.md"
     public_surface = root / "docs" / "public-surface-0.5.json"
-    limitations = root / "docs" / "known-limitations-0.8.md"
+    limitations = root / "docs" / "archive" / "known-limitations-0.8.md"
     errors: list[str] = []
 
     if not inventory.is_file():

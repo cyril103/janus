@@ -1,5 +1,8 @@
 # Politique de sévérité de release 0.8
 
+> Document historique remplacé par la
+> [politique de sévérité courante](../release-severity-policy.md).
+
 Une issue est `severity:critical` si elle démontre au moins un des cas suivants :
 
 - corruption ou double libération de ressource ;

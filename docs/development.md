@@ -203,8 +203,9 @@ Checklist de release :
    publié et le candidat ; pour 1.x, l'exécuter sur chaque plateforme tier-1 ;
 4. joindre un guide de migration à tout changement incompatible autorisé ;
 5. vérifier manifestes et lockfiles précédents avec `--locked --offline` ;
-6. vérifier la [politique critique 0.8](release-severity-policy-0.8.md) et le
-   [rapport de préparation 1.0](readiness-1.0.md) ;
+6. vérifier la [politique de sévérité](release-severity-policy.md), les écarts
+   de l'[audit 0.17](audit-0.17.md) et les gates de la
+   [roadmap 1.0](roadmap-1.0.md) ;
 7. terminer la validation de l'archive et de l'extension.
 
 La commande N/N+1 exacte est documentée dans

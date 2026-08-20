@@ -1,6 +1,6 @@
 # Roadmap Janus vers 1.0
 
-Statut : proposition issue de l'[audit technique 0.17](audits/janus-0.17.md).  
+Statut : proposition issue de l'[audit technique 0.17](audit-0.17.md).
 Principe : les numéros de version indiquent un ordre de livraison, pas des dates
 contractuelles.
 

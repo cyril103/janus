@@ -22,11 +22,11 @@ Cette section publie les guides canoniques du dépôt. Ils sont copiés à chaqu
 
 **Auditer**
 
-:   [Inventaire de stabilité 0.8](generated/stability-inventory-0.8.md) · [Surface publique symbolique 0.5.x](generated/public-surface-0.5.json) · [Rapport de préparation 1.0](generated/readiness-1.0.md)
+:   [Audit technique 0.17](generated/audit-0.17.md) · [Roadmap vers 1.0](generated/roadmap-1.0.md) · [Politique de sévérité](generated/release-severity-policy.md) · [Baseline automatisée 0.8](generated/stability-inventory-0.8.md) · [Surface publique symbolique 0.5.x](generated/public-surface-0.5.json)
 
-**Migrer**
+**Historique**
 
-:   [Passer de Janus 0.5 à 0.8](generated/migration-0.5-to-0.8.md) · [Migration historique 0.5 vers 0.6](generated/migration-0.5-to-0.6.md)
+:   Les anciens rapports et guides de migration restent disponibles dans les [archives du dépôt](https://github.com/cyril103/janus/tree/main/docs/archive).
 
 **Explorer**
 
