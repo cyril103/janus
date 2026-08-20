@@ -1197,6 +1197,19 @@ RAYLIB_EXPORT int GetKeyPressed(void) { return 65; }
 
 RAYLIB_EXPORT int GetCharPressed(void) { return 233; }
 
+static char fake_clipboard[256] = "";
+
+RAYLIB_EXPORT void SetClipboardText(const char *text) {
+  if (text == NULL) {
+    fake_clipboard[0] = '\0';
+    return;
+  }
+  strncpy(fake_clipboard, text, sizeof(fake_clipboard) - 1);
+  fake_clipboard[sizeof(fake_clipboard) - 1] = '\0';
+}
+
+RAYLIB_EXPORT const char *GetClipboardText(void) { return fake_clipboard; }
+
 RAYLIB_EXPORT void SetExitKey(int key) { (void)key; }
 
 RAYLIB_EXPORT int GetMouseX(void) { return 123; }

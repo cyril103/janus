@@ -15,6 +15,11 @@ private extern def janus_graphics_is_key_down(key : int) : bool
 private extern def janus_graphics_is_key_pressed(key : int) : bool
 private extern def janus_graphics_key_pressed() : int
 private extern def janus_graphics_character_pressed() : int
+private extern def janus_graphics_set_clipboard_text(
+borrow text : Ptr[byte]
+) : Unit
+private extern def janus_graphics_clipboard_text() : borrow Ptr[byte]
+private extern def janus_graphics_clipboard_text_size() : usize
 private extern def janus_graphics_disable_exit_key() : Unit
 private extern def janus_graphics_mouse_x() : int
 private extern def janus_graphics_mouse_y() : int
@@ -81,6 +86,20 @@ def keyPressed() : int {
 /// @return Point de code Unicode, ou `0` si la file est vide ou le backend indisponible.
 def characterPressed() : int {
     return janus_graphics_character_pressed()
+}
+
+/// Copie du texte UTF-8 dans le presse-papiers système.
+/// @param text Texte à rendre disponible aux autres applications.
+def setClipboardText(text : string) : Unit {
+    janus_graphics_set_clipboard_text(cstr(text))
+}
+
+/// Lit le texte UTF-8 actuellement présent dans le presse-papiers système.
+/// @return Vue du contenu courant, ou une chaîne vide si le backend est indisponible.
+def clipboardText() : string {
+    val text : Ptr[byte] = janus_graphics_clipboard_text()
+    if text == null[byte]() { return "" }
+    return stringView(text, janus_graphics_clipboard_text_size())
 }
 
 /// Désactive la fermeture automatique de la fenêtre par une touche clavier.

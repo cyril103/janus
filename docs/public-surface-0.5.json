@@ -73,8 +73,8 @@
       "source": "stdlib/std/graphics/input.janus",
       "documentation": ["docs/graphics.md"],
       "status": "experimental",
-      "signature_digest": "0919f7884ac427f3558a8d97dd33ec10013ce32e192651d208b3b5cbecee5a0f",
-      "symbols": ["isKeyDown", "isKeyPressed", "keyPressed", "characterPressed", "disableExitKey", "mouseX", "mouseY", "setMousePosition", "setMouseCursor", "mouseWheelMove", "isMouseButtonDown", "isMouseButtonPressed", "showCursor", "hideCursor", "isCursorHidden", "enableCursor", "disableCursor", "isGamepadAvailable", "gamepadName", "isGamepadButtonDown", "isGamepadButtonPressed", "isGamepadButtonReleased", "gamepadButtonPressed", "gamepadAxisCount", "gamepadAxis", "setGamepadVibration"]
+      "signature_digest": "841a6b9a8c26a60bbf4db9f758b4b9ecf8d01f0b32609de92b1b165bbef68fe9",
+      "symbols": ["isKeyDown", "isKeyPressed", "keyPressed", "characterPressed", "setClipboardText", "clipboardText", "disableExitKey", "mouseX", "mouseY", "setMousePosition", "setMouseCursor", "mouseWheelMove", "isMouseButtonDown", "isMouseButtonPressed", "showCursor", "hideCursor", "isCursorHidden", "enableCursor", "disableCursor", "isGamepadAvailable", "gamepadName", "isGamepadButtonDown", "isGamepadButtonPressed", "isGamepadButtonReleased", "gamepadButtonPressed", "gamepadAxisCount", "gamepadAxis", "setGamepadVibration"]
     },
     {
       "name": "std.graphics.resources",

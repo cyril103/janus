@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 extern bool janus_graphics_available(void);
 extern bool janus_graphics_init_window(int width, int height,
@@ -166,6 +167,9 @@ extern bool janus_graphics_is_key_down(int key);
 extern bool janus_graphics_is_key_pressed(int key);
 extern int janus_graphics_key_pressed(void);
 extern int janus_graphics_character_pressed(void);
+extern void janus_graphics_set_clipboard_text(const void *text);
+extern const void *janus_graphics_clipboard_text(void);
+extern size_t janus_graphics_clipboard_text_size(void);
 extern void janus_graphics_disable_exit_key(void);
 extern int janus_graphics_mouse_x(void);
 extern int janus_graphics_mouse_y(void);
@@ -410,6 +414,14 @@ int main(void) {
       !janus_graphics_is_mouse_button_down(0) ||
       !janus_graphics_is_mouse_button_pressed(1)) {
     fputs("graphics backend did not forward input through raylib\n", stderr);
+    return 1;
+  }
+  janus_graphics_set_clipboard_text("Janus clipboard");
+  if (strcmp((const char *)janus_graphics_clipboard_text(), "Janus clipboard") !=
+          0 ||
+      janus_graphics_clipboard_text_size() != strlen("Janus clipboard")) {
+    fputs("graphics backend did not forward the clipboard through raylib\n",
+          stderr);
     return 1;
   }
   janus_graphics_set_mouse_position(50, 60);

@@ -352,6 +352,8 @@ Entrées disponibles :
 - `keyPressed` pour lire la prochaine touche saisie ;
 - `characterPressed` pour lire le prochain caractère Unicode selon la
   disposition active du clavier, notamment AZERTY ou QWERTY ;
+- `setClipboardText` et `clipboardText` pour écrire et lire du texte UTF-8 dans
+  le presse-papiers système ;
 - `disableExitKey` pour réserver `Escape` à une application modale sans fermer
   automatiquement sa fenêtre ;
 - `mouseX`, `mouseY`, `setMousePosition` et `mouseWheelMove` ;

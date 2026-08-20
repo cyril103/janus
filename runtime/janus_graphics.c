@@ -406,6 +406,8 @@ typedef struct {
   bool (*IsKeyPressed)(int);
   int (*GetKeyPressed)(void);
   int (*GetCharPressed)(void);
+  void (*SetClipboardText)(const char *);
+  const char *(*GetClipboardText)(void);
   void (*SetExitKey)(int);
   int (*GetMouseX)(void);
   int (*GetMouseY)(void);
@@ -746,6 +748,8 @@ static bool load_graphics_api(void) {
   JANUS_LOAD_GRAPHICS_SYMBOL(IsKeyPressed);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetKeyPressed);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetCharPressed);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetClipboardText);
+  JANUS_LOAD_GRAPHICS_SYMBOL(GetClipboardText);
   JANUS_LOAD_GRAPHICS_SYMBOL(SetExitKey);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseX);
   JANUS_LOAD_GRAPHICS_SYMBOL(GetMouseY);
@@ -2460,6 +2464,20 @@ int janus_graphics_key_pressed(void) {
 
 int janus_graphics_character_pressed(void) {
   return graphics_loaded ? graphics_api.GetCharPressed() : 0;
+}
+
+void janus_graphics_set_clipboard_text(const void *text) {
+  if (graphics_loaded && text != NULL)
+    graphics_api.SetClipboardText((const char *)text);
+}
+
+const void *janus_graphics_clipboard_text(void) {
+  return graphics_loaded ? graphics_api.GetClipboardText() : NULL;
+}
+
+size_t janus_graphics_clipboard_text_size(void) {
+  const char *text = graphics_loaded ? graphics_api.GetClipboardText() : NULL;
+  return text != NULL ? strlen(text) : 0;
 }
 
 void janus_graphics_disable_exit_key(void) {
