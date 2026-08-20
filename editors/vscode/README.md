@@ -47,7 +47,7 @@ n'est trouvé, l'extension propose d'ouvrir directement le paramètre concerné.
 | 0.12.0 | 0.12.0 | 1.91 ou plus récent | ancienne version Marketplace, pré-1.0 |
 | 0.13.0 | 0.13.0 | 1.91 ou plus récent | ancienne version Marketplace, pré-1.0 |
 | 0.14.0 | 0.14.0 | 1.91 ou plus récent | ancienne version Marketplace, pré-1.0 |
-| 0.16.0 | 0.16.0 | 1.91 ou plus récent | version courante, remise Marketplace manuelle, pré-1.0 |
+| 0.17.0 | 0.17.0 | 1.91 ou plus récent | version courante, remise Marketplace manuelle, pré-1.0 |
 
 La version d'extension et la toolchain du même tag sont la combinaison
 recommandée. Les capacités LSP sont négociées à l'initialisation : une
