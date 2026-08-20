@@ -61,6 +61,7 @@ def main() : int {
     setWindowTitle("Janus graphics")
     setWindowPosition(10, 20)
     setWindowSize(800, 450)
+    setWindowResizable(true)
     setWindowOpacity(float(0.9))
     setMousePosition(100, 120)
     hideCursor()

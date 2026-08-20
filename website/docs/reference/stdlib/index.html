@@ -919,7 +919,7 @@ appelez <a href="#std-graphics-drawing-closewindow"><code>closeWindow</code></a>
     endDrawing()<br>
     closeWindow()<br>
 }<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">105</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">106</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-graphics-drawing-camera2d" data-symbol data-search="std.graphics.drawing.Camera2D class class Camera2D(var offsetX : float, var offsetY : float, var targetX : float, var targetY : float, var rotation : float, var zoom : float) Décrit la transformation entre l’espace monde et l’écran utilisée par [[beginCamera]]."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Camera2D(var offsetX : float, var offsetY : float, var targetX : float, var targetY : float, var rotation : float, var zoom : float)</code></h3>
 <p class="doc-summary">Décrit la transformation entre l’espace monde et l’écran utilisée par <a href="#std-graphics-drawing-begincamera"><code>beginCamera</code></a>.</p>
@@ -1614,6 +1614,15 @@ Le premier appel mesure depuis l’initialisation du module.
 <p class="doc-summary">Déplace la fenêtre aux coordonnées demandées.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>x</code></td><td><code>int</code></td><td>Abscisse en pixels de la fenêtre sur l’écran.</td></tr><tr><td><code>y</code></td><td><code>int</code></td><td>Ordonnée en pixels de la fenêtre sur l’écran.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.drawing.setWindowPosition</div></div><a class="permalink" href="#std-graphics-drawing-setwindowposition" aria-label="Permanent link to std.graphics.drawing.setWindowPosition">#</a></article>
+<article class="symbol-card kind-function" id="std-graphics-drawing-setwindowresizable" data-symbol data-search="std.graphics.drawing.setWindowResizable function def setWindowResizable(resizable : bool) : Unit Autorise ou interdit le redimensionnement de la fenêtre.
+
+Une fenêtre redimensionnable peut aussi être agrandie par le gestionnaire de fenêtres.
+
+@param resizable `true` pour autoriser le redimensionnement; `false` pour le bloquer."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def setWindowResizable(resizable : bool) : Unit</code></h3>
+<p class="doc-summary">Autorise ou interdit le redimensionnement de la fenêtre.</p>
+<div class="doc-details"><p>Une fenêtre redimensionnable peut aussi être agrandie par le gestionnaire de fenêtres.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>resizable</code></td><td><code>bool</code></td><td>`true` pour autoriser le redimensionnement; `false` pour le bloquer.</td></tr></tbody></table></section>
+<div class="qualified">std.graphics.drawing.setWindowResizable</div></div><a class="permalink" href="#std-graphics-drawing-setwindowresizable" aria-label="Permanent link to std.graphics.drawing.setWindowResizable">#</a></article>
 <article class="symbol-card kind-function" id="std-graphics-drawing-setwindowsize" data-symbol data-search="std.graphics.drawing.setWindowSize function def setWindowSize(width : int, height : int) : Unit Redimensionne la fenêtre.
 
 @param width Nouvelle largeur en pixels, strictement positive.

@@ -103,6 +103,7 @@ static bool window_ready;
 static bool audio_ready;
 static bool window_fullscreen;
 static bool window_maximized;
+static bool window_resizable;
 static bool cursor_hidden;
 static bool blend_active;
 static bool drawing_active;
@@ -119,6 +120,16 @@ static int music_unloads;
 
 RAYLIB_EXPORT void InitWindow(int width, int height, const char *title) {
   window_ready = width > 0 && height > 0 && title != 0;
+}
+
+RAYLIB_EXPORT void SetWindowState(unsigned int flags) {
+  if ((flags & 0x00000004u) != 0)
+    window_resizable = true;
+}
+
+RAYLIB_EXPORT void ClearWindowState(unsigned int flags) {
+  if ((flags & 0x00000004u) != 0)
+    window_resizable = false;
 }
 
 RAYLIB_EXPORT bool IsWindowReady(void) { return window_ready; }
@@ -145,7 +156,11 @@ RAYLIB_EXPORT void ToggleFullscreen(void) {
   window_fullscreen = !window_fullscreen;
 }
 
-RAYLIB_EXPORT void MaximizeWindow(void) { window_maximized = true; }
+RAYLIB_EXPORT void MaximizeWindow(void) {
+  if (!window_resizable)
+    abort();
+  window_maximized = true;
+}
 RAYLIB_EXPORT void MinimizeWindow(void) { window_maximized = false; }
 RAYLIB_EXPORT void RestoreWindow(void) { window_maximized = false; }
 RAYLIB_EXPORT void SetWindowTitle(const char *title) { (void)title; }

@@ -105,6 +105,8 @@ typedef struct {
 
 typedef struct {
   void (*InitWindow)(int, int, const char *);
+  void (*SetWindowState)(unsigned int);
+  void (*ClearWindowState)(unsigned int);
   bool (*IsWindowReady)(void);
   bool (*WindowShouldClose)(void);
   bool (*IsWindowFullscreen)(void);
@@ -536,6 +538,8 @@ static bool load_graphics_api(void) {
   } while (false)
 
   JANUS_LOAD_GRAPHICS_SYMBOL(InitWindow);
+  JANUS_LOAD_GRAPHICS_SYMBOL(SetWindowState);
+  JANUS_LOAD_GRAPHICS_SYMBOL(ClearWindowState);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsWindowReady);
   JANUS_LOAD_GRAPHICS_SYMBOL(WindowShouldClose);
   JANUS_LOAD_GRAPHICS_SYMBOL(IsWindowFullscreen);
@@ -902,6 +906,16 @@ void janus_graphics_set_window_position(int x, int y) {
 void janus_graphics_set_window_size(int width, int height) {
   if (graphics_loaded && width > 0 && height > 0)
     graphics_api.SetWindowSize(width, height);
+}
+
+void janus_graphics_set_window_resizable(bool resizable) {
+  const unsigned int window_resizable = 0x00000004u;
+  if (!graphics_loaded)
+    return;
+  if (resizable)
+    graphics_api.SetWindowState(window_resizable);
+  else
+    graphics_api.ClearWindowState(window_resizable);
 }
 
 void janus_graphics_set_window_opacity(float opacity) {

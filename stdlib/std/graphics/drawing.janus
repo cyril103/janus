@@ -38,6 +38,7 @@ private extern def janus_graphics_restore_window() : Unit
 private extern def janus_graphics_set_window_title(borrow title : Ptr[byte]) : Unit
 private extern def janus_graphics_set_window_position(x : int, y : int) : Unit
 private extern def janus_graphics_set_window_size(width : int, height : int) : Unit
+private extern def janus_graphics_set_window_resizable(resizable : bool) : Unit
 private extern def janus_graphics_set_window_opacity(opacity : float) : Unit
 private extern def janus_graphics_screen_width() : int
 private extern def janus_graphics_screen_height() : int
@@ -411,6 +412,15 @@ def setWindowPosition(x : int, y : int) : Unit {
 /// @param height Nouvelle hauteur en pixels, strictement positive.
 def setWindowSize(width : int, height : int) : Unit {
     janus_graphics_set_window_size(width, height)
+}
+
+/// Autorise ou interdit le redimensionnement de la fenêtre.
+///
+/// Une fenêtre redimensionnable peut aussi être agrandie par le gestionnaire de fenêtres.
+///
+/// @param resizable `true` pour autoriser le redimensionnement; `false` pour le bloquer.
+def setWindowResizable(resizable : bool) : Unit {
+    janus_graphics_set_window_resizable(resizable)
 }
 
 /// Règle l’opacité de la fenêtre.

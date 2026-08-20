@@ -18,6 +18,7 @@ extern void janus_graphics_restore_window(void);
 extern void janus_graphics_set_window_title(const void *title);
 extern void janus_graphics_set_window_position(int x, int y);
 extern void janus_graphics_set_window_size(int width, int height);
+extern void janus_graphics_set_window_resizable(bool resizable);
 extern void janus_graphics_set_window_opacity(float opacity);
 extern int janus_graphics_screen_width(void);
 extern int janus_graphics_screen_height(void);
@@ -205,6 +206,7 @@ int main(void) {
   }
 
   janus_graphics_toggle_fullscreen();
+  janus_graphics_set_window_resizable(true);
   janus_graphics_maximize_window();
   janus_graphics_set_window_title("renamed");
   janus_graphics_set_window_position(10, 20);

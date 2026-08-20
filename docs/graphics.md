@@ -373,7 +373,8 @@ La fenêtre peut être inspectée avec `isWindowFullscreen`, `isWindowHidden`,
 `isWindowMinimized`, `isWindowMaximized`, `isWindowFocused` et
 `isWindowResized`. Les fonctions `toggleFullscreen`, `maximizeWindow`,
 `minimizeWindow`, `restoreWindow`, `setWindowTitle`, `setWindowPosition`,
-`setWindowSize` et `setWindowOpacity` la contrôlent. `screenWidth` et
+`setWindowSize`, `setWindowResizable` et `setWindowOpacity` la contrôlent.
+`screenWidth` et
 `screenHeight` donnent la taille courante de la zone de dessin.
 
 ### Manettes
