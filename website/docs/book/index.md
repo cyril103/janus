@@ -1,6 +1,6 @@
 # Le Book Janus
 
-Ce livre couvre le langage Janus **0.14.0**, de la première fonction au modèle de propriété, aux dérivations, à la bibliothèque standard et au graphisme 2D. Il se lit dans l’ordre pour apprendre, ou par chapitre pour retrouver un concept précis.
+Ce livre couvre le langage Janus **0.15.0**, de la première fonction au modèle de propriété, aux dérivations, à la bibliothèque standard et au graphisme 2D. Il se lit dans l’ordre pour apprendre, ou par chapitre pour retrouver un concept précis.
 
 !!! info "Nouveautés 0.11 et 0.12"
     Le parcours inclut maintenant les littéraux entiers préfixés, les motifs

@@ -5,6 +5,25 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.15.0] - 2026-08-20
+
+Cette version mineure ajoute des entrées-sorties non bloquantes pour les
+processus enfants et renforce la sûreté des emprunts conservés.
+
+### Processus et système
+
+- ajout de `ChildProcess.tryRead` et `ChildProcess.tryWrite`, avec progression
+  partielle et résultat `WouldBlock`, sur Linux, macOS et Windows ;
+- conservation des contrats bloquants historiques de `read` et `write`,
+  désormais construits sur les primitives portables de sondage.
+
+### Langage et sûreté
+
+- suivi des relations entre propriétaires et emprunteurs pour les alias locaux
+  `borrow val` et les champs constructeur `borrow`, y compris après `move` ;
+- refus de `delete` et `free` tant qu'un emprunteur vivant référence encore le
+  propriétaire, afin d'empêcher les lectures après libération.
+
 ## [0.14.0] - 2026-08-17
 
 Cette version mineure permet aux interfaces graphiques natives d'adapter le
@@ -744,6 +763,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.15.0]: https://github.com/cyril103/janus/releases/tag/v0.15.0
 [0.14.0]: https://github.com/cyril103/janus/releases/tag/v0.14.0
 [0.13.0]: https://github.com/cyril103/janus/releases/tag/v0.13.0
 [0.12.0]: https://github.com/cyril103/janus/releases/tag/v0.12.0
