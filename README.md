@@ -261,6 +261,8 @@ Une extension VS Code est disponible dans
 - [Inventaire audité du candidat de stabilité 0.8](docs/stability-inventory-0.8.md)
 - [Migration de Janus 0.5 vers 0.8](docs/migration-0.5-to-0.8.md)
 - [Rapport de préparation à Janus 1.0](docs/readiness-1.0.md)
+- [Audit technique de Janus 0.17](docs/audits/janus-0.17.md)
+- [Roadmap vers Janus 1.0](docs/roadmap-1.0.md)
 - [Dépannage du corpus Project Euler](docs/project-euler-troubleshooting.md)
 - [Compiler Janus depuis les sources](docs/development.md)
 - [Construire et servir le site d’apprentissage](website/README.md)
