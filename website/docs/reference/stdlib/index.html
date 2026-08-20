@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Janus standard library 0.15.0 API</title>
+<title>Janus standard library 0.16.0 API</title>
 <style>
 :root{--ink:#173c50;--ink-strong:#102f40;--top:#123f54;--top-soft:#315d70;--paper:#edf1f3;--panel:#fff;--line:#d9e1e5;--signature:#c8d8e1;--accent:#087b51;--accent-bright:#62e6a7;--flare:#d95c36;--muted:#617784;--shadow:0 2px 9px rgba(16,47,64,.12);--mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;--sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:5.5rem}body{margin:0;background:var(--paper);color:var(--ink);font:13px/1.55 var(--sans)}a{color:#285d7c;text-decoration:underline;text-decoration-thickness:.06em;text-underline-offset:.14em}a:hover{color:var(--accent)}a:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid rgba(98,230,167,.68);outline-offset:2px}code{font-family:var(--mono)}
@@ -21,13 +21,13 @@
 </head>
 <body>
 <header class="topbar">
-<div class="brand"><strong>Janus standard library</strong><span class="version">0.15.0</span></div>
+<div class="brand"><strong>Janus standard library</strong><span class="version">0.16.0</span></div>
 <label class="search"><span class="sr-only" hidden>Search the API</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 3a6.5 6.5 0 1 0 4.1 11.55L19.05 20 20.5 18.55l-5.45-5.45A6.5 6.5 0 0 0 9.5 3Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"/></svg><input id="api-search" type="search" autocomplete="off" placeholder="Search modules, symbols and signatures" aria-controls="api-content"></label>
 <div id="search-status" class="search-status" aria-live="polite"></div><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="module-sidebar">Modules</button>
 </header>
 <div class="doc-layout">
 <main id="api-content" class="content">
-<header class="hero"><span class="hero-mark" aria-hidden="true">J</span><div><h1>Janus standard library API</h1><p>Offline reference · version 0.15.0</p></div></header>
+<header class="hero"><span class="hero-mark" aria-hidden="true">J</span><div><h1>Janus standard library API</h1><p>Offline reference · version 0.16.0</p></div></header>
 <div id="empty-state" class="empty-state"><strong>No API entries match this search.</strong><br>Try a module name, symbol or type.</div>
 <section class="module" id="module-std-array" data-module data-search="std.array Fournit un tableau dynamique propriétaire et ses opérations séquentielles.
 
@@ -1713,7 +1713,7 @@ if isKeyPressed(Key.Space) {
 concernent le cadre courant d’une fenêtre initialisée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>if isKeyPressed(Key.Space) {<br>
     setMousePosition(320, 240)<br>
 }<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">26</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">28</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-function" id="std-graphics-input-characterpressed" data-symbol data-search="std.graphics.input.characterPressed function def characterPressed() : int Retire de la file le prochain caractère saisi selon la disposition active du clavier.
 
@@ -1725,6 +1725,11 @@ donc compte de la disposition AZERTY, QWERTY ou autre, ainsi que des modificateu
 donc compte de la disposition AZERTY, QWERTY ou autre, ainsi que des modificateurs.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Point de code Unicode, ou `0` si la file est vide ou le backend indisponible.</p></section>
 <div class="qualified">std.graphics.input.characterPressed</div></div><a class="permalink" href="#std-graphics-input-characterpressed" aria-label="Permanent link to std.graphics.input.characterPressed">#</a></article>
+<article class="symbol-card kind-function" id="std-graphics-input-clipboardtext" data-symbol data-search="std.graphics.input.clipboardText function def clipboardText() : string Lit le texte UTF-8 actuellement présent dans le presse-papiers système.
+@return Vue du contenu courant, ou une chaîne vide si le backend est indisponible."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def clipboardText() : string</code></h3>
+<p class="doc-summary">Lit le texte UTF-8 actuellement présent dans le presse-papiers système.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue du contenu courant, ou une chaîne vide si le backend est indisponible.</p></section>
+<div class="qualified">std.graphics.input.clipboardText</div></div><a class="permalink" href="#std-graphics-input-clipboardtext" aria-label="Permanent link to std.graphics.input.clipboardText">#</a></article>
 <article class="symbol-card kind-function" id="std-graphics-input-disablecursor" data-symbol data-search="std.graphics.input.disableCursor function def disableCursor() : Unit Désactive le curseur dans la fenêtre et confie sa capture au backend."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def disableCursor() : Unit</code></h3>
 <p class="doc-summary">Désactive le curseur dans la fenêtre et confie sa capture au backend.</p>
 <div class="qualified">std.graphics.input.disableCursor</div></div><a class="permalink" href="#std-graphics-input-disablecursor" aria-label="Permanent link to std.graphics.input.disableCursor">#</a></article>
@@ -1870,6 +1875,11 @@ Raylib utilise `Escape` comme touche de sortie par défaut. Après cet appel,
 <p class="doc-summary">Lit l’ordonnée courante du pointeur dans la fenêtre.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Coordonnée en pixels écran, ou `0` si le backend est indisponible.</p></section>
 <div class="qualified">std.graphics.input.mouseY</div></div><a class="permalink" href="#std-graphics-input-mousey" aria-label="Permanent link to std.graphics.input.mouseY">#</a></article>
+<article class="symbol-card kind-function" id="std-graphics-input-setclipboardtext" data-symbol data-search="std.graphics.input.setClipboardText function def setClipboardText(text : string) : Unit Copie du texte UTF-8 dans le presse-papiers système.
+@param text Texte à rendre disponible aux autres applications."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def setClipboardText(text : string) : Unit</code></h3>
+<p class="doc-summary">Copie du texte UTF-8 dans le presse-papiers système.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>text</code></td><td><code>string</code></td><td>Texte à rendre disponible aux autres applications.</td></tr></tbody></table></section>
+<div class="qualified">std.graphics.input.setClipboardText</div></div><a class="permalink" href="#std-graphics-input-setclipboardtext" aria-label="Permanent link to std.graphics.input.setClipboardText">#</a></article>
 <article class="symbol-card kind-function" id="std-graphics-input-setgamepadvibration" data-symbol data-search="std.graphics.input.setGamepadVibration function def setGamepadVibration(gamepad : int, leftMotor : float, rightMotor : float, duration : float) : Unit Règle les moteurs de vibration de la manette.
 
 @param gamepad Indice de la manette à faire vibrer.

@@ -5,6 +5,16 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.16.0] - 2026-08-20
+
+Cette version mineure permet aux applications graphiques d'échanger du texte
+UTF-8 avec le presse-papiers du système.
+
+### Bibliothèque graphique
+
+- ajout de `std.graphics.input.setClipboardText` et `clipboardText`, relayés
+  dynamiquement vers raylib sur Linux, macOS et Windows.
+
 ## [0.15.0] - 2026-08-20
 
 Cette version mineure ajoute des entrées-sorties non bloquantes pour les
@@ -763,6 +773,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.16.0]: https://github.com/cyril103/janus/releases/tag/v0.16.0
 [0.15.0]: https://github.com/cyril103/janus/releases/tag/v0.15.0
 [0.14.0]: https://github.com/cyril103/janus/releases/tag/v0.14.0
 [0.13.0]: https://github.com/cyril103/janus/releases/tag/v0.13.0

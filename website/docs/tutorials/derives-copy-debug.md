@@ -3,7 +3,7 @@
 ## Prérequis
 
 - avoir lu les chapitres sur les [types](../book/04-modeliser-donnees.md) et les [traits/dérivations](../book/08-traits-derivations.md) ;
-- disposer de Janus 0.15.0.
+- disposer de Janus 0.16.0.
 
 ## Résultat
 
