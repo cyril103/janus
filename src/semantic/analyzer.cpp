@@ -2528,6 +2528,44 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> match_guard_protected_values;
     std::unordered_set<std::string> deferred_values;
     std::unordered_set<std::string> borrowed_values;
+    std::unordered_map<std::string, std::unordered_set<std::string>>
+        borrow_sources;
+    const auto require_no_live_borrow = [&](std::string_view owner_name,
+                                            SourceLocation location) {
+      const auto depends_on =
+          [&](const auto &self, std::string_view candidate,
+              std::string_view owner,
+              std::unordered_set<std::string> &visited) -> bool {
+        if (candidate == owner)
+          return true;
+        if (!visited.insert(std::string{candidate}).second)
+          return false;
+        const auto sources = borrow_sources.find(std::string{candidate});
+        if (sources == borrow_sources.end())
+          return false;
+        return std::any_of(sources->second.begin(), sources->second.end(),
+                           [&](const std::string &source) {
+                             return self(self, source, owner, visited);
+                           });
+      };
+      for (const auto &[borrower, sources] : borrow_sources) {
+        const auto symbol = active_symbols->find(borrower);
+        if (symbol == active_symbols->end() ||
+            !symbol->second.may_be_initialized)
+          continue;
+        std::unordered_set<std::string> visited;
+        const bool borrows_owner = std::any_of(
+            sources.begin(), sources.end(), [&](const std::string &source) {
+              return depends_on(depends_on, source, owner_name, visited);
+            });
+        if (!borrows_owner)
+          continue;
+        throw CompileError{location,
+                           "owning value '" + std::string{owner_name} +
+                               "' cannot be released while borrowed by '" +
+                               borrower + "'"};
+      }
+    };
     const auto require_guard_transfer_allowed =
         [&](const ast::Expression &expression, SourceLocation location) {
           const auto *identifier =
@@ -3644,6 +3682,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (const auto *identifier =
                         std::get_if<ast::IdentifierExpression>(
                             &node.arguments.front()->value)) {
+                  require_no_live_borrow(identifier->name, node.location);
                   if (deferred_values.contains(identifier->name))
                     throw CompileError{
                         node.location,
@@ -5754,6 +5793,56 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               (declaration->initializer.has_value() &&
                is_borrowed_pointer_expression(*declaration->initializer)))
             borrowed_values.insert(declaration->name);
+          if (declaration->initializer.has_value()) {
+            const ast::Expression &initializer = *declaration->initializer;
+            if (declaration->is_borrowed)
+              if (const auto *source = std::get_if<ast::IdentifierExpression>(
+                      &initializer.value))
+                borrow_sources[declaration->name].insert(source->name);
+
+            if (const auto *construction =
+                    std::get_if<ast::NewExpression>(&initializer.value)) {
+              const auto class_iterator = find_in_context(
+                  classes, context_module, construction->class_name);
+              if (class_iterator != classes.end()) {
+                const ast::ClassDeclaration &class_declaration =
+                    *class_iterator->second;
+                const std::size_t parameter_count =
+                    class_declaration.constructor_parameters.size();
+                for (std::size_t index = 0;
+                     index < class_declaration.constructor_fields.size();
+                     ++index) {
+                  const ast::ValueDeclaration &field =
+                      class_declaration.constructor_fields[index];
+                  if (!field.is_borrowed)
+                    continue;
+                  const ast::Expression &argument =
+                      *construction->arguments[parameter_count + index];
+                  if (const auto *source =
+                          std::get_if<ast::IdentifierExpression>(
+                              &argument.value))
+                    borrow_sources[declaration->name].insert(source->name);
+                }
+              }
+            }
+
+            if (const auto *move =
+                    std::get_if<ast::MoveExpression>(&initializer.value))
+              if (const auto *source = std::get_if<ast::IdentifierExpression>(
+                      &move->operand->value)) {
+                if (const auto borrowed = borrow_sources.find(source->name);
+                    borrowed != borrow_sources.end()) {
+                  borrow_sources[declaration->name] =
+                      std::move(borrowed->second);
+                  borrow_sources.erase(borrowed);
+                }
+                for (auto &[borrower, sources] : borrow_sources) {
+                  static_cast<void>(borrower);
+                  if (sources.erase(source->name) != 0)
+                    sources.insert(declaration->name);
+                }
+              }
+          }
           if (declaration->initializer.has_value())
             if (const auto *lambda = std::get_if<ast::LambdaExpression>(
                     &declaration->initializer->value))
@@ -5987,6 +6076,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{deletion->location, "borrowed value '" +
                                                        identifier->name +
                                                        "' cannot be deleted"};
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &deletion->expression.value))
+            require_no_live_borrow(identifier->name, deletion->location);
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value);
               identifier != nullptr &&
@@ -6280,6 +6372,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         local_declarations.erase(name);
         local_lambda_locations.erase(name);
         borrowed_values.erase(name);
+        borrow_sources.erase(name);
       }
       active_symbols = previous_symbols;
       local_constants = previous_local_constants;

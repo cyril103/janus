@@ -22,6 +22,18 @@ janus::semantic::AnalysisResult analyze(std::string_view source) {
   return janus::semantic::Analyzer{}.analyze(parser.parse_program());
 }
 
+void expect_compile_error(std::string_view source,
+                          std::string_view expected_message) {
+  try {
+    static_cast<void>(analyze(source));
+    expect(false, "expected compile error");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(expected_message) !=
+               std::string_view::npos,
+           "compile error contains expected message");
+  }
+}
+
 bool warns_about(const janus::semantic::AnalysisResult &analysis,
                  std::string_view name) {
   return std::any_of(
@@ -313,14 +325,68 @@ def main() : int {
                           janus::DiagnosticCode::AnalyzerPotentialMemoryLeak),
          "a borrowed field does not transfer its constructor argument");
 
-  const auto explicit_borrow_and_capture = analyze(R"(
+  expect_compile_error(R"(
+class Resource(val id : int) {}
+class Observer(private borrow val resource : Resource) {
+    def inspect() : int { return resource.id }
+}
+def main() : int {
+    val resource : Resource = new Resource(7)
+    val observer : Observer = new Observer(resource)
+    delete resource
+    println(observer.inspect())
+    delete observer
+    return 0
+}
+)",
+                       "cannot be released while borrowed by 'observer'");
+
+  expect_compile_error(R"(
+def main() : int {
+    val owner : Ptr[int] = alloc[int](usize(1))
+    owner.store(usize(0), 7)
+    borrow val alias : Ptr[int] = owner
+    free(owner)
+    println(alias.load(usize(0)))
+    return 0
+}
+)",
+                       "cannot be released while borrowed by 'alias'");
+
+  expect_compile_error(R"(
+class Resource() {}
+class Observer(private borrow val resource : Resource) {}
+def main() : int {
+    val resource : Resource = new Resource()
+    val observer : Observer = new Observer(resource)
+    val movedResource : Resource = move resource
+    delete movedResource
+    delete observer
+    return 0
+}
+)",
+                       "cannot be released while borrowed by 'observer'");
+
+  expect_compile_error(R"(
+class Resource() {}
+class Observer(private borrow val resource : Resource) {}
+def main() : int {
+    val resource : Resource = new Resource()
+    val observer : Observer = new Observer(resource)
+    val movedObserver : Observer = move observer
+    delete resource
+    delete movedObserver
+    return 0
+}
+)",
+                       "cannot be released while borrowed by 'movedObserver'");
+
+  const auto explicit_owning_capture = analyze(R"(
 class Resource() {
     def dispose() : Unit { delete this }
 }
 def main() : int {
     val pointer : Ptr[int] = alloc[int](usize(1))
-    borrow val alias : Ptr[int] = pointer
-    println(alias.load(usize(0)))
     free(pointer)
     val state : Resource = new Resource()
     val cleanup : () => Unit = owningCapture[Resource](
@@ -331,8 +397,8 @@ def main() : int {
     return 0
 }
 )");
-  expect(explicit_borrow_and_capture.diagnostics.empty(),
-         "borrowed locals and explicit owning captures do not leak");
+  expect(explicit_owning_capture.diagnostics.empty(),
+         "explicit owning captures do not leak");
 
   const auto raw_storage_contracts = analyze(R"(
 class Resource() {}
