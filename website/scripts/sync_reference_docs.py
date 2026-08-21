@@ -85,7 +85,31 @@ def rewrite_links(
         prefix = "!" if image else ""
         return f"{prefix}[{match.group('label')}]({target})"
 
-    return LINK_RE.sub(replace, text)
+    rewritten: list[str] = []
+    prose: list[str] = []
+    fence: str | None = None
+    for line in text.splitlines(keepends=True):
+        stripped = line.lstrip()
+        marker = None
+        if stripped.startswith("```"):
+            marker = "```"
+        elif stripped.startswith("~~~"):
+            marker = "~~~"
+
+        if fence is not None:
+            rewritten.append(line)
+            if marker == fence:
+                fence = None
+            continue
+        if marker is not None:
+            rewritten.append(LINK_RE.sub(replace, "".join(prose)))
+            prose.clear()
+            fence = marker
+            rewritten.append(line)
+            continue
+        prose.append(line)
+    rewritten.append(LINK_RE.sub(replace, "".join(prose)))
+    return "".join(rewritten)
 
 
 def sync(repository: Path, destination: Path) -> None:

@@ -19,8 +19,8 @@
 #include <utility>
 
 #ifdef _WIN32
-#include <shellapi.h>
 #include <windows.h>
+#include <shellapi.h>
 #else
 #include <sys/types.h>
 #include <sys/wait.h>

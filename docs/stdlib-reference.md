@@ -271,13 +271,19 @@ disponible.
 // doctest: doctest name=stdlib-std-testing
 import std.testing
 import std.option
-assertEqual[int](2 + 2, 4)
-assertSome[int](Option.Some[int](42))
+def main() : int {
+    assertEqual[int](2 + 2, 4)
+    assertSome[int](Option.Some[int](42))
+    return 0
+}
 ```
 
 ```janus
-// doctest: compile_fail=JANA0001 name=stdlib-std-testing-requires-import
-assertTrue(unknownCondition)
+// doctest: compile_fail=J0000 name=stdlib-std-testing-requires-import
+def main() : int {
+    assertTrue(unknownCondition)
+    return 0
+}
 ```
 
 ### `std.math`

@@ -88,8 +88,8 @@ L’évaluation s’arrête au premier succès.
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction testée dans l’ordre sur des copies des éléments.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si un élément est accepté, sinon `false`.</p></section>
 <div class="qualified">std.array.Array.any</div></div><a class="permalink" href="#std-array-array-any" aria-label="Permanent link to std.array.Array.any">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-capacity" data-symbol data-search="std.array.Array.capacity method def capacity() : usize Retourne la capacité actuellement réservée.
-@return Nombre d’éléments pouvant être stockés sans nouvelle allocation."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def capacity() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-array-array-capacity" data-symbol data-search="std.array.Array.capacity method borrow def capacity() : usize Retourne la capacité actuellement réservée.
+@return Nombre d’éléments pouvant être stockés sans nouvelle allocation."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def capacity() : usize</code></h3>
 <p class="doc-summary">Retourne la capacité actuellement réservée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’éléments pouvant être stockés sans nouvelle allocation.</p></section>
 <div class="qualified">std.array.Array.capacity</div></div><a class="permalink" href="#std-array-array-capacity" aria-label="Permanent link to std.array.Array.capacity">#</a></article>
@@ -148,21 +148,21 @@ tableau reste inchangé.</p></div>
 <p class="doc-summary">Applique une action à des copies de tous les éléments, dans l’ordre.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Fonction appelée une fois par élément, de l’indice zéro à la fin.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array.foreach</div></div><a class="permalink" href="#std-array-array-foreach" aria-label="Permanent link to std.array.Array.foreach">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-get" data-symbol data-search="std.array.Array.get method def get(index : usize) : T Retourne l’élément situé à l’index demandé.
+<article class="symbol-card kind-method child" id="std-array-array-get" data-symbol data-search="std.array.Array.get method borrow def get(index : usize) : T Retourne l’élément situé à l’index demandé.
 
 L’accès est en temps constant et produit une copie de la valeur stockée.
 Déclenche `panic` si `index` est hors limites.
 @param index Position de l’élément, à partir de zéro.
-@return Copie de l’élément à cette position."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def get(index : usize) : T</code></h3>
+@return Copie de l’élément à cette position."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def get(index : usize) : T</code></h3>
 <p class="doc-summary">Retourne l’élément situé à l’index demandé.</p>
 <div class="doc-details"><p>L’accès est en temps constant et produit une copie de la valeur stockée.<br>
 Déclenche `panic` si `index` est hors limites.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position de l’élément, à partir de zéro.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Copie de l’élément à cette position.</p></section>
 <div class="qualified">std.array.Array.get</div></div><a class="permalink" href="#std-array-array-get" aria-label="Permanent link to std.array.Array.get">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-getoption" data-symbol data-search="std.array.Array.getOption method def getOption(index : usize) : Option[T] Retourne l’élément demandé, ou `None` si l’index est hors limites.
+<article class="symbol-card kind-method child" id="std-array-array-getoption" data-symbol data-search="std.array.Array.getOption method borrow def getOption(index : usize) : Option[T] Retourne l’élément demandé, ou `None` si l’index est hors limites.
 @param index Position recherchée, à partir de zéro.
-@return `Some` avec une copie de l’élément, ou `None` si `index &gt;= size()`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def getOption(index : usize) : Option[T]</code></h3>
+@return `Some` avec une copie de l’élément, ou `None` si `index &gt;= size()`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def getOption(index : usize) : Option[T]</code></h3>
 <p class="doc-summary">Retourne l’élément demandé, ou `None` si l’index est hors limites.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position recherchée, à partir de zéro.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` avec une copie de l’élément, ou `None` si `index &gt;= size()`.</p></section>
@@ -179,17 +179,17 @@ prématurément l’itérateur détruit tous les éléments non encore produits,
 puis libère le tableau source.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un <a href="#std-iterator-iterator"><code>Iterator</code></a> propriétaire parcourant les valeurs par indice croissant.</p></section>
 <div class="qualified">std.array.Array.intoIterator</div></div><a class="permalink" href="#std-array-array-intoiterator" aria-label="Permanent link to std.array.Array.intoIterator">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-isempty" data-symbol data-search="std.array.Array.isEmpty method def isEmpty() : bool Indique si le tableau est vide.
-@return `true` lorsque [[Array.size]] vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def isEmpty() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-array-array-isempty" data-symbol data-search="std.array.Array.isEmpty method borrow def isEmpty() : bool Indique si le tableau est vide.
+@return `true` lorsque [[Array.size]] vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def isEmpty() : bool</code></h3>
 <p class="doc-summary">Indique si le tableau est vide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsque <a href="#std-array-array-size"><code>Array.size</code></a> vaut zéro.</p></section>
 <div class="qualified">std.array.Array.isEmpty</div></div><a class="permalink" href="#std-array-array-isempty" aria-label="Permanent link to std.array.Array.isEmpty">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-iterator" data-symbol data-search="std.array.Array.iterator method def iterator() : Iterator[T] Crée un parcours observant les éléments dans l’ordre des indices.
+<article class="symbol-card kind-method child" id="std-array-array-iterator" data-symbol data-search="std.array.Array.iterator method borrow def iterator() : Iterator[T] Crée un parcours observant les éléments dans l’ordre des indices.
 
 Cette méthode ne consomme pas le tableau et chaque valeur produite est une
 copie; elle n’est disponible que lorsque `T` satisfait `Copy`. Le tableau
 doit rester vivant pendant le parcours.
-@return Un nouvel [[Iterator]] positionné avant l’indice zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def iterator() : Iterator[T]</code></h3>
+@return Un nouvel [[Iterator]] positionné avant l’indice zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def iterator() : Iterator[T]</code></h3>
 <p class="doc-summary">Crée un parcours observant les éléments dans l’ordre des indices.</p>
 <div class="doc-details"><p>Cette méthode ne consomme pas le tableau et chaque valeur produite est une<br>
 copie; elle n’est disponible que lorsque `T` satisfait `Copy`. Le tableau<br>
@@ -286,8 +286,8 @@ détruite. Si l’indice est invalide, `value` est détruite avant `panic`.
 détruite. Si l’indice est invalide, `value` est détruite avant `panic`.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position existante à modifier.</td></tr><tr><td><code>value</code></td><td><code>T</code></td><td>Nouvelle valeur dont la propriété est transférée au tableau.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array.set</div></div><a class="permalink" href="#std-array-array-set" aria-label="Permanent link to std.array.Array.set">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-size" data-symbol data-search="std.array.Array.size method def size() : usize Retourne le nombre d’éléments stockés.
-@return Nombre de valeurs initialisées, distinct de la capacité."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def size() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-array-array-size" data-symbol data-search="std.array.Array.size method borrow def size() : usize Retourne le nombre d’éléments stockés.
+@return Nombre de valeurs initialisées, distinct de la capacité."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre d’éléments stockés.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de valeurs initialisées, distinct de la capacité.</p></section>
 <div class="qualified">std.array.Array.size</div></div><a class="permalink" href="#std-array-array-size" aria-label="Permanent link to std.array.Array.size">#</a></article>
@@ -4095,12 +4095,12 @@ détruit avant épuisement, l’ensemble source détruit les membres restants.</
 <p class="doc-summary">Indique si l’ensemble est vide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsque <a href="#std-hashset-hashset-size"><code>HashSet.size</code></a> vaut zéro.</p></section>
 <div class="qualified">std.hashset.HashSet.isEmpty</div></div><a class="permalink" href="#std-hashset-hashset-isempty" aria-label="Permanent link to std.hashset.HashSet.isEmpty">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashset-hashset-iterator" data-symbol data-search="std.hashset.HashSet.iterator method def iterator() : Iterator[T] Crée un parcours observant de copies des membres.
+<article class="symbol-card kind-method child" id="std-hashset-hashset-iterator" data-symbol data-search="std.hashset.HashSet.iterator method borrow def iterator() : Iterator[T] Crée un parcours observant de copies des membres.
 
 L’ensemble reste propriétaire de ses valeurs et doit vivre pendant le
 parcours. L’ordre reflète les cases internes et peut changer après toute
 réorganisation.
-@return Un [[Iterator]] de copies des membres; exige `T &lt;: Copy`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def iterator() : Iterator[T]</code></h3>
+@return Un [[Iterator]] de copies des membres; exige `T &lt;: Copy`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>borrow def iterator() : Iterator[T]</code></h3>
 <p class="doc-summary">Crée un parcours observant de copies des membres.</p>
 <div class="doc-details"><p>L’ensemble reste propriétaire de ses valeurs et doit vivre pendant le<br>
 parcours. L’ordre reflète les cases internes et peut changer après toute<br>
@@ -4483,11 +4483,11 @@ son contenu et doit vivre aussi longtemps que le parcours."><span class="kind-ic
 retirer les éléments de la source. L’instance source reste propriétaire de<br>
 son contenu et doit vivre aussi longtemps que le parcours.</p></div>
 <div class="qualified">std.iterator.Iterable</div></div><a class="permalink" href="#std-iterator-iterable" aria-label="Permanent link to std.iterator.Iterable">#</a></article>
-<article class="symbol-card kind-method child" id="std-iterator-iterable-iterator" data-symbol data-search="std.iterator.Iterable.iterator method def iterator() : Iterator[T] Crée un itérateur positionné avant la première valeur de la source.
+<article class="symbol-card kind-method child" id="std-iterator-iterable-iterator" data-symbol data-search="std.iterator.Iterable.iterator method borrow def iterator() : Iterator[T] Crée un itérateur positionné avant la première valeur de la source.
 
 Le parcours ne consomme pas la source et produit des copies de ses
 éléments. Chaque appel crée un état de parcours indépendant.
-@return Un nouvel [[Iterator]] observant les valeurs dans l’ordre de la source."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterable</div><h3><code>def iterator() : Iterator[T]</code></h3>
+@return Un nouvel [[Iterator]] observant les valeurs dans l’ordre de la source."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterable</div><h3><code>borrow def iterator() : Iterator[T]</code></h3>
 <p class="doc-summary">Crée un itérateur positionné avant la première valeur de la source.</p>
 <div class="doc-details"><p>Le parcours ne consomme pas la source et produit des copies de ses<br>
 éléments. Chaque appel crée un état de parcours indépendant.</p></div>
@@ -5995,6 +5995,109 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Valeur déplacée de `Ok`, sinon `fallback`.</p></section>
 <div class="qualified">std.result.unwrapOr</div></div><a class="permalink" href="#std-result-unwrapor" aria-label="Permanent link to std.result.unwrapOr">#</a></article>
 </div></section>
+<section class="module" id="module-std-slice" data-module data-search="std.slice Fournit des vues contiguës non propriétaires sur un tableau.
+
+[[Slice]] permet une lecture partagée tandis que [[MutableSlice]] réserve un
+accès exclusif et autorise le remplacement des éléments. Une vue n&#39;alloue ni
+ne copie le stockage observé. Elle doit être détruite avant son tableau
+source; tant qu&#39;elle est vivante, l&#39;analyseur interdit les opérations qui
+invalideraient son emprunt.">
+<header class="module-heading"><span class="keyword">module</span> <h2>std.slice</h2></header>
+<div class="module-summary"><p class="doc-summary">Fournit des vues contiguës non propriétaires sur un tableau.</p><div class="doc-details"><p><a href="#std-slice-slice"><code>Slice</code></a> permet une lecture partagée tandis que <a href="#std-slice-mutableslice"><code>MutableSlice</code></a> réserve un<br>
+accès exclusif et autorise le remplacement des éléments. Une vue n&#39;alloue ni<br>
+ne copie le stockage observé. Elle doit être détruite avant son tableau<br>
+source; tant qu&#39;elle est vivante, l&#39;analyseur interdit les opérations qui<br>
+invalideraient son emprunt.</p></div></div><h3 class="member-heading">Public members <span class="member-count">13</span></h3>
+<div class="symbol-list">
+<article class="symbol-card kind-class" id="std-slice-mutableslice" data-symbol data-search="std.slice.MutableSlice class class MutableSlice[T](borrow var source : Array[T], val start : usize, val count : usize) Vue mutable, exclusive et bornée sur une portion contiguë d&#39;un [[Array]].
+
+Tant que la vue est vivante, le tableau source ne peut pas être consulté ou
+modifié directement et aucune autre vue concurrente ne peut l&#39;emprunter.
+@param source Tableau exclusivement emprunté par la vue.
+@param start Premier indice observé dans le tableau source.
+@param count Nombre d&#39;éléments accessibles depuis la vue."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class MutableSlice[T](borrow var source : Array[T], val start : usize, val count : usize)</code></h3>
+<p class="doc-summary">Vue mutable, exclusive et bornée sur une portion contiguë d&#39;un <a href="#std-array-array"><code>Array</code></a>.</p>
+<div class="doc-details"><p>Tant que la vue est vivante, le tableau source ne peut pas être consulté ou<br>
+modifié directement et aucune autre vue concurrente ne peut l&#39;emprunter.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Array[T]</code></td><td>Tableau exclusivement emprunté par la vue.</td></tr><tr><td><code>start</code></td><td><code>usize</code></td><td>Premier indice observé dans le tableau source.</td></tr><tr><td><code>count</code></td><td><code>usize</code></td><td>Nombre d&#39;éléments accessibles depuis la vue.</td></tr></tbody></table></section>
+<div class="qualified">std.slice.MutableSlice</div></div><a class="permalink" href="#std-slice-mutableslice" aria-label="Permanent link to std.slice.MutableSlice">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-mutableslice-get" data-symbol data-search="std.slice.MutableSlice.get method borrow def get(index : usize) : T Retourne une copie de l&#39;élément à l&#39;indice relatif demandé.
+@param index Position relative à partir de zéro.
+@return Copie de l&#39;élément observé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.MutableSlice</div><h3><code>borrow def get(index : usize) : T</code></h3>
+<p class="doc-summary">Retourne une copie de l&#39;élément à l&#39;indice relatif demandé.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative à partir de zéro.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Copie de l&#39;élément observé.</p></section>
+<div class="qualified">std.slice.MutableSlice.get</div></div><a class="permalink" href="#std-slice-mutableslice-get" aria-label="Permanent link to std.slice.MutableSlice.get">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-mutableslice-getoption" data-symbol data-search="std.slice.MutableSlice.getOption method borrow def getOption(index : usize) : Option[T] Retourne l&#39;élément demandé, ou `None` si l&#39;indice est hors limites.
+@param index Position relative recherchée.
+@return `Some` avec une copie, ou `None` si l&#39;indice est invalide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.MutableSlice</div><h3><code>borrow def getOption(index : usize) : Option[T]</code></h3>
+<p class="doc-summary">Retourne l&#39;élément demandé, ou `None` si l&#39;indice est hors limites.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative recherchée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` avec une copie, ou `None` si l&#39;indice est invalide.</p></section>
+<div class="qualified">std.slice.MutableSlice.getOption</div></div><a class="permalink" href="#std-slice-mutableslice-getoption" aria-label="Permanent link to std.slice.MutableSlice.getOption">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-mutableslice-isempty" data-symbol data-search="std.slice.MutableSlice.isEmpty method borrow def isEmpty() : bool Indique si la vue est vide.
+@return `true` lorsque la longueur vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.MutableSlice</div><h3><code>borrow def isEmpty() : bool</code></h3>
+<p class="doc-summary">Indique si la vue est vide.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsque la longueur vaut zéro.</p></section>
+<div class="qualified">std.slice.MutableSlice.isEmpty</div></div><a class="permalink" href="#std-slice-mutableslice-isempty" aria-label="Permanent link to std.slice.MutableSlice.isEmpty">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-mutableslice-iterator" data-symbol data-search="std.slice.MutableSlice.iterator method borrow def iterator() : Iterator[T] Crée un parcours observant les éléments sans copier le stockage.
+@return Itérateur de copies ordonné par indice croissant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.MutableSlice</div><h3><code>borrow def iterator() : Iterator[T]</code></h3>
+<p class="doc-summary">Crée un parcours observant les éléments sans copier le stockage.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Itérateur de copies ordonné par indice croissant.</p></section>
+<div class="qualified">std.slice.MutableSlice.iterator</div></div><a class="permalink" href="#std-slice-mutableslice-iterator" aria-label="Permanent link to std.slice.MutableSlice.iterator">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-mutableslice-set" data-symbol data-search="std.slice.MutableSlice.set method def set(index : usize, value : T) : Unit Remplace l&#39;élément à l&#39;indice relatif demandé.
+@param index Position relative existante à modifier.
+@param value Nouvelle valeur copiée dans le tableau source."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.MutableSlice</div><h3><code>def set(index : usize, value : T) : Unit</code></h3>
+<p class="doc-summary">Remplace l&#39;élément à l&#39;indice relatif demandé.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative existante à modifier.</td></tr><tr><td><code>value</code></td><td><code>T</code></td><td>Nouvelle valeur copiée dans le tableau source.</td></tr></tbody></table></section>
+<div class="qualified">std.slice.MutableSlice.set</div></div><a class="permalink" href="#std-slice-mutableslice-set" aria-label="Permanent link to std.slice.MutableSlice.set">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-mutableslice-size" data-symbol data-search="std.slice.MutableSlice.size method borrow def size() : usize Retourne le nombre d&#39;éléments visibles.
+@return Longueur de la vue."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.MutableSlice</div><h3><code>borrow def size() : usize</code></h3>
+<p class="doc-summary">Retourne le nombre d&#39;éléments visibles.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Longueur de la vue.</p></section>
+<div class="qualified">std.slice.MutableSlice.size</div></div><a class="permalink" href="#std-slice-mutableslice-size" aria-label="Permanent link to std.slice.MutableSlice.size">#</a></article>
+<article class="symbol-card kind-class" id="std-slice-slice" data-symbol data-search="std.slice.Slice class class Slice[T](borrow val source : Array[T], val start : usize, val count : usize) Vue partagée et bornée sur une portion contiguë d&#39;un [[Array]].
+
+La construction vérifie que `[start, start + count)` appartient au tableau.
+Les éléments et le stockage restent la propriété du tableau source.
+@param source Tableau observé, qui doit vivre plus longtemps que la vue.
+@param start Premier indice observé dans le tableau source.
+@param count Nombre d&#39;éléments accessibles depuis la vue."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Slice[T](borrow val source : Array[T], val start : usize, val count : usize)</code></h3>
+<p class="doc-summary">Vue partagée et bornée sur une portion contiguë d&#39;un <a href="#std-array-array"><code>Array</code></a>.</p>
+<div class="doc-details"><p>La construction vérifie que `[start, start + count)` appartient au tableau.<br>
+Les éléments et le stockage restent la propriété du tableau source.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Array[T]</code></td><td>Tableau observé, qui doit vivre plus longtemps que la vue.</td></tr><tr><td><code>start</code></td><td><code>usize</code></td><td>Premier indice observé dans le tableau source.</td></tr><tr><td><code>count</code></td><td><code>usize</code></td><td>Nombre d&#39;éléments accessibles depuis la vue.</td></tr></tbody></table></section>
+<div class="qualified">std.slice.Slice</div></div><a class="permalink" href="#std-slice-slice" aria-label="Permanent link to std.slice.Slice">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-slice-get" data-symbol data-search="std.slice.Slice.get method borrow def get(index : usize) : T Retourne une copie de l&#39;élément à l&#39;indice relatif demandé.
+@param index Position relative à partir de zéro.
+@return Copie de l&#39;élément observé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.Slice</div><h3><code>borrow def get(index : usize) : T</code></h3>
+<p class="doc-summary">Retourne une copie de l&#39;élément à l&#39;indice relatif demandé.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative à partir de zéro.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Copie de l&#39;élément observé.</p></section>
+<div class="qualified">std.slice.Slice.get</div></div><a class="permalink" href="#std-slice-slice-get" aria-label="Permanent link to std.slice.Slice.get">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-slice-getoption" data-symbol data-search="std.slice.Slice.getOption method borrow def getOption(index : usize) : Option[T] Retourne l&#39;élément demandé, ou `None` si l&#39;indice est hors limites.
+@param index Position relative recherchée.
+@return `Some` avec une copie, ou `None` si l&#39;indice est invalide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.Slice</div><h3><code>borrow def getOption(index : usize) : Option[T]</code></h3>
+<p class="doc-summary">Retourne l&#39;élément demandé, ou `None` si l&#39;indice est hors limites.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative recherchée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` avec une copie, ou `None` si l&#39;indice est invalide.</p></section>
+<div class="qualified">std.slice.Slice.getOption</div></div><a class="permalink" href="#std-slice-slice-getoption" aria-label="Permanent link to std.slice.Slice.getOption">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-slice-isempty" data-symbol data-search="std.slice.Slice.isEmpty method borrow def isEmpty() : bool Indique si la vue est vide.
+@return `true` lorsque la longueur vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.Slice</div><h3><code>borrow def isEmpty() : bool</code></h3>
+<p class="doc-summary">Indique si la vue est vide.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsque la longueur vaut zéro.</p></section>
+<div class="qualified">std.slice.Slice.isEmpty</div></div><a class="permalink" href="#std-slice-slice-isempty" aria-label="Permanent link to std.slice.Slice.isEmpty">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-slice-iterator" data-symbol data-search="std.slice.Slice.iterator method borrow def iterator() : Iterator[T] Crée un parcours observant les éléments sans copier le stockage.
+@return Itérateur de copies ordonné par indice croissant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.Slice</div><h3><code>borrow def iterator() : Iterator[T]</code></h3>
+<p class="doc-summary">Crée un parcours observant les éléments sans copier le stockage.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Itérateur de copies ordonné par indice croissant.</p></section>
+<div class="qualified">std.slice.Slice.iterator</div></div><a class="permalink" href="#std-slice-slice-iterator" aria-label="Permanent link to std.slice.Slice.iterator">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-slice-size" data-symbol data-search="std.slice.Slice.size method borrow def size() : usize Retourne le nombre d&#39;éléments visibles.
+@return Longueur de la vue."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.Slice</div><h3><code>borrow def size() : usize</code></h3>
+<p class="doc-summary">Retourne le nombre d&#39;éléments visibles.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Longueur de la vue.</p></section>
+<div class="qualified">std.slice.Slice.size</div></div><a class="permalink" href="#std-slice-slice-size" aria-label="Permanent link to std.slice.Slice.size">#</a></article>
+</div></section>
 <section class="module" id="module-std-system" data-module data-search="std.system Expose des fichiers natifs non tamponnés et une représentation commune des erreurs système.
 
 [[SystemFile]] possède son descripteur et le ferme à sa destruction. Les lectures
@@ -6643,7 +6746,7 @@ println(timestamp.unixSeconds())<br>
 <div class="qualified">std.wall_time.wallNow</div></div><a class="permalink" href="#std-wall-time-wallnow" aria-label="Permanent link to std.wall_time.wallNow">#</a></article>
 </div></section>
 </main>
-<aside id="module-sidebar" class="sidebar"><h2>Modules</h2><nav class="module-nav" aria-label="Modules"><a class="module-link" data-module-link href="#module-std-array"><span class="dot"></span>std.array</a><a class="module-link" data-module-link href="#module-std-array-builder"><span class="dot"></span>std.array_builder</a><a class="module-link" data-module-link href="#module-std-builder"><span class="dot"></span>std.builder</a><a class="module-link" data-module-link href="#module-std-c"><span class="dot"></span>std.c</a><a class="module-link" data-module-link href="#module-std-fs"><span class="dot"></span>std.fs</a><a class="module-link" data-module-link href="#module-std-graphics"><span class="dot"></span>std.graphics</a><a class="module-link" data-module-link href="#module-std-graphics-audio"><span class="dot"></span>std.graphics.audio</a><a class="module-link" data-module-link href="#module-std-graphics-drawing"><span class="dot"></span>std.graphics.drawing</a><a class="module-link" data-module-link href="#module-std-graphics-input"><span class="dot"></span>std.graphics.input</a><a class="module-link" data-module-link href="#module-std-graphics-resources"><span class="dot"></span>std.graphics.resources</a><a class="module-link" data-module-link href="#module-std-graphics-types"><span class="dot"></span>std.graphics.types</a><a class="module-link" data-module-link href="#module-std-hash-probe"><span class="dot"></span>std.hash_probe</a><a class="module-link" data-module-link href="#module-std-hashing"><span class="dot"></span>std.hashing</a><a class="module-link" data-module-link href="#module-std-hashmap"><span class="dot"></span>std.hashmap</a><a class="module-link" data-module-link href="#module-std-hashset"><span class="dot"></span>std.hashset</a><a class="module-link" data-module-link href="#module-std-io"><span class="dot"></span>std.io</a><a class="module-link" data-module-link href="#module-std-iterator"><span class="dot"></span>std.iterator</a><a class="module-link" data-module-link href="#module-std-math"><span class="dot"></span>std.math</a><a class="module-link" data-module-link href="#module-std-numeric"><span class="dot"></span>std.numeric</a><a class="module-link" data-module-link href="#module-std-option"><span class="dot"></span>std.option</a><a class="module-link" data-module-link href="#module-std-path"><span class="dot"></span>std.path</a><a class="module-link" data-module-link href="#module-std-process"><span class="dot"></span>std.process</a><a class="module-link" data-module-link href="#module-std-random"><span class="dot"></span>std.random</a><a class="module-link" data-module-link href="#module-std-range"><span class="dot"></span>std.range</a><a class="module-link" data-module-link href="#module-std-result"><span class="dot"></span>std.result</a><a class="module-link" data-module-link href="#module-std-system"><span class="dot"></span>std.system</a><a class="module-link" data-module-link href="#module-std-testing"><span class="dot"></span>std.testing</a><a class="module-link" data-module-link href="#module-std-text"><span class="dot"></span>std.text</a><a class="module-link" data-module-link href="#module-std-time"><span class="dot"></span>std.time</a><a class="module-link" data-module-link href="#module-std-wall-time"><span class="dot"></span>std.wall_time</a></nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
+<aside id="module-sidebar" class="sidebar"><h2>Modules</h2><nav class="module-nav" aria-label="Modules"><a class="module-link" data-module-link href="#module-std-array"><span class="dot"></span>std.array</a><a class="module-link" data-module-link href="#module-std-array-builder"><span class="dot"></span>std.array_builder</a><a class="module-link" data-module-link href="#module-std-builder"><span class="dot"></span>std.builder</a><a class="module-link" data-module-link href="#module-std-c"><span class="dot"></span>std.c</a><a class="module-link" data-module-link href="#module-std-fs"><span class="dot"></span>std.fs</a><a class="module-link" data-module-link href="#module-std-graphics"><span class="dot"></span>std.graphics</a><a class="module-link" data-module-link href="#module-std-graphics-audio"><span class="dot"></span>std.graphics.audio</a><a class="module-link" data-module-link href="#module-std-graphics-drawing"><span class="dot"></span>std.graphics.drawing</a><a class="module-link" data-module-link href="#module-std-graphics-input"><span class="dot"></span>std.graphics.input</a><a class="module-link" data-module-link href="#module-std-graphics-resources"><span class="dot"></span>std.graphics.resources</a><a class="module-link" data-module-link href="#module-std-graphics-types"><span class="dot"></span>std.graphics.types</a><a class="module-link" data-module-link href="#module-std-hash-probe"><span class="dot"></span>std.hash_probe</a><a class="module-link" data-module-link href="#module-std-hashing"><span class="dot"></span>std.hashing</a><a class="module-link" data-module-link href="#module-std-hashmap"><span class="dot"></span>std.hashmap</a><a class="module-link" data-module-link href="#module-std-hashset"><span class="dot"></span>std.hashset</a><a class="module-link" data-module-link href="#module-std-io"><span class="dot"></span>std.io</a><a class="module-link" data-module-link href="#module-std-iterator"><span class="dot"></span>std.iterator</a><a class="module-link" data-module-link href="#module-std-math"><span class="dot"></span>std.math</a><a class="module-link" data-module-link href="#module-std-numeric"><span class="dot"></span>std.numeric</a><a class="module-link" data-module-link href="#module-std-option"><span class="dot"></span>std.option</a><a class="module-link" data-module-link href="#module-std-path"><span class="dot"></span>std.path</a><a class="module-link" data-module-link href="#module-std-process"><span class="dot"></span>std.process</a><a class="module-link" data-module-link href="#module-std-random"><span class="dot"></span>std.random</a><a class="module-link" data-module-link href="#module-std-range"><span class="dot"></span>std.range</a><a class="module-link" data-module-link href="#module-std-result"><span class="dot"></span>std.result</a><a class="module-link" data-module-link href="#module-std-slice"><span class="dot"></span>std.slice</a><a class="module-link" data-module-link href="#module-std-system"><span class="dot"></span>std.system</a><a class="module-link" data-module-link href="#module-std-testing"><span class="dot"></span>std.testing</a><a class="module-link" data-module-link href="#module-std-text"><span class="dot"></span>std.text</a><a class="module-link" data-module-link href="#module-std-time"><span class="dot"></span>std.time</a><a class="module-link" data-module-link href="#module-std-wall-time"><span class="dot"></span>std.wall_time</a></nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
 </div>
 <footer><p>Generated by Janus. No network resources are required.</p></footer>
 <script>

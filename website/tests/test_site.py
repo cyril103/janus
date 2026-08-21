@@ -57,6 +57,7 @@ EXPECTED_MODULES = {
     "std.random",
     "std.range",
     "std.result",
+    "std.slice",
     "std.system",
     "std.text",
     "std.testing",
@@ -364,6 +365,20 @@ class SiteStructureTests(unittest.TestCase):
 
 
 class ReferenceSyncTests(unittest.TestCase):
+    def test_sync_does_not_rewrite_code_fences(self):
+        module = load_sync_module()
+        source = REPOSITORY / "docs" / "stdlib-reference.md"
+        content = (
+            "[guide sur deux\n lignes](../README.md)\n"
+            "```janus\ncheckedCast[ubyte](255)\n```\n"
+        )
+        rewritten = module.rewrite_links(content, source, REPOSITORY)
+        self.assertIn(
+            "https://github.com/cyril103/janus/blob/v0.17.0/README.md",
+            rewritten,
+        )
+        self.assertIn("checkedCast[ubyte](255)", rewritten)
+
     def test_sync_copies_exact_canonical_set_with_provenance(self):
         module = load_sync_module()
         with tempfile.TemporaryDirectory() as temporary:
