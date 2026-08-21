@@ -444,12 +444,18 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
       const bool parameter_is_borrowed = current_.kind == TokenKind::Borrow;
       if (parameter_is_borrowed)
         advance();
+      const bool parameter_is_mutably_borrowed =
+          parameter_is_borrowed && current_.kind == TokenKind::Var;
+      if (parameter_is_mutably_borrowed)
+        advance();
       const Token parameter = expect(TokenKind::Identifier);
       static_cast<void>(expect(TokenKind::Colon));
       parameters.push_back(ast::FunctionDeclaration::Parameter{
           std::string{parameter.lexeme}, parse_type(), parameter.location,
-          parameter_is_borrowed ? ast::ParameterOwnership::Borrow
-                                : ast::ParameterOwnership::Unspecified});
+          parameter_is_mutably_borrowed
+              ? ast::ParameterOwnership::BorrowMutable
+              : (parameter_is_borrowed ? ast::ParameterOwnership::Borrow
+                                       : ast::ParameterOwnership::Unspecified)});
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -948,10 +954,19 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
               current_.location,
               "consume parameter qualifiers are only supported on external "
               "functions"};
-        ownership = current_.kind == TokenKind::Borrow
-                        ? ast::ParameterOwnership::Borrow
-                        : ast::ParameterOwnership::Consume;
+        const bool is_borrow = current_.kind == TokenKind::Borrow;
+        ownership = is_borrow ? ast::ParameterOwnership::Borrow
+                              : ast::ParameterOwnership::Consume;
         advance();
+        if (is_borrow && current_.kind == TokenKind::Var) {
+          if (is_external)
+            throw CompileError{
+                current_.location,
+                "mutable borrow parameters are not supported on external "
+                "functions"};
+          ownership = ast::ParameterOwnership::BorrowMutable;
+          advance();
+        }
       }
       const Token parameter_name = expect(TokenKind::Identifier);
       static_cast<void>(expect(TokenKind::Colon));
@@ -1058,9 +1073,6 @@ Parser::parse_variable_declaration(bool is_constant,
   if (is_borrowed)
     advance();
   const bool is_mutable = current_.kind == TokenKind::Var;
-  if (is_borrowed && is_mutable)
-    throw CompileError{current_.location,
-                       "borrowed local values must be immutable"};
   const Token declaration =
       is_constant ? Token{TokenKind::Const, "const", constant_location}
                   : expect(is_mutable ? TokenKind::Var : TokenKind::Val);
@@ -1079,7 +1091,7 @@ Parser::parse_variable_declaration(bool is_constant,
                        "inferred local '" + std::string{identifier.lexeme} +
                            "' requires an initializer; help: add an explicit "
                            "type annotation"};
-  } else if (!is_mutable) {
+  } else if (is_borrowed || !is_mutable) {
     static_cast<void>(expect(TokenKind::Equal));
   }
 

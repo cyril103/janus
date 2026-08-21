@@ -1660,9 +1660,11 @@ private:
       const janus::Type &parameter_type =
           resolve(parameter.type, substitutions);
       const bool indirect_borrow =
-          parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
-          (parameter_type.kind() == janus::TypeKind::Struct ||
-           parameter_type.kind() == janus::TypeKind::Enum);
+          parameter.ownership ==
+              janus::ast::ParameterOwnership::BorrowMutable ||
+          (parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
+           (parameter_type.kind() == janus::TypeKind::Struct ||
+            parameter_type.kind() == janus::TypeKind::Enum));
       parameter_types.push_back(indirect_borrow
                                     ? ::llvm::PointerType::getUnqual(context_)
                                     : lower_type(parameter_type, context_));
@@ -1764,9 +1766,11 @@ private:
       const auto &parameter = function.parameters[parameter_index++];
       const janus::Type &type = resolve(parameter.type, substitutions);
       argument.setName(parameter.name);
-      if (parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
-          (type.kind() == janus::TypeKind::Struct ||
-           type.kind() == janus::TypeKind::Enum)) {
+      if (parameter.ownership ==
+              janus::ast::ParameterOwnership::BorrowMutable ||
+          (parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
+           (type.kind() == janus::TypeKind::Struct ||
+            type.kind() == janus::TypeKind::Enum))) {
         locals.emplace(parameter.name, Local{&argument, &type});
         continue;
       }
@@ -2754,9 +2758,11 @@ private:
       const std::unordered_map<std::string, Local> &locals,
       ::llvm::IRBuilder<> &builder) {
     const bool indirect_borrow =
-        parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
-        (parameter_type.kind() == janus::TypeKind::Struct ||
-         parameter_type.kind() == janus::TypeKind::Enum);
+        parameter.ownership ==
+            janus::ast::ParameterOwnership::BorrowMutable ||
+        (parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
+         (parameter_type.kind() == janus::TypeKind::Struct ||
+          parameter_type.kind() == janus::TypeKind::Enum));
     if (!indirect_borrow)
       return emit_expression(expression, parameter_type, substitutions, locals,
                              builder);

@@ -1281,6 +1281,34 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.immutable_borrow COMMAND immutable_borrow_test)
 
+    add_executable(mutable_borrow_test
+        tests/language/mutable_borrow_test.cpp
+    )
+    target_link_libraries(mutable_borrow_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(mutable_borrow_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.mutable_borrow COMMAND mutable_borrow_test)
+    add_test(
+        NAME runtime.mutable_borrow
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/mutable_borrow.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/mutable_borrow_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/mutable_borrow.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+
     add_executable(extern_function_test
         tests/language/extern_function_test.cpp
     )

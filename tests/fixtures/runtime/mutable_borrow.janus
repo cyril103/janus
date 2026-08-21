@@ -1,0 +1,31 @@
+import std.io
+
+class Counter(var value : int) {
+    borrow def read() : int { return value }
+    def add(amount : int) : Unit { value = value + amount }
+}
+
+def increment(borrow var counter : Counter) : Unit {
+    counter.add(1)
+}
+
+def increase(borrow var value : int) : Unit {
+    value = value + 1
+}
+
+def main() : int {
+    var number : int = 1
+    if true {
+        borrow var editable : int = number
+        editable = 4
+    }
+    increase(number)
+
+    val counter : Counter = new Counter(2)
+    increment(counter)
+
+    println(number)
+    println(counter.read())
+    delete counter
+    return 0
+}

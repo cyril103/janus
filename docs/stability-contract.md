@@ -166,7 +166,10 @@ pointeur non qualifié reste accepté avec le diagnostic `JANA0022`.
 
 `borrow val` déclare un alias local immutable sans copie ni transfert de
 propriété. Un paramètre `borrow` observe de la même façon une valeur pendant
-l'appel, et `borrow def` déclare une méthode d'observation. Les champs de
+l'appel, et `borrow def` déclare une méthode d'observation. `borrow var` et un
+paramètre `borrow var` accordent temporairement un accès
+mutable exclusif au même stockage ; aucun autre emprunt ni accès au propriétaire
+ne peut être actif pendant leur portée lexicale. Les champs de
 constructeur de classe peuvent utiliser `borrow val` pour conserver une
 référence observante non détruite avec l'instance; ce contrat est interdit aux
 structs. Les primitives de stockage explicites (Ptr.initialize,

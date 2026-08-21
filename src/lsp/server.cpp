@@ -563,6 +563,9 @@ function_signature(const janus::ast::FunctionDeclaration &function) {
         janus::ast::ParameterOwnership::Borrow)
       result += "borrow ";
     else if (function.parameters[index].ownership ==
+             janus::ast::ParameterOwnership::BorrowMutable)
+      result += "borrow var ";
+    else if (function.parameters[index].ownership ==
              janus::ast::ParameterOwnership::Consume)
       result += "consume ";
     result += function.parameters[index].name + " : " +

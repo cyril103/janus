@@ -1,8 +1,8 @@
 # Décision de langage : emprunts lexicaux sûrs
 
-Statut : acceptée. Les emprunts partagés de l'issue #260 sont implémentés ; les
-emprunts mutables, projections et régions à la dernière utilisation restent à
-livrer dans les issues suivantes.
+Statut : acceptée. Les emprunts partagés de l'issue #260 et les emprunts
+mutables exclusifs de l'issue #261 sont implémentés ; les projections et
+régions à la dernière utilisation restent à livrer dans les issues suivantes.
 
 Cette décision définit le premier modèle général d'emprunts de Janus. Elle
 étend les garanties de [propriété des conteneurs](container-ownership.md) sans
@@ -504,10 +504,10 @@ invariants d'aliasing sans rendre nécessaire une collecte de mémoire cachée.
 6. construire `Slice[T]` et `MutableSlice[T]` sur ces garanties ;
 7. migrer les callbacks historiques et valider Janus Studio comme canari.
 
-L'étape 2 est disponible avec des régions lexicales conservatrices : une
-liaison `borrow val` reste active jusqu'à la fin de son bloc. L'analyse plus
-fine à la dernière utilisation, les projections et les emprunts mutables ne
-font donc pas encore partie de cette implémentation.
+Les étapes 2 et 3 sont disponibles avec des régions lexicales conservatrices :
+une liaison `borrow val` ou `borrow var` reste active jusqu'à la fin de son
+bloc. L'analyse plus fine à la dernière utilisation et les projections ne font
+donc pas encore partie de cette implémentation.
 
 La fonctionnalité ne peut rejoindre le contrat de stabilité qu'après les tests
 positifs et négatifs, les campagnes sanitizer et la validation d'une

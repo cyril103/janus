@@ -302,6 +302,7 @@ struct TypeConstraint {
 enum class ParameterOwnership {
   Unspecified,
   Borrow,
+  BorrowMutable,
   Consume,
 };
 

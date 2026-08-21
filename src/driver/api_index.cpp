@@ -143,6 +143,8 @@ std::string function_signature(const ast::FunctionDeclaration &fn) {
       result += ", ";
     if (fn.parameters[i].ownership == ast::ParameterOwnership::Borrow)
       result += "borrow ";
+    if (fn.parameters[i].ownership == ast::ParameterOwnership::BorrowMutable)
+      result += "borrow var ";
     if (fn.parameters[i].ownership == ast::ParameterOwnership::Consume)
       result += "consume ";
     result += fn.parameters[i].name + " : " + type_name(fn.parameters[i].type);

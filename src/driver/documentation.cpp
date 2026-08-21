@@ -296,6 +296,9 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
         janus::ast::ParameterOwnership::Borrow)
       signature += "borrow ";
     else if (value.parameters[index].ownership ==
+             janus::ast::ParameterOwnership::BorrowMutable)
+      signature += "borrow var ";
+    else if (value.parameters[index].ownership ==
              janus::ast::ParameterOwnership::Consume)
       signature += "consume ";
     signature += value.parameters[index].name + " : " +

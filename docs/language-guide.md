@@ -564,7 +564,26 @@ modifier, ni déplacer, ni détruire la valeur observée. Un emprunt ne peut pas
 être retourné ou transmis à un paramètre propriétaire. Dans cette première
 implémentation, sa région est la portée lexicale de la liaison ; placez un
 emprunt local dans un bloc plus court pour réutiliser ensuite le propriétaire.
-Les emprunts mutables et les projections de champs seront ajoutés séparément.
+`borrow var` crée un emprunt mutable exclusif. Le mot `var` donne le droit de
+modifier la valeur visée ; il ne permet pas de réassigner l'alias :
+
+```janus
+def advance(borrow var cursor : Cursor) : Unit {
+    cursor.position = cursor.position + 1
+}
+
+if ready {
+    borrow var editable : Cursor = cursor
+    editable.advance()
+}
+// `cursor` est de nouveau accessible ici.
+```
+
+Un seul emprunt mutable peut viser une valeur à la fois. Aucun emprunt partagé,
+accès direct au propriétaire, déplacement ou destruction ne peut lui être
+concurrent. Les modifications sont visibles par le propriétaire parce que
+l'alias utilise le même stockage. Les projections de champs seront ajoutées
+séparément.
 
 Les structures et enums qui contiennent une ressource deviennent eux-mêmes
 propriétaires. Leur transfert doit employer `move`, et `delete` détruit

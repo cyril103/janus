@@ -2284,7 +2284,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           parameter_type.concrete->kind() == TypeKind::Unit)
         throw CompileError{parameter.location,
                            "Unit cannot be used as a parameter type"};
-      if (!symbols.emplace(parameter.name, Symbol{parameter_type, false, true})
+      if (!symbols
+               .emplace(parameter.name,
+                        Symbol{parameter_type,
+                               parameter.ownership ==
+                                   ast::ParameterOwnership::BorrowMutable,
+                               true})
                .second) {
         throw CompileError{parameter.location, "value '" + parameter.name +
                                                    "' is already declared"};
@@ -2551,6 +2556,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> deferred_values;
     std::unordered_set<std::string> borrowed_values;
     std::unordered_set<std::string> shared_borrow_values;
+    std::unordered_set<std::string> mutable_borrow_values;
     std::unordered_map<std::string, std::unordered_set<std::string>>
         borrow_sources;
     const auto require_no_live_borrow = [&](std::string_view owner_name,
@@ -2574,7 +2580,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                            });
       };
       for (const auto &[borrower, sources] : borrow_sources) {
-        if (action != "released" && !shared_borrow_values.contains(borrower))
+        if (action != "released" &&
+            !shared_borrow_values.contains(borrower) &&
+            !mutable_borrow_values.contains(borrower))
           continue;
         const auto symbol = active_symbols->find(borrower);
         if (symbol == active_symbols->end() ||
@@ -2592,6 +2600,45 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "' cannot be " + std::string{action} +
                                " while borrowed by '" + borrower + "'"};
       }
+    };
+    const auto live_borrower_of = [&](std::string_view owner_name,
+                                      bool include_shared)
+        -> std::optional<std::string> {
+      const auto depends_on =
+          [&](const auto &self, std::string_view candidate,
+              std::string_view owner,
+              std::unordered_set<std::string> &visited) -> bool {
+        if (candidate == owner)
+          return true;
+        if (!visited.insert(std::string{candidate}).second)
+          return false;
+        const auto sources = borrow_sources.find(std::string{candidate});
+        if (sources == borrow_sources.end())
+          return false;
+        return std::any_of(sources->second.begin(), sources->second.end(),
+                           [&](const std::string &source) {
+                             return self(self, source, owner, visited);
+                           });
+      };
+      for (const auto &[borrower, sources] : borrow_sources) {
+        const bool relevant = mutable_borrow_values.contains(borrower) ||
+                              (include_shared &&
+                               shared_borrow_values.contains(borrower));
+        if (!relevant)
+          continue;
+        const auto symbol = active_symbols->find(borrower);
+        if (symbol == active_symbols->end() ||
+            !symbol->second.may_be_initialized)
+          continue;
+        std::unordered_set<std::string> visited;
+        if (std::any_of(sources.begin(), sources.end(),
+                        [&](const std::string &source) {
+                          return depends_on(depends_on, source, owner_name,
+                                            visited);
+                        }))
+          return borrower;
+      }
+      return std::nullopt;
     };
     const auto require_guard_transfer_allowed =
         [&](const ast::Expression &expression, SourceLocation location) {
@@ -2619,9 +2666,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         }
     if (!is_destructor) {
       for (const ast::FunctionDeclaration::Parameter &parameter : parameters)
-        if (parameter.ownership == ast::ParameterOwnership::Borrow) {
+        if (parameter.ownership == ast::ParameterOwnership::Borrow ||
+            parameter.ownership == ast::ParameterOwnership::BorrowMutable) {
           borrowed_values.insert(parameter.name);
-          shared_borrow_values.insert(parameter.name);
+          if (parameter.ownership == ast::ParameterOwnership::Borrow)
+            shared_borrow_values.insert(parameter.name);
+          else
+            mutable_borrow_values.insert(parameter.name);
           transfer_protected_values.insert(parameter.name);
         }
       if (owner != nullptr && context.function->is_borrowing) {
@@ -2982,6 +3033,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                            "' for type parameter '" +
                                            constraint.parameter + "'"};
       }
+      std::unordered_set<std::string> call_shared_borrows;
+      std::unordered_set<std::string> call_mutable_borrows;
       for (std::size_t index = 0; index < arguments.size(); ++index) {
         if (index >= callee.parameters.size()) {
           const SemanticType argument_type = expression_type(*arguments[index]);
@@ -3005,6 +3058,61 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         SemanticType expected = resolve_type(callee.parameters[index].type,
                                              callee_parameters, &class_arities);
         expected = substitute(std::move(expected), substitutions);
+        const ast::ParameterOwnership ownership =
+            callee.parameters[index].ownership;
+        if (ownership == ast::ParameterOwnership::Borrow ||
+            ownership == ast::ParameterOwnership::BorrowMutable) {
+          const auto *identifier = std::get_if<ast::IdentifierExpression>(
+              &arguments[index]->value);
+          if (ownership == ast::ParameterOwnership::BorrowMutable &&
+              identifier == nullptr)
+            throw CompileError{
+                expression_location(*arguments[index]),
+                "mutable borrow parameter '" + callee.parameters[index].name +
+                    "' requires a local value identifier"};
+          if (identifier != nullptr) {
+            if (ownership == ast::ParameterOwnership::BorrowMutable) {
+              if (shared_borrow_values.contains(identifier->name))
+                throw CompileError{
+                    expression_location(*arguments[index]),
+                    "shared borrow '" + identifier->name +
+                        "' cannot be passed as a mutable borrow"};
+              if (const auto borrower =
+                      live_borrower_of(identifier->name, true))
+                throw CompileError{
+                    expression_location(*arguments[index]),
+                    "value '" + identifier->name +
+                        "' is already borrowed by '" + *borrower + "'"};
+              if (call_shared_borrows.contains(identifier->name) ||
+                  !call_mutable_borrows.insert(identifier->name).second)
+                throw CompileError{
+                    expression_location(*arguments[index]),
+                    "value '" + identifier->name +
+                        "' cannot be borrowed mutably more than once in the "
+                        "same call"};
+            } else {
+              if (mutable_borrow_values.contains(identifier->name))
+                throw CompileError{
+                    expression_location(*arguments[index]),
+                    "mutable borrow '" + identifier->name +
+                        "' cannot be shared concurrently"};
+              if (const auto borrower =
+                      live_borrower_of(identifier->name, false))
+                throw CompileError{
+                    expression_location(*arguments[index]),
+                    "value '" + identifier->name +
+                        "' is already mutably borrowed by '" + *borrower +
+                        "'"};
+              if (call_mutable_borrows.contains(identifier->name))
+                throw CompileError{
+                    expression_location(*arguments[index]),
+                    "value '" + identifier->name +
+                        "' cannot be shared while mutably borrowed in the "
+                        "same call"};
+              call_shared_borrows.insert(identifier->name);
+            }
+          }
+        }
         const bool observes_owned_enum =
             index == 0 &&
             ((callee.module_name == std::optional<std::string>{"std.option"} &&
@@ -3016,8 +3124,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         const std::string_view previous_contextual_borrow_enum_name =
             contextual_borrow_enum_name;
         contextual_borrow_expression =
-            observes_owned_enum || callee.parameters[index].ownership ==
-                                       ast::ParameterOwnership::Borrow;
+            observes_owned_enum ||
+            callee.parameters[index].ownership ==
+                ast::ParameterOwnership::Borrow ||
+            callee.parameters[index].ownership ==
+                ast::ParameterOwnership::BorrowMutable;
         contextual_borrow_enum_name =
             !observes_owned_enum
                 ? std::string_view{}
@@ -3292,6 +3403,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "variable '" + node.name +
                                        "' is used before initialization"};
               }
+              if (!mutable_borrow_values.contains(node.name))
+                if (const auto borrower = live_borrower_of(node.name, false))
+                  throw CompileError{
+                      node.location,
+                      "value '" + node.name +
+                          "' cannot be accessed while mutably borrowed by '" +
+                          *borrower + "'"};
               if (const auto declaration = local_declarations.find(node.name);
                   declaration != local_declarations.end()) {
                 used_local_declarations.insert(declaration->second.offset);
@@ -4881,6 +4999,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          "' for type parameter '" +
                                          constraint.parameter + "'"};
               }
+              std::unordered_set<std::string> method_shared_borrows;
+              std::unordered_set<std::string> method_mutable_borrows;
               for (std::size_t index = 0; index < node.arguments.size();
                    ++index) {
                 const SemanticType expected =
@@ -4888,6 +5008,62 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  method_parameters, &class_arities);
                 const SemanticType substituted_expected =
                     substitute(expected, substitutions);
+                const ast::ParameterOwnership ownership =
+                    method->parameters[index].ownership;
+                if (ownership == ast::ParameterOwnership::Borrow ||
+                    ownership == ast::ParameterOwnership::BorrowMutable) {
+                  const auto *identifier =
+                      std::get_if<ast::IdentifierExpression>(
+                          &node.arguments[index]->value);
+                  if (ownership == ast::ParameterOwnership::BorrowMutable &&
+                      identifier == nullptr)
+                    throw CompileError{
+                        expression_location(*node.arguments[index]),
+                        "mutable borrow parameter '" +
+                            method->parameters[index].name +
+                            "' requires a local value identifier"};
+                  if (identifier != nullptr &&
+                      ownership == ast::ParameterOwnership::BorrowMutable) {
+                    if (shared_borrow_values.contains(identifier->name))
+                      throw CompileError{
+                          expression_location(*node.arguments[index]),
+                          "shared borrow '" + identifier->name +
+                              "' cannot be passed as a mutable borrow"};
+                    if (const auto borrower =
+                            live_borrower_of(identifier->name, true))
+                      throw CompileError{
+                          expression_location(*node.arguments[index]),
+                          "value '" + identifier->name +
+                              "' is already borrowed by '" + *borrower + "'"};
+                    if (method_shared_borrows.contains(identifier->name) ||
+                        !method_mutable_borrows.insert(identifier->name).second)
+                      throw CompileError{
+                          expression_location(*node.arguments[index]),
+                          "value '" + identifier->name +
+                              "' cannot be borrowed mutably more than once in "
+                              "the same call"};
+                  } else if (identifier != nullptr) {
+                    if (mutable_borrow_values.contains(identifier->name))
+                      throw CompileError{
+                          expression_location(*node.arguments[index]),
+                          "mutable borrow '" + identifier->name +
+                              "' cannot be shared concurrently"};
+                    if (const auto borrower =
+                            live_borrower_of(identifier->name, false))
+                      throw CompileError{
+                          expression_location(*node.arguments[index]),
+                          "value '" + identifier->name +
+                              "' is already mutably borrowed by '" +
+                              *borrower + "'"};
+                    if (method_mutable_borrows.contains(identifier->name))
+                      throw CompileError{
+                          expression_location(*node.arguments[index]),
+                          "value '" + identifier->name +
+                              "' cannot be shared while mutably borrowed in "
+                              "the same call"};
+                    method_shared_borrows.insert(identifier->name);
+                  }
+                }
                 const bool transfers_collection_value =
                     class_declaration != nullptr &&
                     ((class_declaration->name == "HashSet" &&
@@ -4971,7 +5147,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 contextual_borrow_lambda_parameters = observes_owned_callback;
                 contextual_borrow_expression =
                     method->parameters[index].ownership ==
-                    ast::ParameterOwnership::Borrow;
+                        ast::ParameterOwnership::Borrow ||
+                    method->parameters[index].ownership ==
+                        ast::ParameterOwnership::BorrowMutable;
                 validate_expression(
                     *node.arguments[index], substituted_expected,
                     expression_location(*node.arguments[index]));
@@ -5891,14 +6069,45 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               (declaration->initializer.has_value() &&
                is_borrowed_pointer_expression(*declaration->initializer)))
             borrowed_values.insert(declaration->name);
-          if (declaration->is_borrowed)
-            shared_borrow_values.insert(declaration->name);
+          if (declaration->is_borrowed) {
+            if (declaration->is_mutable)
+              mutable_borrow_values.insert(declaration->name);
+            else
+              shared_borrow_values.insert(declaration->name);
+          }
           if (declaration->initializer.has_value()) {
             const ast::Expression &initializer = *declaration->initializer;
             if (declaration->is_borrowed)
               if (const auto *source = std::get_if<ast::IdentifierExpression>(
-                      &initializer.value))
+                      &initializer.value)) {
+                if (declaration->is_mutable) {
+                  if (shared_borrow_values.contains(source->name))
+                    throw CompileError{
+                        declaration->location,
+                        "shared borrow '" + source->name +
+                            "' cannot be borrowed mutably"};
+                  if (const auto borrower =
+                          live_borrower_of(source->name, true))
+                    throw CompileError{
+                        declaration->location,
+                        "value '" + source->name +
+                            "' is already borrowed by '" + *borrower + "'"};
+                } else {
+                  if (mutable_borrow_values.contains(source->name))
+                    throw CompileError{
+                        declaration->location,
+                        "mutable borrow '" + source->name +
+                            "' cannot be borrowed concurrently"};
+                  if (const auto borrower =
+                          live_borrower_of(source->name, false))
+                    throw CompileError{
+                        declaration->location,
+                        "value '" + source->name +
+                            "' is already mutably borrowed by '" + *borrower +
+                            "'"};
+                }
                 borrow_sources[declaration->name].insert(source->name);
+              }
 
             if (const auto *construction =
                     std::get_if<ast::NewExpression>(&initializer.value)) {
@@ -6087,6 +6296,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{assignment->location,
                                "cannot assign to immutable value '" +
                                    assignment->name + "'"};
+          if (mutable_borrow_values.contains(assignment->name) &&
+              (iterator->second.type.is_pointer() ||
+               (iterator->second.type.is_class() &&
+                !classes.at(iterator->second.type.parameter)->is_value_type)))
+            throw CompileError{
+                assignment->location,
+                "cannot reassign mutable borrow '" + assignment->name +
+                    "'; mutate the referenced value instead"};
           const bool may_overwrite_owner =
               report_local_warnings && iterator->second.may_be_initialized &&
               potentially_owns_value(iterator->second.type);
@@ -6480,6 +6697,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         local_lambda_locations.erase(name);
         borrowed_values.erase(name);
         shared_borrow_values.erase(name);
+        mutable_borrow_values.erase(name);
         borrow_sources.erase(name);
       }
       active_symbols = previous_symbols;
