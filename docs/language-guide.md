@@ -323,6 +323,44 @@ val isLarge : (int) => bool =
 Une closure possédée doit être libérée avec `delete` lorsqu'elle n'est plus
 utilisée.
 
+### Récursivité terminale
+
+Un appel retourné directement par une fonction ou une méthode est en position
+terminale : aucun calcul ne doit dépendre de son résultat avant de quitter la
+fonction. Lorsque la signature d'appel est compatible, le compilateur remplace
+le retour conventionnel par un saut terminal qui réutilise la pile d'exécution
+courante. La profondeur de la pile reste donc constante, y compris dans une
+construction sans optimisations.
+
+```janus
+def countDown(remaining : int, result : int) : int {
+    if remaining == 0 {
+        return result
+    }
+    return countDown(remaining - 1, result + 1)
+}
+```
+
+La même règle s'applique aux méthodes et à la récursivité mutuelle lorsque les
+signatures ABI sont compatibles :
+
+```janus
+class Counter() {
+    def countDown(remaining : int, result : int) : int {
+        if remaining == 0 {
+            return result
+        }
+        return this.countDown(remaining - 1, result + 1)
+    }
+}
+```
+
+L'optimisation ne s'applique pas lorsqu'une opération reste à effectuer après
+l'appel. Par exemple, l'appel récursif de `return value + sum(value - 1)` n'est
+pas terminal. Elle ne s'applique pas non plus si un `defer` ou un nettoyage de
+possession doit encore être exécuté au retour : chaque appel conserve alors son
+propre cadre de pile afin de respecter l'ordre observable des nettoyages.
+
 ## Contrôle de flux
 
 ```janus

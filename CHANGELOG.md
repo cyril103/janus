@@ -5,6 +5,14 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Compilateur
+
+- optimisation garantie des appels terminaux de fonctions et de méthodes, y
+  compris la récursivité mutuelle de signature compatible, afin de réutiliser
+  le cadre de pile courant sans croissance de la pile d'exécution ;
+- conservation des retours conventionnels lorsqu'un calcul, un `defer` ou un
+  nettoyage de possession doit encore s'exécuter après l'appel.
+
 ## [0.18.0] - 2026-08-21
 
 Cette version mineure introduit le premier système général d’emprunts sûrs de

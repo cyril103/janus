@@ -30,6 +30,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Support/CodeGen.h>
 #include <llvm/TargetParser/Host.h>
@@ -305,6 +306,24 @@ private:
     ::llvm::IRBuilder<> entry_builder{&function->getEntryBlock(),
                                       function->getEntryBlock().begin()};
     return entry_builder.CreateAlloca(type, nullptr, name);
+  }
+
+  static void mark_tail_call_if_eligible(::llvm::Value *return_value,
+                                         ::llvm::Function &caller,
+                                         ::llvm::IRBuilder<> &builder) {
+    auto *call = ::llvm::dyn_cast_or_null<::llvm::CallInst>(return_value);
+    if (call == nullptr || caller.isVarArg() ||
+        call->getFunctionType() != caller.getFunctionType() ||
+        call->getCallingConv() != caller.getCallingConv() ||
+        call->getParent() != builder.GetInsertBlock() ||
+        &builder.GetInsertBlock()->back() != call)
+      return;
+
+    // `musttail` is a backend guarantee, including unoptimized builds: the
+    // current frame is reused instead of growing the native stack.  Requiring
+    // the call to still be the block's final instruction also deliberately
+    // excludes returns with pending defer/ownership cleanup work.
+    call->setTailCallKind(::llvm::CallInst::TCK_MustTail);
   }
 
   static std::string source_global_key(const std::optional<std::string> &module,
@@ -2101,6 +2120,7 @@ private:
           for (auto finalizer = global_finalizers_.rbegin();
                finalizer != global_finalizers_.rend(); ++finalizer)
             builder.CreateCall(*finalizer);
+        mark_tail_call_if_eligible(return_value, *llvm_function, builder);
         if (return_value != nullptr)
           builder.CreateRet(return_value);
         else

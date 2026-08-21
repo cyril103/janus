@@ -2559,6 +2559,22 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.control_flow COMMAND control_flow_test)
 
+    add_executable(tail_recursion_test
+        tests/language/tail_recursion_test.cpp
+    )
+    target_link_libraries(tail_recursion_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(tail_recursion_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.tail_recursion COMMAND tail_recursion_test)
+
     add_executable(if_expression_test
         tests/language/if_expression_test.cpp
     )

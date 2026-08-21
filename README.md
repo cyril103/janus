@@ -186,6 +186,7 @@ Les principales fonctionnalités sont :
   `ubyte`, `short`, `ushort`, `char`, `bool`, `string`, `isize`, `usize` et
   `Unit` ;
 - fonctions et classes génériques, avec contrainte intrinsèque `Copy` ;
+- appels terminaux de fonctions et méthodes sans croissance de la pile ;
 - closures avec captures et fonctions d'ordre supérieur ;
 - contrôle de flux avec `if`, `while`, `for`, `break` et `continue` ;
 - enums avec données associées et expressions `match` ;
