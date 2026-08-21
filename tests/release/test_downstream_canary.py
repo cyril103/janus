@@ -149,6 +149,13 @@ class CandidateValidationTests(unittest.TestCase):
         self.assertIn('tests/native_syntax_mutation.sh', source)
         self.assertIn('tests/smoke.sh', source)
 
+    def test_contract_runs_every_required_studio_gate(self):
+        self.assertEqual(downstream_canary.JANUS_STUDIO_COMMANDS, [
+            ["fmt", "--check"], ["check", "--all"],
+            ["test", "--fail-if-empty", "--release"],
+            ["build", "--release"],
+        ])
+
     def test_release_and_nightly_share_the_canary_before_publication(self):
         nightly = (ROOT / ".github/workflows/nightly.yml").read_text()
         release = (ROOT / ".github/workflows/ci.yml").read_text()
@@ -159,11 +166,15 @@ class CandidateValidationTests(unittest.TestCase):
         self.assertLess(release.index(invocation), release.index("Publish GitHub release"))
         self.assertIn(downstream_canary.JANUS8_REVISION, nightly)
         self.assertIn(downstream_canary.JANUS8_REVISION, release)
+        self.assertIn(downstream_canary.JANUS_STUDIO_REVISION, nightly)
+        self.assertIn(downstream_canary.JANUS_STUDIO_REVISION, release)
+        self.assertIn("cyril103/janus-studio.git", nightly)
+        self.assertIn("cyril103/janus-studio.git", release)
         release_job = release[release.index("  release:"):]
         self.assertIn("vscode-extension", release_job[:release_job.index("runs-on:")])
         self.assertNotIn("awk -v current", release)
         self.assertIn(".tagName != \\\"$current_tag\\\"", release)
-        canary_step = release[release.index("Janus8 downstream canary"):
+        canary_step = release[release.index("Downstream canaries"):
                               release.index("Attest release provenance")]
         self.assertNotIn("find dist/release", canary_step)
 

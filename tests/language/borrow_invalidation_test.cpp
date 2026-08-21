@@ -2,7 +2,10 @@
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
 
+#include <algorithm>
 #include <iostream>
+#include <optional>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -28,7 +31,10 @@ void expect_valid(std::string_view source) {
 }
 
 void expect_compile_error(std::string_view source,
-                          std::string_view expected_message) {
+                          std::string_view expected_message,
+                          std::optional<janus::DiagnosticCode> expected_code =
+                              std::nullopt,
+                          std::string_view expected_note = {}) {
   try {
     janus::frontend::Parser parser{source};
     janus::semantic::Analyzer analyzer;
@@ -38,6 +44,20 @@ void expect_compile_error(std::string_view source,
     expect(std::string_view{error.what()}.find(expected_message) !=
                std::string_view::npos,
            expected_message);
+    expect(error.diagnostic().code != janus::DiagnosticCode::Unclassified,
+           "borrow lifetime errors use structured diagnostic codes");
+    if (expected_code.has_value())
+      expect(error.diagnostic().code == *expected_code,
+             "borrow error uses its structured diagnostic code");
+    if (!expected_note.empty()) {
+      const bool found = std::any_of(
+          error.diagnostic().notes.begin(), error.diagnostic().notes.end(),
+          [&](const std::string &note) {
+            return std::string_view{note}.find(expected_note) !=
+                   std::string_view::npos;
+          });
+      expect(found, "borrow diagnostic explains how to end the conflict");
+    }
   }
 }
 
@@ -87,7 +107,9 @@ def main() : int {
   return view.value
 }
 )",
-                       "cannot be mutated while borrowed by 'view'");
+                       "cannot be mutated while borrowed by 'view'",
+                       janus::DiagnosticCode::AnalyzerBorrowInvalidation,
+                       "end the scope of 'view'");
 
   expect_compile_error(R"(
 class Resource(var value : int) {}

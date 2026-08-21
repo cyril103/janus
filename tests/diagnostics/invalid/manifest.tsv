@@ -8,3 +8,8 @@ array-literal-incompatible-element.janus	JANA0023	where type 'int' is required
 array-literal-global-constant.janus	JANA0023	array literals are not supported in global constants
 array-literal-owned-element-move.janus	JANA0023	owning array literal element requires an explicit move
 array-literal-requires-stdlib-array.janus	JANA0023	array literal requires Array[T]; help: import std.array
+borrow-conflict.janus	JANA0024	already borrowed
+borrow-invalidation.janus	JANA0025	cannot be mutated while borrowed
+borrow-escape.janus	JANA0026	cannot escape by return
+borrow-invalid-access.janus	JANA0027	can only call a borrow method
+borrow-invalid-source.janus	JANA0028	requires a local value

@@ -2591,10 +2591,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 });
             if (!borrows_owner)
               continue;
-            throw CompileError{location,
-                               "owning value '" + std::string{owner_name} +
-                                   "' cannot be " + std::string{action} +
-                                   " while borrowed by '" + borrower + "'"};
+            throw CompileError{Diagnostic{
+                DiagnosticSeverity::Error,
+                DiagnosticCode::AnalyzerBorrowInvalidation,
+                "owning value '" + std::string{owner_name} +
+                    "' cannot be " + std::string{action} +
+                    " while borrowed by '" + borrower + "'",
+                location,
+                {"end the scope of '" + borrower +
+                 "' or destroy it before this operation"},
+                {},
+                {}}};
           }
         };
     const auto live_borrower_of =
@@ -2874,6 +2881,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (parameter.ownership == ast::ParameterOwnership::Borrow) {
             if (std::holds_alternative<ast::MoveExpression>(argument.value))
               throw CompileError{
+                  DiagnosticCode::AnalyzerInvalidBorrowSource,
                   expression_location(argument),
                   "borrow parameter '" + parameter.name +
                       "' cannot receive an explicit ownership move"};
@@ -2900,6 +2908,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             const std::string expression_name =
                 call == nullptr ? "borrowed local" : "'" + call->callee + "'";
             throw CompileError{
+                DiagnosticCode::AnalyzerInvalidBorrowAccess,
                 expression_location(argument),
                 "consume parameter '" + parameter.name +
                     "' cannot take ownership of borrowed or null pointer "
@@ -2909,7 +2918,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (const auto *identifier =
                   std::get_if<ast::IdentifierExpression>(&argument.value)) {
             if (borrowed_values.contains(identifier->name))
-              throw CompileError{expression_location(argument),
+              throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                                 expression_location(argument),
                                  "borrowed value '" + identifier->name +
                                      "' cannot be consumed by external "
                                      "function '" +
@@ -3101,7 +3111,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               std::get_if<ast::IdentifierExpression>(&arguments[index]->value);
           if (ownership == ast::ParameterOwnership::BorrowMutable &&
               identifier == nullptr)
-            throw CompileError{expression_location(*arguments[index]),
+            throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowSource,
+                               expression_location(*arguments[index]),
                                "mutable borrow parameter '" +
                                    callee.parameters[index].name +
                                    "' requires a local value identifier"};
@@ -3109,18 +3120,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             if (ownership == ast::ParameterOwnership::BorrowMutable) {
               if (shared_borrow_values.contains(identifier->name))
                 throw CompileError{
+                    DiagnosticCode::AnalyzerBorrowConflict,
                     expression_location(*arguments[index]),
                     "shared borrow '" + identifier->name +
                         "' cannot be passed as a mutable borrow"};
               if (const auto borrower =
                       live_borrower_of(identifier->name, true))
-                throw CompileError{expression_location(*arguments[index]),
+                throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                   expression_location(*arguments[index]),
                                    "value '" + identifier->name +
                                        "' is already borrowed by '" +
                                        *borrower + "'"};
               if (call_shared_borrows.contains(identifier->name) ||
                   !call_mutable_borrows.insert(identifier->name).second)
                 throw CompileError{
+                    DiagnosticCode::AnalyzerBorrowConflict,
                     expression_location(*arguments[index]),
                     "value '" + identifier->name +
                         "' cannot be borrowed mutably more than once in the "
@@ -3128,12 +3142,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             } else {
               if (const auto borrower =
                       live_borrower_of(identifier->name, false))
-                throw CompileError{expression_location(*arguments[index]),
+                throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                   expression_location(*arguments[index]),
                                    "value '" + identifier->name +
                                        "' is already mutably borrowed by '" +
                                        *borrower + "'"};
               if (call_mutable_borrows.contains(identifier->name))
                 throw CompileError{
+                    DiagnosticCode::AnalyzerBorrowConflict,
                     expression_location(*arguments[index]),
                     "value '" + identifier->name +
                         "' cannot be shared while mutably borrowed in the "
@@ -3248,7 +3264,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             !std::holds_alternative<ast::IdentifierExpression>(
                 expression.value))
           throw CompileError{
-              location, contextual_borrow_enum_name.empty()
+              DiagnosticCode::AnalyzerInvalidBorrowSource, location,
+              contextual_borrow_enum_name.empty()
                             ? "borrowing an owning value of type '" +
                                   actual.name() + "' requires a local value"
                             : "observing an owning " +
@@ -3260,7 +3277,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             borrowed_values.contains(identifier->name) &&
             potentially_owns_value(expected) && !contextual_borrow_expression &&
             !contextual_borrow_pointer_expression)
-          throw CompileError{location,
+          throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                             location,
                              "borrowed value '" + identifier->name +
                                  "' cannot be passed to an owning parameter"};
         if ((actual.is_enum() ||
@@ -3440,7 +3458,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               if (!mutable_borrow_values.contains(node.name))
                 if (const auto borrower = live_borrower_of(node.name, false))
                   throw CompileError{
-                      node.location,
+                      DiagnosticCode::AnalyzerBorrowConflict, node.location,
                       "value '" + node.name +
                           "' cannot be accessed while mutably borrowed by '" +
                           *borrower + "'"};
@@ -3517,12 +3535,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   continue;
                 if (mutations.contains(capture) &&
                     !mutable_borrow_values.contains(capture))
-                  throw CompileError{node.location,
+                  throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                                     node.location,
                                      "closure cannot mutate shared borrow '" +
                                          capture + "'"};
                 if (contextual_lambda_may_escape)
                   throw CompileError{
-                      node.location,
+                      DiagnosticCode::AnalyzerBorrowEscape, node.location,
                       "closure captures borrowed value '" + capture +
                           "' but the receiving call may store or return it"};
                 captured_borrows.push_back(capture);
@@ -3816,6 +3835,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       *argument, expression_location(*argument));
                   if (is_borrowed_pointer_expression(*argument))
                     throw CompileError{
+                        DiagnosticCode::AnalyzerInvalidBorrowAccess,
                         expression_location(*argument),
                         "borrowed pointer cannot be adopted after realloc"};
                   validate_expression(*argument, pointer_type,
@@ -3854,6 +3874,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "owningCapture requires a local owner identifier"};
                 if (borrowed_values.contains(owner_identifier->name))
                   throw CompileError{
+                      DiagnosticCode::AnalyzerInvalidBorrowAccess,
                       expression_location(*node.arguments[0]),
                       "borrowed value cannot be transferred to a closure"};
                 if (deferred_values.contains(owner_identifier->name))
@@ -3906,6 +3927,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     expression_location(*node.arguments.front()));
                 if (is_borrowed_pointer_expression(*node.arguments.front()))
                   throw CompileError{
+                      DiagnosticCode::AnalyzerInvalidBorrowAccess,
                       node.location,
                       "borrowed pointer cannot be released with free"};
                 const SemanticType pointer =
@@ -4409,6 +4431,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (field.is_borrowed &&
                     std::holds_alternative<ast::MoveExpression>(argument.value))
                   throw CompileError{
+                      DiagnosticCode::AnalyzerInvalidBorrowSource,
                       expression_location(argument),
                       "borrowed field '" + field.name +
                           "' cannot be initialized with a moved value"};
@@ -4418,17 +4441,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               &argument.value)) {
                     if (field.is_mutable) {
                       if (shared_borrow_values.contains(source->name))
-                        throw CompileError{expression_location(argument),
+                        throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                           expression_location(argument),
                                            "shared borrow '" + source->name +
                                                "' cannot be borrowed mutably"};
                       if (const auto borrower =
                               live_borrower_of(source->name, true))
-                        throw CompileError{expression_location(argument),
+                        throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                           expression_location(argument),
                                            "value '" + source->name +
                                                "' is already borrowed by '" +
                                                *borrower + "'"};
                     } else if (mutable_borrow_values.contains(source->name)) {
                       throw CompileError{
+                          DiagnosticCode::AnalyzerBorrowConflict,
                           expression_location(argument),
                           "mutable borrow '" + source->name +
                               "' cannot be borrowed concurrently"};
@@ -4441,6 +4467,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       source != nullptr &&
                       borrow_sources.contains(source->name))
                     throw CompileError{
+                        DiagnosticCode::AnalyzerBorrowEscape,
                         expression_location(argument),
                         "value '" + source->name +
                             "' contains a live borrow and cannot be stored in "
@@ -4818,7 +4845,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               &node.object->value);
                       identifier != nullptr &&
                       shared_borrow_values.contains(identifier->name))
-                    throw CompileError{node.location,
+                    throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                                       node.location,
                                        "cannot mutate through shared borrow '" +
                                            identifier->name + "'"};
                   if (node.arguments.size() != 2)
@@ -4921,7 +4949,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   identifier != nullptr &&
                   shared_borrow_values.contains(identifier->name) &&
                   !method->is_borrowing)
-                throw CompileError{node.location,
+                throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                                   node.location,
                                    "shared borrow '" + identifier->name +
                                        "' can only call a borrow method"};
               if (!method->is_borrowing)
@@ -5147,6 +5176,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   if (ownership == ast::ParameterOwnership::BorrowMutable &&
                       identifier == nullptr)
                     throw CompileError{
+                        DiagnosticCode::AnalyzerInvalidBorrowSource,
                         expression_location(*node.arguments[index]),
                         "mutable borrow parameter '" +
                             method->parameters[index].name +
@@ -5155,18 +5185,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       ownership == ast::ParameterOwnership::BorrowMutable) {
                     if (shared_borrow_values.contains(identifier->name))
                       throw CompileError{
+                          DiagnosticCode::AnalyzerBorrowConflict,
                           expression_location(*node.arguments[index]),
                           "shared borrow '" + identifier->name +
                               "' cannot be passed as a mutable borrow"};
                     if (const auto borrower =
                             live_borrower_of(identifier->name, true))
                       throw CompileError{
+                          DiagnosticCode::AnalyzerBorrowConflict,
                           expression_location(*node.arguments[index]),
                           "value '" + identifier->name +
                               "' is already borrowed by '" + *borrower + "'"};
                     if (method_shared_borrows.contains(identifier->name) ||
                         !method_mutable_borrows.insert(identifier->name).second)
                       throw CompileError{
+                          DiagnosticCode::AnalyzerBorrowConflict,
                           expression_location(*node.arguments[index]),
                           "value '" + identifier->name +
                               "' cannot be borrowed mutably more than once in "
@@ -5175,12 +5208,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     if (const auto borrower =
                             live_borrower_of(identifier->name, false))
                       throw CompileError{
+                          DiagnosticCode::AnalyzerBorrowConflict,
                           expression_location(*node.arguments[index]),
                           "value '" + identifier->name +
                               "' is already mutably borrowed by '" + *borrower +
                               "'"};
                     if (method_mutable_borrows.contains(identifier->name))
                       throw CompileError{
+                          DiagnosticCode::AnalyzerBorrowConflict,
                           expression_location(*node.arguments[index]),
                           "value '" + identifier->name +
                               "' cannot be shared while mutably borrowed in "
@@ -5320,7 +5355,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         std::get_if<ast::IdentifierExpression>(
                             &node.object->value)) {
                   if (borrowed_values.contains(identifier->name))
-                    throw CompileError{node.location,
+                    throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                                       node.location,
                                        "borrowed value '" + identifier->name +
                                            "' cannot call a consuming method"};
                   if (deferred_values.contains(identifier->name))
@@ -6156,14 +6192,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               (!declaration->initializer.has_value() ||
                !std::holds_alternative<ast::IdentifierExpression>(
                    declaration->initializer->value)))
-            throw CompileError{declaration->location,
+            throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowSource,
+                               declaration->location,
                                "borrowing an owning value requires a local "
                                "value identifier"};
           if (declaration->is_borrowed &&
               declaration->initializer.has_value() &&
               std::holds_alternative<ast::MoveExpression>(
                   declaration->initializer->value))
-            throw CompileError{declaration->location,
+            throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowSource,
+                               declaration->location,
                                "a borrowed local cannot move its initializer"};
           if (!declaration->is_borrowed &&
               declaration->initializer.has_value())
@@ -6171,6 +6209,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     &declaration->initializer->value);
                 source != nullptr && borrow_sources.contains(source->name))
               throw CompileError{
+                  DiagnosticCode::AnalyzerBorrowEscape,
                   declaration->location,
                   "value '" + source->name +
                       "' contains a live borrow and cannot be copied into '" +
@@ -6252,24 +6291,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (declaration->is_mutable) {
                   if (shared_borrow_values.contains(source->name))
                     throw CompileError{
+                        DiagnosticCode::AnalyzerBorrowConflict,
                         declaration->location,
                         "shared borrow '" + source->name +
                             "' cannot be borrowed mutably"};
                   if (const auto borrower =
                           live_borrower_of(source->name, true))
                     throw CompileError{
+                        DiagnosticCode::AnalyzerBorrowConflict,
                         declaration->location,
                         "value '" + source->name +
                             "' is already borrowed by '" + *borrower + "'"};
                 } else {
                   if (mutable_borrow_values.contains(source->name))
                     throw CompileError{
+                        DiagnosticCode::AnalyzerBorrowConflict,
                         declaration->location,
                         "mutable borrow '" + source->name +
                             "' cannot be borrowed concurrently"};
                   if (const auto borrower =
                           live_borrower_of(source->name, false))
                     throw CompileError{
+                        DiagnosticCode::AnalyzerBorrowConflict,
                         declaration->location,
                         "value '" + source->name +
                             "' is already mutably borrowed by '" + *borrower +
@@ -6354,7 +6397,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 std::get_if<ast::AssignmentStatement>(&statement)) {
           if (!assignment->object.empty()) {
             if (shared_borrow_values.contains(assignment->object))
-              throw CompileError{assignment->location,
+              throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                                 assignment->location,
                                  "cannot mutate through shared borrow '" +
                                      assignment->object + "'"};
             require_no_live_borrow(assignment->object, assignment->location,
@@ -6455,6 +6499,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     &assignment->expression.value);
                 source != nullptr && borrow_sources.contains(source->name))
               throw CompileError{
+                  DiagnosticCode::AnalyzerBorrowEscape,
                   assignment->location,
                   "value '" + source->name +
                       "' contains a live borrow and cannot be stored in field '" +
@@ -6488,6 +6533,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     &assignment->expression.value);
                 source != nullptr && borrow_sources.contains(source->name))
               throw CompileError{
+                  DiagnosticCode::AnalyzerBorrowEscape,
                   assignment->location,
                   "value '" + source->name +
                       "' contains a live borrow and cannot be stored in a "
@@ -6502,6 +6548,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               !mutable_borrow_values.contains(assignment->name) &&
               iterator->second.may_be_initialized)
             throw CompileError{
+                DiagnosticCode::AnalyzerBorrowEscape,
                 assignment->location,
                 "value '" + assignment->name +
                     "' contains a live borrow and cannot be overwritten"};
@@ -6520,6 +6567,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                (iterator->second.type.is_class() &&
                 !classes.at(iterator->second.type.parameter)->is_value_type)))
             throw CompileError{
+                DiagnosticCode::AnalyzerInvalidBorrowAccess,
                 assignment->location,
                 "cannot reassign mutable borrow '" + assignment->name +
                     "'; mutate the referenced value instead"};
@@ -6653,7 +6701,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (!std::holds_alternative<ast::IdentifierExpression>(
                   deletion->expression.value) &&
               is_borrowed_pointer_expression(deletion->expression))
-            throw CompileError{deletion->location,
+            throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                               deletion->location,
                                "borrowed pointer cannot be deleted"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value);
@@ -6666,7 +6715,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   &deletion->expression.value);
               identifier != nullptr &&
               borrowed_values.contains(identifier->name))
-            throw CompileError{deletion->location, "borrowed value '" +
+            throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                               deletion->location, "borrowed value '" +
                                                        identifier->name +
                                                        "' cannot be deleted"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
@@ -6875,7 +6925,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               identifier != nullptr &&
               borrowed_values.contains(identifier->name) &&
               potentially_owns_value(return_type))
-            throw CompileError{return_statement.location,
+            throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
+                               return_statement.location,
                                "borrowed value '" + identifier->name +
                                    "' cannot escape by return"};
           const ast::IdentifierExpression *returned_identifier =
@@ -6888,6 +6939,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (returned_identifier != nullptr &&
               borrow_sources.contains(returned_identifier->name))
             throw CompileError{
+                DiagnosticCode::AnalyzerBorrowEscape,
                 return_statement.location,
                 "value '" + returned_identifier->name +
                     "' contains a live borrow and cannot escape by return"};
@@ -6911,6 +6963,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (std::holds_alternative<ast::IdentifierExpression>(
                         argument.value))
                   throw CompileError{
+                      DiagnosticCode::AnalyzerBorrowEscape,
                       return_statement.location,
                       "temporary value of type '" + class_declaration.name +
                           "' contains a live borrow and cannot escape by return"};
@@ -6935,7 +6988,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     lambda_borrow_captures.find(*returned_lambda_location);
                 borrowed != lambda_borrow_captures.end() &&
                 !borrowed->second.empty())
-              throw CompileError{return_statement.location,
+              throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
+                                 return_statement.location,
                                  "closure captures borrowed value '" +
                                      borrowed->second.front() +
                                      "' and cannot escape by return"};

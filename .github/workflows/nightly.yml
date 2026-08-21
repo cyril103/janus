@@ -165,13 +165,16 @@ jobs:
           echo "version=$EXPECTED_VERSION" >> "$GITHUB_OUTPUT"
           echo "release=nightly-$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
           echo "published=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-      - name: Janus8 downstream canary from candidate archive
+      - name: Downstream canaries from candidate archive
         run: |
           git clone https://github.com/cyril103/janus8.git janus8
           git -C janus8 checkout b962b69ea14a47016556f9e2a111c7dab1e2e02d
+          git clone https://github.com/cyril103/janus-studio.git janus-studio
+          git -C janus-studio checkout d0e88543427d462df9c34d74c0800a83f55a21ec
           python3 scripts/downstream_canary.py \
             --archive "dist/janus-${{ needs.identity.outputs.version }}-Linux-x86_64.tar.gz" \
-            --expected-revision "$GITHUB_SHA" --checkout janus8
+            --expected-revision "$GITHUB_SHA" \
+            --janus8-checkout janus8 --studio-checkout janus-studio
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: |

@@ -1,0 +1,16 @@
+import std.array
+import std.slice
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(2))
+    defer delete values
+    values.push(10)
+    values.push(20)
+
+    val view : MutableSlice[int] =
+    new MutableSlice[int](values, usize(0), usize(2))
+    defer delete view
+    view.set(usize(1), 25)
+    println(view.get(usize(1)))
+    panic("borrow cleanup failure\n")
+}

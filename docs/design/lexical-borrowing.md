@@ -1,10 +1,10 @@
 # Décision de langage : emprunts lexicaux sûrs
 
-Statut : acceptée. Les emprunts partagés de l'issue #260, les emprunts
-mutables exclusifs de l'issue #261, les invalidations lexicales de l'issue #262
-et les transmissions bornées de l'issue #263 sont implémentés ; les projections
-ainsi que les vues contiguës de l'issue #264 sont implémentées ; les régions à
-la dernière utilisation restent à livrer dans l'issue suivante.
+Statut : acceptée et validée. Les emprunts partagés de l'issue #260, les
+emprunts mutables exclusifs de l'issue #261, les invalidations lexicales de
+l'issue #262, les transmissions bornées de l'issue #263, les vues contiguës de
+l'issue #264 et la matrice de validation de l'issue #265 sont implémentés. Les
+projections fines et les régions à la dernière utilisation restent différées.
 
 Cette décision définit le premier modèle général d'emprunts de Janus. Elle
 étend les garanties de [propriété des conteneurs](container-ownership.md) sans
@@ -519,7 +519,7 @@ invariants d'aliasing sans rendre nécessaire une collecte de mémoire cachée.
 6. construire `Slice[T]` et `MutableSlice[T]` sur ces garanties ;
 7. migrer les callbacks historiques et valider Janus Studio comme canari.
 
-Les étapes 2 à 6 sont disponibles avec des régions lexicales conservatrices :
+Les étapes 2 à 7 sont disponibles avec des régions lexicales conservatrices :
 une liaison `borrow val` ou `borrow var` reste active jusqu'à la fin de son
 bloc. L'analyse plus fine à la dernière utilisation et les projections ne font
 donc pas encore partie de cette implémentation.
@@ -531,6 +531,6 @@ l'emprunt de sa source. Il peut être détruit ou déplacé dans la même porté
 mais ne peut pas être copié dans un autre stockage ni être retourné tant qu'un
 contrat de durée de vie explicite n'existe pas.
 
-La fonctionnalité ne peut rejoindre le contrat de stabilité qu'après les tests
-positifs et négatifs, les campagnes sanitizer et la validation d'une
-application aval prévues par la roadmap 1.0.
+La fonctionnalité est couverte par les tests positifs et négatifs, les
+campagnes sanitizer ainsi que la validation d'une application aval prévues par
+la roadmap 1.0.

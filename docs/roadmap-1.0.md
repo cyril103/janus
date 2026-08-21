@@ -70,9 +70,9 @@ et emprunts stockés sont différés après cette première version.
   lecture puis en mutation exclusive ;
 - [x] permettre de transmettre l'emprunt à plusieurs couches d'appel sans
   transfert de propriété ;
-- couvrir aliasing, réallocation, panique, contrôle de flux et erreurs croisées
-  par tests positifs et négatifs ;
-- migrer les onglets de Janus Studio vers un `EditorBuffer` possédé par chaque
+- [x] couvrir aliasing, réallocation, panique, contrôle de flux et erreurs
+  croisées par tests positifs et négatifs ;
+- [x] valider les onglets de Janus Studio fondés sur un `EditorBuffer` possédé par chaque
   document, sans sérialisation au changement d'onglet.
 
 ### Gate de sortie

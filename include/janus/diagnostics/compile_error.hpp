@@ -50,6 +50,11 @@ enum class DiagnosticCode {
   AnalyzerPotentialOwnershipCycle,
   AnalyzerUnannotatedExternReturn,
   AnalyzerInvalidArrayLiteral,
+  AnalyzerBorrowConflict,
+  AnalyzerBorrowInvalidation,
+  AnalyzerBorrowEscape,
+  AnalyzerInvalidBorrowAccess,
+  AnalyzerInvalidBorrowSource,
   ModuleNotFound,
   BackendCyclicGlobalConstant,
 };
@@ -109,6 +114,16 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0022";
   case DiagnosticCode::AnalyzerInvalidArrayLiteral:
     return "JANA0023";
+  case DiagnosticCode::AnalyzerBorrowConflict:
+    return "JANA0024";
+  case DiagnosticCode::AnalyzerBorrowInvalidation:
+    return "JANA0025";
+  case DiagnosticCode::AnalyzerBorrowEscape:
+    return "JANA0026";
+  case DiagnosticCode::AnalyzerInvalidBorrowAccess:
+    return "JANA0027";
+  case DiagnosticCode::AnalyzerInvalidBorrowSource:
+    return "JANA0028";
   case DiagnosticCode::ModuleNotFound:
     return "JMOD0001";
   case DiagnosticCode::BackendCyclicGlobalConstant:

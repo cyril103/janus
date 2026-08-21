@@ -92,3 +92,7 @@ Codes de sortie : `0` si tout réussit, `1` pour un échec de test, une panique
 inattendue, un crash, un timeout ou une erreur de compilation/découverte, `2`
 pour une invocation invalide, et `4` lorsqu’aucun test n’est découvert avec
 `--fail-if-empty`.
+
+La [matrice de validation des emprunts](borrow-validation.md) décrit les tests
+de langage, diagnostics, sanitizers et canaris aval qui protègent les garanties
+d'aliasing et de durée de vie.

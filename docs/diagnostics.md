@@ -74,6 +74,19 @@ doivent être corrigés en exprimant l'intention, pas masqués mécaniquement.
 | `JANA0021` | cycle potentiel entre propriétaires | remplacer une arête par un champ `borrow val` |
 | `JANA0022` | pointeur retourné par `extern` sans contrat | qualifier le retour `borrow` ou `owned` |
 
+## Erreurs du système d'emprunts
+
+Les violations d'aliasing et de durée de vie utilisent des codes distincts des
+avertissements. Ces erreurs empêchent la compilation :
+
+| Code | Violation | Réponse habituelle |
+|---|---|---|
+| `JANA0024` | emprunts partagé et mutable incompatibles | raccourcir une portée ou séquencer les emprunts |
+| `JANA0025` | mutation, déplacement, destruction ou réallocation d'un propriétaire emprunté | terminer ou détruire la vue avant l'invalidation |
+| `JANA0026` | emprunt qui s'échappe par retour, stockage ou closure | conserver l'usage dans la portée de sa source |
+| `JANA0027` | opération interdite à travers un emprunt | employer `borrow def` ou demander un emprunt mutable |
+| `JANA0028` | source impropre à la création d'un emprunt | lier d'abord une valeur locale propriétaire vivante |
+
 `--warn-high-growth-loops` ajoute une analyse optionnelle des boucles dont la
 croissance entière paraît involontaire. Elle est indépendante de la famille
 ci-dessus et s'active sur `janus check`, `janus build` et `janus run`.

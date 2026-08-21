@@ -48,6 +48,8 @@ void expect_compile_error(std::string_view source,
     expect(std::string_view{error.what()}.find(expected_message) !=
                std::string_view::npos,
            expected_message);
+    expect(error.diagnostic().code != janus::DiagnosticCode::Unclassified,
+           "borrowed call errors use structured diagnostic codes");
   }
 }
 

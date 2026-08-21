@@ -1,0 +1,10 @@
+class Counter(var value : int) {
+    def set(next : int) : Unit { value = next }
+}
+
+def main() : int {
+    val counter : Counter = new Counter(1)
+    borrow val view : Counter = counter
+    view.set(2)
+    return 0
+}

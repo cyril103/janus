@@ -417,7 +417,7 @@ def validate(root: Path) -> list[str]:
         download = _require_commands(release, "Download distributions", (("mkdir", "-p", "dist/release"),), ci_source, failures)
         if download is not None:
             _validate_download(download, ci_source, failures)
-        _require_commands(release, "Janus8 downstream canary from candidate archive", (("python3", "scripts/downstream_canary.py", "--archive", "$archive"),), ci_source, failures)
+        _require_commands(release, "Downstream canaries from candidate archive", (("python3", "scripts/downstream_canary.py", "--archive", "$archive"),), ci_source, failures)
         _require_action(release, "Attest release provenance", "actions/attest", ci_source, failures)
         publish = _require_commands(release, "Publish GitHub release", (), ci_source, failures)
         if publish is not None:

@@ -1,0 +1,7 @@
+class Counter(val value : int) {}
+
+def inspect(borrow counter : Counter) : int { return counter.value }
+
+def main() : int {
+    return inspect(new Counter(1))
+}

@@ -1,0 +1,9 @@
+class Resource(val value : int) {}
+class Observer(private borrow val resource : Resource) {}
+
+def escape(borrow resource : Resource) : Observer {
+    val observer : Observer = new Observer(resource)
+    return observer
+}
+
+def main() : int { return 0 }

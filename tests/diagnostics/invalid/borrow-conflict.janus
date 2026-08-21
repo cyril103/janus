@@ -1,0 +1,8 @@
+class Counter(var value : int) {}
+
+def main() : int {
+    val counter : Counter = new Counter(1)
+    borrow val shared : Counter = counter
+    borrow var editable : Counter = counter
+    return shared.value + editable.value
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the pinned Janus8 canary using only a candidate toolchain archive."""
+"""Run pinned downstream canaries using only a candidate toolchain archive."""
 from __future__ import annotations
 
 import argparse
@@ -16,6 +16,10 @@ from pathlib import Path, PurePosixPath
 JANUS8_REVISION = "b962b69ea14a47016556f9e2a111c7dab1e2e02d"
 JANUS8_COMMANDS = [["fmt", "--check"], ["check", "--all", "--deny-warnings"],
                    ["test", "--fail-if-empty"], ["build"]]
+JANUS_STUDIO_REVISION = "d0e88543427d462df9c34d74c0800a83f55a21ec"
+JANUS_STUDIO_COMMANDS = [["fmt", "--check"], ["check", "--all"],
+                         ["test", "--fail-if-empty", "--release"],
+                         ["build", "--release"]]
 
 
 def _members(archive: Path) -> list[tarfile.TarInfo]:
@@ -100,7 +104,8 @@ def validate_archive(archive: Path, expected_revision: str) -> dict[str, object]
     return identity
 
 
-def run(archive: Path, expected_revision: str, checkout: Path) -> None:
+def run(archive: Path, expected_revision: str, janus8_checkout: Path,
+        studio_checkout: Path) -> None:
     packaged_identity = validate_archive(archive, expected_revision)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -128,20 +133,28 @@ def run(archive: Path, expected_revision: str, checkout: Path) -> None:
                "JANUS_REGISTRY": str(registry),
                "JANUSUP_HOME": str(root / "janusup"), "TMPDIR": str(temp)}
         for command in JANUS8_COMMANDS:
-            subprocess.run([str(janus), *command], cwd=checkout, env=env, check=True)
-        subprocess.run(["bash", "tests/native_syntax.sh"], cwd=checkout, env=env, check=True)
-        subprocess.run(["bash", "tests/native_syntax_mutation.sh"], cwd=checkout,
+            subprocess.run([str(janus), *command], cwd=janus8_checkout,
+                           env=env, check=True)
+        subprocess.run(["bash", "tests/native_syntax.sh"], cwd=janus8_checkout,
                        env=env, check=True)
-        subprocess.run(["bash", "tests/smoke.sh"], cwd=checkout, env=env, check=True)
+        subprocess.run(["bash", "tests/native_syntax_mutation.sh"], cwd=janus8_checkout,
+                       env=env, check=True)
+        subprocess.run(["bash", "tests/smoke.sh"], cwd=janus8_checkout,
+                       env=env, check=True)
+        for command in JANUS_STUDIO_COMMANDS:
+            subprocess.run([str(janus), *command], cwd=studio_checkout,
+                           env=env, check=True)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--archive", type=Path, required=True)
     parser.add_argument("--expected-revision", required=True)
-    parser.add_argument("--checkout", type=Path, required=True)
+    parser.add_argument("--janus8-checkout", type=Path, required=True)
+    parser.add_argument("--studio-checkout", type=Path, required=True)
     args = parser.parse_args()
-    run(args.archive, args.expected_revision, args.checkout)
+    run(args.archive, args.expected_revision, args.janus8_checkout,
+        args.studio_checkout)
 
 
 if __name__ == "__main__":
