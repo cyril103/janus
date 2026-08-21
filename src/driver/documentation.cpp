@@ -19,8 +19,8 @@
 #include <utility>
 
 #ifdef _WIN32
-#include <windows.h>
 #include <shellapi.h>
+#include <windows.h>
 #else
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -266,8 +266,7 @@ std::string type_name(const janus::ast::TypeReference &type) {
   return rendered;
 }
 
-std::string type_name(
-    const std::optional<janus::ast::TypeReference> &type) {
+std::string type_name(const std::optional<janus::ast::TypeReference> &type) {
   return type ? type_name(*type) : std::string{};
 }
 
@@ -277,6 +276,8 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
     signature += "const ";
   if (value.is_consuming)
     signature += "consume ";
+  else if (value.is_borrowing)
+    signature += "borrow ";
   signature += "def " + value.name;
   if (!value.type_parameters.empty()) {
     signature += '[';
@@ -318,8 +319,7 @@ std::string value_signature(const janus::ast::ValueDeclaration &value) {
   return std::string{value.is_borrowed ? "borrow " : ""} +
          std::string{value.is_constant ? "const "
                                        : (value.is_mutable ? "var " : "val ")} +
-         value.name + " : " +
-         type_name(value.declared_type);
+         value.name + " : " + type_name(value.declared_type);
 }
 
 std::string type_signature(const janus::ast::ClassDeclaration &value) {
@@ -447,8 +447,7 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
                          " [origin " + origin + "]";
         }
         add_symbol(symbols, module, global.declaration.name, "global",
-                   std::move(signature),
-                   global.declaration.documentation);
+                   std::move(signature), global.declaration.documentation);
       }
     }
     for (const janus::ast::TraitDeclaration &trait : program.traits) {
@@ -691,15 +690,17 @@ generate_documentation(const std::vector<ast::Program> &programs,
   const ApiIndex discovery_index = build_api_index(
       programs, {options.package_name, options.package_version});
   if (symbols.size() != discovery_index.symbols.size())
-    throw std::runtime_error{"documentation and API discovery symbol sets differ"};
+    throw std::runtime_error{
+        "documentation and API discovery symbol sets differ"};
   for (std::size_t position = 0; position < symbols.size(); ++position) {
     const Symbol &documented = symbols[position];
     const ApiSymbol &discovered = discovery_index.symbols[position];
     if (documented.qualified_name != discovered.qualified_name ||
         documented.kind != discovered.kind ||
         documented.signature != discovered.signature)
-      throw std::runtime_error{"documentation and API discovery identity differ for '" +
-                               documented.qualified_name + "'"};
+      throw std::runtime_error{
+          "documentation and API discovery identity differ for '" +
+          documented.qualified_name + "'"};
   }
   std::map<std::string, std::string> module_documentation;
   std::map<std::string, StructuredDocumentation> structured_modules;
@@ -1001,15 +1002,13 @@ generate_documentation(const std::vector<ast::Program> &programs,
           << json_escape(symbol.signature) << "\",\"documentation\":\""
           << json_escape(symbol.documentation) << "\",\"anchor\":\""
           << json_escape(symbol.anchor) << "\",\"simple_name\":\""
-          << json_escape(shared.simple_name)
-          << "\",\"qualified_name\":\""
+          << json_escape(shared.simple_name) << "\",\"qualified_name\":\""
           << json_escape(symbol.qualified_name) << "\",\"package\":\""
           << json_escape(options.package_name) << "\",\"module\":\""
           << json_escape(symbol.module) << "\",\"required_import\":\""
           << json_escape(symbol.module) << "\",\"visibility\":\"public\","
           << "\"documentation_link\":\"#" << json_escape(symbol.anchor)
-          << "\",\"deprecated\":"
-          << (shared.deprecated ? "true" : "false")
+          << "\",\"deprecated\":" << (shared.deprecated ? "true" : "false")
           << ",\"replacement\":";
     if (shared.replacement)
       index << '"' << json_escape(*shared.replacement) << '"';
@@ -1017,21 +1016,19 @@ generate_documentation(const std::vector<ast::Program> &programs,
       index << "null";
     index << ",\"generic_parameters\":[";
     for (std::size_t item = 0; item < shared.generic_parameters.size();
-           ++item) {
-        if (item != 0)
-          index << ',';
-        index << '"' << json_escape(shared.generic_parameters[item]) << '"';
-      }
+         ++item) {
+      if (item != 0)
+        index << ',';
+      index << '"' << json_escape(shared.generic_parameters[item]) << '"';
+    }
     index << "],\"generic_constraints\":[";
     for (std::size_t item = 0; item < shared.generic_constraints.size();
-           ++item) {
-        if (item != 0)
-          index << ',';
-        index << '"' << json_escape(shared.generic_constraints[item]) << '"';
-      }
-    index << "],\"return_type\":\""
-          << json_escape(shared.return_type)
-          << '"';
+         ++item) {
+      if (item != 0)
+        index << ',';
+      index << '"' << json_escape(shared.generic_constraints[item]) << '"';
+    }
+    index << "],\"return_type\":\"" << json_escape(shared.return_type) << '"';
     write_structured_json(index, symbol.structured, symbol.parameters,
                           symbol.return_type, !symbol.return_type.empty());
     index << '}';

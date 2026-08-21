@@ -23,8 +23,9 @@ using namespace janus::driver;
 
 std::string lower(std::string_view value) {
   std::string result{value};
-  std::transform(result.begin(), result.end(), result.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  std::transform(
+      result.begin(), result.end(), result.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   return result;
 }
 
@@ -32,8 +33,8 @@ std::string trim(std::string_view value) {
   const auto first = value.find_first_not_of(" \t\r\n");
   if (first == std::string_view::npos)
     return {};
-  return std::string{value.substr(
-      first, value.find_last_not_of(" \t\r\n") - first + 1)};
+  return std::string{
+      value.substr(first, value.find_last_not_of(" \t\r\n") - first + 1)};
 }
 
 std::size_t lexical_distance(std::string_view left, std::string_view right) {
@@ -44,10 +45,10 @@ std::size_t lexical_distance(std::string_view left, std::string_view right) {
   for (std::size_t row = 1; row <= left.size(); ++row) {
     current[0] = row;
     for (std::size_t column = 1; column <= right.size(); ++column)
-      current[column] = std::min(
-          {previous[column] + 1, current[column - 1] + 1,
-           previous[column - 1] +
-               (left[row - 1] == right[column - 1] ? 0U : 1U)});
+      current[column] =
+          std::min({previous[column] + 1, current[column - 1] + 1,
+                    previous[column - 1] +
+                        (left[row - 1] == right[column - 1] ? 0U : 1U)});
     std::swap(previous, current);
   }
   return previous.back();
@@ -112,7 +113,8 @@ Docs docs(std::string_view text) {
   return result;
 }
 
-std::vector<std::string> constraints(const std::vector<ast::TypeConstraint> &values) {
+std::vector<std::string>
+constraints(const std::vector<ast::TypeConstraint> &values) {
   std::vector<std::string> result;
   for (const auto &value : values)
     result.push_back(value.parameter + " : " + type_name(value.trait));
@@ -120,9 +122,11 @@ std::vector<std::string> constraints(const std::vector<ast::TypeConstraint> &val
 }
 
 std::string function_signature(const ast::FunctionDeclaration &fn) {
-  std::string result = fn.is_constant
-                           ? "const def "
-                           : (fn.is_consuming ? "consume def " : "def ");
+  std::string result =
+      fn.is_constant
+          ? "const def "
+          : (fn.is_consuming ? "consume def "
+                             : (fn.is_borrowing ? "borrow def " : "def "));
   result += fn.name;
   if (!fn.type_parameters.empty()) {
     result += '[';
@@ -157,21 +161,32 @@ std::string function_signature(const ast::FunctionDeclaration &fn) {
   return result;
 }
 
-void add(ApiIndex &index, std::string module, std::string name, std::string kind,
-         std::string signature, std::string documentation,
+void add(ApiIndex &index, std::string module, std::string name,
+         std::string kind, std::string signature, std::string documentation,
          std::vector<std::string> generics = {},
          std::vector<std::string> generic_constraints = {},
-         std::vector<ApiParameter> parameters = {}, std::string return_type = {},
-         std::string parent = {}) {
+         std::vector<ApiParameter> parameters = {},
+         std::string return_type = {}, std::string parent = {}) {
   const std::string qualified =
       parent.empty() ? module + '.' + name : parent + '.' + name;
   const Docs parsed = docs(documentation);
-  ApiSymbol symbol{name, qualified, index.package, module, module, kind,
-                   std::move(signature), std::move(generics),
-                   std::move(generic_constraints), std::move(parameters),
-                   std::move(return_type), parsed.summary,
-                   std::move(documentation), "public", "#" + anchor(qualified),
-                   parsed.deprecated, std::nullopt};
+  ApiSymbol symbol{name,
+                   qualified,
+                   index.package,
+                   module,
+                   module,
+                   kind,
+                   std::move(signature),
+                   std::move(generics),
+                   std::move(generic_constraints),
+                   std::move(parameters),
+                   std::move(return_type),
+                   parsed.summary,
+                   std::move(documentation),
+                   "public",
+                   "#" + anchor(qualified),
+                   parsed.deprecated,
+                   std::nullopt};
   if (!parsed.replacement.empty()) {
     symbol.replacement = parsed.replacement.find('.') == std::string::npos
                              ? module + '.' + parsed.replacement
@@ -187,7 +202,8 @@ std::vector<ApiParameter> parameters(const ast::FunctionDeclaration &fn) {
   return result;
 }
 
-std::vector<ApiParameter> constructor_parameters(const ast::ClassDeclaration &type) {
+std::vector<ApiParameter>
+constructor_parameters(const ast::ClassDeclaration &type) {
   std::vector<ApiParameter> result;
   for (const auto &parameter : type.constructor_parameters)
     result.push_back({parameter.name, type_name(parameter.type), {}});
@@ -245,7 +261,8 @@ bool same_symbol(const ApiSymbol &left, const ApiSymbol &right) {
          left.generic_parameters == right.generic_parameters &&
          left.generic_constraints == right.generic_constraints &&
          left.parameters == right.parameters &&
-         left.return_type == right.return_type && left.summary == right.summary &&
+         left.return_type == right.return_type &&
+         left.summary == right.summary &&
          left.documentation == right.documentation &&
          left.visibility == right.visibility &&
          left.documentation_link == right.documentation_link &&
@@ -325,8 +342,8 @@ const llvm::json::Array &required_array(const llvm::json::Object &object,
   return *value;
 }
 
-std::vector<std::string>
-required_string_array(const llvm::json::Object &object, std::string_view key) {
+std::vector<std::string> required_string_array(const llvm::json::Object &object,
+                                               std::string_view key) {
   std::vector<std::string> result;
   for (const llvm::json::Value &value : required_array(object, key)) {
     const auto string = value.getAsString();
@@ -341,8 +358,7 @@ ApiParameter parse_parameter(const llvm::json::Value &value) {
   const auto *object = value.getAsObject();
   if (object == nullptr)
     throw invalid_field("parameters", "an array of objects");
-  return {required_string(*object, "name"),
-          required_string(*object, "type"),
+  return {required_string(*object, "name"), required_string(*object, "type"),
           required_string(*object, "documentation")};
 }
 
@@ -370,8 +386,7 @@ ApiSymbol parse_symbol(const llvm::json::Value &value) {
   symbol.summary = required_string(*object, "summary");
   symbol.documentation = required_string(*object, "documentation");
   symbol.visibility = required_string(*object, "visibility");
-  symbol.documentation_link =
-      required_string(*object, "documentation_link");
+  symbol.documentation_link = required_string(*object, "documentation_link");
   symbol.deprecated = required_boolean(*object, "deprecated");
   const llvm::json::Value *replacement = object->get("replacement");
   if (replacement == nullptr)
@@ -411,12 +426,12 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
               type_name(global.declaration.declared_type),
           global.declaration.documentation);
       if (global.declaration.is_constant && analysis) {
-        const std::string origin = global.module_name.value_or("root") + "." +
-                                   global.declaration.name;
+        const std::string origin =
+            global.module_name.value_or("root") + "." + global.declaration.name;
         if (const auto value = analysis->global_constant_values.find(origin);
             value != analysis->global_constant_values.end())
-          index.symbols.back().signature += " = " +
-              constant::canonical_serialize(value->second) +
+          index.symbols.back().signature +=
+              " = " + constant::canonical_serialize(value->second) +
               " [origin " + origin + "]";
       }
     }
@@ -459,8 +474,7 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
         continue;
       const std::string parent = module + '.' + type.name;
       add(index, module, type.name, type.is_value_type ? "struct" : "class",
-          type_signature(type),
-          type.documentation, type.type_parameters,
+          type_signature(type), type.documentation, type.type_parameters,
           constraints(type.type_constraints), constructor_parameters(type));
       const auto append_fields = [&](const auto &fields) {
         for (const auto &field : fields) {
@@ -519,8 +533,8 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
             [](const auto &left, const auto &right) {
               return std::tie(left.qualified_name, left.kind, left.signature,
                               left.package) <
-                     std::tie(right.qualified_name, right.kind,
-                              right.signature, right.package);
+                     std::tie(right.qualified_name, right.kind, right.signature,
+                              right.package);
             });
   std::set<std::string> links;
   for (auto &symbol : index.symbols) {
@@ -542,7 +556,8 @@ ApiIndex build_api_index_from_source_roots(
     if (std::filesystem::is_regular_file(root) && root.extension() == ".janus")
       files.insert(root);
     else if (std::filesystem::is_directory(root))
-      for (const auto &entry : std::filesystem::recursive_directory_iterator(root))
+      for (const auto &entry :
+           std::filesystem::recursive_directory_iterator(root))
         if (entry.is_regular_file() && entry.path().extension() == ".janus")
           files.insert(entry.path());
   }
@@ -550,7 +565,8 @@ ApiIndex build_api_index_from_source_roots(
   for (const auto &file : files) {
     std::ifstream input{file, std::ios::binary};
     if (!input)
-      throw std::runtime_error{"cannot read API source '" + file.string() + "'"};
+      throw std::runtime_error{"cannot read API source '" + file.string() +
+                               "'"};
     const std::string source{std::istreambuf_iterator<char>{input},
                              std::istreambuf_iterator<char>{}};
     frontend::Parser parser{source};
@@ -574,8 +590,8 @@ ApiIndex merge_api_indexes(const std::vector<ApiIndex> &indexes) {
     if (!unique.empty() && identity(unique.back()) == identity(symbol)) {
       if (!same_symbol(unique.back(), symbol))
         throw std::runtime_error{"conflicting duplicate API symbol identity '" +
-                                 symbol.package + ":" +
-                                 symbol.qualified_name + "'"};
+                                 symbol.package + ":" + symbol.qualified_name +
+                                 "'"};
       continue;
     }
     unique.push_back(std::move(symbol));
@@ -601,9 +617,8 @@ std::vector<ApiSearchResult> search_api(const ApiIndex &index,
       continue;
     const std::string simple = lower(symbol.simple_name);
     const std::string qualified = lower(symbol.qualified_name);
-    const std::string searchable =
-        lower(symbol.summary + ' ' + symbol.documentation + ' ' +
-              symbol.signature);
+    const std::string searchable = lower(
+        symbol.summary + ' ' + symbol.documentation + ' ' + symbol.signature);
     std::int64_t score = 0;
     std::string reason;
     if (query_text.empty()) {
@@ -666,8 +681,8 @@ std::string serialize_api_index(const ApiIndex &index) {
          << ",\"package\":" << quote(index.package)
          << ",\"package_version\":" << quote(index.package_version)
          << ",\"symbols\":[";
-  for (std::size_t index_position = 0;
-       index_position < index.symbols.size(); ++index_position) {
+  for (std::size_t index_position = 0; index_position < index.symbols.size();
+       ++index_position) {
     if (index_position != 0)
       output << ',';
     const ApiSymbol &symbol = index.symbols[index_position];
@@ -690,20 +705,16 @@ std::string serialize_api_index(const ApiIndex &index) {
       const ApiParameter &parameter = symbol.parameters[parameter_position];
       output << "{\"name\":" << quote(parameter.name)
              << ",\"type\":" << quote(parameter.type)
-             << ",\"documentation\":" << quote(parameter.documentation)
-             << '}';
+             << ",\"documentation\":" << quote(parameter.documentation) << '}';
     }
     output << "],\"return_type\":" << quote(symbol.return_type)
            << ",\"summary\":" << quote(symbol.summary)
            << ",\"documentation\":" << quote(symbol.documentation)
            << ",\"visibility\":" << quote(symbol.visibility)
-           << ",\"documentation_link\":"
-           << quote(symbol.documentation_link)
-           << ",\"deprecated\":"
-           << (symbol.deprecated ? "true" : "false")
+           << ",\"documentation_link\":" << quote(symbol.documentation_link)
+           << ",\"deprecated\":" << (symbol.deprecated ? "true" : "false")
            << ",\"replacement\":"
-           << (symbol.replacement ? quote(*symbol.replacement) : "null")
-           << '}';
+           << (symbol.replacement ? quote(*symbol.replacement) : "null") << '}';
   }
   output << "]}\n";
   return output.str();
@@ -740,8 +751,8 @@ ApiIndex parse_api_index(std::string_view json) {
     const auto [found, inserted] = seen.emplace(identity(symbol), symbol);
     if (!inserted && !same_symbol(found->second, symbol))
       throw std::runtime_error{"conflicting duplicate API symbol identity '" +
-                               symbol.package + ":" +
-                               symbol.qualified_name + "'"};
+                               symbol.package + ":" + symbol.qualified_name +
+                               "'"};
   }
   return index;
 }
@@ -780,10 +791,9 @@ std::string format_api_search(const std::vector<ApiSearchResult> &results,
              << ",\"kind\":" << quote(symbol.kind)
              << ",\"signature\":" << quote(symbol.signature)
              << ",\"summary\":" << quote(symbol.summary)
-             << ",\"documentation_link\":"
-             << quote(symbol.documentation_link)
-             << ",\"deprecated\":"
-             << (symbol.deprecated ? "true" : "false") << '}';
+             << ",\"documentation_link\":" << quote(symbol.documentation_link)
+             << ",\"deprecated\":" << (symbol.deprecated ? "true" : "false")
+             << '}';
     }
     output << "]}\n";
     return output.str();

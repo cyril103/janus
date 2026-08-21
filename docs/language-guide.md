@@ -533,6 +533,39 @@ defer delete point
 Les destructeurs exécutent le nettoyage propre à une classe avant la
 libération de sa mémoire.
 
+### Emprunts immuables
+
+`borrow val` crée un alias temporaire en lecture seule sans copier la valeur et
+sans lui transférer sa propriété. Le propriétaire ne peut être ni déplacé ni
+détruit avant la fin de la portée de l'alias. Plusieurs emprunts immuables
+peuvent coexister :
+
+```janus
+borrow val first : Document = document
+borrow val second : Document = document
+```
+
+Une fonction reçoit le même type d'emprunt avec un paramètre `borrow`. Une
+méthode accessible à travers cet emprunt déclare son récepteur avec
+`borrow def` :
+
+```janus
+def inspect(borrow document : Document) : int {
+    return document.revision()
+}
+
+class Document(val version : int) {
+    borrow def revision() : int { return version }
+}
+```
+
+Le corps d'une méthode `borrow def` et les paramètres `borrow` ne peuvent ni
+modifier, ni déplacer, ni détruire la valeur observée. Un emprunt ne peut pas
+être retourné ou transmis à un paramètre propriétaire. Dans cette première
+implémentation, sa région est la portée lexicale de la liaison ; placez un
+emprunt local dans un bloc plus court pour réutiliser ensuite le propriétaire.
+Les emprunts mutables et les projections de champs seront ajoutés séparément.
+
 Les structures et enums qui contiennent une ressource deviennent eux-mêmes
 propriétaires. Leur transfert doit employer `move`, et `delete` détruit
 récursivement leur contenu :
@@ -962,8 +995,9 @@ l’appelant garde donc la propriété et peut le réutiliser après l’appel.
 `consume` transfère la propriété au code natif et
 invalide immédiatement la valeur locale côté Janus. Sans l’un de ces
 qualificateurs, le compilateur émet `JANA0020`, car le contrat de propriété ne
-peut pas être vérifié. Ces qualificateurs sont actuellement limités aux
-paramètres `Ptr[T]` des déclarations `extern def`.
+peut pas être vérifié. `consume` reste limité aux paramètres `Ptr[T]` des
+déclarations `extern def`; `borrow` est également disponible sur les fonctions
+Janus ordinaires avec la sémantique d'emprunt immuable décrite plus haut.
 
 Un retour pointeur externe utilise `borrow` lorsque le stockage reste détenu
 par le code natif, et `owned` lorsque Janus doit le libérer ou le transférer.
@@ -972,9 +1006,9 @@ un paramètre `consume`. Sans contrat sur un retour `Ptr[T]`, le compilateur
 émet `JANA0022`. Les qualificateurs de retour sont limités aux déclarations
 `extern def` et aux types `Ptr[T]`.
 
-Un alias pointeur local peut être déclaré sans transfert de propriété avec
-`borrow val view : Ptr[byte] = owner`. Il est immutable et ne peut être ni
-libéré ni déplacé. Une classe peut de même conserver une référence observante
+Un alias local peut être déclaré sans transfert de propriété avec
+`borrow val view = owner`. Il est immutable et ne peut être ni libéré ni
+déplacé. Une classe peut de même conserver une référence observante
 dans un champ de constructeur immutable, par exemple
 `private borrow val source : Collection`; ce champ n'est pas détruit avec la
 classe et sa source doit donc vivre plus longtemps. Les structs ne peuvent pas

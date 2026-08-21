@@ -1,6 +1,6 @@
 #include "janus/backend/llvm/ir_generator.hpp"
-#include "janus/frontend/parser.hpp"
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
 
 #include <llvm/IR/LLVMContext.h>
@@ -138,8 +138,7 @@ int main() {
   private_module->print(private_output, nullptr);
   private_output.flush();
   expect(private_ir.find("declare i32 @abs(i32)") != std::string::npos &&
-             private_ir.find("declare internal i32 @abs") ==
-                 std::string::npos,
+             private_ir.find("declare internal i32 @abs") == std::string::npos,
          "a private external keeps external native linkage");
 
   janus::frontend::Parser private_library_parser{
@@ -150,15 +149,15 @@ int main() {
       "def main() : int { return native.bridge.absolute(-42) }"};
   janus::ast::Program private_access_program =
       private_library_parser.parse_program();
-  janus::ast::Program private_client =
-      private_client_parser.parse_program();
+  janus::ast::Program private_client = private_client_parser.parse_program();
   private_access_program.functions.insert(
       private_access_program.functions.end(),
       std::make_move_iterator(private_client.functions.begin()),
       std::make_move_iterator(private_client.functions.end()));
   try {
     static_cast<void>(analyzer.analyze(private_access_program));
-    expect(false, "a private external must not be callable from another module");
+    expect(false,
+           "a private external must not be callable from another module");
   } catch (const janus::CompileError &error) {
     expect(std::string_view{error.what()}.find(
                "function 'native.bridge.absolute' is private") !=
@@ -202,7 +201,7 @@ int main() {
   cstr_module->print(cstr_output, nullptr);
   cstr_output.flush();
   expect(cstr_ir.find("cstr.data = extractvalue { ptr, i64 }") !=
-             std::string::npos &&
+                 std::string::npos &&
              cstr_ir.find("call i32 @puts(ptr %cstr.data)") !=
                  std::string::npos,
          "cstr exposes the null-terminated UTF-8 data pointer to C");
@@ -211,8 +210,7 @@ int main() {
       "extern def printf(format : Ptr[byte], ...) : int "
       "def main() : int { return printf(cstr(\"%d %d %u %llu %.1f\"), "
       "byte(-7), true, char(65), usize(9), 2.5) }"};
-  const janus::ast::Program variadic_program =
-      variadic_parser.parse_program();
+  const janus::ast::Program variadic_program = variadic_parser.parse_program();
   expect(variadic_program.functions[0].is_variadic,
          "the ellipsis is represented explicitly in the AST");
   static_cast<void>(analyzer.analyze(variadic_program));
@@ -224,8 +222,7 @@ int main() {
   llvm::raw_string_ostream variadic_output{variadic_ir};
   variadic_module->print(variadic_output, nullptr);
   variadic_output.flush();
-  expect(variadic_ir.find("declare i32 @printf(ptr, ...)") !=
-             std::string::npos,
+  expect(variadic_ir.find("declare i32 @printf(ptr, ...)") != std::string::npos,
          "variadic extern def emits an LLVM variadic declaration");
   expect(variadic_ir.find("i32 -7, i32 1, i32 65, i64 9, double") !=
              std::string::npos,
@@ -239,14 +236,12 @@ int main() {
       "def main() : int { return 0 }"};
   static_cast<void>(analyzer.analyze(abi_parser.parse_program()));
 
-  expect_compile_error(
-      "extern def identity[T](value : T) : T "
-      "def main() : int { return 0 }",
-      "cannot be generic");
-  expect_compile_error(
-      "extern def print_string(value : string) : Unit "
-      "def main() : int { return 0 }",
-      "not compatible with the C ABI");
+  expect_compile_error("extern def identity[T](value : T) : T "
+                       "def main() : int { return 0 }",
+                       "cannot be generic");
+  expect_compile_error("extern def print_string(value : string) : Unit "
+                       "def main() : int { return 0 }",
+                       "not compatible with the C ABI");
   expect_compile_error(
       "class Resource() {} extern def accept_resource(value : Resource) : Unit "
       "def main() : int { return 0 }",
@@ -256,11 +251,10 @@ int main() {
   expect_compile_error(
       "extern(\"\") def empty() : Unit def main() : int { return 0 }",
       "external symbol name cannot be empty");
-  expect_compile_error(
-      "extern(\"same\") def first() : Unit "
-      "extern(\"same\") def second() : Unit "
-      "def main() : int { return 0 }",
-      "already bound");
+  expect_compile_error("extern(\"same\") def first() : Unit "
+                       "extern(\"same\") def second() : Unit "
+                       "def main() : int { return 0 }",
+                       "already bound");
   expect_compile_error(
       "def native() : Unit {} extern(\"native\") def alias() : Unit "
       "def main() : int { return 0 }",
@@ -269,10 +263,9 @@ int main() {
                        "cstr expects one string argument");
   expect_compile_error("def main() : int { cstr(42) return 0 }",
                        "where type 'string' is required");
-  expect_compile_error(
-      "def invalid(value : int, ...) : int { return value } "
-      "def main() : int { return 0 }",
-      "only external functions can be variadic");
+  expect_compile_error("def invalid(value : int, ...) : int { return value } "
+                       "def main() : int { return 0 }",
+                       "only external functions can be variadic");
   expect_compile_error(
       "extern def invalid(...) : int def main() : int { return 0 }",
       "requires a fixed parameter");
@@ -280,22 +273,18 @@ int main() {
       "extern def printf(format : Ptr[byte], ...) : int "
       "def main() : int { return printf(cstr(\"%s\"), \"text\") }",
       "variadic C argument has incompatible type 'string'");
-  expect_compile_error(
-      "extern def printf(format : Ptr[byte], ...) : int "
-      "def main() : int { return printf() }",
-      "expects at least 1 argument");
-  expect_compile_error(
-      "def inspect(borrow data : Ptr[int]) : Unit {} "
-      "def main() : int { return 0 }",
-      "only supported on external functions");
-  expect_compile_error(
-      "extern def inspect(borrow value : int) : Unit "
-      "def main() : int { return 0 }",
-      "require a Ptr[T] type");
-  expect_compile_error(
-      "def invalid() : borrow Ptr[int] { return null[int]() } "
-      "def main() : int { return 0 }",
-      "only supported on external functions");
+  expect_compile_error("extern def printf(format : Ptr[byte], ...) : int "
+                       "def main() : int { return printf() }",
+                       "expects at least 1 argument");
+  expect_compile_error("def inspect(consume data : Ptr[int]) : Unit {} "
+                       "def main() : int { return 0 }",
+                       "only supported on external functions");
+  expect_compile_error("extern def inspect(borrow value : int) : Unit "
+                       "def main() : int { return 0 }",
+                       "require a Ptr[T] type");
+  expect_compile_error("def invalid() : borrow Ptr[int] { return null[int]() } "
+                       "def main() : int { return 0 }",
+                       "only supported on external functions");
   expect_compile_error(
       "extern def invalid() : owned int def main() : int { return 0 }",
       "require a Ptr[T] type");

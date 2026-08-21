@@ -164,7 +164,9 @@ Un retour `Ptr[T]` externe peut être qualifié `borrow` lorsque le stockage
 reste natif, ou `owned` lorsque sa propriété est transférée à Janus. Un retour
 pointeur non qualifié reste accepté avec le diagnostic `JANA0022`.
 
-`borrow val` déclare un alias pointeur local immutable. Les champs de
+`borrow val` déclare un alias local immutable sans copie ni transfert de
+propriété. Un paramètre `borrow` observe de la même façon une valeur pendant
+l'appel, et `borrow def` déclare une méthode d'observation. Les champs de
 constructeur de classe peuvent utiliser `borrow val` pour conserver une
 référence observante non détruite avec l'instance; ce contrat est interdit aux
 structs. Les primitives de stockage explicites (Ptr.initialize,

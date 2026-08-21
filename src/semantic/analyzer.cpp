@@ -547,8 +547,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       iterator = symbols.find(std::string{name});
     return iterator;
   };
-  std::unordered_map<std::string, std::vector<std::string>>
-      legacy_import_edges;
+  std::unordered_map<std::string, std::vector<std::string>> legacy_import_edges;
   for (const ast::ImportDeclaration &import : program.imports)
     if (!import.is_qualified() && !import.is_selective())
       legacy_import_edges[import.importing_module.value_or(std::string{})]
@@ -601,8 +600,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         // closure rooted at the current module so a sibling branch cannot
         // widen lexical visibility.
         if (spelling == canonical_name) {
-          const auto reachable = legacy_import_closure.find(
-              importer.value_or(std::string{}));
+          const auto reachable =
+              legacy_import_closure.find(importer.value_or(std::string{}));
           if (reachable != legacy_import_closure.end() &&
               reachable->second.contains(*declaring_module))
             return true;
@@ -755,7 +754,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     check_function_signature_visibility(function, function.module_name);
   for (const ast::GlobalDeclaration &global : program.globals)
     check_type_visibility(check_type_visibility,
-                          *global.declaration.declared_type, global.module_name);
+                          *global.declaration.declared_type,
+                          global.module_name);
   for (const ast::EnumDeclaration &declaration : program.enums)
     for (const ast::EnumDeclaration::Case &enum_case : declaration.cases)
       for (const ast::TypeReference &payload : enum_case.payload_types)
@@ -1245,16 +1245,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           const std::vector<ast::TypeReference> &type_references,
           SourceLocation location)
       -> std::optional<constant::ConstructorShape> {
-    const std::string shape_key = std::string{name} +
-                                  (enum_case ? "." + *enum_case : "");
+    const std::string shape_key =
+        std::string{name} + (enum_case ? "." + *enum_case : "");
     if (type_references.empty())
       if (const auto cached = constant_constructor_shapes.find(shape_key);
           cached != constant_constructor_shapes.end())
         return cached->second;
 
-    const auto concrete_type = [&](const ast::TypeReference &reference,
-                                   const std::unordered_map<std::string,
-                                       const Type *> &substitutions)
+    const auto concrete_type =
+        [&](const ast::TypeReference &reference,
+            const std::unordered_map<std::string, const Type *> &substitutions)
         -> const Type * {
       if (const auto replacement = substitutions.find(reference.name);
           replacement != substitutions.end() &&
@@ -1294,8 +1294,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         constant_nominal_types.emplace(name, nominal);
       }
       constant::ConstructorShape shape{nominal, matched->value, {}};
-      for (std::size_t index = 0; index < matched->payload_types.size(); ++index) {
-        const Type *payload = concrete_type(matched->payload_types[index], substitutions);
+      for (std::size_t index = 0; index < matched->payload_types.size();
+           ++index) {
+        const Type *payload =
+            concrete_type(matched->payload_types[index], substitutions);
         if (payload == nullptr)
           throw CompileError{location,
                              "constant enum payload type is not admissible"};
@@ -1339,8 +1341,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       purity_states;
   const auto is_constant_builtin = [](std::string_view name) {
     static constexpr std::array<std::string_view, 17> names{
-        "int",   "uint",  "long",  "ulong", "float", "double",
-        "byte",  "ubyte", "short", "ushort", "char",  "bool",
+        "int",   "uint",  "long",           "ulong",          "float", "double",
+        "byte",  "ubyte", "short",          "ushort",         "char",  "bool",
         "isize", "usize", "saturatingCast", "truncatingCast", "abs"};
     return std::find(names.begin(), names.end(), name) != names.end();
   };
@@ -1355,8 +1357,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             return !candidate.module_name.has_value() ||
                    import_allows(program.module_name, candidate.module_name,
                                  candidate.name, name);
-          const auto aliases = imported_names(candidate.module_name,
-                                              candidate.name);
+          const auto aliases =
+              imported_names(candidate.module_name, candidate.name);
           return std::find(aliases.begin(), aliases.end(), name) !=
                  aliases.end();
         });
@@ -1391,11 +1393,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               if (const auto global = globals.find(key);
                   global != globals.end() &&
                   global->second.declaration->declaration.is_mutable)
-                throw CompileError{
-                    node.location, "const def '" + function.name +
+                throw CompileError{node.location,
+                                   "const def '" + function.name +
                                        "' cannot observe mutable global '" +
                                        key + "'"};
-            } else if constexpr (std::is_same_v<Node, ast::ArrayLiteralExpression>) {
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::ArrayLiteralExpression>) {
               for (const auto &element : node.elements)
                 check_expression(*element, scope);
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
@@ -1509,13 +1512,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       throw CompileError{location, "const def '" + function.name +
                                        "' received an invalid argument count"};
     if (++constant_steps > options.constant_step_budget)
-      throw CompileError{location,
-                         "constant evaluation step budget exceeded (" +
-                             std::to_string(options.constant_step_budget) + ")"};
+      throw CompileError{
+          location, "constant evaluation step budget exceeded (" +
+                        std::to_string(options.constant_step_budget) + ")"};
     if (++constant_depth > options.constant_recursion_budget)
       throw CompileError{location,
                          "constant evaluation recursion budget exceeded (" +
-                             std::to_string(options.constant_recursion_budget) + ")"};
+                             std::to_string(options.constant_recursion_budget) +
+                             ")"};
     struct DepthGuard {
       std::size_t &depth;
       ~DepthGuard() { --depth; }
@@ -1606,9 +1610,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               : std::string{name};
       if (!import_allows(global.module_name, target.module_name,
                          target.declaration.name, spelling))
-        throw CompileError{location,
-                           "global value '" + spelling +
-                               "' is not imported in this module"};
+        throw CompileError{location, "global value '" + spelling +
+                                         "' is not imported in this module"};
       if (target.declaration.is_mutable)
         throw CompileError{
             location, "global constant initializer cannot depend on mutable "
@@ -1622,13 +1625,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         &evaluation_budget);
     const std::size_t value_size = constant::canonical_serialize(value).size();
     if (value_size > options.constant_value_size_budget)
-      throw CompileError{global.declaration.location,
-                         "constant value size budget exceeded (" +
-                             std::to_string(options.constant_value_size_budget) +
-                             " bytes)"};
-    if (value_size > options.constant_memory_budget -
-                         std::min(options.constant_memory_budget,
-                                  constant_memory_used))
+      throw CompileError{
+          global.declaration.location,
+          "constant value size budget exceeded (" +
+              std::to_string(options.constant_value_size_budget) + " bytes)"};
+    if (value_size >
+        options.constant_memory_budget -
+            std::min(options.constant_memory_budget, constant_memory_used))
       throw CompileError{global.declaration.location,
                          "constant evaluation memory budget exceeded (" +
                              std::to_string(options.constant_memory_budget) +
@@ -1643,7 +1646,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   for (const ast::GlobalDeclaration *global : initialization_plan.constants) {
     const ResolvedGlobal &resolved =
         globals.at(global_key(global->module_name, global->declaration.name));
-    if (global->declaration.is_constant || resolved.symbol.type.concrete != nullptr)
+    if (global->declaration.is_constant ||
+        resolved.symbol.type.concrete != nullptr)
       static_cast<void>(evaluate_global(
           global_key(global->module_name, global->declaration.name)));
   }
@@ -1662,9 +1666,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               const std::string local = global_key(assertion.module_name, name);
               if (globals.contains(local))
                 key = local;
-              else
-              if (const auto exported = public_globals.find(std::string{name});
-                  exported != public_globals.end())
+              else if (const auto exported =
+                           public_globals.find(std::string{name});
+                       exported != public_globals.end())
                 key = exported->second;
               else
                 return std::nullopt;
@@ -1676,39 +1680,50 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             const ast::GlobalDeclaration &target = *found->second.declaration;
             if (target.declaration.is_private &&
                 target.module_name != assertion.module_name)
-              throw CompileError{location, "global constant '" + key +
-                                               "' is private"};
+              throw CompileError{location,
+                                 "global constant '" + key + "' is private"};
             if (target.declaration.is_internal &&
                 target.module_name != assertion.module_name)
-              throw CompileError{location, "global constant '" + key +
-                                               "' is internal"};
-            const std::string spelling =
-                module.has_value() ? *module + "." + std::string{name}
-                                   : std::string{name};
+              throw CompileError{location,
+                                 "global constant '" + key + "' is internal"};
+            const std::string spelling = module.has_value()
+                                             ? *module + "." + std::string{name}
+                                             : std::string{name};
             if (!import_allows(assertion.module_name, target.module_name,
                                target.declaration.name, spelling))
-              throw CompileError{location, "global value '" + spelling +
-                                               "' is not imported in this module"};
+              throw CompileError{location,
+                                 "global value '" + spelling +
+                                     "' is not imported in this module"};
             return evaluate_global(key);
           },
           constant_constructor_resolver, evaluate_constant_function,
           &evaluation_budget);
       if (!std::get<bool>(condition.data))
-        throw CompileError{Diagnostic{
-            DiagnosticSeverity::Error, DiagnosticCode::Unclassified,
-            "static assertion failed" +
-                (assertion.message.has_value() ? ": " + *assertion.message
+        throw CompileError{Diagnostic{DiagnosticSeverity::Error,
+                                      DiagnosticCode::Unclassified,
+                                      "static assertion failed" +
+                                          (assertion.message.has_value()
+                                               ? ": " + *assertion.message
                                                : std::string{}),
-            assertion.location, {}, {}, {}, assertion.source_path}};
+                                      assertion.location,
+                                      {},
+                                      {},
+                                      {},
+                                      assertion.source_path}};
     } catch (const CompileError &error) {
       if (std::string_view{error.what()}.find("static assertion failed") !=
           std::string_view::npos)
         throw;
       throw CompileError{Diagnostic{
-          DiagnosticSeverity::Error, DiagnosticCode::Unclassified,
+          DiagnosticSeverity::Error,
+          DiagnosticCode::Unclassified,
           "static assertion condition is not a constant expression: " +
               std::string{error.what()},
-          assertion.location, {}, {}, {}, assertion.source_path}};
+          assertion.location,
+          {},
+          {},
+          {},
+          assertion.source_path}};
     }
   }
 
@@ -1983,7 +1998,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  implementation->name +
                                  "' has a signature incompatible with trait '" +
                                  trait_declaration.name + "'"};
-        if (implementation->is_consuming != required.is_consuming)
+        if (implementation->is_consuming != required.is_consuming ||
+            implementation->is_borrowing != required.is_borrowing)
           throw CompileError{
               implementation->location,
               "method '" + class_declaration.name + "." + implementation->name +
@@ -2025,9 +2041,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       implemented_type(implementation->return_type));
         for (std::size_t index = 0;
              compatible && index < required.parameters.size(); ++index)
-          compatible = same_type(
-              required_type(required.parameters[index].type),
-              implemented_type(implementation->parameters[index].type));
+          compatible = required.parameters[index].ownership ==
+                           implementation->parameters[index].ownership &&
+                       same_type(required_type(required.parameters[index].type),
+                                 implemented_type(
+                                     implementation->parameters[index].type));
         if (!compatible)
           throw CompileError{implementation->location,
                              "method '" + class_declaration.name + "." +
@@ -2231,7 +2249,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             Symbol{resolve_type(*field.declared_type, type_parameters,
                                 &class_arities, context_module,
                                 &scoped_type_aliases),
-                   field.is_mutable, true});
+                   field.is_mutable &&
+                       (is_destructor || !context.function->is_borrowing),
+                   true});
       }
       for (const ast::ValueDeclaration &field : owner->fields) {
         owner_field_names.insert(field.name);
@@ -2240,21 +2260,23 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             Symbol{resolve_type(*field.declared_type, type_parameters,
                                 &class_arities, context_module,
                                 &scoped_type_aliases),
-                   field.is_mutable, field.initializer.has_value()});
+                   field.is_mutable &&
+                       (is_destructor || !context.function->is_borrowing),
+                   field.initializer.has_value()});
       }
     }
     for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
       const SemanticType parameter_type =
           resolve_type(parameter.type, type_parameters, &class_arities,
                        context_module, &scoped_type_aliases);
-      if (parameter.ownership != ast::ParameterOwnership::Unspecified &&
+      if (parameter.ownership == ast::ParameterOwnership::Consume &&
           (is_destructor || !context.function->is_external))
         throw CompileError{
             parameter.location,
-            "borrow and consume parameter qualifiers are only supported on "
-            "external functions"};
+            "consume parameter qualifiers are only supported on external "
+            "functions"};
       if (parameter.ownership != ast::ParameterOwnership::Unspecified &&
-          !parameter_type.is_pointer())
+          context.function->is_external && !parameter_type.is_pointer())
         throw CompileError{
             parameter.location,
             "borrow and consume external parameters require a Ptr[T] type"};
@@ -2528,10 +2550,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> match_guard_protected_values;
     std::unordered_set<std::string> deferred_values;
     std::unordered_set<std::string> borrowed_values;
+    std::unordered_set<std::string> shared_borrow_values;
     std::unordered_map<std::string, std::unordered_set<std::string>>
         borrow_sources;
     const auto require_no_live_borrow = [&](std::string_view owner_name,
-                                            SourceLocation location) {
+                                            SourceLocation location,
+                                            std::string_view action =
+                                                "released") {
       const auto depends_on =
           [&](const auto &self, std::string_view candidate,
               std::string_view owner,
@@ -2549,6 +2574,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                            });
       };
       for (const auto &[borrower, sources] : borrow_sources) {
+        if (action != "released" && !shared_borrow_values.contains(borrower))
+          continue;
         const auto symbol = active_symbols->find(borrower);
         if (symbol == active_symbols->end() ||
             !symbol->second.may_be_initialized)
@@ -2562,8 +2589,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           continue;
         throw CompileError{location,
                            "owning value '" + std::string{owner_name} +
-                               "' cannot be released while borrowed by '" +
-                               borrower + "'"};
+                               "' cannot be " + std::string{action} +
+                               " while borrowed by '" + borrower + "'"};
       }
     };
     const auto require_guard_transfer_allowed =
@@ -2573,8 +2600,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (identifier != nullptr &&
               match_guard_protected_values.contains(identifier->name))
             throw CompileError{
-                location, "pattern binding '" + identifier->name +
-                              "' cannot be transferred or destroyed in a match guard"};
+                location,
+                "pattern binding '" + identifier->name +
+                    "' cannot be transferred or destroyed in a match guard"};
         };
     std::unordered_map<std::string, SourceLocation> local_declarations;
     std::unordered_set<std::size_t> warned_leak_locations;
@@ -2589,6 +2617,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           borrowed_values.insert(field.name);
           transfer_protected_values.insert(field.name);
         }
+    if (!is_destructor) {
+      for (const ast::FunctionDeclaration::Parameter &parameter : parameters)
+        if (parameter.ownership == ast::ParameterOwnership::Borrow) {
+          borrowed_values.insert(parameter.name);
+          shared_borrow_values.insert(parameter.name);
+          transfer_protected_values.insert(parameter.name);
+        }
+      if (owner != nullptr && context.function->is_borrowing) {
+        borrowed_values.insert("this");
+        shared_borrow_values.insert("this");
+        transfer_protected_values.insert("this");
+        for (const std::string &field : owner_field_names) {
+          borrowed_values.insert(field);
+          shared_borrow_values.insert(field);
+          transfer_protected_values.insert(field);
+        }
+      }
+    }
     const bool report_local_warnings = context_module == program.module_name;
     const auto emit_warning =
         [&](DiagnosticCode code, SourceLocation location, std::string message,
@@ -2683,11 +2729,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto captures_before = lambda_captures;
       const auto lambda_locations_before = local_lambda_locations;
       const auto inferred_calls_before = result.inferred_generic_arguments;
-      const std::optional<std::unordered_set<std::string>> active_captures_before =
-          active_lambda_captures_before == nullptr
-              ? std::nullopt
-              : std::optional<std::unordered_set<std::string>>{
-                    *active_lambda_captures_before};
+      const std::optional<std::unordered_set<std::string>>
+          active_captures_before =
+              active_lambda_captures_before == nullptr
+                  ? std::nullopt
+                  : std::optional<std::unordered_set<std::string>>{
+                        *active_lambda_captures_before};
       const auto restore = [&] {
         active_symbols = active_symbols_before;
         *active_symbols_before = symbols_before;
@@ -2816,209 +2863,198 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 "consume parameter '" + parameter.name +
                     "' requires an owning local or temporary, not a field"};
         };
-    const auto declared_call_type =
-        [&](const ast::FunctionDeclaration &callee,
-            const std::vector<ast::TypeReference> &type_arguments,
-            const std::vector<std::unique_ptr<ast::Expression>> &arguments,
-            SourceLocation location, std::string_view display_name,
-            const ast::Expression *expression_key) {
-          const bool infer_type_arguments = type_arguments.empty() &&
-                                            !callee.type_parameters.empty();
-          if (!infer_type_arguments &&
-              type_arguments.size() != callee.type_parameters.size())
-            throw CompileError{
-                location, "function '" + std::string{display_name} +
-                              "' expects " +
-                              std::to_string(callee.type_parameters.size()) +
-                              " type argument(s), got " +
-                              std::to_string(type_arguments.size())};
-          if ((!callee.is_variadic &&
-               arguments.size() != callee.parameters.size()) ||
-              (callee.is_variadic &&
-               arguments.size() < callee.parameters.size()))
-            throw CompileError{
-                location,
-                "function '" + std::string{display_name} + "' expects " +
-                    (callee.is_variadic ? "at least " : "") +
-                    std::to_string(callee.parameters.size()) +
-                    " argument(s), got " + std::to_string(arguments.size())};
+    const auto declared_call_type = [&](const ast::FunctionDeclaration &callee,
+                                        const std::vector<ast::TypeReference>
+                                            &type_arguments,
+                                        const std::vector<
+                                            std::unique_ptr<ast::Expression>>
+                                            &arguments,
+                                        SourceLocation location,
+                                        std::string_view display_name,
+                                        const ast::Expression *expression_key) {
+      const bool infer_type_arguments =
+          type_arguments.empty() && !callee.type_parameters.empty();
+      if (!infer_type_arguments &&
+          type_arguments.size() != callee.type_parameters.size())
+        throw CompileError{
+            location, "function '" + std::string{display_name} + "' expects " +
+                          std::to_string(callee.type_parameters.size()) +
+                          " type argument(s), got " +
+                          std::to_string(type_arguments.size())};
+      if ((!callee.is_variadic &&
+           arguments.size() != callee.parameters.size()) ||
+          (callee.is_variadic && arguments.size() < callee.parameters.size()))
+        throw CompileError{
+            location, "function '" + std::string{display_name} + "' expects " +
+                          (callee.is_variadic ? "at least " : "") +
+                          std::to_string(callee.parameters.size()) +
+                          " argument(s), got " +
+                          std::to_string(arguments.size())};
 
-          std::unordered_map<std::string, SemanticType> substitutions;
-          for (std::size_t index = 0; index < type_arguments.size(); ++index)
-            substitutions.emplace(callee.type_parameters[index],
-                                  resolve_type(type_arguments[index],
-                                               *active_type_parameters,
-                                               &class_arities));
-          const std::unordered_set<std::string> callee_parameters{
-              callee.type_parameters.begin(), callee.type_parameters.end()};
-          if (infer_type_arguments) {
-            const auto infer_from_type = [&](const auto &self,
-                                             const SemanticType &pattern,
-                                             const SemanticType &candidate)
-                -> void {
-              const bool type_parameter =
-                  !pattern.is_concrete() && !pattern.is_class() &&
-                  !pattern.is_pointer() && !pattern.is_enum() &&
-                  !pattern.is_function() &&
-                  callee_parameters.contains(pattern.parameter);
-              if (type_parameter) {
-                const auto [existing, inserted] =
-                    substitutions.emplace(pattern.parameter, candidate);
-                if (!inserted && !same_type(existing->second, candidate))
-                  throw CompileError{
-                      location, "generic type parameter '" + pattern.parameter +
-                                    "' has incompatible argument types"};
-                return;
-              }
-              const bool same_outer_type =
-                  pattern.concrete == candidate.concrete &&
-                  pattern.parameter == candidate.parameter &&
-                  pattern.class_type == candidate.class_type &&
-                  pattern.pointer_type == candidate.pointer_type &&
-                  pattern.enum_type == candidate.enum_type &&
-                  pattern.function_type == candidate.function_type &&
-                  pattern.type_arguments.size() ==
-                      candidate.type_arguments.size();
-              if (!same_outer_type)
-                return;
-              for (std::size_t index = 0;
-                   index < pattern.type_arguments.size(); ++index)
-                self(self, pattern.type_arguments[index],
-                     candidate.type_arguments[index]);
-            };
-            for (std::size_t index = 0;
-                 index < arguments.size() && index < callee.parameters.size();
-                 ++index) {
-              const SemanticType pattern =
-                  resolve_type(callee.parameters[index].type, callee_parameters,
-                               &class_arities);
-              const SemanticType candidate =
-                  speculative_expression_type(*arguments[index]);
-              infer_from_type(infer_from_type, pattern, candidate);
-            }
-            if (contextual_expression == expression_key &&
-                contextual_expected_type != nullptr) {
-              const SemanticType return_pattern =
-                  resolve_type(callee.return_type, callee_parameters,
-                               &class_arities);
-              infer_from_type(infer_from_type, return_pattern,
-                              *contextual_expected_type);
-            }
-            for (const std::string &parameter : callee.type_parameters)
-              if (!substitutions.contains(parameter))
-                throw CompileError{
-                    location, "generic type parameter '" + parameter +
-                                  "' is not constrained by call arguments; "
-                                  "help: add explicit type arguments"};
+      std::unordered_map<std::string, SemanticType> substitutions;
+      for (std::size_t index = 0; index < type_arguments.size(); ++index)
+        substitutions.emplace(callee.type_parameters[index],
+                              resolve_type(type_arguments[index],
+                                           *active_type_parameters,
+                                           &class_arities));
+      const std::unordered_set<std::string> callee_parameters{
+          callee.type_parameters.begin(), callee.type_parameters.end()};
+      if (infer_type_arguments) {
+        const auto infer_from_type =
+            [&](const auto &self, const SemanticType &pattern,
+                const SemanticType &candidate) -> void {
+          const bool type_parameter =
+              !pattern.is_concrete() && !pattern.is_class() &&
+              !pattern.is_pointer() && !pattern.is_enum() &&
+              !pattern.is_function() &&
+              callee_parameters.contains(pattern.parameter);
+          if (type_parameter) {
+            const auto [existing, inserted] =
+                substitutions.emplace(pattern.parameter, candidate);
+            if (!inserted && !same_type(existing->second, candidate))
+              throw CompileError{
+                  location, "generic type parameter '" + pattern.parameter +
+                                "' has incompatible argument types"};
+            return;
           }
-          for (const ast::TypeConstraint &constraint :
-               callee.type_constraints) {
-            const SemanticType &candidate =
-                substitutions.at(constraint.parameter);
-            if (const auto kind = derivation_constraint(constraint.trait.name);
-                kind.has_value() && constraint.trait.type_arguments.empty()) {
-              const bool satisfies =
-                  *kind == ast::DerivationKind::Copy
-                      ? satisfies_copy(candidate)
-                      : supports_derivation(candidate, *kind);
-              if (!satisfies)
-                throw CompileError{location,
-                                   "type '" + candidate.name() +
-                                       "' does not satisfy constraint '" +
-                                       constraint.trait.name +
-                                       "' for "
-                                       "type parameter '" +
-                                       constraint.parameter + "'"};
-              continue;
-            }
-            TraitInstance requirement =
-                resolve_trait(constraint.trait, callee_parameters);
-            for (SemanticType &argument : requirement.type_arguments)
-              argument = substitute(std::move(argument), substitutions);
-            if (!satisfies_active_trait(candidate, requirement))
-              throw CompileError{location,
-                                 "type '" + candidate.name() +
-                                     "' does not satisfy constraint '" +
-                                     requirement.declaration->name +
-                                     "' for type parameter '" +
-                                     constraint.parameter + "'"};
-          }
-          for (std::size_t index = 0; index < arguments.size(); ++index) {
-            if (index >= callee.parameters.size()) {
-              const SemanticType argument_type =
-                  expression_type(*arguments[index]);
-              if (!is_c_variadic_type(argument_type))
-                throw CompileError{
-                    expression_location(*arguments[index]),
-                    "variadic C argument has incompatible type '" +
-                        argument_type.name() + "'"};
-              if (callee.is_external &&
-                  !is_borrowed_pointer_expression(*arguments[index]) &&
-                  (argument_type.is_pointer() ||
-                   potentially_owns_value(argument_type)))
-                emit_warning(
-                    DiagnosticCode::AnalyzerUnannotatedExternOwnership,
-                    expression_location(*arguments[index]),
-                    "external variadic call receives value of type '" +
-                        argument_type.name() +
-                        "' without a verifiable ownership contract",
-                    {"document whether native code borrows, retains, or "
-                     "releases this value"});
-              continue;
-            }
-            SemanticType expected =
-                resolve_type(callee.parameters[index].type, callee_parameters,
-                             &class_arities);
-            expected = substitute(std::move(expected), substitutions);
-            const bool observes_owned_enum =
-                index == 0 &&
-                ((callee.module_name ==
-                      std::optional<std::string>{"std.option"} &&
-                  (callee.name == "isSome" || callee.name == "isNone")) ||
-                 (callee.module_name ==
-                      std::optional<std::string>{"std.result"} &&
-                  (callee.name == "isOk" || callee.name == "isError")));
-            const bool previous_contextual_borrow_expression =
-                contextual_borrow_expression;
-            const std::string_view previous_contextual_borrow_enum_name =
-                contextual_borrow_enum_name;
-            contextual_borrow_expression = observes_owned_enum;
-            contextual_borrow_enum_name =
-                callee.module_name == std::optional<std::string>{"std.option"}
-                    ? "Option"
-                    : "Result";
-            validate_expression(*arguments[index], expected,
-                                expression_location(*arguments[index]));
-            apply_external_ownership_contract(callee, callee.parameters[index],
-                                              *arguments[index], expected,
-                                              display_name);
-            contextual_borrow_expression =
-                previous_contextual_borrow_expression;
-            contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
-          }
-          if (infer_type_arguments) {
-            std::vector<SemanticType> inferred;
-            inferred.reserve(callee.type_parameters.size());
-            for (const std::string &parameter : callee.type_parameters)
-              inferred.push_back(substitutions.at(parameter));
-            result.inferred_generic_arguments.insert_or_assign(
-                expression_key, std::move(inferred));
-          }
-          SemanticType call_return =
-              substitute(resolve_type(callee.return_type, callee_parameters,
-                                      &class_arities),
-                         substitutions);
-          if (callee.is_external && call_return.is_pointer() &&
-              callee.return_ownership == ast::ReturnOwnership::Unspecified &&
-              warned_unannotated_return_locations.insert(location.offset).second)
-            emit_warning(
-                DiagnosticCode::AnalyzerUnannotatedExternReturn, location,
-                "external function '" + std::string{display_name} +
-                    "' returns a pointer without a borrow or owned ownership "
-                    "qualifier",
-                {"declare this external return as borrow or owned"});
-          return call_return;
+          const bool same_outer_type =
+              pattern.concrete == candidate.concrete &&
+              pattern.parameter == candidate.parameter &&
+              pattern.class_type == candidate.class_type &&
+              pattern.pointer_type == candidate.pointer_type &&
+              pattern.enum_type == candidate.enum_type &&
+              pattern.function_type == candidate.function_type &&
+              pattern.type_arguments.size() == candidate.type_arguments.size();
+          if (!same_outer_type)
+            return;
+          for (std::size_t index = 0; index < pattern.type_arguments.size();
+               ++index)
+            self(self, pattern.type_arguments[index],
+                 candidate.type_arguments[index]);
         };
+        for (std::size_t index = 0;
+             index < arguments.size() && index < callee.parameters.size();
+             ++index) {
+          const SemanticType pattern = resolve_type(
+              callee.parameters[index].type, callee_parameters, &class_arities);
+          const SemanticType candidate =
+              speculative_expression_type(*arguments[index]);
+          infer_from_type(infer_from_type, pattern, candidate);
+        }
+        if (contextual_expression == expression_key &&
+            contextual_expected_type != nullptr) {
+          const SemanticType return_pattern = resolve_type(
+              callee.return_type, callee_parameters, &class_arities);
+          infer_from_type(infer_from_type, return_pattern,
+                          *contextual_expected_type);
+        }
+        for (const std::string &parameter : callee.type_parameters)
+          if (!substitutions.contains(parameter))
+            throw CompileError{location,
+                               "generic type parameter '" + parameter +
+                                   "' is not constrained by call arguments; "
+                                   "help: add explicit type arguments"};
+      }
+      for (const ast::TypeConstraint &constraint : callee.type_constraints) {
+        const SemanticType &candidate = substitutions.at(constraint.parameter);
+        if (const auto kind = derivation_constraint(constraint.trait.name);
+            kind.has_value() && constraint.trait.type_arguments.empty()) {
+          const bool satisfies = *kind == ast::DerivationKind::Copy
+                                     ? satisfies_copy(candidate)
+                                     : supports_derivation(candidate, *kind);
+          if (!satisfies)
+            throw CompileError{location, "type '" + candidate.name() +
+                                             "' does not satisfy constraint '" +
+                                             constraint.trait.name +
+                                             "' for "
+                                             "type parameter '" +
+                                             constraint.parameter + "'"};
+          continue;
+        }
+        TraitInstance requirement =
+            resolve_trait(constraint.trait, callee_parameters);
+        for (SemanticType &argument : requirement.type_arguments)
+          argument = substitute(std::move(argument), substitutions);
+        if (!satisfies_active_trait(candidate, requirement))
+          throw CompileError{location, "type '" + candidate.name() +
+                                           "' does not satisfy constraint '" +
+                                           requirement.declaration->name +
+                                           "' for type parameter '" +
+                                           constraint.parameter + "'"};
+      }
+      for (std::size_t index = 0; index < arguments.size(); ++index) {
+        if (index >= callee.parameters.size()) {
+          const SemanticType argument_type = expression_type(*arguments[index]);
+          if (!is_c_variadic_type(argument_type))
+            throw CompileError{expression_location(*arguments[index]),
+                               "variadic C argument has incompatible type '" +
+                                   argument_type.name() + "'"};
+          if (callee.is_external &&
+              !is_borrowed_pointer_expression(*arguments[index]) &&
+              (argument_type.is_pointer() ||
+               potentially_owns_value(argument_type)))
+            emit_warning(DiagnosticCode::AnalyzerUnannotatedExternOwnership,
+                         expression_location(*arguments[index]),
+                         "external variadic call receives value of type '" +
+                             argument_type.name() +
+                             "' without a verifiable ownership contract",
+                         {"document whether native code borrows, retains, or "
+                          "releases this value"});
+          continue;
+        }
+        SemanticType expected = resolve_type(callee.parameters[index].type,
+                                             callee_parameters, &class_arities);
+        expected = substitute(std::move(expected), substitutions);
+        const bool observes_owned_enum =
+            index == 0 &&
+            ((callee.module_name == std::optional<std::string>{"std.option"} &&
+              (callee.name == "isSome" || callee.name == "isNone")) ||
+             (callee.module_name == std::optional<std::string>{"std.result"} &&
+              (callee.name == "isOk" || callee.name == "isError")));
+        const bool previous_contextual_borrow_expression =
+            contextual_borrow_expression;
+        const std::string_view previous_contextual_borrow_enum_name =
+            contextual_borrow_enum_name;
+        contextual_borrow_expression =
+            observes_owned_enum || callee.parameters[index].ownership ==
+                                       ast::ParameterOwnership::Borrow;
+        contextual_borrow_enum_name =
+            !observes_owned_enum
+                ? std::string_view{}
+                : (callee.module_name ==
+                           std::optional<std::string>{"std.option"}
+                       ? std::string_view{"Option"}
+                       : std::string_view{"Result"});
+        validate_expression(*arguments[index], expected,
+                            expression_location(*arguments[index]));
+        apply_external_ownership_contract(callee, callee.parameters[index],
+                                          *arguments[index], expected,
+                                          display_name);
+        contextual_borrow_expression = previous_contextual_borrow_expression;
+        contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
+      }
+      if (infer_type_arguments) {
+        std::vector<SemanticType> inferred;
+        inferred.reserve(callee.type_parameters.size());
+        for (const std::string &parameter : callee.type_parameters)
+          inferred.push_back(substitutions.at(parameter));
+        result.inferred_generic_arguments.insert_or_assign(expression_key,
+                                                           std::move(inferred));
+      }
+      SemanticType call_return = substitute(
+          resolve_type(callee.return_type, callee_parameters, &class_arities),
+          substitutions);
+      if (callee.is_external && call_return.is_pointer() &&
+          callee.return_ownership == ast::ReturnOwnership::Unspecified &&
+          warned_unannotated_return_locations.insert(location.offset).second)
+        emit_warning(
+            DiagnosticCode::AnalyzerUnannotatedExternReturn, location,
+            "external function '" + std::string{display_name} +
+                "' returns a pointer without a borrow or owned ownership "
+                "qualifier",
+            {"declare this external return as borrow or owned"});
+      return call_return;
+    };
     const auto class_substitutions =
         [](const ast::ClassDeclaration &class_declaration,
            const SemanticType &instance) {
@@ -3062,13 +3098,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       contextual_expression = previous_contextual_expression;
       contextual_expected_type = previous_contextual_expected_type;
       if (same_type(actual, expected)) {
-        if (contextual_borrow_expression && aggregate_owns_value(actual) &&
+        if (contextual_borrow_expression && !actual.is_pointer() &&
+            aggregate_owns_value(actual) &&
             !std::holds_alternative<ast::IdentifierExpression>(
                 expression.value))
-          throw CompileError{location,
-                             "observing an owning " +
-                                 std::string{contextual_borrow_enum_name} +
-                                 " requires a local value"};
+          throw CompileError{
+              location, contextual_borrow_enum_name.empty()
+                            ? "borrowing an owning value of type '" +
+                                  actual.name() + "' requires a local value"
+                            : "observing an owning " +
+                                  std::string{contextual_borrow_enum_name} +
+                                  " requires a local value"};
         if (const auto *identifier =
                 std::get_if<ast::IdentifierExpression>(&expression.value);
             identifier != nullptr &&
@@ -3173,7 +3213,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             } else if constexpr (std::is_same_v<Node,
                                                 ast::DoubleLiteralExpression>) {
               return SemanticType{node.is_float ? &Type::float_type()
-                                                : &Type::double_type(), {}};
+                                                : &Type::double_type(),
+                                  {}};
             } else if constexpr (std::is_same_v<
                                      Node, ast::CharacterLiteralExpression>) {
               return SemanticType{&Type::char_type(), {}};
@@ -3208,9 +3249,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 element_type = contextual_expected_type->type_arguments.front();
               } else {
                 if (node.elements.empty())
-                  throw CompileError{DiagnosticCode::AnalyzerInvalidArrayLiteral,
-                                     node.location,
-                                     "empty array literal requires an explicit Array[T] type"};
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerInvalidArrayLiteral,
+                      node.location,
+                      "empty array literal requires an explicit Array[T] type"};
                 element_type = expression_type(*node.elements.front());
               }
               for (const auto &element : node.elements) {
@@ -3224,16 +3266,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 try {
                   validate_expression(*element, element_type, node.location);
                 } catch (const CompileError &error) {
-                  throw CompileError{DiagnosticCode::AnalyzerInvalidArrayLiteral,
-                                     expression_location(*element), error.what()};
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerInvalidArrayLiteral,
+                      expression_location(*element), error.what()};
                 }
               }
               result.inferred_generic_arguments.insert_or_assign(
                   &expression, std::vector<SemanticType>{element_type});
               if (has_contextual_array_type)
                 return *contextual_expected_type;
-              return SemanticType{nullptr, array_class->first, true,
-                                  {element_type}};
+              return SemanticType{
+                  nullptr, array_class->first, true, {element_type}};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::IdentifierExpression>) {
               const auto iterator = active_symbols->find(node.name);
@@ -3602,7 +3645,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     std::get_if<ast::IdentifierExpression>(
                         &node.arguments[0]->value);
                 require_guard_transfer_allowed(
-                    *node.arguments[0], expression_location(*node.arguments[0]));
+                    *node.arguments[0],
+                    expression_location(*node.arguments[0]));
                 if (owner_identifier == nullptr ||
                     !active_symbols->contains(owner_identifier->name))
                   throw CompileError{
@@ -3706,7 +3750,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   throw CompileError{
                       node.location,
                       policy + " expects one destination type and one "
-                      "value argument"};
+                               "value argument"};
                 SemanticType destination_type = resolve_type(
                     node.type_arguments.front(), *active_type_parameters,
                     &class_arities, context_module, &scoped_type_aliases);
@@ -3722,8 +3766,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (!destination_type.is_concrete())
                   throw CompileError{
                       node.location,
-                      policy +
-                          " requires a concrete numeric destination type"};
+                      policy + " requires a concrete numeric destination type"};
                 const bool destination_numeric =
                     destination_type.concrete->is_integer() ||
                     destination_type.concrete->is_floating_point();
@@ -3736,7 +3779,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           ? "numericCast requires compatible numeric source "
                             "and destination types"
                           : policy + " requires numeric source and "
-                                         "destination types"};
+                                     "destination types"};
                 if (policy == "checkedCast") {
                   const auto error_iterator = find_in_context(
                       enums, context_module, "NumericCastError");
@@ -3756,7 +3799,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                             if (symbol.name == declaration.name)
                               return symbol.alias.value_or(symbol.name);
                           if (import.module_alias.has_value())
-                            return *import.module_alias + "." + declaration.name;
+                            return *import.module_alias + "." +
+                                   declaration.name;
                           if (!import.is_qualified() && !import.is_selective())
                             return declaration.name;
                         }
@@ -3772,7 +3816,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           : visible_type_name(*result_iterator->second);
                   ast::TypeReference error_type{error_name, node.location, {}};
                   ast::TypeReference result_type{
-                      result_name, node.location,
+                      result_name,
+                      node.location,
                       {node.type_arguments.front(), error_type}};
                   SemanticType resolved_result = resolve_type(
                       result_type, *active_type_parameters, &class_arities,
@@ -3787,7 +3832,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         });
                   };
                   constexpr std::array<std::string_view, 6> error_cases{
-                      "Overflow", "Underflow", "IncompatibleSign",
+                      "Overflow",  "Underflow",      "IncompatibleSign",
                       "NonFinite", "FractionalLoss", "PrecisionLoss"};
                   if (error_iterator == enums.end() ||
                       error_iterator->second->type_parameters.size() != 0 ||
@@ -3796,7 +3841,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           [&](std::string_view name) {
                             const auto item =
                                 find_case(*error_iterator->second, name);
-                            return item == error_iterator->second->cases.end() ||
+                            return item ==
+                                       error_iterator->second->cases.end() ||
                                    !item->payload_types.empty();
                           }))
                     throw CompileError{
@@ -3805,9 +3851,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "payload-free Overflow, Underflow, IncompatibleSign, "
                         "NonFinite, FractionalLoss and PrecisionLoss cases"};
 
-                  bool valid_result = result_iterator != enums.end() &&
-                                      result_iterator->second->type_parameters.size() ==
-                                          2;
+                  bool valid_result =
+                      result_iterator != enums.end() &&
+                      result_iterator->second->type_parameters.size() == 2;
                   if (valid_result) {
                     const ast::EnumDeclaration &declaration =
                         *result_iterator->second;
@@ -3988,12 +4034,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               const std::unordered_set<std::string> class_parameters{
                   class_declaration.type_parameters.begin(),
                   class_declaration.type_parameters.end()};
-              const bool infer_type_arguments = node.type_arguments.empty() &&
-                                                !class_parameters.empty();
+              const bool infer_type_arguments =
+                  node.type_arguments.empty() && !class_parameters.empty();
               SemanticType instance_type;
               if (infer_type_arguments) {
                 std::vector<ast::TypeReference> symbolic_arguments;
-                symbolic_arguments.reserve(class_declaration.type_parameters.size());
+                symbolic_arguments.reserve(
+                    class_declaration.type_parameters.size());
                 for (const std::string &parameter :
                      class_declaration.type_parameters)
                   symbolic_arguments.push_back(
@@ -4004,10 +4051,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     class_parameters, &class_arities, context_module,
                     &scoped_type_aliases);
                 std::unordered_map<std::string, SemanticType> inferred;
-                const auto infer_from_type = [&](const auto &self,
-                                                 const SemanticType &pattern,
-                                                 const SemanticType &candidate)
-                    -> void {
+                const auto infer_from_type =
+                    [&](const auto &self, const SemanticType &pattern,
+                        const SemanticType &candidate) -> void {
                   const bool type_parameter =
                       !pattern.is_concrete() && !pattern.is_class() &&
                       !pattern.is_pointer() && !pattern.is_enum() &&
@@ -4047,8 +4093,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           : *class_declaration
                                  .constructor_fields[index - parameter_count]
                                  .declared_type;
-                  const SemanticType pattern = resolve_type(
-                      reference, class_parameters, &class_arities);
+                  const SemanticType pattern =
+                      resolve_type(reference, class_parameters, &class_arities);
                   const SemanticType candidate =
                       speculative_expression_type(*node.arguments[index]);
                   infer_from_type(infer_from_type, pattern, candidate);
@@ -4259,10 +4305,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (!import_allows(
                         context_module, global->declaration->module_name,
                         global->declaration->declaration.name, spelling))
-                  throw CompileError{
-                      node.location,
-                      "global value '" + spelling +
-                          "' is not imported in this module"};
+                  throw CompileError{node.location,
+                                     "global value '" + spelling +
+                                         "' is not imported in this module"};
                 result.qualified_global_reads.insert_or_assign(
                     &node, global_key(global->declaration->module_name,
                                       global->declaration->declaration.name));
@@ -4346,10 +4391,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     throw CompileError{node.location,
                                        "function '" + qualified +
                                            "' is not imported in this module"};
-                  return declared_call_type(*function->second,
-                                            node.type_arguments, node.arguments,
-                                            node.location, qualified,
-                                            &expression);
+                  return declared_call_type(
+                      *function->second, node.type_arguments, node.arguments,
+                      node.location, qualified, &expression);
                 }
               }
               const auto enum_name = qualified_expression_name(*node.object);
@@ -4388,8 +4432,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 const std::unordered_set<std::string> enum_parameters{
                     enum_declaration.type_parameters.begin(),
                     enum_declaration.type_parameters.end()};
-                const bool infer_type_arguments = node.type_arguments.empty() &&
-                                                  !enum_parameters.empty();
+                const bool infer_type_arguments =
+                    node.type_arguments.empty() && !enum_parameters.empty();
                 SemanticType instance_type;
                 std::unordered_map<std::string, SemanticType> substitutions;
                 if (infer_type_arguments) {
@@ -4405,10 +4449,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          std::move(symbolic_arguments)},
                       enum_parameters, &class_arities, context_module,
                       &scoped_type_aliases);
-                  const auto infer_from_type = [&](const auto &self,
-                                                   const SemanticType &pattern,
-                                                   const SemanticType &candidate)
-                      -> void {
+                  const auto infer_from_type =
+                      [&](const auto &self, const SemanticType &pattern,
+                          const SemanticType &candidate) -> void {
                     const bool type_parameter =
                         !pattern.is_concrete() && !pattern.is_class() &&
                         !pattern.is_pointer() && !pattern.is_enum() &&
@@ -4442,9 +4485,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   };
                   for (std::size_t index = 0; index < node.arguments.size();
                        ++index) {
-                    const SemanticType pattern = resolve_type(
-                        enum_case->payload_types[index], enum_parameters,
-                        &class_arities);
+                    const SemanticType pattern =
+                        resolve_type(enum_case->payload_types[index],
+                                     enum_parameters, &class_arities);
                     const SemanticType candidate =
                         speculative_expression_type(*node.arguments[index]);
                     infer_from_type(infer_from_type, pattern, candidate);
@@ -4471,11 +4514,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       &expression, ordered_arguments);
                   instance_type = substitute(instance_pattern, substitutions);
                 } else {
-                  instance_type = resolve_type(
-                      ast::TypeReference{*enum_name, node.location,
-                                         node.type_arguments},
-                      *active_type_parameters, &class_arities, context_module,
-                      &scoped_type_aliases);
+                  instance_type =
+                      resolve_type(ast::TypeReference{*enum_name, node.location,
+                                                      node.type_arguments},
+                                   *active_type_parameters, &class_arities,
+                                   context_module, &scoped_type_aliases);
                   for (std::size_t index = 0;
                        index < enum_declaration.type_parameters.size(); ++index)
                     substitutions.emplace(
@@ -4518,6 +4561,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 if (node.method == "store" || node.method == "initialize" ||
                     node.method == "overwrite") {
+                  if (const auto *identifier =
+                          std::get_if<ast::IdentifierExpression>(
+                              &node.object->value))
+                    require_no_live_borrow(identifier->name, node.location,
+                                           "mutated");
+                  if (const auto *identifier =
+                          std::get_if<ast::IdentifierExpression>(
+                              &node.object->value);
+                      identifier != nullptr &&
+                      shared_borrow_values.contains(identifier->name))
+                    throw CompileError{node.location,
+                                       "cannot mutate through shared borrow '" +
+                                           identifier->name + "'"};
                   if (node.arguments.size() != 2)
                     throw CompileError{node.location,
                                        "Ptr." + node.method +
@@ -4612,6 +4668,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                             ? class_declaration->name
                                             : trait_declaration->name) +
                                        "' has no method '" + node.method + "'"};
+              if (const auto *identifier =
+                      std::get_if<ast::IdentifierExpression>(
+                          &node.object->value);
+                  identifier != nullptr &&
+                  shared_borrow_values.contains(identifier->name) &&
+                  !method->is_borrowing)
+                throw CompileError{node.location,
+                                   "shared borrow '" + identifier->name +
+                                       "' can only call a borrow method"};
+              if (!method->is_borrowing)
+                if (const auto *identifier =
+                        std::get_if<ast::IdentifierExpression>(
+                            &node.object->value))
+                  require_no_live_borrow(identifier->name, node.location,
+                                         "mutated");
               if (class_declaration != nullptr && method->is_private &&
                   (owner == nullptr || owner->name != class_declaration->name))
                 throw CompileError{node.location,
@@ -4694,8 +4765,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               }
               method_parameters.insert(method->type_parameters.begin(),
                                        method->type_parameters.end());
-              for (std::size_t index = 0;
-                   index < node.type_arguments.size(); ++index) {
+              for (std::size_t index = 0; index < node.type_arguments.size();
+                   ++index) {
                 SemanticType argument =
                     resolve_type(node.type_arguments[index],
                                  *active_type_parameters, &class_arities);
@@ -4706,10 +4777,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                       std::move(argument));
               }
               if (infer_method_type_arguments) {
-                const auto infer_from_type = [&](const auto &self,
-                                                 const SemanticType &pattern,
-                                                 const SemanticType &candidate)
-                    -> void {
+                const auto infer_from_type =
+                    [&](const auto &self, const SemanticType &pattern,
+                        const SemanticType &candidate) -> void {
                   const bool type_parameter =
                       !pattern.is_concrete() && !pattern.is_class() &&
                       !pattern.is_pointer() && !pattern.is_enum() &&
@@ -4721,8 +4791,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   if (type_parameter) {
                     const auto [existing, inserted] =
                         substitutions.emplace(pattern.parameter, candidate);
-                    if (!inserted &&
-                        !same_type(existing->second, candidate))
+                    if (!inserted && !same_type(existing->second, candidate))
                       throw CompileError{
                           node.location,
                           "generic type parameter '" + pattern.parameter +
@@ -4757,9 +4826,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 if (contextual_expression == &expression &&
                     contextual_expected_type != nullptr) {
-                  SemanticType return_pattern =
-                      resolve_type(method->return_type, method_parameters,
-                                   &class_arities);
+                  SemanticType return_pattern = resolve_type(
+                      method->return_type, method_parameters, &class_arities);
                   return_pattern =
                       substitute(std::move(return_pattern), substitutions);
                   infer_from_type(infer_from_type, return_pattern,
@@ -4898,12 +4966,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "bounded lambda literal"};
                 const bool previous_contextual_borrow =
                     contextual_borrow_lambda_parameters;
+                const bool previous_contextual_borrow_expression =
+                    contextual_borrow_expression;
                 contextual_borrow_lambda_parameters = observes_owned_callback;
+                contextual_borrow_expression =
+                    method->parameters[index].ownership ==
+                    ast::ParameterOwnership::Borrow;
                 validate_expression(
                     *node.arguments[index], substituted_expected,
                     expression_location(*node.arguments[index]));
                 contextual_borrow_lambda_parameters =
                     previous_contextual_borrow;
+                contextual_borrow_expression =
+                    previous_contextual_borrow_expression;
               }
               if (method->is_consuming) {
                 require_guard_transfer_allowed(*node.object, node.location);
@@ -5024,13 +5099,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "match requires at least one case"};
 
               const ast::EnumDeclaration *enum_declaration =
-                  scrutinee_type.is_enum()
-                      ? enums.at(scrutinee_type.parameter)
-                      : nullptr;
+                  scrutinee_type.is_enum() ? enums.at(scrutinee_type.parameter)
+                                           : nullptr;
               std::unordered_map<std::string, SemanticType> substitutions;
               for (std::size_t index = 0;
                    enum_declaration != nullptr &&
-                   index < enum_declaration->type_parameters.size(); ++index) {
+                   index < enum_declaration->type_parameters.size();
+                   ++index) {
                 substitutions.emplace(enum_declaration->type_parameters[index],
                                       scrutinee_type.type_arguments[index]);
               }
@@ -5050,8 +5125,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               std::optional<SemanticType> result_type;
               for (const ast::MatchExpression::Arm &arm : node.arms) {
                 if (wildcard_handled)
-                  throw CompileError{arm.location,
-                                     "match arm is unreachable after wildcard pattern"};
+                  throw CompileError{
+                      arm.location,
+                      "match arm is unreachable after wildcard pattern"};
                 const ast::EnumDeclaration::Case *enum_case = nullptr;
                 if (enum_declaration != nullptr && !arm.is_wildcard &&
                     !arm.case_name.empty()) {
@@ -5062,15 +5138,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         return candidate.name == arm.case_name;
                       });
                   if (found == enum_declaration->cases.end())
-                    throw CompileError{arm.location, "enum '" +
-                                                         enum_declaration->name +
-                                                         "' has no case '" +
-                                                         arm.case_name + "'"};
+                    throw CompileError{arm.location,
+                                       "enum '" + enum_declaration->name +
+                                           "' has no case '" + arm.case_name +
+                                           "'"};
                   enum_case = &*found;
                   if (matched_cases.contains(arm.case_name))
-                    throw CompileError{arm.location, "match case '" +
-                                                         arm.case_name +
-                                                         "' is already handled"};
+                    throw CompileError{arm.location,
+                                       "match case '" + arm.case_name +
+                                           "' is already handled"};
                   if (!arm.guard)
                     matched_cases.insert(arm.case_name);
                 } else if (enum_declaration != nullptr && !arm.is_wildcard) {
@@ -5078,8 +5154,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      "enum matches require enum case patterns"};
                 } else if (enum_declaration == nullptr && !arm.is_wildcard &&
                            arm.literal == nullptr) {
-                  throw CompileError{arm.location,
-                                     "literal match requires a literal or '_' pattern"};
+                  throw CompileError{
+                      arm.location,
+                      "literal match requires a literal or '_' pattern"};
                 }
                 if (enum_case != nullptr &&
                     arm.bindings.size() != enum_case->payload_types.size())
@@ -5096,8 +5173,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           const auto &self) -> bool {
                     return std::visit(
                         [&](const auto &literal_node) -> bool {
-                          using Literal =
-                              std::decay_t<decltype(literal_node)>;
+                          using Literal = std::decay_t<decltype(literal_node)>;
                           if constexpr (
                               std::is_same_v<Literal,
                                              ast::IntegerLiteralExpression> ||
@@ -5115,9 +5191,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                  ast::CallExpression>) {
                             static const std::unordered_set<std::string>
                                 literal_conversions{
-                                    "byte",  "ubyte", "short", "ushort",
-                                    "int",   "uint",  "long",  "ulong",
-                                    "isize", "usize", "char",  "bool",
+                                    "byte",   "ubyte", "short", "ushort",
+                                    "int",    "uint",  "long",  "ulong",
+                                    "isize",  "usize", "char",  "bool",
                                     "string", "float", "double"};
                             if (!literal_conversions.contains(
                                     literal_node.callee) ||
@@ -5125,8 +5201,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               return false;
                             return self(*literal_node.arguments.front(), self);
                           } else if constexpr (std::is_same_v<
-                                                 Literal,
-                                                 ast::UnaryExpression>) {
+                                                   Literal,
+                                                   ast::UnaryExpression>) {
                             return literal_node.operation ==
                                        ast::UnaryOperator::Negate &&
                                    self(*literal_node.operand, self);
@@ -5138,13 +5214,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   if (!is_literal_pattern(*arm.literal, is_literal_pattern))
                     throw CompileError{arm.location,
                                        "match pattern must be a literal"};
-                  const SemanticType literal_type = expression_type(*arm.literal);
+                  const SemanticType literal_type =
+                      expression_type(*arm.literal);
                   if (!same_type(literal_type, scrutinee_type))
-                    throw CompileError{
-                        arm.location, "literal pattern type '" +
-                                          literal_type.name() +
-                                          "' does not match scrutinee type '" +
-                                          scrutinee_type.name() + "'"};
+                    throw CompileError{arm.location,
+                                       "literal pattern type '" +
+                                           literal_type.name() +
+                                           "' does not match scrutinee type '" +
+                                           scrutinee_type.name() + "'"};
                   const constant::Value literal_value = constant::evaluate(
                       *arm.literal, scrutinee_type.concrete,
                       [](const std::optional<std::string> &, std::string_view,
@@ -5163,13 +5240,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   const auto previous_spelling =
                       matched_literal_spellings.find(key);
                   if (arm.guard && matched_literals.contains(key))
-                    throw CompileError{arm.location, "literal pattern '" +
-                                                         previous_spelling->second +
-                                                         "' is already handled"};
+                    throw CompileError{arm.location,
+                                       "literal pattern '" +
+                                           previous_spelling->second +
+                                           "' is already handled"};
                   if (!arm.guard && !matched_literals.insert(key).second)
-                    throw CompileError{arm.location, "literal pattern '" +
-                                                         previous_spelling->second +
-                                                         "' is already handled"};
+                    throw CompileError{arm.location,
+                                       "literal pattern '" +
+                                           previous_spelling->second +
+                                           "' is already handled"};
                   if (!arm.guard) {
                     matched_literal_spellings.emplace(key, spelling);
                     if (const auto *boolean =
@@ -5219,9 +5298,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   }
                   if (!guard_type.is_concrete() ||
                       guard_type.concrete->kind() != TypeKind::Bool)
-                    throw CompileError{arm.location,
-                                       "match guard must have type 'bool', got '" +
-                                           guard_type.name() + "'"};
+                    throw CompileError{
+                        arm.location,
+                        "match guard must have type 'bool', got '" +
+                            guard_type.name() + "'"};
                 }
                 const SemanticType arm_type = expression_type(*arm.expression);
                 transfer_protected_values = arm_transfer_protected;
@@ -5244,14 +5324,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               }
               std::string missing_cases;
               if (enum_declaration != nullptr && !wildcard_handled)
-              for (const ast::EnumDeclaration::Case &enum_case :
-                   enum_declaration->cases) {
-                if (matched_cases.contains(enum_case.name))
-                  continue;
-                if (!missing_cases.empty())
-                  missing_cases += ", ";
-                missing_cases += enum_case.name;
-              }
+                for (const ast::EnumDeclaration::Case &enum_case :
+                     enum_declaration->cases) {
+                  if (matched_cases.contains(enum_case.name))
+                    continue;
+                  if (!missing_cases.empty())
+                    missing_cases += ", ";
+                  missing_cases += enum_case.name;
+                }
               if (!missing_cases.empty())
                 throw CompileError{node.location,
                                    "non-exhaustive match for enum '" +
@@ -5261,8 +5341,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   !(scrutinee_type.is_concrete() &&
                     scrutinee_type.concrete->kind() == TypeKind::Bool &&
                     true_handled && false_handled))
-                throw CompileError{node.location, "non-exhaustive match for type '" +
-                                                      scrutinee_type.name() + "'"};
+                throw CompileError{node.location,
+                                   "non-exhaustive match for type '" +
+                                       scrutinee_type.name() + "'"};
               transfer_protected_values = previous_transfer_protected;
               return *result_type;
             } else if constexpr (std::is_same_v<Node, ast::MoveExpression>) {
@@ -5275,6 +5356,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 throw CompileError{node.location, "borrowed value '" +
                                                       identifier->name +
                                                       "' cannot be moved"};
+              require_no_live_borrow(identifier->name, node.location);
               require_guard_transfer_allowed(*node.operand, node.location);
               if (transfer_protected_values.contains(identifier->name))
                 throw CompileError{
@@ -5408,24 +5490,29 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   node.operation == ast::BinaryOperator::ShiftLeft ||
                   node.operation == ast::BinaryOperator::ShiftRight;
               SemanticType right_type;
-              if (is_shift && std::holds_alternative<ast::IntegerLiteralExpression>(
-                                  node.right->value)) {
+              if (is_shift &&
+                  std::holds_alternative<ast::IntegerLiteralExpression>(
+                      node.right->value)) {
                 if (!integer_literal_fits(*node.right, Type::usize_type()))
-                  throw CompileError{node.location,
-                                     "integer literal is outside the unsigned usize range"};
+                  throw CompileError{
+                      node.location,
+                      "integer literal is outside the unsigned usize range"};
                 right_type = SemanticType{&Type::usize_type(), {}};
               } else if (is_shift &&
-                         std::holds_alternative<ast::UnaryExpression>(node.right->value)) {
-                throw CompileError{node.location,
-                                   "integer literal is outside the unsigned usize range"};
+                         std::holds_alternative<ast::UnaryExpression>(
+                             node.right->value)) {
+                throw CompileError{
+                    node.location,
+                    "integer literal is outside the unsigned usize range"};
               } else {
                 right_type = expression_type(*node.right);
               }
               if (is_shift) {
                 if (!left_type.is_concrete() ||
                     !left_type.concrete->is_integer())
-                  throw CompileError{node.location,
-                                     "shift operators require an integer left operand"};
+                  throw CompileError{
+                      node.location,
+                      "shift operators require an integer left operand"};
                 if (!right_type.is_concrete() ||
                     right_type.concrete->kind() != TypeKind::USize)
                   throw CompileError{node.location,
@@ -5439,8 +5526,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     node.operation == ast::BinaryOperator::BitwiseOr;
                 throw CompileError{
                     node.location,
-                    std::string{bitwise ? "bitwise operands must have the same integer type, got '"
-                                        : "binary operator operands must have the same type, got '"} +
+                    std::string{bitwise ? "bitwise operands must have the same "
+                                          "integer type, got '"
+                                        : "binary operator operands must have "
+                                          "the same type, got '"} +
                         left_type.name() + "' and '" + right_type.name() + "'"};
               }
 
@@ -5475,8 +5564,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               case ast::BinaryOperator::BitwiseXor:
               case ast::BinaryOperator::BitwiseOr:
                 if (!is_concrete || !left_type.concrete->is_integer())
-                  throw CompileError{node.location,
-                                     "bitwise operators require integer operands"};
+                  throw CompileError{
+                      node.location,
+                      "bitwise operators require integer operands"};
                 return left_type;
               case ast::BinaryOperator::ShiftLeft:
               case ast::BinaryOperator::ShiftRight:
@@ -5712,8 +5802,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               declared_type = expression_type(*declaration->initializer);
             } catch (const CompileError &error) {
               throw CompileError{
-                  error.diagnostic().code,
-                  declaration->location,
+                  error.diagnostic().code, declaration->location,
                   "cannot infer type of '" + declaration->name +
                       "'; help: add an explicit type annotation; note: " +
                       error.what()};
@@ -5727,10 +5816,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{declaration->location,
                                "value '" + declaration->name +
                                    "' is already declared"};
-          if (declaration->is_borrowed && !declared_type.is_pointer())
-            throw CompileError{
-                declaration->location,
-                "borrowed local values currently require a Ptr[T] type"};
+          if (declaration->is_borrowed && !declared_type.is_pointer() &&
+              (!declaration->initializer.has_value() ||
+               !std::holds_alternative<ast::IdentifierExpression>(
+                   declaration->initializer->value)))
+            throw CompileError{declaration->location,
+                               "borrowing an owning value requires a local "
+                               "value identifier"};
           if (declaration->is_borrowed &&
               declaration->initializer.has_value() &&
               std::holds_alternative<ast::MoveExpression>(
@@ -5738,9 +5830,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{declaration->location,
                                "a borrowed local cannot move its initializer"};
           if (declaration->initializer.has_value() &&
-              declaration->declared_type.has_value())
+              declaration->declared_type.has_value()) {
+            const bool previous_contextual_borrow_expression =
+                contextual_borrow_expression;
+            contextual_borrow_expression = declaration->is_borrowed;
             validate_expression(*declaration->initializer, declared_type,
                                 declaration->location);
+            contextual_borrow_expression =
+                previous_contextual_borrow_expression;
+          }
           if (declaration->is_constant) {
             if (!declaration->initializer.has_value() ||
                 declared_type.concrete == nullptr)
@@ -5751,10 +5849,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               constant::Value local_value = constant::evaluate(
                   *declaration->initializer, declared_type.concrete,
                   [&](const std::optional<std::string> &module,
-                      std::string_view name, SourceLocation)
-                  -> std::optional<constant::Value> {
+                      std::string_view name,
+                      SourceLocation) -> std::optional<constant::Value> {
                     if (!module.has_value()) {
-                      const auto local = local_constants.find(std::string{name});
+                      const auto local =
+                          local_constants.find(std::string{name});
                       if (local != local_constants.end())
                         return local->second;
                     }
@@ -5766,15 +5865,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         key = exported->second;
                     }
                     if (!globals.contains(key) ||
-                        !globals.at(key)
-                             .declaration->declaration.is_constant)
+                        !globals.at(key).declaration->declaration.is_constant)
                       return std::nullopt;
                     return evaluate_global(key);
                   },
                   {}, evaluate_constant_function, &evaluation_budget);
               local_constants.insert_or_assign(declaration->name, local_value);
-              result.local_constant_values.insert_or_assign(declaration,
-                                                             std::move(local_value));
+              result.local_constant_values.insert_or_assign(
+                  declaration, std::move(local_value));
             } catch (const CompileError &error) {
               throw CompileError{
                   declaration->location,
@@ -5793,6 +5891,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               (declaration->initializer.has_value() &&
                is_borrowed_pointer_expression(*declaration->initializer)))
             borrowed_values.insert(declaration->name);
+          if (declaration->is_borrowed)
+            shared_borrow_values.insert(declaration->name);
           if (declaration->initializer.has_value()) {
             const ast::Expression &initializer = *declaration->initializer;
             if (declaration->is_borrowed)
@@ -5858,6 +5958,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (const auto *assignment =
                 std::get_if<ast::AssignmentStatement>(&statement)) {
           if (!assignment->object.empty()) {
+            if (shared_borrow_values.contains(assignment->object))
+              throw CompileError{assignment->location,
+                                 "cannot mutate through shared borrow '" +
+                                     assignment->object + "'"};
+            require_no_live_borrow(assignment->object, assignment->location,
+                                   "mutated");
             if (!block_symbols.contains(assignment->object) &&
                 global_modules.contains(assignment->object)) {
               const ResolvedGlobal *global =
@@ -5878,10 +5984,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               if (!import_allows(
                       context_module, global->declaration->module_name,
                       global->declaration->declaration.name, spelling))
-                throw CompileError{
-                    assignment->location,
-                    "global value '" + spelling +
-                        "' is not imported in this module"};
+                throw CompileError{assignment->location,
+                                   "global value '" + spelling +
+                                       "' is not imported in this module"};
               if (!global->symbol.is_mutable)
                 throw CompileError{assignment->location,
                                    "cannot assign to immutable global value '" +
@@ -5972,6 +6077,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                 assignment->location);
             continue;
           }
+          require_no_live_borrow(assignment->name, assignment->location,
+                                 "overwritten");
           if (deferred_values.contains(assignment->name))
             throw CompileError{assignment->location,
                                "owning value '" + assignment->name +
@@ -6372,6 +6479,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         local_declarations.erase(name);
         local_lambda_locations.erase(name);
         borrowed_values.erase(name);
+        shared_borrow_values.erase(name);
         borrow_sources.erase(name);
       }
       active_symbols = previous_symbols;

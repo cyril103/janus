@@ -1,11 +1,11 @@
 #include "janus/driver/incremental_cache.hpp"
 #include "janus/driver/output_publication_lock.hpp"
 
+#include "../frontend/module_resolution.hpp"
 #include "janus/ast/ast.hpp"
 #include "janus/constant/evaluator.hpp"
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
-#include "../frontend/module_resolution.hpp"
 
 #include <algorithm>
 #include <array>
@@ -67,11 +67,11 @@ std::string canonical_identity(const BuildFingerprintInput &input,
   dependencies.reserve(input.dependencies.size());
   for (const DependencyFingerprintInput &dependency : input.dependencies)
     dependencies.push_back(&dependency);
-  std::sort(dependencies.begin(), dependencies.end(), [](const auto *left,
-                                                          const auto *right) {
-    return std::tie(left->name, left->import_name) <
-           std::tie(right->name, right->import_name);
-  });
+  std::sort(dependencies.begin(), dependencies.end(),
+            [](const auto *left, const auto *right) {
+              return std::tie(left->name, left->import_name) <
+                     std::tie(right->name, right->import_name);
+            });
   for (const DependencyFingerprintInput *dependency : dependencies) {
     append_field(result, "dependency", dependency->name);
     append_field(result, "import-name", dependency->import_name);
@@ -161,6 +161,7 @@ void append_function(std::string &output,
   output += ':';
   append_type(output, function.return_type);
   output += function.is_consuming ? ":consuming" : "";
+  output += function.is_borrowing ? ":borrowing" : "";
   output += function.is_external ? ":external" : "";
   if (function.external_symbol.has_value()) {
     output += ":symbol=";
@@ -246,8 +247,8 @@ std::string public_interface(std::string_view source) {
   if (has_public_constant && program.imports.empty()) {
     semantic::Analyzer analyzer;
     analysis = analyzer.analyze(
-        program, semantic::AnalysisOptions{.require_entry_point = false,
-                                           .target = {}});
+        program,
+        semantic::AnalysisOptions{.require_entry_point = false, .target = {}});
   }
   std::string output;
   if (program.module_name)
@@ -261,17 +262,18 @@ std::string public_interface(std::string_view source) {
     append_type(output, global.declaration.declared_type);
     output += global.declaration.is_mutable ? ":mutable;" : ":immutable;";
     if (global.declaration.is_constant) {
-      const std::string key = global.module_name.has_value()
-                                  ? *global.module_name + "." +
-                                        global.declaration.name
-                                  : global.declaration.name;
+      const std::string key =
+          global.module_name.has_value()
+              ? *global.module_name + "." + global.declaration.name
+              : global.declaration.name;
       if (const auto value = analysis.global_constant_values.find(key);
           value != analysis.global_constant_values.end()) {
         output += ":const-value:";
         output += constant::canonical_serialize(value->second);
       } else {
         output += ":const-expression:";
-        output += declaration_source(source, global.declaration.location.offset);
+        output +=
+            declaration_source(source, global.declaration.location.offset);
       }
       output += ':';
       output += constant::evaluator_version;
@@ -373,8 +375,9 @@ std::string public_interface(std::string_view source) {
   for (const auto &function : program.functions)
     if (!function.is_private && !function.is_internal &&
         (function.is_constant || !function.type_parameters.empty()))
-      append_field(output, function.is_constant ? "constant-implementation"
-                                                : "generic-implementation",
+      append_field(output,
+                   function.is_constant ? "constant-implementation"
+                                        : "generic-implementation",
                    declaration_source(source, function.location.offset));
   for (const auto &class_declaration : program.classes) {
     if (class_declaration.is_private)
@@ -408,10 +411,10 @@ void inspect_dependency(const std::filesystem::path &path,
   frontend::Parser parser{source};
   const ast::Program program = parser.parse_program();
   for (const ast::ImportDeclaration &import : program.imports)
-    inspect_dependency(
-        frontend::detail::resolve_module_import(import.module_name,
-                                                project_root, search_paths),
-        import.module_name, project_root, search_paths, visited, dependencies);
+    inspect_dependency(frontend::detail::resolve_module_import(
+                           import.module_name, project_root, search_paths),
+                       import.module_name, project_root, search_paths, visited,
+                       dependencies);
   dependencies.push_back(
       {program.module_name.value_or(normalized.generic_string()),
        stable_digest(public_interface(source)), stable_digest(source), source,
@@ -721,11 +724,11 @@ inspect_build_inputs(const std::filesystem::path &entry,
   std::vector<std::filesystem::path> visited{normalized};
   std::vector<DependencyFingerprintInput> dependencies;
   for (const ast::ImportDeclaration &import : program.imports)
-    inspect_dependency(frontend::detail::resolve_module_import(
-                           import.module_name, normalized.parent_path(),
-                           search_paths),
-                       import.module_name, normalized.parent_path(),
-                       search_paths, visited, dependencies);
+    inspect_dependency(
+        frontend::detail::resolve_module_import(
+            import.module_name, normalized.parent_path(), search_paths),
+        import.module_name, normalized.parent_path(), search_paths, visited,
+        dependencies);
   std::sort(dependencies.begin(), dependencies.end(),
             [](const auto &left, const auto &right) {
               return left.name < right.name;

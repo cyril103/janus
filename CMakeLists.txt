@@ -1265,6 +1265,22 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.val_declaration COMMAND val_declaration_test)
 
+    add_executable(immutable_borrow_test
+        tests/language/immutable_borrow_test.cpp
+    )
+    target_link_libraries(immutable_borrow_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(immutable_borrow_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.immutable_borrow COMMAND immutable_borrow_test)
+
     add_executable(extern_function_test
         tests/language/extern_function_test.cpp
     )

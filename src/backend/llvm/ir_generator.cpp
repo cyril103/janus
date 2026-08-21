@@ -10,8 +10,8 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <optional>
@@ -1024,9 +1024,10 @@ private:
                    substitutions);
   }
 
-  ::llvm::Value *emit_clamped_numeric_cast(
-      ::llvm::Value *source, const janus::Type &source_type,
-      const janus::Type &destination, ::llvm::IRBuilder<> &builder) {
+  ::llvm::Value *emit_clamped_numeric_cast(::llvm::Value *source,
+                                           const janus::Type &source_type,
+                                           const janus::Type &destination,
+                                           ::llvm::IRBuilder<> &builder) {
     ::llvm::Type *destination_type = lower_type(destination, context_);
     if (destination.is_floating_point()) {
       ::llvm::Value *converted = nullptr;
@@ -1034,8 +1035,8 @@ private:
         converted = builder.CreateFPCast(source, destination_type,
                                          "saturating.floating");
       else if (source_type.is_signed())
-        converted = builder.CreateSIToFP(source, destination_type,
-                                         "saturating.signed");
+        converted =
+            builder.CreateSIToFP(source, destination_type, "saturating.signed");
       else
         converted = builder.CreateUIToFP(source, destination_type,
                                          "saturating.unsigned");
@@ -1113,50 +1114,50 @@ private:
         wide, ::llvm::ConstantInt::get(context_, minimum));
     ::llvm::Value *above = builder.CreateICmpSGT(
         wide, ::llvm::ConstantInt::get(context_, maximum));
-    wide = builder.CreateSelect(below,
-                                ::llvm::ConstantInt::get(context_, minimum), wide);
-    wide = builder.CreateSelect(above,
-                                ::llvm::ConstantInt::get(context_, maximum), wide);
+    wide = builder.CreateSelect(
+        below, ::llvm::ConstantInt::get(context_, minimum), wide);
+    wide = builder.CreateSelect(
+        above, ::llvm::ConstantInt::get(context_, maximum), wide);
     return builder.CreateTruncOrBitCast(wide, destination_type,
-                                       "saturating.integer");
+                                        "saturating.integer");
   }
 
-  ::llvm::Value *emit_truncating_numeric_cast(
-      ::llvm::Value *source, const janus::Type &source_type,
-      const janus::Type &destination, ::llvm::IRBuilder<> &builder) {
+  ::llvm::Value *emit_truncating_numeric_cast(::llvm::Value *source,
+                                              const janus::Type &source_type,
+                                              const janus::Type &destination,
+                                              ::llvm::IRBuilder<> &builder) {
     if (source_type.is_floating_point() || destination.is_floating_point())
       return emit_clamped_numeric_cast(source, source_type, destination,
                                        builder);
     return builder.CreateIntCast(source, lower_type(destination, context_),
-                                 source_type.is_signed(),
-                                 "truncating.integer");
+                                 source_type.is_signed(), "truncating.integer");
   }
 
-  ::llvm::Value *emit_checked_numeric_cast(
-      ::llvm::Value *source, const janus::Type &source_type,
-      const janus::Type &destination, ::llvm::IRBuilder<> &builder) {
+  ::llvm::Value *emit_checked_numeric_cast(::llvm::Value *source,
+                                           const janus::Type &source_type,
+                                           const janus::Type &destination,
+                                           ::llvm::IRBuilder<> &builder) {
     const auto error_declaration =
         find_type_in_active_module(enums_, "NumericCastError");
     const janus::Type &error_type = ensure_enum(error_declaration->first, {});
-    const auto result_declaration = find_type_in_active_module(enums_, "Result");
-    const janus::Type &result_type = ensure_enum(
-        result_declaration->first, {&destination, &error_type});
+    const auto result_declaration =
+        find_type_in_active_module(enums_, "Result");
+    const janus::Type &result_type =
+        ensure_enum(result_declaration->first, {&destination, &error_type});
     const auto error_case_value = [&](std::string_view case_name) {
       return static_cast<std::uint32_t>(
           enum_case_value(error_type.name(), case_name));
     };
 
     ::llvm::Value *success = builder.getTrue();
-    ::llvm::Value *error_code =
-        builder.getInt32(error_case_value("Overflow"));
+    ::llvm::Value *error_code = builder.getInt32(error_case_value("Overflow"));
     const auto fail = [&](::llvm::Value *condition, std::uint32_t code) {
       ::llvm::Value *was_success = success;
-      error_code = builder.CreateSelect(
-          builder.CreateAnd(success, condition), builder.getInt32(code),
-          error_code, "checked.error");
-      success = builder.CreateAnd(
-          was_success, builder.CreateNot(condition),
-          "checked.success");
+      error_code = builder.CreateSelect(builder.CreateAnd(success, condition),
+                                        builder.getInt32(code), error_code,
+                                        "checked.error");
+      success = builder.CreateAnd(was_success, builder.CreateNot(condition),
+                                  "checked.success");
     };
 
     ::llvm::Value *converted =
@@ -1165,10 +1166,8 @@ private:
       ::llvm::Value *non_finite = builder.CreateOr(
           builder.CreateFCmpUNO(source, source),
           builder.CreateFCmpOEQ(
-                                builder.CreateUnaryIntrinsic(
-                                    ::llvm::Intrinsic::fabs, source),
-                                ::llvm::ConstantFP::getInfinity(
-                                    source->getType())));
+              builder.CreateUnaryIntrinsic(::llvm::Intrinsic::fabs, source),
+              ::llvm::ConstantFP::getInfinity(source->getType())));
       fail(non_finite, error_case_value("NonFinite"));
       if (destination.is_integer()) {
         const unsigned bits = destination.bit_width();
@@ -1190,19 +1189,18 @@ private:
                error_case_value("IncompatibleSign"));
         else
           fail(builder.CreateFCmpOLT(
-                   source,
-                   ::llvm::ConstantFP::get(source->getType(), lower)),
+                   source, ::llvm::ConstantFP::get(source->getType(), lower)),
                error_case_value("Underflow"));
         ::llvm::Value *above_maximum = builder.CreateOr(
             builder.CreateFCmpOGE(
                 source, ::llvm::ConstantFP::get(source->getType(),
                                                 safety_exclusive_maximum)),
-            builder.CreateFCmpOGT(
-                source, ::llvm::ConstantFP::get(source->getType(),
-                                                diagnostic_maximum)));
+            builder.CreateFCmpOGT(source,
+                                  ::llvm::ConstantFP::get(source->getType(),
+                                                          diagnostic_maximum)));
         fail(above_maximum, error_case_value("Overflow"));
-        ::llvm::Value *truncated = builder.CreateUnaryIntrinsic(
-            ::llvm::Intrinsic::trunc, source);
+        ::llvm::Value *truncated =
+            builder.CreateUnaryIntrinsic(::llvm::Intrinsic::trunc, source);
         fail(builder.CreateFCmpONE(source, truncated),
              error_case_value("FractionalLoss"));
       } else if (destination.bit_width() < source_type.bit_width()) {
@@ -1230,15 +1228,15 @@ private:
               ? ::llvm::APInt::getSignedMaxValue(bits).sext(128)
               : ::llvm::APInt::getMaxValue(bits).zext(128);
       if (!destination.is_signed() && source_type.is_signed())
-        fail(builder.CreateICmpSLT(
-                 wide, ::llvm::ConstantInt::get(wide_type, 0)),
-             error_case_value("IncompatibleSign"));
+        fail(
+            builder.CreateICmpSLT(wide, ::llvm::ConstantInt::get(wide_type, 0)),
+            error_case_value("IncompatibleSign"));
       else
-        fail(builder.CreateICmpSLT(
-                 wide, ::llvm::ConstantInt::get(context_, minimum)),
+        fail(builder.CreateICmpSLT(wide,
+                                   ::llvm::ConstantInt::get(context_, minimum)),
              error_case_value("Underflow"));
-      fail(builder.CreateICmpSGT(
-               wide, ::llvm::ConstantInt::get(context_, maximum)),
+      fail(builder.CreateICmpSGT(wide,
+                                 ::llvm::ConstantInt::get(context_, maximum)),
            error_case_value("Overflow"));
     } else {
       const unsigned bits = source_type.bit_width();
@@ -1249,15 +1247,12 @@ private:
           1.0, static_cast<int>(bits - (source_type.is_signed() ? 1 : 0)));
       ::llvm::Value *outside_range = builder.CreateOr(
           builder.CreateFCmpOLT(
-              converted,
-              ::llvm::ConstantFP::get(converted->getType(), lower)),
+              converted, ::llvm::ConstantFP::get(converted->getType(), lower)),
           builder.CreateFCmpOGE(
-              converted,
-              ::llvm::ConstantFP::get(converted->getType(), upper)));
+              converted, ::llvm::ConstantFP::get(converted->getType(), upper)));
       ::llvm::Value *safe = builder.CreateSelect(
-          outside_range,
-          ::llvm::ConstantFP::get(converted->getType(), 0.0), converted,
-          "checked.safe.floating");
+          outside_range, ::llvm::ConstantFP::get(converted->getType(), 0.0),
+          converted, "checked.safe.floating");
       ::llvm::Value *roundtrip =
           source_type.is_signed()
               ? builder.CreateFPToSI(safe, source->getType())
@@ -1266,13 +1261,13 @@ private:
            error_case_value("PrecisionLoss"));
     }
 
-    auto *llvm_error_type = ::llvm::cast<::llvm::StructType>(
-        lower_type(error_type, context_));
-    ::llvm::Value *error = builder.CreateInsertValue(
-        ::llvm::UndefValue::get(llvm_error_type), error_code, 0,
-        "numeric.cast.error");
-    auto *llvm_result_type = ::llvm::cast<::llvm::StructType>(
-        lower_type(result_type, context_));
+    auto *llvm_error_type =
+        ::llvm::cast<::llvm::StructType>(lower_type(error_type, context_));
+    ::llvm::Value *error =
+        builder.CreateInsertValue(::llvm::UndefValue::get(llvm_error_type),
+                                  error_code, 0, "numeric.cast.error");
+    auto *llvm_result_type =
+        ::llvm::cast<::llvm::StructType>(lower_type(result_type, context_));
     ::llvm::Value *result = ::llvm::UndefValue::get(llvm_result_type);
     result = builder.CreateInsertValue(
         result,
@@ -1282,8 +1277,7 @@ private:
             builder.getInt32(enum_case_value(result_type.name(), "Error"))),
         0, "checked.result.tag");
     result = builder.CreateInsertValue(
-        result, converted,
-        enum_case_payload_start(result_type.name(), "Ok"),
+        result, converted, enum_case_payload_start(result_type.name(), "Ok"),
         "checked.result.value");
     return builder.CreateInsertValue(
         result, error, enum_case_payload_start(result_type.name(), "Error"),
@@ -1525,14 +1519,14 @@ private:
       }
     }
     const std::size_t index = panic_cleanup_index_++;
-    auto *context_type = ::llvm::StructType::create(
-        context_, context_fields,
-        "panic.cleanup.context." + std::to_string(index));
-    ::llvm::Value *context_storage = create_entry_alloca(
-        builder, context_type, "panic.cleanup.context");
+    auto *context_type = ::llvm::StructType::create(context_, context_fields,
+                                                    "panic.cleanup.context." +
+                                                        std::to_string(index));
+    ::llvm::Value *context_storage =
+        create_entry_alloca(builder, context_type, "panic.cleanup.context");
 
-    auto *cleanup_type = ::llvm::FunctionType::get(
-        builder.getVoidTy(), {builder.getPtrTy()}, false);
+    auto *cleanup_type = ::llvm::FunctionType::get(builder.getVoidTy(),
+                                                   {builder.getPtrTy()}, false);
     auto *cleanup = ::llvm::Function::Create(
         cleanup_type, ::llvm::Function::InternalLinkage,
         "__janus_panic_cleanup_" + std::to_string(index), *module_);
@@ -1552,32 +1546,31 @@ private:
     for (const CleanupScope &scope : active_cleanup_scopes_) {
       cleanup_locals.emplace_back();
       for (const auto &[name, local] : *scope.locals) {
-        ::llvm::Value *field = cleanup_builder.CreateStructGEP(
-            context_type, context, field_index);
+        ::llvm::Value *field =
+            cleanup_builder.CreateStructGEP(context_type, context, field_index);
         ::llvm::Value *storage = cleanup_builder.CreateLoad(
             cleanup_builder.getPtrTy(), field, name + ".cleanup.storage");
         cleanup_locals.back().emplace(
             name, Local{storage, local.type, local.is_constant});
-        builder.CreateStore(
-            local.storage,
-            builder.CreateStructGEP(context_type, context_storage,
-                                    field_index++));
+        builder.CreateStore(local.storage,
+                            builder.CreateStructGEP(
+                                context_type, context_storage, field_index++));
       }
       cleanup_owned_values.emplace_back();
       for (const auto &[value, type] : *scope.owned_values) {
-        ::llvm::Value *field = cleanup_builder.CreateStructGEP(
-            context_type, context, field_index);
+        ::llvm::Value *field =
+            cleanup_builder.CreateStructGEP(context_type, context, field_index);
         cleanup_owned_values.back().push_back(
             {cleanup_builder.CreateLoad(lower_type(*type, context_), field,
                                         "owned.cleanup.value"),
              type});
-        builder.CreateStore(
-            value, builder.CreateStructGEP(context_type, context_storage,
-                                           field_index++));
+        builder.CreateStore(value, builder.CreateStructGEP(context_type,
+                                                           context_storage,
+                                                           field_index++));
       }
-      cleanup_scopes.push_back(CleanupScope{
-          scope.actions, &cleanup_owned_values.back(), &cleanup_locals.back(),
-          scope.substitutions});
+      cleanup_scopes.push_back(
+          CleanupScope{scope.actions, &cleanup_owned_values.back(),
+                       &cleanup_locals.back(), scope.substitutions});
     }
     auto saved_scopes = std::move(active_cleanup_scopes_);
     active_cleanup_scopes_ = cleanup_scopes;
@@ -1663,9 +1656,17 @@ private:
     } else if (owner != nullptr) {
       parameter_types.push_back(::llvm::PointerType::getUnqual(context_));
     }
-    for (const auto &parameter : function.parameters)
-      parameter_types.push_back(
-          lower_type(resolve(parameter.type, substitutions), context_));
+    for (const auto &parameter : function.parameters) {
+      const janus::Type &parameter_type =
+          resolve(parameter.type, substitutions);
+      const bool indirect_borrow =
+          parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
+          (parameter_type.kind() == janus::TypeKind::Struct ||
+           parameter_type.kind() == janus::TypeKind::Enum);
+      parameter_types.push_back(indirect_borrow
+                                    ? ::llvm::PointerType::getUnqual(context_)
+                                    : lower_type(parameter_type, context_));
+    }
 
     auto *function_type =
         ::llvm::FunctionType::get(lower_type(return_type, context_),
@@ -1763,6 +1764,12 @@ private:
       const auto &parameter = function.parameters[parameter_index++];
       const janus::Type &type = resolve(parameter.type, substitutions);
       argument.setName(parameter.name);
+      if (parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
+          (type.kind() == janus::TypeKind::Struct ||
+           type.kind() == janus::TypeKind::Enum)) {
+        locals.emplace(parameter.name, Local{&argument, &type});
+        continue;
+      }
       ::llvm::Value *storage = create_entry_alloca(
           builder, lower_type(type, context_), parameter.name);
       builder.CreateStore(&argument, storage);
@@ -1960,15 +1967,28 @@ private:
 
         if (const auto *declaration =
                 std::get_if<janus::ast::ValueDeclaration>(&statement)) {
-          const janus::Type &type = declaration->declared_type
-              ? resolve(*declaration->declared_type, substitutions)
-              : resolve(analysis_.local_types.at(declaration));
+          const janus::Type &type =
+              declaration->declared_type
+                  ? resolve(*declaration->declared_type, substitutions)
+                  : resolve(analysis_.local_types.at(declaration));
           if (declaration->is_constant) {
             const janus::constant::Value &value =
                 analysis_.local_constant_values.at(declaration);
             block_locals.emplace(
                 declaration->name,
                 Local{emit_static_initializer(value, type), &type, true});
+            continue;
+          }
+          const auto *borrowed_source =
+              declaration->initializer.has_value()
+                  ? std::get_if<janus::ast::IdentifierExpression>(
+                        &declaration->initializer->value)
+                  : nullptr;
+          if (declaration->is_borrowed && borrowed_source != nullptr) {
+            const Local &source =
+                resolve_storage(borrowed_source->name, block_locals);
+            block_locals.emplace(declaration->name,
+                                 Local{source.storage, &type});
             continue;
           }
           ::llvm::Value *storage = create_entry_alloca(
@@ -2219,8 +2239,7 @@ private:
               for (const janus::ast::MatchExpression::Arm &arm : node.arms) {
                 auto arm_bound = active_bound;
                 arm_bound.insert(arm.bindings.begin(), arm.bindings.end());
-                if (arm.literal &&
-                    !janus::ast::is_enum_binding_pattern(arm))
+                if (arm.literal && !janus::ast::is_enum_binding_pattern(arm))
                   visit(*arm.literal, active_bound);
                 if (arm.guard)
                   visit(*arm.guard, arm_bound);
@@ -2530,7 +2549,8 @@ private:
                 std::vector<const janus::Type *> type_arguments;
                 if (node.type_arguments.empty()) {
                   if (const auto inferred =
-                          analysis_.inferred_generic_arguments.find(&expression);
+                          analysis_.inferred_generic_arguments.find(
+                              &expression);
                       inferred != analysis_.inferred_generic_arguments.end())
                     for (const janus::semantic::SemanticType &argument :
                          inferred->second)
@@ -2538,8 +2558,7 @@ private:
                 } else {
                   for (const janus::ast::TypeReference &argument :
                        node.type_arguments)
-                    type_arguments.push_back(
-                        &resolve(argument, substitutions));
+                    type_arguments.push_back(&resolve(argument, substitutions));
                 }
                 return ensure_enum(declaration->first, type_arguments);
               }
@@ -2584,7 +2603,8 @@ private:
                   [&](const janus::ast::EnumDeclaration::Case &candidate) {
                     return candidate.name == arm.case_name;
                   });
-              for (std::size_t index = 0; index < arm.bindings.size(); ++index) {
+              for (std::size_t index = 0; index < arm.bindings.size();
+                   ++index) {
                 const janus::Type &payload_type =
                     resolve(enum_case->payload_types[index],
                             specialization.substitutions);
@@ -2727,6 +2747,30 @@ private:
                        : builder.CreateSDiv(left, right, "div");
   }
 
+  ::llvm::Value *emit_parameter_argument(
+      const janus::ast::FunctionDeclaration::Parameter &parameter,
+      const janus::ast::Expression &expression,
+      const janus::Type &parameter_type, const Substitutions &substitutions,
+      const std::unordered_map<std::string, Local> &locals,
+      ::llvm::IRBuilder<> &builder) {
+    const bool indirect_borrow =
+        parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
+        (parameter_type.kind() == janus::TypeKind::Struct ||
+         parameter_type.kind() == janus::TypeKind::Enum);
+    if (!indirect_borrow)
+      return emit_expression(expression, parameter_type, substitutions, locals,
+                             builder);
+    if (const auto *identifier =
+            std::get_if<janus::ast::IdentifierExpression>(&expression.value))
+      return resolve_storage(identifier->name, locals).storage;
+    ::llvm::Value *value = emit_expression(expression, parameter_type,
+                                           substitutions, locals, builder);
+    ::llvm::Value *storage = create_entry_alloca(
+        builder, lower_type(parameter_type, context_), "borrow.temporary");
+    builder.CreateStore(value, storage);
+    return storage;
+  }
+
   ::llvm::Value *emit_declared_call(
       const janus::ast::FunctionDeclaration &callee,
       const std::vector<janus::ast::TypeReference> &call_type_arguments,
@@ -2776,9 +2820,9 @@ private:
       }
       const janus::Type &parameter_type =
           resolve(callee.parameters[index].type, callee_substitutions);
-      arguments.push_back(emit_expression(*call_arguments[index],
-                                          parameter_type, substitutions, locals,
-                                          builder));
+      arguments.push_back(emit_parameter_argument(
+          callee.parameters[index], *call_arguments[index], parameter_type,
+          substitutions, locals, builder));
     }
     return target->getReturnType()->isVoidTy()
                ? builder.CreateCall(target, arguments)
@@ -3264,7 +3308,8 @@ private:
             ::llvm::Value *capacity = create_entry_alloca(
                 builder, lower_type(janus::Type::usize_type(), context_),
                 "array.literal.capacity");
-            builder.CreateStore(builder.getInt64(node.elements.size()), capacity);
+            builder.CreateStore(builder.getInt64(node.elements.size()),
+                                capacity);
             initializer_locals.insert_or_assign(
                 class_declaration.constructor_parameters.front().name,
                 Local{capacity, &janus::Type::usize_type()});
@@ -3272,16 +3317,16 @@ private:
             for (const auto &field_declaration : class_declaration.fields) {
               ::llvm::Value *field =
                   builder.CreateStructGEP(class_type, object, field_index++);
-              const janus::Type &field_type = resolve(
-                  field_declaration.declared_type,
-                  specialization.substitutions);
+              const janus::Type &field_type =
+                  resolve(field_declaration.declared_type,
+                          specialization.substitutions);
               builder.CreateStore(
                   emit_expression(*field_declaration.initializer, field_type,
                                   specialization.substitutions,
                                   initializer_locals, builder),
                   field);
-              initializer_locals.insert_or_assign(
-                  field_declaration.name, Local{field, &field_type});
+              initializer_locals.insert_or_assign(field_declaration.name,
+                                                  Local{field, &field_type});
             }
 
             const janus::ast::FunctionDeclaration *push = nullptr;
@@ -3291,9 +3336,8 @@ private:
             ::llvm::Function *push_function = emit_function(
                 *push, {}, &class_declaration, &specialization.substitutions,
                 expected_type.name());
-            const janus::Type &element_type =
-                *specialization.substitutions.at(
-                    class_declaration.type_parameters.front());
+            const janus::Type &element_type = *specialization.substitutions.at(
+                class_declaration.type_parameters.front());
             // Until construction completes, make the temporary participate in
             // the same panic/early-exit cleanup stack as other owned values.
             // Array's destructor uses its current length, so only successfully
@@ -3667,11 +3711,11 @@ private:
                   resolve(node.type_arguments.front(), substitutions);
               const janus::Type &source_type = expression_type(
                   *node.arguments.front(), substitutions, locals);
-              ::llvm::Value *source = emit_expression(
-                  *node.arguments.front(), source_type, substitutions, locals,
-                  builder);
-              return emit_checked_numeric_cast(source, source_type,
-                                               destination, builder);
+              ::llvm::Value *source =
+                  emit_expression(*node.arguments.front(), source_type,
+                                  substitutions, locals, builder);
+              return emit_checked_numeric_cast(source, source_type, destination,
+                                               builder);
             }
             if (is_explicit_cast(node)) {
               const janus::Type &conversion_type =
@@ -3769,8 +3813,7 @@ private:
               type_arguments.push_back(&resolve(argument, substitutions));
             if (node.type_arguments.empty())
               if (const auto inferred =
-                      analysis_.inferred_generic_arguments.find(
-                          &expression);
+                      analysis_.inferred_generic_arguments.find(&expression);
                   inferred != analysis_.inferred_generic_arguments.end())
                 for (const auto &argument : inferred->second)
                   type_arguments.push_back(&resolve(argument));
@@ -3806,9 +3849,9 @@ private:
               }
               const janus::Type &parameter_type =
                   resolve(callee.parameters[index].type, callee_substitutions);
-              arguments.push_back(emit_expression(*node.arguments[index],
-                                                  parameter_type, substitutions,
-                                                  locals, builder));
+              arguments.push_back(emit_parameter_argument(
+                  callee.parameters[index], *node.arguments[index],
+                  parameter_type, substitutions, locals, builder));
             }
             return target->getReturnType()->isVoidTy()
                        ? builder.CreateCall(target, arguments)
@@ -4125,9 +4168,9 @@ private:
                  ++index) {
               const janus::Type &parameter_type =
                   resolve(method->parameters[index].type, method_substitutions);
-              arguments.push_back(emit_expression(*node.arguments[index],
-                                                  parameter_type, substitutions,
-                                                  locals, builder));
+              arguments.push_back(emit_parameter_argument(
+                  method->parameters[index], *node.arguments[index],
+                  parameter_type, substitutions, locals, builder));
             }
             return target->getReturnType()->isVoidTy()
                        ? builder.CreateCall(target, arguments)
@@ -4176,75 +4219,75 @@ private:
                               return !arm.is_wildcard && !arm.guard;
                             });
             if (simple_enum) {
-            const janus::Type &enum_type =
-                match_type;
-            const EnumSpecialization &specialization =
-                enum_specializations_.at(std::string{enum_type.name()});
-            ::llvm::Value *scrutinee = emit_expression(
-                *node.scrutinee, enum_type, substitutions, locals, builder);
-            ::llvm::Value *tag =
-                builder.CreateExtractValue(scrutinee, 0, "match.tag");
-            ::llvm::Function *function = builder.GetInsertBlock()->getParent();
-            auto *default_block =
-                ::llvm::BasicBlock::Create(context_, "match.unhandled");
-            auto *merge_block =
-                ::llvm::BasicBlock::Create(context_, "match.end");
-            auto *switch_value = builder.CreateSwitch(
-                tag, default_block, static_cast<unsigned>(node.arms.size()));
+              const janus::Type &enum_type = match_type;
+              const EnumSpecialization &specialization =
+                  enum_specializations_.at(std::string{enum_type.name()});
+              ::llvm::Value *scrutinee = emit_expression(
+                  *node.scrutinee, enum_type, substitutions, locals, builder);
+              ::llvm::Value *tag =
+                  builder.CreateExtractValue(scrutinee, 0, "match.tag");
+              ::llvm::Function *function =
+                  builder.GetInsertBlock()->getParent();
+              auto *default_block =
+                  ::llvm::BasicBlock::Create(context_, "match.unhandled");
+              auto *merge_block =
+                  ::llvm::BasicBlock::Create(context_, "match.end");
+              auto *switch_value = builder.CreateSwitch(
+                  tag, default_block, static_cast<unsigned>(node.arms.size()));
 
-            std::vector<std::pair<::llvm::Value *, ::llvm::BasicBlock *>>
-                incoming;
-            incoming.reserve(node.arms.size());
-            for (const janus::ast::MatchExpression::Arm &arm : node.arms) {
-              auto *arm_block = ::llvm::BasicBlock::Create(
-                  context_, "match." + arm.case_name, function);
-              switch_value->addCase(builder.getInt32(enum_case_value(
-                                        enum_type.name(), arm.case_name)),
-                                    arm_block);
-              builder.SetInsertPoint(arm_block);
+              std::vector<std::pair<::llvm::Value *, ::llvm::BasicBlock *>>
+                  incoming;
+              incoming.reserve(node.arms.size());
+              for (const janus::ast::MatchExpression::Arm &arm : node.arms) {
+                auto *arm_block = ::llvm::BasicBlock::Create(
+                    context_, "match." + arm.case_name, function);
+                switch_value->addCase(builder.getInt32(enum_case_value(
+                                          enum_type.name(), arm.case_name)),
+                                      arm_block);
+                builder.SetInsertPoint(arm_block);
 
-              const auto enum_case = std::find_if(
-                  specialization.declaration->cases.begin(),
-                  specialization.declaration->cases.end(),
-                  [&](const janus::ast::EnumDeclaration::Case &candidate) {
-                    return candidate.name == arm.case_name;
-                  });
-              std::unordered_map<std::string, Local> arm_locals = locals;
-              unsigned field =
-                  enum_case_payload_start(enum_type.name(), arm.case_name);
-              for (std::size_t index = 0; index < arm.bindings.size();
-                   ++index) {
-                const janus::Type &payload_type =
-                    resolve(enum_case->payload_types[index],
-                            specialization.substitutions);
-                ::llvm::Value *payload = builder.CreateExtractValue(
-                    scrutinee, field++, arm.bindings[index] + ".payload");
-                ::llvm::Value *storage = create_entry_alloca(
-                    builder, lower_type(payload_type, context_),
-                    arm.bindings[index]);
-                builder.CreateStore(payload, storage);
-                arm_locals.insert_or_assign(arm.bindings[index],
-                                            Local{storage, &payload_type});
+                const auto enum_case = std::find_if(
+                    specialization.declaration->cases.begin(),
+                    specialization.declaration->cases.end(),
+                    [&](const janus::ast::EnumDeclaration::Case &candidate) {
+                      return candidate.name == arm.case_name;
+                    });
+                std::unordered_map<std::string, Local> arm_locals = locals;
+                unsigned field =
+                    enum_case_payload_start(enum_type.name(), arm.case_name);
+                for (std::size_t index = 0; index < arm.bindings.size();
+                     ++index) {
+                  const janus::Type &payload_type =
+                      resolve(enum_case->payload_types[index],
+                              specialization.substitutions);
+                  ::llvm::Value *payload = builder.CreateExtractValue(
+                      scrutinee, field++, arm.bindings[index] + ".payload");
+                  ::llvm::Value *storage = create_entry_alloca(
+                      builder, lower_type(payload_type, context_),
+                      arm.bindings[index]);
+                  builder.CreateStore(payload, storage);
+                  arm_locals.insert_or_assign(arm.bindings[index],
+                                              Local{storage, &payload_type});
+                }
+                ::llvm::Value *arm_value =
+                    emit_expression(*arm.expression, expected_type,
+                                    substitutions, arm_locals, builder);
+                ::llvm::BasicBlock *arm_end = builder.GetInsertBlock();
+                builder.CreateBr(merge_block);
+                incoming.emplace_back(arm_value, arm_end);
               }
-              ::llvm::Value *arm_value =
-                  emit_expression(*arm.expression, expected_type, substitutions,
-                                  arm_locals, builder);
-              ::llvm::BasicBlock *arm_end = builder.GetInsertBlock();
-              builder.CreateBr(merge_block);
-              incoming.emplace_back(arm_value, arm_end);
-            }
 
-            function->insert(function->end(), default_block);
-            builder.SetInsertPoint(default_block);
-            builder.CreateUnreachable();
-            function->insert(function->end(), merge_block);
-            builder.SetInsertPoint(merge_block);
-            auto *result = builder.CreatePHI(
-                llvm_type, static_cast<unsigned>(incoming.size()),
-                "match.value");
-            for (const auto &[value, block] : incoming)
-              result->addIncoming(value, block);
-            return result;
+              function->insert(function->end(), default_block);
+              builder.SetInsertPoint(default_block);
+              builder.CreateUnreachable();
+              function->insert(function->end(), merge_block);
+              builder.SetInsertPoint(merge_block);
+              auto *result = builder.CreatePHI(
+                  llvm_type, static_cast<unsigned>(incoming.size()),
+                  "match.value");
+              for (const auto &[value, block] : incoming)
+                result->addIncoming(value, block);
+              return result;
             }
 
             ::llvm::Value *scrutinee = emit_expression(
@@ -4279,51 +4322,52 @@ private:
                 matches = emit_structural_equal(scrutinee, literal, match_type,
                                                 builder);
               } else if (!arm.is_wildcard) {
-                matches = builder.CreateICmpEQ(
-                    tag, builder.getInt32(enum_case_value(match_type.name(),
-                                                         arm.case_name)),
-                    "match.case");
+                matches =
+                    builder.CreateICmpEQ(tag,
+                                         builder.getInt32(enum_case_value(
+                                             match_type.name(), arm.case_name)),
+                                         "match.case");
               }
               builder.CreateCondBr(matches, candidate_block, next_block);
               builder.SetInsertPoint(candidate_block);
               std::unordered_map<std::string, Local> arm_locals = locals;
               if (specialization != nullptr && !arm.is_wildcard) {
-                const auto enum_case = std::find_if(
-                    specialization->declaration->cases.begin(),
-                    specialization->declaration->cases.end(),
-                    [&](const auto &candidate) {
-                      return candidate.name == arm.case_name;
-                    });
-                unsigned field = enum_case_payload_start(match_type.name(),
-                                                         arm.case_name);
+                const auto enum_case =
+                    std::find_if(specialization->declaration->cases.begin(),
+                                 specialization->declaration->cases.end(),
+                                 [&](const auto &candidate) {
+                                   return candidate.name == arm.case_name;
+                                 });
+                unsigned field =
+                    enum_case_payload_start(match_type.name(), arm.case_name);
                 for (std::size_t index = 0; index < arm.bindings.size();
                      ++index) {
-                  const janus::Type &payload_type = resolve(
-                      enum_case->payload_types[index],
-                      specialization->substitutions);
+                  const janus::Type &payload_type =
+                      resolve(enum_case->payload_types[index],
+                              specialization->substitutions);
                   ::llvm::Value *payload = builder.CreateExtractValue(
                       scrutinee, field++, arm.bindings[index] + ".payload");
                   ::llvm::Value *storage = create_entry_alloca(
                       builder, lower_type(payload_type, context_),
                       arm.bindings[index]);
                   builder.CreateStore(payload, storage);
-                  arm_locals.insert_or_assign(
-                      arm.bindings[index], Local{storage, &payload_type});
+                  arm_locals.insert_or_assign(arm.bindings[index],
+                                              Local{storage, &payload_type});
                 }
               }
               auto *body_block = candidate_block;
               if (arm.guard) {
                 body_block = ::llvm::BasicBlock::Create(
                     context_, "match.guard.success", function);
-                ::llvm::Value *guard = emit_expression(
-                    *arm.guard, janus::Type::bool_type(), substitutions,
-                    arm_locals, builder);
+                ::llvm::Value *guard =
+                    emit_expression(*arm.guard, janus::Type::bool_type(),
+                                    substitutions, arm_locals, builder);
                 builder.CreateCondBr(guard, body_block, next_block);
                 builder.SetInsertPoint(body_block);
               }
-              ::llvm::Value *arm_value = emit_expression(
-                  *arm.expression, expected_type, substitutions, arm_locals,
-                  builder);
+              ::llvm::Value *arm_value =
+                  emit_expression(*arm.expression, expected_type, substitutions,
+                                  arm_locals, builder);
               ::llvm::BasicBlock *arm_end = builder.GetInsertBlock();
               builder.CreateBr(merge_block);
               incoming.emplace_back(arm_value, arm_end);
@@ -4457,18 +4501,20 @@ private:
                 node.operation == janus::ast::BinaryOperator::ShiftLeft ||
                 node.operation == janus::ast::BinaryOperator::ShiftRight;
             if (is_shift) {
-              ::llvm::Value *count = emit_expression(
-                  *node.right, janus::Type::usize_type(), substitutions, locals,
-                  builder);
+              ::llvm::Value *count =
+                  emit_expression(*node.right, janus::Type::usize_type(),
+                                  substitutions, locals, builder);
               ::llvm::Value *invalid = builder.CreateICmpUGE(
-                  count, ::llvm::ConstantInt::get(count->getType(),
-                                                  operand_type.bit_width()),
+                  count,
+                  ::llvm::ConstantInt::get(count->getType(),
+                                           operand_type.bit_width()),
                   "shift.count.invalid");
-              ::llvm::Function *function = builder.GetInsertBlock()->getParent();
+              ::llvm::Function *function =
+                  builder.GetInsertBlock()->getParent();
               auto *panic_block = ::llvm::BasicBlock::Create(
                   context_, "shift.count.panic", function);
-              auto *valid_block = ::llvm::BasicBlock::Create(
-                  context_, "shift.count.valid");
+              auto *valid_block =
+                  ::llvm::BasicBlock::Create(context_, "shift.count.valid");
               builder.CreateCondBr(invalid, panic_block, valid_block);
               builder.SetInsertPoint(panic_block);
               emit_integer_panic("shift count exceeds operand width\n",
@@ -4698,12 +4744,11 @@ std::unique_ptr<::llvm::Module>
 IrGenerator::generate(const ast::Program &program, std::string_view module_name,
                       PanicTraceMode panic_trace, bool dependencies_only) {
   semantic::Analyzer analyzer;
-  const semantic::AnalysisResult analysis =
-      analyzer.analyze(program,
-                       semantic::AnalysisOptions{.require_entry_point = false,
-                                                 .target = target_});
-  return Generator{context_, program, analysis, module_name, panic_trace,
-                    dependencies_only, target_}
+  const semantic::AnalysisResult analysis = analyzer.analyze(
+      program, semantic::AnalysisOptions{.require_entry_point = false,
+                                         .target = target_});
+  return Generator{context_,    program,           analysis, module_name,
+                   panic_trace, dependencies_only, target_}
       .generate();
 }
 

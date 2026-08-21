@@ -181,8 +181,8 @@ std::optional<std::uint64_t> parse_integer_literal(std::string_view spelling) {
     if (spelling[index] != '_')
       digits.push_back(spelling[index]);
   std::uint64_t value{};
-  const auto result =
-      std::from_chars(digits.data(), digits.data() + digits.size(), value, base);
+  const auto result = std::from_chars(
+      digits.data(), digits.data() + digits.size(), value, base);
   if (result.ec != std::errc{} || result.ptr != digits.data() + digits.size())
     return std::nullopt;
   return value;
@@ -230,8 +230,8 @@ ast::Program Parser::parse_program() {
         advance();
       }
       if (is_private && current_.kind != TokenKind::Const &&
-          current_.kind != TokenKind::Val &&
-          current_.kind != TokenKind::Var && current_.kind != TokenKind::Def &&
+          current_.kind != TokenKind::Val && current_.kind != TokenKind::Var &&
+          current_.kind != TokenKind::Def &&
           current_.kind != TokenKind::Extern &&
           current_.kind != TokenKind::Class &&
           current_.kind != TokenKind::Struct &&
@@ -299,10 +299,9 @@ ast::Program Parser::parse_program() {
                  current_.kind == TokenKind::Var) {
         ast::ValueDeclaration declaration = parse_variable_declaration();
         if (!declaration.declared_type.has_value())
-          throw CompileError{
-              declaration.location,
-              "global value '" + declaration.name +
-                  "' requires an explicit type annotation"};
+          throw CompileError{declaration.location,
+                             "global value '" + declaration.name +
+                                 "' requires an explicit type annotation"};
         declaration.is_private = is_private;
         declaration.is_internal = is_internal;
         declaration.documentation = std::move(documentation);
@@ -408,8 +407,9 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
 }
 
 ast::FunctionDeclaration Parser::parse_trait_method() {
+  const bool is_borrowing = current_.kind == TokenKind::Borrow;
   const bool is_consuming = current_.kind == TokenKind::Consume;
-  if (is_consuming)
+  if (is_borrowing || is_consuming)
     advance();
   const Token def = expect(TokenKind::Def);
   const Token name = expect(TokenKind::Identifier);
@@ -441,10 +441,15 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
   std::vector<ast::FunctionDeclaration::Parameter> parameters;
   if (current_.kind != TokenKind::RightParen) {
     do {
+      const bool parameter_is_borrowed = current_.kind == TokenKind::Borrow;
+      if (parameter_is_borrowed)
+        advance();
       const Token parameter = expect(TokenKind::Identifier);
       static_cast<void>(expect(TokenKind::Colon));
       parameters.push_back(ast::FunctionDeclaration::Parameter{
-          std::string{parameter.lexeme}, parse_type(), parameter.location});
+          std::string{parameter.lexeme}, parse_type(), parameter.location,
+          parameter_is_borrowed ? ast::ParameterOwnership::Borrow
+                                : ast::ParameterOwnership::Unspecified});
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -467,6 +472,7 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
                                        std::nullopt,
                                        false,
                                        {}};
+  declaration.is_borrowing = is_borrowing;
   return declaration;
 }
 
@@ -803,13 +809,14 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
         (is_internal && current_.kind == TokenKind::Private))
       throw CompileError{current_.location,
                          "a class member cannot be both private and internal"};
+    const bool is_borrowing = current_.kind == TokenKind::Borrow;
     const bool is_consuming = current_.kind == TokenKind::Consume;
-    if (is_consuming)
+    if (is_borrowing || is_consuming)
       advance();
     if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
-      if (is_consuming)
+      if (is_borrowing || is_consuming)
         throw CompileError{current_.location,
-                           "consume can only modify a method"};
+                           "borrow and consume can only modify a method"};
       ast::ValueDeclaration field = parse_variable_declaration();
       if (!field.declared_type.has_value())
         throw CompileError{field.location,
@@ -824,10 +831,11 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       method.is_private = is_private;
       method.is_internal = is_internal;
       method.is_consuming = is_consuming;
+      method.is_borrowing = is_borrowing;
       method.documentation = std::move(documentation);
       methods.push_back(std::move(method));
     } else if (current_.kind == TokenKind::Destructor) {
-      if (is_private || is_internal || is_consuming)
+      if (is_private || is_internal || is_borrowing || is_consuming)
         throw CompileError{current_.location,
                            "destructor cannot have method modifiers"};
       if (destructor.has_value())
@@ -880,8 +888,7 @@ std::vector<ast::Statement> Parser::parse_block() {
   return body;
 }
 
-ast::FunctionDeclaration
-Parser::parse_function_declaration(bool is_constant) {
+ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
   const bool is_external = current_.kind == TokenKind::Extern;
   const SourceLocation declaration_location = current_.location;
   std::optional<std::string> external_symbol;
@@ -936,11 +943,11 @@ Parser::parse_function_declaration(bool is_constant) {
       ast::ParameterOwnership ownership = ast::ParameterOwnership::Unspecified;
       if (current_.kind == TokenKind::Borrow ||
           current_.kind == TokenKind::Consume) {
-        if (!is_external)
+        if (!is_external && current_.kind == TokenKind::Consume)
           throw CompileError{
               current_.location,
-              "borrow and consume parameter qualifiers are only supported "
-              "on external functions"};
+              "consume parameter qualifiers are only supported on external "
+              "functions"};
         ownership = current_.kind == TokenKind::Borrow
                         ? ast::ParameterOwnership::Borrow
                         : ast::ParameterOwnership::Consume;
@@ -1054,11 +1061,9 @@ Parser::parse_variable_declaration(bool is_constant,
   if (is_borrowed && is_mutable)
     throw CompileError{current_.location,
                        "borrowed local values must be immutable"};
-  const Token declaration = is_constant
-                                ? Token{TokenKind::Const, "const",
-                                        constant_location}
-                                : expect(is_mutable ? TokenKind::Var
-                                                    : TokenKind::Val);
+  const Token declaration =
+      is_constant ? Token{TokenKind::Const, "const", constant_location}
+                  : expect(is_mutable ? TokenKind::Var : TokenKind::Val);
   const Token identifier = expect(TokenKind::Identifier);
   std::optional<ast::TypeReference> declared_type;
   if (current_.kind == TokenKind::Colon) {
@@ -1226,10 +1231,13 @@ ast::Expression Parser::parse_logical_and() {
 ast::Expression Parser::parse_bitwise_or() {
   ast::Expression expression = parse_bitwise_xor();
   while (current_.kind == TokenKind::Pipe) {
-    const Token operation = current_; advance();
-    expression = ast::BinaryExpression{ast::BinaryOperator::BitwiseOr,
-      std::make_unique<ast::Expression>(std::move(expression)),
-      std::make_unique<ast::Expression>(parse_bitwise_xor()), operation.location};
+    const Token operation = current_;
+    advance();
+    expression = ast::BinaryExpression{
+        ast::BinaryOperator::BitwiseOr,
+        std::make_unique<ast::Expression>(std::move(expression)),
+        std::make_unique<ast::Expression>(parse_bitwise_xor()),
+        operation.location};
   }
   return expression;
 }
@@ -1237,10 +1245,13 @@ ast::Expression Parser::parse_bitwise_or() {
 ast::Expression Parser::parse_bitwise_xor() {
   ast::Expression expression = parse_bitwise_and();
   while (current_.kind == TokenKind::Caret) {
-    const Token operation = current_; advance();
-    expression = ast::BinaryExpression{ast::BinaryOperator::BitwiseXor,
-      std::make_unique<ast::Expression>(std::move(expression)),
-      std::make_unique<ast::Expression>(parse_bitwise_and()), operation.location};
+    const Token operation = current_;
+    advance();
+    expression = ast::BinaryExpression{
+        ast::BinaryOperator::BitwiseXor,
+        std::make_unique<ast::Expression>(std::move(expression)),
+        std::make_unique<ast::Expression>(parse_bitwise_and()),
+        operation.location};
   }
   return expression;
 }
@@ -1248,10 +1259,13 @@ ast::Expression Parser::parse_bitwise_xor() {
 ast::Expression Parser::parse_bitwise_and() {
   ast::Expression expression = parse_equality();
   while (current_.kind == TokenKind::Ampersand) {
-    const Token operation = current_; advance();
-    expression = ast::BinaryExpression{ast::BinaryOperator::BitwiseAnd,
-      std::make_unique<ast::Expression>(std::move(expression)),
-      std::make_unique<ast::Expression>(parse_equality()), operation.location};
+    const Token operation = current_;
+    advance();
+    expression = ast::BinaryExpression{
+        ast::BinaryOperator::BitwiseAnd,
+        std::make_unique<ast::Expression>(std::move(expression)),
+        std::make_unique<ast::Expression>(parse_equality()),
+        operation.location};
   }
   return expression;
 }
@@ -1291,20 +1305,24 @@ ast::Expression Parser::parse_comparison() {
     expression = ast::BinaryExpression{
         binary_operation,
         std::make_unique<ast::Expression>(std::move(expression)),
-        std::make_unique<ast::Expression>(parse_shift()),
-        operation.location};
+        std::make_unique<ast::Expression>(parse_shift()), operation.location};
   }
   return expression;
 }
 
 ast::Expression Parser::parse_shift() {
   ast::Expression expression = parse_additive();
-  while (current_.kind == TokenKind::ShiftLeft || current_.kind == TokenKind::ShiftRight) {
-    const Token operation = current_; advance();
+  while (current_.kind == TokenKind::ShiftLeft ||
+         current_.kind == TokenKind::ShiftRight) {
+    const Token operation = current_;
+    advance();
     expression = ast::BinaryExpression{
-      operation.kind == TokenKind::ShiftLeft ? ast::BinaryOperator::ShiftLeft : ast::BinaryOperator::ShiftRight,
-      std::make_unique<ast::Expression>(std::move(expression)),
-      std::make_unique<ast::Expression>(parse_additive()), operation.location};
+        operation.kind == TokenKind::ShiftLeft
+            ? ast::BinaryOperator::ShiftLeft
+            : ast::BinaryOperator::ShiftRight,
+        std::make_unique<ast::Expression>(std::move(expression)),
+        std::make_unique<ast::Expression>(parse_additive()),
+        operation.location};
   }
   return expression;
 }
@@ -1391,8 +1409,7 @@ ast::Expression Parser::parse_primary() {
       }
     }
     if (current_.kind != TokenKind::RightBracket)
-      throw CompileError{current_.location,
-                         "expected ']' after array literal"};
+      throw CompileError{current_.location, "expected ']' after array literal"};
     advance();
     return ast::ArrayLiteralExpression{std::move(elements), opening.location};
   }
@@ -1408,14 +1425,14 @@ ast::Expression Parser::parse_primary() {
       std::vector<std::string> bindings;
       std::unique_ptr<ast::Expression> literal;
       bool is_wildcard = false;
-      const bool literal_start =
-          current_.kind == TokenKind::IntegerLiteral ||
-          current_.kind == TokenKind::FloatLiteral ||
-          current_.kind == TokenKind::DoubleLiteral ||
-          current_.kind == TokenKind::StringLiteral ||
-          current_.kind == TokenKind::CharacterLiteral ||
-          current_.kind == TokenKind::Minus ||
-          current_.kind == TokenKind::True || current_.kind == TokenKind::False;
+      const bool literal_start = current_.kind == TokenKind::IntegerLiteral ||
+                                 current_.kind == TokenKind::FloatLiteral ||
+                                 current_.kind == TokenKind::DoubleLiteral ||
+                                 current_.kind == TokenKind::StringLiteral ||
+                                 current_.kind == TokenKind::CharacterLiteral ||
+                                 current_.kind == TokenKind::Minus ||
+                                 current_.kind == TokenKind::True ||
+                                 current_.kind == TokenKind::False;
       if (literal_start) {
         literal = std::make_unique<ast::Expression>(parse_expression());
       } else {
@@ -1428,12 +1445,11 @@ ast::Expression Parser::parse_primary() {
         const bool constructor_literal =
             case_name == "byte" || case_name == "ubyte" ||
             case_name == "short" || case_name == "ushort" ||
-            case_name == "int" || case_name == "uint" ||
-            case_name == "long" || case_name == "ulong" ||
-            case_name == "isize" || case_name == "usize" ||
-            case_name == "char" || case_name == "bool" ||
-            case_name == "string" || case_name == "float" ||
-            case_name == "double";
+            case_name == "int" || case_name == "uint" || case_name == "long" ||
+            case_name == "ulong" || case_name == "isize" ||
+            case_name == "usize" || case_name == "char" ||
+            case_name == "bool" || case_name == "string" ||
+            case_name == "float" || case_name == "double";
         if (constructor_literal) {
           std::vector<std::unique_ptr<ast::Expression>> arguments;
           if (current_.kind != TokenKind::RightParen) {
@@ -1456,8 +1472,7 @@ ast::Expression Parser::parse_primary() {
             bindings.push_back(identifier->name);
           }
           literal = std::make_unique<ast::Expression>(ast::CallExpression{
-              case_name, {}, std::move(arguments),
-              pattern_token.location});
+              case_name, {}, std::move(arguments), pattern_token.location});
         } else if (current_.kind != TokenKind::RightParen) {
           do {
             bindings.emplace_back(expect(TokenKind::Identifier).lexeme);
@@ -1477,8 +1492,8 @@ ast::Expression Parser::parse_primary() {
       }
       static_cast<void>(expect(TokenKind::Arrow));
       arms.push_back(ast::MatchExpression::Arm{
-          std::move(case_name), std::move(bindings),
-          std::move(literal), is_wildcard, std::move(guard),
+          std::move(case_name), std::move(bindings), std::move(literal),
+          is_wildcard, std::move(guard),
           std::make_unique<ast::Expression>(parse_expression()),
           pattern_token.location});
       if (current_.kind == TokenKind::Comma ||
@@ -1636,9 +1651,8 @@ ast::Expression Parser::parse_primary() {
                  : std::strtod(text.c_str(), &end);
     if (errno == ERANGE || end != text.c_str() + text.size() ||
         !std::isfinite(value)) {
-      throw CompileError{literal.location,
-                         is_float ? "invalid float literal"
-                                  : "invalid double literal"};
+      throw CompileError{literal.location, is_float ? "invalid float literal"
+                                                    : "invalid double literal"};
     }
     return ast::DoubleLiteralExpression{value, is_float, literal.location};
   }

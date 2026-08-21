@@ -176,10 +176,9 @@ struct Expression {
       std::variant<IntegerLiteralExpression, DoubleLiteralExpression,
                    CharacterLiteralExpression, BooleanLiteralExpression,
                    StringLiteralExpression, IdentifierExpression,
-                   ArrayLiteralExpression,
-                   LambdaExpression, CallExpression, NewExpression,
-                   MemberAccessExpression, MethodCallExpression, IfExpression,
-                   MatchExpression, MoveExpression, TryExpression,
+                   ArrayLiteralExpression, LambdaExpression, CallExpression,
+                   NewExpression, MemberAccessExpression, MethodCallExpression,
+                   IfExpression, MatchExpression, MoveExpression, TryExpression,
                    UnaryExpression, BinaryExpression>;
 
   template <typename T>
@@ -337,6 +336,7 @@ struct FunctionDeclaration {
   std::string documentation;
   ReturnOwnership return_ownership{ReturnOwnership::Unspecified};
   bool is_constant{};
+  bool is_borrowing{};
 };
 
 struct DestructorDeclaration {
