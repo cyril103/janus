@@ -4,7 +4,7 @@
 
 - savoir créer et exécuter un projet Janus ;
 - connaître `defer delete` ;
-- Janus 0.17.0, sans paquet additionnel.
+- Janus 0.18.0, sans paquet additionnel.
 
 ## Résultat
 

@@ -2,7 +2,7 @@
 
 ## Prérequis
 
-- Janus 0.17.0 installé et disponible dans le `PATH` ;
+- Janus 0.18.0 installé et disponible dans le `PATH` ;
 - un terminal ;
 - aucune dépendance externe.
 

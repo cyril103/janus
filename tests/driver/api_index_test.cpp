@@ -224,6 +224,8 @@ extern def ownedVariadic[T](consume value : T, borrow other : T, ...) : owned T
          "the installed standard-library artifact uses the shared schema");
   std::size_t stdlib_types_with_generic_syntax = 0;
   bool stdlib_generic_metadata_complete = true;
+  bool slice_metadata_complete = false;
+  bool mutable_slice_metadata_complete = false;
   for (const auto &symbol : installed.symbols) {
     const bool type = symbol.kind == "class" || symbol.kind == "struct" ||
                       symbol.kind == "trait" || symbol.kind == "enum";
@@ -237,10 +239,17 @@ extern def ownedVariadic[T](consume value : T, borrow other : T, ...) : owned T
         symbol.signature[name + symbol.simple_name.size()] == '[';
     if (declaration_is_generic && symbol.generic_parameters.empty())
       stdlib_generic_metadata_complete = false;
+    if (symbol.qualified_name == "std.slice.Slice")
+      slice_metadata_complete =
+          symbol.generic_parameters == std::vector<std::string>{"T"};
+    if (symbol.qualified_name == "std.slice.MutableSlice")
+      mutable_slice_metadata_complete =
+          symbol.generic_parameters == std::vector<std::string>{"T"};
   }
-  expect(stdlib_types_with_generic_syntax == 25 &&
-             stdlib_generic_metadata_complete,
-         "all 25 stdlib type signatures preserve generic declaration metadata");
+  expect(stdlib_types_with_generic_syntax == 27 &&
+             stdlib_generic_metadata_complete && slice_metadata_complete &&
+             mutable_slice_metadata_complete,
+         "all 27 stdlib type signatures preserve generic declaration metadata");
   expect(janus::driver::format_api_search(by_doc, "human") ==
              janus::driver::format_api_search(by_doc, "human"),
          "human output is deterministic");

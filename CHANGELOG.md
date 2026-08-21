@@ -5,6 +5,41 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.18.0] - 2026-08-21
+
+Cette version mineure introduit le premier système général d’emprunts sûrs de
+Janus. Il permet de partager ou modifier temporairement une valeur sans en
+transférer la propriété, avec des règles lexicales vérifiées à la compilation.
+
+### Langage et sûreté mémoire
+
+- ajout des liaisons, paramètres, méthodes et champs `borrow`, ainsi que de
+  `borrow var` pour les emprunts mutables exclusifs ;
+- contrôle des conflits d’aliasing, des invalidations de propriétaire et des
+  emprunts qui tentent de s’échapper par un retour, une closure ou un stockage ;
+- transmission bornée des emprunts dans les appels synchrones, les closures et
+  les chemins de contrôle, avec destruction correcte lors des paniques ;
+- diagnostics structurés `JANA0024` à `JANA0028`, accompagnés d’explications
+  ciblées pour les conflits, invalidations, fuites et sources invalides.
+
+### Bibliothèque standard
+
+- ajout de `std.slice`, `Slice[T]` et `MutableSlice[T]` pour créer des vues
+  contiguës empruntées sur les tableaux sans transfert de propriété ;
+- adaptation des collections et itérateurs aux méthodes d’observation et de
+  mutation empruntées.
+
+### Validation et distribution
+
+- couverture positive et négative dédiée, campagnes sanitizer et test de
+  nettoyage des emprunts pendant une panique ;
+- ajout de Janus Studio au canari d’intégration des archives candidates, aux
+  côtés de Janus8 ;
+- mise à jour de la référence publique de la stdlib et correction de sa
+  synchronisation afin de préserver intact le code placé dans les fences
+  Markdown ;
+- restauration de la compilation Windows du générateur de documentation.
+
 ## [0.17.0] - 2026-08-20
 
 Cette version mineure permet aux applications graphiques de contrôler si leur
@@ -783,6 +818,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.18.0]: https://github.com/cyril103/janus/releases/tag/v0.18.0
 [0.17.0]: https://github.com/cyril103/janus/releases/tag/v0.17.0
 [0.16.0]: https://github.com/cyril103/janus/releases/tag/v0.16.0
 [0.15.0]: https://github.com/cyril103/janus/releases/tag/v0.15.0

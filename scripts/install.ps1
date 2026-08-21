@@ -1,5 +1,5 @@
 param(
-    [string]$Version = $(if ($env:JANUS_VERSION) { $env:JANUS_VERSION } else { "0.17.0" }),
+    [string]$Version = $(if ($env:JANUS_VERSION) { $env:JANUS_VERSION } else { "0.18.0" }),
     [string]$ValidateArchivePath,
     [string]$ExpectedRoot
 )

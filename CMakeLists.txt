@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 project(
     janus
-    VERSION 0.17.0
+    VERSION 0.18.0
     DESCRIPTION "A compiler with an LLVM backend"
     LANGUAGES C CXX
 )
