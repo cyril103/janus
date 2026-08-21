@@ -107,6 +107,7 @@ symbole source non inventorié.
 | `std.process` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.range` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.result` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
+| `std.slice` | `experimental` | [Référence stdlib](stdlib-reference.md) | Vues empruntées nouvelles, hors gel 0.8 historique. |
 | `std.system` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.text` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.testing` | `experimental` | [Tests unitaires natifs](testing.md) | Nouvelle surface de test, hors gel 1.0 initial. |

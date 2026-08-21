@@ -751,9 +751,6 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
         if (is_borrowed && is_value_type)
           throw CompileError{current_.location,
                              "struct fields cannot be borrowed"};
-        if (is_borrowed && current_.kind == TokenKind::Var)
-          throw CompileError{current_.location,
-                             "borrowed fields must be immutable"};
         parsed_field = true;
         const bool is_mutable = current_.kind == TokenKind::Var;
         const Token keyword =

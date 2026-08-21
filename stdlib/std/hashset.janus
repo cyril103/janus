@@ -389,7 +389,7 @@ private borrow val hashing : H
     /// parcours. L’ordre reflète les cases internes et peut changer après toute
     /// réorganisation.
     /// @return Un [[Iterator]] de copies des membres; exige `T <: Copy`.
-    def iterator() : Iterator[T] {
+    borrow def iterator() : Iterator[T] {
         val state : HashSetIteratorState[T, H] =
         new HashSetIteratorState[T, H](this, usize(0))
         return new Iterator[T](

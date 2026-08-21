@@ -103,19 +103,19 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
 
     /// Retourne le nombre d’éléments stockés.
     /// @return Nombre de valeurs initialisées, distinct de la capacité.
-    def size() : usize {
+    borrow def size() : usize {
         return length
     }
 
     /// Retourne la capacité actuellement réservée.
     /// @return Nombre d’éléments pouvant être stockés sans nouvelle allocation.
-    def capacity() : usize {
+    borrow def capacity() : usize {
         return allocated
     }
 
     /// Indique si le tableau est vide.
     /// @return `true` lorsque [[Array.size]] vaut zéro.
-    def isEmpty() : bool {
+    borrow def isEmpty() : bool {
         return length == usize(0)
     }
 
@@ -125,7 +125,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     /// copie; elle n’est disponible que lorsque `T` satisfait `Copy`. Le tableau
     /// doit rester vivant pendant le parcours.
     /// @return Un nouvel [[Iterator]] positionné avant l’indice zéro.
-    def iterator() : Iterator[T] {
+    borrow def iterator() : Iterator[T] {
         val state : ArrayIteratorState[T] =
         new ArrayIteratorState[T](this, usize(0))
         return new Iterator[T](
@@ -174,7 +174,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     /// Déclenche `panic` si `index` est hors limites.
     /// @param index Position de l’élément, à partir de zéro.
     /// @return Copie de l’élément à cette position.
-    def get(index : usize) : T {
+    borrow def get(index : usize) : T {
         if index >= length {
             panic("Array index out of bounds\n")
         }
@@ -184,7 +184,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     /// Retourne l’élément demandé, ou `None` si l’index est hors limites.
     /// @param index Position recherchée, à partir de zéro.
     /// @return `Some` avec une copie de l’élément, ou `None` si `index >= size()`.
-    def getOption(index : usize) : Option[T] {
+    borrow def getOption(index : usize) : Option[T] {
         return if index < length {
             Option.Some[T](data.load(index))
         } else {

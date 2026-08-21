@@ -65,11 +65,11 @@ et emprunts stockés sont différés après cette première version.
 
 ### Implémentation
 
-- ajouter l'analyse de régions lexicales au suivi de propriété existant ;
-- fournir une API d'accès emprunté aux conteneurs propriétaires, en lecture puis
-  en mutation exclusive ;
-- permettre de transmettre l'emprunt à plusieurs couches d'appel sans transfert
-  de propriété ;
+- [x] ajouter l'analyse de régions lexicales au suivi de propriété existant ;
+- [x] fournir `Slice[T]` et `MutableSlice[T]` pour l'accès contigu emprunté, en
+  lecture puis en mutation exclusive ;
+- [x] permettre de transmettre l'emprunt à plusieurs couches d'appel sans
+  transfert de propriété ;
 - couvrir aliasing, réallocation, panique, contrôle de flux et erreurs croisées
   par tests positifs et négatifs ;
 - migrer les onglets de Janus Studio vers un `EditorBuffer` possédé par chaque

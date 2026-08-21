@@ -1,0 +1,189 @@
+/// Fournit des vues contiguës non propriétaires sur un tableau.
+///
+/// [[Slice]] permet une lecture partagée tandis que [[MutableSlice]] réserve un
+/// accès exclusif et autorise le remplacement des éléments. Une vue n'alloue ni
+/// ne copie le stockage observé. Elle doit être détruite avant son tableau
+/// source; tant qu'elle est vivante, l'analyseur interdit les opérations qui
+/// invalideraient son emprunt.
+module std.slice
+import std.array
+import std.option
+import std.iterator
+
+private def checkedSliceLength(total : usize, start : usize,
+                               count : usize) : usize {
+    if start > total || count > total - start {
+        panic("Slice range out of bounds\n")
+    }
+    return count
+}
+
+private class SliceIteratorState[T <: Copy](
+private borrow val source : Slice[T],
+private var index : usize
+) {
+    def next() : Option[T] {
+        if index >= source.size() {
+            return Option.None[T]()
+        }
+        val value : Option[T] = source.getOption(index)
+        index = index + usize(1)
+        return value
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+}
+
+private class MutableSliceIteratorState[T <: Copy](
+private borrow val source : MutableSlice[T],
+private var index : usize
+) {
+    def next() : Option[T] {
+        if index >= source.size() {
+            return Option.None[T]()
+        }
+        val value : Option[T] = source.getOption(index)
+        index = index + usize(1)
+        return value
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+}
+
+/// Vue partagée et bornée sur une portion contiguë d'un [[Array]].
+///
+/// La construction vérifie que `[start, start + count)` appartient au tableau.
+/// Les éléments et le stockage restent la propriété du tableau source.
+/// @param source Tableau observé, qui doit vivre plus longtemps que la vue.
+/// @param start Premier indice observé dans le tableau source.
+/// @param count Nombre d'éléments accessibles depuis la vue.
+class Slice[T <: Copy](
+private borrow val source : Array[T],
+private val start : usize,
+private val count : usize
+) extends Iterable[T] {
+    private val checkedCount : usize =
+    checkedSliceLength(source.size(), start, count)
+
+    /// Retourne le nombre d'éléments visibles.
+    /// @return Longueur de la vue.
+    borrow def size() : usize {
+        return checkedCount
+    }
+
+    /// Indique si la vue est vide.
+    /// @return `true` lorsque la longueur vaut zéro.
+    borrow def isEmpty() : bool {
+        return checkedCount == usize(0)
+    }
+
+    /// Retourne une copie de l'élément à l'indice relatif demandé.
+    /// @param index Position relative à partir de zéro.
+    /// @return Copie de l'élément observé.
+    borrow def get(index : usize) : T {
+        if index >= checkedCount {
+            panic("Slice index out of bounds\n")
+        }
+        return source.get(start + index)
+    }
+
+    /// Retourne l'élément demandé, ou `None` si l'indice est hors limites.
+    /// @param index Position relative recherchée.
+    /// @return `Some` avec une copie, ou `None` si l'indice est invalide.
+    borrow def getOption(index : usize) : Option[T] {
+        return if index < checkedCount {
+            source.getOption(start + index)
+        } else {
+            Option.None[T]()
+        }
+    }
+
+    /// Crée un parcours observant les éléments sans copier le stockage.
+    /// @return Itérateur de copies ordonné par indice croissant.
+    borrow def iterator() : Iterator[T] {
+        val state : SliceIteratorState[T] =
+        new SliceIteratorState[T](this, usize(0))
+        return new Iterator[T](
+        () => state.next(),
+        owningCapture[SliceIteratorState[T]](
+        state, () => state.dispose()
+        )
+        )
+    }
+}
+
+/// Vue mutable, exclusive et bornée sur une portion contiguë d'un [[Array]].
+///
+/// Tant que la vue est vivante, le tableau source ne peut pas être consulté ou
+/// modifié directement et aucune autre vue concurrente ne peut l'emprunter.
+/// @param source Tableau exclusivement emprunté par la vue.
+/// @param start Premier indice observé dans le tableau source.
+/// @param count Nombre d'éléments accessibles depuis la vue.
+class MutableSlice[T <: Copy](
+private borrow var source : Array[T],
+private val start : usize,
+private val count : usize
+) extends Iterable[T] {
+    private val checkedCount : usize =
+    checkedSliceLength(source.size(), start, count)
+
+    /// Retourne le nombre d'éléments visibles.
+    /// @return Longueur de la vue.
+    borrow def size() : usize {
+        return checkedCount
+    }
+
+    /// Indique si la vue est vide.
+    /// @return `true` lorsque la longueur vaut zéro.
+    borrow def isEmpty() : bool {
+        return checkedCount == usize(0)
+    }
+
+    /// Retourne une copie de l'élément à l'indice relatif demandé.
+    /// @param index Position relative à partir de zéro.
+    /// @return Copie de l'élément observé.
+    borrow def get(index : usize) : T {
+        if index >= checkedCount {
+            panic("MutableSlice index out of bounds\n")
+        }
+        return source.get(start + index)
+    }
+
+    /// Retourne l'élément demandé, ou `None` si l'indice est hors limites.
+    /// @param index Position relative recherchée.
+    /// @return `Some` avec une copie, ou `None` si l'indice est invalide.
+    borrow def getOption(index : usize) : Option[T] {
+        return if index < checkedCount {
+            source.getOption(start + index)
+        } else {
+            Option.None[T]()
+        }
+    }
+
+    /// Remplace l'élément à l'indice relatif demandé.
+    /// @param index Position relative existante à modifier.
+    /// @param value Nouvelle valeur copiée dans le tableau source.
+    def set(index : usize, value : T) : Unit {
+        if index >= checkedCount {
+            panic("MutableSlice index out of bounds\n")
+        }
+        source.set(start + index, move value)
+    }
+
+    /// Crée un parcours observant les éléments sans copier le stockage.
+    /// @return Itérateur de copies ordonné par indice croissant.
+    borrow def iterator() : Iterator[T] {
+        val state : MutableSliceIteratorState[T] =
+        new MutableSliceIteratorState[T](this, usize(0))
+        return new Iterator[T](
+        () => state.next(),
+        owningCapture[MutableSliceIteratorState[T]](
+        state, () => state.dispose()
+        )
+        )
+    }
+}

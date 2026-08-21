@@ -160,6 +160,78 @@ def main() : int {
 }
 )", "requires a local value identifier");
 
+  constexpr std::string_view borrowed_field_source = R"(
+class SharedView(private borrow val source : Counter) {
+  borrow def read() : int { return source.value }
+}
+class MutableView(private borrow var source : Counter) {
+  def add(amount : int) : Unit { source.value = source.value + amount }
+}
+class Counter(var value : int) {}
+def main() : int {
+  val counter : Counter = new Counter(1)
+  if true {
+    val view : MutableView = new MutableView(counter)
+    view.add(2)
+    delete view
+  }
+  val shared : SharedView = new SharedView(counter)
+  val result : int = shared.read()
+  delete shared
+  delete counter
+  return result
+}
+)";
+  try {
+    janus::frontend::Parser parser{borrowed_field_source};
+    const janus::ast::Program program = parser.parse_program();
+    expect(program.classes[1].constructor_fields[0].is_borrowed &&
+               program.classes[1].constructor_fields[0].is_mutable,
+           "borrow var class fields retain exclusive borrowing semantics");
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(program));
+  } catch (const std::exception &error) {
+    std::cerr << "FAILED: borrowed class field source was rejected: "
+              << error.what() << '\n';
+    ++failures;
+  }
+
+  expect_compile_error(R"(
+class Counter(var value : int) {}
+class MutableView(private borrow var source : Counter) {}
+def main() : int {
+  val counter : Counter = new Counter(1)
+  val first : MutableView = new MutableView(counter)
+  val second : MutableView = new MutableView(counter)
+  return 0
+}
+)",
+                       "already borrowed");
+
+  expect_compile_error(R"(
+class Counter(var value : int) {}
+class MutableView(private borrow var source : Counter) {}
+def main() : int {
+  val counter : Counter = new Counter(1)
+  borrow val shared : Counter = counter
+  val view : MutableView = new MutableView(shared)
+  return 0
+}
+)",
+                       "cannot be borrowed mutably");
+
+  expect_compile_error(R"(
+class Counter(var value : int) {}
+class SharedView(private borrow val source : Counter) {}
+def main() : int {
+  val counter : Counter = new Counter(1)
+  borrow var editable : Counter = counter
+  val view : SharedView = new SharedView(editable)
+  return 0
+}
+)",
+                       "cannot be borrowed concurrently");
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;

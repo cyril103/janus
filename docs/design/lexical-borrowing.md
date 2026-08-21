@@ -3,8 +3,8 @@
 Statut : acceptée. Les emprunts partagés de l'issue #260, les emprunts
 mutables exclusifs de l'issue #261, les invalidations lexicales de l'issue #262
 et les transmissions bornées de l'issue #263 sont implémentés ; les projections
-et régions à la dernière utilisation restent à livrer dans les issues
-suivantes.
+ainsi que les vues contiguës de l'issue #264 sont implémentées ; les régions à
+la dernière utilisation restent à livrer dans l'issue suivante.
 
 Cette décision définit le premier modèle général d'emprunts de Janus. Elle
 étend les garanties de [propriété des conteneurs](container-ownership.md) sans
@@ -353,17 +353,19 @@ La première version n'autorise pas `Option[borrow T]`, `Result[borrow T, E]` ni
 le stockage général d'un emprunt dans un enum. Une API utilise plutôt un
 callback borné jusqu'à l'introduction éventuelle de durées publiques.
 
-## Conteneurs et futures slices
+## Conteneurs et slices
 
 Une collection peut exposer un élément par emprunt partagé ou mutable sans en
 transférer la propriété. Le prêt d'un élément est aussi relié au stockage du
 conteneur : toute opération pouvant déplacer ou remplacer cet élément est
 interdite pendant la région.
 
-`Slice[T]` et `MutableSlice[T]` seront des vues non propriétaires fondées sur
-ce modèle. Leur ajout est suivi séparément par l'issue #264. La présente
-décision fixe déjà que leur validité dépend du propriétaire du stockage et que
-toute réallocation compatible avec leur étendue doit être rejetée.
+`Slice[T]` et `MutableSlice[T]` sont des vues non propriétaires fondées sur ce
+modèle. Elles observent une plage bornée d'un `Array[T]` sans copier son
+stockage. `Slice[T]` conserve un emprunt partagé ; `MutableSlice[T]` conserve
+un emprunt mutable exclusif et expose `set`. Leur validité dépend du tableau
+source : son déplacement, sa destruction, sa mutation directe et toute
+réallocation sont rejetés jusqu'à la destruction de la vue.
 
 ## Compatibilité avec les mécanismes existants
 
@@ -373,11 +375,12 @@ L'alias pointeur local existant devient le sous-ensemble `Ptr[T]` de l'emprunt
 partagé général. Son type d'exécution et son absence de destruction ne changent
 pas.
 
-Les champs de constructeur `borrow val` des classes restent un contrat
-observant transitoire. Leur source doit vivre plus longtemps que l'instance et
-le suivi existant continue de bloquer sa destruction. La première version ne
-généralise pas ce mécanisme à des champs mutables, structs, valeurs retournées
-ou API publiques exigeant des durées explicites.
+Les champs de constructeur `borrow val` et `borrow var` des classes conservent
+respectivement un emprunt partagé ou mutable. Leur source doit vivre plus
+longtemps que l'instance et le suivi bloque sa destruction ou tout accès
+incompatible. Ces champs restent interdits aux structs et une instance qui en
+contient ne peut pas s'échapper par retour ou stockage persistant sans contrat
+de durée de vie public.
 
 ### Frontière native
 
@@ -516,7 +519,7 @@ invariants d'aliasing sans rendre nécessaire une collecte de mémoire cachée.
 6. construire `Slice[T]` et `MutableSlice[T]` sur ces garanties ;
 7. migrer les callbacks historiques et valider Janus Studio comme canari.
 
-Les étapes 2 à 5 sont disponibles avec des régions lexicales conservatrices :
+Les étapes 2 à 6 sont disponibles avec des régions lexicales conservatrices :
 une liaison `borrow val` ou `borrow var` reste active jusqu'à la fin de son
 bloc. L'analyse plus fine à la dernière utilisation et les projections ne font
 donc pas encore partie de cette implémentation.

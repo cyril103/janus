@@ -1,0 +1,43 @@
+import std.array
+import std.slice
+
+def sumSlice(borrow values : Slice[int]) : int {
+    var sum : int = 0
+    for value in values {
+        sum = sum + value
+    }
+    return sum
+}
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(4))
+    values.push(10)
+    values.push(20)
+    values.push(30)
+    values.push(40)
+
+    if true {
+        val middle : Slice[int] =
+        new Slice[int](values, usize(1), usize(2))
+        println(middle.size())
+        println(middle.get(usize(0)))
+        println(middle.get(usize(1)))
+        println(sumSlice(middle))
+        delete middle
+    }
+
+    if true {
+        val editable : MutableSlice[int] =
+        new MutableSlice[int](values, usize(1), usize(2))
+        editable.set(usize(0), 25)
+        editable.set(usize(1), 35)
+        println(editable.get(usize(0)))
+        println(editable.get(usize(1)))
+        delete editable
+    }
+
+    println(values.get(usize(1)))
+    println(values.get(usize(2)))
+    delete values
+    return 0
+}

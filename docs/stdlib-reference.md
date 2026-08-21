@@ -39,6 +39,23 @@ import std.iterator
 def main() : int { return 0 }
 ```
 
+### `std.slice`
+
+```janus
+// doctest: doctest name=stdlib-std-slice
+import std.array
+import std.slice
+def main() : int {
+    val values : Array[int] = new Array[int](usize(1))
+    values.push(7)
+    val view : Slice[int] = new Slice[int](values, usize(0), usize(1))
+    val result : int = view.get(usize(0))
+    delete view
+    delete values
+    return result - 7
+}
+```
+
 ### `std.option`
 
 ```janus

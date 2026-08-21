@@ -18,7 +18,7 @@ TYPE_RE = re.compile(
 )
 FUNCTION_RE = re.compile(
     r"(?:(private|internal)\s+)?(?:(extern(?:\(\"[^\"]+\"\))?)\s+)?(?:(consume)\s+)?"
-    r"def\s+([A-Za-z_]\w*)"
+    r"(?:borrow\s+)?def\s+([A-Za-z_]\w*)"
 )
 VALUE_RE = re.compile(
     r"(?:(private|internal)\s+)?(?:borrow\s+)?(val|var)\s+([A-Za-z_]\w*)"

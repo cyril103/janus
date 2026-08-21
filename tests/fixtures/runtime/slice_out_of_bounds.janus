@@ -1,0 +1,12 @@
+import std.array
+import std.slice
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(1))
+    defer delete values
+    values.push(1)
+    val invalid : Slice[int] =
+    new Slice[int](values, usize(1), usize(1))
+    delete invalid
+    return 0
+}

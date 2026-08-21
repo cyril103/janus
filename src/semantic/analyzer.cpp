@@ -2660,6 +2660,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       for (const ast::ValueDeclaration &field : owner->constructor_fields)
         if (field.is_borrowed) {
           borrowed_values.insert(field.name);
+          if (field.is_mutable)
+            mutable_borrow_values.insert(field.name);
           transfer_protected_values.insert(field.name);
         }
     if (!is_destructor) {
@@ -4410,6 +4412,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       expression_location(argument),
                       "borrowed field '" + field.name +
                           "' cannot be initialized with a moved value"};
+                if (field.is_borrowed)
+                  if (const auto *source =
+                          std::get_if<ast::IdentifierExpression>(
+                              &argument.value)) {
+                    if (field.is_mutable) {
+                      if (shared_borrow_values.contains(source->name))
+                        throw CompileError{expression_location(argument),
+                                           "shared borrow '" + source->name +
+                                               "' cannot be borrowed mutably"};
+                      if (const auto borrower =
+                              live_borrower_of(source->name, true))
+                        throw CompileError{expression_location(argument),
+                                           "value '" + source->name +
+                                               "' is already borrowed by '" +
+                                               *borrower + "'"};
+                    } else if (mutable_borrow_values.contains(source->name)) {
+                      throw CompileError{
+                          expression_location(argument),
+                          "mutable borrow '" + source->name +
+                              "' cannot be borrowed concurrently"};
+                    }
+                  }
                 if (!field.is_borrowed)
                   if (const auto *source =
                           std::get_if<ast::IdentifierExpression>(
@@ -6263,6 +6287,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     *class_iterator->second;
                 const std::size_t parameter_count =
                     class_declaration.constructor_parameters.size();
+                bool contains_mutable_borrow = false;
                 for (std::size_t index = 0;
                      index < class_declaration.constructor_fields.size();
                      ++index) {
@@ -6270,6 +6295,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       class_declaration.constructor_fields[index];
                   if (!field.is_borrowed)
                     continue;
+                  contains_mutable_borrow =
+                      contains_mutable_borrow || field.is_mutable;
                   const ast::Expression &argument =
                       *construction->arguments[parameter_count + index];
                   if (const auto *source =
@@ -6277,6 +6304,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               &argument.value))
                     borrow_sources[declaration->name].insert(source->name);
                 }
+                if (contains_mutable_borrow)
+                  mutable_borrow_values.insert(declaration->name);
               }
             }
 
@@ -6572,6 +6601,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     *class_iterator->second;
                 const std::size_t parameter_count =
                     class_declaration.constructor_parameters.size();
+                bool contains_mutable_borrow = false;
                 for (std::size_t index = 0;
                      index < class_declaration.constructor_fields.size();
                      ++index) {
@@ -6579,6 +6609,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       class_declaration.constructor_fields[index];
                   if (!field.is_borrowed)
                     continue;
+                  contains_mutable_borrow =
+                      contains_mutable_borrow || field.is_mutable;
                   const ast::Expression &argument =
                       *construction->arguments[parameter_count + index];
                   if (const auto *source =
@@ -6586,6 +6618,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               &argument.value))
                     borrow_sources[assignment->name].insert(source->name);
                 }
+                if (contains_mutable_borrow)
+                  mutable_borrow_values.insert(assignment->name);
               }
             }
             if (const auto *move = std::get_if<ast::MoveExpression>(

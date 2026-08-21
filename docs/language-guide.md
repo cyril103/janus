@@ -588,11 +588,35 @@ séparément.
 Un emprunt actif interdit aussi les invalidations indirectes : appel d'une
 méthode mutante ou consommatrice sur le propriétaire, passage à un paramètre
 `consume`, et `realloc` ou `reallocPreserving` d'un pointeur emprunté. Un objet
-avec un champ constructeur `borrow val` maintient l'emprunt jusqu'à sa
+avec un champ constructeur `borrow val` ou `borrow var` maintient respectivement
+un emprunt partagé ou mutable jusqu'à sa
 destruction ou la fin de son bloc. Cet objet ne peut pas être copié dans un
 champ ou une globale, ni sortir de la fonction par `return`. Ces règles sont
 conservatrices et lexicales ; un bloc court permet de terminer explicitement
 la durée de vie observante.
+
+Le module `std.slice` fournit des vues contiguës sur `Array[T]` pour les types
+`Copy`. `Slice[T]` permet la lecture partagée ; `MutableSlice[T]` réserve un
+accès exclusif et ajoute `set`. Les indices sont relatifs à la vue et contrôlés
+à l'exécution. La plage est validée à la construction, le stockage n'est pas
+copié et les deux vues implémentent `Iterable[T]` :
+
+```janus
+import std.array
+import std.slice
+
+val values : Array[int] = new Array[int](usize(3))
+values.push(10)
+values.push(20)
+values.push(30)
+if true {
+    val middle : MutableSlice[int] =
+    new MutableSlice[int](values, usize(1), usize(2))
+    middle.set(usize(0), 25)
+    delete middle
+}
+// `values` redevient accessible après la destruction de la vue.
+```
 
 Un paramètre `borrow var` peut être réemprunté temporairement comme `borrow`
 par un appel imbriqué, puis retrouver son accès mutable au retour. Une closure

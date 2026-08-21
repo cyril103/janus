@@ -170,9 +170,11 @@ l'appel, et `borrow def` déclare une méthode d'observation. `borrow var` et un
 paramètre `borrow var` accordent temporairement un accès
 mutable exclusif au même stockage ; aucun autre emprunt ni accès au propriétaire
 ne peut être actif pendant leur portée lexicale. Les champs de
-constructeur de classe peuvent utiliser `borrow val` pour conserver une
-référence observante non détruite avec l'instance; ce contrat est interdit aux
-structs. Tant que cet emprunt est actif, le propriétaire ne peut être déplacé,
+constructeur de classe peuvent utiliser `borrow val` ou `borrow var` pour
+conserver respectivement une référence partagée ou mutable non détruite avec
+l'instance; ce contrat est interdit aux structs. `Slice[T]` et
+`MutableSlice[T]` appliquent ce contrat aux plages contiguës d'un `Array[T]`
+sans copier son stockage. Tant que cet emprunt est actif, le propriétaire ne peut être déplacé,
 détruit, remplacé, muté par une méthode non observante, consommé par du code
 natif ou réalloué. Une instance contenant un tel champ ne peut pas échapper par
 copie, stockage global ou retour. Les primitives de stockage explicites (Ptr.initialize,

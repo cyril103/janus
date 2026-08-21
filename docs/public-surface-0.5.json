@@ -16,7 +16,7 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "595b1d17cef97100fe9b339b14cdb601e8d994d6a1101147d146f2450eb15a04",
+      "signature_digest": "8b90c730eb4a1b41f0650c090d9805e157bd258b050060cf8cce21ada2272211",
       "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getOption", "Array.set", "Array.replace", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.withValue", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "filledArray", "generateArray"]
     },
     {
@@ -129,7 +129,7 @@
       "source": "stdlib/std/hashset.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "961d86be7811c1cb95be8d36b907654ff4e4be495f89b1541016982d2f9c451f",
+      "signature_digest": "1ff87f87aa9498476b928ab21f8949a3f3cfdb60ae6a0a65302af9db09d08f5b",
       "symbols": ["HashSet", "HashSet.size", "HashSet.isEmpty", "HashSet.contains", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
     },
     {
@@ -145,7 +145,7 @@
       "source": "stdlib/std/iterator.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "4b2665a86297526c4f97200cc99afa2f425ce60abbeea7d72811b4d1f78b5528",
+      "signature_digest": "e056d031a9742d3436e7658df0eded3e43c0f9d0407d801b724771bff382eca6",
       "symbols": ["Iterable", "Iterable.iterator", "ZipItem", "ZipItem.left", "ZipItem.right", "Indexed", "Indexed.index", "Indexed.value", "Iterator", "Iterator.next", "Iterator.map", "Iterator.filter", "Iterator.take", "Iterator.zip", "Iterator.enumerate", "Iterator.flatMap", "Iterator.collectWith", "Iterator.fold"]
     },
     {
@@ -211,6 +211,14 @@
       "status": "stable-proposed",
       "signature_digest": "9e339ef3a416122a0d19070d69715097a53f6c1751814f10390f1b97599fbe66",
       "symbols": ["Result", "Result.Ok", "Result.Error", "isOk", "isError", "map", "mapError", "andThen", "orElse", "unwrapOr", "toOption", "fromOption"]
+    },
+    {
+      "name": "std.slice",
+      "source": "stdlib/std/slice.janus",
+      "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/stability-contract.md"],
+      "status": "experimental",
+      "signature_digest": "e791c2afc8bf9fdbdf27cd2f6483d5123e97e5c172f0cbd88e68ced92733d5fa",
+      "symbols": ["Slice", "Slice.size", "Slice.isEmpty", "Slice.get", "Slice.getOption", "Slice.iterator", "MutableSlice", "MutableSlice.size", "MutableSlice.isEmpty", "MutableSlice.get", "MutableSlice.getOption", "MutableSlice.set", "MutableSlice.iterator"]
     },
     {
       "name": "std.system",

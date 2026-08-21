@@ -21,6 +21,9 @@ pour expérimentation, mais ne font pas partie du candidat stable.
 - `std.numeric` : les politiques de conversion sont entièrement spécifiées et
   testées, mais leur nouvelle surface reste expérimentale jusqu'au prochain
   inventaire de stabilité.
+- `std.slice` : les vues contiguës empruntées ont été ajoutées après la baseline
+  0.8 et restent expérimentales jusqu'à leur validation dans un inventaire
+  courant.
 
 Autres limites hors surface promise : format et ordre exacts des diagnostics,
 ABI des agrégats Janus, objets compilés entre plateformes, performances,

@@ -27,7 +27,7 @@ trait Iterable[T <: Copy] {
     /// Le parcours ne consomme pas la source et produit des copies de ses
     /// éléments. Chaque appel crée un état de parcours indépendant.
     /// @return Un nouvel [[Iterator]] observant les valeurs dans l’ordre de la source.
-    def iterator() : Iterator[T]
+    borrow def iterator() : Iterator[T]
 }
 
 /// Regroupe les deux valeurs produites au même rang par [[Iterator.zip]].
