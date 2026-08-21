@@ -215,8 +215,8 @@ implémentation.
 - La compatibilité 0.5.x est conservée pour les opérations `Copy`.
 - Les API d'observation et de consommation deviennent distinctes.
 - Les collections et itérateurs 0.6.1 reprennent ces mêmes invariants.
-- Un futur système général de références pourra remplacer l'emprunt contextuel
-  sans autoriser davantage de copies implicites.
+- Le [modèle général d'emprunts lexicaux](lexical-borrowing.md) pourra remplacer
+  l'emprunt contextuel sans autoriser davantage de copies implicites.
 
 ## Complexité et nettoyage des séquences en 0.7.4
 

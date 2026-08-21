@@ -48,7 +48,8 @@ Les priorités sont ordonnées ainsi :
 
 ### Décision de langage
 
-Rédiger et accepter un document de design couvrant :
+La [spécification des emprunts lexicaux](design/lexical-borrowing.md) fixe le
+modèle cible pour l'implémentation 0.19. Elle couvre :
 
 - emprunt immuable et emprunt mutable exclusif d'une valeur propriétaire ;
 - durée lexicale inférée et interdiction d'échapper à la portée ;
@@ -60,7 +61,7 @@ Rédiger et accepter un document de design couvrant :
 - diagnostics et suggestions de migration.
 
 Les retours empruntés, durées de vie explicites publiques, captures asynchrones
-et emprunts stockés peuvent être différés si leur sûreté n'est pas démontrée.
+et emprunts stockés sont différés après cette première version.
 
 ### Implémentation
 

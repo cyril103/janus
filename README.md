@@ -261,6 +261,7 @@ Une extension VS Code est disponible dans
 - [Baseline automatisée de stabilité 0.8](docs/stability-inventory-0.8.md)
 - [Audit technique de Janus 0.17](docs/audit-0.17.md)
 - [Roadmap vers Janus 1.0](docs/roadmap-1.0.md)
+- [Spécification des emprunts lexicaux](docs/design/lexical-borrowing.md)
 - [Politique de sévérité des releases](docs/release-severity-policy.md)
 - [Archives documentaires](docs/archive/README.md)
 - [Dépannage du corpus Project Euler](docs/project-euler-troubleshooting.md)

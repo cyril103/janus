@@ -127,9 +127,11 @@ changement d'onglet. Cette solution copie le contenu et ne conserve pas
 l'historique d'annulation de chaque buffer. Le problème se reproduira dans les
 arbres d'interface, scènes, caches, graphes et tables de symboles.
 
-Recommandation : spécifier des emprunts lexicaux immuables et mutables, la
-projection de champs et une API d'emprunt de conteneur, sans autoriser dans un
-premier temps les retours empruntés ni les captures persistantes.
+Recommandation : appliquer la
+[spécification des emprunts lexicaux](design/lexical-borrowing.md), couvrant les
+emprunts immuables et mutables, la projection de champs et les conteneurs, sans
+autoriser dans un premier temps les retours empruntés ni les captures
+persistantes.
 
 ### A02 — P0 — Rebaser le contrat 1.0 sur la 0.17
 
