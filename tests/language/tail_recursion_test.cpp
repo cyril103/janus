@@ -65,6 +65,12 @@ def sum(value : int) : int {
     return value + sum(value - 1)
 }
 
+def identityText(value : string) : string { return value }
+
+def forwardText(value : string) : string {
+    return identityText(value)
+}
+
 def observe() : Unit {}
 
 def withDefer(value : int) : int {
@@ -131,6 +137,12 @@ def main() : int {
       find_call(*module->getFunction("withDefer"), "withDefer");
   expect(deferred_call != nullptr && !deferred_call->isTailCall(),
          "pending deferred work preserves normal recursive return semantics");
+
+  const llvm::CallInst *aggregate_return_call =
+      find_call(*module->getFunction("forwardText"), "identityText");
+  expect(aggregate_return_call != nullptr &&
+             !aggregate_return_call->isTailCall(),
+         "aggregate returns avoid unsupported target-level tail calls");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

@@ -313,6 +313,7 @@ private:
                                          ::llvm::IRBuilder<> &builder) {
     auto *call = ::llvm::dyn_cast_or_null<::llvm::CallInst>(return_value);
     if (call == nullptr || caller.isVarArg() ||
+        call->getType()->isAggregateType() ||
         call->getFunctionType() != caller.getFunctionType() ||
         call->getCallingConv() != caller.getCallingConv() ||
         call->getParent() != builder.GetInsertBlock() ||

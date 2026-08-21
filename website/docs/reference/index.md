@@ -1,4 +1,4 @@
-# Référence Janus 0.18.0
+# Référence Janus 0.19.0
 
 Cette section publie les guides canoniques du dépôt. Ils sont copiés à chaque build : il n’existe donc pas de version éditoriale concurrente dans le site.
 
@@ -46,7 +46,7 @@ Priorité décroissante : `* / %`, `+ -`, `<< >>`, `< <= > >=`, `== !=`, `&`,
 `^`, `|`, `&&`, `||`.
 
 !!! warning "Version pré-1.0"
-    Cette référence décrit **Janus 0.18.0**. L’inventaire 0.5.x reste publié
+    Cette référence décrit **Janus 0.19.0**. L’inventaire 0.5.x reste publié
     comme source symbolique de l’audit 0.8. Avant la version 1.0, seules les
     gates du candidat s’appliquent ; la compatibilité définitive n’est pas
     encore promise.

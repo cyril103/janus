@@ -5,13 +5,20 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.19.0] - 2026-08-21
+
+Cette version mineure garantit l’optimisation des appels terminaux compatibles,
+y compris pour les méthodes et la récursivité mutuelle, afin de conserver une
+utilisation constante de la pile d’exécution.
+
 ### Compilateur
 
 - optimisation garantie des appels terminaux de fonctions et de méthodes, y
   compris la récursivité mutuelle de signature compatible, afin de réutiliser
   le cadre de pile courant sans croissance de la pile d'exécution ;
 - conservation des retours conventionnels lorsqu'un calcul, un `defer` ou un
-  nettoyage de possession doit encore s'exécuter après l'appel.
+  nettoyage de possession doit encore s'exécuter après l'appel, ou lorsque la
+  cible ne garantit pas l’abaissement terminal d’un retour agrégé.
 
 ## [0.18.0] - 2026-08-21
 
@@ -826,6 +833,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.19.0]: https://github.com/cyril103/janus/releases/tag/v0.19.0
 [0.18.0]: https://github.com/cyril103/janus/releases/tag/v0.18.0
 [0.17.0]: https://github.com/cyril103/janus/releases/tag/v0.17.0
 [0.16.0]: https://github.com/cyril103/janus/releases/tag/v0.16.0
