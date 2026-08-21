@@ -661,6 +661,7 @@ def filledArray[T <: Copy](count : usize, value : T) : Array[T] {
 /// defer delete squares
 /// ```
 def generateArray[T](count : usize, factory : (usize) => T) : Array[T] {
+    defer delete factory
     val state : ArrayFactoryState[T] =
     new ArrayFactoryState[T](new Array[T](checkedArrayCapacity[T](count)))
     defer delete state

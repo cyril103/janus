@@ -2547,6 +2547,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     bool inside_lambda = false;
     bool inside_defer = false;
     bool contextual_borrow_lambda_parameters = false;
+    bool contextual_lambda_may_escape = false;
     bool contextual_borrow_expression = false;
     bool contextual_borrow_pointer_expression = false;
     std::string_view contextual_borrow_enum_name;
@@ -2559,47 +2560,46 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> mutable_borrow_values;
     std::unordered_map<std::string, std::unordered_set<std::string>>
         borrow_sources;
-    const auto require_no_live_borrow = [&](std::string_view owner_name,
-                                            SourceLocation location,
-                                            std::string_view action =
-                                                "released") {
-      const auto depends_on =
-          [&](const auto &self, std::string_view candidate,
-              std::string_view owner,
-              std::unordered_set<std::string> &visited) -> bool {
-        if (candidate == owner)
-          return true;
-        if (!visited.insert(std::string{candidate}).second)
-          return false;
-        const auto sources = borrow_sources.find(std::string{candidate});
-        if (sources == borrow_sources.end())
-          return false;
-        return std::any_of(sources->second.begin(), sources->second.end(),
-                           [&](const std::string &source) {
-                             return self(self, source, owner, visited);
-                           });
-      };
-      for (const auto &[borrower, sources] : borrow_sources) {
-        const auto symbol = active_symbols->find(borrower);
-        if (symbol == active_symbols->end() ||
-            !symbol->second.may_be_initialized)
-          continue;
-        std::unordered_set<std::string> visited;
-        const bool borrows_owner = std::any_of(
-            sources.begin(), sources.end(), [&](const std::string &source) {
-              return depends_on(depends_on, source, owner_name, visited);
-            });
-        if (!borrows_owner)
-          continue;
-        throw CompileError{location,
-                           "owning value '" + std::string{owner_name} +
-                               "' cannot be " + std::string{action} +
-                               " while borrowed by '" + borrower + "'"};
-      }
-    };
-    const auto live_borrower_of = [&](std::string_view owner_name,
-                                      bool include_shared)
-        -> std::optional<std::string> {
+    const auto require_no_live_borrow =
+        [&](std::string_view owner_name, SourceLocation location,
+            std::string_view action = "released") {
+          const auto depends_on =
+              [&](const auto &self, std::string_view candidate,
+                  std::string_view owner,
+                  std::unordered_set<std::string> &visited) -> bool {
+            if (candidate == owner)
+              return true;
+            if (!visited.insert(std::string{candidate}).second)
+              return false;
+            const auto sources = borrow_sources.find(std::string{candidate});
+            if (sources == borrow_sources.end())
+              return false;
+            return std::any_of(sources->second.begin(), sources->second.end(),
+                               [&](const std::string &source) {
+                                 return self(self, source, owner, visited);
+                               });
+          };
+          for (const auto &[borrower, sources] : borrow_sources) {
+            const auto symbol = active_symbols->find(borrower);
+            if (symbol == active_symbols->end() ||
+                !symbol->second.may_be_initialized)
+              continue;
+            std::unordered_set<std::string> visited;
+            const bool borrows_owner = std::any_of(
+                sources.begin(), sources.end(), [&](const std::string &source) {
+                  return depends_on(depends_on, source, owner_name, visited);
+                });
+            if (!borrows_owner)
+              continue;
+            throw CompileError{location,
+                               "owning value '" + std::string{owner_name} +
+                                   "' cannot be " + std::string{action} +
+                                   " while borrowed by '" + borrower + "'"};
+          }
+        };
+    const auto live_borrower_of =
+        [&](std::string_view owner_name,
+            bool include_shared) -> std::optional<std::string> {
       const auto depends_on =
           [&](const auto &self, std::string_view candidate,
               std::string_view owner,
@@ -2626,11 +2626,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             !symbol->second.may_be_initialized)
           continue;
         std::unordered_set<std::string> visited;
-        if (std::any_of(sources.begin(), sources.end(),
-                        [&](const std::string &source) {
-                          return depends_on(depends_on, source, owner_name,
-                                            visited);
-                        }))
+        if (std::any_of(
+                sources.begin(), sources.end(), [&](const std::string &source) {
+                  return depends_on(depends_on, source, owner_name, visited);
+                }))
           return borrower;
       }
       return std::nullopt;
@@ -2651,8 +2650,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::size_t> warned_unannotated_return_locations;
     std::unordered_set<std::size_t> used_local_declarations;
     std::unordered_map<std::size_t, std::vector<std::string>> lambda_captures;
+    std::unordered_map<std::size_t, std::vector<std::string>>
+        lambda_borrow_captures;
+    std::unordered_set<std::size_t> lambda_mutable_borrow_captures;
     std::unordered_map<std::string, std::size_t> local_lambda_locations;
     std::unordered_set<std::string> *active_lambda_captures = nullptr;
+    std::unordered_set<std::string> *active_lambda_mutations = nullptr;
     if (owner != nullptr)
       for (const ast::ValueDeclaration &field : owner->constructor_fields)
         if (field.is_borrowed) {
@@ -2767,12 +2770,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto *const active_type_substitutions_before =
           active_type_substitutions;
       auto *const active_lambda_captures_before = active_lambda_captures;
+      auto *const active_lambda_mutations_before = active_lambda_mutations;
       const std::optional<std::string> context_module_before = context_module;
       const std::size_t diagnostics_before = result.diagnostics.size();
       const auto warned_leaks_before = warned_leak_locations;
       const auto warned_returns_before = warned_unannotated_return_locations;
       const auto used_locals_before = used_local_declarations;
       const auto captures_before = lambda_captures;
+      const auto borrow_captures_before = lambda_borrow_captures;
+      const auto mutable_borrow_captures_before =
+          lambda_mutable_borrow_captures;
       const auto lambda_locations_before = local_lambda_locations;
       const auto borrowed_values_before = borrowed_values;
       const auto shared_borrow_values_before = shared_borrow_values;
@@ -2785,18 +2792,27 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   ? std::nullopt
                   : std::optional<std::unordered_set<std::string>>{
                         *active_lambda_captures_before};
+      const std::optional<std::unordered_set<std::string>>
+          active_mutations_before =
+              active_lambda_mutations_before == nullptr
+                  ? std::nullopt
+                  : std::optional<std::unordered_set<std::string>>{
+                        *active_lambda_mutations_before};
       const auto restore = [&] {
         active_symbols = active_symbols_before;
         *active_symbols_before = symbols_before;
         active_type_parameters = active_type_parameters_before;
         active_type_substitutions = active_type_substitutions_before;
         active_lambda_captures = active_lambda_captures_before;
+        active_lambda_mutations = active_lambda_mutations_before;
         context_module = context_module_before;
         result.diagnostics.resize(diagnostics_before);
         warned_leak_locations = warned_leaks_before;
         warned_unannotated_return_locations = warned_returns_before;
         used_local_declarations = used_locals_before;
         lambda_captures = captures_before;
+        lambda_borrow_captures = borrow_captures_before;
+        lambda_mutable_borrow_captures = mutable_borrow_captures_before;
         local_lambda_locations = lambda_locations_before;
         borrowed_values = borrowed_values_before;
         shared_borrow_values = shared_borrow_values_before;
@@ -2805,6 +2821,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         result.inferred_generic_arguments = inferred_calls_before;
         if (active_captures_before.has_value())
           *active_lambda_captures_before = *active_captures_before;
+        if (active_mutations_before.has_value())
+          *active_lambda_mutations_before = *active_mutations_before;
       };
       try {
         SemanticType candidate = expression_type(value);
@@ -3042,6 +3060,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
       std::unordered_set<std::string> call_shared_borrows;
       std::unordered_set<std::string> call_mutable_borrows;
+      const bool synchronous_callback_api =
+          (callee.module_name == std::optional<std::string>{"std.option"} &&
+           (callee.name == "map" || callee.name == "andThen")) ||
+          (callee.module_name == std::optional<std::string>{"std.result"} &&
+           (callee.name == "map" || callee.name == "mapError" ||
+            callee.name == "andThen" || callee.name == "orElse")) ||
+          (callee.module_name == std::optional<std::string>{"std.array"} &&
+           callee.name == "generateArray");
       for (std::size_t index = 0; index < arguments.size(); ++index) {
         if (index >= callee.parameters.size()) {
           const SemanticType argument_type = expression_type(*arguments[index]);
@@ -3069,14 +3095,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             callee.parameters[index].ownership;
         if (ownership == ast::ParameterOwnership::Borrow ||
             ownership == ast::ParameterOwnership::BorrowMutable) {
-          const auto *identifier = std::get_if<ast::IdentifierExpression>(
-              &arguments[index]->value);
+          const auto *identifier =
+              std::get_if<ast::IdentifierExpression>(&arguments[index]->value);
           if (ownership == ast::ParameterOwnership::BorrowMutable &&
               identifier == nullptr)
-            throw CompileError{
-                expression_location(*arguments[index]),
-                "mutable borrow parameter '" + callee.parameters[index].name +
-                    "' requires a local value identifier"};
+            throw CompileError{expression_location(*arguments[index]),
+                               "mutable borrow parameter '" +
+                                   callee.parameters[index].name +
+                                   "' requires a local value identifier"};
           if (identifier != nullptr) {
             if (ownership == ast::ParameterOwnership::BorrowMutable) {
               if (shared_borrow_values.contains(identifier->name))
@@ -3086,10 +3112,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "' cannot be passed as a mutable borrow"};
               if (const auto borrower =
                       live_borrower_of(identifier->name, true))
-                throw CompileError{
-                    expression_location(*arguments[index]),
-                    "value '" + identifier->name +
-                        "' is already borrowed by '" + *borrower + "'"};
+                throw CompileError{expression_location(*arguments[index]),
+                                   "value '" + identifier->name +
+                                       "' is already borrowed by '" +
+                                       *borrower + "'"};
               if (call_shared_borrows.contains(identifier->name) ||
                   !call_mutable_borrows.insert(identifier->name).second)
                 throw CompileError{
@@ -3098,18 +3124,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "' cannot be borrowed mutably more than once in the "
                         "same call"};
             } else {
-              if (mutable_borrow_values.contains(identifier->name))
-                throw CompileError{
-                    expression_location(*arguments[index]),
-                    "mutable borrow '" + identifier->name +
-                        "' cannot be shared concurrently"};
               if (const auto borrower =
                       live_borrower_of(identifier->name, false))
-                throw CompileError{
-                    expression_location(*arguments[index]),
-                    "value '" + identifier->name +
-                        "' is already mutably borrowed by '" + *borrower +
-                        "'"};
+                throw CompileError{expression_location(*arguments[index]),
+                                   "value '" + identifier->name +
+                                       "' is already mutably borrowed by '" +
+                                       *borrower + "'"};
               if (call_mutable_borrows.contains(identifier->name))
                 throw CompileError{
                     expression_location(*arguments[index]),
@@ -3128,6 +3148,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               (callee.name == "isOk" || callee.name == "isError")));
         const bool previous_contextual_borrow_expression =
             contextual_borrow_expression;
+        const bool previous_contextual_lambda_may_escape =
+            contextual_lambda_may_escape;
         const std::string_view previous_contextual_borrow_enum_name =
             contextual_borrow_enum_name;
         contextual_borrow_expression =
@@ -3143,12 +3165,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                            std::optional<std::string>{"std.option"}
                        ? std::string_view{"Option"}
                        : std::string_view{"Result"});
+        contextual_lambda_may_escape =
+            expected.is_function() && !synchronous_callback_api;
         validate_expression(*arguments[index], expected,
                             expression_location(*arguments[index]));
         apply_external_ownership_contract(callee, callee.parameters[index],
                                           *arguments[index], expected,
                                           display_name);
         contextual_borrow_expression = previous_contextual_borrow_expression;
+        contextual_lambda_may_escape = previous_contextual_lambda_may_escape;
         contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
       }
       if (infer_type_arguments) {
@@ -3420,9 +3445,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               if (const auto declaration = local_declarations.find(node.name);
                   declaration != local_declarations.end()) {
                 used_local_declarations.insert(declaration->second.offset);
-                if (active_lambda_captures != nullptr)
-                  active_lambda_captures->insert(node.name);
               }
+              if (active_lambda_captures != nullptr)
+                active_lambda_captures->insert(node.name);
               return iterator->second.type;
             } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
               SymbolTable lambda_symbols = *active_symbols;
@@ -3457,9 +3482,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               active_symbols = &lambda_symbols;
               const bool previous_inside_lambda = inside_lambda;
               std::unordered_set<std::string> captures;
+              std::unordered_set<std::string> mutations;
               std::unordered_set<std::string> *previous_lambda_captures =
                   active_lambda_captures;
+              std::unordered_set<std::string> *previous_lambda_mutations =
+                  active_lambda_mutations;
               active_lambda_captures = &captures;
+              active_lambda_mutations = &mutations;
               const auto previous_transfer_protected =
                   transfer_protected_values;
               for (const auto &[name, symbol] : *previous_symbols) {
@@ -3471,11 +3500,42 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               signature.push_back(expression_type(*node.body));
               inside_lambda = previous_inside_lambda;
               active_lambda_captures = previous_lambda_captures;
+              active_lambda_mutations = previous_lambda_mutations;
               for (const std::string &parameter : parameter_names)
                 captures.erase(parameter);
+              std::vector<std::string> captured_borrows;
+              bool captures_mutable_borrow = false;
+              for (const std::string &capture : captures) {
+                // Borrow-carrying iterator state is a legacy ownership pattern:
+                // its generated callbacks are coupled to a sibling owning
+                // cleanup closure. Explicit aliases still use the general
+                // non-escaping closure rules below.
+                const bool captures_borrow = borrowed_values.contains(capture);
+                if (!captures_borrow)
+                  continue;
+                if (mutations.contains(capture) &&
+                    !mutable_borrow_values.contains(capture))
+                  throw CompileError{node.location,
+                                     "closure cannot mutate shared borrow '" +
+                                         capture + "'"};
+                if (contextual_lambda_may_escape)
+                  throw CompileError{
+                      node.location,
+                      "closure captures borrowed value '" + capture +
+                          "' but the receiving call may store or return it"};
+                captured_borrows.push_back(capture);
+                captures_mutable_borrow =
+                    captures_mutable_borrow ||
+                    mutable_borrow_values.contains(capture);
+              }
               lambda_captures.insert_or_assign(
                   node.location.offset,
                   std::vector<std::string>{captures.begin(), captures.end()});
+              if (!captured_borrows.empty())
+                lambda_borrow_captures.insert_or_assign(node.location.offset,
+                                                        captured_borrows);
+              if (captures_mutable_borrow)
+                lambda_mutable_borrow_captures.insert(node.location.offset);
               transfer_protected_values = previous_transfer_protected;
               borrowed_values = previous_borrowed_values;
               active_symbols = previous_symbols;
@@ -3511,10 +3571,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          std::to_string(parameter_count) +
                                          " argument(s), got " +
                                          std::to_string(node.arguments.size())};
-                for (std::size_t index = 0; index < parameter_count; ++index)
+                for (std::size_t index = 0; index < parameter_count; ++index) {
+                  const bool previous_contextual_lambda_may_escape =
+                      contextual_lambda_may_escape;
+                  contextual_lambda_may_escape = signature[index].is_function();
                   validate_expression(
                       *node.arguments[index], signature[index],
                       expression_location(*node.arguments[index]));
+                  contextual_lambda_may_escape =
+                      previous_contextual_lambda_may_escape;
+                }
                 return signature.back();
               }
               if (node.callee == "print" || node.callee == "println") {
@@ -4319,9 +4385,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     parameter.type, class_parameters, &class_arities);
                 parameter_type =
                     substitute(std::move(parameter_type), substitutions);
+                const bool previous_contextual_lambda_may_escape =
+                    contextual_lambda_may_escape;
+                contextual_lambda_may_escape = parameter_type.is_function();
                 validate_expression(
                     *node.arguments[index], parameter_type,
                     expression_location(*node.arguments[index]));
+                contextual_lambda_may_escape =
+                    previous_contextual_lambda_may_escape;
                 initializer_symbols.emplace(
                     parameter.name, Symbol{parameter_type, false, true});
               }
@@ -4349,14 +4420,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         expression_location(argument),
                         "value '" + source->name +
                             "' contains a live borrow and cannot be stored in "
-                            "owning field '" + field.name + "'"};
+                            "owning field '" +
+                            field.name + "'"};
                 const bool previous_contextual_borrow_expression =
                     contextual_borrow_expression;
+                const bool previous_contextual_lambda_may_escape =
+                    contextual_lambda_may_escape;
                 contextual_borrow_expression = field.is_borrowed;
+                contextual_lambda_may_escape =
+                    concrete_field_type.is_function();
                 validate_expression(argument, concrete_field_type,
                                     expression_location(argument));
                 contextual_borrow_expression =
                     previous_contextual_borrow_expression;
+                contextual_lambda_may_escape =
+                    previous_contextual_lambda_may_escape;
                 initializer_symbols.emplace(
                     field.name,
                     Symbol{concrete_field_type, field.is_mutable, true});
@@ -5070,18 +5148,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               "' cannot be borrowed mutably more than once in "
                               "the same call"};
                   } else if (identifier != nullptr) {
-                    if (mutable_borrow_values.contains(identifier->name))
-                      throw CompileError{
-                          expression_location(*node.arguments[index]),
-                          "mutable borrow '" + identifier->name +
-                              "' cannot be shared concurrently"};
                     if (const auto borrower =
                             live_borrower_of(identifier->name, false))
                       throw CompileError{
                           expression_location(*node.arguments[index]),
                           "value '" + identifier->name +
-                              "' is already mutably borrowed by '" +
-                              *borrower + "'"};
+                              "' is already mutably borrowed by '" + *borrower +
+                              "'"};
                     if (method_mutable_borrows.contains(identifier->name))
                       throw CompileError{
                           expression_location(*node.arguments[index]),
@@ -5160,6 +5233,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       ((node.method == "withValue" && index == 1) ||
                        (node.method == "foreach" && index == 0)) &&
                       potentially_owns_value(substitutions.at("T"))));
+                const bool synchronous_callback =
+                    class_declaration != nullptr &&
+                    ((class_declaration->name == "Array" &&
+                      class_declaration->module_name ==
+                          std::optional<std::string>{"std.array"} &&
+                      (node.method == "withValue" || node.method == "foreach" ||
+                       node.method == "map" || node.method == "filter" ||
+                       node.method == "find" || node.method == "fold" ||
+                       node.method == "any" || node.method == "all" ||
+                       node.method == "count" || node.method == "sortWith")) ||
+                     (class_declaration->name == "Iterator" &&
+                      class_declaration->module_name ==
+                          std::optional<std::string>{"std.iterator"} &&
+                      node.method == "fold"));
                 if (observes_owned_callback &&
                     !std::holds_alternative<ast::LambdaExpression>(
                         node.arguments[index]->value))
@@ -5171,12 +5258,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     contextual_borrow_lambda_parameters;
                 const bool previous_contextual_borrow_expression =
                     contextual_borrow_expression;
+                const bool previous_contextual_lambda_may_escape =
+                    contextual_lambda_may_escape;
                 contextual_borrow_lambda_parameters = observes_owned_callback;
                 contextual_borrow_expression =
                     method->parameters[index].ownership ==
                         ast::ParameterOwnership::Borrow ||
                     method->parameters[index].ownership ==
                         ast::ParameterOwnership::BorrowMutable;
+                contextual_lambda_may_escape =
+                    substituted_expected.is_function() && !synchronous_callback;
                 validate_expression(
                     *node.arguments[index], substituted_expected,
                     expression_location(*node.arguments[index]));
@@ -5184,16 +5275,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     previous_contextual_borrow;
                 contextual_borrow_expression =
                     previous_contextual_borrow_expression;
+                contextual_lambda_may_escape =
+                    previous_contextual_lambda_may_escape;
               }
               if (!method->is_borrowing)
                 if (const auto *identifier =
                         std::get_if<ast::IdentifierExpression>(
                             &node.object->value);
                     identifier != nullptr &&
-                    !mutable_borrow_values.contains(identifier->name))
-                  require_no_live_borrow(
-                      identifier->name, node.location,
-                      method->is_consuming ? "consumed" : "mutated");
+                    !mutable_borrow_values.contains(identifier->name)) {
+                  if (active_lambda_mutations != nullptr)
+                    active_lambda_mutations->insert(identifier->name);
+                  require_no_live_borrow(identifier->name, node.location,
+                                         method->is_consuming ? "consumed"
+                                                              : "mutated");
+                }
               if (method->is_consuming) {
                 require_guard_transfer_allowed(*node.object, node.location);
                 if (const auto *identifier =
@@ -6203,9 +6299,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           }
           if (declaration->initializer.has_value())
             if (const auto *lambda = std::get_if<ast::LambdaExpression>(
-                    &declaration->initializer->value))
+                    &declaration->initializer->value)) {
               local_lambda_locations.insert_or_assign(declaration->name,
                                                       lambda->location.offset);
+              if (const auto captures =
+                      lambda_borrow_captures.find(lambda->location.offset);
+                  captures != lambda_borrow_captures.end()) {
+                borrow_sources[declaration->name].insert(
+                    captures->second.begin(), captures->second.end());
+                if (lambda_mutable_borrow_captures.contains(
+                        lambda->location.offset))
+                  mutable_borrow_values.insert(declaration->name);
+                else
+                  shared_borrow_values.insert(declaration->name);
+              }
+            }
           local_declarations.insert_or_assign(declaration->name,
                                               declaration->location);
           scope_declarations.emplace_back(declaration->name,
@@ -6789,6 +6897,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 stored != local_lambda_locations.end())
               returned_lambda_location = stored->second;
           if (returned_lambda_location.has_value()) {
+            if (const auto borrowed =
+                    lambda_borrow_captures.find(*returned_lambda_location);
+                borrowed != lambda_borrow_captures.end() &&
+                !borrowed->second.empty())
+              throw CompileError{return_statement.location,
+                                 "closure captures borrowed value '" +
+                                     borrowed->second.front() +
+                                     "' and cannot escape by return"};
             const auto captures =
                 lambda_captures.find(*returned_lambda_location);
             if (captures != lambda_captures.end())

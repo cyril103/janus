@@ -1,9 +1,10 @@
 # Décision de langage : emprunts lexicaux sûrs
 
 Statut : acceptée. Les emprunts partagés de l'issue #260, les emprunts
-mutables exclusifs de l'issue #261 et les invalidations lexicales de l'issue
-#262 sont implémentés ; les projections et régions à la dernière utilisation
-restent à livrer dans les issues suivantes.
+mutables exclusifs de l'issue #261, les invalidations lexicales de l'issue #262
+et les transmissions bornées de l'issue #263 sont implémentés ; les projections
+et régions à la dernière utilisation restent à livrer dans les issues
+suivantes.
 
 Cette décision définit le premier modèle général d'emprunts de Janus. Elle
 étend les garanties de [propriété des conteneurs](container-ownership.md) sans
@@ -297,6 +298,16 @@ Les callbacks contextuels historiques de `Array` et des itérateurs deviennent
 à terme des cas ordinaires de cette règle. Ils restent compatibles pendant la
 migration.
 
+L'implémentation de l'issue #263 autorise une closure locale capturant un alias
+`borrow val` ou `borrow var` : la closure devient elle-même un emprunteur
+lexical et doit être détruite avant que sa source puisse être invalidée. Une
+closure littérale peut également être transmise aux combinateurs synchrones
+connus de `Array`, `Option`, `Result` et à `Iterator.fold`. Une fonction sans
+contrat synchrone est traitée conservativement comme susceptible de conserver
+la closure. Les états d'itérateur historiques couplés à `owningCapture` gardent
+leur traitement de compatibilité jusqu'à leur migration vers un contrat
+d'emprunt explicite.
+
 ## `defer`, panique et nettoyage
 
 Un `defer` qui utilise un emprunt prolonge sa région jusqu'à l'exécution de
@@ -505,7 +516,7 @@ invariants d'aliasing sans rendre nécessaire une collecte de mémoire cachée.
 6. construire `Slice[T]` et `MutableSlice[T]` sur ces garanties ;
 7. migrer les callbacks historiques et valider Janus Studio comme canari.
 
-Les étapes 2 et 3 sont disponibles avec des régions lexicales conservatrices :
+Les étapes 2 à 5 sont disponibles avec des régions lexicales conservatrices :
 une liaison `borrow val` ou `borrow var` reste active jusqu'à la fin de son
 bloc. L'analyse plus fine à la dernière utilisation et les projections ne font
 donc pas encore partie de cette implémentation.

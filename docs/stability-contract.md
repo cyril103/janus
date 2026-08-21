@@ -180,6 +180,14 @@ Ptr.overwrite, `reallocPreserving`, `adoptReallocation`, `freeStorage`) et
 `owningCapture` font partie de la surface bas niveau : elles exigent que
 l'appelant respecte respectivement l'état d'initialisation, le nettoyage des
 éléments et le transfert réel vers la fermeture.
+
+Les appels imbriqués peuvent transmettre un paramètre `borrow` ou `borrow var`
+sans transfert de propriété ; un emprunt mutable peut être temporairement
+réemprunté en lecture seule. Une closure locale qui capture explicitement un
+alias emprunté prolonge sa région lexicale. Son retour, son stockage persistant
+ou son passage à une API sans contrat synchrone est rejeté. Les combinateurs
+synchrones documentés de la bibliothèque standard constituent les frontières
+non échappantes reconnues.
 `numericCast[T]` reste l'échappatoire native à `JANA0013` et n'ajoute aucun
 contrôle dynamique. `checkedCast[T]`, `saturatingCast[T]` et
 `truncatingCast[T]` font partie de la sémantique numérique portable : leurs

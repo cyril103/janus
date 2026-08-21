@@ -1312,6 +1312,35 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.borrow_invalidation COMMAND borrow_invalidation_test)
 
+    add_executable(borrowed_calls_closures_test
+        tests/language/borrowed_calls_closures_test.cpp
+    )
+    target_link_libraries(borrowed_calls_closures_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(borrowed_calls_closures_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.borrowed_calls_closures
+        COMMAND borrowed_calls_closures_test)
+    add_test(
+        NAME runtime.borrowed_closure
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/borrowed_closure.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/borrowed_closure_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/borrowed_closure.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+
     add_test(
         NAME runtime.mutable_borrow
         COMMAND

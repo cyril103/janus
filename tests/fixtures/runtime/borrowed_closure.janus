@@ -1,0 +1,30 @@
+import std.array
+
+class Counter(var value : int) {
+    borrow def read() : int { return value }
+    def add(amount : int) : Unit { value = value + amount }
+}
+
+def main() : int {
+    val counter : Counter = new Counter(1)
+    if true {
+        borrow var editable : Counter = counter
+        val change : () => Unit = () => editable.add(4)
+        change()
+        delete change
+    }
+    if true {
+        borrow val view : Counter = counter
+        val read : () => int = () => view.read()
+        println(read())
+        delete read
+        val snapshots : Array[int] = generateArray[int](
+        usize(1),
+        (index : usize) => view.read() + int(index)
+        )
+        println(snapshots.get(usize(0)))
+        delete snapshots
+    }
+    delete counter
+    return 0
+}

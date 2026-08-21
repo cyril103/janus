@@ -594,6 +594,16 @@ champ ou une globale, ni sortir de la fonction par `return`. Ces règles sont
 conservatrices et lexicales ; un bloc court permet de terminer explicitement
 la durée de vie observante.
 
+Un paramètre `borrow var` peut être réemprunté temporairement comme `borrow`
+par un appel imbriqué, puis retrouver son accès mutable au retour. Une closure
+locale peut capturer un alias partagé ou mutable ; elle prolonge alors son
+emprunt jusqu'à sa destruction ou la fin de son bloc. La capture mutable permet
+la mutation mais reste exclusive. Retourner cette closure, la placer dans un
+champ, ou la transmettre à une fonction sans contrat synchrone est refusé. Les
+combinateurs synchrones connus de `Array`, `Option`, `Result` et
+`Iterator.fold` acceptent une closure littérale empruntée car ils l'exécutent et
+la détruisent avant leur retour.
+
 Les structures et enums qui contiennent une ressource deviennent eux-mêmes
 propriétaires. Leur transfert doit employer `move`, et `delete` détruit
 récursivement leur contenu :
