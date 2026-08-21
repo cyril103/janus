@@ -585,6 +585,15 @@ concurrent. Les modifications sont visibles par le propriétaire parce que
 l'alias utilise le même stockage. Les projections de champs seront ajoutées
 séparément.
 
+Un emprunt actif interdit aussi les invalidations indirectes : appel d'une
+méthode mutante ou consommatrice sur le propriétaire, passage à un paramètre
+`consume`, et `realloc` ou `reallocPreserving` d'un pointeur emprunté. Un objet
+avec un champ constructeur `borrow val` maintient l'emprunt jusqu'à sa
+destruction ou la fin de son bloc. Cet objet ne peut pas être copié dans un
+champ ou une globale, ni sortir de la fonction par `return`. Ces règles sont
+conservatrices et lexicales ; un bloc court permet de terminer explicitement
+la durée de vie observante.
+
 Les structures et enums qui contiennent une ressource deviennent eux-mêmes
 propriétaires. Leur transfert doit employer `move`, et `delete` détruit
 récursivement leur contenu :

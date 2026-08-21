@@ -1296,6 +1296,22 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.mutable_borrow COMMAND mutable_borrow_test)
+
+    add_executable(borrow_invalidation_test
+        tests/language/borrow_invalidation_test.cpp
+    )
+    target_link_libraries(borrow_invalidation_test
+        PRIVATE
+            janus_semantic
+    )
+    target_compile_options(borrow_invalidation_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.borrow_invalidation COMMAND borrow_invalidation_test)
+
     add_test(
         NAME runtime.mutable_borrow
         COMMAND

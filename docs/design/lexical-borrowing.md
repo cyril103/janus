@@ -1,8 +1,9 @@
 # Décision de langage : emprunts lexicaux sûrs
 
-Statut : acceptée. Les emprunts partagés de l'issue #260 et les emprunts
-mutables exclusifs de l'issue #261 sont implémentés ; les projections et
-régions à la dernière utilisation restent à livrer dans les issues suivantes.
+Statut : acceptée. Les emprunts partagés de l'issue #260, les emprunts
+mutables exclusifs de l'issue #261 et les invalidations lexicales de l'issue
+#262 sont implémentés ; les projections et régions à la dernière utilisation
+restent à livrer dans les issues suivantes.
 
 Cette décision définit le premier modèle général d'emprunts de Janus. Elle
 étend les garanties de [propriété des conteneurs](container-ownership.md) sans
@@ -508,6 +509,13 @@ Les étapes 2 et 3 sont disponibles avec des régions lexicales conservatrices :
 une liaison `borrow val` ou `borrow var` reste active jusqu'à la fin de son
 bloc. L'analyse plus fine à la dernière utilisation et les projections ne font
 donc pas encore partie de cette implémentation.
+
+L'étape 4 protège également les invalidations de la valeur entière : transfert,
+destruction, écrasement, méthode mutante, consommation native et réallocation
+d'un `Ptr[T]`. Un objet qui contient un champ emprunté prolonge lexicalement
+l'emprunt de sa source. Il peut être détruit ou déplacé dans la même portée,
+mais ne peut pas être copié dans un autre stockage ni être retourné tant qu'un
+contrat de durée de vie explicite n'existe pas.
 
 La fonctionnalité ne peut rejoindre le contrat de stabilité qu'après les tests
 positifs et négatifs, les campagnes sanitizer et la validation d'une

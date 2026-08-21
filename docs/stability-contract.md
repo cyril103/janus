@@ -172,7 +172,10 @@ mutable exclusif au même stockage ; aucun autre emprunt ni accès au propriéta
 ne peut être actif pendant leur portée lexicale. Les champs de
 constructeur de classe peuvent utiliser `borrow val` pour conserver une
 référence observante non détruite avec l'instance; ce contrat est interdit aux
-structs. Les primitives de stockage explicites (Ptr.initialize,
+structs. Tant que cet emprunt est actif, le propriétaire ne peut être déplacé,
+détruit, remplacé, muté par une méthode non observante, consommé par du code
+natif ou réalloué. Une instance contenant un tel champ ne peut pas échapper par
+copie, stockage global ou retour. Les primitives de stockage explicites (Ptr.initialize,
 Ptr.overwrite, `reallocPreserving`, `adoptReallocation`, `freeStorage`) et
 `owningCapture` font partie de la surface bas niveau : elles exigent que
 l'appelant respecte respectivement l'état d'initialisation, le nettoyage des

@@ -21,7 +21,7 @@ private var equalities : int
         equalities = 0
     }
 
-    def hashCount() : int {
+    borrow def hashCount() : int {
         return hashes
     }
 }
@@ -72,21 +72,21 @@ def exerciseDuplicateAndReplacement() : Unit {
     new HashSet[int, CountingHashing](usize(8), hashing)
     defer delete set
     fillSet(set, 0, 5)
-    hashing.reset()
+    val setHashCountBefore : int = hashing.hashCount()
     println(set.add(2))
-    println(hashing.hashCount())
+    println(hashing.hashCount() - setHashCountBefore)
 
     val map : HashMap[int, int, CountingHashing] =
     new HashMap[int, int, CountingHashing](usize(8), hashing)
     defer delete map
     fillMap(map, 0, 5)
-    hashing.reset()
+    val mapHashCountBefore : int = hashing.hashCount()
     val previous : Option[int] = map.put(2, 200)
     println(match previous {
         Some(value) => value,
         None => -1
     })
-    println(hashing.hashCount())
+    println(hashing.hashCount() - mapHashCountBefore)
 }
 
 def exerciseTombstoneCompaction() : Unit {
@@ -104,9 +104,9 @@ def exerciseTombstoneCompaction() : Unit {
     }
     set.add(10)
     fillSet(set, 11, 4)
-    hashing.reset()
+    val setHashCountBefore : int = hashing.hashCount()
     println(set.add(15))
-    println(hashing.hashCount())
+    println(hashing.hashCount() - setHashCountBefore)
 
     val map : HashMap[int, int, CountingHashing] =
     new HashMap[int, int, CountingHashing](usize(8), hashing)
@@ -118,9 +118,9 @@ def exerciseTombstoneCompaction() : Unit {
         key = key + 1
     }
     fillMap(map, 10, 5)
-    hashing.reset()
+    val mapHashCountBefore : int = hashing.hashCount()
     map.put(15, 150)
-    println(hashing.hashCount())
+    println(hashing.hashCount() - mapHashCountBefore)
 }
 
 def exerciseDerivedParity() : Unit {

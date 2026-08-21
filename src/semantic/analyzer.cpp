@@ -2580,10 +2580,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                            });
       };
       for (const auto &[borrower, sources] : borrow_sources) {
-        if (action != "released" &&
-            !shared_borrow_values.contains(borrower) &&
-            !mutable_borrow_values.contains(borrower))
-          continue;
         const auto symbol = active_symbols->find(borrower);
         if (symbol == active_symbols->end() ||
             !symbol->second.may_be_initialized)
@@ -2621,9 +2617,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                            });
       };
       for (const auto &[borrower, sources] : borrow_sources) {
-        const bool relevant = mutable_borrow_values.contains(borrower) ||
-                              (include_shared &&
-                               shared_borrow_values.contains(borrower));
+        const bool relevant =
+            mutable_borrow_values.contains(borrower) || include_shared;
         if (!relevant)
           continue;
         const auto symbol = active_symbols->find(borrower);
@@ -2779,6 +2774,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto used_locals_before = used_local_declarations;
       const auto captures_before = lambda_captures;
       const auto lambda_locations_before = local_lambda_locations;
+      const auto borrowed_values_before = borrowed_values;
+      const auto shared_borrow_values_before = shared_borrow_values;
+      const auto mutable_borrow_values_before = mutable_borrow_values;
+      const auto borrow_sources_before = borrow_sources;
       const auto inferred_calls_before = result.inferred_generic_arguments;
       const std::optional<std::unordered_set<std::string>>
           active_captures_before =
@@ -2799,6 +2798,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         used_local_declarations = used_locals_before;
         lambda_captures = captures_before;
         local_lambda_locations = lambda_locations_before;
+        borrowed_values = borrowed_values_before;
+        shared_borrow_values = shared_borrow_values_before;
+        mutable_borrow_values = mutable_borrow_values_before;
+        borrow_sources = borrow_sources_before;
         result.inferred_generic_arguments = inferred_calls_before;
         if (active_captures_before.has_value())
           *active_lambda_captures_before = *active_captures_before;
@@ -2897,6 +2900,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                      "' is scheduled for deferred cleanup"};
             if (const auto local = active_symbols->find(identifier->name);
                 local != active_symbols->end()) {
+              require_no_live_borrow(identifier->name,
+                                     expression_location(argument),
+                                     "consumed by external function '" +
+                                         std::string{display_name} + "'");
               local->second.is_initialized = false;
               local->second.may_be_initialized = false;
               return;
@@ -3699,6 +3706,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 std::size_t count_index = 0;
                 if (node.callee == "realloc" ||
                     node.callee == "reallocPreserving") {
+                  if (const auto *identifier =
+                          std::get_if<ast::IdentifierExpression>(
+                              &node.arguments[0]->value))
+                    require_no_live_borrow(identifier->name, node.location,
+                                           "reallocated");
                   validate_expression(*node.arguments[0], pointer_type,
                                       expression_location(*node.arguments[0]));
                   if (node.callee == "realloc" &&
@@ -3745,6 +3757,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               &argument->value);
                       identifier != nullptr &&
                       active_symbols->contains(identifier->name)) {
+                    require_no_live_borrow(identifier->name, node.location,
+                                           "adopted after reallocation");
                     active_symbols->at(identifier->name).is_initialized = false;
                     active_symbols->at(identifier->name).may_be_initialized =
                         false;
@@ -3786,6 +3800,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                           *active_type_substitutions);
                 validate_expression(*node.arguments[0], owner_type,
                                     expression_location(*node.arguments[0]));
+                require_no_live_borrow(owner_identifier->name, node.location,
+                                       "transferred to a closure");
                 const SemanticType closure_type =
                     expression_type(*node.arguments[1]);
                 if (!closure_type.is_function() ||
@@ -4323,6 +4339,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       expression_location(argument),
                       "borrowed field '" + field.name +
                           "' cannot be initialized with a moved value"};
+                if (!field.is_borrowed)
+                  if (const auto *source =
+                          std::get_if<ast::IdentifierExpression>(
+                              &argument.value);
+                      source != nullptr &&
+                      borrow_sources.contains(source->name))
+                    throw CompileError{
+                        expression_location(argument),
+                        "value '" + source->name +
+                            "' contains a live borrow and cannot be stored in "
+                            "owning field '" + field.name + "'"};
                 const bool previous_contextual_borrow_expression =
                     contextual_borrow_expression;
                 contextual_borrow_expression = field.is_borrowed;
@@ -5158,6 +5185,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 contextual_borrow_expression =
                     previous_contextual_borrow_expression;
               }
+              if (!method->is_borrowing)
+                if (const auto *identifier =
+                        std::get_if<ast::IdentifierExpression>(
+                            &node.object->value);
+                    identifier != nullptr &&
+                    !mutable_borrow_values.contains(identifier->name))
+                  require_no_live_borrow(
+                      identifier->name, node.location,
+                      method->is_consuming ? "consumed" : "mutated");
               if (method->is_consuming) {
                 require_guard_transfer_allowed(*node.object, node.location);
                 if (const auto *identifier =
@@ -5958,6 +5994,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (consumes_source)
             if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                     &(*loop)->iterator.value)) {
+              require_no_live_borrow(identifier->name, (*loop)->location,
+                                     "consumed by iteration");
               if (deferred_values.contains(identifier->name))
                 throw CompileError{(*loop)->location,
                                    "owning value '" + identifier->name +
@@ -6007,6 +6045,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   declaration->initializer->value))
             throw CompileError{declaration->location,
                                "a borrowed local cannot move its initializer"};
+          if (!declaration->is_borrowed &&
+              declaration->initializer.has_value())
+            if (const auto *source = std::get_if<ast::IdentifierExpression>(
+                    &declaration->initializer->value);
+                source != nullptr && borrow_sources.contains(source->name))
+              throw CompileError{
+                  declaration->location,
+                  "value '" + source->name +
+                      "' contains a live borrow and cannot be copied into '" +
+                      declaration->name + "'; use an explicit move within the "
+                      "same scope"};
           if (declaration->initializer.has_value() &&
               declaration->declared_type.has_value()) {
             const bool previous_contextual_borrow_expression =
@@ -6205,6 +6254,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   assignment,
                   global_key(global->declaration->module_name,
                              global->declaration->declaration.name));
+              if (const auto *source = std::get_if<ast::IdentifierExpression>(
+                      &assignment->expression.value);
+                  source != nullptr && borrow_sources.contains(source->name))
+                throw CompileError{
+                    assignment->location,
+                    "value '" + source->name +
+                        "' contains a live borrow and cannot be stored in a "
+                        "global value"};
               validate_expression(assignment->expression, global->symbol.type,
                                   assignment->location);
               continue;
@@ -6257,6 +6314,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 substitute(resolve_type(*matched->declared_type,
                                         class_parameters, &class_arities),
                            substitutions);
+            if (const auto *source = std::get_if<ast::IdentifierExpression>(
+                    &assignment->expression.value);
+                source != nullptr && borrow_sources.contains(source->name))
+              throw CompileError{
+                  assignment->location,
+                  "value '" + source->name +
+                      "' contains a live borrow and cannot be stored in field '" +
+                      assignment->name + "'"};
             validate_expression(assignment->expression, field_type,
                                 assignment->location);
             if (potentially_owns_value(field_type))
@@ -6282,10 +6347,27 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{assignment->location,
                                  "cannot assign to immutable global value '" +
                                      assignment->name + "'"};
+            if (const auto *source = std::get_if<ast::IdentifierExpression>(
+                    &assignment->expression.value);
+                source != nullptr && borrow_sources.contains(source->name))
+              throw CompileError{
+                  assignment->location,
+                  "value '" + source->name +
+                      "' contains a live borrow and cannot be stored in a "
+                      "global value"};
             validate_expression(assignment->expression, global->type,
                                 assignment->location);
             continue;
           }
+          if (const auto borrowed = borrow_sources.find(assignment->name);
+              borrowed != borrow_sources.end() &&
+              !shared_borrow_values.contains(assignment->name) &&
+              !mutable_borrow_values.contains(assignment->name) &&
+              iterator->second.may_be_initialized)
+            throw CompileError{
+                assignment->location,
+                "value '" + assignment->name +
+                    "' contains a live borrow and cannot be overwritten"};
           require_no_live_borrow(assignment->name, assignment->location,
                                  "overwritten");
           if (deferred_values.contains(assignment->name))
@@ -6370,6 +6452,51 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           iterator->second.is_initialized = true;
           iterator->second.may_be_initialized =
               !is_null_pointer_expression(assignment->expression);
+          if (!shared_borrow_values.contains(assignment->name) &&
+              !mutable_borrow_values.contains(assignment->name)) {
+            borrow_sources.erase(assignment->name);
+            if (const auto *construction = std::get_if<ast::NewExpression>(
+                    &assignment->expression.value)) {
+              const auto class_iterator = find_in_context(
+                  classes, context_module, construction->class_name);
+              if (class_iterator != classes.end()) {
+                const ast::ClassDeclaration &class_declaration =
+                    *class_iterator->second;
+                const std::size_t parameter_count =
+                    class_declaration.constructor_parameters.size();
+                for (std::size_t index = 0;
+                     index < class_declaration.constructor_fields.size();
+                     ++index) {
+                  const ast::ValueDeclaration &field =
+                      class_declaration.constructor_fields[index];
+                  if (!field.is_borrowed)
+                    continue;
+                  const ast::Expression &argument =
+                      *construction->arguments[parameter_count + index];
+                  if (const auto *source =
+                          std::get_if<ast::IdentifierExpression>(
+                              &argument.value))
+                    borrow_sources[assignment->name].insert(source->name);
+                }
+              }
+            }
+            if (const auto *move = std::get_if<ast::MoveExpression>(
+                    &assignment->expression.value))
+              if (const auto *source = std::get_if<ast::IdentifierExpression>(
+                      &move->operand->value)) {
+                if (const auto borrowed = borrow_sources.find(source->name);
+                    borrowed != borrow_sources.end()) {
+                  borrow_sources[assignment->name] =
+                      std::move(borrowed->second);
+                  borrow_sources.erase(borrowed);
+                }
+                for (auto &[borrower, sources] : borrow_sources) {
+                  static_cast<void>(borrower);
+                  if (sources.erase(source->name) != 0)
+                    sources.insert(assignment->name);
+                }
+              }
+          }
           if (is_borrowed_pointer_expression(assignment->expression))
             borrowed_values.insert(assignment->name);
           else
@@ -6609,6 +6736,45 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{return_statement.location,
                                "borrowed value '" + identifier->name +
                                    "' cannot escape by return"};
+          const ast::IdentifierExpression *returned_identifier =
+              std::get_if<ast::IdentifierExpression>(
+                  &return_statement.expression->value);
+          if (const auto *move = std::get_if<ast::MoveExpression>(
+                  &return_statement.expression->value))
+            returned_identifier = std::get_if<ast::IdentifierExpression>(
+                &move->operand->value);
+          if (returned_identifier != nullptr &&
+              borrow_sources.contains(returned_identifier->name))
+            throw CompileError{
+                return_statement.location,
+                "value '" + returned_identifier->name +
+                    "' contains a live borrow and cannot escape by return"};
+          if (const auto *construction = std::get_if<ast::NewExpression>(
+                  &return_statement.expression->value)) {
+            const auto class_iterator = find_in_context(
+                classes, context_module, construction->class_name);
+            if (class_iterator != classes.end()) {
+              const ast::ClassDeclaration &class_declaration =
+                  *class_iterator->second;
+              const std::size_t parameter_count =
+                  class_declaration.constructor_parameters.size();
+              for (std::size_t index = 0;
+                   index < class_declaration.constructor_fields.size(); ++index) {
+                const ast::ValueDeclaration &field =
+                    class_declaration.constructor_fields[index];
+                if (!field.is_borrowed)
+                  continue;
+                const ast::Expression &argument =
+                    *construction->arguments[parameter_count + index];
+                if (std::holds_alternative<ast::IdentifierExpression>(
+                        argument.value))
+                  throw CompileError{
+                      return_statement.location,
+                      "temporary value of type '" + class_declaration.name +
+                          "' contains a live borrow and cannot escape by return"};
+              }
+            }
+          }
           validate_return_expression(return_statement);
           std::optional<std::size_t> returned_lambda_location;
           if (const auto *lambda = std::get_if<ast::LambdaExpression>(
