@@ -236,6 +236,10 @@ class SiteStructureTests(unittest.TestCase):
         reserved = set(re.findall(r'lexeme == "([a-z]+)"', lexer))
         self.assertEqual(EXPECTED_KEYWORDS, reserved)
         self.assertEqual(reserved, documented)
+        book_index = (WEBSITE / "docs" / "book" / "index.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(f"{len(reserved)} mots-clés réservés", book_index)
         self.assertEqual(35, len(documented))
         self.assertIn("tailrec", documented)
         self.assertIn("`owned` est un qualificateur contextuel", reference)

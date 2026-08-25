@@ -24,7 +24,7 @@ Ce livre couvre le langage Janus **0.20.0**, de la première fonction au modèle
 11. **Bibliothèque standard** — texte, fichiers, processus, temps et hasard.
 12. **Graphisme 2D et audio** — fenêtre, dessin, images, textures, entrées et son.
 13. **Projets, tests et outils** — manifeste, paquets, documentation et LSP.
-14. **Tous les mots-clés** — index exhaustif des 34 mots-clés réservés et des qualificateurs contextuels.
+14. **Tous les mots-clés** — index exhaustif des 35 mots-clés réservés et des qualificateurs contextuels.
 15. **Projet final** — assembler les concepts dans une application native.
 
 Chaque chapitre contient des objectifs, des exemples, un exercice et une correction repliable. Les exemples marqués comme doctests sont compilés par le compilateur Janus lors de la validation du site.
