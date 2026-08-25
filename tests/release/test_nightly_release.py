@@ -19,7 +19,7 @@ SHA = "0123456789abcdef0123456789abcdef01234567"
 class ManifestTests(unittest.TestCase):
     def test_reads_project_version_for_nightly_package_identity(self):
         self.assertEqual(nightly_release.project_version(ROOT / "CMakeLists.txt"),
-                         "0.19.0")
+                         "0.20.0")
 
     def test_round_trip_snapshot_manifest(self):
         manifest = nightly_release.ChannelManifest(

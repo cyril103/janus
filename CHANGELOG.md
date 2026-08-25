@@ -5,10 +5,36 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
-- Ajout du mot-clé `tailrec`, obligatoire uniquement pour les cycles récursifs
-  entièrement terminaux et compatibles avec la garantie backend `musttail`.
-  La récursion ordinaire, les cycles mixtes et les retours incompatibles restent
-  légaux sans annotation.
+## [0.20.0] - 2026-08-25
+
+Cette version mineure rend explicite le contrat de récursion terminale et étend
+les lambdas Janus avec de véritables corps blocs, tout en renforçant les
+frontières de propriété des captures et paramètres.
+
+### Langage
+
+- ajout du mot-clé `tailrec`, obligatoire uniquement pour les cycles récursifs
+  entièrement terminaux et compatibles avec la garantie backend `musttail` ;
+- conservation de la récursion ordinaire, des cycles mixtes et des retours
+  incompatibles sans annotation ;
+- ajout des lambdas à corps bloc `(paramètres) => { ... }`, avec déclarations,
+  contrôle de flux, `defer`, retours anticipés et inférence cohérente du type de
+  retour ;
+- conservation intégrale des lambdas expressionnelles existantes.
+
+### Sûreté et backend
+
+- isolation des portées, nettoyages, boucles et contrats `tailrec` dans les
+  helpers LLVM des lambdas blocs ;
+- protection des paramètres, captures et champs propriétaires contre les
+  transferts, destructions, réallocations ou libérations répétées ;
+- collecte complète des captures dans les expressions imbriquées, notamment les
+  littéraux de tableaux et lambdas génériques.
+
+### Documentation et outillage
+
+- prise en charge de la nouvelle syntaxe par le formateur, le LSP, la grammaire
+  VS Code, le guide du langage, le Book et les fixtures de documentation.
 
 ## [0.19.0] - 2026-08-21
 
@@ -838,6 +864,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.20.0]: https://github.com/cyril103/janus/releases/tag/v0.20.0
 [0.19.0]: https://github.com/cyril103/janus/releases/tag/v0.19.0
 [0.18.0]: https://github.com/cyril103/janus/releases/tag/v0.18.0
 [0.17.0]: https://github.com/cyril103/janus/releases/tag/v0.17.0
