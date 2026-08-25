@@ -17,6 +17,10 @@ int main(int argc, char **argv) {
       DiagnosticCode::LexerUnexpectedCharacter,
       DiagnosticCode::ParserExpectedExpression,
       DiagnosticCode::AnalyzerUnknownValue,
+      DiagnosticCode::AnalyzerTailrecRequired,
+      DiagnosticCode::AnalyzerInvalidTailrec,
+      DiagnosticCode::AnalyzerNonTerminalTailrec,
+      DiagnosticCode::AnalyzerIncompatibleTailrec,
       DiagnosticCode::ModuleNotFound,
       DiagnosticCode::BackendCyclicGlobalConstant,
   };

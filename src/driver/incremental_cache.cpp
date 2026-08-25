@@ -162,6 +162,7 @@ void append_function(std::string &output,
   append_type(output, function.return_type);
   output += function.is_consuming ? ":consuming" : "";
   output += function.is_borrowing ? ":borrowing" : "";
+  output += function.is_tailrec ? ":tailrec" : "";
   output += function.is_external ? ":external" : "";
   if (function.external_symbol.has_value()) {
     output += ":symbol=";

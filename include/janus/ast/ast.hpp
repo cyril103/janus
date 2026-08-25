@@ -338,6 +338,7 @@ struct FunctionDeclaration {
   ReturnOwnership return_ownership{ReturnOwnership::Unspecified};
   bool is_constant{};
   bool is_borrowing{};
+  bool is_tailrec{};
 };
 
 struct DestructorDeclaration {

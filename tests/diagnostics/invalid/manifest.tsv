@@ -13,3 +13,7 @@ borrow-invalidation.janus	JANA0025	cannot be mutated while borrowed
 borrow-escape.janus	JANA0026	cannot escape by return
 borrow-invalid-access.janus	JANA0027	can only call a borrow method
 borrow-invalid-source.janus	JANA0028	requires a local value
+tailrec-required.janus	JANA0029	must be annotated tailrec
+tailrec-invalid.janus	JANA0030	does not participate in recursion
+tailrec-non-terminal.janus	JANA0031	not in terminal position
+tailrec-main-incompatible.janus	JANA0032	entry ABI

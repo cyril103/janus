@@ -72,6 +72,9 @@ nom simple et qualifié, le paquet, le module et l’import requis, la nature, l
 signature, les paramètres et leur type, le type de retour, les paramètres et
 contraintes génériques disponibles, le résumé, la documentation, la
 visibilité, le lien stable et les informations de dépréciation/remplacement.
+La signature canonique conserve les modificateurs de contrat, notamment
+`tailrec` (`borrow tailrec def`, `consume tailrec def` pour les méthodes), et
+l'empreinte d'interface publique varie si ce modificateur change.
 Les lecteurs refusent une version inconnue afin d’éviter une interprétation
 silencieuse incompatible. Les
 modules, types, variantes, traits, fonctions, globales et membres publics y

@@ -65,6 +65,15 @@ private class HiddenOwner() { internal def hidden() : int { return 2 } }
          "visibility is explicit");
   expect(index.symbols[0].documentation_link.starts_with("#"),
          "a stable documentation link is exposed");
+  janus::frontend::Parser tailrec_parser{
+      "module recursion\ntailrec def loop(value : int) : int { return loop(value) }\n"};
+  std::vector<janus::ast::Program> tailrec_programs;
+  tailrec_programs.push_back(tailrec_parser.parse_program());
+  const auto tailrec_index = janus::driver::build_api_index(
+      tailrec_programs, {"fixture", "1.0.0"});
+  expect(tailrec_index.symbols.size() == 1 &&
+             tailrec_index.symbols[0].signature.starts_with("tailrec def loop"),
+         "API signatures preserve the tailrec contract modifier");
 
   const auto by_name = janus::driver::search_api(index, {"write"});
   expect(by_name.size() >= 2 && by_name[0].symbol->simple_name == "write" &&
