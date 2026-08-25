@@ -481,7 +481,9 @@ jobs:
             arguments+=(--current "$RUNNER_TEMP/current-channel/version")
           fi
           python3 scripts/nightly_release.py check-promotion "${arguments[@]}"
+          package_version=$(python3 scripts/nightly_release.py project-version --source "$GITHUB_WORKSPACE")
           echo "JANUS_RELEASE_CHANNEL=$channel" >> "$GITHUB_ENV"
+          echo "JANUS_PACKAGE_VERSION=$package_version" >> "$GITHUB_ENV"
 
       - name: Download distributions
         env:
@@ -501,7 +503,7 @@ jobs:
 
       - name: Verify complete release payload
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="$JANUS_PACKAGE_VERSION"
           distributions=(
             "janus-${version}-Linux-x86_64.tar.gz"
             "janus-${version}-Darwin-arm64.tar.gz"
@@ -523,7 +525,7 @@ jobs:
           git -C janus8 checkout b962b69ea14a47016556f9e2a111c7dab1e2e02d
           git clone https://github.com/cyril103/janus-studio.git janus-studio
           git -C janus-studio checkout d0e88543427d462df9c34d74c0800a83f55a21ec
-          version="${GITHUB_REF_NAME#v}"
+          version="$JANUS_PACKAGE_VERSION"
           archive="dist/release/janus-${version}-Linux-x86_64.tar.gz"
           test -f "$archive" && test -f "$archive.sha256"
           python3 scripts/downstream_canary.py --archive "$archive" \
