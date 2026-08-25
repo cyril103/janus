@@ -4180,6 +4180,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 std::size_t count_index = 0;
                 if (node.callee == "realloc" ||
                     node.callee == "reallocPreserving") {
+                  require_consumption_transfer_allowed(
+                      *node.arguments[0],
+                      expression_location(*node.arguments[0]));
                   if (const auto *identifier =
                           std::get_if<ast::IdentifierExpression>(
                               &node.arguments[0]->value))

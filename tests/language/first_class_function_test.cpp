@@ -40,6 +40,19 @@ void expect_compile_error(std::string_view source,
 
 int main() {
   expect_compile_error(
+      "def main() : int { var data : Ptr[int] = alloc[int](usize(1)) "
+      "val resize = () => { data = realloc[int](data, usize(2)) } "
+      "delete resize free(data) return 0 }",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      "def main() : int { var data : Ptr[int] = alloc[int](usize(1)) "
+      "val resize = () => { "
+      "data = reallocPreserving[int](data, usize(2)) } "
+      "delete resize free(data) return 0 }",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
       "extern def release(consume data : Ptr[byte]) : Unit "
       "def main() : int { val pointer : Ptr[byte] = alloc[byte](usize(1)) "
       "val cleanup = () => { release(pointer) } delete cleanup "
