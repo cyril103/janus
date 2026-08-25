@@ -36,7 +36,8 @@ frontières de propriété des captures et paramètres.
 - prise en charge de la nouvelle syntaxe par le formateur, le LSP, la grammaire
   VS Code, le guide du langage, le Book et les fixtures de documentation ;
 - sérialisation des publications `stable` et `beta`, avec garde SemVer empêchant
-  toute rétrogradation du canal lors de tags concurrents.
+  toute rétrogradation du canal lors de tags concurrents, revalidation de tous
+  les checksums et vérification des attestations avant promotion.
 
 ## [0.19.0] - 2026-08-21
 

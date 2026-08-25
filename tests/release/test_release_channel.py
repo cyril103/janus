@@ -58,10 +58,31 @@ class ReleasePromotionTests(unittest.TestCase):
         self.assertIn("concurrency:", release)
         self.assertIn("cancel-in-progress: false", release)
         guard = release.index("check-promotion")
+        checksums = release.index("sha256sum --check *.sha256")
+        attest = release.index("actions/attest@")
         publish = release.index("gh release create")
+        verify_attestations = release.index("gh attestation verify")
+        promote_latest = release.index('gh release edit "$GITHUB_REF_NAME" --latest')
         promote = release.index('gh release upload "channel-$JANUS_RELEASE_CHANNEL"')
-        self.assertLess(guard, publish)
-        self.assertLess(publish, promote)
+        for expected in (
+            'janus-${version}-Linux-x86_64.tar.gz',
+            'janus-${version}-Darwin-arm64.tar.gz',
+            'janus-${version}-Windows-AMD64.zip',
+            'janus-language.vsix',
+        ):
+            self.assertIn(expected, release)
+        subject_paths = release[attest:publish]
+        self.assertIn("dist/release/*.vsix", subject_paths)
+        verification = release[verify_attestations:promote]
+        self.assertIn('--source-digest "$GITHUB_SHA"', verification)
+        self.assertIn('--source-ref "$GITHUB_REF"', verification)
+        self.assertLess(guard, checksums)
+        self.assertLess(checksums, attest)
+        self.assertLess(attest, publish)
+        self.assertLess(publish, verify_attestations)
+        self.assertLess(verify_attestations, promote_latest)
+        self.assertLess(promote_latest, promote)
+        self.assertLess(verify_attestations, promote)
 
     def test_beta_channel_manifest_preserves_the_prerelease_version(self):
         with tempfile.TemporaryDirectory() as directory:
