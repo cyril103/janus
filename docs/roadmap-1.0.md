@@ -243,8 +243,9 @@ d'usage aval explicite.
 | --- | --- | --- |
 | 0.18 | Baseline actuelle, backlog et canari Studio | oui |
 | 0.19 | Emprunts lexicaux et conteneurs ergonomiques | oui |
-| 0.20 | Modèle sémantique partagé et diagnostics classifiés | oui |
-| 0.21 | LSP mesuré, cancellable et fuzz semantic/backend | oui |
-| 0.22 | Décision sur toutes les surfaces expérimentales | oui |
+| 0.20 | Contrats récursifs et lambdas blocs | oui |
+| 0.21 | Modèle sémantique partagé et diagnostics classifiés | oui |
+| 0.22 | LSP mesuré, cancellable et fuzz semantic/backend | oui |
+| 0.23 | Décision sur toutes les surfaces expérimentales | oui |
 | 1.0 RC | Gel, compatibilité et observation aval | oui |
 | Après 1.0 | Async, réseau, 3D, DAP, JIT, auto-hébergement | non |

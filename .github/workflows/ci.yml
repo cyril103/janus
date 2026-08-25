@@ -448,6 +448,9 @@ jobs:
     needs:
       [toolchain, vscode-extension, linux-compatibility, release-compatibility, release-readiness]
     runs-on: ubuntu-24.04
+    concurrency:
+      group: janus-release-${{ contains(github.ref_name, '-') && 'beta' || 'stable' }}
+      cancel-in-progress: false
     permissions:
       contents: write
       id-token: write
@@ -463,6 +466,22 @@ jobs:
           cmake -DTAG="${GITHUB_REF_NAME}"
           -DSOURCE_DIR="${GITHUB_WORKSPACE}"
           -P cmake/verify_release_version.cmake
+
+      - name: Reject stale channel promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          channel=stable
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then channel=beta; fi
+          arguments=(--candidate "$GITHUB_REF_NAME" --channel "$channel")
+          if gh release view "channel-$channel" >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/current-channel"
+            gh release download "channel-$channel" --pattern version \
+              --dir "$RUNNER_TEMP/current-channel"
+            arguments+=(--current "$RUNNER_TEMP/current-channel/version")
+          fi
+          python3 scripts/nightly_release.py check-promotion "${arguments[@]}"
+          echo "JANUS_RELEASE_CHANNEL=$channel" >> "$GITHUB_ENV"
 
       - name: Download distributions
         env:
@@ -517,17 +536,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          channel=stable
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then channel=beta; fi
           cmake -DSOURCE_DIR="$GITHUB_WORKSPACE" \
             -DRELEASE="$GITHUB_REF_NAME" \
             -DOUTPUT="$RUNNER_TEMP/version" \
             -P cmake/write_channel_manifest.cmake
-          if gh release view "channel-$channel" >/dev/null 2>&1; then
-            gh release upload "channel-$channel" "$RUNNER_TEMP/version" --clobber
+          if gh release view "channel-$JANUS_RELEASE_CHANNEL" >/dev/null 2>&1; then
+            gh release upload "channel-$JANUS_RELEASE_CHANNEL" \
+              "$RUNNER_TEMP/version" --clobber
           else
-            gh release create "channel-$channel" "$RUNNER_TEMP/version" \
-              --title "Janus $channel channel" --prerelease
+            gh release create "channel-$JANUS_RELEASE_CHANNEL" \
+              "$RUNNER_TEMP/version" \
+              --title "Janus $JANUS_RELEASE_CHANNEL channel" --prerelease
           fi
 
   diagnostic-fuzz:

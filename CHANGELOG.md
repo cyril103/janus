@@ -34,7 +34,9 @@ frontières de propriété des captures et paramètres.
 ### Documentation et outillage
 
 - prise en charge de la nouvelle syntaxe par le formateur, le LSP, la grammaire
-  VS Code, le guide du langage, le Book et les fixtures de documentation.
+  VS Code, le guide du langage, le Book et les fixtures de documentation ;
+- sérialisation des publications `stable` et `beta`, avec garde SemVer empêchant
+  toute rétrogradation du canal lors de tags concurrents.
 
 ## [0.19.0] - 2026-08-21
 
