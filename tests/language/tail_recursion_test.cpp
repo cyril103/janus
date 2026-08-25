@@ -225,6 +225,24 @@ def main() : int { return factorial(5) }
 )", "ordinary non-terminal recursion remains legal without tailrec"));
 
   static_cast<void>(expect_accepted(R"(
+def recur(value : int) : int {
+    val callback = () => recur(value)
+    delete callback
+    return value
+}
+def main() : int { return recur(2) }
+)", "recursive calls in expression lambdas do not require tailrec"));
+
+  static_cast<void>(expect_accepted(R"(
+def recur(value : int) : int {
+    val callback = () => { return recur(value) }
+    delete callback
+    return value
+}
+def main() : int { return recur(2) }
+)", "recursive calls in block lambdas do not require tailrec"));
+
+  static_cast<void>(expect_accepted(R"(
 def mixed(value : int, terminal : bool) : int {
     if value == 0 { return 0 }
     if terminal { return mixed(value - 1, terminal) }

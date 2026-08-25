@@ -323,6 +323,21 @@ val isLarge : (int) => bool =
 Une closure possédée doit être libérée avec `delete` lorsqu'elle n'est plus
 utilisée.
 
+Après `=>`, une closure accepte soit l'expression historique, soit un bloc
+d'instructions complet. Dans un bloc, le type résultat est inféré à partir des
+`return`; leurs types doivent être cohérents et tout chemin d'un bloc non-`Unit`
+doit retourner une valeur. Un bloc sans `return` produit `Unit`.
+
+```janus
+val adjust : (int) => int = (value : int) => {
+    val next : int = value + threshold
+    if next < 0 {
+        return 0
+    }
+    return next
+}
+```
+
 ### Récursivité terminale
 
 Un appel retourné directement par une fonction ou une méthode est en position

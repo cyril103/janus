@@ -2215,6 +2215,62 @@ private:
     std::function<void(const janus::ast::Expression &,
                        const std::unordered_set<std::string> &)>
         visit;
+    std::function<void(const std::vector<janus::ast::Statement> &,
+                       std::unordered_set<std::string>)>
+        visit_block;
+    visit_block = [&](const std::vector<janus::ast::Statement> &statements,
+                      std::unordered_set<std::string> active_bound) {
+      for (const auto &statement : statements) {
+        if (const auto *declaration =
+                std::get_if<janus::ast::ValueDeclaration>(&statement)) {
+          if (declaration->initializer)
+            visit(*declaration->initializer, active_bound);
+          active_bound.insert(declaration->name);
+        } else if (const auto *assignment =
+                       std::get_if<janus::ast::AssignmentStatement>(&statement)) {
+          if (!assignment->object.empty() &&
+              !active_bound.contains(assignment->object) &&
+              available.contains(assignment->object) &&
+              captured.insert(assignment->object).second)
+            captures.push_back(assignment->object);
+          if (assignment->object.empty() &&
+              !active_bound.contains(assignment->name) &&
+              available.contains(assignment->name) &&
+              captured.insert(assignment->name).second)
+            captures.push_back(assignment->name);
+          visit(assignment->expression, active_bound);
+        } else if (const auto *deletion =
+                       std::get_if<janus::ast::DeleteStatement>(&statement)) {
+          visit(deletion->expression, active_bound);
+        } else if (const auto *returned =
+                       std::get_if<janus::ast::ReturnStatement>(&statement)) {
+          if (returned->expression)
+            visit(*returned->expression, active_bound);
+        } else if (const auto *expression =
+                       std::get_if<janus::ast::ExpressionStatement>(&statement)) {
+          visit(expression->expression, active_bound);
+        } else if (const auto *deferred =
+                       std::get_if<janus::ast::DeferStatement>(&statement)) {
+          std::visit([&](const auto &action) { visit(action.expression, active_bound); },
+                     deferred->action);
+        } else if (const auto *conditional = std::get_if<
+                       std::shared_ptr<janus::ast::IfStatement>>(&statement)) {
+          visit((*conditional)->condition, active_bound);
+          visit_block((*conditional)->then_body, active_bound);
+          visit_block((*conditional)->else_body, active_bound);
+        } else if (const auto *loop = std::get_if<
+                       std::shared_ptr<janus::ast::WhileStatement>>(&statement)) {
+          visit((*loop)->condition, active_bound);
+          visit_block((*loop)->body, active_bound);
+        } else if (const auto *loop = std::get_if<
+                       std::shared_ptr<janus::ast::ForStatement>>(&statement)) {
+          visit((*loop)->iterator, active_bound);
+          auto loop_bound = active_bound;
+          loop_bound.insert((*loop)->binding);
+          visit_block((*loop)->body, std::move(loop_bound));
+        }
+      }
+    };
     visit = [&](const janus::ast::Expression &expression,
                 const std::unordered_set<std::string> &active_bound) {
       const auto capture = [&](std::string_view name) {
@@ -2229,12 +2285,23 @@ private:
             if constexpr (std::is_same_v<Node,
                                          janus::ast::IdentifierExpression>) {
               capture(node.name);
+            } else if constexpr (std::is_same_v<
+                                     Node,
+                                     janus::ast::ArrayLiteralExpression>) {
+              for (const auto &element : node.elements)
+                visit(*element, active_bound);
             } else if constexpr (std::is_same_v<Node,
                                                 janus::ast::LambdaExpression>) {
               auto nested_bound = active_bound;
               for (const auto &parameter : node.parameters)
                 nested_bound.insert(parameter.name);
-              visit(*node.body, nested_bound);
+              if (const auto *body = std::get_if<
+                      std::unique_ptr<janus::ast::Expression>>(&node.body))
+                visit(**body, nested_bound);
+              else
+                visit_block(std::get<std::shared_ptr<janus::ast::LambdaBlock>>(
+                                node.body)->statements,
+                            std::move(nested_bound));
             } else if constexpr (std::is_same_v<Node,
                                                 janus::ast::CallExpression>) {
               capture(node.callee);
@@ -2287,7 +2354,13 @@ private:
           },
           expression.value);
     };
-    visit(*lambda.body, bound);
+    if (const auto *body =
+            std::get_if<std::unique_ptr<janus::ast::Expression>>(&lambda.body))
+      visit(**body, bound);
+    else
+      visit_block(std::get<std::shared_ptr<janus::ast::LambdaBlock>>(lambda.body)
+                      ->statements,
+                  bound);
     return captures;
   }
 
@@ -2297,6 +2370,7 @@ private:
               const Substitutions &substitutions,
               const std::unordered_map<std::string, Local> &locals,
               ::llvm::IRBuilder<> &builder) {
+    const std::optional<std::string> lexical_module = active_module_;
     const FunctionSignature &signature = function_signature(function_type);
     const std::vector<std::string> capture_names =
         collect_captures(lambda, locals);
@@ -2337,8 +2411,8 @@ private:
     ::llvm::Function *lambda_function = ::llvm::Function::Create(
         llvm_function_type, ::llvm::Function::InternalLinkage,
         "__janus_lambda_" + std::to_string(lambda_index), *module_);
-    if (is_dependency(active_module_))
-      lambda_function->addFnAttr("janus.module", *active_module_);
+    if (is_dependency(lexical_module))
+      lambda_function->addFnAttr("janus.module", *lexical_module);
     auto *entry =
         ::llvm::BasicBlock::Create(context_, "entry", lambda_function);
     ::llvm::IRBuilder<> lambda_builder{entry};
@@ -2368,16 +2442,71 @@ private:
                             Local{storage, parameter_type});
     }
 
-    const janus::Type *previous_return_type = active_return_type_;
-    active_return_type_ = signature.return_type;
-    ::llvm::Value *result =
-        emit_expression(*lambda.body, *signature.return_type, substitutions,
-                        lambda_locals, lambda_builder);
-    active_return_type_ = previous_return_type;
-    if (signature.return_type->kind() == janus::TypeKind::Unit)
-      lambda_builder.CreateRetVoid();
-    else
-      lambda_builder.CreateRet(result);
+    if (const auto *expression_body = std::get_if<
+            std::unique_ptr<janus::ast::Expression>>(&lambda.body)) {
+      const janus::Type *previous_return_type = active_return_type_;
+      active_return_type_ = signature.return_type;
+      ::llvm::Value *result = emit_expression(
+          **expression_body, *signature.return_type, substitutions,
+          lambda_locals, lambda_builder);
+      active_return_type_ = previous_return_type;
+      if (signature.return_type->kind() == janus::TypeKind::Unit)
+        lambda_builder.CreateRetVoid();
+      else
+        lambda_builder.CreateRet(result);
+    } else {
+      const auto &block =
+          *std::get<std::shared_ptr<janus::ast::LambdaBlock>>(lambda.body);
+      janus::ast::FunctionDeclaration body_function{
+          "__janus_lambda_body_" + std::to_string(lambda_index),
+          {}, {}, janus::ast::TypeReference{"Unit", lambda.location, {}}, {},
+          lambda.location, true, false, {}, false, std::nullopt, false,
+          std::nullopt, false, {}, janus::ast::ReturnOwnership::Unspecified,
+          false, false, false};
+      body_function.module_name = lexical_module;
+      std::vector<const janus::Type *> body_types;
+      auto add_parameter = [&](std::string name, const janus::Type *type,
+                               janus::ast::ParameterOwnership ownership) {
+        const std::string type_name =
+            "__LambdaType" + std::to_string(body_types.size());
+        body_function.type_parameters.push_back(type_name);
+        body_function.parameters.push_back(
+            janus::ast::FunctionDeclaration::Parameter{
+                std::move(name),
+                janus::ast::TypeReference{type_name, lambda.location, {}},
+                lambda.location, ownership});
+        body_types.push_back(type);
+      };
+      for (const std::string &name : capture_names)
+        add_parameter(name, locals.at(name).type,
+                      janus::ast::ParameterOwnership::BorrowMutable);
+      for (std::size_t index = 0; index < lambda.parameters.size(); ++index)
+        add_parameter(lambda.parameters[index].name, signature.parameters[index],
+                      janus::ast::ParameterOwnership::Unspecified);
+      const std::string return_name =
+          "__LambdaType" + std::to_string(body_types.size());
+      body_function.type_parameters.push_back(return_name);
+      body_function.return_type =
+          janus::ast::TypeReference{return_name, lambda.location, {}};
+      body_types.push_back(signature.return_type);
+      ::llvm::Function *lowered_body =
+          emit_function(body_function, body_types, nullptr, nullptr, {},
+                        &block.statements);
+      std::vector<::llvm::Value *> arguments;
+      arguments.reserve(capture_names.size() + lambda.parameters.size());
+      for (const std::string &name : capture_names)
+        arguments.push_back(lambda_locals.at(name).storage);
+      for (const auto &parameter : lambda.parameters)
+        arguments.push_back(lambda_builder.CreateLoad(
+            lower_type(*lambda_locals.at(parameter.name).type, context_),
+            lambda_locals.at(parameter.name).storage, parameter.name + ".body.arg"));
+      if (signature.return_type->kind() == janus::TypeKind::Unit) {
+        lambda_builder.CreateCall(lowered_body, arguments);
+        lambda_builder.CreateRetVoid();
+      } else {
+        lambda_builder.CreateRet(lambda_builder.CreateCall(lowered_body, arguments));
+      }
+    }
 
     auto *closure_type =
         ::llvm::cast<::llvm::StructType>(lower_type(function_type, context_));
@@ -2447,7 +2576,7 @@ private:
                                              Local{nullptr, &type});
             }
             const janus::Type &return_type =
-                expression_type(*node.body, substitutions, lambda_locals);
+                resolve(analysis_.inferred_generic_arguments.at(&expression).back());
             return ensure_function_type(parameters, return_type);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {

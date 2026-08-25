@@ -142,6 +142,12 @@ def main() : int {
                        "type parameter 'T' is already declared");
   expect_compile_error("def main() : int { return missing }",
                        "unknown value 'missing'");
+  expect_compile_error(
+      "def invoke[T](callback : () => T) : T { return callback() } "
+      "def main() : int { val outer = () => { "
+      "val value = invoke(() => { return missing }) return value } "
+      "delete outer return 0 }",
+      "unknown value 'missing'");
   janus::frontend::Parser copy_parser{
       "def duplicate[T <: Copy](value : T) : T { return value } "
       "struct Pair(val left : int, val right : int) {} "

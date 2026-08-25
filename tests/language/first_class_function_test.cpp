@@ -36,9 +36,227 @@ void expect_compile_error(std::string_view source,
   }
 }
 
+void expect_analyzes(std::string_view source, std::string_view message) {
+  try {
+    janus::frontend::Parser parser{source};
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(parser.parse_program()));
+    expect(true, message);
+  } catch (const janus::CompileError &) {
+    expect(false, message);
+  }
+}
+
 } // namespace
 
 int main() {
+  expect_compile_error(
+      R"(
+class Iterator[T]() {}
+def main() : int {
+    val iterator : Iterator[int] = new Iterator[int]()
+    val iterConsumer = () => {
+        for item in iterator {}
+    }
+    delete iterConsumer
+    delete iterator
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      R"(
+class Iterator[T]() {}
+def main() : int {
+    val iterConsumer = (iterator : Iterator[int]) => {
+        for item in iterator {}
+    }
+    delete iterConsumer
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_analyzes(
+      R"(
+class Iterator[T]() {}
+def main() : int {
+    val iterateLocal = () => {
+        val iterator : Iterator[int] = new Iterator[int]()
+        for item in iterator {}
+    }
+    delete iterateLocal
+    return 0
+}
+)",
+      "a lambda may consume an Iterator created in its own body");
+  expect_analyzes(
+      R"(
+class Resource() {}
+class Iterator[T]() {}
+def main() : int {
+    val iterate = (item : Resource) => {
+        val iterator : Iterator[Resource] = new Iterator[Resource]()
+        for item in iterator { delete item }
+    }
+    delete iterate
+    return 0
+}
+)",
+      "a for binding may shadow a protected lambda parameter");
+  expect_analyzes(
+      R"(
+class Resource() {}
+enum Slot { Some(Resource), None }
+def dispose(value : Resource) : int { delete value return 1 }
+def main() : int {
+    val inspect = (item : Resource) => {
+        val slot : Slot = Slot.Some(new Resource())
+        return match move slot {
+            Some(item) => dispose(move item),
+            None => 0
+        }
+    }
+    delete inspect
+    return 0
+}
+)",
+      "a match binding may shadow a protected lambda parameter");
+
+  expect_compile_error(
+      R"(
+class Resource() {}
+class Owner(val ownedField : Resource) {}
+def main() : int {
+    val capture = new Owner(new Resource())
+    val cleanup = () => { delete capture.ownedField }
+    delete cleanup
+    delete capture
+    return 0
+}
+)",
+      "cannot be deleted from a loop, branch expression, or closure");
+  expect_compile_error(
+      R"(
+class Resource() {}
+class Owner(val ownedField : Resource) {}
+def main() : int {
+    val cleanup = (owner : Owner) => { delete owner.ownedField }
+    delete cleanup
+    return 0
+}
+)",
+      "cannot be deleted from a loop, branch expression, or closure");
+  expect_compile_error(
+      R"(
+class BufferOwner(val pointer : Ptr[int]) {}
+def main() : int {
+    val holder = new BufferOwner(alloc[int](usize(1)))
+    val cleanup = () => { defer free(holder.pointer) }
+    delete cleanup
+    delete holder
+    return 0
+}
+)",
+      "cannot be released from a loop, branch expression, or closure");
+  expect_compile_error(
+      R"(
+class BufferOwner(val pointer : Ptr[int]) {}
+def main() : int {
+    val cleanup = (holder : BufferOwner) => { freeStorage(holder.pointer) }
+    delete cleanup
+    return 0
+}
+)",
+      "cannot be released from a loop, branch expression, or closure");
+  expect_compile_error(
+      R"(
+class Iterator[T]() {}
+class Owner(val iterator : Iterator[int]) {}
+def main() : int {
+    val capture = new Owner(new Iterator[int]())
+    val iterate = () => { for item in capture.iterator {} }
+    delete iterate
+    delete capture
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      R"(
+class Iterator[T]() {}
+class Owner(val iterator : Iterator[int]) {}
+def main() : int {
+    val iterate = (owner : Owner) => { for item in owner.iterator {} }
+    delete iterate
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+
+  expect_compile_error(
+      R"(
+class Resource(val marker : int) {
+    def dispose() : Unit { delete this }
+}
+def main() : int {
+    val owner : Resource = new Resource(7)
+    val factory = () => {
+        return owningCapture[Resource](owner, () => owner.dispose())
+    }
+    delete factory
+    delete owner
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      R"(
+class Resource(val marker : int) {
+    def dispose() : Unit { delete this }
+}
+def main() : int {
+    val factory = (owner : Resource) => {
+        return owningCapture[Resource](owner, () => owner.dispose())
+    }
+    delete factory
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      "def main() : int { var data : Ptr[int] = alloc[int](usize(1)) "
+      "val resize = () => { data = realloc[int](data, usize(2)) } "
+      "delete resize free(data) return 0 }",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      "def main() : int { var data : Ptr[int] = alloc[int](usize(1)) "
+      "val resize = () => { "
+      "data = reallocPreserving[int](data, usize(2)) } "
+      "delete resize free(data) return 0 }",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      "extern def release(consume data : Ptr[byte]) : Unit "
+      "def main() : int { val pointer : Ptr[byte] = alloc[byte](usize(1)) "
+      "val cleanup = () => { release(pointer) } delete cleanup "
+      "free(pointer) return 0 }",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      "def main() : int { val pointer : Ptr[byte] = alloc[byte](usize(1)) "
+      "val resized : Ptr[byte] = realloc[byte](pointer, usize(2)) "
+      "val cleanup = () => { adoptReallocation[byte](pointer, resized) } "
+      "delete cleanup free(pointer) free(resized) return 0 }",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+
   constexpr std::string_view source = R"(
 class CallScope() {
     destructor {}
@@ -54,8 +272,66 @@ def makeAdder(amount : int) : (int) => int {
     return (value : int) => value + amount
 }
 
+def makeBlockAdder(amount : int) : (int) => int {
+    return (value : int) => {
+        val adjusted : int = value + amount
+        if adjusted > 40 {
+            return adjusted + 1
+        }
+        return adjusted
+    }
+}
+
+def makeObserver() : (int) => Unit {
+    return (value : int) => {
+        val observed : int = value
+        debug(observed)
+    }
+}
+
+def makeConditionalObserver(condition : bool) : () => Unit {
+    return () => {
+        if condition { return }
+        debug(1)
+    }
+}
+
+def makeShadow(value : CallScope) : (int) => int {
+    return (value : int) => value + 1
+}
+
+def makeNested(amount : int) : (int) => int {
+    return (value : int) => {
+        val inner = (nested : int) => {
+            return nested + amount
+        }
+        val result : int = inner(value)
+        delete inner
+        return result
+    }
+}
+
+def makeCounter(start : int) : () => int {
+    var next : int = start
+    return () => {
+        next = next + 1
+        return next
+    }
+}
+
 def makeIdentity[T]() : (T) => T {
     return (value : T) => value
+}
+
+class Resource(val marker : int) {
+    def dispose() : Unit { delete this }
+}
+
+def makeLocalCleanup() : () => () => Unit {
+    return () => {
+        val local : Resource = new Resource(7)
+        return owningCapture[Resource](local, () => local.dispose())
+    }
 }
 
 def main() : int {
@@ -70,7 +346,33 @@ def main() : int {
     val identity = makeIdentity[int]()
     val result = identity(second)
     delete identity
-    return result
+
+    val blockAdder = makeBlockAdder(1)
+    val blockResult : int = blockAdder(result)
+    delete blockAdder
+
+    val observer = makeObserver()
+    observer(blockResult)
+    delete observer
+
+    val conditionalObserver = makeConditionalObserver(false)
+    conditionalObserver()
+    delete conditionalObserver
+
+    val nested = makeNested(2)
+    val nestedResult : int = nested(blockResult)
+    delete nested
+
+    val counter = makeCounter(nestedResult)
+    val counted : int = counter() + counter()
+    delete counter
+
+    val factory = makeLocalCleanup()
+    val cleanup = factory()
+    cleanup()
+    delete cleanup
+    delete factory
+    return counted
 }
 )";
 
@@ -86,12 +388,33 @@ def main() : int {
   expect(std::holds_alternative<janus::ast::LambdaExpression>(
              increment.initializer->value),
          "the parser retains lambda literals");
+  const auto &block_lambda = std::get<janus::ast::LambdaExpression>(
+      std::get<janus::ast::ReturnStatement>(
+          program.functions[2].body.front()).expression->value);
+  expect(std::holds_alternative<std::shared_ptr<janus::ast::LambdaBlock>>(
+             block_lambda.body),
+         "the parser retains lambda statement blocks");
+  expect(std::get<std::shared_ptr<janus::ast::LambdaBlock>>(block_lambda.body)
+                 ->statements.size() == 3,
+         "lambda blocks contain ordinary Janus statements");
 
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
   expect(analysis.functions.at("main").at("increment").type.name() ==
              "(int) => int",
          "function values retain their semantic signature");
+  expect(analysis.functions.at("main").at("blockAdder").type.name() ==
+             "(int) => int",
+         "block lambda return types are inferred from return statements");
+  expect(analysis.functions.at("main").at("observer").type.name() ==
+             "(int) => Unit",
+         "a lambda block without return infers Unit");
+  expect(analysis.functions.at("main").at("conditionalObserver").type.name() ==
+             "() => Unit",
+         "a partially returning lambda block infers Unit");
+  expect(analysis.functions.at("main").at("nested").type.name() ==
+             "(int) => int",
+         "nested block lambdas retain inferred signatures and captures");
 
   llvm::LLVMContext context;
   janus::backend::llvm::IrGenerator generator{context};
@@ -106,6 +429,8 @@ def main() : int {
          "captured values are stored in closure environments");
   expect(ir.find("define internal i32 @__janus_lambda_") != std::string::npos,
          "lambda bodies lower to internal LLVM functions");
+  expect(ir.find("adjusted") != std::string::npos,
+         "multi-statement lambda bodies lower their locals and control flow");
   expect(ir.find("call i32 %") != std::string::npos,
          "function values are invoked through indirect calls");
   const std::size_t push_cleanup =
@@ -137,6 +462,89 @@ def main() : int {
   expect_compile_error("def main() : int { val f : (int) => int = "
                        "(value : int) => value delete f return f(1) }",
                        "used before initialization");
+  expect_compile_error(
+      "def main() : int { val f = (value : int) => { if value > 0 { "
+      "return value } return true } delete f return 0 }",
+      "lambda block returns have inconsistent types");
+  expect_compile_error(
+      "def main() : int { val f = (value : int) => { if value > 0 { "
+      "return } return value } delete f return 0 }",
+      "lambda block returns have inconsistent types");
+  expect_compile_error(
+      "def main() : int { val f = (value : int) => { if value > 0 { "
+      "return value } } delete f return 0 }",
+      "not all paths return a value");
+  expect_compile_error(
+      "class Token() {} def main() : int { val f = (value : int) => { "
+      "val token = new Token() defer delete token return token } "
+      "delete f return 0 }",
+      "scheduled for deferred cleanup");
+  expect_compile_error(
+      "def main() : int { while true { val f = () => { break } "
+      "delete f break } return 0 }",
+      "break can only be used inside a loop");
+  expect_compile_error(
+      "def main() : int { while true { val f = () => { continue } "
+      "delete f break } return 0 }",
+      "continue can only be used inside a loop");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val resource : Resource = new Resource() "
+      "val cleanup = () => { delete resource } delete cleanup "
+      "delete resource return 0 }",
+      "cannot be deleted from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val resource : Resource = new Resource() "
+      "val cleanup = () => { defer delete resource } delete cleanup "
+      "delete resource return 0 }",
+      "cannot be deleted from a loop, branch expression, or closure");
+  expect_compile_error(
+      "def main() : int { val pointer : Ptr[int] = alloc[int](usize(1)) "
+      "val cleanup = () => { free(pointer) } delete cleanup "
+      "free(pointer) return 0 }",
+      "cannot be released from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() { consume def finish() : Unit { delete this } } "
+      "def main() : int { val resource : Resource = new Resource() "
+      "val cleanup = () => { resource.finish() } delete cleanup "
+      "delete resource return 0 }",
+      "cannot be consumed from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val dispose = (value : Resource) => { delete value } "
+      "val resource : Resource = new Resource() dispose(resource) "
+      "delete resource delete dispose return 0 }",
+      "cannot be deleted from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val dispose = (value : Resource) => { defer delete value } "
+      "val resource : Resource = new Resource() dispose(resource) "
+      "delete resource delete dispose return 0 }",
+      "cannot be deleted from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val take = (value : Resource) => { val owned = move value delete owned } "
+      "val resource : Resource = new Resource() take(resource) "
+      "delete resource delete take return 0 }",
+      "cannot be moved from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() { consume def finish() : Unit { delete this } } "
+      "def main() : int { val finish = (value : Resource) => { value.finish() } "
+      "val resource : Resource = new Resource() finish(resource) "
+      "delete resource delete finish return 0 }",
+      "cannot be consumed from a loop, branch expression, or closure");
+  expect_compile_error(
+      "def main() : int { val release = (value : Ptr[int]) => { free(value) } "
+      "val pointer : Ptr[int] = alloc[int](usize(1)) release(pointer) "
+      "free(pointer) delete release return 0 }",
+      "cannot be released from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val value : Resource = new Resource() "
+      "val dispose = (value : Resource) => { delete value } "
+      "dispose(value) delete value delete dispose return 0 }",
+      "cannot be deleted from a loop, branch expression, or closure");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
