@@ -560,7 +560,7 @@ jobs:
               if gh attestation verify "dist/release/$distribution" \
                 --repo "$GITHUB_REPOSITORY" \
                 --signer-workflow \
-                  "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/.github/workflows/ci.yml" \
+                  "github.com/$GITHUB_REPOSITORY/.github/workflows/ci.yml" \
                 --source-digest "$GITHUB_SHA" \
                 --source-ref "$GITHUB_REF"
               then
