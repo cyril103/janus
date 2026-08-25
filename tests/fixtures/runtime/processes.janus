@@ -258,47 +258,33 @@ result : Result[ChildProcess, SystemError]
     }
 }
 
-tailrec def readChildReply(
-child : ChildProcess,
-received : Ptr[byte],
-chunk : Ptr[byte],
-offset : usize
-) : bool {
-    if offset >= usize(5) {
-        return true
-    }
-    val count : usize = match child.read(
-        chunk,
-        usize(5) - offset
-    ) {
-        Ok(value) => value,
-        Error(error) => usize(0)
-    }
-    if count == usize(0) {
-        return false
-    }
-    var index : usize = usize(0)
-    while index < count {
-        received.store(offset + index, chunk.load(index))
-        index = index + usize(1)
-    }
-    return readChildReply(child, received, chunk, offset + count)
-}
-
 def exchangeWithChild(child : ChildProcess) : bool {
     val sent : bool = usizeResult(child.writeText("ping\n"), usize(5))
     val received : Ptr[byte] = alloc[byte](usize(5))
     defer free(received)
     val chunk : Ptr[byte] = alloc[byte](usize(5))
     defer free(chunk)
-    val receivedReply : bool = readChildReply(
-    child,
-    received,
-    chunk,
-    usize(0)
-    )
-    val matches : bool = receivedReply &&
-    stringView(received, usize(5)) == "ping\n"
+    var offset : usize = usize(0)
+    while offset < usize(5) {
+        val count : usize = match child.read(
+        chunk,
+        usize(5) - offset
+        ) {
+            Ok(value) => value,
+            Error(error) => usize(0)
+        }
+        if count == usize(0) {
+            delete child
+            return false
+        }
+        var index : usize = usize(0)
+        while index < count {
+            received.store(offset + index, chunk.load(index))
+            index = index + usize(1)
+        }
+        offset = offset + count
+    }
+    val matches : bool = stringView(received, usize(5)) == "ping\n"
     val closed : bool = boolResult(child.closeInput())
     delete child
     return sent && matches && closed

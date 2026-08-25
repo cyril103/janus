@@ -83,22 +83,15 @@ private val source : Iterator[T],
 private val predicate : (T) => bool
 ) {
     def next() : Option[T] {
-        return this.select(source.next())
-    }
-
-    private def select(candidate : Option[T]) : Option[T] {
-        return match move candidate {
-            Some(item) => this.selectItem(move item),
-            None => Option.None[T]()
+        var candidate : Option[T] = source.next()
+        while match candidate {
+            Some(item) => !predicate(item),
+            None => false
+        } {
+            delete candidate
+            candidate = source.next()
         }
-    }
-
-    private def selectItem(item : T) : Option[T] {
-        if predicate(item) {
-            return Option.Some[T](move item)
-        }
-        delete item
-        return this.select(source.next())
+        return move candidate
     }
 
     def dispose() : Unit {
@@ -231,29 +224,31 @@ private var current : Option[Iterator[B]]
     }
 
     def next() : Option[B] {
-        if isSome[Iterator[B]](current) {
-            val active : Option[Iterator[B]] = this.takeCurrent()
-            val value : Option[B] = match move active {
-                Some(iterator) => this.poll(move iterator),
-                None => Option.None[B]()
+        while true {
+            if isSome[Iterator[B]](current) {
+                val active : Option[Iterator[B]] = this.takeCurrent()
+                val value : Option[B] = match move active {
+                    Some(iterator) => this.poll(move iterator),
+                    None => Option.None[B]()
+                }
+                val available : bool = match value {
+                    Some(item) => true,
+                    None => false
+                }
+                if available {
+                    return move value
+                }
+                delete value
+                delete current
+                current = Option.None[Iterator[B]]()
             }
-            val available : bool = match value {
-                Some(item) => true,
-                None => false
-            }
-            if available {
-                return move value
-            }
-            delete value
-            delete current
-            current = Option.None[Iterator[B]]()
-        }
 
-        val outer : Option[A] = source.next()
-        if !this.startOuter(move outer) {
-            return Option.None[B]()
+            val outer : Option[A] = source.next()
+            if !this.startOuter(move outer) {
+                return Option.None[B]()
+            }
         }
-        return this.next()
+        return Option.None[B]()
     }
 
     def dispose() : Unit {

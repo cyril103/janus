@@ -2958,6 +2958,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 "pattern binding '" + identifier->name +
                     "' cannot be transferred or destroyed in a match guard"};
         };
+    const auto require_closure_delete_allowed =
+        [&](const ast::Expression &expression, SourceLocation location) {
+          const auto *identifier =
+              lexical_root_identifier(expression, lexical_root_identifier);
+          if (identifier != nullptr &&
+              closure_transfer_protected_values.contains(identifier->name))
+            throw CompileError{
+                location,
+                "owning value '" + identifier->name +
+                    "' cannot be deleted from a loop, branch expression, or "
+                    "closure"};
+        };
     const auto require_consumption_transfer_allowed =
         [&](const ast::Expression &expression, SourceLocation location) {
           require_guard_transfer_allowed(expression, location);
@@ -7118,8 +7130,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
         if (const auto *deletion =
                 std::get_if<ast::DeleteStatement>(&statement)) {
-          require_consumption_transfer_allowed(deletion->expression,
-                                               deletion->location);
+          require_guard_transfer_allowed(deletion->expression,
+                                         deletion->location);
           if (!std::holds_alternative<ast::IdentifierExpression>(
                   deletion->expression.value) &&
               is_borrowed_pointer_expression(deletion->expression))
@@ -7141,6 +7153,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                deletion->location, "borrowed value '" +
                                                        identifier->name +
                                                        "' cannot be deleted"};
+          require_closure_delete_allowed(deletion->expression,
+                                         deletion->location);
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value))
             require_no_live_borrow(identifier->name, deletion->location);
@@ -7187,8 +7201,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{
                   deletion->location,
                   "deferred delete requires an owning local identifier"};
-            require_consumption_transfer_allowed(deletion->expression,
-                                                 deletion->location);
+            require_closure_delete_allowed(deletion->expression,
+                                           deletion->location);
             if (!block_symbols.contains(identifier->name) &&
                 visible_global(identifier->name) != nullptr)
               throw CompileError{deletion->location,

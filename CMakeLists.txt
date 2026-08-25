@@ -2041,7 +2041,7 @@ if(BUILD_TESTING)
             ${CMAKE_COMMAND}
             "-DJANUSC=$<TARGET_FILE:janusc>"
             "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/hashing_borrow_error.janus"
-            "-DEXPECTED_ERROR=cannot be consumed/transferred from a loop, branch expression, or closure"
+            "-DEXPECTED_ERROR=borrowed value 'value' cannot be deleted"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
     )
     add_test(
