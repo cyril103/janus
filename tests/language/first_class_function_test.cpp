@@ -150,6 +150,28 @@ def main() : int {
       "cannot be deleted from a loop, branch expression, or closure");
   expect_compile_error(
       R"(
+class BufferOwner(val pointer : Ptr[int]) {}
+def main() : int {
+    val holder = new BufferOwner(alloc[int](usize(1)))
+    val cleanup = () => { defer free(holder.pointer) }
+    delete cleanup
+    delete holder
+    return 0
+}
+)",
+      "cannot be released from a loop, branch expression, or closure");
+  expect_compile_error(
+      R"(
+class BufferOwner(val pointer : Ptr[int]) {}
+def main() : int {
+    val cleanup = (holder : BufferOwner) => { freeStorage(holder.pointer) }
+    delete cleanup
+    return 0
+}
+)",
+      "cannot be released from a loop, branch expression, or closure");
+  expect_compile_error(
+      R"(
 class Iterator[T]() {}
 class Owner(val iterator : Iterator[int]) {}
 def main() : int {

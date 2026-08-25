@@ -2970,6 +2970,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "' cannot be deleted from a loop, branch expression, or "
                     "closure"};
         };
+    const auto require_closure_release_allowed =
+        [&](const ast::Expression &expression, SourceLocation location) {
+          const auto *identifier =
+              lexical_root_identifier(expression, lexical_root_identifier);
+          if (identifier != nullptr &&
+              closure_transfer_protected_values.contains(identifier->name))
+            throw CompileError{
+                location,
+                "owning value '" + identifier->name +
+                    "' cannot be released from a loop, branch expression, or "
+                    "closure"};
+        };
     const auto require_consumption_transfer_allowed =
         [&](const ast::Expression &expression, SourceLocation location) {
           require_guard_transfer_allowed(expression, location);
@@ -4343,6 +4355,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       DiagnosticCode::AnalyzerInvalidBorrowAccess,
                       node.location,
                       "borrowed pointer cannot be released with free"};
+                require_closure_release_allowed(
+                    *node.arguments.front(),
+                    expression_location(*node.arguments.front()));
                 const SemanticType pointer =
                     expression_type(*node.arguments.front());
                 if (!pointer.is_pointer())
@@ -4364,13 +4379,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         std::get_if<ast::IdentifierExpression>(
                             &node.arguments.front()->value)) {
                   require_no_live_borrow(identifier->name, node.location);
-                  if (closure_transfer_protected_values.contains(
-                          identifier->name))
-                    throw CompileError{
-                        node.location,
-                        "owning value '" + identifier->name +
-                            "' cannot be released from a loop, branch "
-                            "expression, or closure"};
                   if (deferred_values.contains(identifier->name))
                     throw CompileError{
                         node.location,
