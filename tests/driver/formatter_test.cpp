@@ -62,6 +62,26 @@ int main() {
     std::cerr << "else-if formatting is not canonical and idempotent\n";
     return 1;
   }
+  const std::string lambda_block =
+      "def factory(base : int) : (int) => int {\n"
+      "return (value : int) => {\nval sum : int = base + value\n"
+      "if sum > 0 {\nreturn sum\n}\nreturn 0\n}\n}\n";
+  const std::string formatted_lambda_block =
+      "def factory(base : int) : (int) => int {\n"
+      "    return (value : int) => {\n"
+      "        val sum : int = base + value\n"
+      "        if sum > 0 {\n"
+      "            return sum\n"
+      "        }\n"
+      "        return 0\n"
+      "    }\n"
+      "}\n";
+  if (janus::driver::format_source(lambda_block) != formatted_lambda_block ||
+      janus::driver::format_source(formatted_lambda_block) !=
+          formatted_lambda_block) {
+    std::cerr << "lambda block formatting is not roundtrip-idempotent\n";
+    return 1;
+  }
   const std::string derivations = "struct Point(val x : int, val y : int)\n"
                                   "derives Copy, Equality, Hashing, Debug {\n"
                                   "}\n";

@@ -1,0 +1,42 @@
+module app
+
+private def secret() : int { return 42 }
+private val answer : int = 7
+
+class Scope(val marker : int) {
+    destructor { println(marker) }
+}
+
+class Box(val value : int) {}
+
+def makeCalculator(base : int) : (int) => int {
+    return (value : int) => {
+        val scope : Scope = new Scope(7)
+        defer delete scope
+        if value < 0 {
+            return base
+        }
+        return base + value
+    }
+}
+
+def main() : int {
+    val make = () => {
+        val box : Box = new Box(42)
+        return move box
+    }
+    val box = make()
+    println(box.value)
+    delete box
+    delete make
+
+    val calculate = makeCalculator(40)
+    println(calculate(-1))
+    println(calculate(2))
+    delete calculate
+
+    val privateCallback = () => { return secret() + answer }
+    println(privateCallback())
+    delete privateCallback
+    return 0
+}

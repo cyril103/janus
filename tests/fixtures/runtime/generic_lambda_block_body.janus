@@ -1,0 +1,15 @@
+def identityClosure[T]() : (T) => T {
+    return (value : T) => {
+        return value
+    }
+}
+
+def main() : int {
+    val integerIdentity = identityClosure[int]()
+    val booleanIdentity = identityClosure[bool]()
+    println(integerIdentity(42))
+    println(if booleanIdentity(true) { 1 } else { 0 })
+    delete integerIdentity
+    delete booleanIdentity
+    return 0
+}

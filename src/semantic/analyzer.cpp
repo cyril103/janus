@@ -606,7 +606,13 @@ void validate_tailrec_contract(
               for (const auto &element : node.elements)
                 visit_expression(*element, false, pending_defer);
             } else if constexpr (std::is_same_v<T, ast::LambdaExpression>) {
-              visit_expression(*node.body, false, pending_defer);
+              if (const auto *body =
+                      std::get_if<std::unique_ptr<ast::Expression>>(&node.body))
+                visit_expression(**body, false, pending_defer);
+              else
+                visit_block(std::get<std::shared_ptr<ast::LambdaBlock>>(node.body)
+                                ->statements,
+                            pending_defer);
             } else if constexpr (std::is_same_v<T, ast::NewExpression>) {
               for (const auto &argument : node.arguments)
                 visit_expression(*argument, false, pending_defer);
@@ -2845,6 +2851,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::string_view contextual_borrow_enum_name;
     std::size_t loop_depth = 0;
     std::unordered_set<std::string> transfer_protected_values;
+    std::unordered_set<std::string> closure_transfer_protected_values;
     std::unordered_set<std::string> match_guard_protected_values;
     std::unordered_set<std::string> deferred_values;
     std::unordered_set<std::string> borrowed_values;
@@ -3059,6 +3066,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
 
     std::function<SemanticType(const ast::Expression &)> expression_type;
+    std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
+        validate_block;
+    std::optional<SemanticType> *active_lambda_return_type = nullptr;
     std::function<void(const ast::Expression &, const SemanticType &,
                        SourceLocation)>
         validate_expression;
@@ -3072,6 +3082,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           active_type_substitutions;
       auto *const active_lambda_captures_before = active_lambda_captures;
       auto *const active_lambda_mutations_before = active_lambda_mutations;
+      auto *const active_lambda_return_type_before =
+          active_lambda_return_type;
+      const std::optional<std::optional<SemanticType>>
+          active_return_type_before =
+              active_lambda_return_type_before == nullptr
+                  ? std::nullopt
+                  : std::optional<std::optional<SemanticType>>{
+                        *active_lambda_return_type_before};
+      const bool inside_lambda_before = inside_lambda;
       const std::optional<std::string> context_module_before = context_module;
       const std::size_t diagnostics_before = result.diagnostics.size();
       const auto warned_leaks_before = warned_leak_locations;
@@ -3083,6 +3102,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           lambda_mutable_borrow_captures;
       const auto lambda_locations_before = local_lambda_locations;
       const auto borrowed_values_before = borrowed_values;
+      const auto transfer_protected_values_before =
+          transfer_protected_values;
+      const auto closure_transfer_protected_values_before =
+          closure_transfer_protected_values;
       const auto shared_borrow_values_before = shared_borrow_values;
       const auto mutable_borrow_values_before = mutable_borrow_values;
       const auto borrow_sources_before = borrow_sources;
@@ -3107,6 +3130,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         active_type_substitutions = active_type_substitutions_before;
         active_lambda_captures = active_lambda_captures_before;
         active_lambda_mutations = active_lambda_mutations_before;
+        active_lambda_return_type = active_lambda_return_type_before;
+        if (active_return_type_before.has_value())
+          *active_lambda_return_type_before = *active_return_type_before;
+        inside_lambda = inside_lambda_before;
         context_module = context_module_before;
         result.diagnostics.resize(diagnostics_before);
         warned_leak_locations = warned_leaks_before;
@@ -3117,6 +3144,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         lambda_mutable_borrow_captures = mutable_borrow_captures_before;
         local_lambda_locations = lambda_locations_before;
         borrowed_values = borrowed_values_before;
+        transfer_protected_values = transfer_protected_values_before;
+        closure_transfer_protected_values =
+            closure_transfer_protected_values_before;
         shared_borrow_values = shared_borrow_values_before;
         mutable_borrow_values = mutable_borrow_values_before;
         borrow_sources = borrow_sources_before;
@@ -3600,17 +3630,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                        expected.name() + "' is required"};
     };
     const auto validate_return_expression =
-        [&](const ast::ReturnStatement &return_statement) {
+        [&](const ast::ReturnStatement &return_statement,
+            const SemanticType &expected_return_type,
+            const std::optional<SemanticType> &precomputed_actual =
+                std::nullopt) {
           const ast::Expression &expression = *return_statement.expression;
-          if (return_type.is_concrete() &&
-              accepts_contextual_integer_literal(*return_type.concrete)) {
+          if (expected_return_type.is_concrete() &&
+              accepts_contextual_integer_literal(*expected_return_type.concrete)) {
             if (integer_literal_value(expression)) {
-              if (integer_literal_fits(expression, *return_type.concrete))
+              if (integer_literal_fits(expression, *expected_return_type.concrete))
                 return;
               throw CompileError{
                   expression_location(expression),
                   "integer literal is outside the " +
-                      integer_range_description(*return_type.concrete)};
+                      integer_range_description(*expected_return_type.concrete)};
             }
           }
 
@@ -3619,18 +3652,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           const SemanticType *previous_contextual_expected_type =
               contextual_expected_type;
           contextual_expression = &expression;
-          contextual_expected_type = &return_type;
+          contextual_expected_type = &expected_return_type;
           SemanticType actual;
-          try {
-            actual = expression_type(expression);
-          } catch (...) {
-            contextual_expression = previous_contextual_expression;
-            contextual_expected_type = previous_contextual_expected_type;
-            throw;
+          if (precomputed_actual.has_value()) {
+            actual = *precomputed_actual;
+          } else {
+            try {
+              actual = expression_type(expression);
+            } catch (...) {
+              contextual_expression = previous_contextual_expression;
+              contextual_expected_type = previous_contextual_expected_type;
+              throw;
+            }
           }
           contextual_expression = previous_contextual_expression;
           contextual_expected_type = previous_contextual_expected_type;
-          if (same_type(actual, return_type)) {
+          if (same_type(actual, expected_return_type)) {
             if ((actual.is_enum() ||
                  (actual.is_class() &&
                   classes.at(actual.parameter)->is_value_type)) &&
@@ -3653,9 +3690,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
           throw CompileError{
               return_statement.location,
-              "cannot return expression of type '" + actual.name() +
+                  "cannot return expression of type '" + actual.name() +
                   "' from function '" + function_name + "'; expected '" +
-                  return_type.name() + "', received '" + actual.name() + "'"};
+                  expected_return_type.name() + "', received '" + actual.name() + "'"};
         };
 
     expression_type = [&](const ast::Expression &expression) -> SemanticType {
@@ -3768,96 +3805,136 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               SymbolTable lambda_symbols = *active_symbols;
               std::unordered_set<std::string> parameter_names;
               const auto previous_borrowed_values = borrowed_values;
-              std::vector<SemanticType> signature;
-              signature.reserve(node.parameters.size() + 1);
-              for (const ast::LambdaExpression::Parameter &parameter :
-                   node.parameters) {
-                if (!parameter_names.insert(parameter.name).second)
-                  throw CompileError{parameter.location,
-                                     "lambda parameter '" + parameter.name +
-                                         "' is already declared"};
-                SemanticType parameter_type = resolve_type(
-                    parameter.type, *active_type_parameters, &class_arities);
-                if (active_type_substitutions != nullptr)
-                  parameter_type = substitute(std::move(parameter_type),
-                                              *active_type_substitutions);
-                if (parameter_type.is_concrete() &&
-                    parameter_type.concrete->kind() == TypeKind::Unit)
-                  throw CompileError{
-                      parameter.location,
-                      "Unit cannot be used as a lambda parameter type"};
-                signature.push_back(parameter_type);
-                lambda_symbols.insert_or_assign(
-                    parameter.name, Symbol{parameter_type, false, true});
-                if (contextual_borrow_lambda_parameters) {
-                  borrowed_values.insert(parameter.name);
-                }
-              }
-              SymbolTable *previous_symbols = active_symbols;
-              active_symbols = &lambda_symbols;
-              const bool previous_inside_lambda = inside_lambda;
-              std::unordered_set<std::string> captures;
-              std::unordered_set<std::string> mutations;
-              std::unordered_set<std::string> *previous_lambda_captures =
-                  active_lambda_captures;
-              std::unordered_set<std::string> *previous_lambda_mutations =
-                  active_lambda_mutations;
-              active_lambda_captures = &captures;
-              active_lambda_mutations = &mutations;
               const auto previous_transfer_protected =
                   transfer_protected_values;
-              for (const auto &[name, symbol] : *previous_symbols) {
-                static_cast<void>(symbol);
-                if (!parameter_names.contains(name))
-                  transfer_protected_values.insert(name);
+              const auto previous_closure_transfer_protected =
+                  closure_transfer_protected_values;
+              SymbolTable *const previous_symbols = active_symbols;
+              const bool previous_inside_lambda = inside_lambda;
+              auto *const previous_lambda_captures = active_lambda_captures;
+              auto *const previous_lambda_mutations = active_lambda_mutations;
+              auto *const previous_lambda_return_type =
+                  active_lambda_return_type;
+              const std::size_t previous_loop_depth = loop_depth;
+              const auto restore_lambda_state = [&] {
+                active_symbols = previous_symbols;
+                inside_lambda = previous_inside_lambda;
+                active_lambda_captures = previous_lambda_captures;
+                active_lambda_mutations = previous_lambda_mutations;
+                active_lambda_return_type = previous_lambda_return_type;
+                transfer_protected_values = previous_transfer_protected;
+                closure_transfer_protected_values =
+                    previous_closure_transfer_protected;
+                borrowed_values = previous_borrowed_values;
+                loop_depth = previous_loop_depth;
+              };
+              std::vector<SemanticType> signature;
+              signature.reserve(node.parameters.size() + 1);
+              try {
+                for (const ast::LambdaExpression::Parameter &parameter :
+                     node.parameters) {
+                  if (!parameter_names.insert(parameter.name).second)
+                    throw CompileError{parameter.location,
+                                       "lambda parameter '" + parameter.name +
+                                           "' is already declared"};
+                  SemanticType parameter_type = resolve_type(
+                      parameter.type, *active_type_parameters, &class_arities);
+                  if (active_type_substitutions != nullptr)
+                    parameter_type = substitute(std::move(parameter_type),
+                                                *active_type_substitutions);
+                  if (parameter_type.is_concrete() &&
+                      parameter_type.concrete->kind() == TypeKind::Unit)
+                    throw CompileError{
+                        parameter.location,
+                        "Unit cannot be used as a lambda parameter type"};
+                  signature.push_back(parameter_type);
+                  lambda_symbols.insert_or_assign(
+                      parameter.name, Symbol{parameter_type, false, true});
+                  if (contextual_borrow_lambda_parameters) {
+                    borrowed_values.insert(parameter.name);
+                  }
+                }
+                active_symbols = &lambda_symbols;
+                std::unordered_set<std::string> captures;
+                std::unordered_set<std::string> mutations;
+                active_lambda_captures = &captures;
+                active_lambda_mutations = &mutations;
+                for (const auto &[name, symbol] : *previous_symbols) {
+                  static_cast<void>(symbol);
+                  if (!parameter_names.contains(name)) {
+                    transfer_protected_values.insert(name);
+                    closure_transfer_protected_values.insert(name);
+                  }
+                }
+                inside_lambda = true;
+                loop_depth = 0;
+                if (const auto *body =
+                        std::get_if<std::unique_ptr<ast::Expression>>(&node.body)) {
+                  signature.push_back(expression_type(**body));
+                } else {
+                  std::optional<SemanticType> inferred_return;
+                  active_lambda_return_type = &inferred_return;
+                  const auto &block =
+                      *std::get<std::shared_ptr<ast::LambdaBlock>>(node.body);
+                  const bool terminates =
+                      validate_block(block.statements, lambda_symbols);
+                  if (!inferred_return.has_value())
+                    inferred_return = SemanticType{&Type::unit_type()};
+                  else if (!terminates)
+                    throw CompileError{
+                        block.location,
+                        "lambda block must return a value of inferred type '" +
+                            inferred_return->name() +
+                            "', but not all paths return a value"};
+                  signature.push_back(*inferred_return);
+                }
+                for (const std::string &parameter : parameter_names)
+                  captures.erase(parameter);
+                std::vector<std::string> captured_borrows;
+                bool captures_mutable_borrow = false;
+                for (const std::string &capture : captures) {
+                  // Borrow-carrying iterator state is a legacy ownership pattern:
+                  // its generated callbacks are coupled to a sibling owning
+                  // cleanup closure. Explicit aliases still use the general
+                  // non-escaping closure rules below.
+                  const bool captures_borrow = borrowed_values.contains(capture);
+                  if (!captures_borrow)
+                    continue;
+                  if (mutations.contains(capture) &&
+                      !mutable_borrow_values.contains(capture))
+                    throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                                       node.location,
+                                       "closure cannot mutate shared borrow '" +
+                                           capture + "'"};
+                  if (contextual_lambda_may_escape)
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerBorrowEscape, node.location,
+                        "closure captures borrowed value '" + capture +
+                            "' but the receiving call may store or return it"};
+                  captured_borrows.push_back(capture);
+                  captures_mutable_borrow =
+                      captures_mutable_borrow ||
+                      mutable_borrow_values.contains(capture);
+                }
+                lambda_captures.insert_or_assign(
+                    node.location.offset,
+                    std::vector<std::string>{captures.begin(), captures.end()});
+                if (!captured_borrows.empty())
+                  lambda_borrow_captures.insert_or_assign(node.location.offset,
+                                                          captured_borrows);
+                if (captures_mutable_borrow)
+                  lambda_mutable_borrow_captures.insert(node.location.offset);
+                result.inferred_generic_arguments.insert_or_assign(&expression,
+                                                                    signature);
+                SemanticType lambda_type{
+                    nullptr, "Function", false, std::move(signature),
+                    false,   false,      true};
+                restore_lambda_state();
+                return lambda_type;
+              } catch (...) {
+                restore_lambda_state();
+                throw;
               }
-              inside_lambda = true;
-              signature.push_back(expression_type(*node.body));
-              inside_lambda = previous_inside_lambda;
-              active_lambda_captures = previous_lambda_captures;
-              active_lambda_mutations = previous_lambda_mutations;
-              for (const std::string &parameter : parameter_names)
-                captures.erase(parameter);
-              std::vector<std::string> captured_borrows;
-              bool captures_mutable_borrow = false;
-              for (const std::string &capture : captures) {
-                // Borrow-carrying iterator state is a legacy ownership pattern:
-                // its generated callbacks are coupled to a sibling owning
-                // cleanup closure. Explicit aliases still use the general
-                // non-escaping closure rules below.
-                const bool captures_borrow = borrowed_values.contains(capture);
-                if (!captures_borrow)
-                  continue;
-                if (mutations.contains(capture) &&
-                    !mutable_borrow_values.contains(capture))
-                  throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
-                                     node.location,
-                                     "closure cannot mutate shared borrow '" +
-                                         capture + "'"};
-                if (contextual_lambda_may_escape)
-                  throw CompileError{
-                      DiagnosticCode::AnalyzerBorrowEscape, node.location,
-                      "closure captures borrowed value '" + capture +
-                          "' but the receiving call may store or return it"};
-                captured_borrows.push_back(capture);
-                captures_mutable_borrow =
-                    captures_mutable_borrow ||
-                    mutable_borrow_values.contains(capture);
-              }
-              lambda_captures.insert_or_assign(
-                  node.location.offset,
-                  std::vector<std::string>{captures.begin(), captures.end()});
-              if (!captured_borrows.empty())
-                lambda_borrow_captures.insert_or_assign(node.location.offset,
-                                                        captured_borrows);
-              if (captures_mutable_borrow)
-                lambda_mutable_borrow_captures.insert(node.location.offset);
-              transfer_protected_values = previous_transfer_protected;
-              borrowed_values = previous_borrowed_values;
-              active_symbols = previous_symbols;
-              return SemanticType{
-                  nullptr, "Function", false, std::move(signature),
-                  false,   false,      true};
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
               const Symbol *callable = nullptr;
               if (const auto local = active_symbols->find(node.callee);
@@ -4246,6 +4323,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         std::get_if<ast::IdentifierExpression>(
                             &node.arguments.front()->value)) {
                   require_no_live_borrow(identifier->name, node.location);
+                  if (closure_transfer_protected_values.contains(
+                          identifier->name))
+                    throw CompileError{
+                        node.location,
+                        "owning value '" + identifier->name +
+                            "' cannot be released from a loop, branch "
+                            "expression, or closure"};
                   if (deferred_values.contains(identifier->name))
                     throw CompileError{
                         node.location,
@@ -6316,8 +6400,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       return call != nullptr && call->callee == "null";
     };
 
-    std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
-        validate_block;
     std::unordered_map<std::string, constant::Value> local_constants;
     validate_block = [&](const std::vector<ast::Statement> &statements,
                          SymbolTable &block_symbols) {
@@ -7016,6 +7098,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                        identifier->name +
                                                        "' cannot be deleted"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                  &deletion->expression.value);
+              identifier != nullptr &&
+              closure_transfer_protected_values.contains(identifier->name))
+            throw CompileError{
+                deletion->location,
+                "owning value '" + identifier->name +
+                    "' cannot be deleted from a loop, branch expression, "
+                    "or closure"};
+          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value))
             require_no_live_borrow(identifier->name, deletion->location);
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
@@ -7071,6 +7162,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   deletion->location,
                   "owning value '" + identifier->name +
                       "' is already scheduled for deferred cleanup"};
+            if (closure_transfer_protected_values.contains(identifier->name))
+              throw CompileError{
+                  deletion->location,
+                  "owning value '" + identifier->name +
+                      "' cannot be deleted from a loop, branch expression, "
+                      "or closure"};
             const SemanticType deleted_type =
                 expression_type(deletion->expression);
             const bool is_struct =
@@ -7199,8 +7296,26 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
         const auto &return_statement =
             std::get<ast::ReturnStatement>(statement);
-        if (return_type.is_concrete() &&
-            return_type.concrete->kind() == TypeKind::Unit) {
+        SemanticType statement_return_type = return_type;
+        std::optional<SemanticType> inferred_actual;
+        if (active_lambda_return_type != nullptr) {
+          const SemanticType actual = return_statement.expression.has_value()
+                                          ? expression_type(
+                                                *return_statement.expression)
+                                          : SemanticType{&Type::unit_type()};
+          inferred_actual = actual;
+          if (!active_lambda_return_type->has_value())
+            active_lambda_return_type->emplace(actual);
+          else if (!same_type(**active_lambda_return_type, actual))
+            throw CompileError{
+                return_statement.location,
+                "lambda block returns have inconsistent types: '" +
+                    (*active_lambda_return_type)->name() + "' and '" +
+                    actual.name() + "'"};
+          statement_return_type = **active_lambda_return_type;
+        }
+        if (statement_return_type.is_concrete() &&
+            statement_return_type.concrete->kind() == TypeKind::Unit) {
           if (return_statement.expression.has_value())
             throw CompileError{return_statement.location,
                                "a Unit function cannot return a value"};
@@ -7208,7 +7323,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (!return_statement.expression.has_value())
             throw CompileError{return_statement.location,
                                "return requires a value of type '" +
-                                   return_type.name() + "'"};
+                                   statement_return_type.name() + "'"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &return_statement.expression->value);
               identifier != nullptr &&
@@ -7220,7 +7335,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   &return_statement.expression->value);
               identifier != nullptr &&
               borrowed_values.contains(identifier->name) &&
-              potentially_owns_value(return_type))
+              potentially_owns_value(statement_return_type))
             throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
                                return_statement.location,
                                "borrowed value '" + identifier->name +
@@ -7266,7 +7381,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               }
             }
           }
-          validate_return_expression(return_statement);
+          validate_return_expression(return_statement, statement_return_type,
+                                     inferred_actual);
           std::optional<std::size_t> returned_lambda_location;
           if (const auto *lambda = std::get_if<ast::LambdaExpression>(
                   &return_statement.expression->value))
@@ -7314,7 +7430,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   &return_statement.expression->value);
               identifier != nullptr &&
               local_declarations.contains(identifier->name) &&
-              potentially_owns_value(return_type)) {
+              potentially_owns_value(statement_return_type)) {
             block_symbols.at(identifier->name).is_initialized = false;
             block_symbols.at(identifier->name).may_be_initialized = false;
           }

@@ -1561,6 +1561,14 @@ ast::Expression Parser::parse_primary() {
       }
       static_cast<void>(expect(TokenKind::RightParen));
       static_cast<void>(expect(TokenKind::Arrow));
+      if (current_.kind == TokenKind::LeftBrace) {
+        const SourceLocation block_location = current_.location;
+        return ast::LambdaExpression{
+            std::move(parameters),
+            std::make_shared<ast::LambdaBlock>(
+                ast::LambdaBlock{parse_block(), block_location}),
+            left_parenthesis.location};
+      }
       return ast::LambdaExpression{
           std::move(parameters),
           std::make_unique<ast::Expression>(parse_expression()),

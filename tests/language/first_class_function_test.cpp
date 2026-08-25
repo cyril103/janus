@@ -54,6 +54,42 @@ def makeAdder(amount : int) : (int) => int {
     return (value : int) => value + amount
 }
 
+def makeBlockAdder(amount : int) : (int) => int {
+    return (value : int) => {
+        val adjusted : int = value + amount
+        if adjusted > 40 {
+            return adjusted + 1
+        }
+        return adjusted
+    }
+}
+
+def makeObserver() : (int) => Unit {
+    return (value : int) => {
+        val observed : int = value
+        debug(observed)
+    }
+}
+
+def makeNested(amount : int) : (int) => int {
+    return (value : int) => {
+        val inner = (nested : int) => {
+            return nested + amount
+        }
+        val result : int = inner(value)
+        delete inner
+        return result
+    }
+}
+
+def makeCounter(start : int) : () => int {
+    var next : int = start
+    return () => {
+        next = next + 1
+        return next
+    }
+}
+
 def makeIdentity[T]() : (T) => T {
     return (value : T) => value
 }
@@ -70,7 +106,23 @@ def main() : int {
     val identity = makeIdentity[int]()
     val result = identity(second)
     delete identity
-    return result
+
+    val blockAdder = makeBlockAdder(1)
+    val blockResult : int = blockAdder(result)
+    delete blockAdder
+
+    val observer = makeObserver()
+    observer(blockResult)
+    delete observer
+
+    val nested = makeNested(2)
+    val nestedResult : int = nested(blockResult)
+    delete nested
+
+    val counter = makeCounter(nestedResult)
+    val counted : int = counter() + counter()
+    delete counter
+    return counted
 }
 )";
 
@@ -86,12 +138,30 @@ def main() : int {
   expect(std::holds_alternative<janus::ast::LambdaExpression>(
              increment.initializer->value),
          "the parser retains lambda literals");
+  const auto &block_lambda = std::get<janus::ast::LambdaExpression>(
+      std::get<janus::ast::ReturnStatement>(
+          program.functions[2].body.front()).expression->value);
+  expect(std::holds_alternative<std::shared_ptr<janus::ast::LambdaBlock>>(
+             block_lambda.body),
+         "the parser retains lambda statement blocks");
+  expect(std::get<std::shared_ptr<janus::ast::LambdaBlock>>(block_lambda.body)
+                 ->statements.size() == 3,
+         "lambda blocks contain ordinary Janus statements");
 
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
   expect(analysis.functions.at("main").at("increment").type.name() ==
              "(int) => int",
          "function values retain their semantic signature");
+  expect(analysis.functions.at("main").at("blockAdder").type.name() ==
+             "(int) => int",
+         "block lambda return types are inferred from return statements");
+  expect(analysis.functions.at("main").at("observer").type.name() ==
+             "(int) => Unit",
+         "a lambda block without return infers Unit");
+  expect(analysis.functions.at("main").at("nested").type.name() ==
+             "(int) => int",
+         "nested block lambdas retain inferred signatures and captures");
 
   llvm::LLVMContext context;
   janus::backend::llvm::IrGenerator generator{context};
@@ -106,6 +176,8 @@ def main() : int {
          "captured values are stored in closure environments");
   expect(ir.find("define internal i32 @__janus_lambda_") != std::string::npos,
          "lambda bodies lower to internal LLVM functions");
+  expect(ir.find("adjusted") != std::string::npos,
+         "multi-statement lambda bodies lower their locals and control flow");
   expect(ir.find("call i32 %") != std::string::npos,
          "function values are invoked through indirect calls");
   const std::size_t push_cleanup =
@@ -137,6 +209,50 @@ def main() : int {
   expect_compile_error("def main() : int { val f : (int) => int = "
                        "(value : int) => value delete f return f(1) }",
                        "used before initialization");
+  expect_compile_error(
+      "def main() : int { val f = (value : int) => { if value > 0 { "
+      "return value } return true } delete f return 0 }",
+      "lambda block returns have inconsistent types");
+  expect_compile_error(
+      "def main() : int { val f = (value : int) => { if value > 0 { "
+      "return value } } delete f return 0 }",
+      "not all paths return a value");
+  expect_compile_error(
+      "class Token() {} def main() : int { val f = (value : int) => { "
+      "val token = new Token() defer delete token return token } "
+      "delete f return 0 }",
+      "scheduled for deferred cleanup");
+  expect_compile_error(
+      "def main() : int { while true { val f = () => { break } "
+      "delete f break } return 0 }",
+      "break can only be used inside a loop");
+  expect_compile_error(
+      "def main() : int { while true { val f = () => { continue } "
+      "delete f break } return 0 }",
+      "continue can only be used inside a loop");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val resource : Resource = new Resource() "
+      "val cleanup = () => { delete resource } delete cleanup "
+      "delete resource return 0 }",
+      "cannot be deleted from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val resource : Resource = new Resource() "
+      "val cleanup = () => { defer delete resource } delete cleanup "
+      "delete resource return 0 }",
+      "cannot be deleted from a loop, branch expression, or closure");
+  expect_compile_error(
+      "def main() : int { val pointer : Ptr[int] = alloc[int](usize(1)) "
+      "val cleanup = () => { free(pointer) } delete cleanup "
+      "free(pointer) return 0 }",
+      "cannot be released from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() { consume def finish() : Unit { delete this } } "
+      "def main() : int { val resource : Resource = new Resource() "
+      "val cleanup = () => { resource.finish() } delete cleanup "
+      "delete resource return 0 }",
+      "cannot be consumed from a loop, branch expression, or closure");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

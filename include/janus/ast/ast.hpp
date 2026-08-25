@@ -53,6 +53,7 @@ struct IdentifierExpression {
 };
 
 struct Expression;
+struct LambdaBlock;
 
 struct ArrayLiteralExpression {
   std::vector<std::unique_ptr<Expression>> elements;
@@ -67,7 +68,7 @@ struct LambdaExpression {
   };
 
   std::vector<Parameter> parameters;
-  std::unique_ptr<Expression> body;
+  std::variant<std::unique_ptr<Expression>, std::shared_ptr<LambdaBlock>> body;
   SourceLocation location;
 };
 
@@ -290,6 +291,11 @@ struct ForStatement {
   std::string binding;
   Expression iterator;
   std::vector<Statement> body;
+  SourceLocation location;
+};
+
+struct LambdaBlock {
+  std::vector<Statement> statements;
   SourceLocation location;
 };
 

@@ -87,6 +87,21 @@ val isLarge : (int) => bool =
 
 Une valeur closure est une ressource : conservez-la dans une liaison et libérez-la avec `delete`. Lorsqu’une API consomme la closure, comme de nombreux adaptateurs d’itérateurs, elle prend en charge cette destruction selon son contrat.
 
+Le corps peut aussi être un bloc d'instructions Janus complet : déclarations,
+affectations, contrôle de flux, `defer` et retours anticipés y suivent exactement
+les règles d'une fonction. Le type de résultat vient des `return`, qui doivent
+être cohérents et couvrir tous les chemins si ce type n'est pas `Unit`. Sans
+`return`, le bloc produit `Unit`.
+
+```janus
+val classify : (int) => int = (value : int) => {
+    if value < 0 {
+        return -1
+    }
+    return value
+}
+```
+
 ## Closures et propriété
 
 Capturer une ressource ne l’autorise pas à être déplacée depuis un corps de closure. Cette restriction empêche une closure rappelée plusieurs fois de consommer deux fois la même valeur. Passez plutôt la ressource explicitement à une opération consommante, ou structurez le traitement autour d’un itérateur consommant.
