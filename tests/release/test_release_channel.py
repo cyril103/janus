@@ -80,6 +80,11 @@ class ReleasePromotionTests(unittest.TestCase):
         verification = release[verify_attestations:promote]
         self.assertIn('--source-digest "$GITHUB_SHA"', verification)
         self.assertIn('--source-ref "$GITHUB_REF"', verification)
+        self.assertIn(
+            'github.com/$GITHUB_REPOSITORY/.github/workflows/ci.yml', verification)
+        self.assertNotIn(
+            '$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/.github/workflows/ci.yml',
+            verification)
         self.assertLess(guard, checksums)
         self.assertLess(checksums, attest)
         self.assertLess(attest, publish)
