@@ -4,12 +4,63 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import datetime as dt
+import functools
 import hashlib
 import re
 from pathlib import Path
 
 FULL_SHA = re.compile(r"[0-9a-f]{40}")
 TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]*")
+SEMVER = re.compile(
+    r"v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?")
+
+
+@functools.total_ordering
+@dataclasses.dataclass(frozen=True)
+class ReleaseVersion:
+    major: int
+    minor: int
+    patch: int
+    prerelease: tuple[str, ...] = ()
+
+    @classmethod
+    def parse(cls, value: str) -> "ReleaseVersion":
+        match = SEMVER.fullmatch(value)
+        if match is None:
+            raise ValueError(f"invalid release version: {value}")
+        prerelease = tuple((match.group(4) or "").split(".")) if match.group(4) else ()
+        for identifier in prerelease:
+            if identifier.isdigit() and len(identifier) > 1 and identifier.startswith("0"):
+                raise ValueError("numeric prerelease identifiers must not contain leading zeroes")
+        return cls(
+            int(match.group(1)), int(match.group(2)), int(match.group(3)),
+            prerelease)
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, ReleaseVersion):
+            return NotImplemented
+        core, other_core = self.core, other.core
+        if core != other_core:
+            return core < other_core
+        if not self.prerelease:
+            return False
+        if not other.prerelease:
+            return True
+        for left, right in zip(self.prerelease, other.prerelease):
+            if left == right:
+                continue
+            left_numeric, right_numeric = left.isdigit(), right.isdigit()
+            if left_numeric and right_numeric:
+                return int(left) < int(right)
+            if left_numeric != right_numeric:
+                return left_numeric
+            return left < right
+        return len(self.prerelease) < len(other.prerelease)
+
+    @property
+    def core(self) -> tuple[int, int, int]:
+        return self.major, self.minor, self.patch
 
 def project_version(source: Path) -> str:
     match = re.search(
@@ -53,6 +104,22 @@ def parse_manifest(text: str) -> ChannelManifest:
     result = ChannelManifest(*fields)
     result.validate()
     return result
+
+
+def check_release_promotion(candidate: str, channel: str,
+                            current: ChannelManifest | None) -> None:
+    version = ReleaseVersion.parse(candidate)
+    if channel == "stable" and version.prerelease:
+        raise ValueError("stable channel requires a stable release tag")
+    if channel == "beta" and not version.prerelease:
+        raise ValueError("beta channel requires a prerelease tag")
+    if channel not in ("stable", "beta"):
+        raise ValueError(f"unsupported release channel: {channel}")
+    if current is not None:
+        current_version = ReleaseVersion.parse(current.version)
+        if version <= current_version:
+            raise ValueError(
+                f"candidate {candidate} must be newer than current {current.version}")
 
 def check_freshness(nightly: ChannelManifest, stable: ChannelManifest,
                     now: dt.datetime, maximum_age_hours: int) -> None:
@@ -115,6 +182,10 @@ def main() -> None:
     times.add_argument("--now", required=True); times.add_argument("--maximum-age-hours", type=int, default=168)
     version = commands.add_parser("project-version")
     version.add_argument("--source", type=Path, required=True)
+    promotion = commands.add_parser("check-promotion")
+    promotion.add_argument("--candidate", required=True)
+    promotion.add_argument("--channel", choices=("stable", "beta"), required=True)
+    promotion.add_argument("--current", type=Path)
     args = parser.parse_args()
     if args.command == "write-manifest":
         Path(args.output).write_text(ChannelManifest(args.version, args.release, args.source_sha, args.published_at).render())
@@ -125,6 +196,9 @@ def main() -> None:
         check_freshness(ChannelManifest("nightly", "nightly", placeholder, args.nightly_published),
                         ChannelManifest("stable", "stable", placeholder, args.stable_published),
                         _time(args.now), args.maximum_age_hours)
+    elif args.command == "check-promotion":
+        current = parse_manifest(args.current.read_text()) if args.current else None
+        check_release_promotion(args.candidate, args.channel, current)
     else:
         print(project_version(args.source))
 if __name__ == "__main__":

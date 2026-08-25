@@ -460,9 +460,9 @@ def self_test(root: Path) -> int:
         "disabled release publish": (ci, "      - name: Publish GitHub release\n", "      - name: Publish GitHub release\n        if: false\n"),
         "comment-only publish command": (ci, "          command gh release create \"$GITHUB_REF_NAME\" dist/release/* \"${options[@]}\"\n", "          # command gh release create \"$GITHUB_REF_NAME\" dist/release/* \"${options[@]}\"\n"),
         "fallible gh release": (ci, "          command gh release create \"$GITHUB_REF_NAME\" dist/release/* \"${options[@]}\"\n", "          command gh release create \"$GITHUB_REF_NAME\" dist/release/* \"${options[@]}\" || true\n"),
-        "no-op gh function": (ci, "          options=(--verify-tag --generate-notes)\n", "          gh() { :; }\n          options=(--verify-tag --generate-notes)\n"),
-        "gh alias": (ci, "          options=(--verify-tag --generate-notes)\n", "          alias gh=true\n          options=(--verify-tag --generate-notes)\n"),
-        "no-op command function": (ci, "          options=(--verify-tag --generate-notes)\n", "          command() { :; }\n          options=(--verify-tag --generate-notes)\n"),
+        "no-op gh function": (ci, "          options=(--verify-tag --generate-notes --latest=false)\n", "          gh() { :; }\n          options=(--verify-tag --generate-notes --latest=false)\n"),
+        "gh alias": (ci, "          options=(--verify-tag --generate-notes --latest=false)\n", "          alias gh=true\n          options=(--verify-tag --generate-notes --latest=false)\n"),
+        "no-op command function": (ci, "          options=(--verify-tag --generate-notes --latest=false)\n", "          command() { :; }\n          options=(--verify-tag --generate-notes --latest=false)\n"),
         "missing handoff if-no-files-found": (handoff, "          if-no-files-found: error\n", ""),
         "disabled vscode package": (ci, "      - name: Package extension\n", "      - name: Package extension\n        if: ${{ always() && false }}\n"),
         "Marketplace publish hidden in main release": (

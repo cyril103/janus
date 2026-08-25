@@ -85,7 +85,27 @@ et emprunts stockés sont différés après cette première version.
   d'une migration documentée ;
 - le contrat de stabilité 1.0 intègre la sémantique retenue.
 
-## 0.20 — Cœur sémantique et diagnostics
+## 0.20 — Contrats récursifs et lambdas blocs
+
+### Livrables
+
+- rendre les cycles entièrement terminaux explicites avec `tailrec` et rejeter
+  les annotations dont le backend ne peut pas garantir le contrat `musttail` ;
+- préserver la récursion ordinaire et les cycles mixtes sans annotation ;
+- permettre aux lambdas d'utiliser un corps bloc complet avec déclarations,
+  contrôle de flux, `defer` et retours anticipés ;
+- aligner formateur, LSP, extension VS Code, Book et guide du langage sur ces
+  deux contrats.
+
+### Gate de sortie
+
+- les contrats récursifs directs, mutuels et génériques sont couverts par les
+  tests positifs et négatifs du frontend et du backend ;
+- les lambdas blocs possèdent les mêmes garanties de portée, nettoyage et
+  propriété que les fonctions ordinaires ;
+- les projets aval et la compatibilité N/N+1 réussissent avec l'archive candidate.
+
+## 0.21 — Cœur sémantique et diagnostics
 
 ### Livrables
 
@@ -109,7 +129,7 @@ et emprunts stockés sont différés après cette première version.
 - les principales unités sémantiques ont des responsabilités et tests isolés,
   même si leur découpage physique continue après 1.0.
 
-## 0.21 — Outillage interactif et performance
+## 0.22 — Outillage interactif et performance
 
 ### Livrables
 
@@ -135,7 +155,7 @@ et emprunts stockés sont différés après cette première version.
   sans crash ni erreur sanitizer non triée ;
 - les requêtes LSP annulées ne publient pas de résultat périmé.
 
-## 0.22 — Décision sur les surfaces expérimentales
+## 0.23 — Décision sur les surfaces expérimentales
 
 ### Bibliothèque standard
 
@@ -171,7 +191,7 @@ et emprunts stockés sont différés après cette première version.
 
 ### Conditions d'entrée
 
-- les gates 0.18 à 0.22 sont closes ;
+- les gates 0.18 à 0.23 sont closes ;
 - aucun ticket `severity:critical` n'est ouvert ;
 - l'inventaire, le contrat, la référence stdlib et le changelog sont cohérents ;
 - les trois plateformes tier-1 construisent, testent et exécutent leurs archives ;
@@ -223,8 +243,9 @@ d'usage aval explicite.
 | --- | --- | --- |
 | 0.18 | Baseline actuelle, backlog et canari Studio | oui |
 | 0.19 | Emprunts lexicaux et conteneurs ergonomiques | oui |
-| 0.20 | Modèle sémantique partagé et diagnostics classifiés | oui |
-| 0.21 | LSP mesuré, cancellable et fuzz semantic/backend | oui |
-| 0.22 | Décision sur toutes les surfaces expérimentales | oui |
+| 0.20 | Contrats récursifs et lambdas blocs | oui |
+| 0.21 | Modèle sémantique partagé et diagnostics classifiés | oui |
+| 0.22 | LSP mesuré, cancellable et fuzz semantic/backend | oui |
+| 0.23 | Décision sur toutes les surfaces expérimentales | oui |
 | 1.0 RC | Gel, compatibilité et observation aval | oui |
 | Après 1.0 | Async, réseau, 3D, DAP, JIT, auto-hébergement | non |

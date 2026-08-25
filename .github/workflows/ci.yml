@@ -448,6 +448,9 @@ jobs:
     needs:
       [toolchain, vscode-extension, linux-compatibility, release-compatibility, release-readiness]
     runs-on: ubuntu-24.04
+    concurrency:
+      group: janus-release-${{ contains(github.ref_name, '-') && 'beta' || 'stable' }}
+      cancel-in-progress: false
     permissions:
       contents: write
       id-token: write
@@ -463,6 +466,24 @@ jobs:
           cmake -DTAG="${GITHUB_REF_NAME}"
           -DSOURCE_DIR="${GITHUB_WORKSPACE}"
           -P cmake/verify_release_version.cmake
+
+      - name: Reject stale channel promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          channel=stable
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then channel=beta; fi
+          arguments=(--candidate "$GITHUB_REF_NAME" --channel "$channel")
+          if gh release view "channel-$channel" >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/current-channel"
+            gh release download "channel-$channel" --pattern version \
+              --dir "$RUNNER_TEMP/current-channel"
+            arguments+=(--current "$RUNNER_TEMP/current-channel/version")
+          fi
+          python3 scripts/nightly_release.py check-promotion "${arguments[@]}"
+          package_version=$(python3 scripts/nightly_release.py project-version --source "$GITHUB_WORKSPACE/CMakeLists.txt")
+          echo "JANUS_RELEASE_CHANNEL=$channel" >> "$GITHUB_ENV"
+          echo "JANUS_PACKAGE_VERSION=$package_version" >> "$GITHUB_ENV"
 
       - name: Download distributions
         env:
@@ -480,6 +501,23 @@ jobs:
               --dir dist/release
           done
 
+      - name: Verify complete release payload
+        run: |
+          version="$JANUS_PACKAGE_VERSION"
+          distributions=(
+            "janus-${version}-Linux-x86_64.tar.gz"
+            "janus-${version}-Darwin-arm64.tar.gz"
+            "janus-${version}-Windows-AMD64.zip"
+            "janus-language.vsix"
+          )
+          for distribution in "${distributions[@]}"; do
+            test -f "dist/release/$distribution"
+            test -f "dist/release/$distribution.sha256"
+          done
+          (cd dist/release && sha256sum --check *.sha256)
+          printf '%s\n' "${distributions[@]}" \
+            > "$RUNNER_TEMP/release-distributions"
+
       - name: Downstream canaries from candidate archive
         id: downstream-canary
         run: |
@@ -487,7 +525,7 @@ jobs:
           git -C janus8 checkout b962b69ea14a47016556f9e2a111c7dab1e2e02d
           git clone https://github.com/cyril103/janus-studio.git janus-studio
           git -C janus-studio checkout d0e88543427d462df9c34d74c0800a83f55a21ec
-          version="${GITHUB_REF_NAME#v}"
+          version="$JANUS_PACKAGE_VERSION"
           archive="dist/release/janus-${version}-Linux-x86_64.tar.gz"
           test -f "$archive" && test -f "$archive.sha256"
           python3 scripts/downstream_canary.py --archive "$archive" \
@@ -500,34 +538,61 @@ jobs:
           subject-path: |
             dist/release/*.tar.gz
             dist/release/*.zip
+            dist/release/*.vsix
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          options=(--verify-tag --generate-notes)
+          options=(--verify-tag --generate-notes --latest=false)
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
-            options+=(--prerelease --latest=false)
-          else
-            options+=(--latest)
+            options+=(--prerelease)
           fi
           command gh release create "$GITHUB_REF_NAME" dist/release/* "${options[@]}"
+
+      - name: Verify published release attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          while IFS= read -r distribution; do
+            verified=false
+            for attempt in 1 2 3 4 5; do
+              if gh attestation verify "dist/release/$distribution" \
+                --repo "$GITHUB_REPOSITORY" \
+                --signer-workflow \
+                  "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/.github/workflows/ci.yml" \
+                --source-digest "$GITHUB_SHA" \
+                --source-ref "$GITHUB_REF"
+              then
+                verified=true
+                break
+              fi
+              sleep $((attempt * 5))
+            done
+            test "$verified" = true
+          done < "$RUNNER_TEMP/release-distributions"
+
+      - name: Promote verified stable release
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --latest
 
       - name: Update release channel
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          channel=stable
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then channel=beta; fi
           cmake -DSOURCE_DIR="$GITHUB_WORKSPACE" \
             -DRELEASE="$GITHUB_REF_NAME" \
             -DOUTPUT="$RUNNER_TEMP/version" \
             -P cmake/write_channel_manifest.cmake
-          if gh release view "channel-$channel" >/dev/null 2>&1; then
-            gh release upload "channel-$channel" "$RUNNER_TEMP/version" --clobber
+          if gh release view "channel-$JANUS_RELEASE_CHANNEL" >/dev/null 2>&1; then
+            gh release upload "channel-$JANUS_RELEASE_CHANNEL" \
+              "$RUNNER_TEMP/version" --clobber
           else
-            gh release create "channel-$channel" "$RUNNER_TEMP/version" \
-              --title "Janus $channel channel" --prerelease
+            gh release create "channel-$JANUS_RELEASE_CHANNEL" \
+              "$RUNNER_TEMP/version" \
+              --title "Janus $JANUS_RELEASE_CHANNEL channel" --prerelease
           fi
 
   diagnostic-fuzz:
