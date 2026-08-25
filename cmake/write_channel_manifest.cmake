@@ -12,4 +12,20 @@ string(
 if(NOT VERSION_DECLARATION)
     message(FATAL_ERROR "could not read the Janus project version")
 endif()
-file(WRITE "${OUTPUT}" "${CMAKE_MATCH_1} ${RELEASE}\n")
+set(PROJECT_VERSION "${CMAKE_MATCH_1}")
+string(
+    REGEX MATCH
+    "^v(([0-9]+\\.[0-9]+\\.[0-9]+)(-[0-9A-Za-z.-]+)?)$"
+    RELEASE_VERSION
+    "${RELEASE}"
+)
+if(NOT RELEASE_VERSION)
+    message(FATAL_ERROR "invalid release name: ${RELEASE}")
+endif()
+set(CHANNEL_VERSION "${CMAKE_MATCH_1}")
+set(RELEASE_CORE_VERSION "${CMAKE_MATCH_2}")
+if(NOT RELEASE_CORE_VERSION STREQUAL PROJECT_VERSION)
+    message(FATAL_ERROR
+        "release ${RELEASE} does not match Janus ${PROJECT_VERSION}")
+endif()
+file(WRITE "${OUTPUT}" "${CHANNEL_VERSION} ${RELEASE}\n")

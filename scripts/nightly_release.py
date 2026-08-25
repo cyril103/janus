@@ -44,9 +44,9 @@ class ReleaseVersion:
         if core != other_core:
             return core < other_core
         if not self.prerelease:
-            return bool(other.prerelease)
-        if not other.prerelease:
             return False
+        if not other.prerelease:
+            return True
         for left, right in zip(self.prerelease, other.prerelease):
             if left == right:
                 continue

@@ -29,6 +29,11 @@ class ReleasePromotionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "newer"):
             nightly_release.check_release_promotion("v0.20.0-rc.1", "beta", current)
 
+    def test_stable_version_has_higher_precedence_than_its_prereleases(self):
+        stable = nightly_release.ReleaseVersion.parse("0.20.0")
+        candidate = nightly_release.ReleaseVersion.parse("0.20.0-rc.10")
+        self.assertGreater(stable, candidate)
+
     def test_channel_rejects_the_wrong_tag_kind(self):
         with self.assertRaisesRegex(ValueError, "stable"):
             nightly_release.check_release_promotion("v0.20.0-rc.1", "stable", None)
@@ -57,6 +62,16 @@ class ReleasePromotionTests(unittest.TestCase):
         promote = release.index('gh release upload "channel-$JANUS_RELEASE_CHANNEL"')
         self.assertLess(guard, publish)
         self.assertLess(publish, promote)
+
+    def test_beta_channel_manifest_preserves_the_prerelease_version(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "version"
+            subprocess.run(
+                ["cmake", f"-DSOURCE_DIR={ROOT}", "-DRELEASE=v0.20.0-rc.10",
+                 f"-DOUTPUT={output}", "-P",
+                 str(ROOT / "cmake" / "write_channel_manifest.cmake")],
+                check=True)
+            self.assertEqual("0.20.0-rc.10 v0.20.0-rc.10\n", output.read_text())
 
 
 if __name__ == "__main__":
