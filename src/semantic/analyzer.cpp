@@ -2936,10 +2936,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
       return std::nullopt;
     };
+    const auto lexical_root_identifier =
+        [](const ast::Expression &expression,
+           const auto &self) -> const ast::IdentifierExpression * {
+      if (const auto *identifier =
+              std::get_if<ast::IdentifierExpression>(&expression.value))
+        return identifier;
+      if (const auto *member =
+              std::get_if<ast::MemberAccessExpression>(&expression.value))
+        return self(*member->object, self);
+      return nullptr;
+    };
     const auto require_guard_transfer_allowed =
         [&](const ast::Expression &expression, SourceLocation location) {
           const auto *identifier =
-              std::get_if<ast::IdentifierExpression>(&expression.value);
+              lexical_root_identifier(expression, lexical_root_identifier);
           if (identifier != nullptr &&
               match_guard_protected_values.contains(identifier->name))
             throw CompileError{
@@ -2951,7 +2962,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         [&](const ast::Expression &expression, SourceLocation location) {
           require_guard_transfer_allowed(expression, location);
           const auto *identifier =
-              std::get_if<ast::IdentifierExpression>(&expression.value);
+              lexical_root_identifier(expression, lexical_root_identifier);
           if (identifier != nullptr &&
               (transfer_protected_values.contains(identifier->name) ||
                closure_transfer_protected_values.contains(identifier->name)))
@@ -6048,9 +6059,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 SymbolTable *previous_symbols = active_symbols;
                 active_symbols = &arm_symbols;
                 const auto arm_transfer_protected = transfer_protected_values;
+                const auto arm_closure_transfer_protected =
+                    closure_transfer_protected_values;
                 const auto arm_borrowed_values = borrowed_values;
-                for (const std::string &binding : arm.bindings)
+                for (const std::string &binding : arm.bindings) {
                   transfer_protected_values.erase(binding);
+                  closure_transfer_protected_values.erase(binding);
+                }
                 if (borrows_scrutinee)
                   for (const std::string &binding : arm.bindings)
                     borrowed_values.insert(binding);
@@ -6073,6 +6088,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 const SemanticType arm_type = expression_type(*arm.expression);
                 transfer_protected_values = arm_transfer_protected;
+                closure_transfer_protected_values =
+                    arm_closure_transfer_protected;
                 borrowed_values = arm_borrowed_values;
                 active_symbols = previous_symbols;
                 if (arm_type.is_concrete() &&
@@ -6541,10 +6558,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             static_cast<void>(symbol);
             transfer_protected_values.insert(name);
           }
+          const auto previous_closure_transfer_protected =
+              closure_transfer_protected_values;
+          transfer_protected_values.erase((*loop)->binding);
+          closure_transfer_protected_values.erase((*loop)->binding);
           ++loop_depth;
           static_cast<void>(validate_block((*loop)->body, loop_symbols));
           --loop_depth;
           transfer_protected_values = previous_transfer_protected;
+          closure_transfer_protected_values =
+              previous_closure_transfer_protected;
           active_symbols = &block_symbols;
           if (consumes_source)
             if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
@@ -7095,8 +7118,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
         if (const auto *deletion =
                 std::get_if<ast::DeleteStatement>(&statement)) {
-          require_guard_transfer_allowed(deletion->expression,
-                                         deletion->location);
+          require_consumption_transfer_allowed(deletion->expression,
+                                               deletion->location);
           if (!std::holds_alternative<ast::IdentifierExpression>(
                   deletion->expression.value) &&
               is_borrowed_pointer_expression(deletion->expression))
@@ -7118,15 +7141,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                deletion->location, "borrowed value '" +
                                                        identifier->name +
                                                        "' cannot be deleted"};
-          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
-                  &deletion->expression.value);
-              identifier != nullptr &&
-              closure_transfer_protected_values.contains(identifier->name))
-            throw CompileError{
-                deletion->location,
-                "owning value '" + identifier->name +
-                    "' cannot be deleted from a loop, branch expression, "
-                    "or closure"};
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &deletion->expression.value))
             require_no_live_borrow(identifier->name, deletion->location);
@@ -7173,6 +7187,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{
                   deletion->location,
                   "deferred delete requires an owning local identifier"};
+            require_consumption_transfer_allowed(deletion->expression,
+                                                 deletion->location);
             if (!block_symbols.contains(identifier->name) &&
                 visible_global(identifier->name) != nullptr)
               throw CompileError{deletion->location,
@@ -7183,12 +7199,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   deletion->location,
                   "owning value '" + identifier->name +
                       "' is already scheduled for deferred cleanup"};
-            if (closure_transfer_protected_values.contains(identifier->name))
-              throw CompileError{
-                  deletion->location,
-                  "owning value '" + identifier->name +
-                      "' cannot be deleted from a loop, branch expression, "
-                      "or closure"};
             const SemanticType deleted_type =
                 expression_type(deletion->expression);
             const bool is_struct =

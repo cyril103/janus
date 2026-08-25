@@ -91,6 +91,91 @@ def main() : int {
 }
 )",
       "a lambda may consume an Iterator created in its own body");
+  expect_analyzes(
+      R"(
+class Resource() {}
+class Iterator[T]() {}
+def main() : int {
+    val iterate = (item : Resource) => {
+        val iterator : Iterator[Resource] = new Iterator[Resource]()
+        for item in iterator { delete item }
+    }
+    delete iterate
+    return 0
+}
+)",
+      "a for binding may shadow a protected lambda parameter");
+  expect_analyzes(
+      R"(
+class Resource() {}
+enum Slot { Some(Resource), None }
+def dispose(value : Resource) : int { delete value return 1 }
+def main() : int {
+    val inspect = (item : Resource) => {
+        val slot : Slot = Slot.Some(new Resource())
+        return match move slot {
+            Some(item) => dispose(move item),
+            None => 0
+        }
+    }
+    delete inspect
+    return 0
+}
+)",
+      "a match binding may shadow a protected lambda parameter");
+
+  expect_compile_error(
+      R"(
+class Resource() {}
+class Owner(val ownedField : Resource) {}
+def main() : int {
+    val capture = new Owner(new Resource())
+    val cleanup = () => { delete capture.ownedField }
+    delete cleanup
+    delete capture
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      R"(
+class Resource() {}
+class Owner(val ownedField : Resource) {}
+def main() : int {
+    val cleanup = (owner : Owner) => { delete owner.ownedField }
+    delete cleanup
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      R"(
+class Iterator[T]() {}
+class Owner(val iterator : Iterator[int]) {}
+def main() : int {
+    val capture = new Owner(new Iterator[int]())
+    val iterate = () => { for item in capture.iterator {} }
+    delete iterate
+    delete capture
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      R"(
+class Iterator[T]() {}
+class Owner(val iterator : Iterator[int]) {}
+def main() : int {
+    val iterate = (owner : Owner) => { for item in owner.iterator {} }
+    delete iterate
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
 
   expect_compile_error(
       R"(
@@ -387,13 +472,15 @@ def main() : int {
       "val resource : Resource = new Resource() "
       "val cleanup = () => { delete resource } delete cleanup "
       "delete resource return 0 }",
-      "cannot be deleted from a loop, branch expression, or closure");
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
   expect_compile_error(
       "class Resource() {} def main() : int { "
       "val resource : Resource = new Resource() "
       "val cleanup = () => { defer delete resource } delete cleanup "
       "delete resource return 0 }",
-      "cannot be deleted from a loop, branch expression, or closure");
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
   expect_compile_error(
       "def main() : int { val pointer : Ptr[int] = alloc[int](usize(1)) "
       "val cleanup = () => { free(pointer) } delete cleanup "
@@ -410,13 +497,15 @@ def main() : int {
       "val dispose = (value : Resource) => { delete value } "
       "val resource : Resource = new Resource() dispose(resource) "
       "delete resource delete dispose return 0 }",
-      "cannot be deleted from a loop, branch expression, or closure");
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
   expect_compile_error(
       "class Resource() {} def main() : int { "
       "val dispose = (value : Resource) => { defer delete value } "
       "val resource : Resource = new Resource() dispose(resource) "
       "delete resource delete dispose return 0 }",
-      "cannot be deleted from a loop, branch expression, or closure");
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
   expect_compile_error(
       "class Resource() {} def main() : int { "
       "val take = (value : Resource) => { val owned = move value delete owned } "
@@ -439,7 +528,8 @@ def main() : int {
       "val value : Resource = new Resource() "
       "val dispose = (value : Resource) => { delete value } "
       "dispose(value) delete value delete dispose return 0 }",
-      "cannot be deleted from a loop, branch expression, or closure");
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
