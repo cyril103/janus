@@ -3850,6 +3850,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   signature.push_back(parameter_type);
                   lambda_symbols.insert_or_assign(
                       parameter.name, Symbol{parameter_type, false, true});
+                  transfer_protected_values.insert(parameter.name);
+                  closure_transfer_protected_values.insert(parameter.name);
                   if (contextual_borrow_lambda_parameters) {
                     borrowed_values.insert(parameter.name);
                   }

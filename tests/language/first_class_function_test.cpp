@@ -71,6 +71,10 @@ def makeObserver() : (int) => Unit {
     }
 }
 
+def makeShadow(value : CallScope) : (int) => int {
+    return (value : int) => value + 1
+}
+
 def makeNested(amount : int) : (int) => int {
     return (value : int) => {
         val inner = (nested : int) => {
@@ -253,6 +257,41 @@ def main() : int {
       "val cleanup = () => { resource.finish() } delete cleanup "
       "delete resource return 0 }",
       "cannot be consumed from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val dispose = (value : Resource) => { delete value } "
+      "val resource : Resource = new Resource() dispose(resource) "
+      "delete resource delete dispose return 0 }",
+      "cannot be deleted from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val dispose = (value : Resource) => { defer delete value } "
+      "val resource : Resource = new Resource() dispose(resource) "
+      "delete resource delete dispose return 0 }",
+      "cannot be deleted from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val take = (value : Resource) => { val owned = move value delete owned } "
+      "val resource : Resource = new Resource() take(resource) "
+      "delete resource delete take return 0 }",
+      "cannot be moved from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() { consume def finish() : Unit { delete this } } "
+      "def main() : int { val finish = (value : Resource) => { value.finish() } "
+      "val resource : Resource = new Resource() finish(resource) "
+      "delete resource delete finish return 0 }",
+      "cannot be consumed from a loop, branch expression, or closure");
+  expect_compile_error(
+      "def main() : int { val release = (value : Ptr[int]) => { free(value) } "
+      "val pointer : Ptr[int] = alloc[int](usize(1)) release(pointer) "
+      "free(pointer) delete release return 0 }",
+      "cannot be released from a loop, branch expression, or closure");
+  expect_compile_error(
+      "class Resource() {} def main() : int { "
+      "val value : Resource = new Resource() "
+      "val dispose = (value : Resource) => { delete value } "
+      "dispose(value) delete value delete dispose return 0 }",
+      "cannot be deleted from a loop, branch expression, or closure");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
