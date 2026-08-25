@@ -2285,6 +2285,11 @@ private:
             if constexpr (std::is_same_v<Node,
                                          janus::ast::IdentifierExpression>) {
               capture(node.name);
+            } else if constexpr (std::is_same_v<
+                                     Node,
+                                     janus::ast::ArrayLiteralExpression>) {
+              for (const auto &element : node.elements)
+                visit(*element, active_bound);
             } else if constexpr (std::is_same_v<Node,
                                                 janus::ast::LambdaExpression>) {
               auto nested_bound = active_bound;

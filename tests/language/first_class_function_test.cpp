@@ -36,9 +36,62 @@ void expect_compile_error(std::string_view source,
   }
 }
 
+void expect_analyzes(std::string_view source, std::string_view message) {
+  try {
+    janus::frontend::Parser parser{source};
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(parser.parse_program()));
+    expect(true, message);
+  } catch (const janus::CompileError &) {
+    expect(false, message);
+  }
+}
+
 } // namespace
 
 int main() {
+  expect_compile_error(
+      R"(
+class Iterator[T]() {}
+def main() : int {
+    val iterator : Iterator[int] = new Iterator[int]()
+    val iterConsumer = () => {
+        for item in iterator {}
+    }
+    delete iterConsumer
+    delete iterator
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      R"(
+class Iterator[T]() {}
+def main() : int {
+    val iterConsumer = (iterator : Iterator[int]) => {
+        for item in iterator {}
+    }
+    delete iterConsumer
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_analyzes(
+      R"(
+class Iterator[T]() {}
+def main() : int {
+    val iterateLocal = () => {
+        val iterator : Iterator[int] = new Iterator[int]()
+        for item in iterator {}
+    }
+    delete iterateLocal
+    return 0
+}
+)",
+      "a lambda may consume an Iterator created in its own body");
+
   expect_compile_error(
       R"(
 class Resource(val marker : int) {

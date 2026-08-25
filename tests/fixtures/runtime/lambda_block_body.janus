@@ -1,5 +1,7 @@
 module app
 
+import std.array as arrays
+
 private def secret() : int { return 42 }
 private val answer : int = 7
 
@@ -17,6 +19,14 @@ def makeCalculator(base : int) : (int) => int {
             return base
         }
         return base + value
+    }
+}
+
+def makeArrayReader(amount : int) : () => int {
+    return () => {
+        val values : arrays.Array[int] = [amount, amount + 1]
+        defer delete values
+        return values.get(usize(1))
     }
 }
 
@@ -38,5 +48,9 @@ def main() : int {
     val privateCallback = () => { return secret() + answer }
     println(privateCallback())
     delete privateCallback
+
+    val readArray = makeArrayReader(50)
+    println(readArray())
+    delete readArray
     return 0
 }

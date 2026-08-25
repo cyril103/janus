@@ -6526,6 +6526,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "for requires an Iterator[T] or Iterable[T], "
                                "got '" +
                                    source_type.name() + "'"};
+          if (consumes_source)
+            require_consumption_transfer_allowed(
+                (*loop)->iterator, expression_location((*loop)->iterator));
           if (!consumes_source && !satisfies_copy(*element_type))
             throw CompileError{(*loop)->location,
                                "for cannot copy an owned Iterable element; use "
