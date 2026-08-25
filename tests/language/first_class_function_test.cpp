@@ -40,6 +40,38 @@ void expect_compile_error(std::string_view source,
 
 int main() {
   expect_compile_error(
+      R"(
+class Resource(val marker : int) {
+    def dispose() : Unit { delete this }
+}
+def main() : int {
+    val owner : Resource = new Resource(7)
+    val factory = () => {
+        return owningCapture[Resource](owner, () => owner.dispose())
+    }
+    delete factory
+    delete owner
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      R"(
+class Resource(val marker : int) {
+    def dispose() : Unit { delete this }
+}
+def main() : int {
+    val factory = (owner : Resource) => {
+        return owningCapture[Resource](owner, () => owner.dispose())
+    }
+    delete factory
+    return 0
+}
+)",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
       "def main() : int { var data : Ptr[int] = alloc[int](usize(1)) "
       "val resize = () => { data = realloc[int](data, usize(2)) } "
       "delete resize free(data) return 0 }",
@@ -133,6 +165,17 @@ def makeIdentity[T]() : (T) => T {
     return (value : T) => value
 }
 
+class Resource(val marker : int) {
+    def dispose() : Unit { delete this }
+}
+
+def makeLocalCleanup() : () => () => Unit {
+    return () => {
+        val local : Resource = new Resource(7)
+        return owningCapture[Resource](local, () => local.dispose())
+    }
+}
+
 def main() : int {
     val increment : (int) => int = (value : int) => value + 1
     val first : int = apply[int](increment, 41)
@@ -165,6 +208,12 @@ def main() : int {
     val counter = makeCounter(nestedResult)
     val counted : int = counter() + counter()
     delete counter
+
+    val factory = makeLocalCleanup()
+    val cleanup = factory()
+    cleanup()
+    delete cleanup
+    delete factory
     return counted
 }
 )";

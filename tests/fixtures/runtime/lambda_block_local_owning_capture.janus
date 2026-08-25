@@ -1,0 +1,20 @@
+module app
+
+class Resource(val marker : int) {
+    def dispose() : Unit {
+        println(marker)
+        delete this
+    }
+}
+
+def main() : int {
+    val factory = () => {
+        val local : Resource = new Resource(7)
+        return owningCapture[Resource](local, () => local.dispose())
+    }
+    val cleanup = factory()
+    cleanup()
+    delete cleanup
+    delete factory
+    return 0
+}

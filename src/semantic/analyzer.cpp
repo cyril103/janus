@@ -4254,7 +4254,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 const auto *owner_identifier =
                     std::get_if<ast::IdentifierExpression>(
                         &node.arguments[0]->value);
-                require_guard_transfer_allowed(
+                require_consumption_transfer_allowed(
                     *node.arguments[0],
                     expression_location(*node.arguments[0]));
                 if (owner_identifier == nullptr ||
