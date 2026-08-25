@@ -305,6 +305,18 @@ int main(int argc, char **argv) {
                 std::string::npos);
   JANUS_REQUIRE(invalid.front().find("\"severity\":1") != std::string::npos);
 
+  const std::vector<std::string> tailrec_required = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tailrec-required.janus","text":"def loop(value : int) : int { if value == 0 { return 0 } return loop(value - 1) }\ndef main() : int { return loop(2) }"}}})");
+  JANUS_REQUIRE(tailrec_required.size() == 1);
+  JANUS_REQUIRE(tailrec_required.front().find("\"code\":\"JANA0029\"") !=
+                std::string::npos);
+
+  const std::vector<std::string> tailrec_invalid = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tailrec-invalid.janus","text":"tailrec def identity(value : int) : int { return value }\ndef main() : int { return identity(2) }"}}})");
+  JANUS_REQUIRE(tailrec_invalid.size() == 1);
+  JANUS_REQUIRE(tailrec_invalid.front().find("\"code\":\"JANA0030\"") !=
+                std::string::npos);
+
   const std::vector<std::string> leak_warning = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///leak-warning.janus","text":"class Resource() {}\ndef main() : int {\n    val resource : Resource = new Resource()\n    return 0\n}"}}})");
   JANUS_REQUIRE(leak_warning.size() == 1);

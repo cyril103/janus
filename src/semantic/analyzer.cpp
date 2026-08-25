@@ -744,12 +744,20 @@ void validate_tailrec_contract(
 
   for (std::size_t source = 0; source < nodes.size(); ++source) {
     const auto &node = nodes[source];
+    if (recursive[source] && node.owner.empty() && node.name == "main")
+      throw CompileError{
+          DiagnosticCode::AnalyzerIncompatibleTailrec,
+          node.declaration->location,
+          "recursive top-level main is incompatible with the entry ABI, "
+          "finalization, and backend musttail"};
     if (guaranteed[source] && !node.declaration->is_tailrec)
-      throw CompileError{node.declaration->location,
+      throw CompileError{DiagnosticCode::AnalyzerTailrecRequired,
+                         node.declaration->location,
                          "tail-recursive declaration '" + node.name +
                              "' must be annotated tailrec"};
     if (!recursive[source] && node.declaration->is_tailrec)
-      throw CompileError{node.declaration->location,
+      throw CompileError{DiagnosticCode::AnalyzerInvalidTailrec,
+                         node.declaration->location,
                          "tailrec declaration '" + node.name +
                              "' does not participate in recursion"};
     if (!node.declaration->is_tailrec)
@@ -757,22 +765,27 @@ void validate_tailrec_contract(
     for (std::size_t member = 0; member < nodes.size(); ++member)
       if (in_same_cycle(source, member)) {
         if (nodes[member].owner.empty() && nodes[member].name == "main")
-          throw CompileError{nodes[member].declaration->location,
+          throw CompileError{DiagnosticCode::AnalyzerIncompatibleTailrec,
+                             nodes[member].declaration->location,
                              "top-level main finalization is incompatible with backend musttail"};
         if (!return_compatible(nodes[member]))
-          throw CompileError{nodes[member].declaration->location,
+          throw CompileError{DiagnosticCode::AnalyzerIncompatibleTailrec,
+                             nodes[member].declaration->location,
                              "tailrec cycle has a return type incompatible with backend musttail"};
         for (const auto &edge : nodes[member].edges) {
           if (!in_same_cycle(source, edge.target))
             continue;
           if (!edge.terminal)
-            throw CompileError{edge.location,
+            throw CompileError{DiagnosticCode::AnalyzerNonTerminalTailrec,
+                               edge.location,
                                "recursive call in tailrec cycle is not in terminal position"};
           if (edge.pending_defer)
-            throw CompileError{edge.location,
+            throw CompileError{DiagnosticCode::AnalyzerNonTerminalTailrec,
+                               edge.location,
                                "recursive call in tailrec cycle has pending defer cleanup"};
           if (!signatures_compatible(nodes[member], nodes[edge.target]))
-            throw CompileError{edge.location,
+            throw CompileError{DiagnosticCode::AnalyzerIncompatibleTailrec,
+                               edge.location,
                                "tailrec cycle has signatures incompatible with backend musttail"};
         }
       }

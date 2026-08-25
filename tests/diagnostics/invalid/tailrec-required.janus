@@ -1,0 +1,5 @@
+def loop(value : int) : int {
+    if value == 0 { return 0 }
+    return loop(value - 1)
+}
+def main() : int { return loop(2) }

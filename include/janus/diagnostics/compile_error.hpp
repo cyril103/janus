@@ -55,6 +55,10 @@ enum class DiagnosticCode {
   AnalyzerBorrowEscape,
   AnalyzerInvalidBorrowAccess,
   AnalyzerInvalidBorrowSource,
+  AnalyzerTailrecRequired,
+  AnalyzerInvalidTailrec,
+  AnalyzerNonTerminalTailrec,
+  AnalyzerIncompatibleTailrec,
   ModuleNotFound,
   BackendCyclicGlobalConstant,
 };
@@ -124,6 +128,14 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0027";
   case DiagnosticCode::AnalyzerInvalidBorrowSource:
     return "JANA0028";
+  case DiagnosticCode::AnalyzerTailrecRequired:
+    return "JANA0029";
+  case DiagnosticCode::AnalyzerInvalidTailrec:
+    return "JANA0030";
+  case DiagnosticCode::AnalyzerNonTerminalTailrec:
+    return "JANA0031";
+  case DiagnosticCode::AnalyzerIncompatibleTailrec:
+    return "JANA0032";
   case DiagnosticCode::ModuleNotFound:
     return "JMOD0001";
   case DiagnosticCode::BackendCyclicGlobalConstant:

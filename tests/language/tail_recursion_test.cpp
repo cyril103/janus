@@ -26,7 +26,9 @@ void expect(bool condition, std::string_view message) {
 }
 
 void expect_rejected(std::string_view source, std::string_view message,
-                     std::string_view reason) {
+                     std::string_view reason,
+                     janus::DiagnosticCode expected_code =
+                         janus::DiagnosticCode::Unclassified) {
   try {
     janus::frontend::Parser parser{source};
     const janus::ast::Program program = parser.parse_program();
@@ -36,6 +38,9 @@ void expect_rejected(std::string_view source, std::string_view message,
   } catch (const janus::CompileError &error) {
     expect(std::string_view{error.what()}.find(reason) != std::string_view::npos,
            message);
+    if (expected_code != janus::DiagnosticCode::Unclassified)
+      expect(error.diagnostic().code == expected_code,
+             std::string{message} + " reports the structured diagnostic code");
   }
 }
 
@@ -181,7 +186,8 @@ def missing(value : int) : int {
     return missing(value - 1)
 }
 def main() : int { return missing(2) }
-)", "terminal recursion requires the tailrec annotation", "tailrec");
+)", "terminal recursion requires the tailrec annotation", "tailrec",
+                  janus::DiagnosticCode::AnalyzerTailrecRequired);
 
   expect_rejected(R"(
 class Box(value : int) {}
@@ -255,7 +261,8 @@ def main() : int { return 0 }
   expect_rejected(R"(
 tailrec def lie(value : int) : int { return value }
 def main() : int { return lie(2) }
-)", "a non-recursive declaration rejects tailrec", "recursion");
+)", "a non-recursive declaration rejects tailrec", "recursion",
+                  janus::DiagnosticCode::AnalyzerInvalidTailrec);
 
   expect_rejected(R"(
 tailrec def factorial(value : int) : int {
@@ -263,7 +270,8 @@ tailrec def factorial(value : int) : int {
     return value + factorial(value - 1)
 }
 def main() : int { return factorial(2) }
-)", "a non-terminal recursive call rejects tailrec", "terminal");
+)", "a non-terminal recursive call rejects tailrec", "terminal",
+                  janus::DiagnosticCode::AnalyzerNonTerminalTailrec);
 
   expect_rejected(R"(
 def observe() : Unit {}
@@ -273,7 +281,8 @@ tailrec def cleanup(value : int) : int {
     return cleanup(value - 1)
 }
 def main() : int { return cleanup(2) }
-)", "pending defer rejects tailrec", "defer");
+)", "pending defer rejects tailrec", "defer",
+                  janus::DiagnosticCode::AnalyzerNonTerminalTailrec);
 
   expect_rejected(R"(
 def observe() : Unit {}
@@ -328,27 +337,19 @@ def main() : int { return pendingCleanup(2) }
   expect(pending_defer_call != nullptr && !pending_defer_call->isTailCall(),
          "pending defer cleanup prevents recursive musttail emission");
 
-  janus::ast::Program recursive_main_program = expect_accepted(R"(
+  expect_rejected(R"(
 def main() : int {
     return main()
 }
-)", "recursive top-level main remains legal without tailrec");
-  llvm::LLVMContext recursive_main_context;
-  janus::backend::llvm::IrGenerator recursive_main_generator{
-      recursive_main_context};
-  const std::unique_ptr<llvm::Module> recursive_main_module =
-      recursive_main_generator.generate(recursive_main_program,
-                                        "recursive_main");
-  const llvm::CallInst *recursive_main_call =
-      find_call(*recursive_main_module->getFunction("main"), "main");
-  expect(recursive_main_call != nullptr && !recursive_main_call->isTailCall(),
-         "top-level main finalization prevents recursive musttail emission");
+)", "recursive top-level main is rejected by the analyzer", "entry ABI",
+                  janus::DiagnosticCode::AnalyzerIncompatibleTailrec);
 
   expect_rejected(R"(
 tailrec def main() : int {
     return main()
 }
-)", "recursive top-level main rejects tailrec", "finalization");
+)", "recursive top-level main rejects tailrec", "entry ABI",
+                  janus::DiagnosticCode::AnalyzerIncompatibleTailrec);
 
   expect_rejected(R"(
 tailrec def incompatible(value : string) : string {
@@ -356,7 +357,8 @@ tailrec def incompatible(value : string) : string {
     return incompatible(value)
 }
 def main() : int { return 0 }
-)", "a musttail-incompatible signature rejects tailrec", "musttail");
+)", "a musttail-incompatible signature rejects tailrec", "musttail",
+                  janus::DiagnosticCode::AnalyzerIncompatibleTailrec);
 
   static_cast<void>(expect_accepted(R"(
 def identity(value : int) : int { return value }
