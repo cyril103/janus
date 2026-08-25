@@ -3484,7 +3484,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                             "bool", "string", "unit", "usize"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
-             {"const",   "staticAssert", "val", "var", "def", "class", "struct", "trait",
+             {"const",   "staticAssert", "val", "var", "tailrec", "def", "class", "struct", "trait",
               "enum",    "new",    "move",   "borrow", "consume", "owned",
               "derives", "delete", "defer",  "if",     "else",    "match",
               "for",     "while",  "return", "true",   "false"})

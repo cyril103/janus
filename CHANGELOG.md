@@ -5,6 +5,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+- Ajout du mot-clé `tailrec`, obligatoire uniquement pour les cycles récursifs
+  entièrement terminaux et compatibles avec la garantie backend `musttail`.
+  La récursion ordinaire, les cycles mixtes et les retours incompatibles restent
+  légaux sans annotation.
+
 ## [0.19.0] - 2026-08-21
 
 Cette version mineure garantit l’optimisation des appels terminaux compatibles,

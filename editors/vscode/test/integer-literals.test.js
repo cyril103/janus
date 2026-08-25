@@ -60,3 +60,12 @@ test("TextMate recognizes array literal delimiters and separators", () => {
   assert.match("]", new RegExp(`^(?:${punctuation.match})$`));
   assert.match(",", new RegExp(`^(?:${separator.match})$`));
 });
+
+test("TextMate recognizes tailrec as a declaration modifier keyword", () => {
+  const source = "private borrow tailrec def countDown(value : int) : int";
+  const matches = grammar.patterns.flatMap((pattern) => {
+    if (!pattern.match) return [];
+    return [...source.matchAll(new RegExp(pattern.match, "g"))].map((match) => match[0]);
+  });
+  assert.ok(matches.includes("tailrec"));
+});

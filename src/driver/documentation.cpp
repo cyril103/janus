@@ -278,6 +278,8 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
     signature += "consume ";
   else if (value.is_borrowing)
     signature += "borrow ";
+  if (value.is_tailrec)
+    signature += "tailrec ";
   signature += "def " + value.name;
   if (!value.type_parameters.empty()) {
     signature += '[';

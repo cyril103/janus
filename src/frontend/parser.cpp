@@ -232,6 +232,7 @@ ast::Program Parser::parse_program() {
       if (is_private && current_.kind != TokenKind::Const &&
           current_.kind != TokenKind::Val && current_.kind != TokenKind::Var &&
           current_.kind != TokenKind::Def &&
+          current_.kind != TokenKind::Tailrec &&
           current_.kind != TokenKind::Extern &&
           current_.kind != TokenKind::Class &&
           current_.kind != TokenKind::Struct &&
@@ -274,7 +275,8 @@ ast::Program Parser::parse_program() {
       } else if (current_.kind == TokenKind::Const) {
         const SourceLocation location = current_.location;
         advance();
-        if (current_.kind == TokenKind::Def) {
+        if (current_.kind == TokenKind::Def ||
+            current_.kind == TokenKind::Tailrec) {
           ast::FunctionDeclaration declaration =
               parse_function_declaration(true);
           declaration.is_private = is_private;
@@ -350,6 +352,7 @@ void Parser::synchronize_top_level() {
                                     current_.kind == TokenKind::Val ||
                                     current_.kind == TokenKind::Var ||
                                     current_.kind == TokenKind::Def ||
+                                    current_.kind == TokenKind::Tailrec ||
                                     current_.kind == TokenKind::Extern)) {
       return;
     }
@@ -816,6 +819,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
     const bool is_consuming = current_.kind == TokenKind::Consume;
     if (is_borrowing || is_consuming)
       advance();
+    const bool is_tailrec = current_.kind == TokenKind::Tailrec;
     if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
       if (is_borrowing || is_consuming)
         throw CompileError{current_.location,
@@ -829,12 +833,13 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       field.is_internal = is_internal;
       field.documentation = std::move(documentation);
       fields.push_back(std::move(field));
-    } else if (current_.kind == TokenKind::Def) {
+    } else if (current_.kind == TokenKind::Def || is_tailrec) {
       ast::FunctionDeclaration method = parse_function_declaration();
       method.is_private = is_private;
       method.is_internal = is_internal;
       method.is_consuming = is_consuming;
       method.is_borrowing = is_borrowing;
+      method.is_tailrec = is_tailrec;
       method.documentation = std::move(documentation);
       methods.push_back(std::move(method));
     } else if (current_.kind == TokenKind::Destructor) {
@@ -892,7 +897,13 @@ std::vector<ast::Statement> Parser::parse_block() {
 }
 
 ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
+  const bool is_tailrec = current_.kind == TokenKind::Tailrec;
+  if (is_tailrec)
+    advance();
   const bool is_external = current_.kind == TokenKind::Extern;
+  if (is_tailrec && is_external)
+    throw CompileError{current_.location,
+                       "tailrec must directly precede a Janus function definition"};
   const SourceLocation declaration_location = current_.location;
   std::optional<std::string> external_symbol;
   if (is_external)
@@ -1016,6 +1027,7 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
                                        {},
                                        return_ownership};
   declaration.is_constant = is_constant;
+  declaration.is_tailrec = is_tailrec;
   return declaration;
 }
 

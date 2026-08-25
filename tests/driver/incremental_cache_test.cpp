@@ -145,6 +145,15 @@ void test_external_ownership_contract_changes_public_interface() {
           "interface fingerprint");
 }
 
+void test_tailrec_contract_changes_public_interface() {
+  const std::string ordinary = janus::driver::public_interface_fingerprint(
+      "def loop(value : int) : int { return value }");
+  const std::string recursive = janus::driver::public_interface_fingerprint(
+      "tailrec def loop(value : int) : int { return loop(value) }");
+  require(ordinary != recursive,
+          "tailrec is absent from the public interface fingerprint");
+}
+
 void test_consumer_invalidation_uses_only_public_interface() {
   const auto original = base_input();
   auto private_change = original;
@@ -491,6 +500,7 @@ int main() {
     test_dependency_contract_is_nominal_and_canonical();
     test_imported_constant_interface_is_fingerprintable();
     test_external_ownership_contract_changes_public_interface();
+    test_tailrec_contract_changes_public_interface();
     test_consumer_invalidation_uses_only_public_interface();
     test_public_interface_excludes_private_implementation();
     test_store_is_atomic_concurrent_and_validated();

@@ -333,7 +333,7 @@ courante. La profondeur de la pile reste donc constante, y compris dans une
 construction sans optimisations.
 
 ```janus
-def countDown(remaining : int, result : int) : int {
+tailrec def countDown(remaining : int, result : int) : int {
     if remaining == 0 {
         return result
     }
@@ -341,12 +341,18 @@ def countDown(remaining : int, result : int) : int {
 }
 ```
 
+Le mot-clé `tailrec` est obligatoire lorsqu'une fonction appartient à un cycle
+récursif entièrement terminal que le backend peut garantir avec `musttail`. Il
+transforme cette propriété en contrat vérifié : l'oublier produit une erreur de
+compilation, tout comme l'ajouter à une récursion qui n'est pas réellement
+terminale. La récursion ordinaire reste légale sans annotation.
+
 La même règle s'applique aux méthodes et à la récursivité mutuelle lorsque les
 signatures ABI sont compatibles :
 
 ```janus
 class Counter() {
-    def countDown(remaining : int, result : int) : int {
+    tailrec def countDown(remaining : int, result : int) : int {
         if remaining == 0 {
             return result
         }
@@ -357,9 +363,10 @@ class Counter() {
 
 L'optimisation ne s'applique pas lorsqu'une opération reste à effectuer après
 l'appel. Par exemple, l'appel récursif de `return value + sum(value - 1)` n'est
-pas terminal. Elle ne s'applique pas non plus si un `defer` ou un nettoyage de
-possession doit encore être exécuté au retour : chaque appel conserve alors son
-propre cadre de pile afin de respecter l'ordre observable des nettoyages.
+pas terminal et `sum` ne doit donc pas porter `tailrec`. Elle ne s'applique pas
+non plus si un `defer` ou un nettoyage de possession doit encore être exécuté au
+retour : chaque appel conserve alors son propre cadre de pile afin de respecter
+l'ordre observable des nettoyages.
 
 ## Contrôle de flux
 

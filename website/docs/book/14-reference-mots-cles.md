@@ -3,7 +3,7 @@
 
 ## Objectifs
 
-- retrouver les 34 mots-clés réservés de Janus 0.19.0 ;
+- retrouver les 35 mots-clés réservés de la version en développement de Janus ;
 - comprendre leur utilité et leur contexte valide ;
 - ne pas confondre mots-clés, types primitifs, builtins et opérateurs.
 
@@ -17,10 +17,21 @@ Un mot-clé est réservé par le lexer et ne peut pas servir de nom de variable,
 | `import` | rend les exports d’un module disponibles | `import std.array` |
 | `as` | donne un alias local à un module ou symbole importé | `import std.fs as fs` ou `Color as ThemeColor` |
 | `def` | déclare une fonction ou méthode typée | `def answer() : int { return 42 }` |
+| `tailrec` | garantit et rend explicite une récursion terminale | `tailrec def loop(n : int) : int { ... }` |
 | `extern` | déclare une fonction native sans corps Janus | `extern def native_call() : int` |
 | `return` | quitte une fonction, avec sa valeur si nécessaire | `return 0` ; le type doit correspondre |
 
 `module` et `import` acceptent un point-virgule facultatif. `extern` se combine avec `def` ; une déclaration externe variadique peut terminer ses paramètres par `...`.
+
+Toute fonction ou méthode appartenant à un cycle récursif direct ou mutuel
+entièrement terminal et compatible avec la garantie backend `musttail` doit
+porter `tailrec`. Une récursion ordinaire, un cycle mixte ou un cycle dont le
+retour ou le nettoyage empêche `musttail` reste légal sans annotation. Le
+compilateur rejette alors `tailrec`, comme il le rejette sur une déclaration non
+récursive. La grammaire canonique est :
+`[private] [const] tailrec def` au niveau module et
+`[private|internal] [borrow|consume] tailrec def` dans une classe. Les groupes
+entre crochets sont facultatifs et conservent cet ordre.
 
 ## Déclarations de types et capacités
 

@@ -64,6 +64,8 @@ Token Lexer::next() {
       kind = TokenKind::As;
     } else if (lexeme == "extern") {
       kind = TokenKind::Extern;
+    } else if (lexeme == "tailrec") {
+      kind = TokenKind::Tailrec;
     } else if (lexeme == "def") {
       kind = TokenKind::Def;
     } else if (lexeme == "trait") {

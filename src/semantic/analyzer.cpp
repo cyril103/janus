@@ -505,6 +505,282 @@ std::string SemanticType::name() const {
   return result;
 }
 
+namespace {
+
+struct TailrecNode {
+  const ast::FunctionDeclaration *declaration{};
+  std::string name;
+  std::string owner;
+  std::string module;
+  std::unordered_set<std::string> type_parameters;
+  struct Edge {
+    std::size_t target{};
+    bool terminal{};
+    bool pending_defer{};
+    SourceLocation location;
+  };
+  std::vector<Edge> edges;
+};
+
+void validate_tailrec_contract(
+    const ast::Program &program,
+    const std::unordered_map<std::string, std::size_t> &class_arities,
+    const std::unordered_set<std::string> &scoped_type_aliases,
+    const std::unordered_map<const ast::Expression *,
+                             const ast::FunctionDeclaration *>
+        &resolved_calls) {
+  std::vector<TailrecNode> nodes;
+  std::unordered_map<const ast::FunctionDeclaration *, std::size_t>
+      declaration_nodes;
+  for (const auto &function : program.functions) {
+    const std::string module = function.module_name.value_or("");
+    declaration_nodes.emplace(&function, nodes.size());
+    nodes.push_back(TailrecNode{
+        &function, function.name, {}, module,
+        {function.type_parameters.begin(), function.type_parameters.end()},
+        {}});
+  }
+  for (const auto &type : program.classes)
+    for (const auto &method : type.methods) {
+      const std::string module = type.module_name.value_or("");
+      declaration_nodes.emplace(&method, nodes.size());
+      std::unordered_set<std::string> type_parameters{
+          type.type_parameters.begin(), type.type_parameters.end()};
+      type_parameters.insert(method.type_parameters.begin(),
+                             method.type_parameters.end());
+      nodes.push_back(TailrecNode{&method, method.name, type.name, module,
+                                  std::move(type_parameters), {}});
+    }
+
+  const auto visit_node = [&](std::size_t source) {
+    std::function<void(const ast::Expression &, bool, bool)> visit_expression;
+    std::function<void(const std::vector<ast::Statement> &, bool)> visit_block;
+    const auto add_resolved_edge = [&](const ast::Expression &expression,
+                                       bool terminal,
+                                       bool pending_defer,
+                                       SourceLocation location) {
+      const auto resolved = resolved_calls.find(&expression);
+      if (resolved == resolved_calls.end())
+        return;
+      const auto target = declaration_nodes.find(resolved->second);
+      if (target != declaration_nodes.end())
+        nodes[source].edges.push_back(
+            TailrecNode::Edge{target->second, terminal, pending_defer,
+                              location});
+    };
+    visit_expression = [&](const ast::Expression &expression, bool terminal,
+                           bool pending_defer) {
+      std::visit(
+          [&](const auto &node) {
+            using T = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<T, ast::CallExpression>) {
+              for (const auto &argument : node.arguments)
+                visit_expression(*argument, false, pending_defer);
+              add_resolved_edge(expression, terminal, pending_defer,
+                                node.location);
+            } else if constexpr (std::is_same_v<T, ast::MethodCallExpression>) {
+              visit_expression(*node.object, false, pending_defer);
+              for (const auto &argument : node.arguments)
+                visit_expression(*argument, false, pending_defer);
+              add_resolved_edge(expression, terminal, pending_defer,
+                                node.location);
+            } else if constexpr (std::is_same_v<T, ast::IfExpression>) {
+              visit_expression(*node.condition, false, pending_defer);
+              visit_expression(*node.then_expression, false, pending_defer);
+              visit_expression(*node.else_expression, false, pending_defer);
+            } else if constexpr (std::is_same_v<T, ast::MatchExpression>) {
+              visit_expression(*node.scrutinee, false, pending_defer);
+              for (const auto &arm : node.arms) {
+                if (arm.guard)
+                  visit_expression(*arm.guard, false, pending_defer);
+                visit_expression(*arm.expression, false, pending_defer);
+              }
+            } else if constexpr (std::is_same_v<T, ast::BinaryExpression>) {
+              visit_expression(*node.left, false, pending_defer);
+              visit_expression(*node.right, false, pending_defer);
+            } else if constexpr (std::is_same_v<T, ast::UnaryExpression> ||
+                                 std::is_same_v<T, ast::MoveExpression> ||
+                                 std::is_same_v<T, ast::TryExpression>) {
+              visit_expression(*node.operand, false, pending_defer);
+            } else if constexpr (std::is_same_v<T, ast::ArrayLiteralExpression>) {
+              for (const auto &element : node.elements)
+                visit_expression(*element, false, pending_defer);
+            } else if constexpr (std::is_same_v<T, ast::LambdaExpression>) {
+              visit_expression(*node.body, false, pending_defer);
+            } else if constexpr (std::is_same_v<T, ast::NewExpression>) {
+              for (const auto &argument : node.arguments)
+                visit_expression(*argument, false, pending_defer);
+            } else if constexpr (std::is_same_v<T, ast::MemberAccessExpression>) {
+              visit_expression(*node.object, false, pending_defer);
+            }
+          },
+          expression.value);
+    };
+    visit_block = [&](const std::vector<ast::Statement> &body,
+                      bool inherited_defer) {
+      bool pending_defer = inherited_defer;
+      for (const auto &statement : body)
+        std::visit(
+            [&](const auto &node) {
+              using T = std::decay_t<decltype(node)>;
+              if constexpr (std::is_same_v<T, ast::ReturnStatement>) {
+                if (node.expression)
+                  visit_expression(*node.expression, true, pending_defer);
+              } else if constexpr (std::is_same_v<T, ast::ExpressionStatement> ||
+                                   std::is_same_v<T, ast::DeleteStatement>) {
+                visit_expression(node.expression, false, pending_defer);
+              } else if constexpr (std::is_same_v<T, ast::ValueDeclaration>) {
+                if (node.initializer)
+                  visit_expression(*node.initializer, false, pending_defer);
+              } else if constexpr (std::is_same_v<T, ast::AssignmentStatement>) {
+                visit_expression(node.expression, false, pending_defer);
+              } else if constexpr (std::is_same_v<T, ast::DeferStatement>) {
+                std::visit([&](const auto &action) {
+                  visit_expression(action.expression, false, pending_defer);
+                }, node.action);
+                pending_defer = true;
+              } else if constexpr (std::is_same_v<T, std::shared_ptr<ast::IfStatement>>) {
+                visit_expression(node->condition, false, pending_defer);
+                visit_block(node->then_body, pending_defer);
+                visit_block(node->else_body, pending_defer);
+              } else if constexpr (std::is_same_v<T, std::shared_ptr<ast::WhileStatement>>) {
+                visit_expression(node->condition, false, pending_defer);
+                visit_block(node->body, pending_defer);
+              } else if constexpr (std::is_same_v<T, std::shared_ptr<ast::ForStatement>>) {
+                visit_expression(node->iterator, false, pending_defer);
+                visit_block(node->body, pending_defer);
+              }
+            }, statement);
+    };
+    visit_block(nodes[source].declaration->body, false);
+  };
+  for (std::size_t index = 0; index < nodes.size(); ++index)
+    visit_node(index);
+
+  const auto resolved_type = [&](const TailrecNode &node,
+                                 const ast::TypeReference &type) {
+    return resolve_type(type, node.type_parameters,
+                        &class_arities,
+                        node.module.empty()
+                            ? std::optional<std::string>{}
+                            : std::optional<std::string>{node.module},
+                        &scoped_type_aliases);
+  };
+  const auto signatures_compatible = [&](const TailrecNode &left,
+                                          const TailrecNode &right) {
+    if (left.owner.empty() != right.owner.empty() ||
+        left.owner != right.owner ||
+        left.declaration->parameters.size() !=
+            right.declaration->parameters.size())
+      return false;
+    for (std::size_t index = 0;
+         index < left.declaration->parameters.size(); ++index) {
+      const auto &left_parameter = left.declaration->parameters[index];
+      const auto &right_parameter = right.declaration->parameters[index];
+      if (left_parameter.ownership != right_parameter.ownership ||
+          !same_type(resolved_type(left, left_parameter.type),
+                     resolved_type(right, right_parameter.type)))
+        return false;
+    }
+    return same_type(resolved_type(left, left.declaration->return_type),
+                     resolved_type(right, right.declaration->return_type));
+  };
+  const auto return_compatible = [&](const TailrecNode &node) {
+    const SemanticType type =
+        resolved_type(node, node.declaration->return_type);
+    if (type.is_concrete())
+      return type.concrete->kind() != TypeKind::String;
+    return type.is_pointer() || type.is_class();
+  };
+
+  const auto reaches = [&](std::size_t start, std::size_t goal) {
+    std::vector<std::size_t> pending{start};
+    std::unordered_set<std::size_t> seen;
+    while (!pending.empty()) {
+      const std::size_t current = pending.back();
+      pending.pop_back();
+      if (current == goal)
+        return true;
+      if (!seen.insert(current).second)
+        continue;
+      for (const auto &edge : nodes[current].edges)
+        pending.push_back(edge.target);
+    }
+    return false;
+  };
+  std::vector<bool> recursive(nodes.size());
+  for (std::size_t source = 0; source < nodes.size(); ++source)
+    for (const auto &edge : nodes[source].edges)
+      if (reaches(edge.target, source))
+        recursive[source] = recursive[edge.target] = true;
+
+  const auto in_same_cycle = [&](std::size_t left, std::size_t right) {
+    return reaches(left, right) && reaches(right, left);
+  };
+  std::vector<bool> guaranteed(nodes.size());
+  for (std::size_t source = 0; source < nodes.size(); ++source) {
+    if (!recursive[source])
+      continue;
+    guaranteed[source] = true;
+    for (std::size_t member = 0; member < nodes.size(); ++member) {
+      if (!in_same_cycle(source, member))
+        continue;
+      if ((nodes[member].owner.empty() && nodes[member].name == "main") ||
+          !return_compatible(nodes[member])) {
+        guaranteed[source] = false;
+        break;
+      }
+      for (const auto &edge : nodes[member].edges)
+        if (in_same_cycle(source, edge.target) &&
+            (!edge.terminal || edge.pending_defer ||
+             !signatures_compatible(nodes[member], nodes[edge.target]))) {
+          guaranteed[source] = false;
+          break;
+        }
+      if (!guaranteed[source])
+        break;
+    }
+  }
+
+  for (std::size_t source = 0; source < nodes.size(); ++source) {
+    const auto &node = nodes[source];
+    if (guaranteed[source] && !node.declaration->is_tailrec)
+      throw CompileError{node.declaration->location,
+                         "tail-recursive declaration '" + node.name +
+                             "' must be annotated tailrec"};
+    if (!recursive[source] && node.declaration->is_tailrec)
+      throw CompileError{node.declaration->location,
+                         "tailrec declaration '" + node.name +
+                             "' does not participate in recursion"};
+    if (!node.declaration->is_tailrec)
+      continue;
+    for (std::size_t member = 0; member < nodes.size(); ++member)
+      if (in_same_cycle(source, member)) {
+        if (nodes[member].owner.empty() && nodes[member].name == "main")
+          throw CompileError{nodes[member].declaration->location,
+                             "top-level main finalization is incompatible with backend musttail"};
+        if (!return_compatible(nodes[member]))
+          throw CompileError{nodes[member].declaration->location,
+                             "tailrec cycle has a return type incompatible with backend musttail"};
+        for (const auto &edge : nodes[member].edges) {
+          if (!in_same_cycle(source, edge.target))
+            continue;
+          if (!edge.terminal)
+            throw CompileError{edge.location,
+                               "recursive call in tailrec cycle is not in terminal position"};
+          if (edge.pending_defer)
+            throw CompileError{edge.location,
+                               "recursive call in tailrec cycle has pending defer cleanup"};
+          if (!signatures_compatible(nodes[member], nodes[edge.target]))
+            throw CompileError{edge.location,
+                               "tailrec cycle has signatures incompatible with backend musttail"};
+        }
+      }
+  }
+}
+
+} // namespace
+
 AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  AnalysisOptions options) const {
   AnalysisResult result;
@@ -514,6 +790,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::unordered_map<std::string, const ast::ClassDeclaration *> classes;
   std::unordered_map<std::string, const ast::EnumDeclaration *> enums;
   std::unordered_map<std::string, const ast::TraitDeclaration *> traits;
+  std::unordered_map<const ast::Expression *,
+                     const ast::FunctionDeclaration *>
+      resolved_calls;
   std::unordered_map<std::string, std::size_t> class_arities;
   std::unordered_map<std::string, std::size_t> type_name_counts;
   std::unordered_set<std::string> type_identities;
@@ -2795,6 +3074,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto mutable_borrow_values_before = mutable_borrow_values;
       const auto borrow_sources_before = borrow_sources;
       const auto inferred_calls_before = result.inferred_generic_arguments;
+      const auto resolved_calls_before = resolved_calls;
       const std::optional<std::unordered_set<std::string>>
           active_captures_before =
               active_lambda_captures_before == nullptr
@@ -2828,6 +3108,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         mutable_borrow_values = mutable_borrow_values_before;
         borrow_sources = borrow_sources_before;
         result.inferred_generic_arguments = inferred_calls_before;
+        resolved_calls = resolved_calls_before;
         if (active_captures_before.has_value())
           *active_lambda_captures_before = *active_captures_before;
         if (active_mutations_before.has_value())
@@ -3214,6 +3495,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 "' returns a pointer without a borrow or owned ownership "
                 "qualifier",
             {"declare this external return as borrow or owned"});
+      resolved_calls.insert_or_assign(expression_key, &callee);
       return call_return;
     };
     const auto class_substitutions =
@@ -5412,6 +5694,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     {"bind the temporary to a local and schedule cleanup, or "
                      "call a consume method"});
               }
+              resolved_calls.insert_or_assign(&expression, method);
               return substitute(resolve_type(method->return_type,
                                              method_parameters, &class_arities),
                                 substitutions);
@@ -7125,6 +7408,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     result.functions.emplace(analysis_name, std::move(symbols));
   }
 
+  validate_tailrec_contract(program, class_arities, scoped_type_aliases,
+                            resolved_calls);
   return result;
 }
 

@@ -127,6 +127,8 @@ std::string function_signature(const ast::FunctionDeclaration &fn) {
           ? "const def "
           : (fn.is_consuming ? "consume def "
                              : (fn.is_borrowing ? "borrow def " : "def "));
+  if (fn.is_tailrec)
+    result.insert(result.find("def "), "tailrec ");
   result += fn.name;
   if (!fn.type_parameters.empty()) {
     result += '[';

@@ -13,7 +13,7 @@
     },
     {
       "name": "storage.type.janus",
-      "match": "\\b(class|trait|enum|const|def|val|var|private|extern|module|import|extends|new|destructor)\\b"
+      "match": "\\b(class|trait|enum|const|tailrec|def|val|var|private|internal|extern|module|import|extends|new|destructor|borrow)\\b"
     },
     {
       "name": "support.type.primitive.janus",
