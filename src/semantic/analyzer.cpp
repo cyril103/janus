@@ -606,13 +606,9 @@ void validate_tailrec_contract(
               for (const auto &element : node.elements)
                 visit_expression(*element, false, pending_defer);
             } else if constexpr (std::is_same_v<T, ast::LambdaExpression>) {
-              if (const auto *body =
-                      std::get_if<std::unique_ptr<ast::Expression>>(&node.body))
-                visit_expression(**body, false, pending_defer);
-              else
-                visit_block(std::get<std::shared_ptr<ast::LambdaBlock>>(node.body)
-                                ->statements,
-                            pending_defer);
+              // A lambda is a distinct LLVM function boundary. Calls in its
+              // body do not participate in the enclosing declaration's
+              // recursion contract.
             } else if constexpr (std::is_same_v<T, ast::NewExpression>) {
               for (const auto &argument : node.arguments)
                 visit_expression(*argument, false, pending_defer);
@@ -2951,6 +2947,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 "pattern binding '" + identifier->name +
                     "' cannot be transferred or destroyed in a match guard"};
         };
+    const auto require_consumption_transfer_allowed =
+        [&](const ast::Expression &expression, SourceLocation location) {
+          require_guard_transfer_allowed(expression, location);
+          const auto *identifier =
+              std::get_if<ast::IdentifierExpression>(&expression.value);
+          if (identifier != nullptr &&
+              (transfer_protected_values.contains(identifier->name) ||
+               closure_transfer_protected_values.contains(identifier->name)))
+            throw CompileError{
+                location,
+                "owning value '" + identifier->name +
+                    "' cannot be consumed/transferred from a loop, branch "
+                    "expression, or closure"};
+        };
     std::unordered_map<std::string, SourceLocation> local_declarations;
     std::unordered_set<std::size_t> warned_leak_locations;
     std::unordered_set<std::size_t> warned_unannotated_return_locations;
@@ -3224,8 +3234,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             return;
           }
 
-          require_guard_transfer_allowed(argument,
-                                         expression_location(argument));
+          require_consumption_transfer_allowed(
+              argument, expression_location(argument));
           if (is_borrowed_pointer_expression(argument)) {
             const auto *call =
                 std::get_if<ast::CallExpression>(&argument.value);
@@ -3882,7 +3892,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       validate_block(block.statements, lambda_symbols);
                   if (!inferred_return.has_value())
                     inferred_return = SemanticType{&Type::unit_type()};
-                  else if (!terminates)
+                  else if (!terminates &&
+                           !(inferred_return->is_concrete() &&
+                             inferred_return->concrete->kind() ==
+                                 TypeKind::Unit))
                     throw CompileError{
                         block.location,
                         "lambda block must return a value of inferred type '" +
@@ -4205,7 +4218,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 const SemanticType pointer_type{
                     nullptr, "Ptr", false, {element_type}, true};
                 for (const auto &argument : node.arguments) {
-                  require_guard_transfer_allowed(
+                  require_consumption_transfer_allowed(
                       *argument, expression_location(*argument));
                   if (is_borrowed_pointer_expression(*argument))
                     throw CompileError{

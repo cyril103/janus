@@ -39,6 +39,21 @@ void expect_compile_error(std::string_view source,
 } // namespace
 
 int main() {
+  expect_compile_error(
+      "extern def release(consume data : Ptr[byte]) : Unit "
+      "def main() : int { val pointer : Ptr[byte] = alloc[byte](usize(1)) "
+      "val cleanup = () => { release(pointer) } delete cleanup "
+      "free(pointer) return 0 }",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+  expect_compile_error(
+      "def main() : int { val pointer : Ptr[byte] = alloc[byte](usize(1)) "
+      "val resized : Ptr[byte] = realloc[byte](pointer, usize(2)) "
+      "val cleanup = () => { adoptReallocation[byte](pointer, resized) } "
+      "delete cleanup free(pointer) free(resized) return 0 }",
+      "cannot be consumed/transferred from a loop, branch expression, or "
+      "closure");
+
   constexpr std::string_view source = R"(
 class CallScope() {
     destructor {}
@@ -68,6 +83,13 @@ def makeObserver() : (int) => Unit {
     return (value : int) => {
         val observed : int = value
         debug(observed)
+    }
+}
+
+def makeConditionalObserver(condition : bool) : () => Unit {
+    return () => {
+        if condition { return }
+        debug(1)
     }
 }
 
@@ -119,6 +141,10 @@ def main() : int {
     observer(blockResult)
     delete observer
 
+    val conditionalObserver = makeConditionalObserver(false)
+    conditionalObserver()
+    delete conditionalObserver
+
     val nested = makeNested(2)
     val nestedResult : int = nested(blockResult)
     delete nested
@@ -163,6 +189,9 @@ def main() : int {
   expect(analysis.functions.at("main").at("observer").type.name() ==
              "(int) => Unit",
          "a lambda block without return infers Unit");
+  expect(analysis.functions.at("main").at("conditionalObserver").type.name() ==
+             "() => Unit",
+         "a partially returning lambda block infers Unit");
   expect(analysis.functions.at("main").at("nested").type.name() ==
              "(int) => int",
          "nested block lambdas retain inferred signatures and captures");
@@ -216,6 +245,10 @@ def main() : int {
   expect_compile_error(
       "def main() : int { val f = (value : int) => { if value > 0 { "
       "return value } return true } delete f return 0 }",
+      "lambda block returns have inconsistent types");
+  expect_compile_error(
+      "def main() : int { val f = (value : int) => { if value > 0 { "
+      "return } return value } delete f return 0 }",
       "lambda block returns have inconsistent types");
   expect_compile_error(
       "def main() : int { val f = (value : int) => { if value > 0 { "
