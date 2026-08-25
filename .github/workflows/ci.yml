@@ -481,7 +481,7 @@ jobs:
             arguments+=(--current "$RUNNER_TEMP/current-channel/version")
           fi
           python3 scripts/nightly_release.py check-promotion "${arguments[@]}"
-          package_version=$(python3 scripts/nightly_release.py project-version --source "$GITHUB_WORKSPACE")
+          package_version=$(python3 scripts/nightly_release.py project-version --source "$GITHUB_WORKSPACE/CMakeLists.txt")
           echo "JANUS_RELEASE_CHANNEL=$channel" >> "$GITHUB_ENV"
           echo "JANUS_PACKAGE_VERSION=$package_version" >> "$GITHUB_ENV"
 

@@ -65,7 +65,8 @@ class ReleasePromotionTests(unittest.TestCase):
         promote_latest = release.index('gh release edit "$GITHUB_REF_NAME" --latest')
         promote = release.index('gh release upload "channel-$JANUS_RELEASE_CHANNEL"')
         self.assertIn("JANUS_PACKAGE_VERSION", release)
-        self.assertIn("project-version --source", release)
+        self.assertIn(
+            'project-version --source "$GITHUB_WORKSPACE/CMakeLists.txt"', release)
         self.assertNotIn('version="${GITHUB_REF_NAME#v}"', release)
         for expected in (
             'janus-${version}-Linux-x86_64.tar.gz',
