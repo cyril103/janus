@@ -1,4 +1,6 @@
 import std.io
+import std.array
+import std.slice
 
 class Counter(var value : int) {
     borrow def read() : int { return value }
@@ -26,6 +28,29 @@ def main() : int {
 
     println(number)
     println(counter.read())
+
+    val values : Array[int] = new Array[int](usize(2))
+    values.push(10)
+    values.push(20)
+    if true {
+        borrow var first : int = values.getMutable(usize(0))
+        first = 30
+    }
+    println(values.get(usize(0)))
+    if true {
+        borrow val observed : int = values.getMutable(usize(0))
+        println(observed)
+    }
+
+    val slice : MutableSlice[int] =
+    new MutableSlice[int](values, usize(0), values.size())
+    if true {
+        borrow var second : int = slice.getMutable(usize(1))
+        second = 40
+    }
+    println(slice.get(usize(1)))
+    delete slice
+    delete values
     delete counter
     return 0
 }

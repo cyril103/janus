@@ -24,6 +24,7 @@ enum class ParameterOwnership {
 enum class ReturnOwnership {
   Unspecified,
   Borrow,
+  BorrowMutable,
   Owned,
 };
 

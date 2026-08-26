@@ -943,6 +943,9 @@ private:
     }
     if (return_ownership == janus::ast::ReturnOwnership::Borrow)
       key += "__borrow_return";
+    else if (return_ownership ==
+             janus::ast::ReturnOwnership::BorrowMutable)
+      key += "__borrow_mut_return";
     key += "__to__" + std::string{return_type.name()};
     return key;
   }
@@ -1720,9 +1723,13 @@ private:
                                     : lower_type(parameter_type, context_));
     }
 
-    auto *function_type =
-        ::llvm::FunctionType::get(lower_type(return_type, context_),
-                                  parameter_types, function.is_variadic);
+    ::llvm::Type *llvm_return_type =
+        function.return_ownership ==
+                janus::ast::ReturnOwnership::BorrowMutable
+            ? ::llvm::PointerType::getUnqual(context_)
+            : lower_type(return_type, context_);
+    auto *function_type = ::llvm::FunctionType::get(
+        llvm_return_type, parameter_types, function.is_variadic);
     const ::llvm::GlobalValue::LinkageTypes linkage =
         !function.is_external &&
                 (function.is_private || function.is_internal ||
@@ -2045,6 +2052,23 @@ private:
                                  Local{source.storage, &type});
             continue;
           }
+          const auto resolved_initializer =
+              declaration->initializer.has_value()
+                  ? analysis_.call_return_ownership.find(
+                        &*declaration->initializer)
+                  : analysis_.call_return_ownership.end();
+          const bool mutable_borrow_call =
+              declaration->is_borrowed &&
+              resolved_initializer != analysis_.call_return_ownership.end() &&
+              resolved_initializer->second ==
+                  janus::ast::ReturnOwnership::BorrowMutable;
+          if (mutable_borrow_call) {
+            ::llvm::Value *storage = emit_expression(
+                *declaration->initializer, type, substitutions, block_locals,
+                builder);
+            block_locals.emplace(declaration->name, Local{storage, &type});
+            continue;
+          }
           ::llvm::Value *storage = create_entry_alloca(
               builder, lower_type(type, context_), declaration->name);
           if (declaration->initializer.has_value()) {
@@ -2145,10 +2169,17 @@ private:
         const auto &return_statement =
             std::get<janus::ast::ReturnStatement>(statement);
         ::llvm::Value *return_value = nullptr;
-        if (return_statement.expression.has_value())
-          return_value =
-              emit_expression(*return_statement.expression, return_type,
-                              substitutions, block_locals, builder);
+        if (return_statement.expression.has_value()) {
+          if (function.return_ownership ==
+              janus::ast::ReturnOwnership::BorrowMutable)
+            return_value = emit_borrow_storage(
+                *return_statement.expression, return_type, substitutions,
+                block_locals, builder);
+          if (return_value == nullptr)
+            return_value =
+                emit_expression(*return_statement.expression, return_type,
+                                substitutions, block_locals, builder);
+        }
         emit_active_cleanups(builder);
         if (owner == nullptr && function.name == "main")
           for (auto finalizer = global_finalizers_.rbegin();
@@ -2450,8 +2481,13 @@ private:
                                     ? builder.getPtrTy()
                                     : lower_type(*parameter, context_));
     }
+    ::llvm::Type *lambda_return_type =
+        signature.return_ownership ==
+                janus::ast::ReturnOwnership::BorrowMutable
+            ? builder.getPtrTy()
+            : lower_type(*signature.return_type, context_);
     auto *llvm_function_type = ::llvm::FunctionType::get(
-        lower_type(*signature.return_type, context_), parameter_types, false);
+        lambda_return_type, parameter_types, false);
     ::llvm::Function *lambda_function = ::llvm::Function::Create(
         llvm_function_type, ::llvm::Function::InternalLinkage,
         "__janus_lambda_" + std::to_string(lambda_index), *module_);
@@ -2502,9 +2538,16 @@ private:
             std::unique_ptr<janus::ast::Expression>>(&lambda.body)) {
       const janus::Type *previous_return_type = active_return_type_;
       active_return_type_ = signature.return_type;
-      ::llvm::Value *result = emit_expression(
-          **expression_body, *signature.return_type, substitutions,
-          lambda_locals, lambda_builder);
+      ::llvm::Value *result = nullptr;
+      if (signature.return_ownership ==
+          janus::ast::ReturnOwnership::BorrowMutable)
+        result = emit_borrow_storage(
+            **expression_body, *signature.return_type, substitutions,
+            lambda_locals, lambda_builder);
+      if (result == nullptr)
+        result = emit_expression(**expression_body, *signature.return_type,
+                                 substitutions, lambda_locals,
+                                 lambda_builder);
       active_return_type_ = previous_return_type;
       if (signature.return_type->kind() == janus::TypeKind::Unit)
         lambda_builder.CreateRetVoid();
@@ -2544,6 +2587,7 @@ private:
       body_function.type_parameters.push_back(return_name);
       body_function.return_type =
           janus::ast::TypeReference{return_name, lambda.location, {}};
+      body_function.return_ownership = signature.return_ownership;
       body_types.push_back(signature.return_type);
       ::llvm::Function *lowered_body =
           emit_function(body_function, body_types, nullptr, nullptr, {},
@@ -3700,9 +3744,13 @@ private:
                     indirect_borrow ? builder.getPtrTy()
                                     : lower_type(*parameter, context_));
               }
+              ::llvm::Type *callee_return_type =
+                  signature.return_ownership ==
+                          janus::ast::ReturnOwnership::BorrowMutable
+                      ? builder.getPtrTy()
+                      : lower_type(*signature.return_type, context_);
               auto *callee_type = ::llvm::FunctionType::get(
-                  lower_type(*signature.return_type, context_), parameter_types,
-                  false);
+                  callee_return_type, parameter_types, false);
               ::llvm::Value *result =
                   signature.return_type->kind() == janus::TypeKind::Unit
                       ? builder.CreateCall(callee_type, code, arguments)

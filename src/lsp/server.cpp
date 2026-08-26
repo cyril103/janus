@@ -576,6 +576,9 @@ function_signature(const janus::ast::FunctionDeclaration &function) {
   result += ") : ";
   if (function.return_ownership == janus::ast::ReturnOwnership::Borrow)
     result += "borrow ";
+  else if (function.return_ownership ==
+           janus::ast::ReturnOwnership::BorrowMutable)
+    result += "borrow var ";
   else if (function.return_ownership == janus::ast::ReturnOwnership::Owned)
     result += "owned ";
   return result + type_reference(function.return_type);

@@ -316,6 +316,9 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
   signature += ") : ";
   if (value.return_ownership == janus::ast::ReturnOwnership::Borrow)
     signature += "borrow ";
+  else if (value.return_ownership ==
+           janus::ast::ReturnOwnership::BorrowMutable)
+    signature += "borrow var ";
   else if (value.return_ownership == janus::ast::ReturnOwnership::Owned)
     signature += "owned ";
   signature += type_name(value.return_type);

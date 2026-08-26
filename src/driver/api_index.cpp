@@ -161,6 +161,8 @@ std::string function_signature(const ast::FunctionDeclaration &fn) {
   result += ") : ";
   if (fn.return_ownership == ast::ReturnOwnership::Borrow)
     result += "borrow ";
+  else if (fn.return_ownership == ast::ReturnOwnership::BorrowMutable)
+    result += "borrow var ";
   else if (fn.return_ownership == ast::ReturnOwnership::Owned)
     result += "owned ";
   result += type_name(fn.return_type);

@@ -670,9 +670,9 @@ Une fonction libre ainsi annotée possède exactement un paramètre emprunté,
 qui devient la source de durée de vie. Une méthode doit être `borrow def` et
 son résultat provient de `this`. Le résultat doit être lié par `borrow val` ;
 le propriétaire source reste gelé pendant la portée de cette liaison. Les
-retours empruntés mutables et les durées de vie nommées ne sont pas encore
-pris en charge. Les régions restent lexicales : placez un emprunt local dans
-un bloc plus court pour réutiliser ensuite le propriétaire.
+durées de vie nommées ne sont pas encore prises en charge. Les régions restent
+lexicales : placez un emprunt local dans un bloc plus court pour réutiliser
+ensuite le propriétaire.
 `borrow var` crée un emprunt mutable exclusif. Le mot `var` donne le droit de
 modifier la valeur visée ; il ne permet pas de réassigner l'alias :
 
@@ -687,6 +687,24 @@ if ready {
 }
 // `cursor` est de nouveau accessible ici.
 ```
+
+Une fonction peut transférer cet accès exclusif sans transférer la propriété
+avec un retour `: borrow var T`. Une fonction libre exige alors exactement un
+paramètre `borrow var` comme source. Une méthode qui retourne un tel emprunt est
+mutante (elle ne porte pas `borrow def`) et lie la durée de vie à son récepteur :
+
+```janus
+def identity(borrow var cursor : Cursor) : borrow var Cursor {
+    return cursor
+}
+
+borrow var editable : Cursor = identity(cursor)
+editable.position = 4
+```
+
+Le résultat mutable peut être lié par `borrow var` pour écrire ou être dégradé
+en `borrow val` pour une simple observation. Un retour partagé ne peut jamais
+être renforcé en emprunt mutable.
 
 Un seul emprunt mutable peut viser une valeur à la fois. Aucun emprunt partagé,
 accès direct au propriétaire, déplacement ou destruction ne peut lui être
@@ -707,7 +725,8 @@ la durée de vie observante.
 Le module `std.slice` fournit des vues contiguës sur `Array[T]`, y compris pour
 les éléments propriétaires non `Copy`. `Slice[T]` permet la lecture partagée ;
 `MutableSlice[T]` réserve un accès exclusif et ajoute `set`. `getBorrowed`
-retourne une observation liée à la vue. Seules les opérations qui produisent
+retourne une observation liée à la vue et `getMutable` un emprunt exclusif sur
+un élément. `Array.getMutable` fournit le même accès directement. Seules les opérations qui produisent
 une copie (`get`, `getOption` et `iterator`) demandent `T <: Copy` au niveau de
 la méthode. Les indices sont relatifs à la vue et contrôlés à l'exécution. La
 plage est validée à la construction et le stockage n'est jamais copié :
@@ -723,7 +742,8 @@ values.push(30)
 if true {
     val middle : MutableSlice[int] =
     new MutableSlice[int](values, usize(1), usize(2))
-    middle.set(usize(0), 25)
+    borrow var item : int = middle.getMutable(usize(0))
+    item = 25
     delete middle
 }
 // `values` redevient accessible après la destruction de la vue.
@@ -877,7 +897,7 @@ construire le tableau à l'exécution. Les `val` et `var` globaux ordinaires
 restent des initialisations d'exécution.
 
 Les opérations directes de tableau qui retournent un élément par copie restent
-réservées aux éléments `Copy`. `getBorrowed`, `withValue`, `withValues`,
+réservées aux éléments `Copy`. `getBorrowed`, `getMutable`, `withValue`, `withValues`,
 `foreach`, `map`, `fold`, `any`, `all` et `count` observent en revanche leurs
 éléments avec des paramètres `(borrow T)`. Une lambda ou une fonction nommée
 portant ce type ne peut ni déplacer, ni détruire, ni transmettre l'élément à un

@@ -41,15 +41,42 @@ void expect_compile_error(std::string_view source,
 } // namespace
 
 int main() {
+  try {
+    janus::frontend::Parser qualifier_parser{R"(
+trait MutableAccess[T] {
+  def value() : borrow var T
+}
+def accept[T](callback : () => borrow var T) : Unit {}
+def main() : int { return 0 }
+)"};
+    const janus::ast::Program qualifiers = qualifier_parser.parse_program();
+    expect(qualifiers.traits.front().methods.front().return_ownership ==
+               janus::ast::ReturnOwnership::BorrowMutable,
+           "trait methods parse mutable borrowed returns");
+    expect(qualifiers.functions.front()
+               .parameters.front()
+               .type.function_return_ownership ==
+               janus::ast::ReturnOwnership::BorrowMutable,
+           "function types parse mutable borrowed returns");
+  } catch (const std::exception &error) {
+    std::cerr << "FAILED: mutable return qualifiers were rejected: "
+              << error.what() << '\n';
+    ++failures;
+  }
+
   constexpr std::string_view valid_source = R"(
 class Counter(var value : int) {
   borrow def read() : int { return value }
   def add(amount : int) : Unit { value = value + amount }
+  def mutableValue() : borrow var int { return value }
 }
 struct Point(var x : int) {}
 def increment(borrow var counter : Counter) : Unit { counter.add(1) }
 def movePoint(borrow var point : Point) : Unit { point.x = point.x + 4 }
 def increase(borrow var value : int) : Unit { value = value + 1 }
+def identity(borrow var counter : Counter) : borrow var Counter {
+  return counter
+}
 def main() : int {
   val counter : Counter = new Counter(1)
   if true {
@@ -66,6 +93,14 @@ def main() : int {
     editableNumber = 7
   }
   increase(number)
+  if true {
+    borrow var returned : int = counter.mutableValue()
+    returned = 9
+  }
+  if true {
+    borrow var same : Counter = identity(counter)
+    same.add(1)
+  }
   delete counter
   return observed + point.x + number
 }
@@ -76,6 +111,9 @@ def main() : int {
     expect(program.functions[0].parameters[0].ownership ==
                janus::ast::ParameterOwnership::BorrowMutable,
            "borrow var parameters retain their mutable ownership effect");
+    expect(program.functions[3].return_ownership ==
+               janus::ast::ReturnOwnership::BorrowMutable,
+           "borrow var return qualifiers retain their ownership effect");
     janus::semantic::Analyzer analyzer;
     static_cast<void>(analyzer.analyze(program));
     llvm::LLVMContext context;
@@ -161,6 +199,32 @@ def main() : int {
   return 0
 }
 )", "requires a local value identifier");
+
+  expect_compile_error(R"(
+class Counter(var value : int) {
+  borrow def invalid() : borrow var int { return value }
+}
+def main() : int { return 0 }
+)", "cannot be declared 'borrow def'");
+
+  expect_compile_error(R"(
+class Counter(var value : int) {}
+def invalid(borrow counter : Counter) : borrow var Counter {
+  return counter
+}
+def main() : int { return 0 }
+)", "requires one 'borrow var' parameter");
+
+  expect_compile_error(R"(
+class Counter(var value : int) {
+  borrow def shared() : borrow Counter { return this }
+}
+def main() : int {
+  val counter : Counter = new Counter(1)
+  borrow var invalid : Counter = counter.shared()
+  return 0
+}
+)", "requires a 'borrow var' return");
 
   constexpr std::string_view borrowed_field_source = R"(
 class SharedView(private borrow val source : Counter) {

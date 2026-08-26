@@ -195,6 +195,20 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return data.load(index)
     }
 
+    /// Retourne un emprunt mutable exclusif sur l'élément demandé.
+    ///
+    /// Tant que l'emprunt est vivant, le tableau ne peut pas être consulté,
+    /// redimensionné, déplacé ou détruit. Cette opération ne requiert pas
+    /// `Copy` et déclenche `panic` si l'indice est hors limites.
+    /// @param index Position de l'élément, à partir de zéro.
+    /// @return Emprunt mutable sur la valeur stockée.
+    def getMutable(index : usize) : borrow var T {
+        if index >= length {
+            panic("Array index out of bounds\n")
+        }
+        return data.load(index)
+    }
+
     /// Retourne l’élément demandé, ou `None` si l’index est hors limites.
     /// @param index Position recherchée, à partir de zéro.
     /// @return `Some` avec une copie de l’élément, ou `None` si `index >= size()`.

@@ -50,7 +50,7 @@ complètes sont linéaires.</p></div></div><section class="module-example doc-se
 values.push(10)<br>
 values.push(20)<br>
 val doubled : Array[int] = values.map[int]((value : int) =&gt; value * 2)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">32</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">33</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-array-array" data-symbol data-search="std.array.Array class class Array[T](initialCapacity : usize) Tableau dynamique contigu qui possède ses éléments.
 
@@ -174,6 +174,20 @@ requiert pas `Copy` et déclenche `panic` si l&#39;indice est hors limites.</p><
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position de l&#39;élément, à partir de zéro.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Emprunt partagé sur la valeur stockée.</p></section>
 <div class="qualified">std.array.Array.getBorrowed</div></div><a class="permalink" href="#std-array-array-getborrowed" aria-label="Permanent link to std.array.Array.getBorrowed">#</a></article>
+<article class="symbol-card kind-method child" id="std-array-array-getmutable" data-symbol data-search="std.array.Array.getMutable method def getMutable(index : usize) : borrow var T Retourne un emprunt mutable exclusif sur l&#39;élément demandé.
+
+Tant que l&#39;emprunt est vivant, le tableau ne peut pas être consulté,
+redimensionné, déplacé ou détruit. Cette opération ne requiert pas
+`Copy` et déclenche `panic` si l&#39;indice est hors limites.
+@param index Position de l&#39;élément, à partir de zéro.
+@return Emprunt mutable sur la valeur stockée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def getMutable(index : usize) : borrow var T</code></h3>
+<p class="doc-summary">Retourne un emprunt mutable exclusif sur l&#39;élément demandé.</p>
+<div class="doc-details"><p>Tant que l&#39;emprunt est vivant, le tableau ne peut pas être consulté,<br>
+redimensionné, déplacé ou détruit. Cette opération ne requiert pas<br>
+`Copy` et déclenche `panic` si l&#39;indice est hors limites.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position de l&#39;élément, à partir de zéro.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Emprunt mutable sur la valeur stockée.</p></section>
+<div class="qualified">std.array.Array.getMutable</div></div><a class="permalink" href="#std-array-array-getmutable" aria-label="Permanent link to std.array.Array.getMutable">#</a></article>
 <article class="symbol-card kind-method child" id="std-array-array-getoption" data-symbol data-search="std.array.Array.getOption method borrow def getOption(index : usize) : Option[T] Retourne l’élément demandé, ou `None` si l’index est hors limites.
 @param index Position recherchée, à partir de zéro.
 @return `Some` avec une copie de l’élément, ou `None` si `index &gt;= size()`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def getOption(index : usize) : Option[T]</code></h3>
@@ -6241,7 +6255,7 @@ invalideraient son emprunt.">
 accès exclusif et autorise le remplacement des éléments. Une vue n&#39;alloue ni<br>
 ne copie le stockage observé. Elle doit être détruite avant son tableau<br>
 source; tant qu&#39;elle est vivante, l&#39;analyseur interdit les opérations qui<br>
-invalideraient son emprunt.</p></div></div><h3 class="member-heading">Public members <span class="member-count">15</span></h3>
+invalideraient son emprunt.</p></div></div><h3 class="member-heading">Public members <span class="member-count">16</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-slice-mutableslice" data-symbol data-search="std.slice.MutableSlice class class MutableSlice[T](borrow var source : Array[T], val start : usize, val count : usize) Vue mutable, exclusive et bornée sur une portion contiguë d&#39;un [[Array]].
 
@@ -6269,6 +6283,13 @@ modifié directement et aucune autre vue concurrente ne peut l&#39;emprunter.</p
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative à partir de zéro.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Vue partagée liée à la durée de vie de cette tranche.</p></section>
 <div class="qualified">std.slice.MutableSlice.getBorrowed</div></div><a class="permalink" href="#std-slice-mutableslice-getborrowed" aria-label="Permanent link to std.slice.MutableSlice.getBorrowed">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-mutableslice-getmutable" data-symbol data-search="std.slice.MutableSlice.getMutable method def getMutable(index : usize) : borrow var T Emprunte exclusivement l&#39;élément à l&#39;indice relatif demandé.
+@param index Position relative à partir de zéro.
+@return Emprunt mutable lié à la durée de vie de cette tranche."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.MutableSlice</div><h3><code>def getMutable(index : usize) : borrow var T</code></h3>
+<p class="doc-summary">Emprunte exclusivement l&#39;élément à l&#39;indice relatif demandé.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative à partir de zéro.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Emprunt mutable lié à la durée de vie de cette tranche.</p></section>
+<div class="qualified">std.slice.MutableSlice.getMutable</div></div><a class="permalink" href="#std-slice-mutableslice-getmutable" aria-label="Permanent link to std.slice.MutableSlice.getMutable">#</a></article>
 <article class="symbol-card kind-method child" id="std-slice-mutableslice-getoption" data-symbol data-search="std.slice.MutableSlice.getOption method borrow def getOption(index : usize) : Option[T] Retourne l&#39;élément demandé, ou `None` si l&#39;indice est hors limites.
 @param index Position relative recherchée.
 @return `Some` avec une copie, ou `None` si l&#39;indice est invalide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.MutableSlice</div><h3><code>borrow def getOption(index : usize) : Option[T]</code></h3>

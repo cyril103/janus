@@ -173,6 +173,16 @@ private val count : usize
         return source.getBorrowed(start + index)
     }
 
+    /// Emprunte exclusivement l'élément à l'indice relatif demandé.
+    /// @param index Position relative à partir de zéro.
+    /// @return Emprunt mutable lié à la durée de vie de cette tranche.
+    def getMutable(index : usize) : borrow var T {
+        if index >= checkedCount {
+            panic("MutableSlice index out of bounds\n")
+        }
+        return source.getMutable(start + index)
+    }
+
     /// Retourne l'élément demandé, ou `None` si l'indice est hors limites.
     /// @param index Position relative recherchée.
     /// @return `Some` avec une copie, ou `None` si l'indice est invalide.

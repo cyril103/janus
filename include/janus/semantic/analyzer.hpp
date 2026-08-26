@@ -80,6 +80,8 @@ struct AnalysisResult {
   std::vector<std::shared_ptr<Type>> constant_value_types;
   std::unordered_map<const ast::Expression *, std::vector<SemanticType>>
       inferred_generic_arguments;
+  std::unordered_map<const ast::Expression *, ast::ReturnOwnership>
+      call_return_ownership;
   std::vector<Diagnostic> diagnostics;
 };
 

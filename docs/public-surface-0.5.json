@@ -16,8 +16,8 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "6fa6fac9a2fe8c73a3ca361cbb8654f6948d1b05134e7a3c83ed719f48e26c30",
-      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getBorrowed", "Array.getOption", "Array.set", "Array.replace", "Array.swap", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.withValue", "Array.withMutable", "Array.withValues", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "filledArray", "generateArray"]
+      "signature_digest": "9aee8371d09864e8e781d5b7877412012de914a7dc6356803c2704d9c37a7d6f",
+      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getBorrowed", "Array.getMutable", "Array.getOption", "Array.set", "Array.replace", "Array.swap", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.withValue", "Array.withMutable", "Array.withValues", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "filledArray", "generateArray"]
     },
     {
       "name": "std.array_builder",
@@ -225,8 +225,8 @@
       "source": "stdlib/std/slice.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/stability-contract.md"],
       "status": "experimental",
-      "signature_digest": "a2b6752623432f1bea90c1db7b9644077a63005a6dd6fbc54701933af6de433b",
-      "symbols": ["Slice", "Slice.size", "Slice.isEmpty", "Slice.get", "Slice.getBorrowed", "Slice.getOption", "Slice.iterator", "MutableSlice", "MutableSlice.size", "MutableSlice.isEmpty", "MutableSlice.get", "MutableSlice.getBorrowed", "MutableSlice.getOption", "MutableSlice.set", "MutableSlice.iterator"]
+      "signature_digest": "2ca277a90c8e5f8acb8d10dbea13e85dbda54cb17b439806ccbfe815f5d507da",
+      "symbols": ["Slice", "Slice.size", "Slice.isEmpty", "Slice.get", "Slice.getBorrowed", "Slice.getOption", "Slice.iterator", "MutableSlice", "MutableSlice.size", "MutableSlice.isEmpty", "MutableSlice.get", "MutableSlice.getBorrowed", "MutableSlice.getMutable", "MutableSlice.getOption", "MutableSlice.set", "MutableSlice.iterator"]
     },
     {
       "name": "std.system",

@@ -475,7 +475,11 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
   ast::ReturnOwnership return_ownership = ast::ReturnOwnership::Unspecified;
   if (current_.kind == TokenKind::Borrow) {
     advance();
-    return_ownership = ast::ReturnOwnership::Borrow;
+    return_ownership = current_.kind == TokenKind::Var
+                           ? ast::ReturnOwnership::BorrowMutable
+                           : ast::ReturnOwnership::Borrow;
+    if (current_.kind == TokenKind::Var)
+      advance();
   }
   ast::TypeReference return_type = parse_type();
   if (current_.kind == TokenKind::Identifier && current_.lexeme == "where") {
@@ -1037,6 +1041,15 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
                            ? ast::ReturnOwnership::Borrow
                            : ast::ReturnOwnership::Owned;
     advance();
+    if (return_ownership == ast::ReturnOwnership::Borrow &&
+        current_.kind == TokenKind::Var) {
+      if (is_external)
+        throw CompileError{
+            current_.location,
+            "mutable borrow returns are not supported on external functions"};
+      return_ownership = ast::ReturnOwnership::BorrowMutable;
+      advance();
+    }
   }
   ast::TypeReference return_type = parse_type();
   if (current_.kind == TokenKind::Identifier && current_.lexeme == "where") {
@@ -1803,7 +1816,11 @@ ast::TypeReference Parser::parse_type() {
         ast::ReturnOwnership::Unspecified;
     if (current_.kind == TokenKind::Borrow) {
       advance();
-      return_ownership = ast::ReturnOwnership::Borrow;
+      return_ownership = current_.kind == TokenKind::Var
+                             ? ast::ReturnOwnership::BorrowMutable
+                             : ast::ReturnOwnership::Borrow;
+      if (current_.kind == TokenKind::Var)
+        advance();
     }
     arguments.push_back(parse_type());
     ast::TypeReference result{"Function", left_parenthesis.location,

@@ -22,6 +22,11 @@ constexpr std::size_t enum_arity_marker =
 constexpr std::size_t ambiguous_arity_marker =
     std::numeric_limits<std::size_t>::max();
 
+bool is_borrowed_return(janus::ast::ReturnOwnership ownership) {
+  return ownership == janus::ast::ReturnOwnership::Borrow ||
+         ownership == janus::ast::ReturnOwnership::BorrowMutable;
+}
+
 const janus::Type *builtin_type(std::string_view name) {
   if (name == "int")
     return &janus::Type::int_type();
@@ -512,6 +517,9 @@ std::string SemanticType::name() const {
     result += ") => ";
     if (function_return_ownership == ast::ReturnOwnership::Borrow)
       result += "borrow ";
+    else if (function_return_ownership ==
+             ast::ReturnOwnership::BorrowMutable)
+      result += "borrow var ";
     result += type_arguments.back().name();
     return result;
   }
@@ -2636,21 +2644,45 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           context.function->return_type.location,
           "borrow and owned external returns require a Ptr[T] type"};
     if (!is_destructor && !context.function->is_external &&
-        context.function->return_ownership == ast::ReturnOwnership::Borrow) {
+        is_borrowed_return(context.function->return_ownership)) {
       const std::size_t borrowed_parameters = std::count_if(
           parameters.begin(), parameters.end(), [](const auto &parameter) {
             return parameter.ownership == ast::ParameterOwnership::Borrow ||
                    parameter.ownership ==
                        ast::ParameterOwnership::BorrowMutable;
           });
-      if (owner != nullptr && !context.function->is_borrowing)
+      if (owner != nullptr &&
+          context.function->return_ownership == ast::ReturnOwnership::Borrow &&
+          !context.function->is_borrowing)
         throw CompileError{
             context.function->return_type.location,
             "a method returning a borrow must be declared 'borrow def'"};
+      if (owner != nullptr &&
+          context.function->return_ownership ==
+              ast::ReturnOwnership::BorrowMutable &&
+          context.function->is_borrowing)
+        throw CompileError{
+            DiagnosticCode::AnalyzerInvalidBorrowSource,
+            context.function->return_type.location,
+            "a method returning a mutable borrow cannot be declared 'borrow "
+            "def'"};
       if (owner == nullptr && borrowed_parameters != 1)
         throw CompileError{
             context.function->return_type.location,
             "a function returning a borrow requires exactly one borrowed "
+            "parameter as its lifetime source"};
+      if (owner == nullptr &&
+          context.function->return_ownership ==
+              ast::ReturnOwnership::BorrowMutable &&
+          std::none_of(parameters.begin(), parameters.end(),
+                       [](const auto &parameter) {
+                         return parameter.ownership ==
+                                ast::ParameterOwnership::BorrowMutable;
+                       }))
+        throw CompileError{
+            DiagnosticCode::AnalyzerInvalidBorrowSource,
+            context.function->return_type.location,
+            "a function returning a mutable borrow requires one 'borrow var' "
             "parameter as its lifetime source"};
     }
     if (!is_destructor && context.function->is_external) {
@@ -3218,14 +3250,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           const auto callee =
               find_in_context(functions, context_module, call->callee);
           return callee != functions.end() && callee->second->is_external &&
-                 callee->second->return_ownership ==
-                     ast::ReturnOwnership::Borrow;
+                 is_borrowed_return(callee->second->return_ownership);
         };
     const auto borrowed_return_source =
         [&](const ast::Expression &expression) -> std::optional<std::string> {
       const auto resolved = resolved_calls.find(&expression);
       if (resolved == resolved_calls.end() ||
-          resolved->second->return_ownership != ast::ReturnOwnership::Borrow)
+          !is_borrowed_return(resolved->second->return_ownership))
         return std::nullopt;
       if (const auto *method =
               std::get_if<ast::MethodCallExpression>(&expression.value)) {
@@ -3252,6 +3283,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
       return std::nullopt;
     };
+    const auto borrowed_return_ownership =
+        [&](const ast::Expression &expression) {
+          const auto resolved = resolved_calls.find(&expression);
+          return resolved == resolved_calls.end()
+                     ? ast::ReturnOwnership::Unspecified
+                     : resolved->second->return_ownership;
+        };
     const auto apply_external_ownership_contract =
         [&](const ast::FunctionDeclaration &callee,
             const ast::FunctionDeclaration::Parameter &parameter,
@@ -3712,8 +3750,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           const bool previous_contextual_borrow_expression =
               contextual_borrow_expression;
           const bool borrowed_return =
-              !is_destructor && context.function->return_ownership ==
-                                    ast::ReturnOwnership::Borrow;
+              !is_destructor &&
+              is_borrowed_return(context.function->return_ownership);
           contextual_borrow_expression =
               contextual_borrow_expression || borrowed_return;
           SemanticType actual;
@@ -6676,6 +6714,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 DiagnosticCode::AnalyzerBorrowEscape,
                 declaration->location,
                 "borrowed call result must be bound with 'borrow val'"};
+          if (returned_borrow_source.has_value() && declaration->is_borrowed &&
+              declaration->is_mutable &&
+              borrowed_return_ownership(*declaration->initializer) !=
+                  ast::ReturnOwnership::BorrowMutable)
+            throw CompileError{
+                DiagnosticCode::AnalyzerInvalidBorrowSource,
+                declaration->location,
+                "mutable borrowed local requires a 'borrow var' return"};
           if (declaration->is_borrowed &&
               !declared_type.is_pointer() &&
               declaration->initializer.has_value() &&
@@ -6749,9 +6795,33 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (declaration->initializer.has_value()) {
             const ast::Expression &initializer = *declaration->initializer;
             if (declaration->is_borrowed &&
-                returned_borrow_source.has_value())
+                returned_borrow_source.has_value()) {
+              if (declaration->is_mutable) {
+                if (shared_borrow_values.contains(*returned_borrow_source))
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerBorrowConflict,
+                      declaration->location,
+                      "shared borrow '" + *returned_borrow_source +
+                          "' cannot be borrowed mutably"};
+                if (const auto borrower =
+                        live_borrower_of(*returned_borrow_source, true))
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerBorrowConflict,
+                      declaration->location,
+                      "value '" + *returned_borrow_source +
+                          "' is already borrowed by '" + *borrower + "'"};
+              } else if (const auto borrower =
+                             live_borrower_of(*returned_borrow_source, false)) {
+                throw CompileError{
+                    DiagnosticCode::AnalyzerBorrowConflict,
+                    declaration->location,
+                    "value '" + *returned_borrow_source +
+                        "' is already mutably borrowed by '" + *borrower +
+                        "'"};
+              }
               borrow_sources[declaration->name].insert(
                   *returned_borrow_source);
+            }
             if (declaration->is_borrowed)
               if (const auto *source = std::get_if<ast::IdentifierExpression>(
                       &initializer.value)) {
@@ -7404,8 +7474,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    statement_return_type.name() + "'"};
           const bool borrowed_return =
               active_lambda_return_type == nullptr && !is_destructor &&
-              context.function->return_ownership ==
-                  ast::ReturnOwnership::Borrow;
+              is_borrowed_return(context.function->return_ownership);
           if (borrowed_return && std::holds_alternative<ast::MoveExpression>(
                                      return_statement.expression->value))
             throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowSource,
@@ -7414,13 +7483,29 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (borrowed_return) {
             const ast::IdentifierExpression *source = lexical_root_identifier(
                 *return_statement.expression, lexical_root_identifier);
+            const bool owner_mutable_source =
+                context.function->return_ownership ==
+                    ast::ReturnOwnership::BorrowMutable &&
+                owner != nullptr && source != nullptr &&
+                (source->name == "this" ||
+                 owner_field_names.contains(source->name));
             if (source == nullptr ||
-                !borrowed_values.contains(source->name))
+                (!borrowed_values.contains(source->name) &&
+                 !owner_mutable_source))
               throw CompileError{
                   DiagnosticCode::AnalyzerBorrowEscape,
                   return_statement.location,
                   "borrowed return must originate from 'this' or from the "
                   "function's borrowed parameter"};
+            if (context.function->return_ownership ==
+                    ast::ReturnOwnership::BorrowMutable &&
+                !owner_mutable_source &&
+                !mutable_borrow_values.contains(source->name))
+              throw CompileError{
+                  DiagnosticCode::AnalyzerInvalidBorrowSource,
+                  return_statement.location,
+                  "mutable borrowed return must originate from 'this' or "
+                  "from a 'borrow var' parameter"};
           }
           if (!borrowed_return)
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
@@ -7640,6 +7725,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
   validate_tailrec_contract(program, class_arities, scoped_type_aliases,
                             resolved_calls);
+  for (const auto &[expression, function] : resolved_calls)
+    result.call_return_ownership.insert_or_assign(expression,
+                                                  function->return_ownership);
   return result;
 }
 
