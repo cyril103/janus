@@ -171,6 +171,24 @@ def main() : int {
 }
 ```
 
+### `std.error`
+
+`AccessError` et `CapacityError` forment le vocabulaire partagé des variantes
+non paniquantes de collections et de tampons.
+
+```janus
+// doctest: doctest name=stdlib-std-error
+import std.array
+import std.error
+import std.result
+def main() : int {
+    val values : Array[int] = new Array[int](usize(0))
+    val empty : bool = isError[int, AccessError](values.tryPop())
+    delete values
+    return if empty { 0 } else { 1 }
+}
+```
+
 ### `std.priority_queue`
 
 La file utilise un tas binaire stocké dans un `Array`. Le comparateur place

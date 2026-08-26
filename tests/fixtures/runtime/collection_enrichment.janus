@@ -5,6 +5,10 @@ import std.hashmap
 import std.hashset
 import std.ordering
 import std.option
+import std.error
+import std.io
+import std.priority_queue
+import std.result
 
 var releases : int = 0
 
@@ -90,6 +94,39 @@ def main() : int {
         drained = drained + 1
     }
     println(drained)
+
+    val empty : Array[int] = new Array[int](usize(0))
+    println(std.result.isError[int, AccessError](empty.tryPop()))
+    println(std.result.isOk[bool, CapacityError](
+    empty.tryReserve(usize(8))
+    ))
+    delete empty
+
+    val emptyDeque : Deque[int] = new Deque[int](usize(1))
+    println(std.result.isError[int, AccessError](
+    emptyDeque.tryPopFront()
+    ))
+    delete emptyDeque
+
+    val emptyQueue : Queue[int] = new Queue[int](usize(1))
+    println(std.result.isError[int, AccessError](
+    emptyQueue.tryDequeue()
+    ))
+    delete emptyQueue
+
+    val priority : PriorityQueue[int] = new PriorityQueue[int](
+    usize(1),
+    (borrow left : int, borrow right : int) => left < right
+    )
+    println(std.result.isError[int, AccessError](priority.tryDequeue()))
+    delete priority
+
+    val buffer : ByteBuffer = new ByteBuffer(usize(0))
+    println(std.result.isOk[bool, CapacityError](
+    buffer.tryReserve(usize(16))
+    ))
+    delete buffer
+
     delete hashing
     delete ordering
     return 0

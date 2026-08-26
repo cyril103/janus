@@ -1,0 +1,18 @@
+/// Définit les erreurs portables partagées par les API fondamentales de la stdlib.
+module std.error
+
+/// Décrit l'échec d'une réservation ou d'une croissance de stockage.
+enum CapacityError derives Copy, Equality, Debug {
+    /// La taille demandée dépasse l'espace adressable ou la taille d'un élément.
+    CapacityOverflow,
+    /// L'allocateur n'a pas pu fournir le stockage demandé.
+    AllocationFailed
+}
+
+/// Décrit l'échec d'un accès à une collection.
+enum AccessError derives Copy, Equality, Debug {
+    /// L'indice demandé n'appartient pas à la collection.
+    OutOfBounds,
+    /// L'opération exigeait au moins un élément.
+    Empty
+}

@@ -15,6 +15,8 @@ module std.array
 import std.option
 import std.iterator
 import std.ordering
+import std.error
+import std.result
 
 private class ArrayIteratorState[T <: Copy](
 private borrow val source : Array[T],
@@ -335,6 +337,15 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
         return Option.Some[T](move value)
     }
 
+    /// Retire le dernier élément avec une erreur commune si le tableau est vide.
+    /// @return `Ok` avec la valeur possédée, ou `Error(AccessError.Empty)`.
+    def tryPop() : Result[T, AccessError] {
+        if length == usize(0) {
+            return Result.Error[T, AccessError](AccessError.Empty)
+        }
+        return Result.Ok[T, AccessError](this.pop())
+    }
+
     /// Retire et retourne l’élément situé à l’index demandé.
     ///
     /// Les éléments suivants sont décalés d’une case, soit un coût linéaire dans
@@ -368,6 +379,33 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
         if requested > allocated {
             this.resize(requested)
         }
+    }
+
+    /// Tente de réserver une capacité sans déclencher de panique d'allocation.
+    /// @param requested Capacité minimale souhaitée.
+    /// @return `Ok(true)` après croissance, `Ok(false)` si elle était suffisante, ou une [[CapacityError]].
+    def tryReserve(requested : usize) : Result[bool, CapacityError] {
+        if requested > usize(-1) / sizeof[T]() {
+            return Result.Error[bool, CapacityError](
+            CapacityError.CapacityOverflow
+            )
+        }
+        if data == null[T]() {
+            if !this.tryResize(allocated) {
+                return Result.Error[bool, CapacityError](
+                CapacityError.AllocationFailed
+                )
+            }
+        }
+        if requested <= allocated {
+            return Result.Ok[bool, CapacityError](false)
+        }
+        if !this.tryResize(requested) {
+            return Result.Error[bool, CapacityError](
+            CapacityError.AllocationFailed
+            )
+        }
+        return Result.Ok[bool, CapacityError](true)
     }
 
     /// Détruit tous les éléments sans libérer la capacité réservée.

@@ -16,6 +16,7 @@ module std.io
 import std.option
 import std.result
 import std.system
+import std.error
 
 private extern def janus_io_open(
 borrow path : Ptr[byte],
@@ -111,9 +112,10 @@ class ByteBuffer(initialCapacity : usize) {
         while next < required {
             val grown : usize = next * usize(2)
             if grown <= next {
-                return false
+                next = required
+            } else {
+                next = grown
             }
-            next = grown
         }
         val resized : Ptr[byte] =
         reallocPreserving[byte](nativeData, next)
@@ -153,6 +155,24 @@ class ByteBuffer(initialCapacity : usize) {
     /// Vide le contenu sans libérer la capacité réservée.
     def clear() : Unit {
         nativeSize = usize(0)
+    }
+
+    /// Tente de réserver une capacité sans modifier la taille logique.
+    /// @param requested Capacité minimale souhaitée.
+    /// @return `Ok(true)` après croissance, `Ok(false)` si elle était suffisante, ou une [[CapacityError]].
+    def tryReserve(requested : usize) : Result[bool, CapacityError] {
+        if requested <= allocated && nativeData != null[byte]() {
+            return Result.Ok[bool, CapacityError](false)
+        }
+        if requested < nativeSize {
+            return Result.Ok[bool, CapacityError](false)
+        }
+        if !this.ensure(requested - nativeSize) {
+            return Result.Error[bool, CapacityError](
+            CapacityError.AllocationFailed
+            )
+        }
+        return Result.Ok[bool, CapacityError](true)
     }
 
     /// Copie une zone d’octets à la fin du tampon.

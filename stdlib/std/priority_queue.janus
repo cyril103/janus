@@ -16,6 +16,8 @@
 module std.priority_queue
 import std.array
 import std.option
+import std.error
+import std.result
 
 /// File de priorité stable possédant ses valeurs et son comparateur.
 ///
@@ -196,6 +198,15 @@ private val less : (borrow T, borrow T) => bool
             return Option.None[T]()
         }
         return Option.Some[T](this.takeFirst())
+    }
+
+    /// Retire la prochaine valeur avec une erreur commune si la file est vide.
+    /// @return `Ok` avec la valeur possédée, ou `Error(AccessError.Empty)`.
+    def tryDequeue() : Result[T, AccessError] {
+        if values.isEmpty() {
+            return Result.Error[T, AccessError](AccessError.Empty)
+        }
+        return Result.Ok[T, AccessError](this.takeFirst())
     }
 
     /// Détruit toutes les valeurs et conserve la capacité réservée.

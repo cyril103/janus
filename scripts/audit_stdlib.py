@@ -38,6 +38,7 @@ OWNER_MODULES = {
         "std.array_builder",
         "std.builder",
         "std.deque",
+        "std.error",
         "std.iterator",
         "std.option",
         "std.ordering",

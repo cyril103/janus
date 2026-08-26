@@ -7,6 +7,8 @@ module std.deque
 import std.array
 import std.iterator
 import std.option
+import std.error
+import std.result
 
 private def normalizedDequeCapacity(requested : usize) : usize {
     return if requested == usize(0) { usize(1) } else { requested }
@@ -191,6 +193,24 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
         return move result
     }
 
+    /// Retire l'élément avant avec une erreur commune si la deque est vide.
+    /// @return `Ok` avec la valeur possédée, ou `Error(AccessError.Empty)`.
+    def tryPopFront() : Result[T, AccessError] {
+        if length == usize(0) {
+            return Result.Error[T, AccessError](AccessError.Empty)
+        }
+        return Result.Ok[T, AccessError](this.popFront())
+    }
+
+    /// Retire l'élément arrière avec une erreur commune si la deque est vide.
+    /// @return `Ok` avec la valeur possédée, ou `Error(AccessError.Empty)`.
+    def tryPopBack() : Result[T, AccessError] {
+        if length == usize(0) {
+            return Result.Error[T, AccessError](AccessError.Empty)
+        }
+        return Result.Ok[T, AccessError](this.popBack())
+    }
+
     /// Retire l'élément avant ou déclenche `panic` si la deque est vide.
     /// @return Première valeur possédée.
     def popFront() : T {
@@ -338,6 +358,12 @@ class Queue[T](initialCapacity : usize) extends IntoIterable[T] {
     /// Retire la première valeur si elle existe.
     /// @return Première valeur dans `Some`, ou `None` si la file est vide.
     def dequeueOption() : Option[T] { return values.popFrontOption() }
+
+    /// Retire la première valeur avec une erreur commune si la file est vide.
+    /// @return `Ok` avec la valeur possédée, ou `Error(AccessError.Empty)`.
+    def tryDequeue() : Result[T, AccessError] {
+        return values.tryPopFront()
+    }
 
     /// Observe la première valeur sans la copier.
     /// @param action Callback borné appelé lorsque la file est non vide.

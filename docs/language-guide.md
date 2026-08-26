@@ -571,6 +571,13 @@ ensuite inutilisable. Une propagation d'erreur exécute les nettoyages actifs
 avant de transférer l'erreur à l'appelant. Les conversions `toOption` et
 `fromOption` transfèrent uniquement la variante active.
 
+Le module `std.error` fournit deux erreurs communes aux couches basses de la
+stdlib. `AccessError.Empty` signale les retraits impossibles et
+`AccessError.OutOfBounds` les indices invalides; `CapacityError` distingue un
+dépassement de capacité d'un échec d'allocation. Les variantes `tryPop`,
+`tryDequeue` et `tryReserve` retournent ces erreurs dans `Result`, tandis que les
+anciennes formes paniquantes ou en `Option` restent disponibles.
+
 ## Classes, traits et visibilité
 
 Les paramètres `val` et `var` du constructeur deviennent des champs :
