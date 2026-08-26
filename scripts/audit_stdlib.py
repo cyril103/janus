@@ -39,6 +39,7 @@ OWNER_MODULES = {
         "std.builder",
         "std.iterator",
         "std.option",
+        "std.priority_queue",
         "std.range",
         "std.result",
     },

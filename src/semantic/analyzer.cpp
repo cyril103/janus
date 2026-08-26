@@ -121,8 +121,18 @@ janus::semantic::SemanticType resolve_type(
             reference.location,
             "Unit cannot be used as a function parameter type"};
     }
+    std::vector<janus::ast::ParameterOwnership> ownerships =
+        reference.function_parameter_ownership;
+    if (ownerships.empty())
+      ownerships.resize(signature.size() - 1,
+                        janus::ast::ParameterOwnership::Unspecified);
+    if (ownerships.size() + 1 != signature.size())
+      throw janus::CompileError{
+          reference.location,
+          "function parameter ownership count does not match its signature"};
     return janus::semantic::SemanticType{
-        nullptr, "Function", false, std::move(signature), false, false, true};
+        nullptr, "Function", false, std::move(signature), false, false, true,
+        std::move(ownerships), reference.function_return_ownership};
   }
   if (type_parameters.contains(reference.name)) {
     if (!reference.type_arguments.empty())
@@ -225,6 +235,9 @@ bool same_type(const janus::semantic::SemanticType &left,
                       right.type_arguments.begin(), same_type);
   if (left.is_function() || right.is_function())
     return left.is_function() && right.is_function() &&
+           left.function_parameter_ownership ==
+               right.function_parameter_ownership &&
+           left.function_return_ownership == right.function_return_ownership &&
            left.type_arguments.size() == right.type_arguments.size() &&
            std::equal(left.type_arguments.begin(), left.type_arguments.end(),
                       right.type_arguments.begin(), same_type);
@@ -486,9 +499,19 @@ std::string SemanticType::name() const {
     for (std::size_t index = 0; index + 1 < type_arguments.size(); ++index) {
       if (index != 0)
         result += ", ";
+      if (index < function_parameter_ownership.size() &&
+          function_parameter_ownership[index] ==
+              ast::ParameterOwnership::Borrow)
+        result += "borrow ";
+      else if (index < function_parameter_ownership.size() &&
+               function_parameter_ownership[index] ==
+                   ast::ParameterOwnership::BorrowMutable)
+        result += "borrow var ";
       result += type_arguments[index].name();
     }
     result += ") => ";
+    if (function_return_ownership == ast::ReturnOwnership::Borrow)
+      result += "borrow ";
     result += type_arguments.back().name();
     return result;
   }
@@ -2590,20 +2613,36 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
     }
     if (!is_destructor &&
-        context.function->return_ownership !=
-            ast::ReturnOwnership::Unspecified &&
+        context.function->return_ownership == ast::ReturnOwnership::Owned &&
         !context.function->is_external)
       throw CompileError{
           context.function->return_type.location,
-          "borrow and owned return qualifiers are only supported on external "
-          "functions"};
+          "owned return qualifiers are only supported on external functions"};
     if (!is_destructor &&
         context.function->return_ownership !=
             ast::ReturnOwnership::Unspecified &&
-        !return_type.is_pointer())
+        context.function->is_external && !return_type.is_pointer())
       throw CompileError{
           context.function->return_type.location,
           "borrow and owned external returns require a Ptr[T] type"};
+    if (!is_destructor && !context.function->is_external &&
+        context.function->return_ownership == ast::ReturnOwnership::Borrow) {
+      const std::size_t borrowed_parameters = std::count_if(
+          parameters.begin(), parameters.end(), [](const auto &parameter) {
+            return parameter.ownership == ast::ParameterOwnership::Borrow ||
+                   parameter.ownership ==
+                       ast::ParameterOwnership::BorrowMutable;
+          });
+      if (owner != nullptr && !context.function->is_borrowing)
+        throw CompileError{
+            context.function->return_type.location,
+            "a method returning a borrow must be declared 'borrow def'"};
+      if (owner == nullptr && borrowed_parameters != 1)
+        throw CompileError{
+            context.function->return_type.location,
+            "a function returning a borrow requires exactly one borrowed "
+            "parameter as its lifetime source"};
+    }
     if (!is_destructor && context.function->is_external) {
       if (!is_c_abi_type(return_type, true))
         throw CompileError{context.function->return_type.location,
@@ -2945,6 +2984,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       if (const auto *member =
               std::get_if<ast::MemberAccessExpression>(&expression.value))
         return self(*member->object, self);
+      if (const auto *call =
+              std::get_if<ast::MethodCallExpression>(&expression.value))
+        return self(*call->object, self);
       return nullptr;
     };
     const auto require_guard_transfer_allowed =
@@ -3229,6 +3271,37 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                  callee->second->return_ownership ==
                      ast::ReturnOwnership::Borrow;
         };
+    const auto borrowed_return_source =
+        [&](const ast::Expression &expression) -> std::optional<std::string> {
+      const auto resolved = resolved_calls.find(&expression);
+      if (resolved == resolved_calls.end() ||
+          resolved->second->return_ownership != ast::ReturnOwnership::Borrow)
+        return std::nullopt;
+      if (const auto *method =
+              std::get_if<ast::MethodCallExpression>(&expression.value)) {
+        const ast::IdentifierExpression *root = lexical_root_identifier(
+            *method->object, lexical_root_identifier);
+        if (root != nullptr)
+          return root->name;
+        return std::nullopt;
+      }
+      const auto *call = std::get_if<ast::CallExpression>(&expression.value);
+      if (call == nullptr)
+        return std::nullopt;
+      for (std::size_t index = 0;
+           index < resolved->second->parameters.size(); ++index) {
+        const ast::ParameterOwnership ownership =
+            resolved->second->parameters[index].ownership;
+        if (ownership != ast::ParameterOwnership::Borrow &&
+            ownership != ast::ParameterOwnership::BorrowMutable)
+          continue;
+        const ast::IdentifierExpression *root = lexical_root_identifier(
+            *call->arguments[index], lexical_root_identifier);
+        if (root != nullptr)
+          return root->name;
+      }
+      return std::nullopt;
+    };
     const auto apply_external_ownership_contract =
         [&](const ast::FunctionDeclaration &callee,
             const ast::FunctionDeclaration::Parameter &parameter,
@@ -3381,6 +3454,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               pattern.pointer_type == candidate.pointer_type &&
               pattern.enum_type == candidate.enum_type &&
               pattern.function_type == candidate.function_type &&
+              pattern.function_parameter_ownership ==
+                  candidate.function_parameter_ownership &&
+              pattern.function_return_ownership ==
+                  candidate.function_return_ownership &&
               pattern.type_arguments.size() == candidate.type_arguments.size();
           if (!same_outer_type)
             return;
@@ -3631,6 +3708,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       if (same_type(actual, expected)) {
         if (contextual_borrow_expression && !actual.is_pointer() &&
             aggregate_owns_value(actual) &&
+            !borrowed_return_source(expression).has_value() &&
+            !std::holds_alternative<ast::CallExpression>(expression.value) &&
+            !std::holds_alternative<ast::MethodCallExpression>(
+                expression.value) &&
+            !std::holds_alternative<ast::LambdaExpression>(expression.value) &&
             !std::holds_alternative<ast::IdentifierExpression>(
                 expression.value))
           throw CompileError{
@@ -3670,6 +3752,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         return;
       }
 
+      if (actual.is_function() && expected.is_function())
+        throw CompileError{
+            DiagnosticCode::AnalyzerInvalidBorrowAccess, location,
+            "cannot use expression of type '" + actual.name() +
+                "' where type '" + expected.name() + "' is required"};
       throw CompileError{location, "cannot use expression of type '" +
                                        actual.name() + "' where type '" +
                                        expected.name() + "' is required"};
@@ -3698,6 +3785,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               contextual_expected_type;
           contextual_expression = &expression;
           contextual_expected_type = &expected_return_type;
+          const bool previous_contextual_borrow_expression =
+              contextual_borrow_expression;
+          const bool borrowed_return =
+              !is_destructor && context.function->return_ownership ==
+                                    ast::ReturnOwnership::Borrow;
+          contextual_borrow_expression =
+              contextual_borrow_expression || borrowed_return;
           SemanticType actual;
           if (precomputed_actual.has_value()) {
             actual = *precomputed_actual;
@@ -3707,13 +3801,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             } catch (...) {
               contextual_expression = previous_contextual_expression;
               contextual_expected_type = previous_contextual_expected_type;
+              contextual_borrow_expression =
+                  previous_contextual_borrow_expression;
               throw;
             }
           }
           contextual_expression = previous_contextual_expression;
           contextual_expected_type = previous_contextual_expected_type;
+          contextual_borrow_expression = previous_contextual_borrow_expression;
           if (same_type(actual, expected_return_type)) {
-            if ((actual.is_enum() ||
+            if (!borrowed_return &&
+                (actual.is_enum() ||
                  (actual.is_class() &&
                   classes.at(actual.parameter)->is_value_type)) &&
                 aggregate_owns_value(actual)) {
@@ -3850,6 +3948,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               SymbolTable lambda_symbols = *active_symbols;
               std::unordered_set<std::string> parameter_names;
               const auto previous_borrowed_values = borrowed_values;
+              const auto previous_shared_borrow_values = shared_borrow_values;
+              const auto previous_mutable_borrow_values = mutable_borrow_values;
               const auto previous_transfer_protected =
                   transfer_protected_values;
               const auto previous_closure_transfer_protected =
@@ -3871,10 +3971,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 closure_transfer_protected_values =
                     previous_closure_transfer_protected;
                 borrowed_values = previous_borrowed_values;
+                shared_borrow_values = previous_shared_borrow_values;
+                mutable_borrow_values = previous_mutable_borrow_values;
                 loop_depth = previous_loop_depth;
               };
               std::vector<SemanticType> signature;
+              std::vector<ast::ParameterOwnership> lambda_ownerships;
               signature.reserve(node.parameters.size() + 1);
+              lambda_ownerships.reserve(node.parameters.size());
               try {
                 for (const ast::LambdaExpression::Parameter &parameter :
                      node.parameters) {
@@ -3892,13 +3996,40 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     throw CompileError{
                         parameter.location,
                         "Unit cannot be used as a lambda parameter type"};
+                  ast::ParameterOwnership effective_ownership =
+                      parameter.ownership;
+                  const std::size_t parameter_index = signature.size();
+                  if (effective_ownership ==
+                          ast::ParameterOwnership::Unspecified &&
+                      contextual_expected_type != nullptr &&
+                      contextual_expected_type->is_function() &&
+                      parameter_index < contextual_expected_type
+                                            ->function_parameter_ownership
+                                            .size())
+                    effective_ownership =
+                        contextual_expected_type
+                            ->function_parameter_ownership[parameter_index];
                   signature.push_back(parameter_type);
+                  lambda_ownerships.push_back(effective_ownership);
                   lambda_symbols.insert_or_assign(
-                      parameter.name, Symbol{parameter_type, false, true});
+                      parameter.name,
+                      Symbol{parameter_type,
+                             effective_ownership ==
+                                 ast::ParameterOwnership::BorrowMutable,
+                             true});
                   transfer_protected_values.insert(parameter.name);
                   closure_transfer_protected_values.insert(parameter.name);
-                  if (contextual_borrow_lambda_parameters) {
+                  if (contextual_borrow_lambda_parameters ||
+                      effective_ownership ==
+                          ast::ParameterOwnership::Borrow ||
+                      effective_ownership ==
+                          ast::ParameterOwnership::BorrowMutable) {
                     borrowed_values.insert(parameter.name);
+                    if (effective_ownership ==
+                        ast::ParameterOwnership::BorrowMutable)
+                      mutable_borrow_values.insert(parameter.name);
+                    else
+                      shared_borrow_values.insert(parameter.name);
                   }
                 }
                 active_symbols = &lambda_symbols;
@@ -3978,7 +4109,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                                     signature);
                 SemanticType lambda_type{
                     nullptr, "Function", false, std::move(signature),
-                    false,   false,      true};
+                    false,   false,      true,
+                    std::move(lambda_ownerships)};
                 restore_lambda_state();
                 return lambda_type;
               } catch (...) {
@@ -4017,12 +4149,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 for (std::size_t index = 0; index < parameter_count; ++index) {
                   const bool previous_contextual_lambda_may_escape =
                       contextual_lambda_may_escape;
+                  const bool previous_contextual_borrow_expression =
+                      contextual_borrow_expression;
                   contextual_lambda_may_escape = signature[index].is_function();
+                  contextual_borrow_expression =
+                      index < callable->type.function_parameter_ownership.size() &&
+                      (callable->type.function_parameter_ownership[index] ==
+                           ast::ParameterOwnership::Borrow ||
+                       callable->type.function_parameter_ownership[index] ==
+                           ast::ParameterOwnership::BorrowMutable);
                   validate_expression(
                       *node.arguments[index], signature[index],
                       expression_location(*node.arguments[index]));
                   contextual_lambda_may_escape =
                       previous_contextual_lambda_may_escape;
+                  contextual_borrow_expression =
+                      previous_contextual_borrow_expression;
                 }
                 return signature.back();
               }
@@ -4728,6 +4870,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       pattern.pointer_type == candidate.pointer_type &&
                       pattern.enum_type == candidate.enum_type &&
                       pattern.function_type == candidate.function_type &&
+                      pattern.function_parameter_ownership ==
+                          candidate.function_parameter_ownership &&
+                      pattern.function_return_ownership ==
+                          candidate.function_return_ownership &&
                       pattern.type_arguments.size() ==
                           candidate.type_arguments.size();
                   if (!same_outer_type)
@@ -5176,6 +5322,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         pattern.pointer_type == candidate.pointer_type &&
                         pattern.enum_type == candidate.enum_type &&
                         pattern.function_type == candidate.function_type &&
+                        pattern.function_parameter_ownership ==
+                            candidate.function_parameter_ownership &&
+                        pattern.function_return_ownership ==
+                            candidate.function_return_ownership &&
                         pattern.type_arguments.size() ==
                             candidate.type_arguments.size();
                     if (!same_outer_type)
@@ -5444,6 +5594,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "transferring an owned Array element requires an "
                     "explicit move"};
               if (class_declaration != nullptr &&
+                  class_declaration->name == "PriorityQueue" &&
+                  class_declaration->module_name ==
+                      std::optional<std::string>{"std.priority_queue"} &&
+                  node.method == "enqueue" &&
+                  potentially_owns_value(substitutions.at("T")) &&
+                  !node.arguments.empty() &&
+                  std::holds_alternative<ast::IdentifierExpression>(
+                      node.arguments.front()->value))
+                throw CompileError{
+                    expression_location(*node.arguments.front()),
+                    "transferring an owned PriorityQueue element requires "
+                    "an explicit move"};
+              if (class_declaration != nullptr &&
                   class_declaration->name == "HashSet" &&
                   class_declaration->module_name ==
                       std::optional<std::string>{"std.hashset"} &&
@@ -5509,6 +5672,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       pattern.pointer_type == candidate.pointer_type &&
                       pattern.enum_type == candidate.enum_type &&
                       pattern.function_type == candidate.function_type &&
+                      pattern.function_parameter_ownership ==
+                          candidate.function_parameter_ownership &&
+                      pattern.function_return_ownership ==
+                          candidate.function_return_ownership &&
                       pattern.type_arguments.size() ==
                           candidate.type_arguments.size();
                   if (!same_outer_type)
@@ -5717,8 +5884,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                      (class_declaration->name == "Array" &&
                       class_declaration->module_name ==
                           std::optional<std::string>{"std.array"} &&
-                      ((node.method == "withValue" && index == 1) ||
-                       (node.method == "foreach" && index == 0)) &&
+                      node.method == "foreach" && index == 0 &&
                       potentially_owns_value(substitutions.at("T"))));
                 const bool synchronous_callback =
                     class_declaration != nullptr &&
@@ -6632,8 +6798,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "' is already declared"};
           if (declaration->is_borrowed && !declared_type.is_pointer() &&
               (!declaration->initializer.has_value() ||
-               !std::holds_alternative<ast::IdentifierExpression>(
-                   declaration->initializer->value)))
+               (!std::holds_alternative<ast::IdentifierExpression>(
+                    declaration->initializer->value) &&
+                !std::holds_alternative<ast::CallExpression>(
+                    declaration->initializer->value) &&
+                !std::holds_alternative<ast::MethodCallExpression>(
+                    declaration->initializer->value))))
             throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowSource,
                                declaration->location,
                                "borrowing an owning value requires a local "
@@ -6667,6 +6837,27 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             contextual_borrow_expression =
                 previous_contextual_borrow_expression;
           }
+          std::optional<std::string> returned_borrow_source;
+          if (declaration->initializer.has_value())
+            returned_borrow_source =
+                borrowed_return_source(*declaration->initializer);
+          if (returned_borrow_source.has_value() &&
+              !declaration->is_borrowed)
+            throw CompileError{
+                DiagnosticCode::AnalyzerBorrowEscape,
+                declaration->location,
+                "borrowed call result must be bound with 'borrow val'"};
+          if (declaration->is_borrowed &&
+              !declared_type.is_pointer() &&
+              declaration->initializer.has_value() &&
+              !std::holds_alternative<ast::IdentifierExpression>(
+                  declaration->initializer->value) &&
+              !returned_borrow_source.has_value() &&
+              !is_borrowed_pointer_expression(*declaration->initializer))
+            throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowSource,
+                               declaration->location,
+                               "borrowed local requires an owning local or a "
+                               "borrow-returning call"};
           if (declaration->is_constant) {
             if (!declaration->initializer.has_value() ||
                 declared_type.concrete == nullptr)
@@ -6716,6 +6907,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               is_null_pointer_expression(*declaration->initializer))
             block_symbols.at(declaration->name).may_be_initialized = false;
           if (declaration->is_borrowed ||
+              returned_borrow_source.has_value() ||
               (declaration->initializer.has_value() &&
                is_borrowed_pointer_expression(*declaration->initializer)))
             borrowed_values.insert(declaration->name);
@@ -6727,6 +6919,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           }
           if (declaration->initializer.has_value()) {
             const ast::Expression &initializer = *declaration->initializer;
+            if (declaration->is_borrowed &&
+                returned_borrow_source.has_value())
+              borrow_sources[declaration->name].insert(
+                  *returned_borrow_source);
             if (declaration->is_borrowed)
               if (const auto *source = std::get_if<ast::IdentifierExpression>(
                       &initializer.value)) {
@@ -7377,6 +7573,27 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{return_statement.location,
                                "return requires a value of type '" +
                                    statement_return_type.name() + "'"};
+          const bool borrowed_return =
+              active_lambda_return_type == nullptr && !is_destructor &&
+              context.function->return_ownership ==
+                  ast::ReturnOwnership::Borrow;
+          if (borrowed_return && std::holds_alternative<ast::MoveExpression>(
+                                     return_statement.expression->value))
+            throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowSource,
+                               return_statement.location,
+                               "a borrowed return cannot move its source"};
+          if (borrowed_return) {
+            const ast::IdentifierExpression *source = lexical_root_identifier(
+                *return_statement.expression, lexical_root_identifier);
+            if (source == nullptr ||
+                !borrowed_values.contains(source->name))
+              throw CompileError{
+                  DiagnosticCode::AnalyzerBorrowEscape,
+                  return_statement.location,
+                  "borrowed return must originate from 'this' or from the "
+                  "function's borrowed parameter"};
+          }
+          if (!borrowed_return)
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &return_statement.expression->value);
               identifier != nullptr &&
@@ -7384,6 +7601,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{return_statement.location,
                                "owning value '" + identifier->name +
                                    "' is scheduled for deferred cleanup"};
+          if (!borrowed_return)
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
                   &return_statement.expression->value);
               identifier != nullptr &&
@@ -7400,13 +7618,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   &return_statement.expression->value))
             returned_identifier = std::get_if<ast::IdentifierExpression>(
                 &move->operand->value);
-          if (returned_identifier != nullptr &&
+          if (!borrowed_return && returned_identifier != nullptr &&
               borrow_sources.contains(returned_identifier->name))
             throw CompileError{
                 DiagnosticCode::AnalyzerBorrowEscape,
                 return_statement.location,
                 "value '" + returned_identifier->name +
                     "' contains a live borrow and cannot escape by return"};
+          if (!borrowed_return)
           if (const auto *construction = std::get_if<ast::NewExpression>(
                   &return_statement.expression->value)) {
             const auto class_iterator = find_in_context(

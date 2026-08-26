@@ -14,10 +14,36 @@
 
 namespace janus::ast {
 
+enum class ParameterOwnership {
+  Unspecified,
+  Borrow,
+  BorrowMutable,
+  Consume,
+};
+
+enum class ReturnOwnership {
+  Unspecified,
+  Borrow,
+  Owned,
+};
+
 struct TypeReference {
+  TypeReference() = default;
+  TypeReference(std::string type_name, SourceLocation source_location,
+                std::vector<TypeReference> arguments = {},
+                std::vector<ParameterOwnership> ownerships = {},
+                ReturnOwnership return_ownership =
+                    ReturnOwnership::Unspecified)
+      : name{std::move(type_name)}, location{source_location},
+        type_arguments{std::move(arguments)},
+        function_parameter_ownership{std::move(ownerships)},
+        function_return_ownership{return_ownership} {}
+
   std::string name;
   SourceLocation location;
   std::vector<TypeReference> type_arguments;
+  std::vector<ParameterOwnership> function_parameter_ownership;
+  ReturnOwnership function_return_ownership{ReturnOwnership::Unspecified};
 };
 
 struct IntegerLiteralExpression {
@@ -65,6 +91,7 @@ struct LambdaExpression {
     std::string name;
     TypeReference type;
     SourceLocation location;
+    ParameterOwnership ownership{ParameterOwnership::Unspecified};
   };
 
   std::vector<Parameter> parameters;
@@ -303,19 +330,6 @@ struct TypeConstraint {
   std::string parameter;
   TypeReference trait;
   SourceLocation location;
-};
-
-enum class ParameterOwnership {
-  Unspecified,
-  Borrow,
-  BorrowMutable,
-  Consume,
-};
-
-enum class ReturnOwnership {
-  Unspecified,
-  Borrow,
-  Owned,
 };
 
 struct FunctionDeclaration {

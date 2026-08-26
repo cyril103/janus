@@ -1,0 +1,183 @@
+import std.array
+import std.option
+import std.priority_queue
+
+struct Task(val priority : int, val insertion : int)
+derives Copy {}
+
+struct MutableCell(var value : int) derives Copy {}
+
+class DestructionCounter(private var count : int) {
+    def increment() : Unit { count = count + 1 }
+    borrow def value() : int { return count }
+}
+
+class OwnedTask(
+private val priorityValue : int,
+private val insertionValue : int,
+private borrow var destructions : DestructionCounter
+) {
+    borrow def priority() : int { return priorityValue }
+    borrow def insertion() : int { return insertionValue }
+
+    destructor {
+        destructions.increment()
+    }
+}
+
+def firstOwnedInsertion(
+borrow queue : PriorityQueue[OwnedTask]
+) : int {
+    borrow val first : OwnedTask = queue.peek()
+    return first.insertion()
+}
+
+def taskBefore(borrow left : Task, borrow right : Task) : bool {
+    return left.priority < right.priority
+}
+
+def exerciseBorrowedFunctionTypes() : bool {
+    val values : Array[MutableCell] = new Array[MutableCell](usize(1))
+    defer delete values
+    values.push(new MutableCell(4))
+    val increment : (borrow var MutableCell) => Unit =
+    (borrow var cell : MutableCell) => { cell.value = cell.value + 3 }
+    values.withMutable(usize(0), increment)
+    delete increment
+    return values.get(usize(0)).value == 7
+}
+
+def exerciseEmptyAndSingleton() : bool {
+    val queue : PriorityQueue[int] = new PriorityQueue[int](
+    usize(0),
+    (borrow left : int, borrow right : int) => left > right
+    )
+    defer delete queue
+
+    val emptyTake : Option[int] = queue.dequeueOption()
+    val emptyPeek : Option[int] = queue.peekCopyOption()
+    val initiallyEmpty : bool = queue.isEmpty() &&
+    match emptyTake { Some(value) => false, None => true } &&
+    match emptyPeek { Some(value) => false, None => true }
+
+    queue.enqueue(7)
+    val singleton : bool = queue.size() == usize(1) &&
+    queue.peekCopy() == 7 && queue.dequeue() == 7
+    return initiallyEmpty && singleton && queue.isEmpty()
+}
+
+def exerciseOwnedValues() : bool {
+    val destructions : DestructionCounter = new DestructionCounter(0)
+    defer delete destructions
+    val queue : PriorityQueue[OwnedTask] =
+    new PriorityQueue[OwnedTask](
+    usize(1),
+    (borrow left : OwnedTask, borrow right : OwnedTask) =>
+    left.priority() < right.priority()
+    )
+    defer delete queue
+
+    val first : OwnedTask = new OwnedTask(2, 0, destructions)
+    queue.enqueue(move first)
+    val second : OwnedTask = new OwnedTask(1, 1, destructions)
+    queue.enqueue(move second)
+    val third : OwnedTask = new OwnedTask(2, 2, destructions)
+    queue.enqueue(move third)
+
+    if firstOwnedInsertion(queue) != 1 {
+        return false
+    }
+
+    val removedFirst : OwnedTask = queue.dequeue()
+    val firstIsCorrect : bool = removedFirst.insertion() == 1
+    delete removedFirst
+    val removedSecond : OwnedTask = queue.dequeue()
+    val secondIsCorrect : bool = removedSecond.insertion() == 0
+    delete removedSecond
+    queue.clear()
+    return firstIsCorrect && secondIsCorrect &&
+    destructions.value() == 3
+}
+
+def exercisePriorityAndFifo() : bool {
+    val queue : PriorityQueue[Task] = new PriorityQueue[Task](
+    usize(2),
+    (borrow left : Task, borrow right : Task) => taskBefore(left, right)
+    )
+    defer delete queue
+
+    queue.enqueue(new Task(2, 0))
+    queue.enqueue(new Task(1, 1))
+    queue.enqueue(new Task(2, 2))
+    queue.enqueue(new Task(0, 3))
+    queue.enqueue(new Task(1, 4))
+    queue.enqueue(new Task(2, 5))
+
+    val expectedPriorities : Array[int] = new Array[int](usize(6))
+    defer delete expectedPriorities
+    val expectedInsertions : Array[int] = new Array[int](usize(6))
+    defer delete expectedInsertions
+    expectedPriorities.push(0)
+    expectedPriorities.push(1)
+    expectedPriorities.push(1)
+    expectedPriorities.push(2)
+    expectedPriorities.push(2)
+    expectedPriorities.push(2)
+    expectedInsertions.push(3)
+    expectedInsertions.push(1)
+    expectedInsertions.push(4)
+    expectedInsertions.push(0)
+    expectedInsertions.push(2)
+    expectedInsertions.push(5)
+
+    var index : usize = usize(0)
+    while index < expectedPriorities.size() {
+        val task : Task = queue.dequeue()
+        if task.priority != expectedPriorities.get(index) ||
+        task.insertion != expectedInsertions.get(index) {
+            return false
+        }
+        index = index + usize(1)
+    }
+    return queue.isEmpty()
+}
+
+def exerciseReuseAndStress() : bool {
+    val queue : PriorityQueue[Task] = new PriorityQueue[Task](
+    usize(1),
+    (borrow left : Task, borrow right : Task) =>
+    left.priority < right.priority
+    )
+    defer delete queue
+
+    var insertion : int = 0
+    while insertion < 4096 {
+        queue.enqueue(new Task((insertion * 37) % 17, insertion))
+        insertion = insertion + 1
+    }
+
+    var previous : Task = queue.dequeue()
+    while !queue.isEmpty() {
+        val current : Task = queue.dequeue()
+        if current.priority < previous.priority ||
+        (current.priority == previous.priority &&
+        current.insertion < previous.insertion) {
+            return false
+        }
+        previous = current
+    }
+
+    queue.enqueue(new Task(4, 0))
+    queue.clear()
+    queue.enqueue(new Task(3, 1))
+    return queue.size() == usize(1) && queue.dequeue().insertion == 1
+}
+
+def main() : int {
+    println(exerciseEmptyAndSingleton())
+    println(exercisePriorityAndFifo())
+    println(exerciseReuseAndStress())
+    println(exerciseOwnedValues())
+    println(exerciseBorrowedFunctionTypes())
+    return 0
+}

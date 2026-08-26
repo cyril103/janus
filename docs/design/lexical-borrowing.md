@@ -4,7 +4,9 @@ Statut : acceptée et validée. Les emprunts partagés de l'issue #260, les
 emprunts mutables exclusifs de l'issue #261, les invalidations lexicales de
 l'issue #262, les transmissions bornées de l'issue #263, les vues contiguës de
 l'issue #264 et la matrice de validation de l'issue #265 sont implémentés. Les
-projections fines et les régions à la dernière utilisation restent différées.
+retours empruntés partagés et les effets d'emprunt des types de fonction sont
+également pris en charge. Les projections fines, les retours empruntés
+mutables et les régions à la dernière utilisation restent différés.
 
 Cette décision définit le premier modèle général d'emprunts de Janus. Elle
 étend les garanties de [propriété des conteneurs](container-ownership.md) sans
@@ -493,9 +495,9 @@ inspect(item)
 
 ## Fonctionnalités différées
 
-La première version exclut explicitement :
+La version actuelle exclut explicitement :
 
-- les retours empruntés des fonctions Janus ;
+- les retours empruntés mutables ;
 - les paramètres de durée de vie écrits dans les signatures publiques ;
 - les emprunts stockés de manière générale dans classes, structs, enums,
   conteneurs ou globales ;

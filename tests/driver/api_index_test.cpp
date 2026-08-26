@@ -255,10 +255,10 @@ extern def ownedVariadic[T](consume value : T, borrow other : T, ...) : owned T
       mutable_slice_metadata_complete =
           symbol.generic_parameters == std::vector<std::string>{"T"};
   }
-  expect(stdlib_types_with_generic_syntax == 27 &&
+  expect(stdlib_types_with_generic_syntax == 28 &&
              stdlib_generic_metadata_complete && slice_metadata_complete &&
              mutable_slice_metadata_complete,
-         "all 27 stdlib type signatures preserve generic declaration metadata");
+         "all 28 stdlib type signatures preserve generic declaration metadata");
   expect(janus::driver::format_api_search(by_doc, "human") ==
              janus::driver::format_api_search(by_doc, "human"),
          "human output is deterministic");

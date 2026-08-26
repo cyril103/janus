@@ -152,6 +152,29 @@ import std.hashset
 def main() : int { return 0 }
 ```
 
+### `std.priority_queue`
+
+La file utilise un tas binaire stocké dans un `Array`. Le comparateur place
+la priorité la plus forte en premier et les valeurs équivalentes sortent en
+FIFO. Les valeurs peuvent posséder des ressources et sont transférées par
+`move` à l'insertion puis au retrait.
+
+```janus
+// doctest: doctest name=stdlib-std-priority-queue
+import std.priority_queue
+def main() : int {
+    val queue : PriorityQueue[int] = new PriorityQueue[int](
+        usize(4),
+        (borrow left : int, borrow right : int) => left < right
+    )
+    queue.enqueue(3)
+    queue.enqueue(1)
+    val first : int = queue.dequeue()
+    delete queue
+    return first - 1
+}
+```
+
 ## Système, texte et temps
 
 ### `std.c`

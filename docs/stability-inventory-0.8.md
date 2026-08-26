@@ -103,6 +103,7 @@ symbole source non inventorié.
 | `std.numeric` | `experimental` | [Conversions numériques](numeric-conversions.md) | Nouvelle surface pré-1.0. |
 | `std.option` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.path` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
+| `std.priority_queue` | `experimental` | [Référence stdlib](stdlib-reference.md) | Nouvelle collection pré-1.0. |
 | `std.random` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.process` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.range` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |

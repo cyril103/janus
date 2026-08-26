@@ -284,6 +284,9 @@ private:
   struct FunctionSignature {
     std::vector<const janus::Type *> parameters;
     const janus::Type *return_type;
+    std::vector<janus::ast::ParameterOwnership> parameter_ownership;
+    janus::ast::ReturnOwnership return_ownership{
+        janus::ast::ReturnOwnership::Unspecified};
   };
 
   struct CleanupScope {
@@ -368,7 +371,9 @@ private:
         signature.push_back(&resolve(argument, substitutions));
       std::vector<const janus::Type *> parameters{signature.begin(),
                                                   signature.end() - 1};
-      return ensure_function_type(parameters, *signature.back());
+      return ensure_function_type(parameters, *signature.back(),
+                                  reference.function_parameter_ownership,
+                                  reference.function_return_ownership);
     }
     if (const auto iterator = substitutions.find(reference.name);
         iterator != substitutions.end())
@@ -414,7 +419,9 @@ private:
             "analyzed function type has no return type for codegen"};
       std::vector<const janus::Type *> parameters{arguments.begin(),
                                                   arguments.end() - 1};
-      return ensure_function_type(parameters, *arguments.back());
+      return ensure_function_type(parameters, *arguments.back(),
+                                  type.function_parameter_ownership,
+                                  type.function_return_ownership);
     }
     if (type.is_pointer())
       return ensure_pointer(*arguments.front());
@@ -917,27 +924,50 @@ private:
     return *pointer_elements_.at(std::string{pointer_type.name()});
   }
 
-  std::string function_key(const std::vector<const janus::Type *> &parameters,
-                           const janus::Type &return_type) const {
+  std::string function_key(
+      const std::vector<const janus::Type *> &parameters,
+      const janus::Type &return_type,
+      const std::vector<janus::ast::ParameterOwnership> &ownerships,
+      janus::ast::ReturnOwnership return_ownership) const {
     std::string key{"Function"};
-    for (const janus::Type *parameter : parameters)
-      key += "__" + std::string{parameter->name()};
+    for (std::size_t index = 0; index < parameters.size(); ++index) {
+      const auto ownership = index < ownerships.size()
+                                 ? ownerships[index]
+                                 : janus::ast::ParameterOwnership::Unspecified;
+      key += ownership == janus::ast::ParameterOwnership::Borrow
+                 ? "__borrow_"
+                 : (ownership == janus::ast::ParameterOwnership::BorrowMutable
+                        ? "__borrow_mut_"
+                        : "__");
+      key += std::string{parameters[index]->name()};
+    }
+    if (return_ownership == janus::ast::ReturnOwnership::Borrow)
+      key += "__borrow_return";
     key += "__to__" + std::string{return_type.name()};
     return key;
   }
 
   const janus::Type &
   ensure_function_type(const std::vector<const janus::Type *> &parameters,
-                       const janus::Type &return_type) {
-    const std::string key = function_key(parameters, return_type);
+                       const janus::Type &return_type,
+                       std::vector<janus::ast::ParameterOwnership> ownerships =
+                           {},
+                       janus::ast::ReturnOwnership return_ownership =
+                           janus::ast::ReturnOwnership::Unspecified) {
+    if (ownerships.empty())
+      ownerships.resize(parameters.size(),
+                        janus::ast::ParameterOwnership::Unspecified);
+    const std::string key =
+        function_key(parameters, return_type, ownerships, return_ownership);
     if (const auto iterator = function_types_.find(key);
         iterator != function_types_.end())
       return iterator->second;
     auto [iterator, inserted] =
         function_types_.emplace(key, janus::Type::function_type(key));
     static_cast<void>(inserted);
-    function_signatures_.emplace(key,
-                                 FunctionSignature{parameters, &return_type});
+    function_signatures_.emplace(
+        key, FunctionSignature{parameters, &return_type, std::move(ownerships),
+                               return_ownership});
     return iterator->second;
   }
 
@@ -2039,9 +2069,12 @@ private:
               continue;
             }
             const Local &object = block_locals.at(assignment->object);
-            ::llvm::Value *object_pointer = builder.CreateLoad(
-                ::llvm::PointerType::getUnqual(context_), object.storage,
-                assignment->object + ".object");
+            ::llvm::Value *object_pointer =
+                object.type->kind() == janus::TypeKind::Struct
+                    ? object.storage
+                    : builder.CreateLoad(
+                          ::llvm::PointerType::getUnqual(context_),
+                          object.storage, assignment->object + ".object");
             const auto [field_index, field_type] =
                 find_field(object.type->name(), assignment->name);
             ::llvm::Value *field_pointer = builder.CreateStructGEP(
@@ -2404,8 +2437,19 @@ private:
     }
 
     std::vector<::llvm::Type *> parameter_types{builder.getPtrTy()};
-    for (const janus::Type *parameter : signature.parameters)
-      parameter_types.push_back(lower_type(*parameter, context_));
+    for (std::size_t index = 0; index < signature.parameters.size(); ++index) {
+      const janus::Type *parameter = signature.parameters[index];
+      const janus::ast::ParameterOwnership ownership =
+          signature.parameter_ownership[index];
+      const bool indirect_borrow =
+          ownership == janus::ast::ParameterOwnership::BorrowMutable ||
+          (ownership == janus::ast::ParameterOwnership::Borrow &&
+           (parameter->kind() == janus::TypeKind::Struct ||
+            parameter->kind() == janus::TypeKind::Enum));
+      parameter_types.push_back(indirect_borrow
+                                    ? builder.getPtrTy()
+                                    : lower_type(*parameter, context_));
+    }
     auto *llvm_function_type = ::llvm::FunctionType::get(
         lower_type(*signature.return_type, context_), parameter_types, false);
     ::llvm::Function *lambda_function = ::llvm::Function::Create(
@@ -2434,6 +2478,18 @@ private:
       ::llvm::Argument &parameter = *argument++;
       parameter.setName(lambda.parameters[index].name);
       const janus::Type *parameter_type = signature.parameters[index];
+      const janus::ast::ParameterOwnership ownership =
+          signature.parameter_ownership[index];
+      const bool indirect_borrow =
+          ownership == janus::ast::ParameterOwnership::BorrowMutable ||
+          (ownership == janus::ast::ParameterOwnership::Borrow &&
+           (parameter_type->kind() == janus::TypeKind::Struct ||
+            parameter_type->kind() == janus::TypeKind::Enum));
+      if (indirect_borrow) {
+        lambda_locals.emplace(lambda.parameters[index].name,
+                              Local{&parameter, parameter_type});
+        continue;
+      }
       ::llvm::Value *storage = create_entry_alloca(
           lambda_builder, lower_type(*parameter_type, context_),
           lambda.parameters[index].name);
@@ -2482,7 +2538,7 @@ private:
                       janus::ast::ParameterOwnership::BorrowMutable);
       for (std::size_t index = 0; index < lambda.parameters.size(); ++index)
         add_parameter(lambda.parameters[index].name, signature.parameters[index],
-                      janus::ast::ParameterOwnership::Unspecified);
+                      signature.parameter_ownership[index]);
       const std::string return_name =
           "__LambdaType" + std::to_string(body_types.size());
       body_function.type_parameters.push_back(return_name);
@@ -2496,10 +2552,24 @@ private:
       arguments.reserve(capture_names.size() + lambda.parameters.size());
       for (const std::string &name : capture_names)
         arguments.push_back(lambda_locals.at(name).storage);
-      for (const auto &parameter : lambda.parameters)
-        arguments.push_back(lambda_builder.CreateLoad(
-            lower_type(*lambda_locals.at(parameter.name).type, context_),
-            lambda_locals.at(parameter.name).storage, parameter.name + ".body.arg"));
+      for (std::size_t index = 0; index < lambda.parameters.size(); ++index) {
+        const auto &parameter = lambda.parameters[index];
+        const janus::Type &parameter_type = *signature.parameters[index];
+        const auto ownership = signature.parameter_ownership[index];
+        const bool indirect_borrow =
+            ownership == janus::ast::ParameterOwnership::BorrowMutable ||
+            (ownership == janus::ast::ParameterOwnership::Borrow &&
+             (parameter_type.kind() == janus::TypeKind::Struct ||
+              parameter_type.kind() == janus::TypeKind::Enum));
+        if (indirect_borrow) {
+          arguments.push_back(lambda_locals.at(parameter.name).storage);
+        } else {
+          arguments.push_back(lambda_builder.CreateLoad(
+              lower_type(parameter_type, context_),
+              lambda_locals.at(parameter.name).storage,
+              parameter.name + ".body.arg"));
+        }
+      }
       if (signature.return_type->kind() == janus::TypeKind::Unit) {
         lambda_builder.CreateCall(lowered_body, arguments);
         lambda_builder.CreateRetVoid();
@@ -2568,16 +2638,20 @@ private:
                                               janus::ast::LambdaExpression>) {
             std::unordered_map<std::string, Local> lambda_locals = locals;
             std::vector<const janus::Type *> parameters;
+            std::vector<janus::ast::ParameterOwnership> ownerships;
             parameters.reserve(node.parameters.size());
+            ownerships.reserve(node.parameters.size());
             for (const auto &parameter : node.parameters) {
               const janus::Type &type = resolve(parameter.type, substitutions);
               parameters.push_back(&type);
+              ownerships.push_back(parameter.ownership);
               lambda_locals.insert_or_assign(parameter.name,
                                              Local{nullptr, &type});
             }
             const janus::Type &return_type =
                 resolve(analysis_.inferred_generic_arguments.at(&expression).back());
-            return ensure_function_type(parameters, return_type);
+            return ensure_function_type(parameters, return_type,
+                                        std::move(ownerships));
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::CallExpression>) {
             if (const Local *callable = find_storage(node.callee, locals);
@@ -2901,6 +2975,33 @@ private:
                        : builder.CreateSDiv(left, right, "div");
   }
 
+  ::llvm::Value *emit_borrow_storage(
+      const janus::ast::Expression &expression,
+      const janus::Type &parameter_type, const Substitutions &substitutions,
+      const std::unordered_map<std::string, Local> &locals,
+      ::llvm::IRBuilder<> &builder) {
+    if (const auto *identifier =
+            std::get_if<janus::ast::IdentifierExpression>(&expression.value))
+      return resolve_storage(identifier->name, locals).storage;
+    const auto *load =
+        std::get_if<janus::ast::MethodCallExpression>(&expression.value);
+    if (load == nullptr || load->method != "load" ||
+        load->arguments.size() != 1)
+      return nullptr;
+    const janus::Type &object_type =
+        expression_type(*load->object, substitutions, locals);
+    if (object_type.kind() != janus::TypeKind::Pointer ||
+        &pointer_element(object_type) != &parameter_type)
+      return nullptr;
+    ::llvm::Value *pointer = emit_expression(
+        *load->object, object_type, substitutions, locals, builder);
+    ::llvm::Value *index = emit_expression(
+        *load->arguments.front(), janus::Type::usize_type(), substitutions,
+        locals, builder);
+    return builder.CreateInBoundsGEP(lower_type(parameter_type, context_),
+                                     pointer, index, "borrow.element");
+  }
+
   ::llvm::Value *emit_parameter_argument(
       const janus::ast::FunctionDeclaration::Parameter &parameter,
       const janus::ast::Expression &expression,
@@ -2916,9 +3017,9 @@ private:
     if (!indirect_borrow)
       return emit_expression(expression, parameter_type, substitutions, locals,
                              builder);
-    if (const auto *identifier =
-            std::get_if<janus::ast::IdentifierExpression>(&expression.value))
-      return resolve_storage(identifier->name, locals).storage;
+    if (::llvm::Value *storage = emit_borrow_storage(
+            expression, parameter_type, substitutions, locals, builder))
+      return storage;
     ::llvm::Value *value = emit_expression(expression, parameter_type,
                                            substitutions, locals, builder);
     ::llvm::Value *storage = create_entry_alloca(
@@ -3552,13 +3653,53 @@ private:
                   push_transient_panic_cleanup(builder);
               std::vector<::llvm::Value *> arguments{environment};
               for (std::size_t index = 0; index < node.arguments.size();
-                   ++index)
-                arguments.push_back(emit_expression(
-                    *node.arguments[index], *signature.parameters[index],
-                    substitutions, locals, builder));
+                   ++index) {
+                const janus::Type &parameter = *signature.parameters[index];
+                const janus::ast::ParameterOwnership ownership =
+                    signature.parameter_ownership[index];
+                const bool indirect_borrow =
+                    ownership ==
+                        janus::ast::ParameterOwnership::BorrowMutable ||
+                    (ownership == janus::ast::ParameterOwnership::Borrow &&
+                     (parameter.kind() == janus::TypeKind::Struct ||
+                      parameter.kind() == janus::TypeKind::Enum));
+                if (indirect_borrow) {
+                  if (::llvm::Value *storage = emit_borrow_storage(
+                          *node.arguments[index], parameter, substitutions,
+                          locals, builder)) {
+                    arguments.push_back(storage);
+                  } else {
+                    ::llvm::Value *value = emit_expression(
+                        *node.arguments[index], parameter, substitutions,
+                        locals, builder);
+                    ::llvm::Value *temporary_storage = create_entry_alloca(
+                        builder, lower_type(parameter, context_),
+                        "borrow.temporary");
+                    builder.CreateStore(value, temporary_storage);
+                    arguments.push_back(temporary_storage);
+                  }
+                } else {
+                  arguments.push_back(emit_expression(
+                      *node.arguments[index], parameter, substitutions, locals,
+                      builder));
+                }
+              }
               std::vector<::llvm::Type *> parameter_types{builder.getPtrTy()};
-              for (const janus::Type *parameter : signature.parameters)
-                parameter_types.push_back(lower_type(*parameter, context_));
+              for (std::size_t index = 0;
+                   index < signature.parameters.size(); ++index) {
+                const janus::Type *parameter = signature.parameters[index];
+                const janus::ast::ParameterOwnership ownership =
+                    signature.parameter_ownership[index];
+                const bool indirect_borrow =
+                    ownership ==
+                        janus::ast::ParameterOwnership::BorrowMutable ||
+                    (ownership == janus::ast::ParameterOwnership::Borrow &&
+                     (parameter->kind() == janus::TypeKind::Struct ||
+                      parameter->kind() == janus::TypeKind::Enum));
+                parameter_types.push_back(
+                    indirect_borrow ? builder.getPtrTy()
+                                    : lower_type(*parameter, context_));
+              }
               auto *callee_type = ::llvm::FunctionType::get(
                   lower_type(*signature.return_type, context_), parameter_types,
                   false);

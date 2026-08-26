@@ -284,7 +284,7 @@ int main() {
                        "require a Ptr[T] type");
   expect_compile_error("def invalid() : borrow Ptr[int] { return null[int]() } "
                        "def main() : int { return 0 }",
-                       "only supported on external functions");
+                       "requires exactly one borrowed parameter");
   expect_compile_error(
       "extern def invalid() : owned int def main() : int { return 0 }",
       "require a Ptr[T] type");

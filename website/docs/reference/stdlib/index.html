@@ -50,7 +50,7 @@ complètes sont linéaires.</p></div></div><section class="module-example doc-se
 values.push(10)<br>
 values.push(20)<br>
 val doubled : Array[int] = values.map[int]((value : int) =&gt; value * 2)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">28</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">32</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-array-array" data-symbol data-search="std.array.Array class class Array[T](initialCapacity : usize) Tableau dynamique contigu qui possède ses éléments.
 
@@ -160,6 +160,20 @@ Déclenche `panic` si `index` est hors limites.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position de l’élément, à partir de zéro.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Copie de l’élément à cette position.</p></section>
 <div class="qualified">std.array.Array.get</div></div><a class="permalink" href="#std-array-array-get" aria-label="Permanent link to std.array.Array.get">#</a></article>
+<article class="symbol-card kind-method child" id="std-array-array-getborrowed" data-symbol data-search="std.array.Array.getBorrowed method borrow def getBorrowed(index : usize) : borrow T Retourne un emprunt partagé sur l&#39;élément demandé.
+
+L&#39;emprunt reste lié au tableau : celui-ci ne peut pas être modifié,
+déplacé ou détruit tant que l&#39;alias est vivant. Cette opération ne
+requiert pas `Copy` et déclenche `panic` si l&#39;indice est hors limites.
+@param index Position de l&#39;élément, à partir de zéro.
+@return Emprunt partagé sur la valeur stockée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def getBorrowed(index : usize) : borrow T</code></h3>
+<p class="doc-summary">Retourne un emprunt partagé sur l&#39;élément demandé.</p>
+<div class="doc-details"><p>L&#39;emprunt reste lié au tableau : celui-ci ne peut pas être modifié,<br>
+déplacé ou détruit tant que l&#39;alias est vivant. Cette opération ne<br>
+requiert pas `Copy` et déclenche `panic` si l&#39;indice est hors limites.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position de l&#39;élément, à partir de zéro.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Emprunt partagé sur la valeur stockée.</p></section>
+<div class="qualified">std.array.Array.getBorrowed</div></div><a class="permalink" href="#std-array-array-getborrowed" aria-label="Permanent link to std.array.Array.getBorrowed">#</a></article>
 <article class="symbol-card kind-method child" id="std-array-array-getoption" data-symbol data-search="std.array.Array.getOption method borrow def getOption(index : usize) : Option[T] Retourne l’élément demandé, ou `None` si l’index est hors limites.
 @param index Position recherchée, à partir de zéro.
 @return `Some` avec une copie de l’élément, ou `None` si `index &gt;= size()`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def getOption(index : usize) : Option[T]</code></h3>
@@ -313,17 +327,59 @@ méthode observe et duplique temporairement les éléments et exige donc que<br>
 `T` satisfasse `Copy`.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>less</code></td><td><code>Function[T, T, bool]</code></td><td>Comparateur strict cohérent avec un ordre total.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array.sortWith</div></div><a class="permalink" href="#std-array-array-sortwith" aria-label="Permanent link to std.array.Array.sortWith">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-withvalue" data-symbol data-search="std.array.Array.withValue method def withValue(index : usize, action : Function[T, Unit]) : Unit Exécute une action sur une copie de l’élément à un indice donné.
+<article class="symbol-card kind-method child" id="std-array-array-swap" data-symbol data-search="std.array.Array.swap method def swap(left : usize, right : usize) : Unit Échange deux éléments sans les copier ni les détruire.
+
+L&#39;opération est constante et convient aux valeurs propriétaires. Elle
+déclenche `panic` si l&#39;un des indices est hors limites.
+@param left Premier emplacement existant.
+@param right Second emplacement existant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def swap(left : usize, right : usize) : Unit</code></h3>
+<p class="doc-summary">Échange deux éléments sans les copier ni les détruire.</p>
+<div class="doc-details"><p>L&#39;opération est constante et convient aux valeurs propriétaires. Elle<br>
+déclenche `panic` si l&#39;un des indices est hors limites.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>usize</code></td><td>Premier emplacement existant.</td></tr><tr><td><code>right</code></td><td><code>usize</code></td><td>Second emplacement existant.</td></tr></tbody></table></section>
+<div class="qualified">std.array.Array.swap</div></div><a class="permalink" href="#std-array-array-swap" aria-label="Permanent link to std.array.Array.swap">#</a></article>
+<article class="symbol-card kind-method child" id="std-array-array-withmutable" data-symbol data-search="std.array.Array.withMutable method def withMutable(index : usize, borrow action : Function[T, Unit]) : Unit Exécute une action sur un emprunt mutable exclusif de l’élément.
+
+La modification porte directement sur le stockage du tableau. L&#39;action
+est bornée à l&#39;appel et ne peut ni conserver ni transférer l&#39;emprunt.
+Déclenche `panic` si `index` est hors limites.
+@param index Position de la valeur à modifier.
+@param action Fonction synchrone recevant l&#39;emprunt mutable."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def withMutable(index : usize, borrow action : Function[T, Unit]) : Unit</code></h3>
+<p class="doc-summary">Exécute une action sur un emprunt mutable exclusif de l’élément.</p>
+<div class="doc-details"><p>La modification porte directement sur le stockage du tableau. L&#39;action<br>
+est bornée à l&#39;appel et ne peut ni conserver ni transférer l&#39;emprunt.<br>
+Déclenche `panic` si `index` est hors limites.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position de la valeur à modifier.</td></tr><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Fonction synchrone recevant l&#39;emprunt mutable.</td></tr></tbody></table></section>
+<div class="qualified">std.array.Array.withMutable</div></div><a class="permalink" href="#std-array-array-withmutable" aria-label="Permanent link to std.array.Array.withMutable">#</a></article>
+<article class="symbol-card kind-method child" id="std-array-array-withvalue" data-symbol data-search="std.array.Array.withValue method borrow def withValue(index : usize, borrow action : Function[T, Unit]) : Unit Exécute une action sur un emprunt partagé de l’élément demandé.
 
 Le tableau conserve son élément. Déclenche `panic` si `index` est hors
 limites.
 @param index Position de la valeur à observer.
-@param action Fonction appelée une fois avec une copie de la valeur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def withValue(index : usize, action : Function[T, Unit]) : Unit</code></h3>
-<p class="doc-summary">Exécute une action sur une copie de l’élément à un indice donné.</p>
+@param action Fonction appelée une fois avec un emprunt sur la valeur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def withValue(index : usize, borrow action : Function[T, Unit]) : Unit</code></h3>
+<p class="doc-summary">Exécute une action sur un emprunt partagé de l’élément demandé.</p>
 <div class="doc-details"><p>Le tableau conserve son élément. Déclenche `panic` si `index` est hors<br>
 limites.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position de la valeur à observer.</td></tr><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Fonction appelée une fois avec une copie de la valeur.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position de la valeur à observer.</td></tr><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Fonction appelée une fois avec un emprunt sur la valeur.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array.withValue</div></div><a class="permalink" href="#std-array-array-withvalue" aria-label="Permanent link to std.array.Array.withValue">#</a></article>
+<article class="symbol-card kind-method child" id="std-array-array-withvalues" data-symbol data-search="std.array.Array.withValues method borrow def withValues[U](left : usize, right : usize, borrow transform : Function[T, T, U]) : U Transforme contextuellement deux éléments sans les extraire.
+
+`transform` observe les deux valeurs pendant l&#39;appel uniquement. Le
+tableau conserve leur propriété, y compris lorsque `T` n&#39;est pas
+copiable. Les deux indices peuvent être identiques. Déclenche `panic`
+si l&#39;un d&#39;eux est hors limites.
+@param left Premier emplacement observé.
+@param right Second emplacement observé.
+@param transform Fonction produisant le résultat depuis les deux observations.
+@return Résultat produit par `transform`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def withValues[U](left : usize, right : usize, borrow transform : Function[T, T, U]) : U</code></h3>
+<p class="doc-summary">Transforme contextuellement deux éléments sans les extraire.</p>
+<div class="doc-details"><p>`transform` observe les deux valeurs pendant l&#39;appel uniquement. Le<br>
+tableau conserve leur propriété, y compris lorsque `T` n&#39;est pas<br>
+copiable. Les deux indices peuvent être identiques. Déclenche `panic`<br>
+si l&#39;un d&#39;eux est hors limites.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>usize</code></td><td>Premier emplacement observé.</td></tr><tr><td><code>right</code></td><td><code>usize</code></td><td>Second emplacement observé.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, T, U]</code></td><td>Fonction produisant le résultat depuis les deux observations.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Résultat produit par `transform`.</p></section>
+<div class="qualified">std.array.Array.withValues</div></div><a class="permalink" href="#std-array-array-withvalues" aria-label="Permanent link to std.array.Array.withValues">#</a></article>
 <article class="symbol-card kind-function" id="std-array-filledarray" data-symbol data-search="std.array.filledArray function def filledArray[T](count : usize, value : T) : Array[T] Construit un tableau contenant `count` copies de `value`.
 
 `T` doit satisfaire `Copy` afin que chaque emplacement possède une copie
@@ -5587,6 +5643,125 @@ de fichiers et ne garantit donc pas que la cible existe.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[Path, SystemError]</code> — `Ok(Path)` propriétaire, ou `Error(SystemError)` avec l’opération `path.normalize` et le chemin en contexte.</p></section>
 <div class="qualified">std.path.normalizePath</div></div><a class="permalink" href="#std-path-normalizepath" aria-label="Permanent link to std.path.normalizePath">#</a></article>
 </div></section>
+<section class="module" id="module-std-priority-queue" data-module data-search="std.priority_queue Fournit une file de priorité stable fondée sur un tas binaire.
+
+[[PriorityQueue]] stocke ses entrées dans un [[Array]]. Le comparateur
+détermine l&#39;ordre de sortie et les valeurs de priorité équivalente sont
+retirées dans leur ordre d&#39;insertion (FIFO).
+@example
+```janus
+val queue : PriorityQueue[int] = new PriorityQueue[int](
+    usize(4),
+    (borrow left : int, borrow right : int) =&gt; left &lt; right
+)
+queue.enqueue(3)
+queue.enqueue(1)
+val first : int = queue.dequeue()
+```">
+<header class="module-heading"><span class="keyword">module</span> <h2>std.priority_queue</h2></header>
+<div class="module-summary"><p class="doc-summary">Fournit une file de priorité stable fondée sur un tas binaire.</p><div class="doc-details"><p><a href="#std-priority-queue-priorityqueue"><code>PriorityQueue</code></a> stocke ses entrées dans un <a href="#std-array-array"><code>Array</code></a>. Le comparateur<br>
+détermine l&#39;ordre de sortie et les valeurs de priorité équivalente sont<br>
+retirées dans leur ordre d&#39;insertion (FIFO).</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val queue : PriorityQueue[int] = new PriorityQueue[int](<br>
+    usize(4),<br>
+    (borrow left : int, borrow right : int) =&gt; left &lt; right<br>
+)<br>
+queue.enqueue(3)<br>
+queue.enqueue(1)<br>
+val first : int = queue.dequeue()<br>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">11</span></h3>
+<div class="symbol-list">
+<article class="symbol-card kind-class" id="std-priority-queue-priorityqueue" data-symbol data-search="std.priority_queue.PriorityQueue class class PriorityQueue[T](initialCapacity : usize, val less : Function[T, T, bool]) File de priorité stable possédant ses valeurs et son comparateur.
+
+`less(left, right)` doit définir un ordre strict : lorsqu&#39;il renvoie
+`true`, `left` sort avant `right`. Si aucune valeur ne précède l&#39;autre,
+elles sont considérées de même priorité et restent FIFO. L&#39;insertion et
+le retrait coûtent `O(log n)` et le stockage `O(n)`.
+
+Les valeurs sont observées contextuellement pendant les comparaisons : `T`
+peut donc posséder des ressources et n&#39;a pas à satisfaire `Copy`. Le
+comparateur est possédé par la file et libéré avec elle.
+@param initialCapacity Nombre initial d&#39;emplacements réservés.
+@param less Comparateur strict plaçant la plus haute priorité en premier."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class PriorityQueue[T](initialCapacity : usize, val less : Function[T, T, bool])</code></h3>
+<p class="doc-summary">File de priorité stable possédant ses valeurs et son comparateur.</p>
+<div class="doc-details"><p>`less(left, right)` doit définir un ordre strict : lorsqu&#39;il renvoie<br>
+`true`, `left` sort avant `right`. Si aucune valeur ne précède l&#39;autre,<br>
+elles sont considérées de même priorité et restent FIFO. L&#39;insertion et<br>
+le retrait coûtent `O(log n)` et le stockage `O(n)`.</p><p>Les valeurs sont observées contextuellement pendant les comparaisons : `T`<br>
+peut donc posséder des ressources et n&#39;a pas à satisfaire `Copy`. Le<br>
+comparateur est possédé par la file et libéré avec elle.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Nombre initial d&#39;emplacements réservés.</td></tr><tr><td><code>less</code></td><td><code>Function[T, T, bool]</code></td><td>Comparateur strict plaçant la plus haute priorité en premier.</td></tr></tbody></table></section>
+<div class="qualified">std.priority_queue.PriorityQueue</div></div><a class="permalink" href="#std-priority-queue-priorityqueue" aria-label="Permanent link to std.priority_queue.PriorityQueue">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-clear" data-symbol data-search="std.priority_queue.PriorityQueue.clear method def clear() : Unit Détruit toutes les valeurs et conserve la capacité réservée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>def clear() : Unit</code></h3>
+<p class="doc-summary">Détruit toutes les valeurs et conserve la capacité réservée.</p>
+<div class="qualified">std.priority_queue.PriorityQueue.clear</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-clear" aria-label="Permanent link to std.priority_queue.PriorityQueue.clear">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-dequeue" data-symbol data-search="std.priority_queue.PriorityQueue.dequeue method def dequeue() : T Retire et retourne la prochaine valeur.
+
+Déclenche `panic` lorsque la file est vide.
+@return Valeur possédée de plus haute priorité, FIFO en cas d&#39;égalité."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>def dequeue() : T</code></h3>
+<p class="doc-summary">Retire et retourne la prochaine valeur.</p>
+<div class="doc-details"><p>Déclenche `panic` lorsque la file est vide.</p></div>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Valeur possédée de plus haute priorité, FIFO en cas d&#39;égalité.</p></section>
+<div class="qualified">std.priority_queue.PriorityQueue.dequeue</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-dequeue" aria-label="Permanent link to std.priority_queue.PriorityQueue.dequeue">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-dequeueoption" data-symbol data-search="std.priority_queue.PriorityQueue.dequeueOption method def dequeueOption() : Option[T] Retire sans erreur la prochaine valeur si elle existe.
+@return `Some` avec la valeur possédée, ou `None` si la file est vide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>def dequeueOption() : Option[T]</code></h3>
+<p class="doc-summary">Retire sans erreur la prochaine valeur si elle existe.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` avec la valeur possédée, ou `None` si la file est vide.</p></section>
+<div class="qualified">std.priority_queue.PriorityQueue.dequeueOption</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-dequeueoption" aria-label="Permanent link to std.priority_queue.PriorityQueue.dequeueOption">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-enqueue" data-symbol data-search="std.priority_queue.PriorityQueue.enqueue method def enqueue(value : T) : usize Ajoute une valeur à la file.
+
+Les valeurs équivalentes selon `less` conservent leur ordre
+d&#39;insertion. Déclenche `panic` si le compteur FIFO est épuisé avant
+que la file ait pu redevenir vide.
+@param value Valeur dont la file prend possession.
+@return Nouvelle taille de la file."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>def enqueue(value : T) : usize</code></h3>
+<p class="doc-summary">Ajoute une valeur à la file.</p>
+<div class="doc-details"><p>Les valeurs équivalentes selon `less` conservent leur ordre<br>
+d&#39;insertion. Déclenche `panic` si le compteur FIFO est épuisé avant<br>
+que la file ait pu redevenir vide.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur dont la file prend possession.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nouvelle taille de la file.</p></section>
+<div class="qualified">std.priority_queue.PriorityQueue.enqueue</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-enqueue" aria-label="Permanent link to std.priority_queue.PriorityQueue.enqueue">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-isempty" data-symbol data-search="std.priority_queue.PriorityQueue.isEmpty method borrow def isEmpty() : bool Indique si la file ne contient aucune valeur.
+@return `true` lorsque [[PriorityQueue.size]] vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def isEmpty() : bool</code></h3>
+<p class="doc-summary">Indique si la file ne contient aucune valeur.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsque <a href="#std-priority-queue-priorityqueue-size"><code>PriorityQueue.size</code></a> vaut zéro.</p></section>
+<div class="qualified">std.priority_queue.PriorityQueue.isEmpty</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-isempty" aria-label="Permanent link to std.priority_queue.PriorityQueue.isEmpty">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-peek" data-symbol data-search="std.priority_queue.PriorityQueue.peek method borrow def peek() : borrow T Retourne un emprunt partagé sur la prochaine valeur.
+
+La file reste gelée tant que l&#39;emprunt est vivant. Déclenche `panic`
+lorsque la file est vide.
+@return Emprunt sur la valeur de plus haute priorité."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def peek() : borrow T</code></h3>
+<p class="doc-summary">Retourne un emprunt partagé sur la prochaine valeur.</p>
+<div class="doc-details"><p>La file reste gelée tant que l&#39;emprunt est vivant. Déclenche `panic`<br>
+lorsque la file est vide.</p></div>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Emprunt sur la valeur de plus haute priorité.</p></section>
+<div class="qualified">std.priority_queue.PriorityQueue.peek</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-peek" aria-label="Permanent link to std.priority_queue.PriorityQueue.peek">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-peekcopy" data-symbol data-search="std.priority_queue.PriorityQueue.peekCopy method borrow def peekCopy() : T Retourne une copie de la prochaine valeur sans la retirer.
+
+Cette commodité est disponible uniquement pour les types `Copy`.
+Déclenche `panic` lorsque la file est vide.
+@return Copie de la valeur de plus haute priorité."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def peekCopy() : T</code></h3>
+<p class="doc-summary">Retourne une copie de la prochaine valeur sans la retirer.</p>
+<div class="doc-details"><p>Cette commodité est disponible uniquement pour les types `Copy`.<br>
+Déclenche `panic` lorsque la file est vide.</p></div>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Copie de la valeur de plus haute priorité.</p></section>
+<div class="qualified">std.priority_queue.PriorityQueue.peekCopy</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-peekcopy" aria-label="Permanent link to std.priority_queue.PriorityQueue.peekCopy">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-peekcopyoption" data-symbol data-search="std.priority_queue.PriorityQueue.peekCopyOption method borrow def peekCopyOption() : Option[T] Observe sans erreur la prochaine valeur copiable.
+@return `Some` avec une copie de la tête, ou `None` si la file est vide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def peekCopyOption() : Option[T]</code></h3>
+<p class="doc-summary">Observe sans erreur la prochaine valeur copiable.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` avec une copie de la tête, ou `None` si la file est vide.</p></section>
+<div class="qualified">std.priority_queue.PriorityQueue.peekCopyOption</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-peekcopyoption" aria-label="Permanent link to std.priority_queue.PriorityQueue.peekCopyOption">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-size" data-symbol data-search="std.priority_queue.PriorityQueue.size method borrow def size() : usize Retourne le nombre de valeurs actuellement stockées.
+@return Taille logique de la file."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def size() : usize</code></h3>
+<p class="doc-summary">Retourne le nombre de valeurs actuellement stockées.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Taille logique de la file.</p></section>
+<div class="qualified">std.priority_queue.PriorityQueue.size</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-size" aria-label="Permanent link to std.priority_queue.PriorityQueue.size">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-withfirst" data-symbol data-search="std.priority_queue.PriorityQueue.withFirst method borrow def withFirst(borrow action : Function[T, Unit]) : Unit Exécute une action empruntée sur la prochaine valeur sans la retirer.
+@param action Callback synchrone qui observe la tête pendant l&#39;appel."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def withFirst(borrow action : Function[T, Unit]) : Unit</code></h3>
+<p class="doc-summary">Exécute une action empruntée sur la prochaine valeur sans la retirer.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Callback synchrone qui observe la tête pendant l&#39;appel.</td></tr></tbody></table></section>
+<div class="qualified">std.priority_queue.PriorityQueue.withFirst</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-withfirst" aria-label="Permanent link to std.priority_queue.PriorityQueue.withFirst">#</a></article>
+</div></section>
 <section class="module" id="module-std-process" data-module data-search="std.process Consulte le contexte du processus courant et lance des processus enfants.
 
 Les chaînes d’arguments du programme sont empruntées au runtime. Les valeurs
@@ -6746,7 +6921,7 @@ println(timestamp.unixSeconds())<br>
 <div class="qualified">std.wall_time.wallNow</div></div><a class="permalink" href="#std-wall-time-wallnow" aria-label="Permanent link to std.wall_time.wallNow">#</a></article>
 </div></section>
 </main>
-<aside id="module-sidebar" class="sidebar"><h2>Modules</h2><nav class="module-nav" aria-label="Modules"><a class="module-link" data-module-link href="#module-std-array"><span class="dot"></span>std.array</a><a class="module-link" data-module-link href="#module-std-array-builder"><span class="dot"></span>std.array_builder</a><a class="module-link" data-module-link href="#module-std-builder"><span class="dot"></span>std.builder</a><a class="module-link" data-module-link href="#module-std-c"><span class="dot"></span>std.c</a><a class="module-link" data-module-link href="#module-std-fs"><span class="dot"></span>std.fs</a><a class="module-link" data-module-link href="#module-std-graphics"><span class="dot"></span>std.graphics</a><a class="module-link" data-module-link href="#module-std-graphics-audio"><span class="dot"></span>std.graphics.audio</a><a class="module-link" data-module-link href="#module-std-graphics-drawing"><span class="dot"></span>std.graphics.drawing</a><a class="module-link" data-module-link href="#module-std-graphics-input"><span class="dot"></span>std.graphics.input</a><a class="module-link" data-module-link href="#module-std-graphics-resources"><span class="dot"></span>std.graphics.resources</a><a class="module-link" data-module-link href="#module-std-graphics-types"><span class="dot"></span>std.graphics.types</a><a class="module-link" data-module-link href="#module-std-hash-probe"><span class="dot"></span>std.hash_probe</a><a class="module-link" data-module-link href="#module-std-hashing"><span class="dot"></span>std.hashing</a><a class="module-link" data-module-link href="#module-std-hashmap"><span class="dot"></span>std.hashmap</a><a class="module-link" data-module-link href="#module-std-hashset"><span class="dot"></span>std.hashset</a><a class="module-link" data-module-link href="#module-std-io"><span class="dot"></span>std.io</a><a class="module-link" data-module-link href="#module-std-iterator"><span class="dot"></span>std.iterator</a><a class="module-link" data-module-link href="#module-std-math"><span class="dot"></span>std.math</a><a class="module-link" data-module-link href="#module-std-numeric"><span class="dot"></span>std.numeric</a><a class="module-link" data-module-link href="#module-std-option"><span class="dot"></span>std.option</a><a class="module-link" data-module-link href="#module-std-path"><span class="dot"></span>std.path</a><a class="module-link" data-module-link href="#module-std-process"><span class="dot"></span>std.process</a><a class="module-link" data-module-link href="#module-std-random"><span class="dot"></span>std.random</a><a class="module-link" data-module-link href="#module-std-range"><span class="dot"></span>std.range</a><a class="module-link" data-module-link href="#module-std-result"><span class="dot"></span>std.result</a><a class="module-link" data-module-link href="#module-std-slice"><span class="dot"></span>std.slice</a><a class="module-link" data-module-link href="#module-std-system"><span class="dot"></span>std.system</a><a class="module-link" data-module-link href="#module-std-testing"><span class="dot"></span>std.testing</a><a class="module-link" data-module-link href="#module-std-text"><span class="dot"></span>std.text</a><a class="module-link" data-module-link href="#module-std-time"><span class="dot"></span>std.time</a><a class="module-link" data-module-link href="#module-std-wall-time"><span class="dot"></span>std.wall_time</a></nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
+<aside id="module-sidebar" class="sidebar"><h2>Modules</h2><nav class="module-nav" aria-label="Modules"><a class="module-link" data-module-link href="#module-std-array"><span class="dot"></span>std.array</a><a class="module-link" data-module-link href="#module-std-array-builder"><span class="dot"></span>std.array_builder</a><a class="module-link" data-module-link href="#module-std-builder"><span class="dot"></span>std.builder</a><a class="module-link" data-module-link href="#module-std-c"><span class="dot"></span>std.c</a><a class="module-link" data-module-link href="#module-std-fs"><span class="dot"></span>std.fs</a><a class="module-link" data-module-link href="#module-std-graphics"><span class="dot"></span>std.graphics</a><a class="module-link" data-module-link href="#module-std-graphics-audio"><span class="dot"></span>std.graphics.audio</a><a class="module-link" data-module-link href="#module-std-graphics-drawing"><span class="dot"></span>std.graphics.drawing</a><a class="module-link" data-module-link href="#module-std-graphics-input"><span class="dot"></span>std.graphics.input</a><a class="module-link" data-module-link href="#module-std-graphics-resources"><span class="dot"></span>std.graphics.resources</a><a class="module-link" data-module-link href="#module-std-graphics-types"><span class="dot"></span>std.graphics.types</a><a class="module-link" data-module-link href="#module-std-hash-probe"><span class="dot"></span>std.hash_probe</a><a class="module-link" data-module-link href="#module-std-hashing"><span class="dot"></span>std.hashing</a><a class="module-link" data-module-link href="#module-std-hashmap"><span class="dot"></span>std.hashmap</a><a class="module-link" data-module-link href="#module-std-hashset"><span class="dot"></span>std.hashset</a><a class="module-link" data-module-link href="#module-std-io"><span class="dot"></span>std.io</a><a class="module-link" data-module-link href="#module-std-iterator"><span class="dot"></span>std.iterator</a><a class="module-link" data-module-link href="#module-std-math"><span class="dot"></span>std.math</a><a class="module-link" data-module-link href="#module-std-numeric"><span class="dot"></span>std.numeric</a><a class="module-link" data-module-link href="#module-std-option"><span class="dot"></span>std.option</a><a class="module-link" data-module-link href="#module-std-path"><span class="dot"></span>std.path</a><a class="module-link" data-module-link href="#module-std-priority-queue"><span class="dot"></span>std.priority_queue</a><a class="module-link" data-module-link href="#module-std-process"><span class="dot"></span>std.process</a><a class="module-link" data-module-link href="#module-std-random"><span class="dot"></span>std.random</a><a class="module-link" data-module-link href="#module-std-range"><span class="dot"></span>std.range</a><a class="module-link" data-module-link href="#module-std-result"><span class="dot"></span>std.result</a><a class="module-link" data-module-link href="#module-std-slice"><span class="dot"></span>std.slice</a><a class="module-link" data-module-link href="#module-std-system"><span class="dot"></span>std.system</a><a class="module-link" data-module-link href="#module-std-testing"><span class="dot"></span>std.testing</a><a class="module-link" data-module-link href="#module-std-text"><span class="dot"></span>std.text</a><a class="module-link" data-module-link href="#module-std-time"><span class="dot"></span>std.time</a><a class="module-link" data-module-link href="#module-std-wall-time"><span class="dot"></span>std.wall_time</a></nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
 </div>
 <footer><p>Generated by Janus. No network resources are required.</p></footer>
 <script>

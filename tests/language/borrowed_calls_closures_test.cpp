@@ -57,6 +57,60 @@ void expect_compile_error(std::string_view source,
 
 int main() {
   expect_valid(R"(
+class Box(val value : int) {
+  borrow def identity() : borrow Box { return this }
+  borrow def read() : int { return value }
+}
+def forward(borrow box : Box) : borrow Box { return box.identity() }
+def main() : int {
+  val box : Box = new Box(4)
+  var result : int = 0
+  if true {
+    borrow val view : Box = forward(box)
+    result = view.read()
+  }
+  delete box
+  return result
+}
+)",
+               true);
+
+  expect_compile_error(R"(
+class Box(val value : int) {}
+def forward(borrow box : Box) : borrow Box { return box }
+def main() : int {
+  val box : Box = new Box(4)
+  val escaped : Box = forward(box)
+  delete escaped
+  delete box
+  return 0
+}
+)",
+                       "borrowed call result must be bound with 'borrow val'");
+
+  expect_compile_error(R"(
+class Box(val value : int) {}
+def invalid(borrow box : Box) : borrow Box {
+  val local : Box = new Box(2)
+  return local
+}
+def main() : int { return 0 }
+)",
+                       "borrowed return must originate from 'this' or from the "
+                       "function's borrowed parameter");
+
+  expect_compile_error(R"(
+class Box(val value : int) {}
+def main() : int {
+  val owning : (Box) => int = (box : Box) => box.value
+  val observer : (borrow Box) => int = owning
+  delete observer
+  return 0
+}
+)",
+                       "cannot use expression of type");
+
+  expect_valid(R"(
 class Counter(var value : int) {
   borrow def read() : int { return value }
   def add(amount : int) : Unit { value = value + amount }

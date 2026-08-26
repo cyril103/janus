@@ -18,11 +18,16 @@ struct SemanticType {
                bool is_class_type = false,
                std::vector<SemanticType> arguments = {},
                bool is_pointer_type = false, bool is_enum_type = false,
-               bool is_function_type = false)
+               bool is_function_type = false,
+               std::vector<ast::ParameterOwnership> parameter_ownership = {},
+               ast::ReturnOwnership return_ownership =
+                   ast::ReturnOwnership::Unspecified)
       : concrete{concrete_type}, parameter{std::move(parameter_name)},
         class_type{is_class_type}, type_arguments{std::move(arguments)},
         pointer_type{is_pointer_type}, enum_type{is_enum_type},
-        function_type{is_function_type} {}
+        function_type{is_function_type},
+        function_parameter_ownership{std::move(parameter_ownership)},
+        function_return_ownership{return_ownership} {}
 
   const Type *concrete{};
   std::string parameter;
@@ -31,6 +36,9 @@ struct SemanticType {
   bool pointer_type{};
   bool enum_type{};
   bool function_type{};
+  std::vector<ast::ParameterOwnership> function_parameter_ownership;
+  ast::ReturnOwnership function_return_ownership{
+      ast::ReturnOwnership::Unspecified};
 
   [[nodiscard]] bool is_concrete() const noexcept {
     return concrete != nullptr;

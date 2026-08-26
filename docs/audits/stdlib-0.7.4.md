@@ -13,10 +13,10 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **31 modules**, **10817 lignes** et **978 symboles publics** inventoriés ;
-- **986 blocs `///` publics pour 978 symboles** (couverture source du lot #115 : 100 %) ;
-- **169 sites d'allocation**, **236 marqueurs de nettoyage**, **206/14/41** occurrences `move`/`consume`/destructeur ;
-- **23/31 modules** importés directement par au moins une fixture ou un test, soit **124 couples module-fichier de test** ;
+- **32 modules**, **11104 lignes** et **993 symboles publics** inventoriés ;
+- **1001 blocs `///` publics pour 993 symboles** (couverture source du lot #115 : 100 %) ;
+- **172 sites d'allocation**, **241 marqueurs de nettoyage**, **212/14/42** occurrences `move`/`consume`/destructeur ;
+- **24/32 modules** importés directement par au moins une fixture ou un test, soit **128 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
 Ces métriques sont des indicateurs de risque et non des objectifs d'optimisation isolés. Un marqueur de nettoyage peut apparaître dans un nom d'API ; les tests sanitizers restent l'autorité sur les fuites et doubles destructions.
@@ -46,7 +46,7 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 
 | Module | Surface | Décision | Propriétaire | Symboles | Lignes | Blocs `///` | Propriété M/C/D | Erreurs R/O/P | Alloc. | Nettoyages | Imports | Fixtures | Documentation |
 | --- | --- | --- | --- | ---: | ---: | ---: | --- | --- | ---: | ---: | --- | ---: | --- |
-| `std.array` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 28 | 674 | 28 | 18/1/3 | 0/6/10 | 14 | 27 | `std.iterator`, `std.option` | 38 | `docs/language-guide.md` |
+| `std.array` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 32 | 748 | 32 | 20/1/3 | 0/6/14 | 14 | 27 | `std.iterator`, `std.option` | 39 | `docs/language-guide.md` |
 | `std.array_builder` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 7 | 78 | 7 | 2/0/1 | 0/0/0 | 4 | 4 | `std.array`, `std.builder`, `std.iterator` | 4 | `docs/language-guide.md` |
 | `std.builder` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 3 | 22 | 3 | 0/0/0 | 0/0/0 | 1 | 0 | — | 0 | `docs/language-guide.md` |
 | `std.c` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 5 | 39 | 5 | 0/0/0 | 0/0/0 | 0 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
@@ -65,8 +65,9 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.iterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 18 | 432 | 18 | 36/8/7 | 0/25/0 | 14 | 32 | `std.builder`, `std.option` | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.math` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 104 | 546 | 104 | 0/0/0 | 0/0/1 | 1 | 0 | `std.array` | 6 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.numeric` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) | 7 | 20 | 7 | 0/0/0 | 0/0/0 | 0 | 0 | `std.result` | 3 | `docs/numeric-conversions.md`, `docs/stdlib-reference.md`, `docs/stability-contract.md` |
-| `std.option` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 9 | 134 | 9 | 16/0/1 | 0/22/0 | 2 | 11 | — | 8 | `docs/language-guide.md`, `docs/stability-contract.md` |
+| `std.option` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 9 | 134 | 9 | 16/0/1 | 0/22/0 | 2 | 11 | — | 9 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.path` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 8 | 237 | 8 | 0/0/1 | 3/0/2 | 7 | 11 | `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
+| `std.priority_queue` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 11 | 213 | 11 | 4/0/1 | 0/2/5 | 3 | 5 | `std.array`, `std.option` | 2 | `docs/language-guide.md`, `docs/stdlib-reference.md` |
 | `std.random` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 6 | 80 | 6 | 0/0/0 | 0/0/2 | 2 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.process` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 26 | 550 | 26 | 0/0/4 | 12/10/0 | 14 | 12 | `std.array`, `std.option`, `std.result`, `std.system` | 2 | `docs/language-guide.md`, `docs/design/process-runtime.md`, `docs/stability-contract.md` |
 | `std.range` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 1 | 44 | 1 | 0/0/0 | 0/1/0 | 2 | 1 | `std.iterator`, `std.option` | 3 | `docs/language-guide.md` |
@@ -96,7 +97,7 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 
 | Module | Fixtures ou tests qui importent directement le module |
 | --- | --- |
-| `std.array` | `tests/compatibility/stdlib.janus`, `tests/diagnostics/invalid/array-literal-empty-inference.janus`, `tests/diagnostics/invalid/array-literal-global-constant.janus`, `tests/diagnostics/invalid/array-literal-incompatible-element.janus`, `tests/diagnostics/invalid/array-literal-owned-element-move.janus`, `tests/fixtures/project-euler/production/problem11.janus`, `tests/fixtures/project-euler/production/problem13.janus`, `tests/fixtures/project-euler/production/problem16.janus`, `tests/fixtures/project-euler/production/problem18.janus`, `tests/fixtures/project-euler/production/problem20.janus`, `tests/fixtures/project-euler/production/problem8.janus`, `tests/fixtures/runtime/array_factories.janus`, `tests/fixtures/runtime/array_factory_capacity_overflow.janus`, `tests/fixtures/runtime/array_factory_panic_cleanup.janus`, `tests/fixtures/runtime/array_literal_panic_cleanup.janus`, `tests/fixtures/runtime/array_literals.janus`, `tests/fixtures/runtime/array_out_of_bounds.janus`, `tests/fixtures/runtime/array_sort.janus`, `tests/fixtures/runtime/borrow_panic_cleanup.janus`, `tests/fixtures/runtime/borrowed_closure.janus`, `tests/fixtures/runtime/filled_array_non_copy_error.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/lambda_block_body.janus`, `tests/fixtures/runtime/owned_array.janus`, `tests/fixtures/runtime/owned_array_copy_error.janus`, `tests/fixtures/runtime/owned_array_move_error.janus`, `tests/fixtures/runtime/owned_array_panic.janus`, `tests/fixtures/runtime/owned_array_sort_error.janus`, `tests/fixtures/runtime/owned_iterator_borrow_error.janus`, `tests/fixtures/runtime/owned_iterator_for_copy_error.janus`, `tests/fixtures/runtime/owned_iterator_panic.janus`, `tests/fixtures/runtime/owned_iterators.janus`, `tests/fixtures/runtime/prime_factors.janus`, `tests/fixtures/runtime/processes.janus`, `tests/fixtures/runtime/sequence_pipeline_stress.janus`, `tests/fixtures/runtime/slice_out_of_bounds.janus`, `tests/fixtures/runtime/slices.janus`, `tests/frontend/parser_top_level_declaration_test.cpp` |
+| `std.array` | `tests/compatibility/stdlib.janus`, `tests/diagnostics/invalid/array-literal-empty-inference.janus`, `tests/diagnostics/invalid/array-literal-global-constant.janus`, `tests/diagnostics/invalid/array-literal-incompatible-element.janus`, `tests/diagnostics/invalid/array-literal-owned-element-move.janus`, `tests/fixtures/project-euler/production/problem11.janus`, `tests/fixtures/project-euler/production/problem13.janus`, `tests/fixtures/project-euler/production/problem16.janus`, `tests/fixtures/project-euler/production/problem18.janus`, `tests/fixtures/project-euler/production/problem20.janus`, `tests/fixtures/project-euler/production/problem8.janus`, `tests/fixtures/runtime/array_factories.janus`, `tests/fixtures/runtime/array_factory_capacity_overflow.janus`, `tests/fixtures/runtime/array_factory_panic_cleanup.janus`, `tests/fixtures/runtime/array_literal_panic_cleanup.janus`, `tests/fixtures/runtime/array_literals.janus`, `tests/fixtures/runtime/array_out_of_bounds.janus`, `tests/fixtures/runtime/array_sort.janus`, `tests/fixtures/runtime/borrow_panic_cleanup.janus`, `tests/fixtures/runtime/borrowed_closure.janus`, `tests/fixtures/runtime/filled_array_non_copy_error.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/lambda_block_body.janus`, `tests/fixtures/runtime/owned_array.janus`, `tests/fixtures/runtime/owned_array_copy_error.janus`, `tests/fixtures/runtime/owned_array_move_error.janus`, `tests/fixtures/runtime/owned_array_panic.janus`, `tests/fixtures/runtime/owned_array_sort_error.janus`, `tests/fixtures/runtime/owned_iterator_borrow_error.janus`, `tests/fixtures/runtime/owned_iterator_for_copy_error.janus`, `tests/fixtures/runtime/owned_iterator_panic.janus`, `tests/fixtures/runtime/owned_iterators.janus`, `tests/fixtures/runtime/prime_factors.janus`, `tests/fixtures/runtime/priority_queue.janus`, `tests/fixtures/runtime/processes.janus`, `tests/fixtures/runtime/sequence_pipeline_stress.janus`, `tests/fixtures/runtime/slice_out_of_bounds.janus`, `tests/fixtures/runtime/slices.janus`, `tests/frontend/parser_top_level_declaration_test.cpp` |
 | `std.array_builder` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/owned_hash_collections.janus`, `tests/fixtures/runtime/owned_iterators.janus` |
 | `std.builder` | aucune |
 | `std.c` | `tests/fixtures/runtime/text_api.janus`, `tests/interop/c_abi.janus` |
@@ -115,8 +116,9 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 | `std.iterator` | `tests/fixtures/runtime/owned_iterator_borrow_error.janus`, `tests/fixtures/runtime/sequence_pipeline_stress.janus` |
 | `std.math` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/floating_math.janus`, `tests/fixtures/runtime/lcm_overflow.janus`, `tests/fixtures/runtime/lcm_overflow_reversed.janus`, `tests/fixtures/runtime/math_helpers.janus`, `tests/fixtures/runtime/prime_factors.janus` |
 | `std.numeric` | `tests/fixtures/runtime/numeric_conversion_matrix.janus`, `tests/fixtures/runtime/numeric_conversions.janus`, `tests/fixtures/runtime/numeric_conversions_aliased_imports.janus` |
-| `std.option` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/option_combinators.janus`, `tests/fixtures/runtime/owned_iterators.janus`, `tests/fixtures/runtime/owned_option_combinators.janus`, `tests/fixtures/runtime/owned_option_move_error.janus`, `tests/fixtures/runtime/owned_option_observe_temporary_error.janus`, `tests/fixtures/runtime/processes.janus` |
+| `std.option` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/option_combinators.janus`, `tests/fixtures/runtime/owned_iterators.janus`, `tests/fixtures/runtime/owned_option_combinators.janus`, `tests/fixtures/runtime/owned_option_move_error.janus`, `tests/fixtures/runtime/owned_option_observe_temporary_error.janus`, `tests/fixtures/runtime/priority_queue.janus`, `tests/fixtures/runtime/processes.janus` |
 | `std.path` | `tests/fixtures/runtime/io_streams.janus`, `tests/fixtures/runtime/path_fs_result.janus` |
+| `std.priority_queue` | `tests/fixtures/runtime/owned_priority_queue_move_error.janus`, `tests/fixtures/runtime/priority_queue.janus` |
 | `std.random` | `tests/fixtures/runtime/random_zero_bound.janus`, `tests/fixtures/runtime/time_random.janus` |
 | `std.process` | `tests/fixtures/run_arguments.janus`, `tests/fixtures/runtime/processes.janus` |
 | `std.range` | `tests/fixtures/project-euler/production/problem1.janus`, `tests/fixtures/project-euler/production/problem5.janus`, `tests/fixtures/runtime/debug_struct_bool.janus` |
@@ -162,9 +164,11 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `Array.iterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.intoIterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.get` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Array.getBorrowed` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.getOption` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.set` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.replace` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Array.swap` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.push` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.pop` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.popOption` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
@@ -172,6 +176,8 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `Array.reserve` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.clear` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.withValue` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Array.withMutable` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Array.withValues` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.foreach` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.map` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Array.filter` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
@@ -1076,6 +1082,22 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `Path.component` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `normalizePath` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `joinPath` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
+
+### `std.priority_queue`
+
+| Symbole | Surface actuelle | Décision 0.7.4 | Propriétaire de migration |
+| --- | --- | --- | --- |
+| `PriorityQueue` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `PriorityQueue.size` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `PriorityQueue.isEmpty` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `PriorityQueue.enqueue` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `PriorityQueue.peek` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `PriorityQueue.withFirst` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `PriorityQueue.peekCopy` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `PriorityQueue.peekCopyOption` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `PriorityQueue.dequeue` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `PriorityQueue.dequeueOption` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `PriorityQueue.clear` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 
 ### `std.random`
 

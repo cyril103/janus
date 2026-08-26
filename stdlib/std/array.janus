@@ -181,6 +181,20 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return data.load(index)
     }
 
+    /// Retourne un emprunt partagé sur l'élément demandé.
+    ///
+    /// L'emprunt reste lié au tableau : celui-ci ne peut pas être modifié,
+    /// déplacé ou détruit tant que l'alias est vivant. Cette opération ne
+    /// requiert pas `Copy` et déclenche `panic` si l'indice est hors limites.
+    /// @param index Position de l'élément, à partir de zéro.
+    /// @return Emprunt partagé sur la valeur stockée.
+    borrow def getBorrowed(index : usize) : borrow T {
+        if index >= length {
+            panic("Array index out of bounds\n")
+        }
+        return data.load(index)
+    }
+
     /// Retourne l’élément demandé, ou `None` si l’index est hors limites.
     /// @param index Position recherchée, à partir de zéro.
     /// @return `Some` avec une copie de l’élément, ou `None` si `index >= size()`.
@@ -224,6 +238,25 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
         delete value
         panic("Array index out of bounds\n")
+    }
+
+    /// Échange deux éléments sans les copier ni les détruire.
+    ///
+    /// L'opération est constante et convient aux valeurs propriétaires. Elle
+    /// déclenche `panic` si l'un des indices est hors limites.
+    /// @param left Premier emplacement existant.
+    /// @param right Second emplacement existant.
+    def swap(left : usize, right : usize) : Unit {
+        if left >= length || right >= length {
+            panic("Array index out of bounds\n")
+        }
+        if left == right {
+            return
+        }
+        val leftValue : T = data.load(left)
+        val rightValue : T = data.load(right)
+        data.overwrite(left, move rightValue)
+        data.overwrite(right, move leftValue)
     }
 
     private def pushAllocated(value : T) : usize {
@@ -334,17 +367,58 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         }
     }
 
-    /// Exécute une action sur une copie de l’élément à un indice donné.
+    /// Exécute une action sur un emprunt partagé de l’élément demandé.
     ///
     /// Le tableau conserve son élément. Déclenche `panic` si `index` est hors
     /// limites.
     /// @param index Position de la valeur à observer.
-    /// @param action Fonction appelée une fois avec une copie de la valeur.
-    def withValue(index : usize, action : (T) => Unit) : Unit {
+    /// @param action Fonction appelée une fois avec un emprunt sur la valeur.
+    borrow def withValue(
+    index : usize,
+    borrow action : (borrow T) => Unit
+    ) : Unit {
         if index >= length {
             panic("Array index out of bounds\n")
         }
         action(data.load(index))
+    }
+
+    /// Exécute une action sur un emprunt mutable exclusif de l’élément.
+    ///
+    /// La modification porte directement sur le stockage du tableau. L'action
+    /// est bornée à l'appel et ne peut ni conserver ni transférer l'emprunt.
+    /// Déclenche `panic` si `index` est hors limites.
+    /// @param index Position de la valeur à modifier.
+    /// @param action Fonction synchrone recevant l'emprunt mutable.
+    def withMutable(
+    index : usize,
+    borrow action : (borrow var T) => Unit
+    ) : Unit {
+        if index >= length {
+            panic("Array index out of bounds\n")
+        }
+        action(data.load(index))
+    }
+
+    /// Transforme contextuellement deux éléments sans les extraire.
+    ///
+    /// `transform` observe les deux valeurs pendant l'appel uniquement. Le
+    /// tableau conserve leur propriété, y compris lorsque `T` n'est pas
+    /// copiable. Les deux indices peuvent être identiques. Déclenche `panic`
+    /// si l'un d'eux est hors limites.
+    /// @param left Premier emplacement observé.
+    /// @param right Second emplacement observé.
+    /// @param transform Fonction produisant le résultat depuis les deux observations.
+    /// @return Résultat produit par `transform`.
+    borrow def withValues[U](
+    left : usize,
+    right : usize,
+    borrow transform : (borrow T, borrow T) => U
+    ) : U {
+        if left >= length || right >= length {
+            panic("Array index out of bounds\n")
+        }
+        return transform(data.load(left), data.load(right))
     }
 
     /// Applique une action à des copies de tous les éléments, dans l’ordre.

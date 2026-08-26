@@ -994,17 +994,34 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
   const bool has_owned_return =
       current_.kind == TokenKind::Identifier && current_.lexeme == "owned";
   if (current_.kind == TokenKind::Borrow || has_owned_return) {
-    if (!is_external)
+    if (!is_external && has_owned_return)
       throw CompileError{
           current_.location,
-          "borrow and owned return qualifiers are only supported on external "
-          "functions"};
+          "owned return qualifiers are only supported on external functions"};
     return_ownership = current_.kind == TokenKind::Borrow
                            ? ast::ReturnOwnership::Borrow
                            : ast::ReturnOwnership::Owned;
     advance();
   }
   ast::TypeReference return_type = parse_type();
+  if (current_.kind == TokenKind::Identifier && current_.lexeme == "where") {
+    advance();
+    do {
+      const Token parameter = expect(TokenKind::Identifier);
+      static_cast<void>(expect(TokenKind::Less));
+      static_cast<void>(expect(TokenKind::Colon));
+      do {
+        type_constraints.push_back(ast::TypeConstraint{
+            std::string{parameter.lexeme}, parse_type(), parameter.location});
+        if (current_.kind != TokenKind::Ampersand)
+          break;
+        advance();
+      } while (true);
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+  }
   std::vector<ast::Statement> body;
   if (!is_external)
     body = parse_block();
@@ -1550,10 +1567,21 @@ ast::Expression Parser::parse_primary() {
       std::vector<ast::LambdaExpression::Parameter> parameters;
       if (current_.kind != TokenKind::RightParen) {
         do {
+          ast::ParameterOwnership ownership =
+              ast::ParameterOwnership::Unspecified;
+          if (current_.kind == TokenKind::Borrow) {
+            advance();
+            ownership = ast::ParameterOwnership::Borrow;
+            if (current_.kind == TokenKind::Var) {
+              advance();
+              ownership = ast::ParameterOwnership::BorrowMutable;
+            }
+          }
           const Token name = expect(TokenKind::Identifier);
           static_cast<void>(expect(TokenKind::Colon));
           parameters.push_back(ast::LambdaExpression::Parameter{
-              std::string{name.lexeme}, parse_type(), name.location});
+              std::string{name.lexeme}, parse_type(), name.location,
+              ownership});
           if (current_.kind != TokenKind::Comma)
             break;
           advance();
@@ -1714,9 +1742,21 @@ ast::TypeReference Parser::parse_type() {
   if (current_.kind == TokenKind::LeftParen) {
     const Token left_parenthesis = expect(TokenKind::LeftParen);
     std::vector<ast::TypeReference> arguments;
+    std::vector<ast::ParameterOwnership> ownerships;
     if (current_.kind != TokenKind::RightParen) {
       do {
+        ast::ParameterOwnership ownership =
+            ast::ParameterOwnership::Unspecified;
+        if (current_.kind == TokenKind::Borrow) {
+          advance();
+          ownership = ast::ParameterOwnership::Borrow;
+          if (current_.kind == TokenKind::Var) {
+            advance();
+            ownership = ast::ParameterOwnership::BorrowMutable;
+          }
+        }
         arguments.push_back(parse_type());
+        ownerships.push_back(ownership);
         if (current_.kind != TokenKind::Comma)
           break;
         advance();
@@ -1724,9 +1764,18 @@ ast::TypeReference Parser::parse_type() {
     }
     static_cast<void>(expect(TokenKind::RightParen));
     static_cast<void>(expect(TokenKind::Arrow));
+    ast::ReturnOwnership return_ownership =
+        ast::ReturnOwnership::Unspecified;
+    if (current_.kind == TokenKind::Borrow) {
+      advance();
+      return_ownership = ast::ReturnOwnership::Borrow;
+    }
     arguments.push_back(parse_type());
-    return ast::TypeReference{"Function", left_parenthesis.location,
+    ast::TypeReference result{"Function", left_parenthesis.location,
                               std::move(arguments)};
+    result.function_parameter_ownership = std::move(ownerships);
+    result.function_return_ownership = return_ownership;
+    return result;
   }
   const Token type_name = expect(TokenKind::Identifier);
   std::string qualified_type_name{type_name.lexeme};
@@ -1809,7 +1858,13 @@ bool Parser::starts_lambda() const {
   const Token first = lookahead.next();
   if (first.kind == TokenKind::RightParen)
     return lookahead.next().kind == TokenKind::Arrow;
-  if (first.kind != TokenKind::Identifier)
+  Token parameter = first;
+  if (parameter.kind == TokenKind::Borrow) {
+    parameter = lookahead.next();
+    if (parameter.kind == TokenKind::Var)
+      parameter = lookahead.next();
+  }
+  if (parameter.kind != TokenKind::Identifier)
     return false;
   return lookahead.next().kind == TokenKind::Colon;
 }

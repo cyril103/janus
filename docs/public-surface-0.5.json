@@ -16,8 +16,8 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "8b90c730eb4a1b41f0650c090d9805e157bd258b050060cf8cce21ada2272211",
-      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getOption", "Array.set", "Array.replace", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.withValue", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "filledArray", "generateArray"]
+      "signature_digest": "d559f44c1a47a061b78bf5afd43e5a822bba078bfde68adda54921ec780371f8",
+      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getBorrowed", "Array.getOption", "Array.set", "Array.replace", "Array.swap", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.withValue", "Array.withMutable", "Array.withValues", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "filledArray", "generateArray"]
     },
     {
       "name": "std.array_builder",
@@ -179,6 +179,14 @@
       "status": "stable-proposed",
       "signature_digest": "085f2910a2d894488880851b9634ff1f0d91f998ef220f59b90dc0837deb22f2",
       "symbols": ["Path", "Path.view", "Path.size", "Path.isAbsolute", "Path.componentCount", "Path.component", "normalizePath", "joinPath"]
+    },
+    {
+      "name": "std.priority_queue",
+      "source": "stdlib/std/priority_queue.janus",
+      "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
+      "status": "experimental",
+      "signature_digest": "84e1b3f870ec9ce09f223cabbce4261e573c4d5ee59d175864e7b706fbf85a72",
+      "symbols": ["PriorityQueue", "PriorityQueue.size", "PriorityQueue.isEmpty", "PriorityQueue.enqueue", "PriorityQueue.peek", "PriorityQueue.withFirst", "PriorityQueue.peekCopy", "PriorityQueue.peekCopyOption", "PriorityQueue.dequeue", "PriorityQueue.dequeueOption", "PriorityQueue.clear"]
     },
     {
       "name": "std.random",

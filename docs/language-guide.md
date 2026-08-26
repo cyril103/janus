@@ -320,6 +320,21 @@ val isLarge : (int) => bool =
     (value : int) => value > threshold
 ```
 
+Les effets d'emprunt font partie du type d'une fonction. Ils s'écrivent sur
+les paramètres du type et de la closure :
+
+```janus
+val inspect : (borrow Document) => int =
+    (borrow document : Document) => document.revision()
+val edit : (borrow var Document) => Unit =
+    (borrow var document : Document) => document.touch()
+```
+
+Ces callbacks ne prennent pas possession de leur argument. `borrow var`
+transmet l'emplacement mutable lui-même : une modification effectuée par le
+callback reste visible après l'appel. Deux types de fonction qui diffèrent par
+ces effets ne sont pas interchangeables.
+
 Une closure possédée doit être libérée avec `delete` lorsqu'elle n'est plus
 utilisée.
 
@@ -572,6 +587,17 @@ clé `private` réserve un champ ou une méthode à sa classe. `internal` autori
 les autres déclarations du même module à y accéder, tout en interdisant son
 utilisation depuis les modules importateurs.
 
+Une méthode peut restreindre un paramètre générique de sa classe uniquement
+pour l'opération qui en a besoin :
+
+```janus
+borrow def peekCopy() : T where T <: Copy { ... }
+```
+
+La classe reste utilisable avec un `T` propriétaire, tandis que l'appel de
+`peekCopy` est disponible seulement lorsque `T` satisfait `Copy`. Plusieurs
+contraintes se combinent avec `&` et plusieurs paramètres avec `,`.
+
 ## Gestion manuelle de la mémoire
 
 Les objets créés avec `new` sont placés sur le tas. Janus n'a pas de
@@ -621,9 +647,24 @@ class Document(val version : int) {
 
 Le corps d'une méthode `borrow def` et les paramètres `borrow` ne peuvent ni
 modifier, ni déplacer, ni détruire la valeur observée. Un emprunt ne peut pas
-être retourné ou transmis à un paramètre propriétaire. Dans cette première
-implémentation, sa région est la portée lexicale de la liaison ; placez un
-emprunt local dans un bloc plus court pour réutiliser ensuite le propriétaire.
+être transmis à un paramètre propriétaire. Une fonction peut en revanche
+retourner un emprunt explicitement avec `: borrow T` :
+
+```janus
+def identity(borrow document : Document) : borrow Document {
+    return document
+}
+
+borrow val view : Document = identity(document)
+```
+
+Une fonction libre ainsi annotée possède exactement un paramètre emprunté,
+qui devient la source de durée de vie. Une méthode doit être `borrow def` et
+son résultat provient de `this`. Le résultat doit être lié par `borrow val` ;
+le propriétaire source reste gelé pendant la portée de cette liaison. Les
+retours empruntés mutables et les durées de vie nommées ne sont pas encore
+pris en charge. Les régions restent lexicales : placez un emprunt local dans
+un bloc plus court pour réutiliser ensuite le propriétaire.
 `borrow var` crée un emprunt mutable exclusif. Le mot `var` donne le droit de
 modifier la valeur visée ; il ne permet pas de réassigner l'alias :
 
@@ -683,10 +724,13 @@ par un appel imbriqué, puis retrouver son accès mutable au retour. Une closure
 locale peut capturer un alias partagé ou mutable ; elle prolonge alors son
 emprunt jusqu'à sa destruction ou la fin de son bloc. La capture mutable permet
 la mutation mais reste exclusive. Retourner cette closure, la placer dans un
-champ, ou la transmettre à une fonction sans contrat synchrone est refusé. Les
-combinateurs synchrones connus de `Array`, `Option`, `Result` et
-`Iterator.fold` acceptent une closure littérale empruntée car ils l'exécutent et
-la détruisent avant leur retour.
+champ, ou la transmettre à une fonction sans contrat synchrone est refusé.
+Les callbacks annotés par un type comme `(borrow T) => U` ou
+`(borrow var T) => U` expriment directement ce contrat. `Array.withValue`,
+`Array.withValues` et `Array.withMutable` les utilisent pour observer ou
+modifier un élément sans le copier. Les combinateurs historiques qui utilisent
+encore un type propriétaire restent limités aux closures littérales reconnues
+comme synchrones.
 
 Les structures et enums qui contiennent une ressource deviennent eux-mêmes
 propriétaires. Leur transfert doit employer `move`, et `delete` détruit
@@ -755,6 +799,7 @@ La bibliothèque standard comprend notamment :
 - `Array[T]`, tableau dynamique ;
 - `HashSet[T, H]`, ensemble sans doublons ;
 - `HashMap[K, V, H]`, table associative ;
+- `PriorityQueue[T]`, file de priorité stable FIFO fondée sur un tas binaire ;
 - builders de tableaux, ensembles et tables ;
 - `Range` et itérateurs paresseux ;
 - `Option[T]` et `Result[T, E]`.
@@ -806,9 +851,11 @@ construire le tableau à l'exécution. Les `val` et `var` globaux ordinaires
 restent des initialisations d'exécution.
 
 Les opérations directes de tableau qui retournent un élément par copie restent
-réservées aux éléments `Copy`. `withValue` et `foreach` observent en revanche
-une valeur propriétaire dans une lambda littérale bornée : son paramètre ne
-peut être ni déplacé, ni détruit, ni transmis à un paramètre propriétaire.
+réservées aux éléments `Copy`. `withValue`, `withValues` et `foreach`
+observent en revanche des valeurs propriétaires dans une lambda littérale
+bornée : ses paramètres ne peuvent être ni déplacés, ni détruits, ni transmis
+à un paramètre propriétaire. `swap` échange deux emplacements par déplacement
+interne, sans exiger `Copy`.
 
 Un tableau propriétaire reçoit et rend ses éléments par transfert explicite :
 

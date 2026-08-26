@@ -1,0 +1,16 @@
+import std.priority_queue
+
+class Resource(val priority : int) {}
+
+def main() : int {
+    val queue : PriorityQueue[Resource] =
+    new PriorityQueue[Resource](
+    usize(1),
+    (borrow left : Resource, borrow right : Resource) =>
+    left.priority < right.priority
+    )
+    defer delete queue
+    val resource : Resource = new Resource(1)
+    queue.enqueue(resource)
+    return 0
+}

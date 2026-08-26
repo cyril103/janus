@@ -1,0 +1,213 @@
+/// Fournit une file de priorité stable fondée sur un tas binaire.
+///
+/// [[PriorityQueue]] stocke ses entrées dans un [[Array]]. Le comparateur
+/// détermine l'ordre de sortie et les valeurs de priorité équivalente sont
+/// retirées dans leur ordre d'insertion (FIFO).
+/// @example
+/// ```janus
+/// val queue : PriorityQueue[int] = new PriorityQueue[int](
+///     usize(4),
+///     (borrow left : int, borrow right : int) => left < right
+/// )
+/// queue.enqueue(3)
+/// queue.enqueue(1)
+/// val first : int = queue.dequeue()
+/// ```
+module std.priority_queue
+import std.array
+import std.option
+
+/// File de priorité stable possédant ses valeurs et son comparateur.
+///
+/// `less(left, right)` doit définir un ordre strict : lorsqu'il renvoie
+/// `true`, `left` sort avant `right`. Si aucune valeur ne précède l'autre,
+/// elles sont considérées de même priorité et restent FIFO. L'insertion et
+/// le retrait coûtent `O(log n)` et le stockage `O(n)`.
+///
+/// Les valeurs sont observées contextuellement pendant les comparaisons : `T`
+/// peut donc posséder des ressources et n'a pas à satisfaire `Copy`. Le
+/// comparateur est possédé par la file et libéré avec elle.
+/// @param initialCapacity Nombre initial d'emplacements réservés.
+/// @param less Comparateur strict plaçant la plus haute priorité en premier.
+class PriorityQueue[T](
+initialCapacity : usize,
+private val less : (borrow T, borrow T) => bool
+) {
+    private var values : Array[T] = new Array[T](initialCapacity)
+    private var sequences : Array[usize] =
+    new Array[usize](initialCapacity)
+    private var nextSequence : usize = usize(0)
+
+    private borrow def comesBefore(left : usize, right : usize) : bool {
+        if values.withValues[bool](left, right, less) {
+            return true
+        }
+        if values.withValues[bool](right, left, less) {
+            return false
+        }
+        return sequences.get(left) < sequences.get(right)
+    }
+
+    private def swap(left : usize, right : usize) : Unit {
+        values.swap(left, right)
+        sequences.swap(left, right)
+    }
+
+    private def siftUp(start : usize) : Unit {
+        var child : usize = start
+        while child > usize(0) {
+            val parent : usize =
+            (child - usize(1)) / usize(2)
+            if !this.comesBefore(child, parent) {
+                return
+            }
+            this.swap(child, parent)
+            child = parent
+        }
+    }
+
+    private def siftDown(start : usize) : Unit {
+        var parent : usize = start
+        var searching : bool = true
+        while searching {
+            val left : usize = parent * usize(2) + usize(1)
+            if left >= values.size() {
+                return
+            }
+            val right : usize = left + usize(1)
+            var first : usize = left
+            if right < values.size() && this.comesBefore(right, left) {
+                first = right
+            }
+            if !this.comesBefore(first, parent) {
+                searching = false
+            } else {
+                this.swap(parent, first)
+                parent = first
+            }
+        }
+    }
+
+    private def takeFirst() : T {
+        val lastValue : T = values.pop()
+        val lastSequence : usize = sequences.pop()
+        if values.isEmpty() {
+            nextSequence = usize(0)
+            return move lastValue
+        }
+        val firstValue : T = values.replace(usize(0), move lastValue)
+        val firstSequence : usize =
+        sequences.replace(usize(0), lastSequence)
+        this.siftDown(usize(0))
+        return move firstValue
+    }
+
+    /// Retourne le nombre de valeurs actuellement stockées.
+    /// @return Taille logique de la file.
+    borrow def size() : usize {
+        return values.size()
+    }
+
+    /// Indique si la file ne contient aucune valeur.
+    /// @return `true` lorsque [[PriorityQueue.size]] vaut zéro.
+    borrow def isEmpty() : bool {
+        return values.isEmpty()
+    }
+
+    /// Ajoute une valeur à la file.
+    ///
+    /// Les valeurs équivalentes selon `less` conservent leur ordre
+    /// d'insertion. Déclenche `panic` si le compteur FIFO est épuisé avant
+    /// que la file ait pu redevenir vide.
+    /// @param value Valeur dont la file prend possession.
+    /// @return Nouvelle taille de la file.
+    def enqueue(value : T) : usize {
+        if nextSequence == usize(-1) {
+            delete value
+            panic("PriorityQueue sequence overflow\n")
+        }
+        val index : usize = values.size()
+        values.push(move value)
+        sequences.push(nextSequence)
+        nextSequence = nextSequence + usize(1)
+        this.siftUp(index)
+        return values.size()
+    }
+
+    /// Retourne un emprunt partagé sur la prochaine valeur.
+    ///
+    /// La file reste gelée tant que l'emprunt est vivant. Déclenche `panic`
+    /// lorsque la file est vide.
+    /// @return Emprunt sur la valeur de plus haute priorité.
+    borrow def peek() : borrow T {
+        if values.isEmpty() {
+            panic("cannot peek an empty PriorityQueue\n")
+        }
+        return values.getBorrowed(usize(0))
+    }
+
+    /// Exécute une action empruntée sur la prochaine valeur sans la retirer.
+    /// @param action Callback synchrone qui observe la tête pendant l'appel.
+    borrow def withFirst(
+    borrow action : (borrow T) => Unit
+    ) : Unit {
+        if values.isEmpty() {
+            panic("cannot peek an empty PriorityQueue\n")
+        }
+        values.withValue(usize(0), action)
+    }
+
+    /// Retourne une copie de la prochaine valeur sans la retirer.
+    ///
+    /// Cette commodité est disponible uniquement pour les types `Copy`.
+    /// Déclenche `panic` lorsque la file est vide.
+    /// @return Copie de la valeur de plus haute priorité.
+    borrow def peekCopy() : T where T <: Copy {
+        if values.isEmpty() {
+            panic("cannot peek an empty PriorityQueue\n")
+        }
+        return values.get(usize(0))
+    }
+
+    /// Observe sans erreur la prochaine valeur copiable.
+    /// @return `Some` avec une copie de la tête, ou `None` si la file est vide.
+    borrow def peekCopyOption() : Option[T] where T <: Copy {
+        if values.isEmpty() {
+            return Option.None[T]()
+        }
+        return Option.Some[T](values.get(usize(0)))
+    }
+
+    /// Retire et retourne la prochaine valeur.
+    ///
+    /// Déclenche `panic` lorsque la file est vide.
+    /// @return Valeur possédée de plus haute priorité, FIFO en cas d'égalité.
+    def dequeue() : T {
+        if values.isEmpty() {
+            panic("cannot dequeue an empty PriorityQueue\n")
+        }
+        return this.takeFirst()
+    }
+
+    /// Retire sans erreur la prochaine valeur si elle existe.
+    /// @return `Some` avec la valeur possédée, ou `None` si la file est vide.
+    def dequeueOption() : Option[T] {
+        if values.isEmpty() {
+            return Option.None[T]()
+        }
+        return Option.Some[T](this.takeFirst())
+    }
+
+    /// Détruit toutes les valeurs et conserve la capacité réservée.
+    def clear() : Unit {
+        values.clear()
+        sequences.clear()
+        nextSequence = usize(0)
+    }
+
+    destructor {
+        delete less
+        delete sequences
+        delete values
+    }
+}

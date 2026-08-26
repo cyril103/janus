@@ -24,6 +24,8 @@ pour expérimentation, mais ne font pas partie du candidat stable.
 - `std.slice` : les vues contiguës empruntées ont été ajoutées après la baseline
   0.8 et restent expérimentales jusqu'à leur validation dans un inventaire
   courant.
+- `std.priority_queue` : la file de priorité stable a été ajoutée après la
+  baseline 0.8 et reste expérimentale jusqu'à la stabilisation de son API.
 
 Autres limites hors surface promise : format et ordre exacts des diagnostics,
 ABI des agrégats Janus, objets compilés entre plateformes, performances,
