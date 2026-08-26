@@ -338,6 +338,7 @@ struct FunctionDeclaration {
     TypeReference type;
     SourceLocation location;
     ParameterOwnership ownership{ParameterOwnership::Unspecified};
+    bool is_scoped{};
   };
 
   std::string name;

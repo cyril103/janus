@@ -149,6 +149,7 @@ void append_function(std::string &output,
   append_type_parameters(output, function.type_parameters);
   output += '(';
   for (const auto &parameter : function.parameters) {
+    output += parameter.is_scoped ? "scoped:" : "escaping:";
     output += std::to_string(static_cast<int>(parameter.ownership));
     output += ':';
     output += parameter.name;

@@ -43,7 +43,7 @@ class Iterator[T]() {}
 
 trait Iterable[T] {
     def iterator() : Iterator[T]
-    def transform[U](value : T, function : (T) => U) : U
+    def transform[U](value : T, scoped function : (T) => U) : U
     borrow def observe() : borrow T where T <: Copy
     consume def finish() : T
 }
@@ -56,7 +56,7 @@ class Sequence[T](val value : T) extends Iterable[T], Sized {
     def iterator() : Iterator[T] {
         return new Iterator[T]()
     }
-    def transform[U](item : T, function : (T) => U) : U {
+    def transform[U](item : T, scoped function : (T) => U) : U {
         return function(item)
     }
     borrow def observe() : borrow T where T <: Copy {
@@ -91,6 +91,8 @@ def main() : int {
          "trait method signatures are parsed without bodies");
   expect(program.traits.front().methods[1].type_parameters.size() == 1,
          "trait methods can be generic");
+  expect(program.traits.front().methods[1].parameters[1].is_scoped,
+         "trait methods retain scoped callback effects");
   expect(program.traits.front().methods[2].return_ownership ==
              janus::ast::ReturnOwnership::Borrow,
          "trait methods can declare borrowed return values");

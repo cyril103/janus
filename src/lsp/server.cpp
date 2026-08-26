@@ -559,6 +559,8 @@ function_signature(const janus::ast::FunctionDeclaration &function) {
   for (std::size_t index = 0; index < function.parameters.size(); ++index) {
     if (index != 0)
       result += ", ";
+    if (function.parameters[index].is_scoped)
+      result += "scoped ";
     if (function.parameters[index].ownership ==
         janus::ast::ParameterOwnership::Borrow)
       result += "borrow ";

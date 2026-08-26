@@ -730,9 +730,23 @@ champ, ou la transmettre à une fonction sans contrat synchrone est refusé.
 Les callbacks annotés par un type comme `(borrow T) => U` ou
 `(borrow var T) => U` expriment directement ce contrat. `Array.withValue`,
 `Array.withValues` et `Array.withMutable` les utilisent pour observer ou
-modifier un élément sans le copier. Les combinateurs historiques qui utilisent
-encore un type propriétaire restent limités aux closures littérales reconnues
-comme synchrones.
+modifier un élément sans le copier.
+
+Un paramètre fonctionnel préfixé par `scoped` garantit que la fonction appelée
+ne conserve ni ne retourne la closure. Cette garantie autorise une closure à
+capturer un emprunt tout en transférant sa propre propriété au callee, qui peut
+donc la détruire après l'appel :
+
+```janus
+def invoke(scoped callback : () => int) : int {
+    defer delete callback
+    return callback()
+}
+```
+
+`std.option.map`, les combinateurs synchrones de `std.result`, `generateArray` et
+`Iterator.fold` déclarent ce contrat directement; l'analyseur ne dépend plus de
+leurs noms pour borner les captures.
 
 Les structures et enums qui contiennent une ressource deviennent eux-mêmes
 propriétaires. Leur transfert doit employer `move`, et `delete` détruit

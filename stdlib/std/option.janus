@@ -71,7 +71,7 @@ def isNone[T](borrow value : Option[T]) : bool {
 /// @return `Some` du résultat de `transform`, ou `None` sans appeler `transform`.
 def map[T, U](
 value : Option[T],
-transform : (T) => U
+scoped transform : (T) => U
 ) : Option[U] {
     defer delete transform
     return match move value {
@@ -87,7 +87,7 @@ transform : (T) => U
 /// @return Résultat de `transform` pour `Some`, ou `None` sans appeler `transform`.
 def andThen[T, U](
 value : Option[T],
-transform : (T) => Option[U]
+scoped transform : (T) => Option[U]
 ) : Option[U] {
     defer delete transform
     return match move value {

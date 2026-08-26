@@ -418,7 +418,10 @@ private val release : () => Unit
     /// @param initial Valeur initiale de l’accumulateur.
     /// @param combine Fonction produisant l’accumulateur de l’étape suivante.
     /// @return L’accumulateur final, ou `initial` si le parcours est vide.
-    consume def fold[U](initial : U, combine : (U, T) => U) : U {
+    consume def fold[U](
+    initial : U,
+    scoped combine : (U, T) => U
+    ) : U {
         var accumulator : U = initial
         for value in move this {
             accumulator = combine(move accumulator, move value)

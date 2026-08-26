@@ -194,6 +194,27 @@ def main() : int { return 0 }
 )",
                        "receiving call may store or return it");
 
+  expect_valid(R"(
+class Counter(val value : int) {
+  borrow def read() : int { return value }
+}
+def invoke(scoped callback : () => int) : int {
+  defer delete callback
+  return callback()
+}
+def test(borrow counter : Counter) : int {
+  return invoke(() => counter.read())
+}
+def main() : int { return 0 }
+)",
+               true);
+
+  expect_compile_error(R"(
+def invalid(scoped value : int) : int { return value }
+def main() : int { return 0 }
+)",
+                       "scoped parameters require a function type");
+
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";
     return 1;

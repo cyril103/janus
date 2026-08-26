@@ -294,6 +294,8 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
   for (std::size_t index = 0; index < value.parameters.size(); ++index) {
     if (index != 0)
       signature += ", ";
+    if (value.parameters[index].is_scoped)
+      signature += "scoped ";
     if (value.parameters[index].ownership ==
         janus::ast::ParameterOwnership::Borrow)
       signature += "borrow ";

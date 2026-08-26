@@ -16,7 +16,7 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "e7da57863427b350f37b24f412e8e56a236561ff816ee9f9f50efcf331c887a6",
+      "signature_digest": "6fa6fac9a2fe8c73a3ca361cbb8654f6948d1b05134e7a3c83ed719f48e26c30",
       "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getBorrowed", "Array.getOption", "Array.set", "Array.replace", "Array.swap", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.withValue", "Array.withMutable", "Array.withValues", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "filledArray", "generateArray"]
     },
     {
@@ -145,7 +145,7 @@
       "source": "stdlib/std/iterator.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "d703d53303c51c6a3aedcded9ee5b1f804c8ecd30a9e9440255a812a40c1ebf6",
+      "signature_digest": "e0a78dce883f6e1c7c44639af37453c13ba8f1c7640f23d82f3f293b6780c7cd",
       "symbols": ["Iterable", "Iterable.iterator", "ZipItem", "ZipItem.left", "ZipItem.right", "Indexed", "Indexed.index", "Indexed.value", "Iterator", "Iterator.next", "Iterator.map", "Iterator.filter", "Iterator.take", "Iterator.zip", "Iterator.enumerate", "Iterator.flatMap", "Iterator.collectWith", "Iterator.fold"]
     },
     {
@@ -169,7 +169,7 @@
       "source": "stdlib/std/option.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "f9d6aa8dcd0b0af6c41dca03203d689ffc749b0fc10f27e02edf50d86e464b3e",
+      "signature_digest": "7e265b334c9a5bb6baa5f4ab6966f782ee78b57ac285c8bd62042357a24cedb4",
       "symbols": ["Option", "Option.Some", "Option.None", "isSome", "isNone", "map", "andThen", "orElse", "unwrapOr"]
     },
     {
@@ -217,7 +217,7 @@
       "source": "stdlib/std/result.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "528d4454328ec6f9036eff343e1e4dd208e13159e18bed02bf696e17b6c4c295",
+      "signature_digest": "54e666a27979d0505069cbdb53077f69377cdb5b4a095d83f328269805b4d3bd",
       "symbols": ["Result", "Result.Ok", "Result.Error", "isOk", "isError", "map", "mapError", "andThen", "orElse", "unwrapOr", "toOption", "fromOption"]
     },
     {

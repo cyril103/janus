@@ -143,6 +143,8 @@ std::string function_signature(const ast::FunctionDeclaration &fn) {
   for (std::size_t i = 0; i < fn.parameters.size(); ++i) {
     if (i != 0)
       result += ", ";
+    if (fn.parameters[i].is_scoped)
+      result += "scoped ";
     if (fn.parameters[i].ownership == ast::ParameterOwnership::Borrow)
       result += "borrow ";
     if (fn.parameters[i].ownership == ast::ParameterOwnership::BorrowMutable)

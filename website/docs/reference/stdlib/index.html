@@ -411,7 +411,7 @@ filledArray[byte](usize(4), byte(0))<br>
 defer delete bytes<br>
 </code></pre></section>
 <div class="qualified">std.array.filledArray</div></div><a class="permalink" href="#std-array-filledarray" aria-label="Permanent link to std.array.filledArray">#</a></article>
-<article class="symbol-card kind-function" id="std-array-generatearray" data-symbol data-search="std.array.generateArray function def generateArray[T](count : usize, factory : Function[usize, T]) : Array[T] Construit un tableau en appelant `factory` une fois par index croissant.
+<article class="symbol-card kind-function" id="std-array-generatearray" data-symbol data-search="std.array.generateArray function def generateArray[T](count : usize, scoped factory : Function[usize, T]) : Array[T] Construit un tableau en appelant `factory` une fois par index croissant.
 
 Les appels couvrent exactement `[0, count)`, dans l’ordre. Chaque résultat
 est déplacé dans le tableau, ce qui autorise les types non `Copy` sans
@@ -429,7 +429,7 @@ usize(4),
 (index : usize) =&gt; int(index * index)
 )
 defer delete squares
-```"><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def generateArray[T](count : usize, factory : Function[usize, T]) : Array[T]</code></h3>
+```"><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def generateArray[T](count : usize, scoped factory : Function[usize, T]) : Array[T]</code></h3>
 <p class="doc-summary">Construit un tableau en appelant `factory` une fois par index croissant.</p>
 <div class="doc-details"><p>Les appels couvrent exactement `[0, count)`, dans l’ordre. Chaque résultat<br>
 est déplacé dans le tableau, ce qui autorise les types non `Copy` sans<br>
@@ -4614,13 +4614,13 @@ est détruit dès son épuisement.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, Iterator[U]]</code></td><td>Fonction consommant une valeur et produisant son parcours intérieur.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[U]</code> — Un itérateur produisant successivement toutes les valeurs intérieures.</p></section>
 <div class="qualified">std.iterator.Iterator.flatMap</div></div><a class="permalink" href="#std-iterator-iterator-flatmap" aria-label="Permanent link to std.iterator.Iterator.flatMap">#</a></article>
-<article class="symbol-card kind-method child" id="std-iterator-iterator-fold" data-symbol data-search="std.iterator.Iterator.fold method consume def fold[U](initial : U, combine : Function[U, T, U]) : U Réduit le parcours de gauche à droite à partir d’un accumulateur initial.
+<article class="symbol-card kind-method child" id="std-iterator-iterator-fold" data-symbol data-search="std.iterator.Iterator.fold method consume def fold[U](initial : U, scoped combine : Function[U, T, U]) : U Réduit le parcours de gauche à droite à partir d’un accumulateur initial.
 
 Le parcours est consommé. À chaque étape, l’accumulateur courant et la
 prochaine valeur sont transmis à `combine`.
 @param initial Valeur initiale de l’accumulateur.
 @param combine Fonction produisant l’accumulateur de l’étape suivante.
-@return L’accumulateur final, ou `initial` si le parcours est vide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def fold[U](initial : U, combine : Function[U, T, U]) : U</code></h3>
+@return L’accumulateur final, ou `initial` si le parcours est vide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def fold[U](initial : U, scoped combine : Function[U, T, U]) : U</code></h3>
 <p class="doc-summary">Réduit le parcours de gauche à droite à partir d’un accumulateur initial.</p>
 <div class="doc-details"><p>Le parcours est consommé. À chaque étape, l’accumulateur courant et la<br>
 prochaine valeur sont transmis à `combine`.</p></div>
@@ -5503,11 +5503,11 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <article class="symbol-card kind-variant child" id="std-option-option-some" data-symbol data-search="std.option.Option.Some variant Some(T) Contient une valeur de type `T`."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.option.Option</div><h3><code>Some(T)</code></h3>
 <p class="doc-summary">Contient une valeur de type `T`.</p>
 <div class="qualified">std.option.Option.Some</div></div><a class="permalink" href="#std-option-option-some" aria-label="Permanent link to std.option.Option.Some">#</a></article>
-<article class="symbol-card kind-function" id="std-option-andthen" data-symbol data-search="std.option.andThen function def andThen[T, U](value : Option[T], transform : Function[T, Option[U]]) : Option[U] Enchaîne une opération optionnelle sur la branche présente.
+<article class="symbol-card kind-function" id="std-option-andthen" data-symbol data-search="std.option.andThen function def andThen[T, U](value : Option[T], scoped transform : Function[T, Option[U]]) : Option[U] Enchaîne une opération optionnelle sur la branche présente.
 
 @param value Option consommée par l’opération.
 @param transform Fonction propriétaire appelée une fois avec le contenu déplacé pour `Some`, puis détruite.
-@return Résultat de `transform` pour `Some`, ou `None` sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def andThen[T, U](value : Option[T], transform : Function[T, Option[U]]) : Option[U]</code></h3>
+@return Résultat de `transform` pour `Some`, ou `None` sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def andThen[T, U](value : Option[T], scoped transform : Function[T, Option[U]]) : Option[U]</code></h3>
 <p class="doc-summary">Enchaîne une opération optionnelle sur la branche présente.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée par l’opération.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, Option[U]]</code></td><td>Fonction propriétaire appelée une fois avec le contenu déplacé pour `Some`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Résultat de `transform` pour `Some`, ou `None` sans appeler `transform`.</p></section>
@@ -5528,11 +5528,11 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option inspectée sans déplacer son contenu.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Some`, `false` pour `None`.</p></section>
 <div class="qualified">std.option.isSome</div></div><a class="permalink" href="#std-option-issome" aria-label="Permanent link to std.option.isSome">#</a></article>
-<article class="symbol-card kind-function" id="std-option-map" data-symbol data-search="std.option.map function def map[T, U](value : Option[T], transform : Function[T, U]) : Option[U] Consomme l’option et transforme son contenu lorsqu’il existe.
+<article class="symbol-card kind-function" id="std-option-map" data-symbol data-search="std.option.map function def map[T, U](value : Option[T], scoped transform : Function[T, U]) : Option[U] Consomme l’option et transforme son contenu lorsqu’il existe.
 
 @param value Option consommée par l’opération.
 @param transform Fonction propriétaire appelée une fois avec la valeur déplacée pour `Some`, puis détruite.
-@return `Some` du résultat de `transform`, ou `None` sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def map[T, U](value : Option[T], transform : Function[T, U]) : Option[U]</code></h3>
+@return `Some` du résultat de `transform`, ou `None` sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def map[T, U](value : Option[T], scoped transform : Function[T, U]) : Option[U]</code></h3>
 <p class="doc-summary">Consomme l’option et transforme son contenu lorsqu’il existe.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée par l’opération.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction propriétaire appelée une fois avec la valeur déplacée pour `Some`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — `Some` du résultat de `transform`, ou `None` sans appeler `transform`.</p></section>
@@ -6091,11 +6091,11 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <article class="symbol-card kind-variant child" id="std-result-result-ok" data-symbol data-search="std.result.Result.Ok variant Ok(T) Contient la valeur produite en cas de succès."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.result.Result</div><h3><code>Ok(T)</code></h3>
 <p class="doc-summary">Contient la valeur produite en cas de succès.</p>
 <div class="qualified">std.result.Result.Ok</div></div><a class="permalink" href="#std-result-result-ok" aria-label="Permanent link to std.result.Result.Ok">#</a></article>
-<article class="symbol-card kind-function" id="std-result-andthen" data-symbol data-search="std.result.andThen function def andThen[T, U, E](value : Result[T, E], transform : Function[T, Result[U, E]]) : Result[U, E] Enchaîne une opération susceptible d’échouer sur la branche de succès.
+<article class="symbol-card kind-function" id="std-result-andthen" data-symbol data-search="std.result.andThen function def andThen[T, U, E](value : Result[T, E], scoped transform : Function[T, Result[U, E]]) : Result[U, E] Enchaîne une opération susceptible d’échouer sur la branche de succès.
 
 @param value Résultat consommé.
 @param transform Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.
-@return Résultat de `transform`, ou erreur d’origine déplacée sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def andThen[T, U, E](value : Result[T, E], transform : Function[T, Result[U, E]]) : Result[U, E]</code></h3>
+@return Résultat de `transform`, ou erreur d’origine déplacée sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def andThen[T, U, E](value : Result[T, E], scoped transform : Function[T, Result[U, E]]) : Result[U, E]</code></h3>
 <p class="doc-summary">Enchaîne une opération susceptible d’échouer sur la branche de succès.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, Result[U, E]]</code></td><td>Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[U, E]</code> — Résultat de `transform`, ou erreur d’origine déplacée sans appeler `transform`.</p></section>
@@ -6125,29 +6125,29 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat inspecté sans déplacer sa branche.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Ok`, `false` pour `Error`.</p></section>
 <div class="qualified">std.result.isOk</div></div><a class="permalink" href="#std-result-isok" aria-label="Permanent link to std.result.isOk">#</a></article>
-<article class="symbol-card kind-function" id="std-result-map" data-symbol data-search="std.result.map function def map[T, U, E](value : Result[T, E], transform : Function[T, U]) : Result[U, E] Consomme le résultat et transforme uniquement sa valeur de succès.
+<article class="symbol-card kind-function" id="std-result-map" data-symbol data-search="std.result.map function def map[T, U, E](value : Result[T, E], scoped transform : Function[T, U]) : Result[U, E] Consomme le résultat et transforme uniquement sa valeur de succès.
 
 @param value Résultat consommé.
 @param transform Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.
-@return `Ok` transformé, ou l’erreur d’origine déplacée sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def map[T, U, E](value : Result[T, E], transform : Function[T, U]) : Result[U, E]</code></h3>
+@return `Ok` transformé, ou l’erreur d’origine déplacée sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def map[T, U, E](value : Result[T, E], scoped transform : Function[T, U]) : Result[U, E]</code></h3>
 <p class="doc-summary">Consomme le résultat et transforme uniquement sa valeur de succès.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[U, E]</code> — `Ok` transformé, ou l’erreur d’origine déplacée sans appeler `transform`.</p></section>
 <div class="qualified">std.result.map</div></div><a class="permalink" href="#std-result-map" aria-label="Permanent link to std.result.map">#</a></article>
-<article class="symbol-card kind-function" id="std-result-maperror" data-symbol data-search="std.result.mapError function def mapError[T, E, F](value : Result[T, E], transform : Function[E, F]) : Result[T, F] Consomme le résultat et transforme uniquement son erreur.
+<article class="symbol-card kind-function" id="std-result-maperror" data-symbol data-search="std.result.mapError function def mapError[T, E, F](value : Result[T, E], scoped transform : Function[E, F]) : Result[T, F] Consomme le résultat et transforme uniquement son erreur.
 
 @param value Résultat consommé.
 @param transform Fonction propriétaire appelée avec l’erreur déplacée pour `Error`, puis détruite.
-@return Erreur transformée, ou valeur de succès d’origine déplacée sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def mapError[T, E, F](value : Result[T, E], transform : Function[E, F]) : Result[T, F]</code></h3>
+@return Erreur transformée, ou valeur de succès d’origine déplacée sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def mapError[T, E, F](value : Result[T, E], scoped transform : Function[E, F]) : Result[T, F]</code></h3>
 <p class="doc-summary">Consomme le résultat et transforme uniquement son erreur.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr><tr><td><code>transform</code></td><td><code>Function[E, F]</code></td><td>Fonction propriétaire appelée avec l’erreur déplacée pour `Error`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[T, F]</code> — Erreur transformée, ou valeur de succès d’origine déplacée sans appeler `transform`.</p></section>
 <div class="qualified">std.result.mapError</div></div><a class="permalink" href="#std-result-maperror" aria-label="Permanent link to std.result.mapError">#</a></article>
-<article class="symbol-card kind-function" id="std-result-orelse" data-symbol data-search="std.result.orElse function def orElse[T, E, F](value : Result[T, E], transform : Function[E, Result[T, F]]) : Result[T, F] Tente une récupération uniquement sur la branche d’erreur.
+<article class="symbol-card kind-function" id="std-result-orelse" data-symbol data-search="std.result.orElse function def orElse[T, E, F](value : Result[T, E], scoped transform : Function[E, Result[T, F]]) : Result[T, F] Tente une récupération uniquement sur la branche d’erreur.
 
 @param value Résultat consommé.
 @param transform Fonction propriétaire appelée avec l’erreur déplacée pour `Error`, puis détruite.
-@return Résultat de `transform`, ou succès d’origine déplacé sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def orElse[T, E, F](value : Result[T, E], transform : Function[E, Result[T, F]]) : Result[T, F]</code></h3>
+@return Résultat de `transform`, ou succès d’origine déplacé sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def orElse[T, E, F](value : Result[T, E], scoped transform : Function[E, Result[T, F]]) : Result[T, F]</code></h3>
 <p class="doc-summary">Tente une récupération uniquement sur la branche d’erreur.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr><tr><td><code>transform</code></td><td><code>Function[E, Result[T, F]]</code></td><td>Fonction propriétaire appelée avec l’erreur déplacée pour `Error`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[T, F]</code> — Résultat de `transform`, ou succès d’origine déplacé sans appeler `transform`.</p></section>

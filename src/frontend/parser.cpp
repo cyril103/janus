@@ -444,6 +444,11 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
   std::vector<ast::FunctionDeclaration::Parameter> parameters;
   if (current_.kind != TokenKind::RightParen) {
     do {
+      const bool parameter_is_scoped =
+          current_.kind == TokenKind::Identifier &&
+          current_.lexeme == "scoped";
+      if (parameter_is_scoped)
+        advance();
       const bool parameter_is_borrowed = current_.kind == TokenKind::Borrow;
       if (parameter_is_borrowed)
         advance();
@@ -458,7 +463,8 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
           parameter_is_mutably_borrowed
               ? ast::ParameterOwnership::BorrowMutable
               : (parameter_is_borrowed ? ast::ParameterOwnership::Borrow
-                                       : ast::ParameterOwnership::Unspecified)});
+                                       : ast::ParameterOwnership::Unspecified),
+          parameter_is_scoped});
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -979,6 +985,10 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
         advance();
         break;
       }
+      const bool is_scoped = current_.kind == TokenKind::Identifier &&
+                             current_.lexeme == "scoped";
+      if (is_scoped)
+        advance();
       ast::ParameterOwnership ownership = ast::ParameterOwnership::Unspecified;
       if (current_.kind == TokenKind::Borrow ||
           current_.kind == TokenKind::Consume) {
@@ -1006,7 +1016,7 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
       ast::TypeReference parameter_type = parse_type();
       parameters.push_back(ast::FunctionDeclaration::Parameter{
           std::string{parameter_name.lexeme}, std::move(parameter_type),
-          parameter_name.location, ownership});
+          parameter_name.location, ownership, is_scoped});
       if (current_.kind != TokenKind::Comma) {
         break;
       }

@@ -83,7 +83,7 @@ def isError[T, E](borrow value : Result[T, E]) : bool {
 /// @return `Ok` transformé, ou l’erreur d’origine déplacée sans appeler `transform`.
 def map[T, U, E](
 value : Result[T, E],
-transform : (T) => U
+scoped transform : (T) => U
 ) : Result[U, E] {
     defer delete transform
     return match move value {
@@ -99,7 +99,7 @@ transform : (T) => U
 /// @return Erreur transformée, ou valeur de succès d’origine déplacée sans appeler `transform`.
 def mapError[T, E, F](
 value : Result[T, E],
-transform : (E) => F
+scoped transform : (E) => F
 ) : Result[T, F] {
     defer delete transform
     return match move value {
@@ -115,7 +115,7 @@ transform : (E) => F
 /// @return Résultat de `transform`, ou erreur d’origine déplacée sans appeler `transform`.
 def andThen[T, U, E](
 value : Result[T, E],
-transform : (T) => Result[U, E]
+scoped transform : (T) => Result[U, E]
 ) : Result[U, E] {
     defer delete transform
     return match move value {
@@ -131,7 +131,7 @@ transform : (T) => Result[U, E]
 /// @return Résultat de `transform`, ou succès d’origine déplacé sans appeler `transform`.
 def orElse[T, E, F](
 value : Result[T, E],
-transform : (E) => Result[T, F]
+scoped transform : (E) => Result[T, F]
 ) : Result[T, F] {
     defer delete transform
     return match move value {

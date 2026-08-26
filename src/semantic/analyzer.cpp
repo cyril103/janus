@@ -703,6 +703,7 @@ void validate_tailrec_contract(
       const auto &left_parameter = left.declaration->parameters[index];
       const auto &right_parameter = right.declaration->parameters[index];
       if (left_parameter.ownership != right_parameter.ownership ||
+          left_parameter.is_scoped != right_parameter.is_scoped ||
           !same_type(resolved_type(left, left_parameter.type),
                      resolved_type(right, right_parameter.type)))
         return false;
@@ -2592,6 +2593,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             parameter.location,
             "consume parameter qualifiers are only supported on external "
             "functions"};
+      if (parameter.is_scoped && !parameter_type.is_function())
+        throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
+                           parameter.location,
+                           "scoped parameters require a function type"};
+      if (parameter.is_scoped && context.function->is_external)
+        throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
+                           parameter.location,
+                           "scoped parameters are not supported on external "
+                           "functions"};
       if (parameter.ownership != ast::ParameterOwnership::Unspecified &&
           context.function->is_external && !parameter_type.is_pointer())
         throw CompileError{
@@ -3458,14 +3468,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
       std::unordered_set<std::string> call_shared_borrows;
       std::unordered_set<std::string> call_mutable_borrows;
-      const bool synchronous_callback_api =
-          (callee.module_name == std::optional<std::string>{"std.option"} &&
-           (callee.name == "map" || callee.name == "andThen")) ||
-          (callee.module_name == std::optional<std::string>{"std.result"} &&
-           (callee.name == "map" || callee.name == "mapError" ||
-            callee.name == "andThen" || callee.name == "orElse")) ||
-          (callee.module_name == std::optional<std::string>{"std.array"} &&
-           callee.name == "generateArray");
       for (std::size_t index = 0; index < arguments.size(); ++index) {
         if (index >= callee.parameters.size()) {
           const SemanticType argument_type = expression_type(*arguments[index]);
@@ -3557,7 +3559,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             expected.is_function() &&
             ownership != ast::ParameterOwnership::Borrow &&
             ownership != ast::ParameterOwnership::BorrowMutable &&
-            !synchronous_callback_api;
+            !callee.parameters[index].is_scoped;
         validate_expression(*arguments[index], expected,
                             expression_location(*arguments[index]));
         apply_external_ownership_contract(callee, callee.parameters[index],
@@ -5743,19 +5745,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         ast::ParameterOwnership::Borrow ||
                     method->parameters[index].ownership ==
                         ast::ParameterOwnership::BorrowMutable;
-                const bool synchronous_callback =
-                    class_declaration != nullptr &&
-                    class_declaration->name == "Iterator" &&
-                    class_declaration->module_name ==
-                        std::optional<std::string>{"std.iterator"} &&
-                    node.method == "fold";
                 contextual_lambda_may_escape =
                     substituted_expected.is_function() &&
                     method->parameters[index].ownership !=
                         ast::ParameterOwnership::Borrow &&
                     method->parameters[index].ownership !=
                         ast::ParameterOwnership::BorrowMutable &&
-                    !synchronous_callback;
+                    !method->parameters[index].is_scoped;
                 validate_expression(
                     *node.arguments[index], substituted_expected,
                     expression_location(*node.arguments[index]));
