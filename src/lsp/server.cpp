@@ -123,6 +123,20 @@ std::optional<std::string>
 inferred_literal_type(const std::vector<janus::frontend::Token> &items,
                       std::size_t initializer);
 
+bool requires_entry_point(const std::filesystem::path &document_path,
+                          bool declares_module) {
+  if (declares_module)
+    return false;
+  try {
+    const janus::driver::Manifest manifest = janus::driver::load_manifest(
+        janus::driver::find_manifest(document_path));
+    return std::filesystem::absolute(document_path).lexically_normal() ==
+           std::filesystem::absolute(manifest.entry_path()).lexically_normal();
+  } catch (const std::exception &) {
+    return true;
+  }
+}
+
 void collect_local_declarations(
     const std::vector<janus::ast::Statement> &statements,
     std::unordered_set<const janus::ast::ValueDeclaration *> &declarations) {
@@ -1510,7 +1524,9 @@ std::vector<Diagnostic>
 Server::analyze_document(std::string_view uri, std::string_view source) const {
   try {
     ast::Program program;
+    std::optional<std::filesystem::path> document_path;
     if (const std::optional<std::filesystem::path> path = file_uri_path(uri)) {
+      document_path = *path;
       std::vector<std::filesystem::path> search_paths = module_search_paths_;
       search_paths.insert(search_paths.end(), workspace_search_paths_.begin(),
                           workspace_search_paths_.end());
@@ -1525,9 +1541,14 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
       program = parser.parse_program();
     }
     const bool is_module = program.module_name.has_value();
+    const bool require_entry_point =
+        document_path.has_value()
+            ? requires_entry_point(*document_path, is_module)
+            : !is_module;
     return semantic::Analyzer{}
         .analyze(program, semantic::AnalysisOptions{
-                              .require_entry_point = !is_module, .target = {}})
+                              .require_entry_point = require_entry_point,
+                              .target = {}})
         .diagnostics;
   } catch (const CompileError &error) {
     return error.diagnostics();

@@ -128,10 +128,28 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(metrics.estimated_memory_bytes <= 1024 * 1024);
 
   const std::string main_uri = file_uri(workspace.path / "src/main.janus");
-  const std::vector<std::string> opened = server.handle(
+  const std::vector<std::string> missing_entry = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
       main_uri +
-      R"(","text":"import library\n\ndef main() : int {\n    return helper()\n}\n"}}})");
+      R"(","text":"import library\n\ndef helperEntry() : int { return helper() }\n"}}})");
+  JANUS_REQUIRE(missing_entry.size() == 1);
+  JANUS_REQUIRE(missing_entry.front().find("\"code\":\"J0000\"") !=
+                std::string::npos);
+
+  const std::string auxiliary_uri =
+      file_uri(workspace.path / "tests/auxiliary.janus");
+  const std::vector<std::string> auxiliary = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      auxiliary_uri +
+      R"(","text":"def auxiliaryValue() : int { return 1 }\n"}}})");
+  JANUS_REQUIRE(auxiliary.size() == 1);
+  JANUS_REQUIRE(auxiliary.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
+
+  const std::vector<std::string> opened = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":")" +
+      main_uri +
+      R"("},"contentChanges":[{"text":"import library\n\ndef main() : int {\n    return helper()\n}\n"}]}})");
   JANUS_REQUIRE(opened.size() == 1);
   JANUS_REQUIRE(opened.front().find("\"diagnostics\":[]") != std::string::npos);
   const std::vector<std::string> discovery_completion = server.handle(
