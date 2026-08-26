@@ -194,6 +194,27 @@ def main() : int {
 }
 ```
 
+### `std.ordering`
+
+`Ordering[T]` centralise une comparaison totale trichotomique. Les tableaux
+peuvent réutiliser une stratégie avec `sortBy` au lieu de recréer une closure
+pour chaque tri.
+
+```janus
+// doctest: doctest name=stdlib-std-ordering
+import std.array
+import std.ordering
+def main() : int {
+    val ordering : IntOrdering = new IntOrdering()
+    val values : Array[int] = [3, 1, 2]
+    values.sortBy[IntOrdering](ordering)
+    val first : int = values.get(usize(0))
+    delete values
+    delete ordering
+    return first - 1
+}
+```
+
 ## Système, texte et temps
 
 ### `std.c`

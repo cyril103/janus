@@ -921,19 +921,35 @@ defer delete recovered
 
 `set` détruit l'élément remplacé ; `replace` le retourne à l'appelant.
 
+`retain` filtre un tableau sur place en détruisant les éléments refusés;
+`extend` transfère toutes les valeurs d'un `Iterator[T]`; `drain` consomme le
+tableau et rend son parcours propriétaire. `sortBy` reçoit une implémentation
+du trait `Ordering[T]`, dont `IntOrdering` et `USizeOrdering` fournissent les
+ordres croissants usuels. La comparaison trichotomique retourne `Order.Less`,
+`Order.Equal` ou `Order.Greater` et peut aussi être interrogée avec
+`orderedBefore`.
+
 `Deque[T]` ajoute et retire aux deux extrémités en temps amorti constant avec
 `pushFront`, `pushBack`, `popFront` et `popBack`. Les variantes suffixées
 `Option` évitent une panique sur une deque vide; `withFront` et `withBack`
 observent une ressource sans exiger `Copy`. `Queue[T]` restreint cette surface à
 `enqueue`, `dequeue` et `withFirst` pour garantir un ordre FIFO. Les deux types
 implémentent `IntoIterable[T]` et leur parcours consommant suit l'ordre de
-sortie, de l'avant vers l'arrière.
+sortie, de l'avant vers l'arrière. Elles proposent aussi `reserve`, `extend` et
+`drain`; la capacité réservée n'initialise aucune valeur utilisateur.
 
 `HashSet`, `HashMap`, `ArrayBuilder`, `SetBuilder` et `MapBuilder` acceptent
 également les éléments propriétaires. `add`, `put` et `Builder.add` consomment
 ces éléments avec `move`. Un doublon de `HashSet` détruit la valeur entrante ;
 `HashMap.put` détruit l'ancienne clé équivalente et retourne l'ancienne valeur.
 `remove` détruit la clé stockée et transfère la valeur retirée.
+
+`HashSet` et `HashMap` exposent désormais leur `capacity` et `reserve` réserve
+des insertions supplémentaires en respectant le seuil de charge. `retain`
+supprime sur place les membres ou associations refusés, `extend` consomme un
+parcours de valeurs ou de `MapEntry`, et les drains transfèrent la totalité du
+contenu. `HashMap.withEntry` observe simultanément la clé canonique et sa valeur
+sans imposer `Copy`.
 
 Les paramètres de `Hashing.hash` et `Hashing.equals` sont des observations :
 une implémentation ne doit ni les déplacer, ni les détruire, ni les retourner.

@@ -295,10 +295,37 @@ private borrow val hashing : H
         return length
     }
 
+    /// Retourne le nombre de cases de la table.
+    /// @return Capacité interne avant une prochaine réorganisation.
+    borrow def capacity() : usize {
+        return slotCapacity
+    }
+
     /// Indique si la table ne contient aucune association.
     /// @return `true` lorsque [[HashMap.size]] vaut zéro.
     borrow def isEmpty() : bool {
         return length == usize(0)
+    }
+
+    /// Réserve de la place pour des associations supplémentaires.
+    /// @param additional Nombre d'insertions nouvelles à accepter sans croissance.
+    def reserve(additional : usize) : Unit {
+        if additional > usize(-1) - length {
+            panic("HashMap capacity overflow\n")
+        }
+        val target : usize = length + additional
+        var requested : usize = slotCapacity
+        while target >= requested - requested / usize(4) {
+            if requested > usize(-1) / usize(2) {
+                panic("HashMap capacity overflow\n")
+            }
+            requested = requested * usize(2)
+        }
+        if requested > slotCapacity {
+            this.resize(requested)
+        } else {
+            this.initializeSlots()
+        }
     }
 
     internal borrow def storageSize() : usize {
@@ -428,6 +455,51 @@ private borrow val hashing : H
             if this.isEmptyAt(index) {
                 return false
             }
+        }
+        return false
+    }
+
+    /// Observe la clé canonique et sa valeur associée sans copie.
+    /// @param key Clé de recherche observée.
+    /// @param action Callback borné recevant les deux membres stockés.
+    /// @return `true` si l'association a été observée.
+    def withEntry(
+    borrow key : K,
+    scoped action : (borrow K, borrow V) => Unit
+    ) : bool {
+        defer delete action
+        if length == usize(0) {
+            return false
+        }
+        var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
+        while probe.hasNext() {
+            val index : usize = probe.next()
+            borrow val slot : MapSlot[K, V] = slots.getBorrowed(index)
+            val found : bool = match slot {
+                Occupied(storedKey, storedValue) =>
+                this.observeEntry(storedKey, key, storedValue, action),
+                Empty => false,
+                Deleted => false
+            }
+            if found {
+                return true
+            }
+            if this.isEmptyAt(index) {
+                return false
+            }
+        }
+        return false
+    }
+
+    private def observeEntry(
+    borrow storedKey : K,
+    borrow query : K,
+    borrow storedValue : V,
+    borrow action : (borrow K, borrow V) => Unit
+    ) : bool {
+        if hashing.equals(storedKey, query) {
+            action(storedKey, storedValue)
+            return true
         }
         return false
     }
@@ -613,6 +685,54 @@ private borrow val hashing : H
         }
         length = usize(0)
         deletedCount = usize(0)
+    }
+
+    private borrow def keepAt(
+    index : usize,
+    borrow predicate : (borrow K, borrow V) => bool
+    ) : bool {
+        borrow val slot : MapSlot[K, V] = slots.getBorrowed(index)
+        return match slot {
+            Occupied(key, value) => predicate(key, value),
+            Empty => true,
+            Deleted => true
+        }
+    }
+
+    /// Conserve les associations qui satisfont le prédicat.
+    /// @param predicate Callback borné observant chaque clé et valeur une fois.
+    /// @return Nombre d'associations conservées.
+    def retain(
+    scoped predicate : (borrow K, borrow V) => bool
+    ) : usize {
+        defer delete predicate
+        this.initializeSlots()
+        var index : usize = usize(0)
+        while index < slotCapacity {
+            if !this.keepAt(index, predicate) {
+                val removed : Option[MapEntry[K, V]] =
+                this.takeEntryAt(index)
+                delete removed
+            }
+            index = index + usize(1)
+        }
+        return length
+    }
+
+    /// Ajoute ou remplace toutes les associations d'un parcours consommé.
+    /// @param source Itérateur d'entrées propriétaires.
+    /// @return Taille finale de la table.
+    def extend(source : Iterator[MapEntry[K, V]]) : usize {
+        for entry in move source {
+            entry.insertInto[H](this)
+        }
+        return length
+    }
+
+    /// Consomme la table et transfère toutes ses associations.
+    /// @return Itérateur propriétaire équivalent à [[HashMap.intoEntries]].
+    consume def drainEntries() : Iterator[MapEntry[K, V]] {
+        return this.intoEntries()
     }
 
     /// Crée un parcours observant de copies des associations.

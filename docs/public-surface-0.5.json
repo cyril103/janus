@@ -16,8 +16,8 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "12a12c7734a80b00c31a7bb137df5fc7004517033620e539fc2dce7c8d987578",
-      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getBorrowed", "Array.getMutable", "Array.getOption", "Array.set", "Array.replace", "Array.swap", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.withValue", "Array.withMutable", "Array.withValues", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "filledArray", "generateArray"]
+      "signature_digest": "20b9e6f0aacd36edeaf9f000b9c6809a6c1f08e951efde6fb9c71cb239110ba3",
+      "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getBorrowed", "Array.getMutable", "Array.getOption", "Array.set", "Array.replace", "Array.swap", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.retain", "Array.extend", "Array.drain", "Array.withValue", "Array.withMutable", "Array.withValues", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "Array.sortBy", "filledArray", "generateArray"]
     },
     {
       "name": "std.array_builder",
@@ -48,8 +48,8 @@
       "source": "stdlib/std/deque.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
       "status": "experimental",
-      "signature_digest": "8e8c5dccd76f22174217bfe251219fd996cbf7e61b0ebb476bf3d1560160f46b",
-      "symbols": ["Deque", "Deque.size", "Deque.capacity", "Deque.isEmpty", "Deque.pushBack", "Deque.pushFront", "Deque.popFrontOption", "Deque.popBackOption", "Deque.popFront", "Deque.popBack", "Deque.withFront", "Deque.withBack", "Deque.clear", "Deque.intoIterator", "Queue", "Queue.size", "Queue.isEmpty", "Queue.enqueue", "Queue.dequeue", "Queue.dequeueOption", "Queue.withFirst", "Queue.clear", "Queue.intoIterator"]
+      "signature_digest": "b72304aee8dbcdef2545cd7340a105c1a98c0cd06086f96f3b77697f9ddd8731",
+      "symbols": ["Deque", "Deque.size", "Deque.capacity", "Deque.isEmpty", "Deque.reserve", "Deque.pushBack", "Deque.pushFront", "Deque.popFrontOption", "Deque.popBackOption", "Deque.popFront", "Deque.popBack", "Deque.withFront", "Deque.withBack", "Deque.clear", "Deque.extend", "Deque.drain", "Deque.intoIterator", "Queue", "Queue.size", "Queue.isEmpty", "Queue.enqueue", "Queue.dequeue", "Queue.dequeueOption", "Queue.withFirst", "Queue.clear", "Queue.reserve", "Queue.extend", "Queue.drain", "Queue.intoIterator"]
     },
     {
       "name": "std.graphics",
@@ -129,16 +129,16 @@
       "source": "stdlib/std/hashmap.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "5c0588b9539fea4ded582ad4e8f1c83719ff7f272b8027763566b9bd8f779650",
-      "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "MapEntry.intoKey", "MapEntry.intoValue", "HashMap", "HashMap.size", "HashMap.isEmpty", "HashMap.containsKey", "HashMap.getOption", "HashMap.withValue", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.entries", "HashMap.keys", "HashMap.values", "HashMap.intoEntries", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
+      "signature_digest": "bd03c2ff00763a78cbd2818ccace88d9ef9de59a5ba231fe221ce468d87c467a",
+      "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "MapEntry.intoKey", "MapEntry.intoValue", "HashMap", "HashMap.size", "HashMap.capacity", "HashMap.isEmpty", "HashMap.reserve", "HashMap.containsKey", "HashMap.getOption", "HashMap.withValue", "HashMap.withEntry", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.retain", "HashMap.extend", "HashMap.drainEntries", "HashMap.entries", "HashMap.keys", "HashMap.values", "HashMap.intoEntries", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
     },
     {
       "name": "std.hashset",
       "source": "stdlib/std/hashset.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "40c7e883b369d6d24c3de90bd7160b6142062f2021a1496edb3f29867cfdeecc",
-      "symbols": ["HashSet", "HashSet.size", "HashSet.isEmpty", "HashSet.contains", "HashSet.withValue", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
+      "signature_digest": "dd296817fc9c8800df1d176144e2c8b97642e0e9dd7e3c72edd8009339fa327b",
+      "symbols": ["HashSet", "HashSet.size", "HashSet.capacity", "HashSet.isEmpty", "HashSet.reserve", "HashSet.contains", "HashSet.withValue", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.retain", "HashSet.extend", "HashSet.drain", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
     },
     {
       "name": "std.io",
@@ -179,6 +179,14 @@
       "status": "stable-proposed",
       "signature_digest": "ffee90feb3a968d34ba096eebad42b6b5b73fd8892bc335d2b00a7973669d095",
       "symbols": ["Option", "Option.Some", "Option.None", "isSome", "isNone", "mapBorrowed", "map", "andThen", "orElse", "unwrapOr"]
+    },
+    {
+      "name": "std.ordering",
+      "source": "stdlib/std/ordering.janus",
+      "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
+      "status": "experimental",
+      "signature_digest": "912f276235e54612b0b64c69d2b0c60af6fc56f8b2f8270e7cdbb3b4cc9de647",
+      "symbols": ["Order", "Order.Less", "Order.Equal", "Order.Greater", "Ordering", "Ordering.compare", "IntOrdering", "IntOrdering.compare", "USizeOrdering", "USizeOrdering.compare", "orderedBefore"]
     },
     {
       "name": "std.path",

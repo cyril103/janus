@@ -1,0 +1,96 @@
+import std.array
+import std.deque
+import std.hashing
+import std.hashmap
+import std.hashset
+import std.ordering
+import std.option
+
+var releases : int = 0
+
+class Resource(val id : int) {
+    destructor { releases = releases + 1 }
+}
+
+def main() : int {
+    val resources : Array[Resource] = new Array[Resource](usize(3))
+    resources.push(new Resource(1))
+    resources.push(new Resource(2))
+    resources.push(new Resource(3))
+    println(resources.retain(
+    (borrow value : Resource) => value.id % 2 != 0
+    ))
+    println(releases)
+
+    val extra : Array[Resource] = new Array[Resource](usize(2))
+    extra.push(new Resource(4))
+    extra.push(new Resource(5))
+    println(resources.extend(extra.intoIterator()))
+    for value in resources.drain() {
+        println(value.id)
+        delete value
+    }
+    println(releases)
+
+    val ordering : IntOrdering = new IntOrdering()
+    val numbers : Array[int] = new Array[int](usize(3))
+    numbers.push(3)
+    numbers.push(1)
+    numbers.push(2)
+    numbers.sortBy[IntOrdering](ordering)
+    for value in numbers.drain() { println(value) }
+
+    val deque : Deque[int] = new Deque[int](usize(1))
+    deque.reserve(usize(8))
+    println(deque.capacity() >= usize(8))
+    val dequeValues : Array[int] = new Array[int](usize(2))
+    dequeValues.push(7)
+    dequeValues.push(8)
+    println(deque.extend(dequeValues.intoIterator()))
+    for value in deque.drain() { println(value) }
+
+    val hashing : IntHashing = new IntHashing()
+    val set : HashSet[int, IntHashing] =
+    new HashSet[int, IntHashing](usize(1), hashing)
+    set.reserve(usize(20))
+    println(set.capacity() >= usize(20))
+    set.add(1)
+    set.add(2)
+    set.add(3)
+    println(set.retain((borrow value : int) => value % 2 != 0))
+    val setValues : Array[int] = new Array[int](usize(2))
+    setValues.push(3)
+    setValues.push(4)
+    println(set.extend(setValues.intoIterator()))
+    println(set.size())
+    delete set
+
+    val map : HashMap[int, int, IntHashing] =
+    new HashMap[int, int, IntHashing](usize(1), hashing)
+    map.reserve(usize(20))
+    println(map.capacity() >= usize(20))
+    val _first : Option[int] = map.put(1, 10)
+    val _second : Option[int] = map.put(2, 20)
+    println(map.withEntry(
+    1,
+    (borrow key : int, borrow value : int) => {
+        println(key)
+        println(value)
+    }
+    ))
+    println(map.retain(
+    (borrow key : int, borrow value : int) => value >= 20
+    ))
+    val entries : Array[MapEntry[int, int]] =
+    new Array[MapEntry[int, int]](usize(1))
+    entries.push(new MapEntry[int, int](3, 30))
+    println(map.extend(entries.intoIterator()))
+    var drained : int = 0
+    for entry in map.drainEntries() {
+        drained = drained + 1
+    }
+    println(drained)
+    delete hashing
+    delete ordering
+    return 0
+}

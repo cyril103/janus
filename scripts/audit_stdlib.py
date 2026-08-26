@@ -40,6 +40,7 @@ OWNER_MODULES = {
         "std.deque",
         "std.iterator",
         "std.option",
+        "std.ordering",
         "std.priority_queue",
         "std.range",
         "std.result",

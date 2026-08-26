@@ -50,7 +50,7 @@ complètes sont linéaires.</p></div></div><section class="module-example doc-se
 values.push(10)<br>
 values.push(20)<br>
 val doubled : Array[int] = values.map[int]((value : int) =&gt; value * 2)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">33</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">37</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-array-array" data-symbol data-search="std.array.Array class class Array[T](initialCapacity : usize) Tableau dynamique contigu qui possède ses éléments.
 
@@ -108,6 +108,18 @@ recevoir de nouvelles valeurs.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction observant chaque élément une fois.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’éléments acceptés.</p></section>
 <div class="qualified">std.array.Array.count</div></div><a class="permalink" href="#std-array-array-count" aria-label="Permanent link to std.array.Array.count">#</a></article>
+<article class="symbol-card kind-method child" id="std-array-array-drain" data-symbol data-search="std.array.Array.drain method consume def drain() : Iterator[T] Consomme le tableau et transfère ses éléments dans l&#39;ordre des indices.
+@return Itérateur propriétaire équivalent à [[Array.intoIterator]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>consume def drain() : Iterator[T]</code></h3>
+<p class="doc-summary">Consomme le tableau et transfère ses éléments dans l&#39;ordre des indices.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Itérateur propriétaire équivalent à <a href="#std-array-array-intoiterator"><code>Array.intoIterator</code></a>.</p></section>
+<div class="qualified">std.array.Array.drain</div></div><a class="permalink" href="#std-array-array-drain" aria-label="Permanent link to std.array.Array.drain">#</a></article>
+<article class="symbol-card kind-method child" id="std-array-array-extend" data-symbol data-search="std.array.Array.extend method def extend(source : Iterator[T]) : usize Ajoute toutes les valeurs d&#39;un parcours consommé.
+@param source Itérateur dont chaque valeur est transférée au tableau.
+@return Nouvelle taille du tableau."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def extend(source : Iterator[T]) : usize</code></h3>
+<p class="doc-summary">Ajoute toutes les valeurs d&#39;un parcours consommé.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Iterator[T]</code></td><td>Itérateur dont chaque valeur est transférée au tableau.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nouvelle taille du tableau.</p></section>
+<div class="qualified">std.array.Array.extend</div></div><a class="permalink" href="#std-array-array-extend" aria-label="Permanent link to std.array.Array.extend">#</a></article>
 <article class="symbol-card kind-method child" id="std-array-array-filter" data-symbol data-search="std.array.Array.filter method borrow def filter(borrow predicate : Function[T, bool]) : Array[T] Copie dans un nouveau tableau les éléments acceptés par le prédicat.
 
 La source reste inchangée. Le prédicat et la copie suivent l’ordre des
@@ -303,6 +315,18 @@ et un échec d’allocation déclenche `panic`.
 et un échec d’allocation déclenche `panic`.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>requested</code></td><td><code>usize</code></td><td>Capacité minimale souhaitée.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array.reserve</div></div><a class="permalink" href="#std-array-array-reserve" aria-label="Permanent link to std.array.Array.reserve">#</a></article>
+<article class="symbol-card kind-method child" id="std-array-array-retain" data-symbol data-search="std.array.Array.retain method def retain(scoped predicate : Function[T, bool]) : usize Conserve uniquement les éléments qui satisfont le prédicat.
+
+Les éléments refusés sont détruits immédiatement et l&#39;ordre relatif des
+éléments conservés reste inchangé.
+@param predicate Callback borné observant chaque élément une fois.
+@return Nombre d&#39;éléments conservés."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def retain(scoped predicate : Function[T, bool]) : usize</code></h3>
+<p class="doc-summary">Conserve uniquement les éléments qui satisfont le prédicat.</p>
+<div class="doc-details"><p>Les éléments refusés sont détruits immédiatement et l&#39;ordre relatif des<br>
+éléments conservés reste inchangé.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Callback borné observant chaque élément une fois.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d&#39;éléments conservés.</p></section>
+<div class="qualified">std.array.Array.retain</div></div><a class="permalink" href="#std-array-array-retain" aria-label="Permanent link to std.array.Array.retain">#</a></article>
 <article class="symbol-card kind-method child" id="std-array-array-set" data-symbol data-search="std.array.Array.set method def set(index : usize, value : T) : Unit Remplace l’élément situé à l’index demandé.
 
 La nouvelle valeur est déplacée dans le tableau et l’ancienne est
@@ -319,6 +343,11 @@ détruite. Si l’indice est invalide, `value` est détruite avant `panic`.</p><
 <p class="doc-summary">Retourne le nombre d’éléments stockés.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de valeurs initialisées, distinct de la capacité.</p></section>
 <div class="qualified">std.array.Array.size</div></div><a class="permalink" href="#std-array-array-size" aria-label="Permanent link to std.array.Array.size">#</a></article>
+<article class="symbol-card kind-method child" id="std-array-array-sortby" data-symbol data-search="std.array.Array.sortBy method def sortBy[O](borrow ordering : O) : Unit Trie le tableau avec une stratégie d&#39;ordre total réutilisable.
+@param ordering Comparateur trichotomique observé pendant le tri."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def sortBy[O](borrow ordering : O) : Unit</code></h3>
+<p class="doc-summary">Trie le tableau avec une stratégie d&#39;ordre total réutilisable.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>ordering</code></td><td><code>O</code></td><td>Comparateur trichotomique observé pendant le tri.</td></tr></tbody></table></section>
+<div class="qualified">std.array.Array.sortBy</div></div><a class="permalink" href="#std-array-array-sortby" aria-label="Permanent link to std.array.Array.sortBy">#</a></article>
 <article class="symbol-card kind-method child" id="std-array-array-sortwith" data-symbol data-search="std.array.Array.sortWith method def sortWith(borrow less : Function[T, T, bool]) : Unit Trie le tableau sur place selon un ordre total strict et conserve la stabilité.
 
 `less(left, right)` doit définir de façon cohérente si `left` précède
@@ -618,7 +647,7 @@ des ressources non copiables sans valeur sentinelle ni initialisation factice.">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.deque</h2></header>
 <div class="module-summary"><p class="doc-summary">Fournit une deque propriétaire et une file FIFO fondées sur un tampon circulaire.</p><div class="doc-details"><p>Les insertions et retraits aux deux extrémités sont amortis constants. Les<br>
 cases libres sont représentées par `Option.None`, ce qui permet de stocker<br>
-des ressources non copiables sans valeur sentinelle ni initialisation factice.</p></div></div><h3 class="member-heading">Public members <span class="member-count">23</span></h3>
+des ressources non copiables sans valeur sentinelle ni initialisation factice.</p></div></div><h3 class="member-heading">Public members <span class="member-count">29</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-deque-deque" data-symbol data-search="std.deque.Deque class class Deque[T](initialCapacity : usize) Tampon circulaire propriétaire à deux extrémités.
 @param initialCapacity Nombre initial de cases, normalisé à au moins une."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Deque[T](initialCapacity : usize)</code></h3>
@@ -633,6 +662,18 @@ des ressources non copiables sans valeur sentinelle ni initialisation factice.</
 <article class="symbol-card kind-method child" id="std-deque-deque-clear" data-symbol data-search="std.deque.Deque.clear method def clear() : Unit Détruit tous les éléments en conservant la capacité."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Deque</div><h3><code>def clear() : Unit</code></h3>
 <p class="doc-summary">Détruit tous les éléments en conservant la capacité.</p>
 <div class="qualified">std.deque.Deque.clear</div></div><a class="permalink" href="#std-deque-deque-clear" aria-label="Permanent link to std.deque.Deque.clear">#</a></article>
+<article class="symbol-card kind-method child" id="std-deque-deque-drain" data-symbol data-search="std.deque.Deque.drain method consume def drain() : Iterator[T] Consomme la deque comme un drain de l&#39;avant vers l&#39;arrière.
+@return Itérateur propriétaire dans l&#39;ordre logique."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Deque</div><h3><code>consume def drain() : Iterator[T]</code></h3>
+<p class="doc-summary">Consomme la deque comme un drain de l&#39;avant vers l&#39;arrière.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Itérateur propriétaire dans l&#39;ordre logique.</p></section>
+<div class="qualified">std.deque.Deque.drain</div></div><a class="permalink" href="#std-deque-deque-drain" aria-label="Permanent link to std.deque.Deque.drain">#</a></article>
+<article class="symbol-card kind-method child" id="std-deque-deque-extend" data-symbol data-search="std.deque.Deque.extend method def extend(source : Iterator[T]) : usize Ajoute à l&#39;arrière toutes les valeurs d&#39;un parcours consommé.
+@param source Itérateur dont les valeurs sont transférées.
+@return Nouvelle taille de la deque."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Deque</div><h3><code>def extend(source : Iterator[T]) : usize</code></h3>
+<p class="doc-summary">Ajoute à l&#39;arrière toutes les valeurs d&#39;un parcours consommé.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Iterator[T]</code></td><td>Itérateur dont les valeurs sont transférées.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nouvelle taille de la deque.</p></section>
+<div class="qualified">std.deque.Deque.extend</div></div><a class="permalink" href="#std-deque-deque-extend" aria-label="Permanent link to std.deque.Deque.extend">#</a></article>
 <article class="symbol-card kind-method child" id="std-deque-deque-intoiterator" data-symbol data-search="std.deque.Deque.intoIterator method consume def intoIterator() : Iterator[T] Consomme la deque et transfère ses éléments de l&#39;avant vers l&#39;arrière.
 @return Itérateur propriétaire respectant l&#39;ordre logique de la deque."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Deque</div><h3><code>consume def intoIterator() : Iterator[T]</code></h3>
 <p class="doc-summary">Consomme la deque et transfère ses éléments de l&#39;avant vers l&#39;arrière.</p>
@@ -677,6 +718,11 @@ des ressources non copiables sans valeur sentinelle ni initialisation factice.</
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur dont la deque prend possession.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nouvelle taille.</p></section>
 <div class="qualified">std.deque.Deque.pushFront</div></div><a class="permalink" href="#std-deque-deque-pushfront" aria-label="Permanent link to std.deque.Deque.pushFront">#</a></article>
+<article class="symbol-card kind-method child" id="std-deque-deque-reserve" data-symbol data-search="std.deque.Deque.reserve method def reserve(requested : usize) : Unit Garantit une capacité au moins égale à `requested`.
+@param requested Capacité minimale souhaitée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Deque</div><h3><code>def reserve(requested : usize) : Unit</code></h3>
+<p class="doc-summary">Garantit une capacité au moins égale à `requested`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>requested</code></td><td><code>usize</code></td><td>Capacité minimale souhaitée.</td></tr></tbody></table></section>
+<div class="qualified">std.deque.Deque.reserve</div></div><a class="permalink" href="#std-deque-deque-reserve" aria-label="Permanent link to std.deque.Deque.reserve">#</a></article>
 <article class="symbol-card kind-method child" id="std-deque-deque-size" data-symbol data-search="std.deque.Deque.size method borrow def size() : usize Retourne le nombre d&#39;éléments stockés.
 @return Taille logique de la deque."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Deque</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre d&#39;éléments stockés.</p>
@@ -714,6 +760,11 @@ des ressources non copiables sans valeur sentinelle ni initialisation factice.</
 <p class="doc-summary">Retire la première valeur si elle existe.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — Première valeur dans `Some`, ou `None` si la file est vide.</p></section>
 <div class="qualified">std.deque.Queue.dequeueOption</div></div><a class="permalink" href="#std-deque-queue-dequeueoption" aria-label="Permanent link to std.deque.Queue.dequeueOption">#</a></article>
+<article class="symbol-card kind-method child" id="std-deque-queue-drain" data-symbol data-search="std.deque.Queue.drain method consume def drain() : Iterator[T] Consomme la file comme un drain FIFO.
+@return Itérateur propriétaire dans l&#39;ordre d&#39;insertion."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Queue</div><h3><code>consume def drain() : Iterator[T]</code></h3>
+<p class="doc-summary">Consomme la file comme un drain FIFO.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Itérateur propriétaire dans l&#39;ordre d&#39;insertion.</p></section>
+<div class="qualified">std.deque.Queue.drain</div></div><a class="permalink" href="#std-deque-queue-drain" aria-label="Permanent link to std.deque.Queue.drain">#</a></article>
 <article class="symbol-card kind-method child" id="std-deque-queue-enqueue" data-symbol data-search="std.deque.Queue.enqueue method def enqueue(value : T) : usize Ajoute une valeur en fin de file.
 @param value Valeur dont la file prend possession.
 @return Nouvelle taille de la file."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Queue</div><h3><code>def enqueue(value : T) : usize</code></h3>
@@ -721,6 +772,13 @@ des ressources non copiables sans valeur sentinelle ni initialisation factice.</
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur dont la file prend possession.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nouvelle taille de la file.</p></section>
 <div class="qualified">std.deque.Queue.enqueue</div></div><a class="permalink" href="#std-deque-queue-enqueue" aria-label="Permanent link to std.deque.Queue.enqueue">#</a></article>
+<article class="symbol-card kind-method child" id="std-deque-queue-extend" data-symbol data-search="std.deque.Queue.extend method def extend(source : Iterator[T]) : usize Ajoute toutes les valeurs d&#39;un parcours en ordre FIFO.
+@param source Itérateur consommé.
+@return Nouvelle taille de la file."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Queue</div><h3><code>def extend(source : Iterator[T]) : usize</code></h3>
+<p class="doc-summary">Ajoute toutes les valeurs d&#39;un parcours en ordre FIFO.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Iterator[T]</code></td><td>Itérateur consommé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nouvelle taille de la file.</p></section>
+<div class="qualified">std.deque.Queue.extend</div></div><a class="permalink" href="#std-deque-queue-extend" aria-label="Permanent link to std.deque.Queue.extend">#</a></article>
 <article class="symbol-card kind-method child" id="std-deque-queue-intoiterator" data-symbol data-search="std.deque.Queue.intoIterator method consume def intoIterator() : Iterator[T] Consomme la file et transfère ses valeurs dans l&#39;ordre FIFO.
 @return Itérateur propriétaire dans l&#39;ordre d&#39;insertion."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Queue</div><h3><code>consume def intoIterator() : Iterator[T]</code></h3>
 <p class="doc-summary">Consomme la file et transfère ses valeurs dans l&#39;ordre FIFO.</p>
@@ -731,6 +789,11 @@ des ressources non copiables sans valeur sentinelle ni initialisation factice.</
 <p class="doc-summary">Indique si la file est vide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsqu&#39;aucune valeur n&#39;est en attente.</p></section>
 <div class="qualified">std.deque.Queue.isEmpty</div></div><a class="permalink" href="#std-deque-queue-isempty" aria-label="Permanent link to std.deque.Queue.isEmpty">#</a></article>
+<article class="symbol-card kind-method child" id="std-deque-queue-reserve" data-symbol data-search="std.deque.Queue.reserve method def reserve(requested : usize) : Unit Garantit la capacité sous-jacente de la file.
+@param requested Capacité minimale souhaitée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Queue</div><h3><code>def reserve(requested : usize) : Unit</code></h3>
+<p class="doc-summary">Garantit la capacité sous-jacente de la file.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>requested</code></td><td><code>usize</code></td><td>Capacité minimale souhaitée.</td></tr></tbody></table></section>
+<div class="qualified">std.deque.Queue.reserve</div></div><a class="permalink" href="#std-deque-queue-reserve" aria-label="Permanent link to std.deque.Queue.reserve">#</a></article>
 <article class="symbol-card kind-method child" id="std-deque-queue-size" data-symbol data-search="std.deque.Queue.size method borrow def size() : usize Retourne le nombre de valeurs en attente.
 @return Taille logique de la file."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Queue</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre de valeurs en attente.</p>
@@ -3997,7 +4060,7 @@ l’itération suit l’ordre interne des cases et non l’ordre d’insertion.<
     new HashMap[int, int, IntHashing](usize(8), new IntHashing())<br>
 delete scores.put(7, 42)<br>
 val score : Option[int] = scores.getOption(7)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">23</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">29</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-hashmap-hashmap" data-symbol data-search="std.hashmap.HashMap class class HashMap[K, V, H](initialCapacity : usize, borrow val hashing : H) Table associative propriétaire à adressage ouvert et sondage linéaire.
 
@@ -4018,6 +4081,11 @@ résultats concernés; <a href="#std-hashmap-hashmap-intoentries"><code>HashMap.
 contenu sans copie.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Capacité souhaitée, normalisée à un minimum de 8.</td></tr><tr><td><code>hashing</code></td><td><code>H</code></td><td>Stratégie d’égalité et de hachage empruntée par la table; elle doit rester vivante aussi longtemps qu’elle.</td></tr></tbody></table></section>
 <div class="qualified">std.hashmap.HashMap</div></div><a class="permalink" href="#std-hashmap-hashmap" aria-label="Permanent link to std.hashmap.HashMap">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-capacity" data-symbol data-search="std.hashmap.HashMap.capacity method borrow def capacity() : usize Retourne le nombre de cases de la table.
+@return Capacité interne avant une prochaine réorganisation."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>borrow def capacity() : usize</code></h3>
+<p class="doc-summary">Retourne le nombre de cases de la table.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Capacité interne avant une prochaine réorganisation.</p></section>
+<div class="qualified">std.hashmap.HashMap.capacity</div></div><a class="permalink" href="#std-hashmap-hashmap-capacity" aria-label="Permanent link to std.hashmap.HashMap.capacity">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashmap-hashmap-clear" data-symbol data-search="std.hashmap.HashMap.clear method def clear() : Unit Détruit toutes les clés et valeurs tout en conservant la capacité.
 
 Toutes les cases, tombstones compris, redeviennent vides. L’opération est
@@ -4038,6 +4106,11 @@ hachage et peut devenir linéaire en présence de nombreuses collisions.</p></di
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>key</code></td><td><code>K</code></td><td>Clé à hacher puis comparer aux clés stockées.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si une clé égale est présente.</p></section>
 <div class="qualified">std.hashmap.HashMap.containsKey</div></div><a class="permalink" href="#std-hashmap-hashmap-containskey" aria-label="Permanent link to std.hashmap.HashMap.containsKey">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-drainentries" data-symbol data-search="std.hashmap.HashMap.drainEntries method consume def drainEntries() : Iterator[MapEntry[K, V]] Consomme la table et transfère toutes ses associations.
+@return Itérateur propriétaire équivalent à [[HashMap.intoEntries]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>consume def drainEntries() : Iterator[MapEntry[K, V]]</code></h3>
+<p class="doc-summary">Consomme la table et transfère toutes ses associations.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[MapEntry[K, V]]</code> — Itérateur propriétaire équivalent à <a href="#std-hashmap-hashmap-intoentries"><code>HashMap.intoEntries</code></a>.</p></section>
+<div class="qualified">std.hashmap.HashMap.drainEntries</div></div><a class="permalink" href="#std-hashmap-hashmap-drainentries" aria-label="Permanent link to std.hashmap.HashMap.drainEntries">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashmap-hashmap-entries" data-symbol data-search="std.hashmap.HashMap.entries method borrow def entries() : Iterator[MapEntry[K, V]] Crée un parcours observant de copies des associations.
 
 La table reste propriétaire de son contenu et doit vivre pendant le
@@ -4050,6 +4123,13 @@ parcours. L’ordre correspond aux cases internes et peut changer après une<br>
 insertion ou un redimensionnement.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[MapEntry[K, V]]</code> — Un <a href="#std-iterator-iterator"><code>Iterator</code></a> d’entrées copiées; exige clés et valeurs `Copy`.</p></section>
 <div class="qualified">std.hashmap.HashMap.entries</div></div><a class="permalink" href="#std-hashmap-hashmap-entries" aria-label="Permanent link to std.hashmap.HashMap.entries">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-extend" data-symbol data-search="std.hashmap.HashMap.extend method def extend(source : Iterator[MapEntry[K, V]]) : usize Ajoute ou remplace toutes les associations d&#39;un parcours consommé.
+@param source Itérateur d&#39;entrées propriétaires.
+@return Taille finale de la table."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def extend(source : Iterator[MapEntry[K, V]]) : usize</code></h3>
+<p class="doc-summary">Ajoute ou remplace toutes les associations d&#39;un parcours consommé.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Iterator[MapEntry[K, V]]</code></td><td>Itérateur d&#39;entrées propriétaires.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Taille finale de la table.</p></section>
+<div class="qualified">std.hashmap.HashMap.extend</div></div><a class="permalink" href="#std-hashmap-hashmap-extend" aria-label="Permanent link to std.hashmap.HashMap.extend">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashmap-hashmap-getoption" data-symbol data-search="std.hashmap.HashMap.getOption method def getOption(borrow key : K) : Option[V] Retourne la valeur associée à la clé, si elle existe.
 
 La table conserve l’association et rend une copie de la valeur. La
@@ -4120,6 +4200,18 @@ devient un tombstone jusqu’à une réorganisation ultérieure.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>key</code></td><td><code>K</code></td><td>Clé à rechercher selon la stratégie de la table.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[V]</code> — `Some` avec la valeur retirée, ou `None` si la clé est absente.</p></section>
 <div class="qualified">std.hashmap.HashMap.remove</div></div><a class="permalink" href="#std-hashmap-hashmap-remove" aria-label="Permanent link to std.hashmap.HashMap.remove">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-reserve" data-symbol data-search="std.hashmap.HashMap.reserve method def reserve(additional : usize) : Unit Réserve de la place pour des associations supplémentaires.
+@param additional Nombre d&#39;insertions nouvelles à accepter sans croissance."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def reserve(additional : usize) : Unit</code></h3>
+<p class="doc-summary">Réserve de la place pour des associations supplémentaires.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>additional</code></td><td><code>usize</code></td><td>Nombre d&#39;insertions nouvelles à accepter sans croissance.</td></tr></tbody></table></section>
+<div class="qualified">std.hashmap.HashMap.reserve</div></div><a class="permalink" href="#std-hashmap-hashmap-reserve" aria-label="Permanent link to std.hashmap.HashMap.reserve">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-retain" data-symbol data-search="std.hashmap.HashMap.retain method def retain(scoped predicate : Function[K, V, bool]) : usize Conserve les associations qui satisfont le prédicat.
+@param predicate Callback borné observant chaque clé et valeur une fois.
+@return Nombre d&#39;associations conservées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def retain(scoped predicate : Function[K, V, bool]) : usize</code></h3>
+<p class="doc-summary">Conserve les associations qui satisfont le prédicat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[K, V, bool]</code></td><td>Callback borné observant chaque clé et valeur une fois.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d&#39;associations conservées.</p></section>
+<div class="qualified">std.hashmap.HashMap.retain</div></div><a class="permalink" href="#std-hashmap-hashmap-retain" aria-label="Permanent link to std.hashmap.HashMap.retain">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashmap-hashmap-size" data-symbol data-search="std.hashmap.HashMap.size method borrow def size() : usize Retourne le nombre d’associations stockées.
 @return Nombre de cases occupées, hors tombstones."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre d’associations stockées.</p>
@@ -4135,6 +4227,14 @@ valeurs suivent l’ordre interne des cases de leurs clés.
 valeurs suivent l’ordre interne des cases de leurs clés.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[V]</code> — Un <a href="#std-iterator-iterator"><code>Iterator</code></a> de valeurs copiées; exige `V &lt;: Copy`.</p></section>
 <div class="qualified">std.hashmap.HashMap.values</div></div><a class="permalink" href="#std-hashmap-hashmap-values" aria-label="Permanent link to std.hashmap.HashMap.values">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-withentry" data-symbol data-search="std.hashmap.HashMap.withEntry method def withEntry(borrow key : K, scoped action : Function[K, V, Unit]) : bool Observe la clé canonique et sa valeur associée sans copie.
+@param key Clé de recherche observée.
+@param action Callback borné recevant les deux membres stockés.
+@return `true` si l&#39;association a été observée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def withEntry(borrow key : K, scoped action : Function[K, V, Unit]) : bool</code></h3>
+<p class="doc-summary">Observe la clé canonique et sa valeur associée sans copie.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>key</code></td><td><code>K</code></td><td>Clé de recherche observée.</td></tr><tr><td><code>action</code></td><td><code>Function[K, V, Unit]</code></td><td>Callback borné recevant les deux membres stockés.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si l&#39;association a été observée.</p></section>
+<div class="qualified">std.hashmap.HashMap.withEntry</div></div><a class="permalink" href="#std-hashmap-hashmap-withentry" aria-label="Permanent link to std.hashmap.HashMap.withEntry">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashmap-hashmap-withvalue" data-symbol data-search="std.hashmap.HashMap.withValue method def withValue(borrow key : K, scoped action : Function[V, Unit]) : bool Observe la valeur associée sans exiger qu&#39;elle soit `Copy`.
 
 `action` est appelée exactement une fois lorsque la clé existe. La clé
@@ -4246,7 +4346,7 @@ internes et ne garantit aucun ordre d’insertion.</p></div></div><section class
     new HashSet[int, IntHashing](usize(8), new IntHashing())<br>
 val inserted : bool = ids.add(42)<br>
 val present : bool = ids.contains(42)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">16</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">21</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-hashset-hashset" data-symbol data-search="std.hashset.HashSet class class HashSet[T, H](initialCapacity : usize, borrow val hashing : H) Ensemble propriétaire à adressage ouvert et sondage linéaire.
 
@@ -4279,6 +4379,11 @@ change pas. Une insertion peut redimensionner ou nettoyer la table.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur possédée proposée comme nouveau membre.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si elle a été insérée, `false` si un équivalent existait déjà.</p></section>
 <div class="qualified">std.hashset.HashSet.add</div></div><a class="permalink" href="#std-hashset-hashset-add" aria-label="Permanent link to std.hashset.HashSet.add">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashset-hashset-capacity" data-symbol data-search="std.hashset.HashSet.capacity method borrow def capacity() : usize Retourne le nombre de cases de la table.
+@return Capacité interne avant une prochaine réorganisation."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>borrow def capacity() : usize</code></h3>
+<p class="doc-summary">Retourne le nombre de cases de la table.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Capacité interne avant une prochaine réorganisation.</p></section>
+<div class="qualified">std.hashset.HashSet.capacity</div></div><a class="permalink" href="#std-hashset-hashset-capacity" aria-label="Permanent link to std.hashset.HashSet.capacity">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashset-hashset-clear" data-symbol data-search="std.hashset.HashSet.clear method def clear() : Unit Détruit tous les membres tout en conservant la capacité réservée.
 
 Les tombstones sont également supprimés. Le coût est linéaire dans la
@@ -4299,6 +4404,18 @@ constant avec un bon hachage, mais peut devenir linéaire sous collisions.</p></
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur à hacher puis comparer aux membres stockés.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si une valeur égale est présente.</p></section>
 <div class="qualified">std.hashset.HashSet.contains</div></div><a class="permalink" href="#std-hashset-hashset-contains" aria-label="Permanent link to std.hashset.HashSet.contains">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashset-hashset-drain" data-symbol data-search="std.hashset.HashSet.drain method consume def drain() : Iterator[T] Consomme l&#39;ensemble et transfère ses membres.
+@return Itérateur propriétaire équivalent à [[HashSet.intoIterator]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>consume def drain() : Iterator[T]</code></h3>
+<p class="doc-summary">Consomme l&#39;ensemble et transfère ses membres.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Itérateur propriétaire équivalent à <a href="#std-hashset-hashset-intoiterator"><code>HashSet.intoIterator</code></a>.</p></section>
+<div class="qualified">std.hashset.HashSet.drain</div></div><a class="permalink" href="#std-hashset-hashset-drain" aria-label="Permanent link to std.hashset.HashSet.drain">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashset-hashset-extend" data-symbol data-search="std.hashset.HashSet.extend method def extend(source : Iterator[T]) : usize Ajoute toutes les valeurs d&#39;un parcours consommé.
+@param source Itérateur dont les valeurs sont transférées.
+@return Nombre de nouvelles valeurs distinctes."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def extend(source : Iterator[T]) : usize</code></h3>
+<p class="doc-summary">Ajoute toutes les valeurs d&#39;un parcours consommé.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Iterator[T]</code></td><td>Itérateur dont les valeurs sont transférées.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de nouvelles valeurs distinctes.</p></section>
+<div class="qualified">std.hashset.HashSet.extend</div></div><a class="permalink" href="#std-hashset-hashset-extend" aria-label="Permanent link to std.hashset.HashSet.extend">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashset-hashset-intoiterator" data-symbol data-search="std.hashset.HashSet.intoIterator method consume def intoIterator() : Iterator[T] Consomme l’ensemble et transfère ses membres à un parcours.
 
 Les valeurs sont déplacées hors des cases sans copie. Si le parcours est
@@ -4338,6 +4455,18 @@ détruit lorsqu’il est trouvé et sa case devient un tombstone.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur à rechercher selon la stratégie de l’ensemble.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si un membre a été trouvé et détruit, sinon `false`.</p></section>
 <div class="qualified">std.hashset.HashSet.remove</div></div><a class="permalink" href="#std-hashset-hashset-remove" aria-label="Permanent link to std.hashset.HashSet.remove">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashset-hashset-reserve" data-symbol data-search="std.hashset.HashSet.reserve method def reserve(additional : usize) : Unit Réserve de la place pour des insertions supplémentaires.
+@param additional Nombre de nouveaux membres à accepter sans croissance."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def reserve(additional : usize) : Unit</code></h3>
+<p class="doc-summary">Réserve de la place pour des insertions supplémentaires.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>additional</code></td><td><code>usize</code></td><td>Nombre de nouveaux membres à accepter sans croissance.</td></tr></tbody></table></section>
+<div class="qualified">std.hashset.HashSet.reserve</div></div><a class="permalink" href="#std-hashset-hashset-reserve" aria-label="Permanent link to std.hashset.HashSet.reserve">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashset-hashset-retain" data-symbol data-search="std.hashset.HashSet.retain method def retain(scoped predicate : Function[T, bool]) : usize Conserve les membres qui satisfont le prédicat.
+@param predicate Callback borné observant chaque membre une fois.
+@return Nombre de membres conservés."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def retain(scoped predicate : Function[T, bool]) : usize</code></h3>
+<p class="doc-summary">Conserve les membres qui satisfont le prédicat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Callback borné observant chaque membre une fois.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de membres conservés.</p></section>
+<div class="qualified">std.hashset.HashSet.retain</div></div><a class="permalink" href="#std-hashset-hashset-retain" aria-label="Permanent link to std.hashset.HashSet.retain">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashset-hashset-size" data-symbol data-search="std.hashset.HashSet.size method borrow def size() : usize Retourne le nombre de valeurs stockées.
 @return Nombre de cases occupées, hors tombstones."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre de valeurs stockées.</p>
@@ -5767,6 +5896,65 @@ valeur contenue reste la propriété de `value`, y compris pour un type non<br>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Contenu déplacé de `Some`, sinon `fallback`.</p></section>
 <div class="qualified">std.option.unwrapOr</div></div><a class="permalink" href="#std-option-unwrapor" aria-label="Permanent link to std.option.unwrapOr">#</a></article>
 </div></section>
+<section class="module" id="module-std-ordering" data-module data-search="std.ordering Définit un contrat d&#39;ordre total réutilisable par les collections.">
+<header class="module-heading"><span class="keyword">module</span> <h2>std.ordering</h2></header>
+<div class="module-summary"><p class="doc-summary">Définit un contrat d&#39;ordre total réutilisable par les collections.</p></div><h3 class="member-heading">Public members <span class="member-count">11</span></h3>
+<div class="symbol-list">
+<article class="symbol-card kind-class" id="std-ordering-intordering" data-symbol data-search="std.ordering.IntOrdering class class IntOrdering() Ordre croissant naturel des entiers signés."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class IntOrdering()</code></h3>
+<p class="doc-summary">Ordre croissant naturel des entiers signés.</p>
+<div class="qualified">std.ordering.IntOrdering</div></div><a class="permalink" href="#std-ordering-intordering" aria-label="Permanent link to std.ordering.IntOrdering">#</a></article>
+<article class="symbol-card kind-method child" id="std-ordering-intordering-compare" data-symbol data-search="std.ordering.IntOrdering.compare method borrow def compare(borrow left : int, borrow right : int) : Order Compare deux entiers signés en ordre croissant.
+@param left Première valeur.
+@param right Seconde valeur.
+@return Résultat trichotomique de la comparaison."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.ordering.IntOrdering</div><h3><code>borrow def compare(borrow left : int, borrow right : int) : Order</code></h3>
+<p class="doc-summary">Compare deux entiers signés en ordre croissant.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>int</code></td><td>Première valeur.</td></tr><tr><td><code>right</code></td><td><code>int</code></td><td>Seconde valeur.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Order</code> — Résultat trichotomique de la comparaison.</p></section>
+<div class="qualified">std.ordering.IntOrdering.compare</div></div><a class="permalink" href="#std-ordering-intordering-compare" aria-label="Permanent link to std.ordering.IntOrdering.compare">#</a></article>
+<article class="symbol-card kind-enum" id="std-ordering-order" data-symbol data-search="std.ordering.Order enum enum Order Résultat trichotomique d&#39;une comparaison."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Order</code></h3>
+<p class="doc-summary">Résultat trichotomique d&#39;une comparaison.</p>
+<div class="qualified">std.ordering.Order</div></div><a class="permalink" href="#std-ordering-order" aria-label="Permanent link to std.ordering.Order">#</a></article>
+<article class="symbol-card kind-variant child" id="std-ordering-order-equal" data-symbol data-search="std.ordering.Order.Equal variant Equal Les deux valeurs occupent la même position dans l&#39;ordre."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.ordering.Order</div><h3><code>Equal</code></h3>
+<p class="doc-summary">Les deux valeurs occupent la même position dans l&#39;ordre.</p>
+<div class="qualified">std.ordering.Order.Equal</div></div><a class="permalink" href="#std-ordering-order-equal" aria-label="Permanent link to std.ordering.Order.Equal">#</a></article>
+<article class="symbol-card kind-variant child" id="std-ordering-order-greater" data-symbol data-search="std.ordering.Order.Greater variant Greater La valeur gauche suit la droite."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.ordering.Order</div><h3><code>Greater</code></h3>
+<p class="doc-summary">La valeur gauche suit la droite.</p>
+<div class="qualified">std.ordering.Order.Greater</div></div><a class="permalink" href="#std-ordering-order-greater" aria-label="Permanent link to std.ordering.Order.Greater">#</a></article>
+<article class="symbol-card kind-variant child" id="std-ordering-order-less" data-symbol data-search="std.ordering.Order.Less variant Less La valeur gauche précède la droite."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.ordering.Order</div><h3><code>Less</code></h3>
+<p class="doc-summary">La valeur gauche précède la droite.</p>
+<div class="qualified">std.ordering.Order.Less</div></div><a class="permalink" href="#std-ordering-order-less" aria-label="Permanent link to std.ordering.Order.Less">#</a></article>
+<article class="symbol-card kind-trait" id="std-ordering-ordering" data-symbol data-search="std.ordering.Ordering trait trait Ordering[T] Compare deux valeurs selon un ordre total."><span class="kind-icon" aria-hidden="true">t</span><div><span class="kind">trait</span><h3><code>trait Ordering[T]</code></h3>
+<p class="doc-summary">Compare deux valeurs selon un ordre total.</p>
+<div class="qualified">std.ordering.Ordering</div></div><a class="permalink" href="#std-ordering-ordering" aria-label="Permanent link to std.ordering.Ordering">#</a></article>
+<article class="symbol-card kind-method child" id="std-ordering-ordering-compare" data-symbol data-search="std.ordering.Ordering.compare method borrow def compare(borrow left : T, borrow right : T) : Order Compare deux valeurs observées.
+@param left Première valeur.
+@param right Seconde valeur.
+@return Position de `left` relativement à `right`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.ordering.Ordering</div><h3><code>borrow def compare(borrow left : T, borrow right : T) : Order</code></h3>
+<p class="doc-summary">Compare deux valeurs observées.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>T</code></td><td>Première valeur.</td></tr><tr><td><code>right</code></td><td><code>T</code></td><td>Seconde valeur.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Order</code> — Position de `left` relativement à `right`.</p></section>
+<div class="qualified">std.ordering.Ordering.compare</div></div><a class="permalink" href="#std-ordering-ordering-compare" aria-label="Permanent link to std.ordering.Ordering.compare">#</a></article>
+<article class="symbol-card kind-class" id="std-ordering-usizeordering" data-symbol data-search="std.ordering.USizeOrdering class class USizeOrdering() Ordre croissant naturel des tailles non signées."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class USizeOrdering()</code></h3>
+<p class="doc-summary">Ordre croissant naturel des tailles non signées.</p>
+<div class="qualified">std.ordering.USizeOrdering</div></div><a class="permalink" href="#std-ordering-usizeordering" aria-label="Permanent link to std.ordering.USizeOrdering">#</a></article>
+<article class="symbol-card kind-method child" id="std-ordering-usizeordering-compare" data-symbol data-search="std.ordering.USizeOrdering.compare method borrow def compare(borrow left : usize, borrow right : usize) : Order Compare deux tailles non signées en ordre croissant.
+@param left Première valeur.
+@param right Seconde valeur.
+@return Résultat trichotomique de la comparaison."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.ordering.USizeOrdering</div><h3><code>borrow def compare(borrow left : usize, borrow right : usize) : Order</code></h3>
+<p class="doc-summary">Compare deux tailles non signées en ordre croissant.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>usize</code></td><td>Première valeur.</td></tr><tr><td><code>right</code></td><td><code>usize</code></td><td>Seconde valeur.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Order</code> — Résultat trichotomique de la comparaison.</p></section>
+<div class="qualified">std.ordering.USizeOrdering.compare</div></div><a class="permalink" href="#std-ordering-usizeordering-compare" aria-label="Permanent link to std.ordering.USizeOrdering.compare">#</a></article>
+<article class="symbol-card kind-function" id="std-ordering-orderedbefore" data-symbol data-search="std.ordering.orderedBefore function def orderedBefore[T, O](borrow ordering : O, borrow left : T, borrow right : T) : bool Indique si `left` précède strictement `right` dans l&#39;ordre fourni.
+@param ordering Stratégie observée.
+@param left Première valeur.
+@param right Seconde valeur.
+@return `true` uniquement pour [[Order.Less]]."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def orderedBefore[T, O](borrow ordering : O, borrow left : T, borrow right : T) : bool</code></h3>
+<p class="doc-summary">Indique si `left` précède strictement `right` dans l&#39;ordre fourni.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>ordering</code></td><td><code>O</code></td><td>Stratégie observée.</td></tr><tr><td><code>left</code></td><td><code>T</code></td><td>Première valeur.</td></tr><tr><td><code>right</code></td><td><code>T</code></td><td>Seconde valeur.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` uniquement pour <a href="#std-ordering-order-less"><code>Order.Less</code></a>.</p></section>
+<div class="qualified">std.ordering.orderedBefore</div></div><a class="permalink" href="#std-ordering-orderedbefore" aria-label="Permanent link to std.ordering.orderedBefore">#</a></article>
+</div></section>
 <section class="module" id="module-std-path" data-module data-search="std.path Normalise, compose et inspecte des chemins selon les règles de la plateforme.
 
 Les [[Path]] retournés possèdent leur stockage natif. Les séparateurs, racines
@@ -7169,7 +7357,7 @@ println(timestamp.unixSeconds())<br>
 <div class="qualified">std.wall_time.wallNow</div></div><a class="permalink" href="#std-wall-time-wallnow" aria-label="Permanent link to std.wall_time.wallNow">#</a></article>
 </div></section>
 </main>
-<aside id="module-sidebar" class="sidebar"><h2>Modules</h2><nav class="module-nav" aria-label="Modules"><a class="module-link" data-module-link href="#module-std-array"><span class="dot"></span>std.array</a><a class="module-link" data-module-link href="#module-std-array-builder"><span class="dot"></span>std.array_builder</a><a class="module-link" data-module-link href="#module-std-builder"><span class="dot"></span>std.builder</a><a class="module-link" data-module-link href="#module-std-c"><span class="dot"></span>std.c</a><a class="module-link" data-module-link href="#module-std-deque"><span class="dot"></span>std.deque</a><a class="module-link" data-module-link href="#module-std-fs"><span class="dot"></span>std.fs</a><a class="module-link" data-module-link href="#module-std-graphics"><span class="dot"></span>std.graphics</a><a class="module-link" data-module-link href="#module-std-graphics-audio"><span class="dot"></span>std.graphics.audio</a><a class="module-link" data-module-link href="#module-std-graphics-drawing"><span class="dot"></span>std.graphics.drawing</a><a class="module-link" data-module-link href="#module-std-graphics-input"><span class="dot"></span>std.graphics.input</a><a class="module-link" data-module-link href="#module-std-graphics-resources"><span class="dot"></span>std.graphics.resources</a><a class="module-link" data-module-link href="#module-std-graphics-types"><span class="dot"></span>std.graphics.types</a><a class="module-link" data-module-link href="#module-std-hash-probe"><span class="dot"></span>std.hash_probe</a><a class="module-link" data-module-link href="#module-std-hashing"><span class="dot"></span>std.hashing</a><a class="module-link" data-module-link href="#module-std-hashmap"><span class="dot"></span>std.hashmap</a><a class="module-link" data-module-link href="#module-std-hashset"><span class="dot"></span>std.hashset</a><a class="module-link" data-module-link href="#module-std-io"><span class="dot"></span>std.io</a><a class="module-link" data-module-link href="#module-std-iterator"><span class="dot"></span>std.iterator</a><a class="module-link" data-module-link href="#module-std-math"><span class="dot"></span>std.math</a><a class="module-link" data-module-link href="#module-std-numeric"><span class="dot"></span>std.numeric</a><a class="module-link" data-module-link href="#module-std-option"><span class="dot"></span>std.option</a><a class="module-link" data-module-link href="#module-std-path"><span class="dot"></span>std.path</a><a class="module-link" data-module-link href="#module-std-priority-queue"><span class="dot"></span>std.priority_queue</a><a class="module-link" data-module-link href="#module-std-process"><span class="dot"></span>std.process</a><a class="module-link" data-module-link href="#module-std-random"><span class="dot"></span>std.random</a><a class="module-link" data-module-link href="#module-std-range"><span class="dot"></span>std.range</a><a class="module-link" data-module-link href="#module-std-result"><span class="dot"></span>std.result</a><a class="module-link" data-module-link href="#module-std-slice"><span class="dot"></span>std.slice</a><a class="module-link" data-module-link href="#module-std-system"><span class="dot"></span>std.system</a><a class="module-link" data-module-link href="#module-std-testing"><span class="dot"></span>std.testing</a><a class="module-link" data-module-link href="#module-std-text"><span class="dot"></span>std.text</a><a class="module-link" data-module-link href="#module-std-time"><span class="dot"></span>std.time</a><a class="module-link" data-module-link href="#module-std-wall-time"><span class="dot"></span>std.wall_time</a></nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
+<aside id="module-sidebar" class="sidebar"><h2>Modules</h2><nav class="module-nav" aria-label="Modules"><a class="module-link" data-module-link href="#module-std-array"><span class="dot"></span>std.array</a><a class="module-link" data-module-link href="#module-std-array-builder"><span class="dot"></span>std.array_builder</a><a class="module-link" data-module-link href="#module-std-builder"><span class="dot"></span>std.builder</a><a class="module-link" data-module-link href="#module-std-c"><span class="dot"></span>std.c</a><a class="module-link" data-module-link href="#module-std-deque"><span class="dot"></span>std.deque</a><a class="module-link" data-module-link href="#module-std-fs"><span class="dot"></span>std.fs</a><a class="module-link" data-module-link href="#module-std-graphics"><span class="dot"></span>std.graphics</a><a class="module-link" data-module-link href="#module-std-graphics-audio"><span class="dot"></span>std.graphics.audio</a><a class="module-link" data-module-link href="#module-std-graphics-drawing"><span class="dot"></span>std.graphics.drawing</a><a class="module-link" data-module-link href="#module-std-graphics-input"><span class="dot"></span>std.graphics.input</a><a class="module-link" data-module-link href="#module-std-graphics-resources"><span class="dot"></span>std.graphics.resources</a><a class="module-link" data-module-link href="#module-std-graphics-types"><span class="dot"></span>std.graphics.types</a><a class="module-link" data-module-link href="#module-std-hash-probe"><span class="dot"></span>std.hash_probe</a><a class="module-link" data-module-link href="#module-std-hashing"><span class="dot"></span>std.hashing</a><a class="module-link" data-module-link href="#module-std-hashmap"><span class="dot"></span>std.hashmap</a><a class="module-link" data-module-link href="#module-std-hashset"><span class="dot"></span>std.hashset</a><a class="module-link" data-module-link href="#module-std-io"><span class="dot"></span>std.io</a><a class="module-link" data-module-link href="#module-std-iterator"><span class="dot"></span>std.iterator</a><a class="module-link" data-module-link href="#module-std-math"><span class="dot"></span>std.math</a><a class="module-link" data-module-link href="#module-std-numeric"><span class="dot"></span>std.numeric</a><a class="module-link" data-module-link href="#module-std-option"><span class="dot"></span>std.option</a><a class="module-link" data-module-link href="#module-std-ordering"><span class="dot"></span>std.ordering</a><a class="module-link" data-module-link href="#module-std-path"><span class="dot"></span>std.path</a><a class="module-link" data-module-link href="#module-std-priority-queue"><span class="dot"></span>std.priority_queue</a><a class="module-link" data-module-link href="#module-std-process"><span class="dot"></span>std.process</a><a class="module-link" data-module-link href="#module-std-random"><span class="dot"></span>std.random</a><a class="module-link" data-module-link href="#module-std-range"><span class="dot"></span>std.range</a><a class="module-link" data-module-link href="#module-std-result"><span class="dot"></span>std.result</a><a class="module-link" data-module-link href="#module-std-slice"><span class="dot"></span>std.slice</a><a class="module-link" data-module-link href="#module-std-system"><span class="dot"></span>std.system</a><a class="module-link" data-module-link href="#module-std-testing"><span class="dot"></span>std.testing</a><a class="module-link" data-module-link href="#module-std-text"><span class="dot"></span>std.text</a><a class="module-link" data-module-link href="#module-std-time"><span class="dot"></span>std.time</a><a class="module-link" data-module-link href="#module-std-wall-time"><span class="dot"></span>std.wall_time</a></nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
 </div>
 <footer><p>Generated by Janus. No network resources are required.</p></footer>
 <script>

@@ -114,6 +114,15 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
         return length == usize(0)
     }
 
+    /// Garantit une capacité au moins égale à `requested`.
+    /// @param requested Capacité minimale souhaitée.
+    def reserve(requested : usize) : Unit {
+        this.initializeSlots()
+        while slotCapacity < requested {
+            this.grow()
+        }
+    }
+
     /// Ajoute une valeur à l'arrière.
     /// @param value Valeur dont la deque prend possession.
     /// @return Nouvelle taille.
@@ -256,6 +265,22 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
         }
     }
 
+    /// Ajoute à l'arrière toutes les valeurs d'un parcours consommé.
+    /// @param source Itérateur dont les valeurs sont transférées.
+    /// @return Nouvelle taille de la deque.
+    def extend(source : Iterator[T]) : usize {
+        for value in move source {
+            this.pushBack(move value)
+        }
+        return length
+    }
+
+    /// Consomme la deque comme un drain de l'avant vers l'arrière.
+    /// @return Itérateur propriétaire dans l'ordre logique.
+    consume def drain() : Iterator[T] {
+        return this.intoIterator()
+    }
+
     /// Consomme la deque et transfère ses éléments de l'avant vers l'arrière.
     /// @return Itérateur propriétaire respectant l'ordre logique de la deque.
     consume def intoIterator() : Iterator[T] {
@@ -323,6 +348,24 @@ class Queue[T](initialCapacity : usize) extends IntoIterable[T] {
 
     /// Détruit toutes les valeurs en attente.
     def clear() : Unit { values.clear() }
+
+    /// Garantit la capacité sous-jacente de la file.
+    /// @param requested Capacité minimale souhaitée.
+    def reserve(requested : usize) : Unit { values.reserve(requested) }
+
+    /// Ajoute toutes les valeurs d'un parcours en ordre FIFO.
+    /// @param source Itérateur consommé.
+    /// @return Nouvelle taille de la file.
+    def extend(source : Iterator[T]) : usize {
+        for value in move source {
+            this.enqueue(move value)
+        }
+        return values.size()
+    }
+
+    /// Consomme la file comme un drain FIFO.
+    /// @return Itérateur propriétaire dans l'ordre d'insertion.
+    consume def drain() : Iterator[T] { return this.intoIterator() }
 
     /// Consomme la file et transfère ses valeurs dans l'ordre FIFO.
     /// @return Itérateur propriétaire dans l'ordre d'insertion.

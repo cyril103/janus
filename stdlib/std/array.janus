@@ -14,6 +14,7 @@
 module std.array
 import std.option
 import std.iterator
+import std.ordering
 
 private class ArrayIteratorState[T <: Copy](
 private borrow val source : Array[T],
@@ -381,6 +382,49 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
         }
     }
 
+    private borrow def keepAt(
+    index : usize,
+    borrow predicate : (borrow T) => bool
+    ) : bool {
+        return predicate(data.load(index))
+    }
+
+    /// Conserve uniquement les éléments qui satisfont le prédicat.
+    ///
+    /// Les éléments refusés sont détruits immédiatement et l'ordre relatif des
+    /// éléments conservés reste inchangé.
+    /// @param predicate Callback borné observant chaque élément une fois.
+    /// @return Nombre d'éléments conservés.
+    def retain(scoped predicate : (borrow T) => bool) : usize {
+        defer delete predicate
+        var index : usize = usize(0)
+        while index < length {
+            if this.keepAt(index, predicate) {
+                index = index + usize(1)
+            } else {
+                val removed : T = this.remove(index)
+                delete removed
+            }
+        }
+        return length
+    }
+
+    /// Ajoute toutes les valeurs d'un parcours consommé.
+    /// @param source Itérateur dont chaque valeur est transférée au tableau.
+    /// @return Nouvelle taille du tableau.
+    def extend(source : Iterator[T]) : usize {
+        for value in move source {
+            this.push(move value)
+        }
+        return length
+    }
+
+    /// Consomme le tableau et transfère ses éléments dans l'ordre des indices.
+    /// @return Itérateur propriétaire équivalent à [[Array.intoIterator]].
+    consume def drain() : Iterator[T] {
+        return this.intoIterator()
+    }
+
     /// Exécute une action sur un emprunt partagé de l’élément demandé.
     ///
     /// Le tableau conserve son élément. Déclenche `panic` si `index` est hors
@@ -684,6 +728,32 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
             } else {
                 width = width * usize(2)
             }
+        }
+    }
+
+    /// Trie le tableau avec une stratégie d'ordre total réutilisable.
+    /// @param ordering Comparateur trichotomique observé pendant le tri.
+    def sortBy[O <: Ordering[T]](
+    borrow ordering : O
+    ) : Unit where T <: Copy {
+        var index : usize = usize(1)
+        while index < length {
+            val candidate : T = data.load(index)
+            var destination : usize = index
+            while destination > usize(0) &&
+            orderedBefore[T, O](
+            ordering,
+            candidate,
+            data.load(destination - usize(1))
+            ) {
+                data.overwrite(
+                destination,
+                data.load(destination - usize(1))
+                )
+                destination = destination - usize(1)
+            }
+            data.overwrite(destination, candidate)
+            index = index + usize(1)
         }
     }
 

@@ -1,0 +1,64 @@
+/// Définit un contrat d'ordre total réutilisable par les collections.
+module std.ordering
+
+/// Résultat trichotomique d'une comparaison.
+enum Order {
+    /// La valeur gauche précède la droite.
+    Less,
+    /// Les deux valeurs occupent la même position dans l'ordre.
+    Equal,
+    /// La valeur gauche suit la droite.
+    Greater
+}
+
+/// Compare deux valeurs selon un ordre total.
+trait Ordering[T] {
+    /// Compare deux valeurs observées.
+    /// @param left Première valeur.
+    /// @param right Seconde valeur.
+    /// @return Position de `left` relativement à `right`.
+    borrow def compare(borrow left : T, borrow right : T) : Order
+}
+
+/// Ordre croissant naturel des entiers signés.
+class IntOrdering() extends Ordering[int] {
+    /// Compare deux entiers signés en ordre croissant.
+    /// @param left Première valeur.
+    /// @param right Seconde valeur.
+    /// @return Résultat trichotomique de la comparaison.
+    borrow def compare(borrow left : int, borrow right : int) : Order {
+        if left < right { return Order.Less() }
+        if left > right { return Order.Greater() }
+        return Order.Equal()
+    }
+}
+
+/// Ordre croissant naturel des tailles non signées.
+class USizeOrdering() extends Ordering[usize] {
+    /// Compare deux tailles non signées en ordre croissant.
+    /// @param left Première valeur.
+    /// @param right Seconde valeur.
+    /// @return Résultat trichotomique de la comparaison.
+    borrow def compare(borrow left : usize, borrow right : usize) : Order {
+        if left < right { return Order.Less() }
+        if left > right { return Order.Greater() }
+        return Order.Equal()
+    }
+}
+
+/// Indique si `left` précède strictement `right` dans l'ordre fourni.
+/// @param ordering Stratégie observée.
+/// @param left Première valeur.
+/// @param right Seconde valeur.
+/// @return `true` uniquement pour [[Order.Less]].
+def orderedBefore[T, O <: Ordering[T]](
+borrow ordering : O,
+borrow left : T,
+borrow right : T
+) : bool {
+    return match ordering.compare(left, right) {
+        Less => true,
+        Equal => false,
+        Greater => false
+    }
+}

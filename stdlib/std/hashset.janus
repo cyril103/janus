@@ -160,10 +160,37 @@ private borrow val hashing : H
         return length
     }
 
+    /// Retourne le nombre de cases de la table.
+    /// @return Capacité interne avant une prochaine réorganisation.
+    borrow def capacity() : usize {
+        return slotCapacity
+    }
+
     /// Indique si l’ensemble est vide.
     /// @return `true` lorsque [[HashSet.size]] vaut zéro.
     borrow def isEmpty() : bool {
         return length == usize(0)
+    }
+
+    /// Réserve de la place pour des insertions supplémentaires.
+    /// @param additional Nombre de nouveaux membres à accepter sans croissance.
+    def reserve(additional : usize) : Unit {
+        if additional > usize(-1) - length {
+            panic("HashSet capacity overflow\n")
+        }
+        val target : usize = length + additional
+        var requested : usize = slotCapacity
+        while target >= requested - requested / usize(4) {
+            if requested > usize(-1) / usize(2) {
+                panic("HashSet capacity overflow\n")
+            }
+            requested = requested * usize(2)
+        }
+        if requested > slotCapacity {
+            this.resize(requested)
+        } else {
+            this.initializeSlots()
+        }
     }
 
     internal borrow def storageSize() : usize {
@@ -395,6 +422,52 @@ private borrow val hashing : H
         }
         length = usize(0)
         deletedCount = usize(0)
+    }
+
+    private borrow def keepAt(
+    index : usize,
+    borrow predicate : (borrow T) => bool
+    ) : bool {
+        borrow val slot : SetSlot[T] = slots.getBorrowed(index)
+        return match slot {
+            Occupied(value) => predicate(value),
+            Empty => true,
+            Deleted => true
+        }
+    }
+
+    /// Conserve les membres qui satisfont le prédicat.
+    /// @param predicate Callback borné observant chaque membre une fois.
+    /// @return Nombre de membres conservés.
+    def retain(scoped predicate : (borrow T) => bool) : usize {
+        defer delete predicate
+        this.initializeSlots()
+        var index : usize = usize(0)
+        while index < slotCapacity {
+            if !this.keepAt(index, predicate) {
+                val removed : Option[T] = this.takeValueAt(index)
+                delete removed
+            }
+            index = index + usize(1)
+        }
+        return length
+    }
+
+    /// Ajoute toutes les valeurs d'un parcours consommé.
+    /// @param source Itérateur dont les valeurs sont transférées.
+    /// @return Nombre de nouvelles valeurs distinctes.
+    def extend(source : Iterator[T]) : usize {
+        val before : usize = length
+        for value in move source {
+            this.add(move value)
+        }
+        return length - before
+    }
+
+    /// Consomme l'ensemble et transfère ses membres.
+    /// @return Itérateur propriétaire équivalent à [[HashSet.intoIterator]].
+    consume def drain() : Iterator[T] {
+        return this.intoIterator()
     }
 
     /// Crée un parcours observant de copies des membres.
