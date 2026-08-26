@@ -146,6 +146,26 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(auxiliary.front().find("\"diagnostics\":[]") !=
                 std::string::npos);
 
+  const std::string testing_uri =
+      file_uri(workspace.path / "tests/testing.janus");
+  const std::vector<std::string> testing = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":")" +
+      testing_uri +
+      R"(","text":"import std.testing\n\n/// @test\ndef passes() : Unit { assertEqual[int](2 + 2, 4) }\n\n/// @test\n/// @shouldPanic expected panic\ndef expectedPanic() : Unit { fail(\"expected panic\") }\n"}}})");
+  JANUS_REQUIRE(testing.size() == 1);
+  JANUS_REQUIRE(testing.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
+
+  const std::vector<std::string> invalid_testing = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":")" +
+      testing_uri +
+      R"("},"contentChanges":[{"text":"import std.testing\n\n/// @test\ndef rejectsWrongType() : Unit { assertEqual[int](1, \"wrong\") }\n"}]}})");
+  JANUS_REQUIRE(invalid_testing.size() == 1);
+  JANUS_REQUIRE(invalid_testing.front().find("\"severity\":1") !=
+                std::string::npos);
+  JANUS_REQUIRE(invalid_testing.front().find("\"diagnostics\":[]") ==
+                std::string::npos);
+
   const std::vector<std::string> opened = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":")" +
       main_uri +
