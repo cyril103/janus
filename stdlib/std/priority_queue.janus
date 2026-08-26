@@ -120,10 +120,41 @@ private val less : (borrow T, borrow T) => bool
         return values.size()
     }
 
+    /// Retourne la capacité utilisable par les deux stockages du tas.
+    /// @return Nombre d’éléments insérables sans croissance.
+    borrow def capacity() : usize {
+        return if values.capacity() < sequences.capacity() {
+            values.capacity()
+        } else {
+            sequences.capacity()
+        }
+    }
+
     /// Indique si la file ne contient aucune valeur.
     /// @return `true` lorsque [[PriorityQueue.size]] vaut zéro.
     borrow def isEmpty() : bool {
         return values.isEmpty()
+    }
+
+    /// Garantit une capacité minimale pour les valeurs et les compteurs FIFO.
+    /// @param requested Nombre minimal d’éléments stockables sans croissance.
+    def reserve(requested : usize) : Unit {
+        values.reserve(requested)
+        sequences.reserve(requested)
+    }
+
+    /// Tente de réserver les deux stockages sans paniquer sur l’allocation.
+    ///
+    /// Une réussite du premier stockage reste utilisable si le second échoue;
+    /// les valeurs et l’ordre logique ne sont jamais modifiés.
+    /// @param requested Nombre minimal d’éléments stockables sans croissance.
+    /// @return `Ok(true)` si au moins un stockage grandit, `Ok(false)` sinon, ou une [[CapacityError]].
+    def tryReserve(requested : usize) : Result[bool, CapacityError] {
+        val valuesChanged : bool = values.tryReserve(requested)?
+        val sequencesChanged : bool = sequences.tryReserve(requested)?
+        return Result.Ok[bool, CapacityError](
+        valuesChanged || sequencesChanged
+        )
     }
 
     /// Ajoute une valeur à la file.

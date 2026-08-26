@@ -56,8 +56,9 @@ def main() : int {
     for value in numbers.drain() { println(value) }
 
     val deque : Deque[int] = new Deque[int](usize(1))
-    deque.reserve(usize(8))
-    println(deque.capacity() >= usize(8))
+    println(std.result.isOk[bool, CapacityError](
+    deque.tryReserve(usize(8))
+    ) && deque.capacity() >= usize(8))
     val dequeValues : Array[int] = new Array[int](usize(2))
     dequeValues.push(7)
     dequeValues.push(8)
@@ -67,8 +68,9 @@ def main() : int {
     val hashing : IntHashing = new IntHashing()
     val set : HashSet[int, IntHashing] =
     new HashSet[int, IntHashing](usize(1), hashing)
-    set.reserve(usize(20))
-    println(set.capacity() >= usize(20))
+    println(std.result.isOk[bool, CapacityError](
+    set.tryReserve(usize(20))
+    ) && set.capacity() >= usize(20))
     set.add(1)
     set.add(2)
     set.add(3)
@@ -82,8 +84,9 @@ def main() : int {
 
     val map : HashMap[int, int, IntHashing] =
     new HashMap[int, int, IntHashing](usize(1), hashing)
-    map.reserve(usize(20))
-    println(map.capacity() >= usize(20))
+    println(std.result.isOk[bool, CapacityError](
+    map.tryReserve(usize(20))
+    ) && map.capacity() >= usize(20))
     val _first : Option[int] = map.put(1, 10)
     val _second : Option[int] = map.put(2, 20)
     println(map.withEntry(
@@ -120,6 +123,9 @@ def main() : int {
     delete emptyDeque
 
     val emptyQueue : Queue[int] = new Queue[int](usize(1))
+    println(std.result.isOk[bool, CapacityError](
+    emptyQueue.tryReserve(usize(8))
+    ) && emptyQueue.capacity() >= usize(8))
     println(std.result.isError[int, AccessError](
     emptyQueue.tryDequeue()
     ))
@@ -129,6 +135,9 @@ def main() : int {
     usize(1),
     (borrow left : int, borrow right : int) => left < right
     )
+    println(std.result.isOk[bool, CapacityError](
+    priority.tryReserve(usize(8))
+    ) && priority.capacity() >= usize(8))
     println(std.result.isError[int, AccessError](priority.tryDequeue()))
     delete priority
 

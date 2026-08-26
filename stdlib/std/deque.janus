@@ -57,6 +57,43 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
         }
     }
 
+    private def tryResize(
+    requested : usize
+    ) : Result[bool, CapacityError] {
+        if requested > usize(-1) / sizeof[Option[T]]() {
+            return Result.Error[bool, CapacityError](
+            CapacityError.CapacityOverflow
+            )
+        }
+        val expanded : Array[Option[T]] =
+        new Array[Option[T]](usize(0))
+        val reservation : Result[bool, CapacityError] =
+        expanded.tryReserve(requested)
+        if isError[bool, CapacityError](reservation) {
+            delete expanded
+            return Result.Error[bool, CapacityError](
+            CapacityError.AllocationFailed
+            )
+        }
+        while expanded.size() < requested {
+            expanded.push(Option.None[T]())
+        }
+        var logical : usize = usize(0)
+        while logical < length {
+            val moved : Option[T] = this.replaceSlot(
+            this.physicalIndex(logical),
+            Option.None[T]()
+            )
+            expanded.set(logical, move moved)
+            logical = logical + usize(1)
+        }
+        delete slots
+        slots = move expanded
+        slotCapacity = requested
+        head = usize(0)
+        return Result.Ok[bool, CapacityError](true)
+    }
+
     private def grow() : Unit {
         val capacity : usize = slotCapacity
         if capacity > usize(-1) / usize(2) {
@@ -119,10 +156,32 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
     /// Garantit une capacité au moins égale à `requested`.
     /// @param requested Capacité minimale souhaitée.
     def reserve(requested : usize) : Unit {
-        this.initializeSlots()
-        while slotCapacity < requested {
-            this.grow()
+        val reserved : bool = match this.tryReserve(requested) {
+            Ok(changed) => true,
+            Error(error) => false
         }
+        if !reserved {
+            panic("Deque allocation failed or capacity overflow\n")
+        }
+    }
+
+    /// Tente de garantir une capacité sans modifier les valeurs en cas d’échec.
+    /// @param requested Capacité minimale souhaitée.
+    /// @return `Ok(true)` après croissance, `Ok(false)` si elle était suffisante, ou une [[CapacityError]].
+    def tryReserve(requested : usize) : Result[bool, CapacityError] {
+        var target : usize = slotCapacity
+        while target < requested {
+            if target > usize(-1) / usize(2) {
+                return Result.Error[bool, CapacityError](
+                CapacityError.CapacityOverflow
+                )
+            }
+            target = target * usize(2)
+        }
+        if target == slotCapacity && slots.size() == slotCapacity {
+            return Result.Ok[bool, CapacityError](false)
+        }
+        return this.tryResize(target)
     }
 
     /// Ajoute une valeur à l'arrière.
@@ -342,6 +401,10 @@ class Queue[T](initialCapacity : usize) extends IntoIterable[T] {
     /// @return Taille logique de la file.
     borrow def size() : usize { return values.size() }
 
+    /// Retourne la capacité du tampon FIFO sous-jacent.
+    /// @return Nombre de valeurs stockables sans croissance.
+    borrow def capacity() : usize { return values.capacity() }
+
     /// Indique si la file est vide.
     /// @return `true` lorsqu'aucune valeur n'est en attente.
     borrow def isEmpty() : bool { return values.isEmpty() }
@@ -378,6 +441,13 @@ class Queue[T](initialCapacity : usize) extends IntoIterable[T] {
     /// Garantit la capacité sous-jacente de la file.
     /// @param requested Capacité minimale souhaitée.
     def reserve(requested : usize) : Unit { values.reserve(requested) }
+
+    /// Tente de garantir la capacité sous-jacente sans paniquer sur l’allocation.
+    /// @param requested Capacité minimale souhaitée.
+    /// @return Résultat de [[Deque.tryReserve]].
+    def tryReserve(requested : usize) : Result[bool, CapacityError] {
+        return values.tryReserve(requested)
+    }
 
     /// Ajoute toutes les valeurs d'un parcours en ordre FIFO.
     /// @param source Itérateur consommé.

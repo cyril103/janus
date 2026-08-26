@@ -56,8 +56,8 @@
       "source": "stdlib/std/deque.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
       "status": "experimental",
-      "signature_digest": "69aca3ceb31a87661a4155f9bf24898ad78497aa747f08d5911d95816ae2e83f",
-      "symbols": ["Deque", "Deque.size", "Deque.capacity", "Deque.isEmpty", "Deque.reserve", "Deque.pushBack", "Deque.pushFront", "Deque.popFrontOption", "Deque.popBackOption", "Deque.tryPopFront", "Deque.tryPopBack", "Deque.popFront", "Deque.popBack", "Deque.withFront", "Deque.withBack", "Deque.clear", "Deque.extend", "Deque.drain", "Deque.intoIterator", "Queue", "Queue.size", "Queue.isEmpty", "Queue.enqueue", "Queue.dequeue", "Queue.dequeueOption", "Queue.tryDequeue", "Queue.withFirst", "Queue.clear", "Queue.reserve", "Queue.extend", "Queue.drain", "Queue.intoIterator"]
+      "signature_digest": "9ca7677f54319e877a67dc183aa237aabf46b715769b9e66a5ecbc378436e8f2",
+      "symbols": ["Deque", "Deque.size", "Deque.capacity", "Deque.isEmpty", "Deque.reserve", "Deque.tryReserve", "Deque.pushBack", "Deque.pushFront", "Deque.popFrontOption", "Deque.popBackOption", "Deque.tryPopFront", "Deque.tryPopBack", "Deque.popFront", "Deque.popBack", "Deque.withFront", "Deque.withBack", "Deque.clear", "Deque.extend", "Deque.drain", "Deque.intoIterator", "Queue", "Queue.size", "Queue.capacity", "Queue.isEmpty", "Queue.enqueue", "Queue.dequeue", "Queue.dequeueOption", "Queue.tryDequeue", "Queue.withFirst", "Queue.clear", "Queue.reserve", "Queue.tryReserve", "Queue.extend", "Queue.drain", "Queue.intoIterator"]
     },
     {
       "name": "std.error",
@@ -145,16 +145,16 @@
       "source": "stdlib/std/hashmap.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "bd03c2ff00763a78cbd2818ccace88d9ef9de59a5ba231fe221ce468d87c467a",
-      "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "MapEntry.intoKey", "MapEntry.intoValue", "HashMap", "HashMap.size", "HashMap.capacity", "HashMap.isEmpty", "HashMap.reserve", "HashMap.containsKey", "HashMap.getOption", "HashMap.withValue", "HashMap.withEntry", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.retain", "HashMap.extend", "HashMap.drainEntries", "HashMap.entries", "HashMap.keys", "HashMap.values", "HashMap.intoEntries", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
+      "signature_digest": "95e14d3409bd2ea1e89a4c50e180ce1ceb2bc38535ba1c16ca9efd4a14e326d5",
+      "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "MapEntry.intoKey", "MapEntry.intoValue", "HashMap", "HashMap.size", "HashMap.capacity", "HashMap.isEmpty", "HashMap.reserve", "HashMap.tryReserve", "HashMap.containsKey", "HashMap.getOption", "HashMap.withValue", "HashMap.withEntry", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.retain", "HashMap.extend", "HashMap.drainEntries", "HashMap.entries", "HashMap.keys", "HashMap.values", "HashMap.intoEntries", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
     },
     {
       "name": "std.hashset",
       "source": "stdlib/std/hashset.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "dd296817fc9c8800df1d176144e2c8b97642e0e9dd7e3c72edd8009339fa327b",
-      "symbols": ["HashSet", "HashSet.size", "HashSet.capacity", "HashSet.isEmpty", "HashSet.reserve", "HashSet.contains", "HashSet.withValue", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.retain", "HashSet.extend", "HashSet.drain", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
+      "signature_digest": "53564a9951786c574fcc73e8dbc6f797a6a4b8a89e5acd5e8f85c24a4e88ce48",
+      "symbols": ["HashSet", "HashSet.size", "HashSet.capacity", "HashSet.isEmpty", "HashSet.reserve", "HashSet.tryReserve", "HashSet.contains", "HashSet.withValue", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.retain", "HashSet.extend", "HashSet.drain", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
     },
     {
       "name": "std.io",
@@ -217,8 +217,8 @@
       "source": "stdlib/std/priority_queue.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
       "status": "experimental",
-      "signature_digest": "f7c6f18f4eae44806d08f23b5859d4cd59baa9b66ae9e7dfa463f20c2851c51e",
-      "symbols": ["PriorityQueue", "PriorityQueue.size", "PriorityQueue.isEmpty", "PriorityQueue.enqueue", "PriorityQueue.peek", "PriorityQueue.withFirst", "PriorityQueue.peekCopy", "PriorityQueue.peekCopyOption", "PriorityQueue.dequeue", "PriorityQueue.dequeueOption", "PriorityQueue.tryDequeue", "PriorityQueue.clear"]
+      "signature_digest": "21d2bd2c77941e654c1e7b000a0498b533fdaa6b970ef98bf5bae58f26914c5c",
+      "symbols": ["PriorityQueue", "PriorityQueue.size", "PriorityQueue.capacity", "PriorityQueue.isEmpty", "PriorityQueue.reserve", "PriorityQueue.tryReserve", "PriorityQueue.enqueue", "PriorityQueue.peek", "PriorityQueue.withFirst", "PriorityQueue.peekCopy", "PriorityQueue.peekCopyOption", "PriorityQueue.dequeue", "PriorityQueue.dequeueOption", "PriorityQueue.tryDequeue", "PriorityQueue.clear"]
     },
     {
       "name": "std.random",

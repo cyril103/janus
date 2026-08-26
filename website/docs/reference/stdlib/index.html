@@ -726,7 +726,7 @@ des ressources non copiables sans valeur sentinelle ni initialisation factice.">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.deque</h2></header>
 <div class="module-summary"><p class="doc-summary">Fournit une deque propriétaire et une file FIFO fondées sur un tampon circulaire.</p><div class="doc-details"><p>Les insertions et retraits aux deux extrémités sont amortis constants. Les<br>
 cases libres sont représentées par `Option.None`, ce qui permet de stocker<br>
-des ressources non copiables sans valeur sentinelle ni initialisation factice.</p></div></div><h3 class="member-heading">Public members <span class="member-count">32</span></h3>
+des ressources non copiables sans valeur sentinelle ni initialisation factice.</p></div></div><h3 class="member-heading">Public members <span class="member-count">35</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-deque-deque" data-symbol data-search="std.deque.Deque class class Deque[T](initialCapacity : usize) Tampon circulaire propriétaire à deux extrémités.
 @param initialCapacity Nombre initial de cases, normalisé à au moins une."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Deque[T](initialCapacity : usize)</code></h3>
@@ -817,6 +817,13 @@ des ressources non copiables sans valeur sentinelle ni initialisation factice.</
 <p class="doc-summary">Retire l&#39;élément avant avec une erreur commune si la deque est vide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[T, AccessError]</code> — `Ok` avec la valeur possédée, ou `Error(AccessError.Empty)`.</p></section>
 <div class="qualified">std.deque.Deque.tryPopFront</div></div><a class="permalink" href="#std-deque-deque-trypopfront" aria-label="Permanent link to std.deque.Deque.tryPopFront">#</a></article>
+<article class="symbol-card kind-method child" id="std-deque-deque-tryreserve" data-symbol data-search="std.deque.Deque.tryReserve method def tryReserve(requested : usize) : Result[bool, CapacityError] Tente de garantir une capacité sans modifier les valeurs en cas d’échec.
+@param requested Capacité minimale souhaitée.
+@return `Ok(true)` après croissance, `Ok(false)` si elle était suffisante, ou une [[CapacityError]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Deque</div><h3><code>def tryReserve(requested : usize) : Result[bool, CapacityError]</code></h3>
+<p class="doc-summary">Tente de garantir une capacité sans modifier les valeurs en cas d’échec.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>requested</code></td><td><code>usize</code></td><td>Capacité minimale souhaitée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[bool, CapacityError]</code> — `Ok(true)` après croissance, `Ok(false)` si elle était suffisante, ou une <a href="#std-error-capacityerror"><code>CapacityError</code></a>.</p></section>
+<div class="qualified">std.deque.Deque.tryReserve</div></div><a class="permalink" href="#std-deque-deque-tryreserve" aria-label="Permanent link to std.deque.Deque.tryReserve">#</a></article>
 <article class="symbol-card kind-method child" id="std-deque-deque-withback" data-symbol data-search="std.deque.Deque.withBack method borrow def withBack(scoped action : Function[T, Unit]) : bool Observe l&#39;élément arrière sans le copier.
 @param action Callback borné appelé une fois lorsque la deque est non vide.
 @return `true` si la queue a été observée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Deque</div><h3><code>borrow def withBack(scoped action : Function[T, Unit]) : bool</code></h3>
@@ -836,6 +843,11 @@ des ressources non copiables sans valeur sentinelle ni initialisation factice.</
 <p class="doc-summary">File propriétaire FIFO fondée sur <a href="#std-deque-deque"><code>Deque</code></a>.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Capacité initiale de la file.</td></tr></tbody></table></section>
 <div class="qualified">std.deque.Queue</div></div><a class="permalink" href="#std-deque-queue" aria-label="Permanent link to std.deque.Queue">#</a></article>
+<article class="symbol-card kind-method child" id="std-deque-queue-capacity" data-symbol data-search="std.deque.Queue.capacity method borrow def capacity() : usize Retourne la capacité du tampon FIFO sous-jacent.
+@return Nombre de valeurs stockables sans croissance."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Queue</div><h3><code>borrow def capacity() : usize</code></h3>
+<p class="doc-summary">Retourne la capacité du tampon FIFO sous-jacent.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de valeurs stockables sans croissance.</p></section>
+<div class="qualified">std.deque.Queue.capacity</div></div><a class="permalink" href="#std-deque-queue-capacity" aria-label="Permanent link to std.deque.Queue.capacity">#</a></article>
 <article class="symbol-card kind-method child" id="std-deque-queue-clear" data-symbol data-search="std.deque.Queue.clear method def clear() : Unit Détruit toutes les valeurs en attente."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Queue</div><h3><code>def clear() : Unit</code></h3>
 <p class="doc-summary">Détruit toutes les valeurs en attente.</p>
 <div class="qualified">std.deque.Queue.clear</div></div><a class="permalink" href="#std-deque-queue-clear" aria-label="Permanent link to std.deque.Queue.clear">#</a></article>
@@ -893,6 +905,13 @@ des ressources non copiables sans valeur sentinelle ni initialisation factice.</
 <p class="doc-summary">Retire la première valeur avec une erreur commune si la file est vide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[T, AccessError]</code> — `Ok` avec la valeur possédée, ou `Error(AccessError.Empty)`.</p></section>
 <div class="qualified">std.deque.Queue.tryDequeue</div></div><a class="permalink" href="#std-deque-queue-trydequeue" aria-label="Permanent link to std.deque.Queue.tryDequeue">#</a></article>
+<article class="symbol-card kind-method child" id="std-deque-queue-tryreserve" data-symbol data-search="std.deque.Queue.tryReserve method def tryReserve(requested : usize) : Result[bool, CapacityError] Tente de garantir la capacité sous-jacente sans paniquer sur l’allocation.
+@param requested Capacité minimale souhaitée.
+@return Résultat de [[Deque.tryReserve]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Queue</div><h3><code>def tryReserve(requested : usize) : Result[bool, CapacityError]</code></h3>
+<p class="doc-summary">Tente de garantir la capacité sous-jacente sans paniquer sur l’allocation.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>requested</code></td><td><code>usize</code></td><td>Capacité minimale souhaitée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[bool, CapacityError]</code> — Résultat de <a href="#std-deque-deque-tryreserve"><code>Deque.tryReserve</code></a>.</p></section>
+<div class="qualified">std.deque.Queue.tryReserve</div></div><a class="permalink" href="#std-deque-queue-tryreserve" aria-label="Permanent link to std.deque.Queue.tryReserve">#</a></article>
 <article class="symbol-card kind-method child" id="std-deque-queue-withfirst" data-symbol data-search="std.deque.Queue.withFirst method borrow def withFirst(scoped action : Function[T, Unit]) : bool Observe la première valeur sans la copier.
 @param action Callback borné appelé lorsque la file est non vide.
 @return `true` si la première valeur a été observée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.deque.Queue</div><h3><code>borrow def withFirst(scoped action : Function[T, Unit]) : bool</code></h3>
@@ -4198,7 +4217,7 @@ l’itération suit l’ordre interne des cases et non l’ordre d’insertion.<
     new HashMap[int, int, IntHashing](usize(8), new IntHashing())<br>
 delete scores.put(7, 42)<br>
 val score : Option[int] = scores.getOption(7)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">29</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">30</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-hashmap-hashmap" data-symbol data-search="std.hashmap.HashMap class class HashMap[K, V, H](initialCapacity : usize, borrow val hashing : H) Table associative propriétaire à adressage ouvert et sondage linéaire.
 
@@ -4355,6 +4374,18 @@ devient un tombstone jusqu’à une réorganisation ultérieure.</p></div>
 <p class="doc-summary">Retourne le nombre d’associations stockées.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de cases occupées, hors tombstones.</p></section>
 <div class="qualified">std.hashmap.HashMap.size</div></div><a class="permalink" href="#std-hashmap-hashmap-size" aria-label="Permanent link to std.hashmap.HashMap.size">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-tryreserve" data-symbol data-search="std.hashmap.HashMap.tryReserve method def tryReserve(additional : usize) : Result[bool, CapacityError] Tente de réserver de la place pour des associations supplémentaires.
+
+La table et ses associations restent inchangées si la nouvelle
+allocation échoue.
+@param additional Nombre d&#39;insertions nouvelles à accepter sans croissance.
+@return `Ok(true)` après réorganisation, `Ok(false)` si la réserve est suffisante, ou une [[CapacityError]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def tryReserve(additional : usize) : Result[bool, CapacityError]</code></h3>
+<p class="doc-summary">Tente de réserver de la place pour des associations supplémentaires.</p>
+<div class="doc-details"><p>La table et ses associations restent inchangées si la nouvelle<br>
+allocation échoue.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>additional</code></td><td><code>usize</code></td><td>Nombre d&#39;insertions nouvelles à accepter sans croissance.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[bool, CapacityError]</code> — `Ok(true)` après réorganisation, `Ok(false)` si la réserve est suffisante, ou une <a href="#std-error-capacityerror"><code>CapacityError</code></a>.</p></section>
+<div class="qualified">std.hashmap.HashMap.tryReserve</div></div><a class="permalink" href="#std-hashmap-hashmap-tryreserve" aria-label="Permanent link to std.hashmap.HashMap.tryReserve">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashmap-hashmap-values" data-symbol data-search="std.hashmap.HashMap.values method borrow def values() : Iterator[V] Crée un parcours observant de copies des valeurs.
 
 La table conserve les associations et doit vivre pendant le parcours. Les
@@ -4484,7 +4515,7 @@ internes et ne garantit aucun ordre d’insertion.</p></div></div><section class
     new HashSet[int, IntHashing](usize(8), new IntHashing())<br>
 val inserted : bool = ids.add(42)<br>
 val present : bool = ids.contains(42)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">21</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">22</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-hashset-hashset" data-symbol data-search="std.hashset.HashSet class class HashSet[T, H](initialCapacity : usize, borrow val hashing : H) Ensemble propriétaire à adressage ouvert et sondage linéaire.
 
@@ -4610,6 +4641,18 @@ détruit lorsqu’il est trouvé et sa case devient un tombstone.</p></div>
 <p class="doc-summary">Retourne le nombre de valeurs stockées.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de cases occupées, hors tombstones.</p></section>
 <div class="qualified">std.hashset.HashSet.size</div></div><a class="permalink" href="#std-hashset-hashset-size" aria-label="Permanent link to std.hashset.HashSet.size">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashset-hashset-tryreserve" data-symbol data-search="std.hashset.HashSet.tryReserve method def tryReserve(additional : usize) : Result[bool, CapacityError] Tente de réserver de la place pour des insertions supplémentaires.
+
+La table et ses membres restent inchangés si la nouvelle allocation
+échoue.
+@param additional Nombre de nouveaux membres à accepter sans croissance.
+@return `Ok(true)` après réorganisation, `Ok(false)` si la réserve est suffisante, ou une [[CapacityError]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def tryReserve(additional : usize) : Result[bool, CapacityError]</code></h3>
+<p class="doc-summary">Tente de réserver de la place pour des insertions supplémentaires.</p>
+<div class="doc-details"><p>La table et ses membres restent inchangés si la nouvelle allocation<br>
+échoue.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>additional</code></td><td><code>usize</code></td><td>Nombre de nouveaux membres à accepter sans croissance.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[bool, CapacityError]</code> — `Ok(true)` après réorganisation, `Ok(false)` si la réserve est suffisante, ou une <a href="#std-error-capacityerror"><code>CapacityError</code></a>.</p></section>
+<div class="qualified">std.hashset.HashSet.tryReserve</div></div><a class="permalink" href="#std-hashset-hashset-tryreserve" aria-label="Permanent link to std.hashset.HashSet.tryReserve">#</a></article>
 <article class="symbol-card kind-method child" id="std-hashset-hashset-withvalue" data-symbol data-search="std.hashset.HashSet.withValue method def withValue(borrow value : T, scoped action : Function[T, Unit]) : bool Observe la valeur canonique stockée égale à `value`.
 
 Cette opération ne copie ni la requête ni le membre de l&#39;ensemble et
@@ -6219,7 +6262,7 @@ retirées dans leur ordre d&#39;insertion (FIFO).</p></div></div><section class=
 queue.enqueue(3)<br>
 queue.enqueue(1)<br>
 val first : int = queue.dequeue()<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">12</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">15</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-priority-queue-priorityqueue" data-symbol data-search="std.priority_queue.PriorityQueue class class PriorityQueue[T](initialCapacity : usize, val less : Function[T, T, bool]) File de priorité stable possédant ses valeurs et son comparateur.
 
@@ -6242,6 +6285,11 @@ peut donc posséder des ressources et n&#39;a pas à satisfaire `Copy`. Le<br>
 comparateur est possédé par la file et libéré avec elle.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Nombre initial d&#39;emplacements réservés.</td></tr><tr><td><code>less</code></td><td><code>Function[T, T, bool]</code></td><td>Comparateur strict plaçant la plus haute priorité en premier.</td></tr></tbody></table></section>
 <div class="qualified">std.priority_queue.PriorityQueue</div></div><a class="permalink" href="#std-priority-queue-priorityqueue" aria-label="Permanent link to std.priority_queue.PriorityQueue">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-capacity" data-symbol data-search="std.priority_queue.PriorityQueue.capacity method borrow def capacity() : usize Retourne la capacité utilisable par les deux stockages du tas.
+@return Nombre d’éléments insérables sans croissance."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def capacity() : usize</code></h3>
+<p class="doc-summary">Retourne la capacité utilisable par les deux stockages du tas.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’éléments insérables sans croissance.</p></section>
+<div class="qualified">std.priority_queue.PriorityQueue.capacity</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-capacity" aria-label="Permanent link to std.priority_queue.PriorityQueue.capacity">#</a></article>
 <article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-clear" data-symbol data-search="std.priority_queue.PriorityQueue.clear method def clear() : Unit Détruit toutes les valeurs et conserve la capacité réservée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>def clear() : Unit</code></h3>
 <p class="doc-summary">Détruit toutes les valeurs et conserve la capacité réservée.</p>
 <div class="qualified">std.priority_queue.PriorityQueue.clear</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-clear" aria-label="Permanent link to std.priority_queue.PriorityQueue.clear">#</a></article>
@@ -6302,6 +6350,11 @@ Déclenche `panic` lorsque la file est vide.</p></div>
 <p class="doc-summary">Observe sans erreur la prochaine valeur copiable.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` avec une copie de la tête, ou `None` si la file est vide.</p></section>
 <div class="qualified">std.priority_queue.PriorityQueue.peekCopyOption</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-peekcopyoption" aria-label="Permanent link to std.priority_queue.PriorityQueue.peekCopyOption">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-reserve" data-symbol data-search="std.priority_queue.PriorityQueue.reserve method def reserve(requested : usize) : Unit Garantit une capacité minimale pour les valeurs et les compteurs FIFO.
+@param requested Nombre minimal d’éléments stockables sans croissance."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>def reserve(requested : usize) : Unit</code></h3>
+<p class="doc-summary">Garantit une capacité minimale pour les valeurs et les compteurs FIFO.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>requested</code></td><td><code>usize</code></td><td>Nombre minimal d’éléments stockables sans croissance.</td></tr></tbody></table></section>
+<div class="qualified">std.priority_queue.PriorityQueue.reserve</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-reserve" aria-label="Permanent link to std.priority_queue.PriorityQueue.reserve">#</a></article>
 <article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-size" data-symbol data-search="std.priority_queue.PriorityQueue.size method borrow def size() : usize Retourne le nombre de valeurs actuellement stockées.
 @return Taille logique de la file."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre de valeurs actuellement stockées.</p>
@@ -6312,6 +6365,18 @@ Déclenche `panic` lorsque la file est vide.</p></div>
 <p class="doc-summary">Retire la prochaine valeur avec une erreur commune si la file est vide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[T, AccessError]</code> — `Ok` avec la valeur possédée, ou `Error(AccessError.Empty)`.</p></section>
 <div class="qualified">std.priority_queue.PriorityQueue.tryDequeue</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-trydequeue" aria-label="Permanent link to std.priority_queue.PriorityQueue.tryDequeue">#</a></article>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-tryreserve" data-symbol data-search="std.priority_queue.PriorityQueue.tryReserve method def tryReserve(requested : usize) : Result[bool, CapacityError] Tente de réserver les deux stockages sans paniquer sur l’allocation.
+
+Une réussite du premier stockage reste utilisable si le second échoue;
+les valeurs et l’ordre logique ne sont jamais modifiés.
+@param requested Nombre minimal d’éléments stockables sans croissance.
+@return `Ok(true)` si au moins un stockage grandit, `Ok(false)` sinon, ou une [[CapacityError]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>def tryReserve(requested : usize) : Result[bool, CapacityError]</code></h3>
+<p class="doc-summary">Tente de réserver les deux stockages sans paniquer sur l’allocation.</p>
+<div class="doc-details"><p>Une réussite du premier stockage reste utilisable si le second échoue;<br>
+les valeurs et l’ordre logique ne sont jamais modifiés.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>requested</code></td><td><code>usize</code></td><td>Nombre minimal d’éléments stockables sans croissance.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[bool, CapacityError]</code> — `Ok(true)` si au moins un stockage grandit, `Ok(false)` sinon, ou une <a href="#std-error-capacityerror"><code>CapacityError</code></a>.</p></section>
+<div class="qualified">std.priority_queue.PriorityQueue.tryReserve</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-tryreserve" aria-label="Permanent link to std.priority_queue.PriorityQueue.tryReserve">#</a></article>
 <article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-withfirst" data-symbol data-search="std.priority_queue.PriorityQueue.withFirst method borrow def withFirst(scoped action : Function[T, Unit]) : Unit Exécute une action empruntée sur la prochaine valeur sans la retirer.
 @param action Callback synchrone qui observe la tête pendant l&#39;appel."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def withFirst(scoped action : Function[T, Unit]) : Unit</code></h3>
 <p class="doc-summary">Exécute une action empruntée sur la prochaine valeur sans la retirer.</p>

@@ -1,6 +1,8 @@
 import std.array
 import std.option
 import std.priority_queue
+import std.error
+import std.result
 
 struct Task(val priority : int, val insertion : int)
 derives Copy {}
@@ -59,10 +61,14 @@ def exerciseEmptyAndSingleton() : bool {
     match emptyTake { Some(value) => false, None => true } &&
     match emptyPeek { Some(value) => false, None => true }
 
+    val reserved : bool = std.result.isOk[bool, CapacityError](
+    queue.tryReserve(usize(8))
+    ) && queue.capacity() >= usize(8)
+
     queue.enqueue(7)
     val singleton : bool = queue.size() == usize(1) &&
     queue.peekCopy() == 7 && queue.dequeue() == 7
-    return initiallyEmpty && singleton && queue.isEmpty()
+    return initiallyEmpty && reserved && singleton && queue.isEmpty()
 }
 
 def exerciseOwnedValues() : bool {

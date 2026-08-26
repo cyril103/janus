@@ -18,6 +18,8 @@ import std.hash_probe
 import std.hashing
 import std.iterator
 import std.option
+import std.error
+import std.result
 
 /// Paire propriétaire clé-valeur produite par les parcours d’une [[HashMap]].
 ///
@@ -275,18 +277,49 @@ private borrow val hashing : H
     }
 
     private def resize(requested : usize) : Unit {
+        val resized : bool = match this.tryResize(requested) {
+            Ok(changed) => true,
+            Error(error) => false
+        }
+        if !resized {
+            panic("HashMap allocation failed or capacity overflow\n")
+        }
+    }
+
+    private def tryResize(
+        requested : usize
+    ) : Result[bool, CapacityError] {
+        val nextCapacity : usize = normalizedHashCapacity(requested)
+        if nextCapacity > usize(-1) / sizeof[MapSlot[K, V]]() {
+            return Result.Error[bool, CapacityError](
+            CapacityError.CapacityOverflow
+            )
+        }
+        val expanded : Array[MapSlot[K, V]] =
+        new Array[MapSlot[K, V]](usize(0))
+        val reservation : Result[bool, CapacityError] =
+        expanded.tryReserve(nextCapacity)
+        if isError[bool, CapacityError](reservation) {
+            delete expanded
+            return Result.Error[bool, CapacityError](
+            CapacityError.AllocationFailed
+            )
+        }
+        while expanded.size() < nextCapacity {
+            expanded.push(MapSlot.Empty[K, V]())
+        }
         val previous : Array[MapSlot[K, V]] = move slots
-        slotCapacity = normalizedHashCapacity(requested)
-        slots = new Array[MapSlot[K, V]](slotCapacity)
+        slots = move expanded
+        slotCapacity = nextCapacity
         length = usize(0)
         deletedCount = usize(0)
-        this.initializeSlots()
 
         while !previous.isEmpty() {
             val slot : MapSlot[K, V] = previous.pop()
             this.restore(move slot)
         }
         delete previous
+        return Result.Ok[bool, CapacityError](true)
     }
 
     /// Retourne le nombre d’associations stockées.
@@ -310,22 +343,44 @@ private borrow val hashing : H
     /// Réserve de la place pour des associations supplémentaires.
     /// @param additional Nombre d'insertions nouvelles à accepter sans croissance.
     def reserve(additional : usize) : Unit {
+        val reserved : bool = match this.tryReserve(additional) {
+            Ok(changed) => true,
+            Error(error) => false
+        }
+        if !reserved {
+            panic("HashMap allocation failed or capacity overflow\n")
+        }
+    }
+
+    /// Tente de réserver de la place pour des associations supplémentaires.
+    ///
+    /// La table et ses associations restent inchangées si la nouvelle
+    /// allocation échoue.
+    /// @param additional Nombre d'insertions nouvelles à accepter sans croissance.
+    /// @return `Ok(true)` après réorganisation, `Ok(false)` si la réserve est suffisante, ou une [[CapacityError]].
+    def tryReserve(additional : usize) : Result[bool, CapacityError] {
         if additional > usize(-1) - length {
-            panic("HashMap capacity overflow\n")
+            return Result.Error[bool, CapacityError](
+            CapacityError.CapacityOverflow
+            )
         }
         val target : usize = length + additional
         var requested : usize = slotCapacity
         while target >= requested - requested / usize(4) {
             if requested > usize(-1) / usize(2) {
-                panic("HashMap capacity overflow\n")
+                return Result.Error[bool, CapacityError](
+                CapacityError.CapacityOverflow
+                )
             }
             requested = requested * usize(2)
         }
         if requested > slotCapacity {
-            this.resize(requested)
-        } else {
-            this.initializeSlots()
+            return this.tryResize(requested)
         }
+        if slots.size() < slotCapacity {
+            return this.tryResize(slotCapacity)
+        }
+        return Result.Ok[bool, CapacityError](false)
     }
 
     internal borrow def storageSize() : usize {

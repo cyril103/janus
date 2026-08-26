@@ -576,7 +576,10 @@ stdlib. `AccessError.Empty` signale les retraits impossibles et
 `AccessError.OutOfBounds` les indices invalides; `CapacityError` distingue un
 dépassement de capacité d'un échec d'allocation. Les variantes `tryPop`,
 `tryDequeue` et `tryReserve` retournent ces erreurs dans `Result`, tandis que les
-anciennes formes paniquantes ou en `Option` restent disponibles.
+anciennes formes paniquantes ou en `Option` restent disponibles. La réservation
+récupérable est uniforme sur `Array`, `ByteBuffer`, `Deque`, `Queue`, `HashMap`,
+`HashSet` et `PriorityQueue`; les tables hachées interprètent son argument comme
+un nombre d’insertions supplémentaires, conformément à leur méthode `reserve`.
 
 ## Classes, traits et visibilité
 
