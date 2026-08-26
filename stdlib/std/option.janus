@@ -64,6 +64,25 @@ def isNone[T](borrow value : Option[T]) : bool {
     }
 }
 
+/// Transforme une valeur présente en l'observant sans consommer l'option.
+///
+/// La closure est appelée au plus une fois et détruite avant le retour. La
+/// valeur contenue reste la propriété de `value`, y compris pour un type non
+/// `Copy`.
+/// @param value Option observée sans déplacement de sa variante active.
+/// @param transform Fonction bornée recevant un emprunt du contenu de `Some`.
+/// @return `Some` du résultat produit, ou `None` sans appeler `transform`.
+def mapBorrowed[T, U](
+borrow value : Option[T],
+scoped transform : (borrow T) => U
+) : Option[U] {
+    defer delete transform
+    return match value {
+        Some(item) => Option.Some[U](transform(item)),
+        None => Option.None[U]()
+    }
+}
+
 /// Consomme l’option et transforme son contenu lorsqu’il existe.
 ///
 /// @param value Option consommée par l’opération.

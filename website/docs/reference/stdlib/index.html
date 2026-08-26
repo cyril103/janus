@@ -3849,7 +3849,7 @@ l’itération suit l’ordre interne des cases et non l’ordre d’insertion.<
     new HashMap[int, int, IntHashing](usize(8), new IntHashing())<br>
 delete scores.put(7, 42)<br>
 val score : Option[int] = scores.getOption(7)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">22</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">23</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-hashmap-hashmap" data-symbol data-search="std.hashmap.HashMap class class HashMap[K, V, H](initialCapacity : usize, borrow val hashing : H) Table associative propriétaire à adressage ouvert et sondage linéaire.
 
@@ -3987,6 +3987,21 @@ valeurs suivent l’ordre interne des cases de leurs clés.
 valeurs suivent l’ordre interne des cases de leurs clés.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[V]</code> — Un <a href="#std-iterator-iterator"><code>Iterator</code></a> de valeurs copiées; exige `V &lt;: Copy`.</p></section>
 <div class="qualified">std.hashmap.HashMap.values</div></div><a class="permalink" href="#std-hashmap-hashmap-values" aria-label="Permanent link to std.hashmap.HashMap.values">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-withvalue" data-symbol data-search="std.hashmap.HashMap.withValue method def withValue(borrow key : K, scoped action : Function[V, Unit]) : bool Observe la valeur associée sans exiger qu&#39;elle soit `Copy`.
+
+`action` est appelée exactement une fois lorsque la clé existe. La clé
+de recherche, la clé stockée et la valeur restent possédées par leurs
+propriétaires respectifs.
+@param key Clé observée utilisée pour la recherche.
+@param action Callback borné recevant un emprunt de la valeur stockée.
+@return `true` si la clé était présente et le callback a été appelé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def withValue(borrow key : K, scoped action : Function[V, Unit]) : bool</code></h3>
+<p class="doc-summary">Observe la valeur associée sans exiger qu&#39;elle soit `Copy`.</p>
+<div class="doc-details"><p>`action` est appelée exactement une fois lorsque la clé existe. La clé<br>
+de recherche, la clé stockée et la valeur restent possédées par leurs<br>
+propriétaires respectifs.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>key</code></td><td><code>K</code></td><td>Clé observée utilisée pour la recherche.</td></tr><tr><td><code>action</code></td><td><code>Function[V, Unit]</code></td><td>Callback borné recevant un emprunt de la valeur stockée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si la clé était présente et le callback a été appelé.</p></section>
+<div class="qualified">std.hashmap.HashMap.withValue</div></div><a class="permalink" href="#std-hashmap-hashmap-withvalue" aria-label="Permanent link to std.hashmap.HashMap.withValue">#</a></article>
 <article class="symbol-card kind-class" id="std-hashmap-mapbuilder" data-symbol data-search="std.hashmap.MapBuilder class class MapBuilder[K, V, H](initialCapacity : usize, borrow val hashing : H) Constructeur mutable de [[HashMap]] à partir de [[MapEntry]].
 
 Le constructeur possède la table en cours. `add` consomme chaque entrée et
@@ -4083,7 +4098,7 @@ internes et ne garantit aucun ordre d’insertion.</p></div></div><section class
     new HashSet[int, IntHashing](usize(8), new IntHashing())<br>
 val inserted : bool = ids.add(42)<br>
 val present : bool = ids.contains(42)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">15</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">16</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-hashset-hashset" data-symbol data-search="std.hashset.HashSet class class HashSet[T, H](initialCapacity : usize, borrow val hashing : H) Ensemble propriétaire à adressage ouvert et sondage linéaire.
 
@@ -4180,6 +4195,19 @@ détruit lorsqu’il est trouvé et sa case devient un tombstone.</p></div>
 <p class="doc-summary">Retourne le nombre de valeurs stockées.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de cases occupées, hors tombstones.</p></section>
 <div class="qualified">std.hashset.HashSet.size</div></div><a class="permalink" href="#std-hashset-hashset-size" aria-label="Permanent link to std.hashset.HashSet.size">#</a></article>
+<article class="symbol-card kind-method child" id="std-hashset-hashset-withvalue" data-symbol data-search="std.hashset.HashSet.withValue method def withValue(borrow value : T, scoped action : Function[T, Unit]) : bool Observe la valeur canonique stockée égale à `value`.
+
+Cette opération ne copie ni la requête ni le membre de l&#39;ensemble et
+fonctionne donc avec les types propriétaires.
+@param value Valeur observée servant à la recherche.
+@param action Callback borné recevant le membre effectivement stocké.
+@return `true` si un membre égal a été trouvé et observé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def withValue(borrow value : T, scoped action : Function[T, Unit]) : bool</code></h3>
+<p class="doc-summary">Observe la valeur canonique stockée égale à `value`.</p>
+<div class="doc-details"><p>Cette opération ne copie ni la requête ni le membre de l&#39;ensemble et<br>
+fonctionne donc avec les types propriétaires.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur observée servant à la recherche.</td></tr><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Callback borné recevant le membre effectivement stocké.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si un membre égal a été trouvé et observé.</p></section>
+<div class="qualified">std.hashset.HashSet.withValue</div></div><a class="permalink" href="#std-hashset-hashset-withvalue" aria-label="Permanent link to std.hashset.HashSet.withValue">#</a></article>
 <article class="symbol-card kind-class" id="std-hashset-setbuilder" data-symbol data-search="std.hashset.SetBuilder class class SetBuilder[T, H](initialCapacity : usize, borrow val hashing : H) Constructeur mutable de [[HashSet]] à partir d’une suite de valeurs.
 
 Il possède l’ensemble en cours et consomme chaque valeur ajoutée. Les doublons
@@ -5492,7 +5520,7 @@ val value : int = unwrapOr[int](move item, 0)
 <header class="module-heading"><span class="keyword">module</span> <h2>std.option</h2></header>
 <div class="module-summary"><p class="doc-summary">Modélise une valeur présente avec <a href="#std-option-option-some"><code>Option.Some</code></a> ou absente avec <a href="#std-option-option-none"><code>Option.None</code></a>.</p><div class="doc-details"><p>Les combinateurs consomment leur option et transfèrent la propriété de la branche conservée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val item : Option[int] = Option.Some[int](42)<br>
 val value : int = unwrapOr[int](move item, 0)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">9</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">10</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-enum" id="std-option-option" data-symbol data-search="std.option.Option enum enum Option[T] Représente soit une valeur propriétaire, soit son absence."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Option[T]</code></h3>
 <p class="doc-summary">Représente soit une valeur propriétaire, soit son absence.</p>
@@ -5537,6 +5565,21 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée par l’opération.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction propriétaire appelée une fois avec la valeur déplacée pour `Some`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — `Some` du résultat de `transform`, ou `None` sans appeler `transform`.</p></section>
 <div class="qualified">std.option.map</div></div><a class="permalink" href="#std-option-map" aria-label="Permanent link to std.option.map">#</a></article>
+<article class="symbol-card kind-function" id="std-option-mapborrowed" data-symbol data-search="std.option.mapBorrowed function def mapBorrowed[T, U](borrow value : Option[T], scoped transform : Function[T, U]) : Option[U] Transforme une valeur présente en l&#39;observant sans consommer l&#39;option.
+
+La closure est appelée au plus une fois et détruite avant le retour. La
+valeur contenue reste la propriété de `value`, y compris pour un type non
+`Copy`.
+@param value Option observée sans déplacement de sa variante active.
+@param transform Fonction bornée recevant un emprunt du contenu de `Some`.
+@return `Some` du résultat produit, ou `None` sans appeler `transform`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def mapBorrowed[T, U](borrow value : Option[T], scoped transform : Function[T, U]) : Option[U]</code></h3>
+<p class="doc-summary">Transforme une valeur présente en l&#39;observant sans consommer l&#39;option.</p>
+<div class="doc-details"><p>La closure est appelée au plus une fois et détruite avant le retour. La<br>
+valeur contenue reste la propriété de `value`, y compris pour un type non<br>
+`Copy`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option observée sans déplacement de sa variante active.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée recevant un emprunt du contenu de `Some`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — `Some` du résultat produit, ou `None` sans appeler `transform`.</p></section>
+<div class="qualified">std.option.mapBorrowed</div></div><a class="permalink" href="#std-option-mapborrowed" aria-label="Permanent link to std.option.mapBorrowed">#</a></article>
 <article class="symbol-card kind-function" id="std-option-orelse" data-symbol data-search="std.option.orElse function def orElse[T](value : Option[T], fallback : Option[T]) : Option[T] Conserve la première valeur présente entre deux options consommées.
 
 @param value Option prioritaire, consommée.
@@ -6080,7 +6123,7 @@ val value : int = unwrapOr[int, string](move item, 0)
 <header class="module-heading"><span class="keyword">module</span> <h2>std.result</h2></header>
 <div class="module-summary"><p class="doc-summary">Modélise un succès <a href="#std-result-result-ok"><code>Result.Ok</code></a> ou une erreur <a href="#std-result-result-error"><code>Result.Error</code></a>.</p><div class="doc-details"><p>Les combinateurs consomment le résultat et transfèrent la propriété de la branche conservée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val item : Result[int, string] = Result.Ok[int, string](42)<br>
 val value : int = unwrapOr[int, string](move item, 0)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">12</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">14</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-enum" id="std-result-result" data-symbol data-search="std.result.Result enum enum Result[T, E] Représente une valeur de succès ou une erreur, chacune propriétaire."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Result[T, E]</code></h3>
 <p class="doc-summary">Représente une valeur de succès ou une erreur, chacune propriétaire.</p>
@@ -6134,6 +6177,14 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[U, E]</code> — `Ok` transformé, ou l’erreur d’origine déplacée sans appeler `transform`.</p></section>
 <div class="qualified">std.result.map</div></div><a class="permalink" href="#std-result-map" aria-label="Permanent link to std.result.map">#</a></article>
+<article class="symbol-card kind-function" id="std-result-mapborrowed" data-symbol data-search="std.result.mapBorrowed function def mapBorrowed[T, U, E](borrow value : Result[T, E], scoped transform : Function[T, U]) : Option[U] Transforme un succès en l&#39;observant sans consommer le résultat.
+@param value Résultat observé; sa variante reste possédée par l&#39;appelant.
+@param transform Fonction bornée recevant un emprunt de la valeur `Ok`.
+@return `Some` du résultat transformé, ou `None` pour `Error`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def mapBorrowed[T, U, E](borrow value : Result[T, E], scoped transform : Function[T, U]) : Option[U]</code></h3>
+<p class="doc-summary">Transforme un succès en l&#39;observant sans consommer le résultat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat observé; sa variante reste possédée par l&#39;appelant.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée recevant un emprunt de la valeur `Ok`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — `Some` du résultat transformé, ou `None` pour `Error`.</p></section>
+<div class="qualified">std.result.mapBorrowed</div></div><a class="permalink" href="#std-result-mapborrowed" aria-label="Permanent link to std.result.mapBorrowed">#</a></article>
 <article class="symbol-card kind-function" id="std-result-maperror" data-symbol data-search="std.result.mapError function def mapError[T, E, F](value : Result[T, E], scoped transform : Function[E, F]) : Result[T, F] Consomme le résultat et transforme uniquement son erreur.
 
 @param value Résultat consommé.
@@ -6143,6 +6194,14 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr><tr><td><code>transform</code></td><td><code>Function[E, F]</code></td><td>Fonction propriétaire appelée avec l’erreur déplacée pour `Error`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[T, F]</code> — Erreur transformée, ou valeur de succès d’origine déplacée sans appeler `transform`.</p></section>
 <div class="qualified">std.result.mapError</div></div><a class="permalink" href="#std-result-maperror" aria-label="Permanent link to std.result.mapError">#</a></article>
+<article class="symbol-card kind-function" id="std-result-maperrorborrowed" data-symbol data-search="std.result.mapErrorBorrowed function def mapErrorBorrowed[T, E, F](borrow value : Result[T, E], scoped transform : Function[E, F]) : Option[F] Transforme une erreur en l&#39;observant sans consommer le résultat.
+@param value Résultat observé; sa variante reste possédée par l&#39;appelant.
+@param transform Fonction bornée recevant un emprunt de la valeur `Error`.
+@return `Some` du résultat transformé pour `Error`, ou `None` pour `Ok`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def mapErrorBorrowed[T, E, F](borrow value : Result[T, E], scoped transform : Function[E, F]) : Option[F]</code></h3>
+<p class="doc-summary">Transforme une erreur en l&#39;observant sans consommer le résultat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat observé; sa variante reste possédée par l&#39;appelant.</td></tr><tr><td><code>transform</code></td><td><code>Function[E, F]</code></td><td>Fonction bornée recevant un emprunt de la valeur `Error`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[F]</code> — `Some` du résultat transformé pour `Error`, ou `None` pour `Ok`.</p></section>
+<div class="qualified">std.result.mapErrorBorrowed</div></div><a class="permalink" href="#std-result-maperrorborrowed" aria-label="Permanent link to std.result.mapErrorBorrowed">#</a></article>
 <article class="symbol-card kind-function" id="std-result-orelse" data-symbol data-search="std.result.orElse function def orElse[T, E, F](value : Result[T, E], scoped transform : Function[E, Result[T, F]]) : Result[T, F] Tente une récupération uniquement sur la branche d’erreur.
 
 @param value Résultat consommé.

@@ -76,6 +76,36 @@ def isError[T, E](borrow value : Result[T, E]) : bool {
     }
 }
 
+/// Transforme un succès en l'observant sans consommer le résultat.
+/// @param value Résultat observé; sa variante reste possédée par l'appelant.
+/// @param transform Fonction bornée recevant un emprunt de la valeur `Ok`.
+/// @return `Some` du résultat transformé, ou `None` pour `Error`.
+def mapBorrowed[T, U, E](
+borrow value : Result[T, E],
+scoped transform : (borrow T) => U
+) : Option[U] {
+    defer delete transform
+    return match value {
+        Ok(item) => Option.Some[U](transform(item)),
+        Error(error) => Option.None[U]()
+    }
+}
+
+/// Transforme une erreur en l'observant sans consommer le résultat.
+/// @param value Résultat observé; sa variante reste possédée par l'appelant.
+/// @param transform Fonction bornée recevant un emprunt de la valeur `Error`.
+/// @return `Some` du résultat transformé pour `Error`, ou `None` pour `Ok`.
+def mapErrorBorrowed[T, E, F](
+borrow value : Result[T, E],
+scoped transform : (borrow E) => F
+) : Option[F] {
+    defer delete transform
+    return match value {
+        Ok(item) => Option.None[F](),
+        Error(error) => Option.Some[F](transform(error))
+    }
+}
+
 /// Consomme le résultat et transforme uniquement sa valeur de succès.
 ///
 /// @param value Résultat consommé.

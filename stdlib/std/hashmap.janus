@@ -396,6 +396,55 @@ private borrow val hashing : H
         return Option.None[V]()
     }
 
+    /// Observe la valeur associée sans exiger qu'elle soit `Copy`.
+    ///
+    /// `action` est appelée exactement une fois lorsque la clé existe. La clé
+    /// de recherche, la clé stockée et la valeur restent possédées par leurs
+    /// propriétaires respectifs.
+    /// @param key Clé observée utilisée pour la recherche.
+    /// @param action Callback borné recevant un emprunt de la valeur stockée.
+    /// @return `true` si la clé était présente et le callback a été appelé.
+    def withValue(
+    borrow key : K,
+    scoped action : (borrow V) => Unit
+    ) : bool {
+        defer delete action
+        if length == usize(0) {
+            return false
+        }
+        var probe : HashProbe = hashProbe(hashing.hash(key), slotCapacity)
+        while probe.hasNext() {
+            val index : usize = probe.next()
+            borrow val slot : MapSlot[K, V] = slots.getBorrowed(index)
+            val found : bool = match slot {
+                Occupied(storedKey, storedValue) =>
+                this.observeEqual(storedKey, key, storedValue, action),
+                Empty => false,
+                Deleted => false
+            }
+            if found {
+                return true
+            }
+            if this.isEmptyAt(index) {
+                return false
+            }
+        }
+        return false
+    }
+
+    private def observeEqual(
+    borrow storedKey : K,
+    borrow query : K,
+    borrow storedValue : V,
+    borrow action : (borrow V) => Unit
+    ) : bool {
+        if hashing.equals(storedKey, query) {
+            action(storedValue)
+            return true
+        }
+        return false
+    }
+
     private borrow def copyValueAt(
     index : usize
     ) : Option[V] where V <: Copy {

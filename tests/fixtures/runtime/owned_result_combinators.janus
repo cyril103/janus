@@ -1,4 +1,5 @@
 import std.result
+import std.option
 
 var releases : int = 0
 
@@ -22,6 +23,10 @@ def recover(error : Resource) : Result[Resource, Resource] {
     return Result.Ok[Resource, Resource](transform(error))
 }
 
+def resourceId(borrow value : Resource) : int {
+    return value.id
+}
+
 def main() : int {
     val observed : Result[Resource, Resource] =
     Result.Ok[Resource, Resource](new Resource(1))
@@ -29,6 +34,30 @@ def main() : int {
     println(std.result.isError[Resource, Resource](observed))
     println(releases)
     delete observed
+    println(releases)
+
+    val borrowedOk : Result[Resource, Resource] =
+    Result.Ok[Resource, Resource](new Resource(11))
+    val borrowedOkId : Option[int] =
+    std.result.mapBorrowed[Resource, int, Resource](
+    borrowedOk,
+    (borrow value : Resource) => resourceId(value)
+    )
+    println(std.option.unwrapOr[int](borrowedOkId, -1))
+    println(releases)
+    delete borrowedOk
+    println(releases)
+
+    val borrowedError : Result[Resource, Resource] =
+    Result.Error[Resource, Resource](new Resource(12))
+    val borrowedErrorId : Option[int] =
+    std.result.mapErrorBorrowed[Resource, Resource, int](
+    borrowedError,
+    (borrow value : Resource) => resourceId(value)
+    )
+    println(std.option.unwrapOr[int](borrowedErrorId, -1))
+    println(releases)
+    delete borrowedError
     println(releases)
 
     val mapped : Result[Resource, Resource] =

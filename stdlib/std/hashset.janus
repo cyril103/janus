@@ -237,6 +237,53 @@ private borrow val hashing : H
         return false
     }
 
+    /// Observe la valeur canonique stockée égale à `value`.
+    ///
+    /// Cette opération ne copie ni la requête ni le membre de l'ensemble et
+    /// fonctionne donc avec les types propriétaires.
+    /// @param value Valeur observée servant à la recherche.
+    /// @param action Callback borné recevant le membre effectivement stocké.
+    /// @return `true` si un membre égal a été trouvé et observé.
+    def withValue(
+    borrow value : T,
+    scoped action : (borrow T) => Unit
+    ) : bool {
+        defer delete action
+        if length == usize(0) {
+            return false
+        }
+        var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
+        while probe.hasNext() {
+            val index : usize = probe.next()
+            borrow val slot : SetSlot[T] = slots.getBorrowed(index)
+            val found : bool = match slot {
+                Occupied(existing) =>
+                this.observeEqual(existing, value, action),
+                Empty => false,
+                Deleted => false
+            }
+            if found {
+                return true
+            }
+            if this.isEmptyAt(index) {
+                return false
+            }
+        }
+        return false
+    }
+
+    private def observeEqual(
+    borrow existing : T,
+    borrow query : T,
+    borrow action : (borrow T) => Unit
+    ) : bool {
+        if hashing.equals(existing, query) {
+            action(existing)
+            return true
+        }
+        return false
+    }
+
     /// Ajoute une valeur.
     ///
     /// En cas de succès, la propriété de `value` est transférée à l’ensemble. Si

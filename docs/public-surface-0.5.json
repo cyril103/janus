@@ -121,16 +121,16 @@
       "source": "stdlib/std/hashmap.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "dd326e0f14eb76cb804134392caff683d19ad7cc327aedd1e93784d4ff333b95",
-      "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "MapEntry.intoKey", "MapEntry.intoValue", "HashMap", "HashMap.size", "HashMap.isEmpty", "HashMap.containsKey", "HashMap.getOption", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.entries", "HashMap.keys", "HashMap.values", "HashMap.intoEntries", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
+      "signature_digest": "5c0588b9539fea4ded582ad4e8f1c83719ff7f272b8027763566b9bd8f779650",
+      "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "MapEntry.intoKey", "MapEntry.intoValue", "HashMap", "HashMap.size", "HashMap.isEmpty", "HashMap.containsKey", "HashMap.getOption", "HashMap.withValue", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.entries", "HashMap.keys", "HashMap.values", "HashMap.intoEntries", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
     },
     {
       "name": "std.hashset",
       "source": "stdlib/std/hashset.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "ae2175bd3c1d466c343174fe770824b0c9f026afba66889e3aea9a51837fbf1d",
-      "symbols": ["HashSet", "HashSet.size", "HashSet.isEmpty", "HashSet.contains", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
+      "signature_digest": "869c13498c7f07cec6825687cb7114748e899581c04eec1efbe329011cd4b36e",
+      "symbols": ["HashSet", "HashSet.size", "HashSet.isEmpty", "HashSet.contains", "HashSet.withValue", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
     },
     {
       "name": "std.io",
@@ -169,8 +169,8 @@
       "source": "stdlib/std/option.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "7e265b334c9a5bb6baa5f4ab6966f782ee78b57ac285c8bd62042357a24cedb4",
-      "symbols": ["Option", "Option.Some", "Option.None", "isSome", "isNone", "map", "andThen", "orElse", "unwrapOr"]
+      "signature_digest": "ffee90feb3a968d34ba096eebad42b6b5b73fd8892bc335d2b00a7973669d095",
+      "symbols": ["Option", "Option.Some", "Option.None", "isSome", "isNone", "mapBorrowed", "map", "andThen", "orElse", "unwrapOr"]
     },
     {
       "name": "std.path",
@@ -217,8 +217,8 @@
       "source": "stdlib/std/result.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "54e666a27979d0505069cbdb53077f69377cdb5b4a095d83f328269805b4d3bd",
-      "symbols": ["Result", "Result.Ok", "Result.Error", "isOk", "isError", "map", "mapError", "andThen", "orElse", "unwrapOr", "toOption", "fromOption"]
+      "signature_digest": "b7286531da09c5bb87cde5900c02831d4f632e030bce856c4f9749743e4dfb65",
+      "symbols": ["Result", "Result.Ok", "Result.Error", "isOk", "isError", "mapBorrowed", "mapErrorBorrowed", "map", "mapError", "andThen", "orElse", "unwrapOr", "toOption", "fromOption"]
     },
     {
       "name": "std.slice",

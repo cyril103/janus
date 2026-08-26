@@ -474,12 +474,13 @@ absente et `Result[T, E]` pour une opération qui peut échouer. L'opérateur `?
 propage automatiquement une absence ou une erreur depuis une fonction
 compatible.
 
-Le module `std.option` fournit six combinateurs génériques :
+Le module `std.option` fournit sept combinateurs génériques :
 
 | Fonction | Effet |
 | --- | --- |
 | `isSome[T](value)` | observe si la variante est `Some` |
 | `isNone[T](value)` | observe si la variante est `None` |
+| `mapBorrowed[T, U](value, transform)` | transforme un emprunt du contenu sans consommer l'option |
 | `map[T, U](value, transform)` | transforme le contenu de `Some` |
 | `andThen[T, U](value, transform)` | chaîne une fonction qui retourne une `Option[U]` |
 | `orElse[T](value, fallback)` | conserve `value` si présente, sinon retourne `fallback` |
@@ -507,6 +508,11 @@ if isSome[Resource](resource) {
 delete resource
 ```
 
+`mapBorrowed` étend cette observation aux contenus non `Copy`. Sa closure
+reçoit `borrow T`, produit une valeur indépendante et ne peut pas s'échapper de
+l'appel grâce à `scoped`; l'option reste ensuite utilisable et propriétaire de
+son contenu.
+
 Les quatre autres fonctions sont consommantes. Une variable `Option[Resource]`
 doit leur être passée avec `move`; le résultat possède alors la valeur
 transférée. `map` et `andThen` n'appellent leur closure que pour `Some`.
@@ -526,6 +532,8 @@ variantes :
 | --- | --- |
 | `isOk[T, E](value)` | observe si la variante est `Ok` |
 | `isError[T, E](value)` | observe si la variante est `Error` |
+| `mapBorrowed[T, U, E](value, transform)` | transforme un emprunt de la valeur `Ok` |
+| `mapErrorBorrowed[T, E, F](value, transform)` | transforme un emprunt de l'erreur |
 | `map[T, U, E](value, transform)` | transforme la valeur de `Ok` |
 | `mapError[T, E, F](value, transform)` | transforme l'erreur |
 | `andThen[T, U, E](value, transform)` | chaîne une opération qui peut échouer |
@@ -534,8 +542,8 @@ variantes :
 | `toOption[T, E](value)` | conserve `Ok` comme `Some` et élimine l'erreur |
 | `fromOption[T, E](value, error)` | convertit `Some` en `Ok` et `None` en `Error` |
 
-`isOk` et `isError` observent une variable locale propriétaire sans la
-consommer. Les autres opérations sont consommantes : la closure n'est appelée
+`isOk`, `isError`, `mapBorrowed` et `mapErrorBorrowed` observent une variable
+locale propriétaire sans la consommer. Les autres opérations sont consommantes : la closure n'est appelée
 que pour sa variante active, et la valeur inactive, le repli et la closure
 sont détruits exactement une fois. Les noms qualifiés, comme
 `std.result.map`, évitent les collisions avec `std.option`.
@@ -729,8 +737,10 @@ la mutation mais reste exclusive. Retourner cette closure, la placer dans un
 champ, ou la transmettre à une fonction sans contrat synchrone est refusé.
 Les callbacks annotés par un type comme `(borrow T) => U` ou
 `(borrow var T) => U` expriment directement ce contrat. `Array.withValue`,
-`Array.withValues` et `Array.withMutable` les utilisent pour observer ou
-modifier un élément sans le copier.
+`Array.withValues`, `Array.withMutable`, `HashSet.withValue` et
+`HashMap.withValue` les utilisent pour observer ou modifier un élément sans le
+copier. Les deux collections hachées retournent `false` lorsque la clé est
+absente et appellent sinon une fois la closure avec la valeur canonique stockée.
 
 Un paramètre fonctionnel préfixé par `scoped` garantit que la fonction appelée
 ne conserve ni ne retourne la closure. Cette garantie autorise une closure à

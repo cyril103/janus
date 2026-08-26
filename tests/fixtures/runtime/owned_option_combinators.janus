@@ -18,6 +18,10 @@ def continueWith(value : Resource) : Option[Resource] {
     return Option.Some[Resource](transform(value))
 }
 
+def resourceId(borrow value : Resource) : int {
+    return value.id
+}
+
 def main() : int {
     val observed : Option[Resource] =
     Option.Some[Resource](new Resource(1))
@@ -25,6 +29,17 @@ def main() : int {
     println(isNone[Resource](observed))
     println(releases)
     delete observed
+    println(releases)
+
+    val borrowed : Option[Resource] =
+    Option.Some[Resource](new Resource(8))
+    val borrowedId : Option[int] = mapBorrowed[Resource, int](
+    borrowed,
+    (borrow value : Resource) => resourceId(value)
+    )
+    println(unwrapOr[int](borrowedId, -1))
+    println(releases)
+    delete borrowed
     println(releases)
 
     val mapped : Option[Resource] = map[Resource, Resource](

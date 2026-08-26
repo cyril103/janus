@@ -65,6 +65,10 @@ def exerciseSet(hashing : CollidingHashing) : Unit {
     addSetValue(values, 1)
 
     val query : Resource = new Resource(1)
+    println(values.withValue(
+    query,
+    (borrow stored : Resource) => println(stored.key)
+    ))
     values.remove(query)
     delete query
     values.clear()
@@ -89,6 +93,10 @@ def exerciseMap(hashing : CollidingHashing) : Unit {
     delete replaced
 
     val query : Resource = new Resource(2)
+    println(values.withValue(
+    query,
+    (borrow stored : Resource) => println(stored.key)
+    ))
     val removed : Option[Resource] = values.remove(query)
     delete removed
     delete query
