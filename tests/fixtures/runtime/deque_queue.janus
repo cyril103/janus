@@ -1,0 +1,57 @@
+import std.deque
+
+var releases : int = 0
+
+class Resource(val id : int) {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+def main() : int {
+    val deque : Deque[Resource] = new Deque[Resource](usize(2))
+    deque.pushBack(new Resource(1))
+    deque.pushBack(new Resource(2))
+    deque.pushFront(new Resource(0))
+    println(deque.withFront(
+    (borrow value : Resource) => println(value.id)
+    ))
+    println(deque.withBack(
+    (borrow value : Resource) => println(value.id)
+    ))
+
+    val front : Resource = deque.popFront()
+    delete front
+    val back : Resource = deque.popBack()
+    delete back
+    println(releases)
+
+    deque.pushBack(new Resource(3))
+    deque.pushBack(new Resource(4))
+    for value in move deque {
+        println(value.id)
+        delete value
+    }
+    println(releases)
+
+    val queue : Queue[Resource] = new Queue[Resource](usize(1))
+    queue.enqueue(new Resource(10))
+    queue.enqueue(new Resource(11))
+    println(queue.withFirst(
+    (borrow value : Resource) => println(value.id)
+    ))
+    val first : Resource = queue.dequeue()
+    delete first
+    queue.clear()
+    println(releases)
+    println(queue.isEmpty())
+
+    queue.enqueue(new Resource(12))
+    queue.enqueue(new Resource(13))
+    for value in move queue {
+        println(value.id)
+        delete value
+    }
+    println(releases)
+    return 0
+}

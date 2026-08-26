@@ -152,6 +152,25 @@ import std.hashset
 def main() : int { return 0 }
 ```
 
+### `std.deque`
+
+`Deque[T]` offre les deux extrémités d'un tampon circulaire propriétaire;
+`Queue[T]` en expose une discipline FIFO plus étroite. Les deux collections
+acceptent les types non `Copy` et peuvent être consommées par `for`.
+
+```janus
+// doctest: doctest name=stdlib-std-deque
+import std.deque
+def main() : int {
+    val queue : Queue[int] = new Queue[int](usize(2))
+    queue.enqueue(10)
+    queue.enqueue(20)
+    val first : int = queue.dequeue()
+    delete queue
+    return first - 10
+}
+```
+
 ### `std.priority_queue`
 
 La file utilise un tas binaire stocké dans un `Array`. Le comparateur place

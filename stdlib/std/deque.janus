@@ -1,0 +1,343 @@
+/// Fournit une deque propriétaire et une file FIFO fondées sur un tampon circulaire.
+///
+/// Les insertions et retraits aux deux extrémités sont amortis constants. Les
+/// cases libres sont représentées par `Option.None`, ce qui permet de stocker
+/// des ressources non copiables sans valeur sentinelle ni initialisation factice.
+module std.deque
+import std.array
+import std.iterator
+import std.option
+
+private def normalizedDequeCapacity(requested : usize) : usize {
+    return if requested == usize(0) { usize(1) } else { requested }
+}
+
+private class DequeIteratorState[T](private val source : Deque[T]) {
+    def next() : Option[T] {
+        return source.popFrontOption()
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        delete source
+    }
+}
+
+/// Tampon circulaire propriétaire à deux extrémités.
+/// @param initialCapacity Nombre initial de cases, normalisé à au moins une.
+class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
+    private var slotCapacity : usize =
+    normalizedDequeCapacity(initialCapacity)
+    private var slots : Array[Option[T]] =
+    new Array[Option[T]](slotCapacity)
+    private var head : usize = usize(0)
+    private var length : usize = usize(0)
+
+    private borrow def physicalIndex(logical : usize) : usize {
+        val remaining : usize = slotCapacity - head
+        return if logical < remaining {
+            head + logical
+        } else {
+            logical - remaining
+        }
+    }
+
+    private def replaceSlot(index : usize, value : Option[T]) : Option[T] {
+        return slots.replace(index, move value)
+    }
+
+    private def initializeSlots() : Unit {
+        while slots.size() < slotCapacity {
+            slots.push(Option.None[T]())
+        }
+    }
+
+    private def grow() : Unit {
+        val capacity : usize = slotCapacity
+        if capacity > usize(-1) / usize(2) {
+            panic("Deque capacity overflow\n")
+        }
+        val nextCapacity : usize = capacity * usize(2)
+        val expanded : Array[Option[T]] =
+        new Array[Option[T]](nextCapacity)
+        while expanded.size() < nextCapacity {
+            expanded.push(Option.None[T]())
+        }
+        var logical : usize = usize(0)
+        while logical < length {
+            val moved : Option[T] = this.replaceSlot(
+            this.physicalIndex(logical),
+            Option.None[T]()
+            )
+            expanded.set(logical, move moved)
+            logical = logical + usize(1)
+        }
+        delete slots
+        slots = move expanded
+        slotCapacity = nextCapacity
+        head = usize(0)
+    }
+
+    private def ensureSpace() : Unit {
+        this.initializeSlots()
+        if length == slotCapacity {
+            this.grow()
+        }
+    }
+
+    private def take(index : usize) : Option[T] {
+        return this.replaceSlot(index, Option.None[T]())
+    }
+
+    private def invariantFailure() : T {
+        panic("Deque invariant violated\n")
+    }
+
+    /// Retourne le nombre d'éléments stockés.
+    /// @return Taille logique de la deque.
+    borrow def size() : usize {
+        return length
+    }
+
+    /// Retourne la capacité du tampon circulaire.
+    /// @return Nombre de valeurs stockables sans agrandissement.
+    borrow def capacity() : usize {
+        return slotCapacity
+    }
+
+    /// Indique si la deque est vide.
+    /// @return `true` lorsque [[Deque.size]] vaut zéro.
+    borrow def isEmpty() : bool {
+        return length == usize(0)
+    }
+
+    /// Ajoute une valeur à l'arrière.
+    /// @param value Valeur dont la deque prend possession.
+    /// @return Nouvelle taille.
+    def pushBack(value : T) : usize {
+        this.ensureSpace()
+        val index : usize = this.physicalIndex(length)
+        val previous : Option[T] = this.replaceSlot(
+        index,
+        Option.Some[T](move value)
+        )
+        delete previous
+        length = length + usize(1)
+        return length
+    }
+
+    /// Ajoute une valeur à l'avant.
+    /// @param value Valeur dont la deque prend possession.
+    /// @return Nouvelle taille.
+    def pushFront(value : T) : usize {
+        this.ensureSpace()
+        head = if head == usize(0) {
+            slotCapacity - usize(1)
+        } else {
+            head - usize(1)
+        }
+        val previous : Option[T] = this.replaceSlot(
+        head,
+        Option.Some[T](move value)
+        )
+        delete previous
+        length = length + usize(1)
+        return length
+    }
+
+    /// Retire l'élément avant s'il existe.
+    /// @return Valeur possédée dans `Some`, ou `None` si la deque est vide.
+    def popFrontOption() : Option[T] {
+        if length == usize(0) {
+            return Option.None[T]()
+        }
+        val result : Option[T] = this.take(head)
+        head = if head + usize(1) == slotCapacity {
+            usize(0)
+        } else {
+            head + usize(1)
+        }
+        length = length - usize(1)
+        if length == usize(0) {
+            head = usize(0)
+        }
+        return move result
+    }
+
+    /// Retire l'élément arrière s'il existe.
+    /// @return Valeur possédée dans `Some`, ou `None` si la deque est vide.
+    def popBackOption() : Option[T] {
+        if length == usize(0) {
+            return Option.None[T]()
+        }
+        val index : usize = this.physicalIndex(length - usize(1))
+        val result : Option[T] = this.take(index)
+        length = length - usize(1)
+        if length == usize(0) {
+            head = usize(0)
+        }
+        return move result
+    }
+
+    /// Retire l'élément avant ou déclenche `panic` si la deque est vide.
+    /// @return Première valeur possédée.
+    def popFront() : T {
+        if length == usize(0) {
+            panic("cannot pop front of an empty Deque\n")
+        }
+        val result : Option[T] = this.popFrontOption()
+        return match move result {
+            Some(value) => move value,
+            None => this.invariantFailure()
+        }
+    }
+
+    /// Retire l'élément arrière ou déclenche `panic` si la deque est vide.
+    /// @return Dernière valeur possédée.
+    def popBack() : T {
+        if length == usize(0) {
+            panic("cannot pop back of an empty Deque\n")
+        }
+        val result : Option[T] = this.popBackOption()
+        return match move result {
+            Some(value) => move value,
+            None => this.invariantFailure()
+        }
+    }
+
+    /// Observe l'élément avant sans le copier.
+    /// @param action Callback borné appelé une fois lorsque la deque est non vide.
+    /// @return `true` si la tête a été observée.
+    borrow def withFront(scoped action : (borrow T) => Unit) : bool {
+        defer delete action
+        if length == usize(0) {
+            return false
+        }
+        borrow val slot : Option[T] = slots.getBorrowed(head)
+        return match slot {
+            Some(value) => this.observe(value, action),
+            None => false
+        }
+    }
+
+    /// Observe l'élément arrière sans le copier.
+    /// @param action Callback borné appelé une fois lorsque la deque est non vide.
+    /// @return `true` si la queue a été observée.
+    borrow def withBack(scoped action : (borrow T) => Unit) : bool {
+        defer delete action
+        if length == usize(0) {
+            return false
+        }
+        borrow val slot : Option[T] = slots.getBorrowed(
+        this.physicalIndex(length - usize(1))
+        )
+        return match slot {
+            Some(value) => this.observe(value, action),
+            None => false
+        }
+    }
+
+    private borrow def observe(
+    borrow value : T,
+    borrow action : (borrow T) => Unit
+    ) : bool {
+        action(value)
+        return true
+    }
+
+    /// Détruit tous les éléments en conservant la capacité.
+    def clear() : Unit {
+        while length > usize(0) {
+            val removed : Option[T] = this.popBackOption()
+            delete removed
+        }
+    }
+
+    /// Consomme la deque et transfère ses éléments de l'avant vers l'arrière.
+    /// @return Itérateur propriétaire respectant l'ordre logique de la deque.
+    consume def intoIterator() : Iterator[T] {
+        val state : DequeIteratorState[T] =
+        new DequeIteratorState[T](move this)
+        return new Iterator[T](
+        () => state.next(),
+        owningCapture[DequeIteratorState[T]](
+        state, () => state.dispose()
+        )
+        )
+    }
+
+    destructor {
+        delete slots
+    }
+}
+
+private class QueueIteratorState[T](private val source : Queue[T]) {
+    def next() : Option[T] {
+        return source.dequeueOption()
+    }
+
+    def dispose() : Unit {
+        delete this
+    }
+
+    destructor {
+        delete source
+    }
+}
+
+/// File propriétaire FIFO fondée sur [[Deque]].
+/// @param initialCapacity Capacité initiale de la file.
+class Queue[T](initialCapacity : usize) extends IntoIterable[T] {
+    private var values : Deque[T] = new Deque[T](initialCapacity)
+
+    /// Retourne le nombre de valeurs en attente.
+    /// @return Taille logique de la file.
+    borrow def size() : usize { return values.size() }
+
+    /// Indique si la file est vide.
+    /// @return `true` lorsqu'aucune valeur n'est en attente.
+    borrow def isEmpty() : bool { return values.isEmpty() }
+
+    /// Ajoute une valeur en fin de file.
+    /// @param value Valeur dont la file prend possession.
+    /// @return Nouvelle taille de la file.
+    def enqueue(value : T) : usize { return values.pushBack(move value) }
+
+    /// Retire la première valeur ou déclenche `panic` si la file est vide.
+    /// @return Première valeur possédée de la file.
+    def dequeue() : T { return values.popFront() }
+
+    /// Retire la première valeur si elle existe.
+    /// @return Première valeur dans `Some`, ou `None` si la file est vide.
+    def dequeueOption() : Option[T] { return values.popFrontOption() }
+
+    /// Observe la première valeur sans la copier.
+    /// @param action Callback borné appelé lorsque la file est non vide.
+    /// @return `true` si la première valeur a été observée.
+    borrow def withFirst(scoped action : (borrow T) => Unit) : bool {
+        return values.withFront(move action)
+    }
+
+    /// Détruit toutes les valeurs en attente.
+    def clear() : Unit { values.clear() }
+
+    /// Consomme la file et transfère ses valeurs dans l'ordre FIFO.
+    /// @return Itérateur propriétaire dans l'ordre d'insertion.
+    consume def intoIterator() : Iterator[T] {
+        val state : QueueIteratorState[T] =
+        new QueueIteratorState[T](move this)
+        return new Iterator[T](
+        () => state.next(),
+        owningCapture[QueueIteratorState[T]](
+        state, () => state.dispose()
+        )
+        )
+    }
+
+    destructor {
+        delete values
+    }
+}

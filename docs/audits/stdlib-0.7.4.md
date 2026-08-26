@@ -13,10 +13,10 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **32 modules**, **11204 lignes** et **1005 symboles publics** inventoriés ;
-- **1013 blocs `///` publics pour 1005 symboles** (couverture source du lot #115 : 100 %) ;
-- **172 sites d'allocation**, **251 marqueurs de nettoyage**, **171/16/42** occurrences `move`/`consume`/destructeur ;
-- **24/32 modules** importés directement par au moins une fixture ou un test, soit **132 couples module-fichier de test** ;
+- **33 modules**, **11547 lignes** et **1028 symboles publics** inventoriés ;
+- **1036 blocs `///` publics pour 1028 symboles** (couverture source du lot #115 : 100 %) ;
+- **179 sites d'allocation**, **269 marqueurs de nettoyage**, **186/18/46** occurrences `move`/`consume`/destructeur ;
+- **25/33 modules** importés directement par au moins une fixture ou un test, soit **133 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
 Ces métriques sont des indicateurs de risque et non des objectifs d'optimisation isolés. Un marqueur de nettoyage peut apparaître dans un nom d'API ; les tests sanitizers restent l'autorité sur les fuites et doubles destructions.
@@ -50,6 +50,7 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.array_builder` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 7 | 80 | 7 | 2/0/1 | 0/0/0 | 4 | 4 | `std.array`, `std.builder`, `std.iterator` | 4 | `docs/language-guide.md` |
 | `std.builder` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 3 | 22 | 3 | 0/0/0 | 0/0/0 | 1 | 0 | — | 0 | `docs/language-guide.md` |
 | `std.c` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 5 | 39 | 5 | 0/0/0 | 0/0/0 | 0 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
+| `std.deque` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 23 | 343 | 23 | 15/2/4 | 0/22/4 | 7 | 18 | `std.array`, `std.iterator`, `std.option` | 1 | `docs/language-guide.md`, `docs/stdlib-reference.md` |
 | `std.graphics` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 0 | 12 | 0 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.audio`, `std.graphics.drawing`, `std.graphics.input`, `std.graphics.resources`, `std.graphics.types` | 4 | `docs/graphics.md`, `docs/stability-contract.md` |
 | `std.graphics.audio` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 22 | 205 | 22 | 0/0/2 | 0/0/0 | 2 | 3 | `std.c` | 0 | `docs/graphics.md` |
 | `std.graphics.drawing` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 106 | 1255 | 106 | 0/0/0 | 0/0/0 | 0 | 0 | `std.c`, `std.graphics.types`, `std.time` | 0 | `docs/graphics.md` |
@@ -101,6 +102,7 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 | `std.array_builder` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/functional_sequence_cleanup.janus`, `tests/fixtures/runtime/owned_hash_collections.janus`, `tests/fixtures/runtime/owned_iterators.janus` |
 | `std.builder` | aucune |
 | `std.c` | `tests/fixtures/runtime/text_api.janus`, `tests/interop/c_abi.janus` |
+| `std.deque` | `tests/fixtures/runtime/deque_queue.janus` |
 | `std.graphics` | `tests/fixtures/runtime/graphics_resource_move_error.janus`, `tests/fixtures/runtime/graphics_resource_ownership.janus`, `tests/fixtures/runtime/time_random.janus`, `tests/language/graphics_module_test.cpp` |
 | `std.graphics.audio` | aucune |
 | `std.graphics.drawing` | aucune |
@@ -134,18 +136,18 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 
 | Motif normalisé | Modules | Occurrences |
 | --- | --- | ---: |
-| `borrow def size() : usize {` | `std.array`, `std.array_builder`, `std.fs`, `std.hashmap`, `std.hashset`, `std.io`, `std.path`, `std.priority_queue`, `std.process`, `std.slice` | 13 |
+| `borrow def size() : usize {` | `std.array`, `std.array_builder`, `std.deque`, `std.fs`, `std.hashmap`, `std.hashset`, `std.io`, `std.path`, `std.priority_queue`, `std.process`, `std.slice` | 14 |
 | `index = index + usize(1)` | `std.array`, `std.hashmap`, `std.hashset`, `std.io`, `std.iterator`, `std.process`, `std.slice`, `std.text` | 32 |
+| `borrow def isEmpty() : bool {` | `std.array`, `std.deque`, `std.hashmap`, `std.hashset`, `std.io`, `std.priority_queue`, `std.slice` | 8 |
 | `var index : usize = usize(0)` | `std.array`, `std.hashmap`, `std.hashset`, `std.io`, `std.process`, `std.text` | 19 |
-| `borrow def isEmpty() : bool {` | `std.array`, `std.hashmap`, `std.hashset`, `std.io`, `std.priority_queue`, `std.slice` | 7 |
-| `state, () => state.dispose()` | `std.array`, `std.hashmap`, `std.hashset`, `std.iterator`, `std.slice` | 16 |
+| `state, () => state.dispose()` | `std.array`, `std.deque`, `std.hashmap`, `std.hashset`, `std.iterator`, `std.slice` | 18 |
 | `return Result.Ok[bool, SystemError](true)` | `std.fs`, `std.io`, `std.process`, `std.system`, `std.testing` | 13 |
+| `def next() : Option[T] {` | `std.array`, `std.deque`, `std.hashset`, `std.iterator`, `std.slice` | 11 |
 | `private var index : usize` | `std.array`, `std.hashmap`, `std.hashset`, `std.iterator`, `std.slice` | 11 |
+| `private var length : usize = usize(0)` | `std.array`, `std.deque`, `std.hashmap`, `std.hashset`, `std.text` | 5 |
 | `return Result.Error[bool, SystemError](` | `std.fs`, `std.io`, `std.process`, `std.system` | 16 |
 | `borrow path : Ptr[byte],` | `std.fs`, `std.io`, `std.path`, `std.system` | 14 |
 | `borrow data : Ptr[byte],` | `std.fs`, `std.io`, `std.process`, `std.system` | 10 |
-| `def next() : Option[T] {` | `std.array`, `std.hashset`, `std.iterator`, `std.slice` | 9 |
-| `SystemErrorCategory.InvalidInput,` | `std.fs`, `std.io`, `std.path`, `std.system` | 4 |
 
 Ces répétitions orientent les lots sans autoriser une abstraction aveugle : #111 mutualise parcours et fallbacks, #112 les sondes et croissances de tables, #113 les conversions d'erreurs/buffers/handles et #114 les wrappers de ressources et paires begin/end.
 
@@ -220,6 +222,34 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `memcmp` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `exit` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `printf` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
+
+### `std.deque`
+
+| Symbole | Surface actuelle | Décision 0.7.4 | Propriétaire de migration |
+| --- | --- | --- | --- |
+| `Deque` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.size` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.capacity` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.isEmpty` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.pushBack` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.pushFront` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.popFrontOption` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.popBackOption` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.popFront` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.popBack` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.withFront` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.withBack` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.clear` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Deque.intoIterator` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Queue` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Queue.size` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Queue.isEmpty` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Queue.enqueue` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Queue.dequeue` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Queue.dequeueOption` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Queue.withFirst` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Queue.clear` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Queue.intoIterator` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 
 ### `std.graphics`
 

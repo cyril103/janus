@@ -44,6 +44,14 @@
       "symbols": ["puts", "strlen", "memcmp", "exit", "printf"]
     },
     {
+      "name": "std.deque",
+      "source": "stdlib/std/deque.janus",
+      "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
+      "status": "experimental",
+      "signature_digest": "8e8c5dccd76f22174217bfe251219fd996cbf7e61b0ebb476bf3d1560160f46b",
+      "symbols": ["Deque", "Deque.size", "Deque.capacity", "Deque.isEmpty", "Deque.pushBack", "Deque.pushFront", "Deque.popFrontOption", "Deque.popBackOption", "Deque.popFront", "Deque.popBack", "Deque.withFront", "Deque.withBack", "Deque.clear", "Deque.intoIterator", "Queue", "Queue.size", "Queue.isEmpty", "Queue.enqueue", "Queue.dequeue", "Queue.dequeueOption", "Queue.withFirst", "Queue.clear", "Queue.intoIterator"]
+    },
+    {
       "name": "std.graphics",
       "source": "stdlib/std/graphics.janus",
       "documentation": ["docs/graphics.md", "docs/stability-contract.md"],

@@ -843,6 +843,7 @@ diagnostics et les interdictions liées aux valeurs propriétaires.
 La bibliothèque standard comprend notamment :
 
 - `Array[T]`, tableau dynamique ;
+- `Deque[T]`, tampon circulaire à deux extrémités, et `Queue[T]`, façade FIFO ;
 - `HashSet[T, H]`, ensemble sans doublons ;
 - `HashMap[K, V, H]`, table associative ;
 - `PriorityQueue[T]`, file de priorité stable FIFO fondée sur un tas binaire ;
@@ -919,6 +920,14 @@ defer delete recovered
 ```
 
 `set` détruit l'élément remplacé ; `replace` le retourne à l'appelant.
+
+`Deque[T]` ajoute et retire aux deux extrémités en temps amorti constant avec
+`pushFront`, `pushBack`, `popFront` et `popBack`. Les variantes suffixées
+`Option` évitent une panique sur une deque vide; `withFront` et `withBack`
+observent une ressource sans exiger `Copy`. `Queue[T]` restreint cette surface à
+`enqueue`, `dequeue` et `withFirst` pour garantir un ordre FIFO. Les deux types
+implémentent `IntoIterable[T]` et leur parcours consommant suit l'ordre de
+sortie, de l'avant vers l'arrière.
 
 `HashSet`, `HashMap`, `ArrayBuilder`, `SetBuilder` et `MapBuilder` acceptent
 également les éléments propriétaires. `add`, `put` et `Builder.add` consomment
