@@ -43,7 +43,8 @@ L’appel est synchrone. Il draine stdout et stderr en parallèle, attend toujou
 l’enfant et retourne un `ProcessResult` propriétaire. Le code de sortie est
 disponible par `exitCode`. Les captures sont des octets
 (`stdoutData`/`stdoutSize` et `stderrData`/`stderrSize`) et ne sont jamais
-supposées UTF-8 implicitement.
+supposées UTF-8 implicitement. Les pointeurs retournés sont explicitement
+empruntés au `ProcessResult` et deviennent invalides à sa destruction.
 
 Une commande absente, un refus d’accès, un répertoire invalide, un argument
 invalide ou un échec de création retournent `Error(SystemError)`. Après le

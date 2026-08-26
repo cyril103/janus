@@ -16,7 +16,6 @@ import std.c
 import std.graphics.types
 import std.time
 
-private extern def janus_graphics_last_error() : borrow Ptr[byte]
 private extern def janus_graphics_available() : bool
 private extern def janus_graphics_init_window(
 width : int,
@@ -302,10 +301,8 @@ def graphicsAvailable() : bool {
 
 /// Renvoie le dernier diagnostic produit pendant le chargement du backend graphique.
 ///
-/// @return Pointeur vers un texte appartenant au runtime; il ne doit pas être libéré par l’appelant.
-def graphicsLastError() : Ptr[byte] {
-    return janus_graphics_last_error()
-}
+/// @return Pointeur emprunté vers un texte appartenant au runtime; il ne doit pas être libéré par l’appelant.
+extern("janus_graphics_last_error") def graphicsLastError() : borrow Ptr[byte]
 
 /// Charge le backend et crée la fenêtre de rendu.
 ///

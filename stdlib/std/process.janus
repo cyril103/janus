@@ -241,7 +241,7 @@ class ProcessResult(private var nativeResult : isize) {
 
     /// Emprunte le début de la sortie standard capturée.
     /// @return Pointeur lisible sur [[stdoutSize]] octets, valide pendant la vie de ce résultat.
-    borrow def stdoutData() : Ptr[byte] {
+    borrow def stdoutData() : borrow Ptr[byte] {
         return janus_process_result_stdout_data(nativeResult)
     }
 
@@ -270,7 +270,7 @@ class ProcessResult(private var nativeResult : isize) {
 
     /// Emprunte le début de la sortie d’erreur capturée.
     /// @return Pointeur lisible sur [[stderrSize]] octets, valide pendant la vie de ce résultat.
-    borrow def stderrData() : Ptr[byte] {
+    borrow def stderrData() : borrow Ptr[byte] {
         return janus_process_result_stderr_data(nativeResult)
     }
 

@@ -3290,6 +3290,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                      ? ast::ReturnOwnership::Unspecified
                      : resolved->second->return_ownership;
         };
+    const auto is_owner_anchored_external_borrow =
+        [&](const ast::Expression &expression) {
+          if (owner == nullptr || !context.function->is_borrowing ||
+              context.function->return_ownership !=
+                  ast::ReturnOwnership::Borrow ||
+              !std::holds_alternative<ast::CallExpression>(expression.value))
+            return false;
+          const auto &call = std::get<ast::CallExpression>(expression.value);
+          const auto resolved =
+              find_in_context(functions, context_module, call.callee);
+          return resolved != functions.end() && resolved->second->is_external &&
+                 resolved->second->return_ownership ==
+                     ast::ReturnOwnership::Borrow;
+        };
     const auto apply_external_ownership_contract =
         [&](const ast::FunctionDeclaration &callee,
             const ast::FunctionDeclaration::Parameter &parameter,
@@ -7503,9 +7517,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 owner != nullptr && source != nullptr &&
                 (source->name == "this" ||
                  owner_field_names.contains(source->name));
-            if (source == nullptr ||
-                (!borrowed_values.contains(source->name) &&
-                 !owner_mutable_source))
+            if ((source == nullptr ||
+                 (!borrowed_values.contains(source->name) &&
+                  !owner_mutable_source)) &&
+                !is_owner_anchored_external_borrow(
+                    *return_statement.expression))
               throw CompileError{
                   DiagnosticCode::AnalyzerBorrowEscape,
                   return_statement.location,

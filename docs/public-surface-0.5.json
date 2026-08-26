@@ -89,7 +89,7 @@
       "source": "stdlib/std/graphics/drawing.janus",
       "documentation": ["docs/graphics.md"],
       "status": "experimental",
-      "signature_digest": "03cb530580ebaed46be950065b01d0ba712d166a15dbdc99bdb7cfc731810b18",
+      "signature_digest": "4f943e4dd5d97c3d4aa646aeeada500ca86e052ff1dd65e73634f5b432505dc5",
       "symbols": ["Camera2D", "Camera2D.offsetX", "Camera2D.offsetY", "Camera2D.targetX", "Camera2D.targetY", "Camera2D.rotation", "Camera2D.zoom", "graphicsAvailable", "graphicsLastError", "initWindow", "windowShouldClose", "closeWindow", "isWindowFullscreen", "isWindowHidden", "isWindowMinimized", "isWindowMaximized", "isWindowFocused", "isWindowResized", "toggleFullscreen", "maximizeWindow", "minimizeWindow", "restoreWindow", "setWindowTitle", "setWindowPosition", "setWindowSize", "setWindowResizable", "setWindowOpacity", "screenWidth", "screenHeight", "setTargetFps", "beginBlend", "endBlend", "beginScissor", "endScissor", "frameTime", "elapsedTime", "beginDrawing", "endDrawing", "beginCamera", "endCamera", "screenToWorld", "worldToScreen", "clearBackground", "clearColor", "drawPixel", "drawPixelAt", "drawLine", "drawLineBetween", "drawCircle", "drawCircleAt", "drawRectangle", "drawRectangleArea", "drawText", "drawTextAt", "drawLineEx", "drawLineBezier", "drawLineDashed", "drawCircleGradient", "drawCircleSector", "drawCircleSectorLines", "drawCircleLines", "drawEllipse", "drawEllipseLines", "drawRing", "drawRingLines", "drawRectanglePro", "drawRectangleGradientVertical", "drawRectangleGradientHorizontal", "drawRectangleGradient", "drawRectangleLines", "drawRectangleRounded", "drawRectangleRoundedLines", "drawTriangle", "drawTriangleLines", "drawPolygon", "drawPolygonLines", "drawLineStrip", "drawTriangleFan", "drawTriangleStrip", "drawSplineLinear", "drawSplineBasis", "drawSplineCatmullRom", "drawSplineBezierQuadratic", "drawSplineBezierCubic", "drawSplineSegmentLinear", "drawSplineSegmentBasis", "drawSplineSegmentCatmullRom", "drawSplineSegmentBezierQuadratic", "drawSplineSegmentBezierCubic", "splinePointLinear", "splinePointBasis", "splinePointCatmullRom", "splinePointBezierQuadratic", "splinePointBezierCubic", "collisionRectangles", "collisionCircles", "collisionCircleRectangle", "collisionCircleLine", "collisionPointRectangle", "collisionPointCircle", "collisionPointTriangle", "collisionPointLine", "collisionPointPolygon", "collisionLines", "collisionLinesPoint", "collisionRectangle"]
     },
     {
@@ -97,7 +97,7 @@
       "source": "stdlib/std/graphics/input.janus",
       "documentation": ["docs/graphics.md"],
       "status": "experimental",
-      "signature_digest": "841a6b9a8c26a60bbf4db9f758b4b9ecf8d01f0b32609de92b1b165bbef68fe9",
+      "signature_digest": "0a4726966c24ae1847972bb8593a12f2632bebfc899e1a1c31cb2db938e39b38",
       "symbols": ["isKeyDown", "isKeyPressed", "keyPressed", "characterPressed", "setClipboardText", "clipboardText", "disableExitKey", "mouseX", "mouseY", "setMousePosition", "setMouseCursor", "mouseWheelMove", "isMouseButtonDown", "isMouseButtonPressed", "showCursor", "hideCursor", "isCursorHidden", "enableCursor", "disableCursor", "isGamepadAvailable", "gamepadName", "isGamepadButtonDown", "isGamepadButtonPressed", "isGamepadButtonReleased", "gamepadButtonPressed", "gamepadAxisCount", "gamepadAxis", "setGamepadVibration"]
     },
     {
@@ -233,7 +233,7 @@
       "source": "stdlib/std/process.janus",
       "documentation": ["docs/language-guide.md", "docs/design/process-runtime.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "68a89f5a6107fc97b26ebdbb847529281f3ef047e1d1a0fcd33680e065898822",
+      "signature_digest": "e2c3c381effbb5da08e87146003db668a7b2722e0fae7237299cef46dba22ece",
       "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "WorkingDirectory", "WorkingDirectory.view", "environmentVariable", "currentWorkingDirectory", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.withStdoutView", "ProcessResult.stderrData", "ProcessResult.stderrSize", "ProcessResult.withStderrView", "ChildProcess", "ChildProcess.terminate", "ChildProcess.tryWait", "ChildProcess.tryWrite", "ChildProcess.write", "ChildProcess.writeText", "ChildProcess.read", "ChildProcess.tryRead", "ChildProcess.closeInput", "spawnProcess", "runProcess"]
     },
     {

@@ -1899,11 +1899,11 @@ Le premier appel mesure depuis l’initialisation du module.
 <p class="doc-summary">Tente de charger le backend graphique sans créer de fenêtre.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si le backend est disponible, `false` si son chargement a échoué.</p></section>
 <div class="qualified">std.graphics.drawing.graphicsAvailable</div></div><a class="permalink" href="#std-graphics-drawing-graphicsavailable" aria-label="Permanent link to std.graphics.drawing.graphicsAvailable">#</a></article>
-<article class="symbol-card kind-function" id="std-graphics-drawing-graphicslasterror" data-symbol data-search="std.graphics.drawing.graphicsLastError function def graphicsLastError() : Ptr[byte] Renvoie le dernier diagnostic produit pendant le chargement du backend graphique.
+<article class="symbol-card kind-function" id="std-graphics-drawing-graphicslasterror" data-symbol data-search="std.graphics.drawing.graphicsLastError function def graphicsLastError() : borrow Ptr[byte] Renvoie le dernier diagnostic produit pendant le chargement du backend graphique.
 
-@return Pointeur vers un texte appartenant au runtime; il ne doit pas être libéré par l’appelant."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def graphicsLastError() : Ptr[byte]</code></h3>
+@return Pointeur emprunté vers un texte appartenant au runtime; il ne doit pas être libéré par l’appelant."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def graphicsLastError() : borrow Ptr[byte]</code></h3>
 <p class="doc-summary">Renvoie le dernier diagnostic produit pendant le chargement du backend graphique.</p>
-<section class="doc-section"><h4>Returns</h4><p><code>Ptr[byte]</code> — Pointeur vers un texte appartenant au runtime; il ne doit pas être libéré par l’appelant.</p></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Ptr[byte]</code> — Pointeur emprunté vers un texte appartenant au runtime; il ne doit pas être libéré par l’appelant.</p></section>
 <div class="qualified">std.graphics.drawing.graphicsLastError</div></div><a class="permalink" href="#std-graphics-drawing-graphicslasterror" aria-label="Permanent link to std.graphics.drawing.graphicsLastError">#</a></article>
 <article class="symbol-card kind-function" id="std-graphics-drawing-initwindow" data-symbol data-search="std.graphics.drawing.initWindow function def initWindow(width : int, height : int, title : string) : bool Charge le backend et crée la fenêtre de rendu.
 
@@ -2162,10 +2162,10 @@ Raylib utilise `Escape` comme touche de sortie par défaut. Après cet appel,
 <p class="doc-summary">Lit le dernier bouton de manette pressé signalé par le backend.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Code du bouton, ou `0` si aucun bouton n’est signalé ou si le backend est indisponible.</p></section>
 <div class="qualified">std.graphics.input.gamepadButtonPressed</div></div><a class="permalink" href="#std-graphics-input-gamepadbuttonpressed" aria-label="Permanent link to std.graphics.input.gamepadButtonPressed">#</a></article>
-<article class="symbol-card kind-function" id="std-graphics-input-gamepadname" data-symbol data-search="std.graphics.input.gamepadName function def gamepadName(gamepad : int) : Ptr[byte] Lit le nom attribué par le backend à une manette.
+<article class="symbol-card kind-function" id="std-graphics-input-gamepadname" data-symbol data-search="std.graphics.input.gamepadName function def gamepadName(gamepad : int) : borrow Ptr[byte] Lit le nom attribué par le backend à une manette.
 
 @param gamepad Indice de la manette.
-@return Pointeur emprunté vers le nom, ou un pointeur nul si le backend est indisponible; ne pas le libérer."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def gamepadName(gamepad : int) : Ptr[byte]</code></h3>
+@return Pointeur emprunté vers le nom, ou un pointeur nul si le backend est indisponible; ne pas le libérer."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def gamepadName(gamepad : int) : borrow Ptr[byte]</code></h3>
 <p class="doc-summary">Lit le nom attribué par le backend à une manette.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>gamepad</code></td><td><code>int</code></td><td>Indice de la manette.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Ptr[byte]</code> — Pointeur emprunté vers le nom, ou un pointeur nul si le backend est indisponible; ne pas le libérer.</p></section>
@@ -6443,8 +6443,8 @@ invalides à la destruction. Les données sont brutes et ne sont pas validées U
 <p class="doc-summary">Retourne le code de terminaison rapporté par l’hôte.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Code de sortie natif de l’enfant.</p></section>
 <div class="qualified">std.process.ProcessResult.exitCode</div></div><a class="permalink" href="#std-process-processresult-exitcode" aria-label="Permanent link to std.process.ProcessResult.exitCode">#</a></article>
-<article class="symbol-card kind-method child" id="std-process-processresult-stderrdata" data-symbol data-search="std.process.ProcessResult.stderrData method borrow def stderrData() : Ptr[byte] Emprunte le début de la sortie d’erreur capturée.
-@return Pointeur lisible sur [[stderrSize]] octets, valide pendant la vie de ce résultat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def stderrData() : Ptr[byte]</code></h3>
+<article class="symbol-card kind-method child" id="std-process-processresult-stderrdata" data-symbol data-search="std.process.ProcessResult.stderrData method borrow def stderrData() : borrow Ptr[byte] Emprunte le début de la sortie d’erreur capturée.
+@return Pointeur lisible sur [[stderrSize]] octets, valide pendant la vie de ce résultat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def stderrData() : borrow Ptr[byte]</code></h3>
 <p class="doc-summary">Emprunte le début de la sortie d’erreur capturée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Ptr[byte]</code> — Pointeur lisible sur <a href="#std-process-processresult-stderrsize"><code>stderrSize</code></a> octets, valide pendant la vie de ce résultat.</p></section>
 <div class="qualified">std.process.ProcessResult.stderrData</div></div><a class="permalink" href="#std-process-processresult-stderrdata" aria-label="Permanent link to std.process.ProcessResult.stderrData">#</a></article>
@@ -6453,8 +6453,8 @@ invalides à la destruction. Les données sont brutes et ne sont pas validées U
 <p class="doc-summary">Retourne la taille de la sortie d’erreur capturée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets disponibles via <a href="#std-process-processresult-stderrdata"><code>stderrData</code></a>, zéro si rien n’a été capturé.</p></section>
 <div class="qualified">std.process.ProcessResult.stderrSize</div></div><a class="permalink" href="#std-process-processresult-stderrsize" aria-label="Permanent link to std.process.ProcessResult.stderrSize">#</a></article>
-<article class="symbol-card kind-method child" id="std-process-processresult-stdoutdata" data-symbol data-search="std.process.ProcessResult.stdoutData method borrow def stdoutData() : Ptr[byte] Emprunte le début de la sortie standard capturée.
-@return Pointeur lisible sur [[stdoutSize]] octets, valide pendant la vie de ce résultat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def stdoutData() : Ptr[byte]</code></h3>
+<article class="symbol-card kind-method child" id="std-process-processresult-stdoutdata" data-symbol data-search="std.process.ProcessResult.stdoutData method borrow def stdoutData() : borrow Ptr[byte] Emprunte le début de la sortie standard capturée.
+@return Pointeur lisible sur [[stdoutSize]] octets, valide pendant la vie de ce résultat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def stdoutData() : borrow Ptr[byte]</code></h3>
 <p class="doc-summary">Emprunte le début de la sortie standard capturée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Ptr[byte]</code> — Pointeur lisible sur <a href="#std-process-processresult-stdoutsize"><code>stdoutSize</code></a> octets, valide pendant la vie de ce résultat.</p></section>
 <div class="qualified">std.process.ProcessResult.stdoutData</div></div><a class="permalink" href="#std-process-processresult-stdoutdata" aria-label="Permanent link to std.process.ProcessResult.stdoutData">#</a></article>

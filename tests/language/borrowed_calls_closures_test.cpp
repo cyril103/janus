@@ -144,6 +144,14 @@ def main() : int {
 )",
                true);
 
+  expect_valid(R"(
+extern def nativeView(handle : isize) : borrow Ptr[byte]
+class NativeOwner(private val handle : isize) {
+  borrow def data() : borrow Ptr[byte] { return nativeView(handle) }
+}
+def main() : int { return 0 }
+)");
+
   expect_compile_error(
       R"(
 class Counter(val value : int) {

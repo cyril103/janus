@@ -1270,6 +1270,11 @@ Les buffers et résultats natifs l'exposent uniquement dans une callback
 `withSlice` contrôlent les bornes ; l'adresse native n'est accessible que dans
 la callback de `withPointer`, accompagnée de son décalage et de sa longueur.
 
+Une méthode `borrow def` peut également ancrer à `this` le pointeur `borrow`
+retourné directement par une fonction externe. Ce contrat sert aux wrappers de
+handles natifs : le pointeur devient inutilisable dès que son objet Janus est
+détruit, même si le runtime natif conserve physiquement son stockage.
+
 Un alias local peut être déclaré sans transfert de propriété avec
 `borrow val view = owner`. Il est immutable et ne peut être ni libéré ni
 déplacé. Une classe peut de même conserver une référence observante

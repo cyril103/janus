@@ -163,6 +163,9 @@ externes non qualifiés restent acceptés avec le diagnostic `JANA0020`.
 Un retour `Ptr[T]` externe peut être qualifié `borrow` lorsque le stockage
 reste natif, ou `owned` lorsque sa propriété est transférée à Janus. Un retour
 pointeur non qualifié reste accepté avec le diagnostic `JANA0022`.
+Une méthode `borrow def` qui relaie directement un tel retour externe peut
+l'ancrer à la durée de vie de `this`; elle ne transfère jamais le pointeur et
+ne permet pas sa libération par l'appelant.
 
 `borrow val` déclare un alias local immutable sans copie ni transfert de
 propriété. Un paramètre `borrow` observe de la même façon une valeur pendant
