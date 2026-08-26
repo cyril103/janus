@@ -5,6 +5,8 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.21.0] - 2026-08-26
+
 Cette évolution remet la bibliothèque standard au niveau des contrats de
 propriété et d’emprunt introduits depuis sa première rédaction. Elle complète
 les collections, ferme les constructions natives invalides et rend les erreurs
@@ -57,7 +59,12 @@ de capacité et de décodage récupérables de façon cohérente.
   exercent réellement chaque module, y compris des exemples graphiques sans
   dépendance à un backend disponible ;
 - régénération de l’index API et de l’audit exhaustif, avec inventaire de la
-  surface publique, contrats de stabilité et couverture sanitizer.
+  surface publique, contrats de stabilité et couverture sanitizer ;
+- alignement des diagnostics LSP sur l’entrée déclarée par le manifeste, afin
+  que les modules de test utilisant `std.testing` n’exigent pas de fonction
+  `main`, avec une régression dédiée aux assertions bien et mal typées ;
+- refus des répertoires de build configurés pour une ancienne version par la
+  validation de release, et sélection stricte de l’archive attendue.
 
 ## [0.20.0] - 2026-08-25
 
@@ -921,6 +928,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.21.0]: https://github.com/cyril103/janus/releases/tag/v0.21.0
 [0.20.0]: https://github.com/cyril103/janus/releases/tag/v0.20.0
 [0.19.0]: https://github.com/cyril103/janus/releases/tag/v0.19.0
 [0.18.0]: https://github.com/cyril103/janus/releases/tag/v0.18.0

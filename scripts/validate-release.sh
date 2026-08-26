@@ -16,6 +16,19 @@ if [[ ! -f "$build_dir/CMakeCache.txt" ]]; then
     exit 1
 fi
 
+expected_version="$(
+    python3 "$root_dir/scripts/nightly_release.py" project-version \
+        --source "$root_dir/CMakeLists.txt"
+)"
+configured_version="$(
+    sed -n 's/^JANUS_PACKAGE_VERSION:STRING=//p' "$build_dir/CMakeCache.txt"
+)"
+if [[ "$configured_version" != "$expected_version" ]]; then
+    echo "Build directory packages Janus $configured_version; expected $expected_version" >&2
+    echo "Reconfigure it with -DJANUS_PACKAGE_VERSION=$expected_version" >&2
+    exit 1
+fi
+
 cmake --build "$build_dir" --parallel
 ctest --test-dir "$build_dir" --output-on-failure
 if [[ -n "${JANUS_PREVIOUS:-}" ]]; then
@@ -34,7 +47,7 @@ fi
 cmake --build "$build_dir" --target dist
 
 archive="$(find "$build_dir" -maxdepth 1 -type f \
-    -name 'janus-*.tar.gz' -printf '%T@ %p\n' \
+    -name "janus-${expected_version}-*.tar.gz" -printf '%T@ %p\n' \
     | sort -nr \
     | head -n 1 \
     | cut -d' ' -f2-)"

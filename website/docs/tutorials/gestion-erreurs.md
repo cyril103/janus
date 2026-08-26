@@ -3,7 +3,7 @@
 ## Prérequis
 
 - connaître fonctions et `match` ;
-- Janus 0.20.0 ;
+- Janus 0.21.0 ;
 - les modules standard `std.option` et `std.result`.
 
 ## Résultat
