@@ -12,7 +12,15 @@ ou une erreur structurée au lieu de l’ignorer implicitement.
 ```janus
 // doctest: doctest name=stdlib-std-array
 import std.array
-def main() : int { return 0 }
+def main() : int {
+    val values : Array[int] = [1, 2, 3]
+    val sum : int = values.fold[int](
+        0,
+        (total : int, value : int) => total + value
+    )
+    delete values
+    return sum - 6
+}
 ```
 
 ### `std.array_builder`
@@ -20,7 +28,16 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-array-builder
 import std.array_builder
-def main() : int { return 0 }
+def main() : int {
+    val builder : ArrayBuilder[int] = new ArrayBuilder[int](usize(2))
+    builder.add(10)
+    builder.add(20)
+    val values : Array[int] = builder.result()
+    val valid : bool = values.size() == usize(2) && values.get(usize(1)) == 20
+    delete values
+    delete builder
+    return if valid { 0 } else { 1 }
+}
 ```
 
 ### `std.builder`
@@ -28,7 +45,21 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-builder
 import std.builder
-def main() : int { return 0 }
+import std.array
+import std.array_builder
+def finish[B <: Builder[int, Array[int]]](builder : B) : Array[int] {
+    defer delete builder
+    builder.add(42)
+    return builder.result()
+}
+def main() : int {
+    val values : Array[int] = finish[ArrayBuilder[int]](
+        new ArrayBuilder[int](usize(1))
+    )
+    val valid : bool = values.get(usize(0)) == 42
+    delete values
+    return if valid { 0 } else { 1 }
+}
 ```
 
 ### `std.bytes`
@@ -57,7 +88,13 @@ def main() : int {
 ```janus
 // doctest: doctest name=stdlib-std-iterator
 import std.iterator
-def main() : int { return 0 }
+import std.range
+def main() : int {
+    val sum : int = range(1, 5)
+        .map[int]((value : int) => value * 2)
+        .fold[int](0, (total : int, value : int) => total + value)
+    return sum - 20
+}
 ```
 
 ### `std.slice`
@@ -82,7 +119,14 @@ def main() : int {
 ```janus
 // doctest: doctest name=stdlib-std-option
 import std.option
-def main() : int { return 0 }
+def main() : int {
+    val answer : Option[int] = Option.Some[int](21)
+    val doubled : Option[int] = mapBorrowed[int, int](
+        answer,
+        (borrow value : int) => value * 2
+    )
+    return match doubled { Some(value) => value - 42, None => 1 }
+}
 ```
 
 ```janus
@@ -99,7 +143,11 @@ def main() : int {
 ```janus
 // doctest: doctest name=stdlib-std-range
 import std.range
-def main() : int { return 0 }
+def main() : int {
+    var sum : int = 0
+    for value in range(2, 5) { sum = sum + value }
+    return sum - 9
+}
 ```
 
 ### `std.result`
@@ -107,7 +155,16 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-result
 import std.result
-def main() : int { return 0 }
+def increment(value : Result[int, int]) : Result[int, int] {
+    val number : int = value?
+    return Result.Ok[int, int](number + 1)
+}
+def main() : int {
+    return match increment(Result.Ok[int, int](41)) {
+        Ok(value) => value - 42,
+        Error(error) => 1
+    }
+}
 ```
 
 ```janus
@@ -154,7 +211,12 @@ def main() : int {
 ```janus
 // doctest: doctest name=stdlib-std-hashing
 import std.hashing
-def main() : int { return 0 }
+def main() : int {
+    val hashing : IntHashing = new IntHashing()
+    val valid : bool = hashing.equals(7, 7) && !hashing.equals(7, 8)
+    delete hashing
+    return if valid { 0 } else { 1 }
+}
 ```
 
 ### `std.hashmap`
@@ -162,7 +224,21 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-hashmap
 import std.hashmap
-def main() : int { return 0 }
+import std.hashing
+import std.option
+def main() : int {
+    val hashing : IntHashing = new IntHashing()
+    val scores : HashMap[int, int, IntHashing] =
+        new HashMap[int, int, IntHashing](usize(4), hashing)
+    delete scores.put(7, 42)
+    val valid : bool = match scores.getOption(7) {
+        Some(value) => value == 42,
+        None => false
+    }
+    delete scores
+    delete hashing
+    return if valid { 0 } else { 1 }
+}
 ```
 
 ### `std.hashset`
@@ -170,7 +246,17 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-hashset
 import std.hashset
-def main() : int { return 0 }
+import std.hashing
+def main() : int {
+    val hashing : IntHashing = new IntHashing()
+    val ids : HashSet[int, IntHashing] =
+        new HashSet[int, IntHashing](usize(4), hashing)
+    val inserted : bool = ids.add(42)
+    val valid : bool = inserted && ids.contains(42) && !ids.contains(7)
+    delete ids
+    delete hashing
+    return if valid { 0 } else { 1 }
+}
 ```
 
 ### `std.deque`
@@ -287,7 +373,17 @@ def main() : int {
 ```janus
 // doctest: doctest name=stdlib-std-path
 import std.path
-def main() : int { return 0 }
+def inspect(path : Path) : int {
+    val valid : bool = path.componentCount() == usize(2)
+    delete path
+    return if valid { 0 } else { 1 }
+}
+def main() : int {
+    return match move normalizePath("alpha/./beta") {
+        Ok(path) => inspect(move path),
+        Error(error) => 1
+    }
+}
 ```
 
 ```janus
@@ -354,7 +450,15 @@ def main() : int { return environmentVariable("PATH") }
 ```janus
 // doctest: doctest name=stdlib-std-text
 import std.text
-def main() : int { return 0 }
+def main() : int {
+    val text : TextBuilder = new TextBuilder()
+    text.append("answer=")
+    text.appendInt(42)
+    val valid : bool = text.view() == "answer=42" &&
+        match parseInt("42") { Ok(value) => value == 42, Error(error) => false }
+    delete text
+    return if valid { 0 } else { 1 }
+}
 ```
 
 ```janus
@@ -406,7 +510,15 @@ def main() : int { return if gcd(usize(42), usize(30)) == usize(6) { 0 } else { 
 ```janus
 // doctest: doctest name=stdlib-std-random
 import std.random
-def main() : int { return 0 }
+def main() : int {
+    val first : Random = new Random(usize(1234))
+    val second : Random = new Random(usize(1234))
+    val valid : bool = first.nextUSize() == second.nextUSize() &&
+        first.nextBounded(usize(6)) < usize(6)
+    delete first
+    delete second
+    return if valid { 0 } else { 1 }
+}
 ```
 
 ### `std.time`
@@ -424,7 +536,10 @@ def main() : int {
 ```janus
 // doctest: doctest name=stdlib-std-wall-time
 import std.wall_time
-def main() : int { return 0 }
+def main() : int {
+    val now : WallTime = wallNow()
+    return if now.unixMilliseconds() <= now.unixNanoseconds() { 0 } else { 1 }
+}
 ```
 
 ## Graphisme et audio expérimentaux
@@ -434,7 +549,11 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-graphics
 import std.graphics
-def main() : int { return 0 }
+def main() : int {
+    val point : Vector2 = vector2(12.0, 8.0)
+    val tint : Color = rgba(ubyte(255), ubyte(128), ubyte(0), ubyte(255))
+    return if point.x == 12.0 && tint != Black { 0 } else { 1 }
+}
 ```
 
 ### `std.graphics.audio`
@@ -442,7 +561,11 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-graphics-audio
 import std.graphics.audio
-def main() : int { return 0 }
+def main() : int {
+    val loader : (string) => Sound = (file : string) => loadSound(file)
+    delete loader
+    return 0
+}
 ```
 
 ### `std.graphics.drawing`
@@ -450,7 +573,12 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-graphics-drawing
 import std.graphics.drawing
-def main() : int { return 0 }
+def main() : int {
+    val camera : Camera2D = new Camera2D(0.0, 0.0, 4.0, 5.0, 0.0, 1.0)
+    val valid : bool = camera.targetX == 4.0 && camera.zoom == 1.0
+    delete camera
+    return if valid { 0 } else { 1 }
+}
 ```
 
 ### `std.graphics.input`
@@ -458,7 +586,12 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-graphics-input
 import std.graphics.input
-def main() : int { return 0 }
+import std.graphics.types
+def main() : int {
+    val query : (Key) => bool = (key : Key) => isKeyPressed(key)
+    delete query
+    return if int(Key.Space) == 32 { 0 } else { 1 }
+}
 ```
 
 ### `std.graphics.resources`
@@ -466,7 +599,11 @@ def main() : int { return 0 }
 ```janus
 // doctest: doctest name=stdlib-std-graphics-resources
 import std.graphics.resources
-def main() : int { return 0 }
+def main() : int {
+    val loader : (string) => Image = (file : string) => loadImage(file)
+    delete loader
+    return 0
+}
 ```
 
 ### `std.graphics.types`
