@@ -5,6 +5,60 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+Cette évolution remet la bibliothèque standard au niveau des contrats de
+propriété et d’emprunt introduits depuis sa première rédaction. Elle complète
+les collections, ferme les constructions natives invalides et rend les erreurs
+de capacité et de décodage récupérables de façon cohérente.
+
+### Langage et sûreté mémoire
+
+- ajout des paramètres fonctionnels `scoped`, qui garantissent qu’une closure
+  synchrone ne sera ni conservée ni retournée, ainsi que des retours
+  `borrow var` pour les observations mutables exclusives ;
+- séparation des parcours observants et consommants avec `IntoIterable` et
+  `intoIterator`, afin de transférer les éléments propriétaires sans copie ;
+- ajout des constructeurs `internal`, accessibles uniquement depuis les
+  modules du même espace de noms racine, et application aux wrappers de
+  pointeurs, fichiers, flux, processus et ressources graphiques ;
+- conservation des retours `Ptr[T]` empruntés relayés par une méthode Janus :
+  leur durée de vie reste ancrée au wrapper propriétaire et ils ne peuvent pas
+  être libérés par l’appelant.
+
+### Bibliothèque standard
+
+- ajout de `Deque`, `Queue` et de la file de priorité stable `PriorityQueue`,
+  fondée sur un tas binaire et conservant l’ordre FIFO entre priorités égales ;
+- enrichissement des tableaux, itérateurs, maps et sets avec parcours,
+  transformations, rétention, drains propriétaires et stratégies d’ordre ;
+- ajout de `AccessError` et `CapacityError`, puis généralisation de
+  `tryReserve` à `Array`, `ByteBuffer`, `Deque`, `Queue`, `HashMap`, `HashSet`
+  et `PriorityQueue` ; les rehash préservent leur état si l’allocation échoue ;
+- ajout de `ByteView`, vue binaire bornée utilisable uniquement dans une
+  callback `scoped`, et extension des assertions de test aux erreurs,
+  prédicats, octets et échecs explicites ;
+- validation UTF-8 explicite de `ByteView`, `ByteBuffer` et `FileData` avant
+  toute conversion en `string`.
+
+### Migration
+
+- `FileData.view()` est remplacée par `FileData.asText()`, qui retourne
+  `Result[string, TextDecodeError]`; utilisez `FileData.withView()` pour les
+  contenus binaires ;
+- les callbacks synchrones d’`Array` et `PriorityQueue.withFirst` sont
+  désormais `scoped`. Une closure stockée dans une variable doit être passée
+  avec `move` et ne doit plus être détruite une seconde fois par l’appelant ;
+- la construction directe des wrappers natifs n’est plus publique : passez par
+  `readFile`, les fabriques de flux/processus ou les fonctions de chargement
+  graphiques correspondantes.
+
+### Documentation et validation
+
+- réécriture de la référence de la stdlib avec des exemples exécutables qui
+  exercent réellement chaque module, y compris des exemples graphiques sans
+  dépendance à un backend disponible ;
+- régénération de l’index API et de l’audit exhaustif, avec inventaire de la
+  surface publique, contrats de stabilité et couverture sanitizer.
+
 ## [0.20.0] - 2026-08-25
 
 Cette version mineure rend explicite le contrat de récursion terminale et étend
