@@ -2,6 +2,12 @@
 module std.bytes
 import std.option
 
+private extern("janus_bytes_valid_utf8") def validUtf8(
+borrow data : Ptr[byte],
+offset : usize,
+size : usize
+) : int
+
 /// Vue en lecture seule sur une plage d'octets empruntée.
 ///
 /// La vue conserve le pointeur de base, un décalage et une longueur. Elle ne
@@ -39,6 +45,12 @@ private val count : usize
         } else {
             Option.None[byte]()
         }
+    }
+
+    /// Indique si tous les octets visibles forment une séquence UTF-8 valide.
+    /// @return `true` pour un encodage UTF-8 valide, vue vide comprise.
+    borrow def isUtf8() : bool {
+        return validUtf8(nativeData, start, count) == 1
     }
 
     /// Observe une sous-plage vérifiée pendant un callback borné.

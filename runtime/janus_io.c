@@ -181,3 +181,10 @@ int32_t janus_io_valid_utf8(const void *raw_data, uint64_t size) {
   }
   return 1;
 }
+
+int32_t janus_bytes_valid_utf8(const void *raw_data, uint64_t offset,
+                               uint64_t size) {
+  if (raw_data == NULL)
+    return offset == 0 && janus_io_valid_utf8(raw_data, size);
+  return janus_io_valid_utf8((const uint8_t *)raw_data + offset, size);
+}

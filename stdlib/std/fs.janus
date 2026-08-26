@@ -7,12 +7,19 @@
 /// ```janus
 /// val loaded = readFile("config/app.toml")
 /// match loaded {
-///     Ok(file) => println(file.view()),
+///     Ok(file) => {
+///         match file.asText() {
+///             Ok(text) => println(text),
+///             Error(error) => println("invalid UTF-8")
+///         }
+///         delete file
+///     },
 ///     Error(error) => println(error.context)
 /// }
 /// ```
 module std.fs
 import std.bytes
+import std.io
 
 import std.option
 import std.path
@@ -141,7 +148,8 @@ private def sizeOutput() : Ptr[usize] {
 /// Contenu binaire propriétaire chargé intégralement par [[readFile]].
 ///
 /// Les vues et pointeurs obtenus sont empruntés et deviennent invalides à la
-/// destruction. Aucune validation d’encodage n’est effectuée.
+/// destruction. [[asText]] valide explicitement l’encodage avant de produire
+/// une chaîne.
 /// @param nativeData Allocation native dont l’objet prend possession.
 /// @param nativeSize Nombre d’octets lisibles à partir de `nativeData`.
 class FileData internal(
@@ -155,7 +163,7 @@ private val nativeSize : usize
     }
 
     /// Retourne la taille du fichier en octets.
-    /// @return Nombre d’octets accessibles par [[data]] et [[view]].
+    /// @return Nombre d’octets accessibles par [[data]] et [[withView]].
     borrow def size() : usize {
         return nativeSize
     }
@@ -174,10 +182,21 @@ private val nativeSize : usize
         return move result
     }
 
-    /// Emprunte le contenu comme chaîne binaire de longueur explicite.
-    /// @return Vue non validée UTF-8, valable jusqu’à la destruction du propriétaire.
-    borrow def view() : string {
-        return stringView(nativeData, nativeSize)
+    /// Valide le contenu puis l’emprunte comme chaîne UTF-8.
+    /// @return `Ok(string)` valable jusqu’à la destruction du fichier, ou `Error(InvalidUtf8)`.
+    borrow def asText() : Result[string, TextDecodeError] {
+        val view : ByteView =
+        new ByteView(nativeData, usize(0), nativeSize)
+        val valid : bool = view.isUtf8()
+        delete view
+        if !valid {
+            return Result.Error[string, TextDecodeError](
+            TextDecodeError.InvalidUtf8
+            )
+        }
+        return Result.Ok[string, TextDecodeError](
+        stringView(nativeData, nativeSize)
+        )
     }
 
     destructor {

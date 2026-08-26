@@ -1349,6 +1349,10 @@ de fichiers. `std.fs` lit des fichiers dans un `FileData` propriétaire, écrit
 par remplacement atomique, crée et parcourt des répertoires et retourne des
 métadonnées typées.
 
+Le contenu d’un fichier reste binaire. `FileData.asText()` valide l’UTF-8 et
+retourne `Result[string, TextDecodeError]`; `FileData.withView()` permet une
+inspection binaire bornée sans conversion implicite.
+
 ```janus
 import std.fs
 
@@ -1380,8 +1384,8 @@ openOutputStream("copie.txt", false)
 ```
 
 `standardInput`, `standardOutput` et `standardError` créent des wrappers qui ne
-ferment pas les handles du processus. Un buffer binaire doit appeler `isUtf8`
-ou `asText` avant d’être traité comme du texte. Pour inspecter ses octets sans
+ferment pas les handles du processus. Une `ByteView` ou un buffer binaire doit
+appeler `isUtf8` ou `asText` avant d’être traité comme du texte. Pour inspecter ses octets sans
 copie, `withView` fournit temporairement une `ByteView` bornée qui ne peut pas
 s'échapper de la callback. Le
 [contrat des flux](design/io-streams.md) précise les lectures partielles, les

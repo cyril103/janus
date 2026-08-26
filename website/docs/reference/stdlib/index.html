@@ -597,7 +597,7 @@ val values : Array[int] = builder.result()<br>
 </div></section>
 <section class="module" id="module-std-bytes" data-module data-search="std.bytes Fournit des vues binaires bornées et non propriétaires.">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.bytes</h2></header>
-<div class="module-summary"><p class="doc-summary">Fournit des vues binaires bornées et non propriétaires.</p></div><h3 class="member-heading">Public members <span class="member-count">7</span></h3>
+<div class="module-summary"><p class="doc-summary">Fournit des vues binaires bornées et non propriétaires.</p></div><h3 class="member-heading">Public members <span class="member-count">8</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-bytes-byteview" data-symbol data-search="std.bytes.ByteView class class ByteView internal(borrow val nativeData : Ptr[byte], val start : usize, val count : usize) Vue en lecture seule sur une plage d&#39;octets empruntée.
 
@@ -630,6 +630,11 @@ libère jamais le stockage; son propriétaire doit rester vivant.</p></div>
 <p class="doc-summary">Indique si la vue est vide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsque <a href="#std-bytes-byteview-size"><code>ByteView.size</code></a> vaut zéro.</p></section>
 <div class="qualified">std.bytes.ByteView.isEmpty</div></div><a class="permalink" href="#std-bytes-byteview-isempty" aria-label="Permanent link to std.bytes.ByteView.isEmpty">#</a></article>
+<article class="symbol-card kind-method child" id="std-bytes-byteview-isutf8" data-symbol data-search="std.bytes.ByteView.isUtf8 method borrow def isUtf8() : bool Indique si tous les octets visibles forment une séquence UTF-8 valide.
+@return `true` pour un encodage UTF-8 valide, vue vide comprise."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.bytes.ByteView</div><h3><code>borrow def isUtf8() : bool</code></h3>
+<p class="doc-summary">Indique si tous les octets visibles forment une séquence UTF-8 valide.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour un encodage UTF-8 valide, vue vide comprise.</p></section>
+<div class="qualified">std.bytes.ByteView.isUtf8</div></div><a class="permalink" href="#std-bytes-byteview-isutf8" aria-label="Permanent link to std.bytes.ByteView.isUtf8">#</a></article>
 <article class="symbol-card kind-method child" id="std-bytes-byteview-size" data-symbol data-search="std.bytes.ByteView.size method borrow def size() : usize Retourne le nombre d&#39;octets visibles.
 @return Longueur bornée de la vue."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.bytes.ByteView</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre d&#39;octets visibles.</p>
@@ -928,7 +933,13 @@ Les échecs de la plateforme sont conservés dans [[SystemError]]. Les buffers d
 ```janus
 val loaded = readFile(&quot;config/app.toml&quot;)
 match loaded {
-    Ok(file) =&gt; println(file.view()),
+    Ok(file) =&gt; {
+        match file.asText() {
+            Ok(text) =&gt; println(text),
+            Error(error) =&gt; println(&quot;invalid UTF-8&quot;)
+        }
+        delete file
+    },
     Error(error) =&gt; println(error.context)
 }
 ```">
@@ -937,7 +948,13 @@ match loaded {
 Les échecs de la plateforme sont conservés dans <a href="#std-system-systemerror"><code>SystemError</code></a>. Les buffers de<br>
 <a href="#std-fs-filedata"><code>FileData</code></a> et les parcours <a href="#std-fs-directoryiterator"><code>DirectoryIterator</code></a> libèrent leurs ressources à la destruction.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val loaded = readFile(&quot;config/app.toml&quot;)<br>
 match loaded {<br>
-    Ok(file) =&gt; println(file.view()),<br>
+    Ok(file) =&gt; {<br>
+        match file.asText() {<br>
+            Ok(text) =&gt; println(text),<br>
+            Error(error) =&gt; println(&quot;invalid UTF-8&quot;)<br>
+        }<br>
+        delete file<br>
+    },<br>
     Error(error) =&gt; println(error.context)<br>
 }<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">26</span></h3>
@@ -966,29 +983,31 @@ libère le handle natif ; l’ordre des entrées est celui fourni par la platefo
 <article class="symbol-card kind-class" id="std-fs-filedata" data-symbol data-search="std.fs.FileData class class FileData internal(var nativeData : Ptr[byte], val nativeSize : usize) Contenu binaire propriétaire chargé intégralement par [[readFile]].
 
 Les vues et pointeurs obtenus sont empruntés et deviennent invalides à la
-destruction. Aucune validation d’encodage n’est effectuée.
+destruction. [[asText]] valide explicitement l’encodage avant de produire
+une chaîne.
 @param nativeData Allocation native dont l’objet prend possession.
 @param nativeSize Nombre d’octets lisibles à partir de `nativeData`."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class FileData internal(var nativeData : Ptr[byte], val nativeSize : usize)</code></h3>
 <p class="doc-summary">Contenu binaire propriétaire chargé intégralement par <a href="#std-fs-readfile"><code>readFile</code></a>.</p>
 <div class="doc-details"><p>Les vues et pointeurs obtenus sont empruntés et deviennent invalides à la<br>
-destruction. Aucune validation d’encodage n’est effectuée.</p></div>
+destruction. <code class="unresolved">asText</code> valide explicitement l’encodage avant de produire<br>
+une chaîne.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeData</code></td><td><code>Ptr[byte]</code></td><td>Allocation native dont l’objet prend possession.</td></tr><tr><td><code>nativeSize</code></td><td><code>usize</code></td><td>Nombre d’octets lisibles à partir de `nativeData`.</td></tr></tbody></table></section>
 <div class="qualified">std.fs.FileData</div></div><a class="permalink" href="#std-fs-filedata" aria-label="Permanent link to std.fs.FileData">#</a></article>
+<article class="symbol-card kind-method child" id="std-fs-filedata-astext" data-symbol data-search="std.fs.FileData.asText method borrow def asText() : Result[string, TextDecodeError] Valide le contenu puis l’emprunte comme chaîne UTF-8.
+@return `Ok(string)` valable jusqu’à la destruction du fichier, ou `Error(InvalidUtf8)`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>borrow def asText() : Result[string, TextDecodeError]</code></h3>
+<p class="doc-summary">Valide le contenu puis l’emprunte comme chaîne UTF-8.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[string, TextDecodeError]</code> — `Ok(string)` valable jusqu’à la destruction du fichier, ou `Error(InvalidUtf8)`.</p></section>
+<div class="qualified">std.fs.FileData.asText</div></div><a class="permalink" href="#std-fs-filedata-astext" aria-label="Permanent link to std.fs.FileData.asText">#</a></article>
 <article class="symbol-card kind-method child" id="std-fs-filedata-data" data-symbol data-search="std.fs.FileData.data method borrow def data() : borrow Ptr[byte] Emprunte le premier octet du contenu.
 @return Pointeur lisible sur [[size]] octets pendant la vie de ce [[FileData]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>borrow def data() : borrow Ptr[byte]</code></h3>
 <p class="doc-summary">Emprunte le premier octet du contenu.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Ptr[byte]</code> — Pointeur lisible sur <code class="unresolved">size</code> octets pendant la vie de ce <a href="#std-fs-filedata"><code>FileData</code></a>.</p></section>
 <div class="qualified">std.fs.FileData.data</div></div><a class="permalink" href="#std-fs-filedata-data" aria-label="Permanent link to std.fs.FileData.data">#</a></article>
 <article class="symbol-card kind-method child" id="std-fs-filedata-size" data-symbol data-search="std.fs.FileData.size method borrow def size() : usize Retourne la taille du fichier en octets.
-@return Nombre d’octets accessibles par [[data]] et [[view]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>borrow def size() : usize</code></h3>
+@return Nombre d’octets accessibles par [[data]] et [[withView]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne la taille du fichier en octets.</p>
-<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets accessibles par <code class="unresolved">data</code> et <code class="unresolved">view</code>.</p></section>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets accessibles par <code class="unresolved">data</code> et <code class="unresolved">withView</code>.</p></section>
 <div class="qualified">std.fs.FileData.size</div></div><a class="permalink" href="#std-fs-filedata-size" aria-label="Permanent link to std.fs.FileData.size">#</a></article>
-<article class="symbol-card kind-method child" id="std-fs-filedata-view" data-symbol data-search="std.fs.FileData.view method borrow def view() : string Emprunte le contenu comme chaîne binaire de longueur explicite.
-@return Vue non validée UTF-8, valable jusqu’à la destruction du propriétaire."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>borrow def view() : string</code></h3>
-<p class="doc-summary">Emprunte le contenu comme chaîne binaire de longueur explicite.</p>
-<section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue non validée UTF-8, valable jusqu’à la destruction du propriétaire.</p></section>
-<div class="qualified">std.fs.FileData.view</div></div><a class="permalink" href="#std-fs-filedata-view" aria-label="Permanent link to std.fs.FileData.view">#</a></article>
 <article class="symbol-card kind-method child" id="std-fs-filedata-withview" data-symbol data-search="std.fs.FileData.withView method borrow def withView[U](scoped action : Function[ByteView, U]) : U Observe le contenu avec une vue binaire bornée temporaire.
 @param action Callback borné recevant tous les octets du fichier.
 @return Résultat indépendant produit par `action`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>borrow def withView[U](scoped action : Function[ByteView, U]) : U</code></h3>

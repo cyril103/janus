@@ -61,6 +61,33 @@ def invalidBufferTest() : bool {
     return appended && rejected
 }
 
+def invalidFileData(data : FileData) : bool {
+    val rejected : bool = match data.asText() {
+        Ok(value) => false,
+        Error(error) => error == TextDecodeError.InvalidUtf8
+    }
+    delete data
+    return rejected
+}
+
+def invalidFileResult(result : Result[FileData, SystemError]) : bool {
+    return match move result {
+        Ok(data) => invalidFileData(move data),
+        Error(error) => false
+    }
+}
+
+def invalidFileTest(path : string) : bool {
+    val bytes : Ptr[byte] = alloc[byte](usize(2))
+    defer free(bytes)
+    bytes.store(usize(0), byte(195))
+    bytes.store(usize(1), byte(40))
+    val written : bool = boolResult(
+    writeFileAtomic(path, bytes, usize(2))
+    )
+    return written && invalidFileResult(readFile(path))
+}
+
 def closeStandardInput(input : InputStream) : bool {
     val open : bool = input.isOpen()
     val closed : bool = boolResult(input.close())
@@ -209,8 +236,10 @@ result : Result[FileData, SystemError]
 }
 
 def copiedData(data : FileData) : bool {
-    val matches : bool =
-    data.view() == "alpha\nbéta\n"
+    val matches : bool = textResultEquals(
+    data.asText(),
+    "alpha\nbéta\n"
+    )
     delete data
     return matches
 }
@@ -294,6 +323,7 @@ root : Path,
 source : Path,
 destination : Path
 ) : int {
+    println(invalidFileTest(source.view()))
     println(boolResult(
     writeTextFileAtomic(
     source.view(),

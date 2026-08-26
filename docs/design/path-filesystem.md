@@ -29,7 +29,9 @@ est lui-même propriétaire.
 ## Fichiers et écriture atomique
 
 `readFile` lit intégralement un fichier simple et retourne un `FileData`
-propriétaire. Sa vue et son pointeur restent valides jusqu’à sa destruction.
+propriétaire. Son pointeur et ses `ByteView` temporaires restent valides jusqu’à
+sa destruction. `asText` est l’unique conversion en `string` et refuse les
+séquences UTF-8 invalides avec `TextDecodeError.InvalidUtf8`.
 Une croissance impossible produit une erreur `TooLarge` ou
 `ResourceExhausted`.
 

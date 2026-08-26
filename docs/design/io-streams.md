@@ -9,9 +9,10 @@ et libérés par leur destructeur.
 
 ## Buffers et texte
 
-`ByteBuffer` contient des octets arbitraires. Il peut donc représenter une
-image, un protocole binaire ou du texte invalide. `isUtf8` valide explicitement
-le contenu ; `asText` retourne soit une vue `string`, soit
+`ByteBuffer` et `FileData` contiennent des octets arbitraires. Ils peuvent donc
+représenter une image, un protocole binaire ou du texte invalide. `isUtf8`
+valide explicitement une `ByteView`; les méthodes `asText` de `ByteBuffer` et
+`FileData` retournent soit une vue `string`, soit
 `TextDecodeError.InvalidUtf8`.
 
 La validation accepte les octets NUL et refuse les séquences UTF-8

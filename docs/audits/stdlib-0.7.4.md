@@ -13,9 +13,9 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **36 modules**, **12282 lignes** et **1090 symboles publics** inventoriés ;
-- **1098 blocs `///` publics pour 1090 symboles** (couverture source du lot #115 : 100 %) ;
-- **184 sites d'allocation**, **303 marqueurs de nettoyage**, **200/23/46** occurrences `move`/`consume`/destructeur ;
+- **36 modules**, **12310 lignes** et **1091 symboles publics** inventoriés ;
+- **1099 blocs `///` publics pour 1091 symboles** (couverture source du lot #115 : 100 %) ;
+- **186 sites d'allocation**, **306 marqueurs de nettoyage**, **200/23/46** occurrences `move`/`consume`/destructeur ;
 - **29/36 modules** importés directement par au moins une fixture ou un test, soit **152 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
@@ -49,7 +49,7 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.array` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 39 | 879 | 39 | 22/2/3 | 2/6/15 | 14 | 30 | `std.error`, `std.iterator`, `std.option`, `std.ordering`, `std.result` | 41 | `docs/language-guide.md` |
 | `std.array_builder` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 7 | 80 | 7 | 2/0/1 | 0/0/0 | 4 | 4 | `std.array`, `std.builder`, `std.iterator` | 4 | `docs/language-guide.md` |
 | `std.builder` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 3 | 22 | 3 | 0/0/0 | 0/0/0 | 1 | 0 | — | 0 | `docs/language-guide.md` |
-| `std.bytes` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 7 | 80 | 7 | 1/0/0 | 0/1/2 | 1 | 5 | `std.option` | 4 | `docs/language-guide.md`, `docs/stdlib-reference.md` |
+| `std.bytes` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 8 | 92 | 8 | 1/0/0 | 0/1/2 | 1 | 5 | `std.option` | 4 | `docs/language-guide.md`, `docs/stdlib-reference.md` |
 | `std.c` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 5 | 39 | 5 | 0/0/0 | 0/0/0 | 0 | 0 | — | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.deque` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 32 | 412 | 32 | 19/4/4 | 3/22/4 | 7 | 18 | `std.array`, `std.error`, `std.iterator`, `std.option`, `std.result` | 2 | `docs/language-guide.md`, `docs/stdlib-reference.md` |
 | `std.error` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 6 | 18 | 6 | 0/0/0 | 0/0/0 | 0 | 0 | — | 1 | `docs/language-guide.md`, `docs/stdlib-reference.md` |
@@ -59,12 +59,12 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.graphics.input` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 28 | 276 | 28 | 0/0/0 | 0/0/0 | 0 | 0 | `std.graphics.types` | 0 | `docs/graphics.md` |
 | `std.graphics.resources` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 118 | 1359 | 118 | 0/0/6 | 0/0/0 | 25 | 8 | `std.c`, `std.graphics.types` | 0 | `docs/graphics.md` |
 | `std.graphics.types` | `experimental` | `conservation` | [#114 / R074-5](https://github.com/cyril103/janus/issues/114) | 235 | 601 | 235 | 0/0/0 | 0/0/0 | 8 | 2 | — | 0 | `docs/graphics.md` |
-| `std.fs` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 26 | 486 | 26 | 1/0/2 | 12/5/3 | 11 | 24 | `std.bytes`, `std.option`, `std.path`, `std.result`, `std.system` | 3 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
+| `std.fs` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 26 | 505 | 26 | 1/0/2 | 13/5/3 | 12 | 26 | `std.bytes`, `std.io`, `std.option`, `std.path`, `std.result`, `std.system` | 3 | `docs/language-guide.md`, `docs/design/path-filesystem.md`, `docs/stability-contract.md` |
 | `std.hash_probe` | `internal-detail` | `refonte-interne` | [#112 / R074-3](https://github.com/cyril103/janus/issues/112) | 6 | 83 | 6 | 0/0/0 | 0/0/0 | 1 | 0 | — | 0 | `docs/public-surface-0.5.json` |
 | `std.hashing` | `stable-proposed` | `conservation` | [#112 / R074-3](https://github.com/cyril103/janus/issues/112) | 21 | 161 | 21 | 0/0/0 | 0/0/0 | 1 | 0 | — | 9 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.hashmap` | `stable-proposed` | `conservation` | [#112 / R074-3](https://github.com/cyril103/janus/issues/112) | 29 | 858 | 33 | 39/5/3 | 0/25/2 | 16 | 25 | `std.array`, `std.builder`, `std.hash_probe`, `std.hashing`, `std.iterator`, `std.option` | 7 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.hashset` | `stable-proposed` | `conservation` | [#112 / R074-3](https://github.com/cyril103/janus/issues/112) | 21 | 572 | 25 | 17/2/3 | 0/10/2 | 10 | 17 | `std.array`, `std.builder`, `std.hash_probe`, `std.hashing`, `std.iterator`, `std.option` | 6 | `docs/language-guide.md`, `docs/stability-contract.md` |
-| `std.io` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 35 | 923 | 35 | 9/0/4 | 22/14/0 | 17 | 32 | `std.bytes`, `std.error`, `std.option`, `std.result`, `std.system` | 5 | `docs/language-guide.md`, `docs/design/io-streams.md`, `docs/stability-contract.md` |
+| `std.io` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 35 | 920 | 35 | 9/0/4 | 22/14/0 | 18 | 33 | `std.bytes`, `std.error`, `std.option`, `std.result`, `std.system` | 5 | `docs/language-guide.md`, `docs/design/io-streams.md`, `docs/stability-contract.md` |
 | `std.iterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 21 | 454 | 21 | 37/10/7 | 0/25/0 | 14 | 32 | `std.builder`, `std.option` | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.math` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 104 | 546 | 104 | 0/0/0 | 0/0/1 | 1 | 0 | `std.array` | 6 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.numeric` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) | 7 | 20 | 7 | 0/0/0 | 0/0/0 | 0 | 0 | `std.result` | 3 | `docs/numeric-conversions.md`, `docs/stdlib-reference.md`, `docs/stability-contract.md` |
@@ -150,10 +150,10 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 | `return Result.Ok[bool, SystemError](true)` | `std.fs`, `std.io`, `std.process`, `std.system`, `std.testing` | 13 |
 | `def next() : Option[T] {` | `std.array`, `std.deque`, `std.hashset`, `std.iterator`, `std.slice` | 11 |
 | `private var index : usize` | `std.array`, `std.hashmap`, `std.hashset`, `std.iterator`, `std.slice` | 11 |
+| `borrow data : Ptr[byte],` | `std.bytes`, `std.fs`, `std.io`, `std.process`, `std.system` | 10 |
 | `borrow def capacity() : usize {` | `std.array`, `std.deque`, `std.hashmap`, `std.hashset`, `std.io` | 5 |
 | `private var length : usize = usize(0)` | `std.array`, `std.deque`, `std.hashmap`, `std.hashset`, `std.text` | 5 |
 | `return Result.Error[bool, SystemError](` | `std.fs`, `std.io`, `std.process`, `std.system` | 16 |
-| `borrow path : Ptr[byte],` | `std.fs`, `std.io`, `std.path`, `std.system` | 14 |
 
 Ces répétitions orientent les lots sans autoriser une abstraction aveugle : #111 mutualise parcours et fallbacks, #112 les sondes et croissances de tables, #113 les conversions d'erreurs/buffers/handles et #114 les wrappers de ressources et paires begin/end.
 
@@ -234,6 +234,7 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `ByteView.isEmpty` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `ByteView.get` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `ByteView.getOption` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `ByteView.isUtf8` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `ByteView.withSlice` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `ByteView.withPointer` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 
@@ -851,7 +852,7 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `FileData.data` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `FileData.size` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `FileData.withView` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
-| `FileData.view` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
+| `FileData.asText` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `DirectoryIterator` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `DirectoryIterator.next` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |
 | `DirectoryIterator.close` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) |

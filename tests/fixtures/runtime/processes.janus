@@ -310,7 +310,10 @@ result : Result[FileData, SystemError]
 }
 
 def markerDataMatches(data : FileData) : bool {
-    val matches : bool = data.view() == "ok"
+    val matches : bool = match data.asText() {
+        Ok(text) => text == "ok",
+        Error(error) => false
+    }
     delete data
     return matches
 }

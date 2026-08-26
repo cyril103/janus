@@ -40,8 +40,8 @@
       "source": "stdlib/std/bytes.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
       "status": "experimental",
-      "signature_digest": "bbad5a7d60a53f80993ad9e0fb8909891bd2d679083407599a88b179fd3158d8",
-      "symbols": ["ByteView", "ByteView.size", "ByteView.isEmpty", "ByteView.get", "ByteView.getOption", "ByteView.withSlice", "ByteView.withPointer"]
+      "signature_digest": "52252de925a5077f70e47215a4dd423e4171628a45cf1c18d53d67c029525939",
+      "symbols": ["ByteView", "ByteView.size", "ByteView.isEmpty", "ByteView.get", "ByteView.getOption", "ByteView.isUtf8", "ByteView.withSlice", "ByteView.withPointer"]
     },
     {
       "name": "std.c",
@@ -121,8 +121,8 @@
       "source": "stdlib/std/fs.janus",
       "documentation": ["docs/language-guide.md", "docs/design/path-filesystem.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "a2fe971ab794887164a6d7ccf142e53fafa86e07546af744b44959608f46da0f",
-      "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.withView", "FileData.view", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeDirectoryAll", "removeFile", "metadata", "readDirectory"]
+      "signature_digest": "2fe95fb012d12dbee11ec6a18bb0d3c7ff7f9b5b074522a50d98d73badfdd2e8",
+      "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.withView", "FileData.asText", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeDirectoryAll", "removeFile", "metadata", "readDirectory"]
     },
     {
       "name": "std.hash_probe",

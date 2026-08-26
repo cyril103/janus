@@ -38,10 +38,6 @@ size : usize
 private extern def janus_io_close(handle : isize) : int
 private extern def janus_io_flush(handle : isize) : int
 private extern def janus_io_standard_handle(stream : int) : isize
-private extern def janus_io_valid_utf8(
-borrow data : Ptr[byte],
-size : usize
-) : int
 private extern def janus_io_last_error_code() : uint
 private extern def janus_io_last_error_category() : int
 
@@ -247,10 +243,11 @@ class ByteBuffer(initialCapacity : usize) {
     /// Indique si le contenu forme une séquence UTF-8 valide.
     /// @return `true` si tous les octets constituent un UTF-8 valide, tampon vide compris.
     borrow def isUtf8() : bool {
-        return janus_io_valid_utf8(
-        nativeData,
-        nativeSize
-        ) == 1
+        val view : ByteView =
+        new ByteView(nativeData, usize(0), nativeSize)
+        val valid : bool = view.isUtf8()
+        delete view
+        return valid
     }
 
     /// Valide le contenu puis l’emprunte comme chaîne UTF-8.
