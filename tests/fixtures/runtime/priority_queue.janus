@@ -42,8 +42,7 @@ def exerciseBorrowedFunctionTypes() : bool {
     values.push(new MutableCell(4))
     val increment : (borrow var MutableCell) => Unit =
     (borrow var cell : MutableCell) => { cell.value = cell.value + 3 }
-    values.withMutable(usize(0), increment)
-    delete increment
+    values.withMutable(usize(0), move increment)
     return values.get(usize(0)).value == 7
 }
 

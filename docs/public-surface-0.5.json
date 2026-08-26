@@ -16,7 +16,7 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "7588727200738e6241147d5ae3377365ce995bc4f926a0d7ce1edf328c5ce109",
+      "signature_digest": "9e230d4b2101158d6bb0d967ac7f8148456e4eb0fea73c6a350749f9242a1e66",
       "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getBorrowed", "Array.getMutable", "Array.getOption", "Array.set", "Array.replace", "Array.swap", "Array.push", "Array.pop", "Array.popOption", "Array.tryPop", "Array.remove", "Array.reserve", "Array.tryReserve", "Array.clear", "Array.retain", "Array.extend", "Array.drain", "Array.withValue", "Array.withMutable", "Array.withValues", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "Array.sortBy", "filledArray", "generateArray"]
     },
     {
@@ -217,7 +217,7 @@
       "source": "stdlib/std/priority_queue.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
       "status": "experimental",
-      "signature_digest": "e643f62fa08e861880d46102b9254eb1fd757d3252b692bb00df85ec21c861fc",
+      "signature_digest": "f7c6f18f4eae44806d08f23b5859d4cd59baa9b66ae9e7dfa463f20c2851c51e",
       "symbols": ["PriorityQueue", "PriorityQueue.size", "PriorityQueue.isEmpty", "PriorityQueue.enqueue", "PriorityQueue.peek", "PriorityQueue.withFirst", "PriorityQueue.peekCopy", "PriorityQueue.peekCopyOption", "PriorityQueue.dequeue", "PriorityQueue.dequeueOption", "PriorityQueue.tryDequeue", "PriorityQueue.clear"]
     },
     {

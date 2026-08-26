@@ -796,9 +796,12 @@ def invoke(scoped callback : () => int) : int {
 }
 ```
 
-`std.option.map`, les combinateurs synchrones de `std.result`, `generateArray` et
-`Iterator.fold` déclarent ce contrat directement; l'analyseur ne dépend plus de
-leurs noms pour borner les captures.
+`std.option.map`, les combinateurs synchrones de `std.result`, `generateArray`,
+`Iterator.fold`, les callbacks de parcours et de tri d’`Array`, ainsi que
+`PriorityQueue.withFirst` déclarent ce contrat directement; l'analyseur ne
+dépend plus de leurs noms pour borner les captures. Une closure conservée dans
+une variable est transférée explicitement avec `move`; une lambda écrite dans
+l’appel est transférée directement.
 
 Les structures et enums qui contiennent une ressource deviennent eux-mêmes
 propriétaires. Leur transfert doit employer `move`, et `delete` détruit

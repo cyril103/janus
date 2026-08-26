@@ -68,21 +68,21 @@ observants exigent `T &lt;: Copy`, tandis que <a href="#std-array-array-intoiter
 tableau et peut transférer des valeurs non copiables.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Nombre initial d’emplacements réservés.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array</div></div><a class="permalink" href="#std-array-array" aria-label="Permanent link to std.array.Array">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-all" data-symbol data-search="std.array.Array.all method borrow def all(borrow predicate : Function[T, bool]) : bool Indique si tous les éléments satisfont le prédicat.
+<article class="symbol-card kind-method child" id="std-array-array-all" data-symbol data-search="std.array.Array.all method borrow def all(scoped predicate : Function[T, bool]) : bool Indique si tous les éléments satisfont le prédicat.
 
 L’évaluation s’arrête au premier échec; un tableau vide rend `true`.
 @param predicate Fonction observant les éléments dans l’ordre.
-@return `true` si aucun élément ne viole le prédicat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def all(borrow predicate : Function[T, bool]) : bool</code></h3>
+@return `true` si aucun élément ne viole le prédicat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def all(scoped predicate : Function[T, bool]) : bool</code></h3>
 <p class="doc-summary">Indique si tous les éléments satisfont le prédicat.</p>
 <div class="doc-details"><p>L’évaluation s’arrête au premier échec; un tableau vide rend `true`.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction observant les éléments dans l’ordre.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si aucun élément ne viole le prédicat.</p></section>
 <div class="qualified">std.array.Array.all</div></div><a class="permalink" href="#std-array-array-all" aria-label="Permanent link to std.array.Array.all">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-any" data-symbol data-search="std.array.Array.any method borrow def any(borrow predicate : Function[T, bool]) : bool Indique si au moins un élément satisfait le prédicat.
+<article class="symbol-card kind-method child" id="std-array-array-any" data-symbol data-search="std.array.Array.any method borrow def any(scoped predicate : Function[T, bool]) : bool Indique si au moins un élément satisfait le prédicat.
 
 L’évaluation s’arrête au premier succès.
 @param predicate Fonction observant les éléments dans l’ordre.
-@return `true` si un élément est accepté, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def any(borrow predicate : Function[T, bool]) : bool</code></h3>
+@return `true` si un élément est accepté, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def any(scoped predicate : Function[T, bool]) : bool</code></h3>
 <p class="doc-summary">Indique si au moins un élément satisfait le prédicat.</p>
 <div class="doc-details"><p>L’évaluation s’arrête au premier succès.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction observant les éléments dans l’ordre.</td></tr></tbody></table></section>
@@ -101,9 +101,9 @@ recevoir de nouvelles valeurs."><span class="kind-icon" aria-hidden="true">m</sp
 <div class="doc-details"><p>L’opération est linéaire dans la taille actuelle; le tableau reste prêt à<br>
 recevoir de nouvelles valeurs.</p></div>
 <div class="qualified">std.array.Array.clear</div></div><a class="permalink" href="#std-array-array-clear" aria-label="Permanent link to std.array.Array.clear">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-count" data-symbol data-search="std.array.Array.count method borrow def count(borrow predicate : Function[T, bool]) : usize Compte les éléments qui satisfont le prédicat.
+<article class="symbol-card kind-method child" id="std-array-array-count" data-symbol data-search="std.array.Array.count method borrow def count(scoped predicate : Function[T, bool]) : usize Compte les éléments qui satisfont le prédicat.
 @param predicate Fonction observant chaque élément une fois.
-@return Nombre d’éléments acceptés."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def count(borrow predicate : Function[T, bool]) : usize</code></h3>
+@return Nombre d’éléments acceptés."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def count(scoped predicate : Function[T, bool]) : usize</code></h3>
 <p class="doc-summary">Compte les éléments qui satisfont le prédicat.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction observant chaque élément une fois.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’éléments acceptés.</p></section>
@@ -120,43 +120,43 @@ recevoir de nouvelles valeurs.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Iterator[T]</code></td><td>Itérateur dont chaque valeur est transférée au tableau.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nouvelle taille du tableau.</p></section>
 <div class="qualified">std.array.Array.extend</div></div><a class="permalink" href="#std-array-array-extend" aria-label="Permanent link to std.array.Array.extend">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-filter" data-symbol data-search="std.array.Array.filter method borrow def filter(borrow predicate : Function[T, bool]) : Array[T] Copie dans un nouveau tableau les éléments acceptés par le prédicat.
+<article class="symbol-card kind-method child" id="std-array-array-filter" data-symbol data-search="std.array.Array.filter method borrow def filter(scoped predicate : Function[T, bool]) : Array[T] Copie dans un nouveau tableau les éléments acceptés par le prédicat.
 
 La source reste inchangée. Le prédicat et la copie suivent l’ordre des
 indices; l’opération est linéaire.
 @param predicate Fonction d’acceptation observant chaque élément.
-@return Nouveau tableau contenant les copies acceptées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def filter(borrow predicate : Function[T, bool]) : Array[T]</code></h3>
+@return Nouveau tableau contenant les copies acceptées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def filter(scoped predicate : Function[T, bool]) : Array[T]</code></h3>
 <p class="doc-summary">Copie dans un nouveau tableau les éléments acceptés par le prédicat.</p>
 <div class="doc-details"><p>La source reste inchangée. Le prédicat et la copie suivent l’ordre des<br>
 indices; l’opération est linéaire.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction d’acceptation observant chaque élément.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Array[T]</code> — Nouveau tableau contenant les copies acceptées.</p></section>
 <div class="qualified">std.array.Array.filter</div></div><a class="permalink" href="#std-array-array-filter" aria-label="Permanent link to std.array.Array.filter">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-find" data-symbol data-search="std.array.Array.find method borrow def find(borrow predicate : Function[T, bool]) : Option[T] Recherche le premier élément qui satisfait le prédicat.
+<article class="symbol-card kind-method child" id="std-array-array-find" data-symbol data-search="std.array.Array.find method borrow def find(scoped predicate : Function[T, bool]) : Option[T] Recherche le premier élément qui satisfait le prédicat.
 
 La recherche s’arrête au premier succès et ne modifie pas le tableau.
 @param predicate Fonction testée dans l’ordre des indices.
-@return `Some` avec une copie du premier élément trouvé, sinon `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def find(borrow predicate : Function[T, bool]) : Option[T]</code></h3>
+@return `Some` avec une copie du premier élément trouvé, sinon `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def find(scoped predicate : Function[T, bool]) : Option[T]</code></h3>
 <p class="doc-summary">Recherche le premier élément qui satisfait le prédicat.</p>
 <div class="doc-details"><p>La recherche s’arrête au premier succès et ne modifie pas le tableau.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction testée dans l’ordre des indices.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` avec une copie du premier élément trouvé, sinon `None`.</p></section>
 <div class="qualified">std.array.Array.find</div></div><a class="permalink" href="#std-array-array-find" aria-label="Permanent link to std.array.Array.find">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-fold" data-symbol data-search="std.array.Array.fold method borrow def fold[U](initial : U, borrow combine : Function[U, T, U]) : U Réduit les valeurs avec un accumulateur.
+<article class="symbol-card kind-method child" id="std-array-array-fold" data-symbol data-search="std.array.Array.fold method borrow def fold[U](initial : U, scoped combine : Function[U, T, U]) : U Réduit les valeurs avec un accumulateur.
 
 Les éléments sont empruntés et combinés de l’indice zéro au dernier; le
 tableau reste inchangé.
 @param initial Valeur initiale de l’accumulateur.
 @param combine Fonction consommant l&#39;accumulateur et observant l&#39;élément.
-@return Accumulateur final, ou `initial` si le tableau est vide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def fold[U](initial : U, borrow combine : Function[U, T, U]) : U</code></h3>
+@return Accumulateur final, ou `initial` si le tableau est vide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def fold[U](initial : U, scoped combine : Function[U, T, U]) : U</code></h3>
 <p class="doc-summary">Réduit les valeurs avec un accumulateur.</p>
 <div class="doc-details"><p>Les éléments sont empruntés et combinés de l’indice zéro au dernier; le<br>
 tableau reste inchangé.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initial</code></td><td><code>U</code></td><td>Valeur initiale de l’accumulateur.</td></tr><tr><td><code>combine</code></td><td><code>Function[U, T, U]</code></td><td>Fonction consommant l&#39;accumulateur et observant l&#39;élément.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>U</code> — Accumulateur final, ou `initial` si le tableau est vide.</p></section>
 <div class="qualified">std.array.Array.fold</div></div><a class="permalink" href="#std-array-array-fold" aria-label="Permanent link to std.array.Array.fold">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-foreach" data-symbol data-search="std.array.Array.foreach method borrow def foreach(borrow action : Function[T, Unit]) : Unit Applique une action empruntée à tous les éléments, dans l’ordre.
-@param action Fonction observant chaque élément sans en prendre possession."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def foreach(borrow action : Function[T, Unit]) : Unit</code></h3>
+<article class="symbol-card kind-method child" id="std-array-array-foreach" data-symbol data-search="std.array.Array.foreach method borrow def foreach(scoped action : Function[T, Unit]) : Unit Applique une action empruntée à tous les éléments, dans l’ordre.
+@param action Fonction observant chaque élément sans en prendre possession."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def foreach(scoped action : Function[T, Unit]) : Unit</code></h3>
 <p class="doc-summary">Applique une action empruntée à tous les éléments, dans l’ordre.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Fonction observant chaque élément sans en prendre possession.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array.foreach</div></div><a class="permalink" href="#std-array-array-foreach" aria-label="Permanent link to std.array.Array.foreach">#</a></article>
@@ -236,12 +236,12 @@ copie; elle n’est disponible que lorsque `T` satisfait `Copy`. Le tableau<br>
 doit rester vivant pendant le parcours.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un nouvel <a href="#std-iterator-iterator"><code>Iterator</code></a> positionné avant l’indice zéro.</p></section>
 <div class="qualified">std.array.Array.iterator</div></div><a class="permalink" href="#std-array-array-iterator" aria-label="Permanent link to std.array.Array.iterator">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-map" data-symbol data-search="std.array.Array.map method borrow def map[U](borrow transform : Function[T, U]) : Array[U] Construit un tableau en transformant chaque élément dans l’ordre.
+<article class="symbol-card kind-method child" id="std-array-array-map" data-symbol data-search="std.array.Array.map method borrow def map[U](scoped transform : Function[T, U]) : Array[U] Construit un tableau en transformant chaque élément dans l’ordre.
 
 La source n’est pas modifiée; `transform` reçoit un emprunt par élément.
 Le coût est linéaire et le résultat réserve initialement la taille source.
 @param transform Fonction produisant une valeur depuis une observation source.
-@return Nouveau tableau possédant toutes les valeurs transformées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def map[U](borrow transform : Function[T, U]) : Array[U]</code></h3>
+@return Nouveau tableau possédant toutes les valeurs transformées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def map[U](scoped transform : Function[T, U]) : Array[U]</code></h3>
 <p class="doc-summary">Construit un tableau en transformant chaque élément dans l’ordre.</p>
 <div class="doc-details"><p>La source n’est pas modifiée; `transform` reçoit un emprunt par élément.<br>
 Le coût est linéaire et le résultat réserve initialement la taille source.</p></div>
@@ -348,7 +348,7 @@ détruite. Si l’indice est invalide, `value` est détruite avant `panic`.</p><
 <p class="doc-summary">Trie le tableau avec une stratégie d&#39;ordre total réutilisable.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>ordering</code></td><td><code>O</code></td><td>Comparateur trichotomique observé pendant le tri.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array.sortBy</div></div><a class="permalink" href="#std-array-array-sortby" aria-label="Permanent link to std.array.Array.sortBy">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-sortwith" data-symbol data-search="std.array.Array.sortWith method def sortWith(borrow less : Function[T, T, bool]) : Unit Trie le tableau sur place selon un ordre total strict et conserve la stabilité.
+<article class="symbol-card kind-method child" id="std-array-array-sortwith" data-symbol data-search="std.array.Array.sortWith method def sortWith(scoped less : Function[T, T, bool]) : Unit Trie le tableau sur place selon un ordre total strict et conserve la stabilité.
 
 `less(left, right)` doit définir de façon cohérente si `left` précède
 strictement `right`. Deux valeurs sont équivalentes lorsque le comparateur renvoie
@@ -358,7 +358,7 @@ fusionne. Son coût est `O(n log n)` dans le pire cas, `O(n)` en mémoire
 auxiliaire, et le tableau vide ou singleton est laissé inchangé. Cette
 méthode observe et duplique temporairement les éléments et exige donc que
 `T` satisfasse `Copy`.
-@param less Comparateur strict cohérent avec un ordre total."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def sortWith(borrow less : Function[T, T, bool]) : Unit</code></h3>
+@param less Comparateur strict cohérent avec un ordre total."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def sortWith(scoped less : Function[T, T, bool]) : Unit</code></h3>
 <p class="doc-summary">Trie le tableau sur place selon un ordre total strict et conserve la stabilité.</p>
 <div class="doc-details"><p>`less(left, right)` doit définir de façon cohérente si `left` précède<br>
 strictement `right`. Deux valeurs sont équivalentes lorsque le comparateur renvoie<br>
@@ -393,31 +393,31 @@ déclenche `panic` si l&#39;un des indices est hors limites.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>requested</code></td><td><code>usize</code></td><td>Capacité minimale souhaitée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[bool, CapacityError]</code> — `Ok(true)` après croissance, `Ok(false)` si elle était suffisante, ou une <a href="#std-error-capacityerror"><code>CapacityError</code></a>.</p></section>
 <div class="qualified">std.array.Array.tryReserve</div></div><a class="permalink" href="#std-array-array-tryreserve" aria-label="Permanent link to std.array.Array.tryReserve">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-withmutable" data-symbol data-search="std.array.Array.withMutable method def withMutable(index : usize, borrow action : Function[T, Unit]) : Unit Exécute une action sur un emprunt mutable exclusif de l’élément.
+<article class="symbol-card kind-method child" id="std-array-array-withmutable" data-symbol data-search="std.array.Array.withMutable method def withMutable(index : usize, scoped action : Function[T, Unit]) : Unit Exécute une action sur un emprunt mutable exclusif de l’élément.
 
 La modification porte directement sur le stockage du tableau. L&#39;action
 est bornée à l&#39;appel et ne peut ni conserver ni transférer l&#39;emprunt.
 Déclenche `panic` si `index` est hors limites.
 @param index Position de la valeur à modifier.
-@param action Fonction synchrone recevant l&#39;emprunt mutable."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def withMutable(index : usize, borrow action : Function[T, Unit]) : Unit</code></h3>
+@param action Fonction synchrone recevant l&#39;emprunt mutable."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def withMutable(index : usize, scoped action : Function[T, Unit]) : Unit</code></h3>
 <p class="doc-summary">Exécute une action sur un emprunt mutable exclusif de l’élément.</p>
 <div class="doc-details"><p>La modification porte directement sur le stockage du tableau. L&#39;action<br>
 est bornée à l&#39;appel et ne peut ni conserver ni transférer l&#39;emprunt.<br>
 Déclenche `panic` si `index` est hors limites.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position de la valeur à modifier.</td></tr><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Fonction synchrone recevant l&#39;emprunt mutable.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array.withMutable</div></div><a class="permalink" href="#std-array-array-withmutable" aria-label="Permanent link to std.array.Array.withMutable">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-withvalue" data-symbol data-search="std.array.Array.withValue method borrow def withValue(index : usize, borrow action : Function[T, Unit]) : Unit Exécute une action sur un emprunt partagé de l’élément demandé.
+<article class="symbol-card kind-method child" id="std-array-array-withvalue" data-symbol data-search="std.array.Array.withValue method borrow def withValue(index : usize, scoped action : Function[T, Unit]) : Unit Exécute une action sur un emprunt partagé de l’élément demandé.
 
 Le tableau conserve son élément. Déclenche `panic` si `index` est hors
 limites.
 @param index Position de la valeur à observer.
-@param action Fonction appelée une fois avec un emprunt sur la valeur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def withValue(index : usize, borrow action : Function[T, Unit]) : Unit</code></h3>
+@param action Fonction appelée une fois avec un emprunt sur la valeur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def withValue(index : usize, scoped action : Function[T, Unit]) : Unit</code></h3>
 <p class="doc-summary">Exécute une action sur un emprunt partagé de l’élément demandé.</p>
 <div class="doc-details"><p>Le tableau conserve son élément. Déclenche `panic` si `index` est hors<br>
 limites.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position de la valeur à observer.</td></tr><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Fonction appelée une fois avec un emprunt sur la valeur.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array.withValue</div></div><a class="permalink" href="#std-array-array-withvalue" aria-label="Permanent link to std.array.Array.withValue">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-withvalues" data-symbol data-search="std.array.Array.withValues method borrow def withValues[U](left : usize, right : usize, borrow transform : Function[T, T, U]) : U Transforme contextuellement deux éléments sans les extraire.
+<article class="symbol-card kind-method child" id="std-array-array-withvalues" data-symbol data-search="std.array.Array.withValues method borrow def withValues[U](left : usize, right : usize, scoped transform : Function[T, T, U]) : U Transforme contextuellement deux éléments sans les extraire.
 
 `transform` observe les deux valeurs pendant l&#39;appel uniquement. Le
 tableau conserve leur propriété, y compris lorsque `T` n&#39;est pas
@@ -426,7 +426,7 @@ si l&#39;un d&#39;eux est hors limites.
 @param left Premier emplacement observé.
 @param right Second emplacement observé.
 @param transform Fonction produisant le résultat depuis les deux observations.
-@return Résultat produit par `transform`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def withValues[U](left : usize, right : usize, borrow transform : Function[T, T, U]) : U</code></h3>
+@return Résultat produit par `transform`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def withValues[U](left : usize, right : usize, scoped transform : Function[T, T, U]) : U</code></h3>
 <p class="doc-summary">Transforme contextuellement deux éléments sans les extraire.</p>
 <div class="doc-details"><p>`transform` observe les deux valeurs pendant l&#39;appel uniquement. Le<br>
 tableau conserve leur propriété, y compris lorsque `T` n&#39;est pas<br>
@@ -6312,8 +6312,8 @@ Déclenche `panic` lorsque la file est vide.</p></div>
 <p class="doc-summary">Retire la prochaine valeur avec une erreur commune si la file est vide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[T, AccessError]</code> — `Ok` avec la valeur possédée, ou `Error(AccessError.Empty)`.</p></section>
 <div class="qualified">std.priority_queue.PriorityQueue.tryDequeue</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-trydequeue" aria-label="Permanent link to std.priority_queue.PriorityQueue.tryDequeue">#</a></article>
-<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-withfirst" data-symbol data-search="std.priority_queue.PriorityQueue.withFirst method borrow def withFirst(borrow action : Function[T, Unit]) : Unit Exécute une action empruntée sur la prochaine valeur sans la retirer.
-@param action Callback synchrone qui observe la tête pendant l&#39;appel."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def withFirst(borrow action : Function[T, Unit]) : Unit</code></h3>
+<article class="symbol-card kind-method child" id="std-priority-queue-priorityqueue-withfirst" data-symbol data-search="std.priority_queue.PriorityQueue.withFirst method borrow def withFirst(scoped action : Function[T, Unit]) : Unit Exécute une action empruntée sur la prochaine valeur sans la retirer.
+@param action Callback synchrone qui observe la tête pendant l&#39;appel."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.priority_queue.PriorityQueue</div><h3><code>borrow def withFirst(scoped action : Function[T, Unit]) : Unit</code></h3>
 <p class="doc-summary">Exécute une action empruntée sur la prochaine valeur sans la retirer.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Callback synchrone qui observe la tête pendant l&#39;appel.</td></tr></tbody></table></section>
 <div class="qualified">std.priority_queue.PriorityQueue.withFirst</div></div><a class="permalink" href="#std-priority-queue-priorityqueue-withfirst" aria-label="Permanent link to std.priority_queue.PriorityQueue.withFirst">#</a></article>

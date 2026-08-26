@@ -131,8 +131,7 @@ def main() : int {
     val threshold : int = 11
     val aboveThreshold : (borrow int) => bool =
     (borrow value : int) => value > threshold
-    defer delete aboveThreshold
-    val filtered : Array[int] = values.filter(aboveThreshold)
+    val filtered : Array[int] = values.filter(move aboveThreshold)
     defer delete filtered
 
     val sum : int =

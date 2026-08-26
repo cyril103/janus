@@ -41,10 +41,20 @@ private val less : (borrow T, borrow T) => bool
     private var nextSequence : usize = usize(0)
 
     private borrow def comesBefore(left : usize, right : usize) : bool {
-        if values.withValues[bool](left, right, less) {
+        if values.withValues[bool](
+        left,
+        right,
+        (borrow leftValue : T, borrow rightValue : T) =>
+        less(leftValue, rightValue)
+        ) {
             return true
         }
-        if values.withValues[bool](right, left, less) {
+        if values.withValues[bool](
+        right,
+        left,
+        (borrow leftValue : T, borrow rightValue : T) =>
+        less(leftValue, rightValue)
+        ) {
             return false
         }
         return sequences.get(left) < sequences.get(right)
@@ -151,12 +161,13 @@ private val less : (borrow T, borrow T) => bool
     /// Exécute une action empruntée sur la prochaine valeur sans la retirer.
     /// @param action Callback synchrone qui observe la tête pendant l'appel.
     borrow def withFirst(
-    borrow action : (borrow T) => Unit
+    scoped action : (borrow T) => Unit
     ) : Unit {
+        defer delete action
         if values.isEmpty() {
             panic("cannot peek an empty PriorityQueue\n")
         }
-        values.withValue(usize(0), action)
+        action(values.getBorrowed(usize(0)))
     }
 
     /// Retourne une copie de la prochaine valeur sans la retirer.
