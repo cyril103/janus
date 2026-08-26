@@ -483,7 +483,7 @@ derives Copy, Equality, Debug {
     /// Lit la représentation entière compacte de la couleur, sans conversion.
     ///
     /// @return La valeur RGBA compacte conservée par cette couleur.
-    def packed() : uint {
+    borrow def packed() : uint {
         return packedValue
     }
 }

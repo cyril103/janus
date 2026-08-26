@@ -4,11 +4,11 @@ import std.hashset
 class Resource(val key : int) {}
 
 class ResourceHashing() extends Hashing[Resource] {
-    def hash(value : Resource) : usize {
+    def hash(borrow value : Resource) : usize {
         return usize(value.key)
     }
 
-    def equals(left : Resource, right : Resource) : bool {
+    def equals(borrow left : Resource, borrow right : Resource) : bool {
         return left.key == right.key
     }
 }

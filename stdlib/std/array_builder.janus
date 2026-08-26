@@ -32,7 +32,9 @@ initialCapacity : usize
     /// Épuise la source et ajoute ses éléments dans leur ordre d’itération.
     ///
     /// @param source Source parcourue jusqu’à sa fin.
-    def addAll[C <: Iterable[T]](source : C) : Unit {
+    def addAll[C <: Iterable[T]](
+    borrow source : C
+    ) : Unit where T <: Copy {
         for value in source {
             this.add(value)
         }
@@ -41,7 +43,7 @@ initialCapacity : usize
     /// Compte les éléments actuellement accumulés.
     ///
     /// @return Nombre d’éléments que produirait immédiatement [[result]].
-    def size() : usize {
+    borrow def size() : usize {
         return values.size()
     }
 

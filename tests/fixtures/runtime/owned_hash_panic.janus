@@ -8,11 +8,11 @@ class Resource(val id : int) {
 }
 
 class CollidingHashing() extends Hashing[Resource] {
-    def hash(value : Resource) : usize {
+    def hash(borrow value : Resource) : usize {
         return usize(0)
     }
 
-    def equals(left : Resource, right : Resource) : bool {
+    def equals(borrow left : Resource, borrow right : Resource) : bool {
         return left.id == right.id
     }
 }

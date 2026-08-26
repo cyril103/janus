@@ -4,6 +4,7 @@ import std.hashing
 import std.hashmap
 import std.hashset
 import std.option
+import std.slice
 
 var releases : int = 0
 
@@ -14,11 +15,11 @@ class Resource(val id : int) {
 }
 
 class ResourceHashing() extends Hashing[Resource] {
-    def hash(value : Resource) : usize {
+    def hash(borrow value : Resource) : usize {
         return usize(value.id)
     }
 
-    def equals(left : Resource, right : Resource) : bool {
+    def equals(borrow left : Resource, borrow right : Resource) : bool {
         return left.id == right.id
     }
 }
@@ -82,9 +83,11 @@ id : int
 def exercisePipeline() : Unit {
     val values : Array[Resource] = new Array[Resource](usize(4))
     addArrayValues(values, 4)
+    val predicate : (borrow Resource) => bool =
+    (borrow value : Resource) => value.id % 2 == 0
     val collected : Array[Resource] = collectArray[Resource](
     values.intoIterator()
-    .filter((value : Resource) => value.id % 2 == 0)
+    .filter(move predicate)
     .map[Resource]((value : Resource) => transformed(value))
     )
     delete collected
@@ -230,6 +233,32 @@ def exerciseOwnedFold() : Unit {
     delete accumulated
 }
 
+def firstSliceId(borrow view : Slice[Resource]) : int {
+    borrow val first : Resource = view.getBorrowed(usize(0))
+    return first.id
+}
+
+def exerciseOwnedSlice() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(2))
+    addArrayValues(values, 2)
+    val view : Slice[Resource] =
+    new Slice[Resource](values, usize(0), usize(2))
+    println(firstSliceId(view))
+    delete view
+    delete values
+}
+
+def exerciseBorrowedMap() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(2))
+    addArrayValues(values, 2)
+    val projection : (borrow Resource) => Resource =
+    (borrow value : Resource) => new Resource(value.id + 1000)
+    val mapped : Array[Resource] = values.map[Resource](projection)
+    delete projection
+    delete mapped
+    delete values
+}
+
 def main() : int {
     exercisePipeline()
     println(releases)
@@ -261,6 +290,10 @@ def main() : int {
     exerciseObservation()
     println(releases)
     exerciseOwnedFold()
+    println(releases)
+    exerciseOwnedSlice()
+    println(releases)
+    exerciseBorrowedMap()
     println(releases)
     return 0
 }

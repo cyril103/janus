@@ -12,11 +12,11 @@ class Resource(val key : int) {
 }
 
 class CollidingHashing() extends Hashing[Resource] {
-    def hash(value : Resource) : usize {
+    def hash(borrow value : Resource) : usize {
         return usize(0)
     }
 
-    def equals(left : Resource, right : Resource) : bool {
+    def equals(borrow left : Resource, borrow right : Resource) : bool {
         return left.key == right.key
     }
 }
@@ -24,11 +24,11 @@ class CollidingHashing() extends Hashing[Resource] {
 struct OwnedKey(val id : int, val resource : Resource) {}
 
 class OwnedKeyHashing() extends Hashing[OwnedKey] {
-    def hash(value : OwnedKey) : usize {
+    def hash(borrow value : OwnedKey) : usize {
         return usize(0)
     }
 
-    def equals(left : OwnedKey, right : OwnedKey) : bool {
+    def equals(borrow left : OwnedKey, borrow right : OwnedKey) : bool {
         return left.id == right.id
     }
 }

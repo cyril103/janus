@@ -44,6 +44,7 @@ class Iterator[T]() {}
 trait Iterable[T] {
     def iterator() : Iterator[T]
     def transform[U](value : T, function : (T) => U) : U
+    borrow def observe() : borrow T where T <: Copy
     consume def finish() : T
 }
 
@@ -57,6 +58,9 @@ class Sequence[T](val value : T) extends Iterable[T], Sized {
     }
     def transform[U](item : T, function : (T) => U) : U {
         return function(item)
+    }
+    borrow def observe() : borrow T where T <: Copy {
+        return value
     }
     consume def finish() : T {
         return value
@@ -83,11 +87,16 @@ def main() : int {
          "the trait retains its name");
   expect(program.traits.front().type_parameters.size() == 1,
          "generic trait parameters are parsed");
-  expect(program.traits.front().methods.size() == 3,
+  expect(program.traits.front().methods.size() == 4,
          "trait method signatures are parsed without bodies");
   expect(program.traits.front().methods[1].type_parameters.size() == 1,
          "trait methods can be generic");
-  expect(program.traits.front().methods[2].is_consuming,
+  expect(program.traits.front().methods[2].return_ownership ==
+             janus::ast::ReturnOwnership::Borrow,
+         "trait methods can declare borrowed return values");
+  expect(program.traits.front().methods[2].type_constraints.size() == 1,
+         "trait methods retain trailing where constraints");
+  expect(program.traits.front().methods[3].is_consuming,
          "trait methods can declare a consuming ownership contract");
   expect(program.classes[1].implemented_traits.size() == 2,
          "multiple class trait implementations are parsed");

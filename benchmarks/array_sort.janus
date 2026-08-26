@@ -69,8 +69,8 @@ def main() : int {
 
     val hybridCounter : ComparisonCounter = new ComparisonCounter(0)
     defer delete hybridCounter
-    val comparison : (int, int) => bool =
-    (left : int, right : int) => hybridCounter.less(left, right)
+    val comparison : (borrow int, borrow int) => bool =
+    (borrow left : int, borrow right : int) => hybridCounter.less(left, right)
     defer delete comparison
     hybrid.sortWith(comparison)
 

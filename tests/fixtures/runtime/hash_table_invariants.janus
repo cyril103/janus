@@ -6,12 +6,12 @@ class CountingHashing(
 private var hashes : int,
 private var equalities : int
 ) extends Hashing[int] {
-    def hash(value : int) : usize {
+    def hash(borrow value : int) : usize {
         hashes = hashes + 1
         return usize(0)
     }
 
-    def equals(left : int, right : int) : bool {
+    def equals(borrow left : int, borrow right : int) : bool {
         equalities = equalities + 1
         return left == right
     }
@@ -27,11 +27,11 @@ private var equalities : int
 }
 
 class ExplicitIntHashing() extends Hashing[int] {
-    def hash(value : int) : usize {
+    def hash(borrow value : int) : usize {
         return usize(value)
     }
 
-    def equals(left : int, right : int) : bool {
+    def equals(borrow left : int, borrow right : int) : bool {
         return left == right
     }
 }

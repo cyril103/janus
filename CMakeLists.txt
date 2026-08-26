@@ -1970,7 +1970,7 @@ if(BUILD_TESTING)
             ${CMAKE_COMMAND}
             "-DJANUSC=$<TARGET_FILE:janusc>"
             "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_array_copy_error.janus"
-            "-DEXPECTED_ERROR=Array.get requires a Copy element type"
+            "-DEXPECTED_ERROR=does not satisfy constraint 'Copy'"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
     )
     add_test(
@@ -1988,7 +1988,7 @@ if(BUILD_TESTING)
             ${CMAKE_COMMAND}
             "-DJANUSC=$<TARGET_FILE:janusc>"
             "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_array_sort_error.janus"
-            "-DEXPECTED_ERROR=Array.sortWith requires a Copy element type"
+            "-DEXPECTED_ERROR=does not satisfy constraint 'Copy'"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
     )
     add_test(
@@ -2054,7 +2054,7 @@ if(BUILD_TESTING)
             ${CMAKE_COMMAND}
             "-DJANUSC=$<TARGET_FILE:janusc>"
             "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_hash_copy_error.janus"
-            "-DEXPECTED_ERROR=HashMap.getOption requires Copy"
+            "-DEXPECTED_ERROR=does not satisfy constraint 'Copy'"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
     )
     add_test(
@@ -2176,7 +2176,7 @@ if(BUILD_TESTING)
             ${CMAKE_COMMAND}
             "-DJANUSC=$<TARGET_FILE:janusc>"
             "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_option_observe_temporary_error.janus"
-            "-DEXPECTED_ERROR=observing an owning Option requires a local value"
+            "-DEXPECTED_ERROR=borrowing an owning value of type 'Resource' requires a local value"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
     )
     add_test(
@@ -2219,7 +2219,7 @@ if(BUILD_TESTING)
             ${CMAKE_COMMAND}
             "-DJANUSC=$<TARGET_FILE:janusc>"
             "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_result_observe_temporary_error.janus"
-            "-DEXPECTED_ERROR=observing an owning Result requires a local value"
+            "-DEXPECTED_ERROR=borrowing an owning value of type 'Resource' requires a local value"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
     )
     add_test(

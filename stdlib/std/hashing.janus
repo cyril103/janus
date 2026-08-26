@@ -21,12 +21,12 @@ trait Hashing[T] {
     /// Calcule un hachage déterministe compatible avec [[Hashing.equals]].
     /// @param value Valeur observée à hacher.
     /// @return Hachage utilisé comme point de départ du sondage.
-    def hash(value : T) : usize
+    def hash(borrow value : T) : usize
     /// Compare deux valeurs selon l’identité de clé de la stratégie.
     /// @param left Première valeur observée.
     /// @param right Seconde valeur observée.
     /// @return `true` si les valeurs doivent être traitées comme une même clé.
-    def equals(left : T, right : T) : bool
+    def equals(borrow left : T, borrow right : T) : bool
 }
 
 private def mixHash(value : usize) : usize {
@@ -42,7 +42,7 @@ class DerivedHashing[T]() extends Hashing[T] {
     /// Calcule le hachage dérivé de `value`.
     /// @param value Valeur observée à hacher.
     /// @return Résultat de `__derivedHash[T]`.
-    def hash(value : T) : usize {
+    def hash(borrow value : T) : usize {
         return __derivedHash[T](value)
     }
 
@@ -50,7 +50,7 @@ class DerivedHashing[T]() extends Hashing[T] {
     /// @param left Première valeur observée.
     /// @param right Seconde valeur observée.
     /// @return Résultat de `__derivedEquals[T]`.
-    def equals(left : T, right : T) : bool {
+    def equals(borrow left : T, borrow right : T) : bool {
         return __derivedEquals[T](left, right)
     }
 }
@@ -63,7 +63,7 @@ class IntHashing() extends Hashing[int] {
     /// Mélange la représentation non signée de l’entier.
     /// @param value Entier à hacher.
     /// @return Hachage mélangé de `value`.
-    def hash(value : int) : usize {
+    def hash(borrow value : int) : usize {
         return mixHash(numericCast[usize](value))
     }
 
@@ -71,7 +71,7 @@ class IntHashing() extends Hashing[int] {
     /// @param left Premier entier.
     /// @param right Second entier.
     /// @return `true` si les deux entiers sont égaux.
-    def equals(left : int, right : int) : bool {
+    def equals(borrow left : int, borrow right : int) : bool {
         return __derivedEquals[int](left, right)
     }
 }
@@ -84,7 +84,7 @@ class USizeHashing() extends Hashing[usize] {
     /// Mélange la valeur `usize`.
     /// @param value Entier non signé à hacher.
     /// @return Hachage mélangé de `value`.
-    def hash(value : usize) : usize {
+    def hash(borrow value : usize) : usize {
         return mixHash(value)
     }
 
@@ -92,7 +92,7 @@ class USizeHashing() extends Hashing[usize] {
     /// @param left Première valeur.
     /// @param right Seconde valeur.
     /// @return `true` si les deux valeurs sont égales.
-    def equals(left : usize, right : usize) : bool {
+    def equals(borrow left : usize, borrow right : usize) : bool {
         return __derivedEquals[usize](left, right)
     }
 }
@@ -105,7 +105,7 @@ class ByteHashing() extends Hashing[byte] {
     /// Mélange la valeur numérique de l’octet.
     /// @param value Octet à hacher.
     /// @return Hachage mélangé de `value`.
-    def hash(value : byte) : usize {
+    def hash(borrow value : byte) : usize {
         return mixHash(numericCast[usize](value))
     }
 
@@ -113,7 +113,7 @@ class ByteHashing() extends Hashing[byte] {
     /// @param left Premier octet.
     /// @param right Second octet.
     /// @return `true` si les deux octets sont égaux.
-    def equals(left : byte, right : byte) : bool {
+    def equals(borrow left : byte, borrow right : byte) : bool {
         return __derivedEquals[byte](left, right)
     }
 }
@@ -126,7 +126,7 @@ class CharHashing() extends Hashing[char] {
     /// Mélange la valeur numérique du caractère.
     /// @param value Caractère à hacher.
     /// @return Hachage mélangé de `value`.
-    def hash(value : char) : usize {
+    def hash(borrow value : char) : usize {
         return mixHash(usize(value))
     }
 
@@ -134,7 +134,7 @@ class CharHashing() extends Hashing[char] {
     /// @param left Premier caractère.
     /// @param right Second caractère.
     /// @return `true` si les caractères sont égaux.
-    def equals(left : char, right : char) : bool {
+    def equals(borrow left : char, borrow right : char) : bool {
         return __derivedEquals[char](left, right)
     }
 }
@@ -147,7 +147,7 @@ class BoolHashing() extends Hashing[bool] {
     /// Mélange la représentation numérique du booléen.
     /// @param value Booléen à hacher.
     /// @return Hachage mélangé de `value`.
-    def hash(value : bool) : usize {
+    def hash(borrow value : bool) : usize {
         return mixHash(usize(value))
     }
 
@@ -155,7 +155,7 @@ class BoolHashing() extends Hashing[bool] {
     /// @param left Premier booléen.
     /// @param right Second booléen.
     /// @return `true` si les booléens ont la même valeur.
-    def equals(left : bool, right : bool) : bool {
+    def equals(borrow left : bool, borrow right : bool) : bool {
         return __derivedEquals[bool](left, right)
     }
 }

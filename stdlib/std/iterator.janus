@@ -21,13 +21,13 @@ import std.builder
 /// La contrainte `Copy` permet à l’itérateur produit de rendre des copies sans
 /// retirer les éléments de la source. L’instance source reste propriétaire de
 /// son contenu et doit vivre aussi longtemps que le parcours.
-trait Iterable[T <: Copy] {
+trait Iterable[T] {
     /// Crée un itérateur positionné avant la première valeur de la source.
     ///
     /// Le parcours ne consomme pas la source et produit des copies de ses
     /// éléments. Chaque appel crée un état de parcours indépendant.
     /// @return Un nouvel [[Iterator]] observant les valeurs dans l’ordre de la source.
-    borrow def iterator() : Iterator[T]
+    borrow def iterator() : Iterator[T] where T <: Copy
 }
 
 /// Regroupe les deux valeurs produites au même rang par [[Iterator.zip]].
@@ -80,7 +80,7 @@ private val transform : (A) => B
 
 private class FilterIteratorState[T](
 private val source : Iterator[T],
-private val predicate : (T) => bool
+private val predicate : (borrow T) => bool
 ) {
     def next() : Option[T] {
         var candidate : Option[T] = source.next()
@@ -305,9 +305,9 @@ private val release : () => Unit
     ///
     /// Le parcours et `predicate` sont consommés. Les valeurs refusées sont
     /// détruites avant la recherche de la suivante.
-    /// @param predicate Fonction testée dans l’ordre sur chaque valeur candidate.
+    /// @param predicate Fonction empruntant chaque valeur candidate pour la tester.
     /// @return Un itérateur produisant uniquement les valeurs acceptées.
-    consume def filter(predicate : (T) => bool) : Iterator[T] {
+    consume def filter(predicate : (borrow T) => bool) : Iterator[T] {
         val state : FilterIteratorState[T] =
         new FilterIteratorState[T](move this, move predicate)
         return new Iterator[T](
@@ -402,7 +402,9 @@ private val release : () => Unit
     /// contrat de son implémentation.
     /// @param builder Constructeur recevant les valeurs dans l’ordre du parcours.
     /// @return La collection finalisée par le constructeur.
-    consume def collectWith[C, B <: Builder[T, C]](builder : B) : C {
+    consume def collectWith[C, B <: Builder[T, C]](
+    borrow var builder : B
+    ) : C {
         for value in move this {
             builder.add(move value)
         }

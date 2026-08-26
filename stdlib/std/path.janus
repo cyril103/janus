@@ -93,19 +93,19 @@ private val nativeLength : usize
 ) {
     /// Emprunte le chemin normalisé sous forme de chaîne.
     /// @return Vue valide jusqu’à la destruction de ce [[Path]].
-    def view() : string {
+    borrow def view() : string {
         return stringView(nativeData, nativeLength)
     }
 
     /// Retourne la longueur du chemin normalisé en octets.
     /// @return Nombre d’octets de [[view]], hors éventuel terminateur natif.
-    def size() : usize {
+    borrow def size() : usize {
         return nativeLength
     }
 
     /// Teste si le chemin possède une racine absolue selon la plateforme.
     /// @return `true` si la syntaxe native considère le chemin absolu.
-    def isAbsolute() : bool {
+    borrow def isAbsolute() : bool {
         return janus_path_is_absolute(
         nativeData,
         nativeLength
@@ -116,7 +116,7 @@ private val nativeLength : usize
     ///
     /// Une erreur native éventuelle est ramenée à zéro par cette API.
     /// @return Nombre de composants, ou zéro si le chemin n’en a aucun ou si le comptage natif échoue.
-    def componentCount() : usize {
+    borrow def componentCount() : usize {
         val count : int = janus_path_component_count(
         nativeData,
         nativeLength
@@ -130,7 +130,7 @@ private val nativeLength : usize
     /// Copie un composant du chemin dans un nouveau [[Path]] propriétaire.
     /// @param index Position du composant, à partir de zéro.
     /// @return `Ok` avec le composant, ou `Error(SystemError)` si l’indice ou le chemin est refusé par l’implémentation native.
-    def component(
+    borrow def component(
     index : usize
     ) : Result[Path, SystemError] {
         val maximumNativeIndex : usize = 4294967295

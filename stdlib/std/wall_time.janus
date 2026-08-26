@@ -18,21 +18,21 @@ struct WallTime(private val value : usize) {
     /// Lit l’horodatage exact en nanosecondes Unix.
     ///
     /// @return Nombre de nanosecondes stocké depuis l’époque Unix.
-    def unixNanoseconds() : usize {
+    borrow def unixNanoseconds() : usize {
         return value
     }
 
     /// Convertit l’horodatage en millisecondes Unix entières.
     ///
     /// @return Quotient des nanosecondes par 1 000 000, avec troncature du reste.
-    def unixMilliseconds() : usize {
+    borrow def unixMilliseconds() : usize {
         return value / usize(1000000)
     }
 
     /// Convertit l’horodatage en secondes Unix entières.
     ///
     /// @return Quotient des nanosecondes par 1 000 000 000, avec troncature du reste.
-    def unixSeconds() : usize {
+    borrow def unixSeconds() : usize {
         return value / usize(1000000000)
     }
 }

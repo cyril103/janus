@@ -61,7 +61,7 @@ private var index : usize
 /// @param source Tableau observé, qui doit vivre plus longtemps que la vue.
 /// @param start Premier indice observé dans le tableau source.
 /// @param count Nombre d'éléments accessibles depuis la vue.
-class Slice[T <: Copy](
+class Slice[T](
 private borrow val source : Array[T],
 private val start : usize,
 private val count : usize
@@ -84,17 +84,27 @@ private val count : usize
     /// Retourne une copie de l'élément à l'indice relatif demandé.
     /// @param index Position relative à partir de zéro.
     /// @return Copie de l'élément observé.
-    borrow def get(index : usize) : T {
+    borrow def get(index : usize) : T where T <: Copy {
         if index >= checkedCount {
             panic("Slice index out of bounds\n")
         }
         return source.get(start + index)
     }
 
+    /// Emprunte l'élément à l'indice relatif demandé sans le copier.
+    /// @param index Position relative à partir de zéro.
+    /// @return Vue partagée liée à la durée de vie de cette tranche.
+    borrow def getBorrowed(index : usize) : borrow T {
+        if index >= checkedCount {
+            panic("Slice index out of bounds\n")
+        }
+        return source.getBorrowed(start + index)
+    }
+
     /// Retourne l'élément demandé, ou `None` si l'indice est hors limites.
     /// @param index Position relative recherchée.
     /// @return `Some` avec une copie, ou `None` si l'indice est invalide.
-    borrow def getOption(index : usize) : Option[T] {
+    borrow def getOption(index : usize) : Option[T] where T <: Copy {
         return if index < checkedCount {
             source.getOption(start + index)
         } else {
@@ -104,7 +114,7 @@ private val count : usize
 
     /// Crée un parcours observant les éléments sans copier le stockage.
     /// @return Itérateur de copies ordonné par indice croissant.
-    borrow def iterator() : Iterator[T] {
+    borrow def iterator() : Iterator[T] where T <: Copy {
         val state : SliceIteratorState[T] =
         new SliceIteratorState[T](this, usize(0))
         return new Iterator[T](
@@ -123,7 +133,7 @@ private val count : usize
 /// @param source Tableau exclusivement emprunté par la vue.
 /// @param start Premier indice observé dans le tableau source.
 /// @param count Nombre d'éléments accessibles depuis la vue.
-class MutableSlice[T <: Copy](
+class MutableSlice[T](
 private borrow var source : Array[T],
 private val start : usize,
 private val count : usize
@@ -146,17 +156,27 @@ private val count : usize
     /// Retourne une copie de l'élément à l'indice relatif demandé.
     /// @param index Position relative à partir de zéro.
     /// @return Copie de l'élément observé.
-    borrow def get(index : usize) : T {
+    borrow def get(index : usize) : T where T <: Copy {
         if index >= checkedCount {
             panic("MutableSlice index out of bounds\n")
         }
         return source.get(start + index)
     }
 
+    /// Emprunte l'élément à l'indice relatif demandé sans le copier.
+    /// @param index Position relative à partir de zéro.
+    /// @return Vue partagée liée à la durée de vie de cette tranche.
+    borrow def getBorrowed(index : usize) : borrow T {
+        if index >= checkedCount {
+            panic("MutableSlice index out of bounds\n")
+        }
+        return source.getBorrowed(start + index)
+    }
+
     /// Retourne l'élément demandé, ou `None` si l'indice est hors limites.
     /// @param index Position relative recherchée.
     /// @return `Some` avec une copie, ou `None` si l'indice est invalide.
-    borrow def getOption(index : usize) : Option[T] {
+    borrow def getOption(index : usize) : Option[T] where T <: Copy {
         return if index < checkedCount {
             source.getOption(start + index)
         } else {
@@ -176,7 +196,7 @@ private val count : usize
 
     /// Crée un parcours observant les éléments sans copier le stockage.
     /// @return Itérateur de copies ordonné par indice croissant.
-    borrow def iterator() : Iterator[T] {
+    borrow def iterator() : Iterator[T] where T <: Copy {
         val state : MutableSliceIteratorState[T] =
         new MutableSliceIteratorState[T](this, usize(0))
         return new Iterator[T](

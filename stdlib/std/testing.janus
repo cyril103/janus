@@ -33,7 +33,7 @@ private val preserve : bool
 
     /// Emprunte le chemin natif du répertoire.
     /// @return Vue valide jusqu’à la destruction de cette ressource.
-    def path() : string {
+    borrow def path() : string {
         return location.view()
     }
 
@@ -127,7 +127,7 @@ def assertNotEqual[T <: Equality & Debug](actual : T, expected : T) : Unit {
 
 /// Vérifie qu’une option contient une valeur.
 /// @param value Option inspectée sans déplacer son contenu.
-def assertSome[T](value : Option[T]) : Unit {
+def assertSome[T](borrow value : Option[T]) : Unit {
     if !isSome[T](value) {
         panic("assertSome failed: expected Some, got None\n")
     }
@@ -135,7 +135,7 @@ def assertSome[T](value : Option[T]) : Unit {
 
 /// Vérifie qu’une option est vide.
 /// @param value Option inspectée sans déplacer son contenu.
-def assertNone[T](value : Option[T]) : Unit {
+def assertNone[T](borrow value : Option[T]) : Unit {
     if !isNone[T](value) {
         panic("assertNone failed: expected None, got Some\n")
     }
@@ -143,7 +143,7 @@ def assertNone[T](value : Option[T]) : Unit {
 
 /// Vérifie qu’un résultat représente un succès.
 /// @param value Résultat inspecté sans déplacer son contenu.
-def assertOk[T, E](value : Result[T, E]) : Unit {
+def assertOk[T, E](borrow value : Result[T, E]) : Unit {
     if !isOk[T, E](value) {
         panic("assertOk failed: expected Ok, got Error\n")
     }
@@ -151,7 +151,7 @@ def assertOk[T, E](value : Result[T, E]) : Unit {
 
 /// Vérifie qu’un résultat représente une erreur.
 /// @param value Résultat inspecté sans déplacer son contenu.
-def assertError[T, E](value : Result[T, E]) : Unit {
+def assertError[T, E](borrow value : Result[T, E]) : Unit {
     if !isError[T, E](value) {
         panic("assertError failed: expected Error, got Ok\n")
     }

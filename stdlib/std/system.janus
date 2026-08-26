@@ -126,7 +126,7 @@ private val fileContext : string
 ) {
     /// Indique si le fichier natif est ouvert.
     /// @return `true` tant que [[close]] n’a pas été appelé.
-    def isOpen() : bool {
+    borrow def isOpen() : bool {
         return nativeHandle >= isize(0)
     }
 

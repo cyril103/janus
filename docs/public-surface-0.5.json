@@ -16,7 +16,7 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "d559f44c1a47a061b78bf5afd43e5a822bba078bfde68adda54921ec780371f8",
+      "signature_digest": "e7da57863427b350f37b24f412e8e56a236561ff816ee9f9f50efcf331c887a6",
       "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getBorrowed", "Array.getOption", "Array.set", "Array.replace", "Array.swap", "Array.push", "Array.pop", "Array.popOption", "Array.remove", "Array.reserve", "Array.clear", "Array.withValue", "Array.withMutable", "Array.withValues", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "filledArray", "generateArray"]
     },
     {
@@ -24,7 +24,7 @@
       "source": "stdlib/std/array_builder.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "6973814411f5d00345cecf8c76475d935911a4ffa51a633f9895691a6b336018",
+      "signature_digest": "e09064f2d77e86c9a54a911268317f0917f7fd4c760c36147587d08d0d8149d3",
       "symbols": ["ArrayBuilder", "ArrayBuilder.add", "ArrayBuilder.addAll", "ArrayBuilder.size", "ArrayBuilder.clear", "ArrayBuilder.result", "collectArray"]
     },
     {
@@ -89,7 +89,7 @@
       "source": "stdlib/std/graphics/types.janus",
       "documentation": ["docs/graphics.md"],
       "status": "experimental",
-      "signature_digest": "89eb3446697b5111a8f603680fb885f2a8eb4d1e2e112df65c94bb8e2a50f63c",
+      "signature_digest": "05f7177a336774e2cf3d791ed44b4486f4f5df30a9dd48252b939d7ac0d568ad",
       "symbols": ["Key", "Key.Space", "Key.Apostrophe", "Key.Comma", "Key.Minus", "Key.Period", "Key.Slash", "Key.Digit0", "Key.Digit1", "Key.Digit2", "Key.Digit3", "Key.Digit4", "Key.Digit5", "Key.Digit6", "Key.Digit7", "Key.Digit8", "Key.Digit9", "Key.Semicolon", "Key.Equal", "Key.A", "Key.B", "Key.C", "Key.D", "Key.E", "Key.F", "Key.G", "Key.H", "Key.I", "Key.J", "Key.K", "Key.L", "Key.M", "Key.N", "Key.O", "Key.P", "Key.Q", "Key.R", "Key.S", "Key.T", "Key.U", "Key.V", "Key.W", "Key.X", "Key.Y", "Key.Z", "Key.LeftBracket", "Key.Backslash", "Key.RightBracket", "Key.Grave", "Key.Escape", "Key.Enter", "Key.Tab", "Key.Backspace", "Key.Insert", "Key.Delete", "Key.Right", "Key.Left", "Key.Down", "Key.Up", "Key.PageUp", "Key.PageDown", "Key.Home", "Key.End", "Key.CapsLock", "Key.ScrollLock", "Key.NumLock", "Key.PrintScreen", "Key.Pause", "Key.F1", "Key.F2", "Key.F3", "Key.F4", "Key.F5", "Key.F6", "Key.F7", "Key.F8", "Key.F9", "Key.F10", "Key.F11", "Key.F12", "Key.Keypad0", "Key.Keypad1", "Key.Keypad2", "Key.Keypad3", "Key.Keypad4", "Key.Keypad5", "Key.Keypad6", "Key.Keypad7", "Key.Keypad8", "Key.Keypad9", "Key.KeypadDecimal", "Key.KeypadDivide", "Key.KeypadMultiply", "Key.KeypadSubtract", "Key.KeypadAdd", "Key.KeypadEnter", "Key.KeypadEqual", "Key.LeftShift", "Key.LeftControl", "Key.LeftAlt", "Key.LeftSuper", "Key.RightShift", "Key.RightControl", "Key.RightAlt", "Key.RightSuper", "Key.Menu", "MouseButton", "MouseButton.Left", "MouseButton.Right", "MouseButton.Middle", "MouseButton.Side", "MouseButton.Extra", "MouseButton.Forward", "MouseButton.Back", "MouseCursor", "MouseCursor.Default", "MouseCursor.Arrow", "MouseCursor.IBeam", "MouseCursor.Crosshair", "MouseCursor.PointingHand", "MouseCursor.ResizeEastWest", "MouseCursor.ResizeNorthSouth", "MouseCursor.ResizeNorthwestSoutheast", "MouseCursor.ResizeNortheastSouthwest", "MouseCursor.ResizeAll", "MouseCursor.NotAllowed", "TextureFilter", "TextureFilter.Point", "TextureFilter.Bilinear", "TextureFilter.Trilinear", "TextureFilter.Anisotropic4x", "TextureFilter.Anisotropic8x", "TextureFilter.Anisotropic16x", "BlendMode", "BlendMode.Alpha", "BlendMode.Additive", "BlendMode.Multiplied", "BlendMode.AddColors", "BlendMode.SubtractColors", "BlendMode.AlphaPremultiply", "BlendMode.Custom", "BlendMode.CustomSeparate", "TextureWrap", "TextureWrap.Repeat", "TextureWrap.Clamp", "TextureWrap.MirrorRepeat", "TextureWrap.MirrorClamp", "PixelFormat", "PixelFormat.UncompressedGrayscale", "PixelFormat.UncompressedGrayAlpha", "PixelFormat.UncompressedR5G6B5", "PixelFormat.UncompressedR8G8B8", "PixelFormat.UncompressedR5G5B5A1", "PixelFormat.UncompressedR4G4B4A4", "PixelFormat.UncompressedR8G8B8A8", "PixelFormat.UncompressedR32", "PixelFormat.UncompressedR32G32B32", "PixelFormat.UncompressedR32G32B32A32", "PixelFormat.UncompressedR16", "PixelFormat.UncompressedR16G16B16", "PixelFormat.UncompressedR16G16B16A16", "PixelFormat.CompressedDxt1Rgb", "PixelFormat.CompressedDxt1Rgba", "PixelFormat.CompressedDxt3Rgba", "PixelFormat.CompressedDxt5Rgba", "PixelFormat.CompressedEtc1Rgb", "PixelFormat.CompressedEtc2Rgb", "PixelFormat.CompressedEtc2EacRgba", "PixelFormat.CompressedPvrtRgb", "PixelFormat.CompressedPvrtRgba", "PixelFormat.CompressedAstc4x4Rgba", "PixelFormat.CompressedAstc8x8Rgba", "NPatchLayout", "NPatchLayout.NinePatch", "NPatchLayout.ThreePatchVertical", "NPatchLayout.ThreePatchHorizontal", "GamepadButton", "GamepadButton.Unknown", "GamepadButton.LeftFaceUp", "GamepadButton.LeftFaceRight", "GamepadButton.LeftFaceDown", "GamepadButton.LeftFaceLeft", "GamepadButton.RightFaceUp", "GamepadButton.RightFaceRight", "GamepadButton.RightFaceDown", "GamepadButton.RightFaceLeft", "GamepadButton.LeftTrigger1", "GamepadButton.LeftTrigger2", "GamepadButton.RightTrigger1", "GamepadButton.RightTrigger2", "GamepadButton.MiddleLeft", "GamepadButton.Middle", "GamepadButton.MiddleRight", "GamepadButton.LeftThumb", "GamepadButton.RightThumb", "GamepadAxis", "GamepadAxis.LeftX", "GamepadAxis.LeftY", "GamepadAxis.RightX", "GamepadAxis.RightY", "GamepadAxis.LeftTrigger", "GamepadAxis.RightTrigger", "Vector2", "Vector2.x", "Vector2.y", "Rectangle", "Rectangle.x", "Rectangle.y", "Rectangle.width", "Rectangle.height", "NPatchInfo", "NPatchInfo.source", "NPatchInfo.left", "NPatchInfo.top", "NPatchInfo.right", "NPatchInfo.bottom", "NPatchInfo.layout", "Color", "Color.packed", "rgba", "vector2", "rectangle", "colorRgba", "colorRgb", "rgb", "Black", "White", "Red", "Green", "Blue", "black", "white", "red", "green", "blue"]
     },
     {
@@ -97,7 +97,7 @@
       "source": "stdlib/std/fs.janus",
       "documentation": ["docs/language-guide.md", "docs/design/path-filesystem.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "72d2525707c2cb91d382fe772f6714333110a1a4d13583465b31604ce2d4cdd4",
+      "signature_digest": "6890cedf148f4e5fc992b8eabbda90beb3733437e9ec2f843e3789f912489c44",
       "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.view", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeDirectoryAll", "removeFile", "metadata", "readDirectory"]
     },
     {
@@ -105,7 +105,7 @@
       "source": "stdlib/std/hash_probe.janus",
       "documentation": ["docs/public-surface-0.5.json"],
       "status": "internal-detail",
-      "signature_digest": "40f5c5e4c454aecbdc60bd070f0acc5d520a6871a3d998ea9c361de27f9b79e4",
+      "signature_digest": "0ba4f5bd71a7342029b5de66821ceee2164941971e8037a71e635c20e21bb91a",
       "symbols": ["HashProbe", "HashProbe.hasNext", "HashProbe.next", "normalizedHashCapacity", "hashTableShouldGrow", "hashProbe"]
     },
     {
@@ -113,7 +113,7 @@
       "source": "stdlib/std/hashing.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "9c9a25a5aca83bf9afd19f0340d891a41aa562f7c4116ca73c781b2939156415",
+      "signature_digest": "d6522430a22a873ea499fb74160f62508331e0aab7645e6c597673416dd39113",
       "symbols": ["Hashing", "Hashing.hash", "Hashing.equals", "DerivedHashing", "DerivedHashing.hash", "DerivedHashing.equals", "IntHashing", "IntHashing.hash", "IntHashing.equals", "USizeHashing", "USizeHashing.hash", "USizeHashing.equals", "ByteHashing", "ByteHashing.hash", "ByteHashing.equals", "CharHashing", "CharHashing.hash", "CharHashing.equals", "BoolHashing", "BoolHashing.hash", "BoolHashing.equals"]
     },
     {
@@ -121,7 +121,7 @@
       "source": "stdlib/std/hashmap.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "c13111b817cd4cfb42afab2ba451b051f0b6dfbe8fa69088a81fea433bb1164c",
+      "signature_digest": "dd326e0f14eb76cb804134392caff683d19ad7cc327aedd1e93784d4ff333b95",
       "symbols": ["MapEntry", "MapEntry.key", "MapEntry.value", "MapEntry.intoKey", "MapEntry.intoValue", "HashMap", "HashMap.size", "HashMap.isEmpty", "HashMap.containsKey", "HashMap.getOption", "HashMap.put", "HashMap.remove", "HashMap.clear", "HashMap.entries", "HashMap.keys", "HashMap.values", "HashMap.intoEntries", "MapBuilder", "MapBuilder.add", "MapBuilder.size", "MapBuilder.clear", "MapBuilder.result"]
     },
     {
@@ -129,7 +129,7 @@
       "source": "stdlib/std/hashset.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "1ff87f87aa9498476b928ab21f8949a3f3cfdb60ae6a0a65302af9db09d08f5b",
+      "signature_digest": "ae2175bd3c1d466c343174fe770824b0c9f026afba66889e3aea9a51837fbf1d",
       "symbols": ["HashSet", "HashSet.size", "HashSet.isEmpty", "HashSet.contains", "HashSet.add", "HashSet.remove", "HashSet.clear", "HashSet.iterator", "HashSet.intoIterator", "SetBuilder", "SetBuilder.add", "SetBuilder.addAll", "SetBuilder.size", "SetBuilder.clear", "SetBuilder.result"]
     },
     {
@@ -137,7 +137,7 @@
       "source": "stdlib/std/io.janus",
       "documentation": ["docs/language-guide.md", "docs/design/io-streams.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "fde969a7f2602ed62099e6743f7368de318b021df738ddc461d69f109d38b8cd",
+      "signature_digest": "5122332e03dada5a704c7834fb6beca0442c60a7abc7857fb4c4e7bee24eef58",
       "symbols": ["TextDecodeError", "TextDecodeError.InvalidUtf8", "ByteBuffer", "ByteBuffer.data", "ByteBuffer.size", "ByteBuffer.capacity", "ByteBuffer.isEmpty", "ByteBuffer.clear", "ByteBuffer.append", "ByteBuffer.appendByte", "ByteBuffer.appendText", "ByteBuffer.isUtf8", "ByteBuffer.asText", "InputStream", "InputStream.isOpen", "InputStream.isEof", "InputStream.read", "InputStream.readLine", "InputStream.close", "OutputStream", "OutputStream.isOpen", "OutputStream.write", "OutputStream.writeText", "OutputStream.flush", "OutputStream.close", "openInputStreamBuffered", "openInputStream", "openOutputStreamBuffered", "openOutputStream", "standardInput", "standardOutput", "standardError", "copyStream"]
     },
     {
@@ -145,7 +145,7 @@
       "source": "stdlib/std/iterator.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "e056d031a9742d3436e7658df0eded3e43c0f9d0407d801b724771bff382eca6",
+      "signature_digest": "d703d53303c51c6a3aedcded9ee5b1f804c8ecd30a9e9440255a812a40c1ebf6",
       "symbols": ["Iterable", "Iterable.iterator", "ZipItem", "ZipItem.left", "ZipItem.right", "Indexed", "Indexed.index", "Indexed.value", "Iterator", "Iterator.next", "Iterator.map", "Iterator.filter", "Iterator.take", "Iterator.zip", "Iterator.enumerate", "Iterator.flatMap", "Iterator.collectWith", "Iterator.fold"]
     },
     {
@@ -169,7 +169,7 @@
       "source": "stdlib/std/option.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "de9529710e8cd80f3baaf23639eadaf2f75154e67df51d7b612605a44fb92fe0",
+      "signature_digest": "f9d6aa8dcd0b0af6c41dca03203d689ffc749b0fc10f27e02edf50d86e464b3e",
       "symbols": ["Option", "Option.Some", "Option.None", "isSome", "isNone", "map", "andThen", "orElse", "unwrapOr"]
     },
     {
@@ -177,7 +177,7 @@
       "source": "stdlib/std/path.janus",
       "documentation": ["docs/language-guide.md", "docs/design/path-filesystem.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "085f2910a2d894488880851b9634ff1f0d91f998ef220f59b90dc0837deb22f2",
+      "signature_digest": "9d7686ace21bc4f56a016ca845861d9525187029bad31f02eb322dc535f0a0b1",
       "symbols": ["Path", "Path.view", "Path.size", "Path.isAbsolute", "Path.componentCount", "Path.component", "normalizePath", "joinPath"]
     },
     {
@@ -201,7 +201,7 @@
       "source": "stdlib/std/process.janus",
       "documentation": ["docs/language-guide.md", "docs/design/process-runtime.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "014085acbe24bf74ebae3484c72ac8396a7fd2455b25be516006ddaee8b86a6d",
+      "signature_digest": "50a4c393f465349260d8b8a00144a5044575f0c4140befa43d6f074f99074942",
       "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "WorkingDirectory", "WorkingDirectory.view", "environmentVariable", "currentWorkingDirectory", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.stderrData", "ProcessResult.stderrSize", "ChildProcess", "ChildProcess.terminate", "ChildProcess.tryWait", "ChildProcess.tryWrite", "ChildProcess.write", "ChildProcess.writeText", "ChildProcess.read", "ChildProcess.tryRead", "ChildProcess.closeInput", "spawnProcess", "runProcess"]
     },
     {
@@ -217,7 +217,7 @@
       "source": "stdlib/std/result.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "9e339ef3a416122a0d19070d69715097a53f6c1751814f10390f1b97599fbe66",
+      "signature_digest": "528d4454328ec6f9036eff343e1e4dd208e13159e18bed02bf696e17b6c4c295",
       "symbols": ["Result", "Result.Ok", "Result.Error", "isOk", "isError", "map", "mapError", "andThen", "orElse", "unwrapOr", "toOption", "fromOption"]
     },
     {
@@ -225,15 +225,15 @@
       "source": "stdlib/std/slice.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/stability-contract.md"],
       "status": "experimental",
-      "signature_digest": "e791c2afc8bf9fdbdf27cd2f6483d5123e97e5c172f0cbd88e68ced92733d5fa",
-      "symbols": ["Slice", "Slice.size", "Slice.isEmpty", "Slice.get", "Slice.getOption", "Slice.iterator", "MutableSlice", "MutableSlice.size", "MutableSlice.isEmpty", "MutableSlice.get", "MutableSlice.getOption", "MutableSlice.set", "MutableSlice.iterator"]
+      "signature_digest": "a2b6752623432f1bea90c1db7b9644077a63005a6dd6fbc54701933af6de433b",
+      "symbols": ["Slice", "Slice.size", "Slice.isEmpty", "Slice.get", "Slice.getBorrowed", "Slice.getOption", "Slice.iterator", "MutableSlice", "MutableSlice.size", "MutableSlice.isEmpty", "MutableSlice.get", "MutableSlice.getBorrowed", "MutableSlice.getOption", "MutableSlice.set", "MutableSlice.iterator"]
     },
     {
       "name": "std.system",
       "source": "stdlib/std/system.janus",
       "documentation": ["docs/language-guide.md", "docs/design/system-runtime.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "8bf00950f94bab131b199d301fc4e2304ee75c98081f4adc9e32130486673c1d",
+      "signature_digest": "ec456cecbc8a32f654c57bd5b8d5d231e84282eac21551bde83de392b248b55d",
       "symbols": ["SystemErrorCategory", "SystemErrorCategory.NotFound", "SystemErrorCategory.PermissionDenied", "SystemErrorCategory.AlreadyExists", "SystemErrorCategory.InvalidInput", "SystemErrorCategory.Interrupted", "SystemErrorCategory.WouldBlock", "SystemErrorCategory.OutOfSpace", "SystemErrorCategory.TooLarge", "SystemErrorCategory.Unsupported", "SystemErrorCategory.ResourceExhausted", "SystemErrorCategory.Other", "SystemOpenMode", "SystemOpenMode.Read", "SystemOpenMode.Write", "SystemOpenMode.Append", "SystemError", "SystemError.operation", "SystemError.category", "SystemError.nativeCode", "SystemError.context", "SystemFile", "SystemFile.isOpen", "SystemFile.read", "SystemFile.write", "SystemFile.close", "openSystemFile", "removeSystemFile"]
     },
     {
@@ -241,7 +241,7 @@
       "source": "stdlib/std/text.janus",
       "documentation": ["docs/text.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "8d861452ca0aa2916b7973b6a61636a27bc77ba72a84c69fee2434dc0126c9a7",
+      "signature_digest": "f2e120b3d3b41fbadb567a9715c0efb4fddfcb4c1c3d2cc8f3cab91f3d4e7898",
       "symbols": ["ParseError", "ParseError.Empty", "ParseError.Invalid", "ParseError.Sign", "ParseError.Overflow", "ParseError.Underflow", "ParseError.NonFinite", "TextBuilder", "TextBuilder.clear", "TextBuilder.size", "TextBuilder.view", "TextBuilder.append", "TextBuilder.appendInt", "TextBuilder.appendUInt", "TextBuilder.appendLong", "TextBuilder.appendULong", "TextBuilder.appendByte", "TextBuilder.appendUByte", "TextBuilder.appendShort", "TextBuilder.appendUShort", "TextBuilder.appendISize", "TextBuilder.appendUSize", "TextBuilder.appendFloat", "TextBuilder.appendDouble", "TextBuilder.appendBool", "TextBuilder.appendChar", "TextBuilder.appendHex", "TextBuilder.appendFixed", "parseInt", "parseUInt", "parseLong", "parseULong", "parseByte", "parseUByte", "parseShort", "parseUShort", "parseISize", "parseUSize", "parseFloat", "parseDouble", "parseBool", "parseChar"]
     },
     {
@@ -249,7 +249,7 @@
       "source": "stdlib/std/testing.janus",
       "documentation": ["docs/testing.md", "docs/tooling.md"],
       "status": "experimental",
-      "signature_digest": "12011e558e28b89dbf6799c6374895f6433abdb192982b4ad06a933abcbf5454",
+      "signature_digest": "350427e8be4a6fbb126cb3ced8be33e0a3b6fc7ae86d353ab893c74d4d304c20",
       "symbols": ["TestTemporaryDirectory", "TestTemporaryDirectory.path", "TestTemporaryDirectory.cleanup", "testTemporaryDirectory", "assertTrue", "assertFalse", "assertEqual", "assertNotEqual", "assertSome", "assertNone", "assertOk", "assertError"]
     },
     {
@@ -257,7 +257,7 @@
       "source": "stdlib/std/time.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "77fe41a6d32a2fd46a9f22b7380f091e786407dd2ab97623366df66e5111793f",
+      "signature_digest": "003daafe1ac85155ebf88f1bde3a6221398d4e0390f5225ae9c3c3e940c35b0d",
       "symbols": ["Duration", "Duration.nanoseconds", "Duration.microseconds", "Duration.milliseconds", "Duration.seconds", "Instant", "Instant.durationSince", "Instant.elapsed", "nanoseconds", "microseconds", "milliseconds", "seconds", "monotonicNow"]
     },
     {
@@ -265,7 +265,7 @@
       "source": "stdlib/std/wall_time.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "a1e827e8e3d02ffb5725ff4a078aa0bb94424bac00064c2c18f971a69487393c",
+      "signature_digest": "7f7fa5be91b987b331363a34fa3da8974774998dbf297ac49cdc50c36907dc98",
       "symbols": ["WallTime", "WallTime.unixNanoseconds", "WallTime.unixMilliseconds", "WallTime.unixSeconds", "wallNow"]
     }
   ],

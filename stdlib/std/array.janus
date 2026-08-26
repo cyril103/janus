@@ -125,7 +125,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     /// copie; elle n’est disponible que lorsque `T` satisfait `Copy`. Le tableau
     /// doit rester vivant pendant le parcours.
     /// @return Un nouvel [[Iterator]] positionné avant l’indice zéro.
-    borrow def iterator() : Iterator[T] {
+    borrow def iterator() : Iterator[T] where T <: Copy {
         val state : ArrayIteratorState[T] =
         new ArrayIteratorState[T](this, usize(0))
         return new Iterator[T](
@@ -174,7 +174,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     /// Déclenche `panic` si `index` est hors limites.
     /// @param index Position de l’élément, à partir de zéro.
     /// @return Copie de l’élément à cette position.
-    borrow def get(index : usize) : T {
+    borrow def get(index : usize) : T where T <: Copy {
         if index >= length {
             panic("Array index out of bounds\n")
         }
@@ -198,7 +198,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     /// Retourne l’élément demandé, ou `None` si l’index est hors limites.
     /// @param index Position recherchée, à partir de zéro.
     /// @return `Some` avec une copie de l’élément, ou `None` si `index >= size()`.
-    borrow def getOption(index : usize) : Option[T] {
+    borrow def getOption(index : usize) : Option[T] where T <: Copy {
         return if index < length {
             Option.Some[T](data.load(index))
         } else {
@@ -421,9 +421,9 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
         return transform(data.load(left), data.load(right))
     }
 
-    /// Applique une action à des copies de tous les éléments, dans l’ordre.
-    /// @param action Fonction appelée une fois par élément, de l’indice zéro à la fin.
-    def foreach(action : (T) => Unit) : Unit {
+    /// Applique une action empruntée à tous les éléments, dans l’ordre.
+    /// @param action Fonction observant chaque élément sans en prendre possession.
+    borrow def foreach(borrow action : (borrow T) => Unit) : Unit {
         var index : usize = usize(0)
         while index < length {
             action(data.load(index))
@@ -433,11 +433,11 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
 
     /// Construit un tableau en transformant chaque élément dans l’ordre.
     ///
-    /// La source n’est pas modifiée; `transform` reçoit une copie par élément. Le
-    /// coût est linéaire et le résultat réserve initialement la taille source.
-    /// @param transform Fonction produisant une valeur du résultat depuis une copie source.
+    /// La source n’est pas modifiée; `transform` reçoit un emprunt par élément.
+    /// Le coût est linéaire et le résultat réserve initialement la taille source.
+    /// @param transform Fonction produisant une valeur depuis une observation source.
     /// @return Nouveau tableau possédant toutes les valeurs transformées.
-    def map[U <: Copy](transform : (T) => U) : Array[U] {
+    borrow def map[U](borrow transform : (borrow T) => U) : Array[U] {
         val result : Array[U] = new Array[U](length)
         var index : usize = usize(0)
         while index < length {
@@ -451,9 +451,11 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     ///
     /// La source reste inchangée. Le prédicat et la copie suivent l’ordre des
     /// indices; l’opération est linéaire.
-    /// @param predicate Fonction d’acceptation appelée sur une copie de chaque élément.
+    /// @param predicate Fonction d’acceptation observant chaque élément.
     /// @return Nouveau tableau contenant les copies acceptées.
-    def filter(predicate : (T) => bool) : Array[T] {
+    borrow def filter(
+    borrow predicate : (borrow T) => bool
+    ) : Array[T] where T <: Copy {
         val result : Array[T] = new Array[T](length)
         var index : usize = usize(0)
         while index < length {
@@ -471,7 +473,9 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     /// La recherche s’arrête au premier succès et ne modifie pas le tableau.
     /// @param predicate Fonction testée dans l’ordre des indices.
     /// @return `Some` avec une copie du premier élément trouvé, sinon `None`.
-    def find(predicate : (T) => bool) : Option[T] {
+    borrow def find(
+    borrow predicate : (borrow T) => bool
+    ) : Option[T] where T <: Copy {
         var index : usize = usize(0)
         while index < length {
             val value : T = data.load(index)
@@ -485,12 +489,15 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
 
     /// Réduit les valeurs avec un accumulateur.
     ///
-    /// Les éléments sont copiés et combinés de l’indice zéro au dernier; le
+    /// Les éléments sont empruntés et combinés de l’indice zéro au dernier; le
     /// tableau reste inchangé.
     /// @param initial Valeur initiale de l’accumulateur.
-    /// @param combine Fonction produisant l’accumulateur suivant depuis une copie d’élément.
+    /// @param combine Fonction consommant l'accumulateur et observant l'élément.
     /// @return Accumulateur final, ou `initial` si le tableau est vide.
-    def fold[U](initial : U, combine : (U, T) => U) : U {
+    borrow def fold[U](
+    initial : U,
+    borrow combine : (U, borrow T) => U
+    ) : U {
         var accumulator : U = initial
         var index : usize = usize(0)
         while index < length {
@@ -503,9 +510,9 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     /// Indique si au moins un élément satisfait le prédicat.
     ///
     /// L’évaluation s’arrête au premier succès.
-    /// @param predicate Fonction testée dans l’ordre sur des copies des éléments.
+    /// @param predicate Fonction observant les éléments dans l’ordre.
     /// @return `true` si un élément est accepté, sinon `false`.
-    def any(predicate : (T) => bool) : bool {
+    borrow def any(borrow predicate : (borrow T) => bool) : bool {
         var index : usize = usize(0)
         while index < length {
             if predicate(data.load(index)) {
@@ -519,9 +526,9 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     /// Indique si tous les éléments satisfont le prédicat.
     ///
     /// L’évaluation s’arrête au premier échec; un tableau vide rend `true`.
-    /// @param predicate Fonction testée dans l’ordre sur des copies des éléments.
+    /// @param predicate Fonction observant les éléments dans l’ordre.
     /// @return `true` si aucun élément ne viole le prédicat.
-    def all(predicate : (T) => bool) : bool {
+    borrow def all(borrow predicate : (borrow T) => bool) : bool {
         var index : usize = usize(0)
         while index < length {
             if !predicate(data.load(index)) {
@@ -533,9 +540,9 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     }
 
     /// Compte les éléments qui satisfont le prédicat.
-    /// @param predicate Fonction testée une fois sur une copie de chaque élément.
+    /// @param predicate Fonction observant chaque élément une fois.
     /// @return Nombre d’éléments acceptés.
-    def count(predicate : (T) => bool) : usize {
+    borrow def count(borrow predicate : (borrow T) => bool) : usize {
         var matches : usize = usize(0)
         var index : usize = usize(0)
         while index < length {
@@ -550,8 +557,8 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     private def insertionSortRange(
     first : usize,
     last : usize,
-    less : (T, T) => bool
-    ) : Unit {
+    borrow less : (borrow T, borrow T) => bool
+    ) : Unit where T <: Copy {
         var index : usize = first + usize(1)
         while index < last {
             val candidate : T = data.load(index)
@@ -574,8 +581,8 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     first : usize,
     middle : usize,
     last : usize,
-    less : (T, T) => bool
-    ) : Unit {
+    borrow less : (borrow T, borrow T) => bool
+    ) : Unit where T <: Copy {
         var left : usize = first
         var right : usize = middle
         var output : usize = first
@@ -612,7 +619,9 @@ class Array[T](initialCapacity : usize) extends Iterable[T] {
     /// méthode observe et duplique temporairement les éléments et exige donc que
     /// `T` satisfasse `Copy`.
     /// @param less Comparateur strict cohérent avec un ordre total.
-    def sortWith(less : (T, T) => bool) : Unit {
+    def sortWith(
+    borrow less : (borrow T, borrow T) => bool
+    ) : Unit where T <: Copy {
         if length < usize(2) {
             return
         }

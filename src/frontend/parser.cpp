@@ -466,10 +466,34 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
   }
   static_cast<void>(expect(TokenKind::RightParen));
   static_cast<void>(expect(TokenKind::Colon));
+  ast::ReturnOwnership return_ownership = ast::ReturnOwnership::Unspecified;
+  if (current_.kind == TokenKind::Borrow) {
+    advance();
+    return_ownership = ast::ReturnOwnership::Borrow;
+  }
+  ast::TypeReference return_type = parse_type();
+  if (current_.kind == TokenKind::Identifier && current_.lexeme == "where") {
+    advance();
+    do {
+      const Token parameter = expect(TokenKind::Identifier);
+      static_cast<void>(expect(TokenKind::Less));
+      static_cast<void>(expect(TokenKind::Colon));
+      do {
+        type_constraints.push_back(ast::TypeConstraint{
+            std::string{parameter.lexeme}, parse_type(), parameter.location});
+        if (current_.kind != TokenKind::Ampersand)
+          break;
+        advance();
+      } while (true);
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+  }
   ast::FunctionDeclaration declaration{std::string{name.lexeme},
                                        std::move(type_parameters),
                                        std::move(parameters),
-                                       parse_type(),
+                                       std::move(return_type),
                                        {},
                                        def.location,
                                        false,
@@ -482,6 +506,7 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
                                        false,
                                        {}};
   declaration.is_borrowing = is_borrowing;
+  declaration.return_ownership = return_ownership;
   return declaration;
 }
 

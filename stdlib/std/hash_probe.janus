@@ -28,7 +28,7 @@ private var checked : usize
 ) {
     /// Indique si une case non encore visitée reste disponible.
     /// @return `true` avant que `capacity` indices aient été produits.
-    def hasNext() : bool {
+    borrow def hasNext() : bool {
         return checked < capacity
     }
 

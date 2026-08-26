@@ -2682,40 +2682,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       add_active_constraints(owner->type_constraints);
     if (!is_destructor)
       add_active_constraints(context.function->type_constraints);
-    const auto is_copy_only_array_method = [](std::string_view name) {
-      return name == "iterator" || name == "get" || name == "getOption" ||
-             name == "map" || name == "filter" || name == "find" ||
-             name == "fold" || name == "any" || name == "all" ||
-             name == "count" || name == "sortWith";
-    };
-    if (!is_destructor && owner != nullptr && owner->name == "Array" &&
-        owner->module_name == std::optional<std::string>{"std.array"} &&
-        is_copy_only_array_method(context.function->name))
-      active_copy_constraints.insert("T");
-    if (!is_destructor && owner != nullptr &&
-        owner->module_name == std::optional<std::string>{"std.hashset"} &&
-        ((owner->name == "HashSet" && (context.function->name == "iterator" ||
-                                       context.function->name == "valueAt")) ||
-         (owner->name == "SetBuilder" && context.function->name == "addAll")))
-      active_copy_constraints.insert("T");
-    if (!is_destructor && owner != nullptr && owner->name == "HashMap" &&
-        owner->module_name == std::optional<std::string>{"std.hashmap"}) {
-      if (context.function->name == "entryAt" ||
-          context.function->name == "entries") {
-        active_copy_constraints.insert("K");
-        active_copy_constraints.insert("V");
-      }
-      if (context.function->name == "keyAt" || context.function->name == "keys")
-        active_copy_constraints.insert("K");
-      if (context.function->name == "valueAt" ||
-          context.function->name == "getOption" ||
-          context.function->name == "values")
-        active_copy_constraints.insert("V");
-    }
-    if (!is_destructor && owner != nullptr && owner->name == "ArrayBuilder" &&
-        owner->module_name == std::optional<std::string>{"std.array_builder"} &&
-        context.function->name == "addAll")
-      active_copy_constraints.insert("T");
     const auto satisfies_active_trait = [&](const SemanticType &candidate,
                                             const TraitInstance &requirement) {
       if (satisfies_trait(candidate, requirement))
@@ -2879,11 +2845,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         *active_type_substitutions = nullptr;
     bool inside_lambda = false;
     bool inside_defer = false;
-    bool contextual_borrow_lambda_parameters = false;
     bool contextual_lambda_may_escape = false;
     bool contextual_borrow_expression = false;
     bool contextual_borrow_pointer_expression = false;
-    std::string_view contextual_borrow_enum_name;
     std::size_t loop_depth = 0;
     std::unordered_set<std::string> transfer_protected_values;
     std::unordered_set<std::string> closure_transfer_protected_values;
@@ -3128,30 +3092,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           warn_live_owner(name, symbol->second, location);
       }
     };
-    if (!is_destructor && owner != nullptr &&
-        (context.function->name == "hash" ||
-         context.function->name == "equals") &&
-        std::any_of(owner->implemented_traits.begin(),
-                    owner->implemented_traits.end(),
-                    [](const ast::TypeReference &trait) {
-                      return trait.name == "Hashing";
-                    })) {
-      for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
-        borrowed_values.insert(parameter.name);
-        transfer_protected_values.insert(parameter.name);
-      }
-    }
-    const bool is_borrowing_enum_observer =
-        owner == nullptr &&
-        ((context_module == std::optional<std::string>{"std.option"} &&
-          (function_name == "isSome" || function_name == "isNone")) ||
-         (context_module == std::optional<std::string>{"std.result"} &&
-          (function_name == "isOk" || function_name == "isError")));
-    if (!is_destructor && is_borrowing_enum_observer) {
-      borrowed_values.insert(parameters.front().name);
-      transfer_protected_values.insert(parameters.front().name);
-    }
-
     std::function<SemanticType(const ast::Expression &)> expression_type;
     std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
         validate_block;
@@ -3604,33 +3544,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             }
           }
         }
-        const bool observes_owned_enum =
-            index == 0 &&
-            ((callee.module_name == std::optional<std::string>{"std.option"} &&
-              (callee.name == "isSome" || callee.name == "isNone")) ||
-             (callee.module_name == std::optional<std::string>{"std.result"} &&
-              (callee.name == "isOk" || callee.name == "isError")));
         const bool previous_contextual_borrow_expression =
             contextual_borrow_expression;
         const bool previous_contextual_lambda_may_escape =
             contextual_lambda_may_escape;
-        const std::string_view previous_contextual_borrow_enum_name =
-            contextual_borrow_enum_name;
         contextual_borrow_expression =
-            observes_owned_enum ||
             callee.parameters[index].ownership ==
                 ast::ParameterOwnership::Borrow ||
             callee.parameters[index].ownership ==
                 ast::ParameterOwnership::BorrowMutable;
-        contextual_borrow_enum_name =
-            !observes_owned_enum
-                ? std::string_view{}
-                : (callee.module_name ==
-                           std::optional<std::string>{"std.option"}
-                       ? std::string_view{"Option"}
-                       : std::string_view{"Result"});
         contextual_lambda_may_escape =
-            expected.is_function() && !synchronous_callback_api;
+            expected.is_function() &&
+            ownership != ast::ParameterOwnership::Borrow &&
+            ownership != ast::ParameterOwnership::BorrowMutable &&
+            !synchronous_callback_api;
         validate_expression(*arguments[index], expected,
                             expression_location(*arguments[index]));
         apply_external_ownership_contract(callee, callee.parameters[index],
@@ -3638,7 +3565,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                           display_name);
         contextual_borrow_expression = previous_contextual_borrow_expression;
         contextual_lambda_may_escape = previous_contextual_lambda_may_escape;
-        contextual_borrow_enum_name = previous_contextual_borrow_enum_name;
       }
       if (infer_type_arguments) {
         std::vector<SemanticType> inferred;
@@ -3717,12 +3643,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 expression.value))
           throw CompileError{
               DiagnosticCode::AnalyzerInvalidBorrowSource, location,
-              contextual_borrow_enum_name.empty()
-                            ? "borrowing an owning value of type '" +
-                                  actual.name() + "' requires a local value"
-                            : "observing an owning " +
-                                  std::string{contextual_borrow_enum_name} +
-                                  " requires a local value"};
+              "borrowing an owning value of type '" + actual.name() +
+                  "' requires a local value"};
         if (const auto *identifier =
                 std::get_if<ast::IdentifierExpression>(&expression.value);
             identifier != nullptr &&
@@ -4019,8 +3941,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                              true});
                   transfer_protected_values.insert(parameter.name);
                   closure_transfer_protected_values.insert(parameter.name);
-                  if (contextual_borrow_lambda_parameters ||
-                      effective_ownership ==
+                  if (effective_ownership ==
                           ast::ParameterOwnership::Borrow ||
                       effective_ownership ==
                           ast::ParameterOwnership::BorrowMutable) {
@@ -5572,17 +5493,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   class_declaration->name == "Array" &&
                   class_declaration->module_name ==
                       std::optional<std::string>{"std.array"} &&
-                  is_copy_only_array_method(node.method) &&
-                  !satisfies_copy(substitutions.at("T")))
-                throw CompileError{
-                    node.location,
-                    "Array." + node.method +
-                        " requires a Copy element type; use remove, pop, or "
-                        "replace to transfer an owned element"};
-              if (class_declaration != nullptr &&
-                  class_declaration->name == "Array" &&
-                  class_declaration->module_name ==
-                      std::optional<std::string>{"std.array"} &&
                   (node.method == "push" || node.method == "set" ||
                    node.method == "replace") &&
                   potentially_owns_value(substitutions.at("T")) &&
@@ -5606,30 +5516,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     expression_location(*node.arguments.front()),
                     "transferring an owned PriorityQueue element requires "
                     "an explicit move"};
-              if (class_declaration != nullptr &&
-                  class_declaration->name == "HashSet" &&
-                  class_declaration->module_name ==
-                      std::optional<std::string>{"std.hashset"} &&
-                  node.method == "iterator" &&
-                  !satisfies_copy(substitutions.at("T")))
-                throw CompileError{
-                    node.location,
-                    "HashSet.iterator requires a Copy element type"};
-              if (class_declaration != nullptr &&
-                  class_declaration->name == "HashMap" &&
-                  class_declaration->module_name ==
-                      std::optional<std::string>{"std.hashmap"}) {
-                const bool key_copy = satisfies_copy(substitutions.at("K"));
-                const bool value_copy = satisfies_copy(substitutions.at("V"));
-                if ((node.method == "entries" && (!key_copy || !value_copy)) ||
-                    (node.method == "keys" && !key_copy) ||
-                    ((node.method == "values" || node.method == "getOption") &&
-                     !value_copy))
-                  throw CompileError{
-                      node.location,
-                      "HashMap." + node.method +
-                          " requires Copy for every returned element type"};
-              }
               method_parameters.insert(method->type_parameters.begin(),
                                        method->type_parameters.end());
               for (std::size_t index = 0; index < node.type_arguments.size();
@@ -5848,84 +5734,31 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       expression_location(*node.arguments[index]),
                       "transferring an owned collection element requires an "
                       "explicit move"};
-                const bool observes_hash_value =
-                    (trait_declaration != nullptr &&
-                     trait_declaration->name == "Hashing") ||
-                    (class_declaration != nullptr &&
-                     class_declaration->name == "HashSet" &&
-                     class_declaration->module_name ==
-                         std::optional<std::string>{"std.hashset"} &&
-                     (node.method == "contains" || node.method == "remove")) ||
-                    (class_declaration != nullptr &&
-                     class_declaration->name == "HashMap" &&
-                     class_declaration->module_name ==
-                         std::optional<std::string>{"std.hashmap"} &&
-                     index == 0 &&
-                     (node.method == "containsKey" ||
-                      node.method == "getOption" || node.method == "remove"));
-                if (observes_hash_value) {
-                  const SemanticType actual =
-                      expression_type(*node.arguments[index]);
-                  if (!same_type(actual, substituted_expected))
-                    throw CompileError{
-                        expression_location(*node.arguments[index]),
-                        "cannot use expression of type '" + actual.name() +
-                            "' where type '" + substituted_expected.name() +
-                            "' is required"};
-                  continue;
-                }
-                const bool observes_owned_callback =
-                    class_declaration != nullptr &&
-                    (((class_declaration->name == "Iterator" && index == 0) &&
-                      class_declaration->module_name ==
-                          std::optional<std::string>{"std.iterator"} &&
-                      node.method == "filter" &&
-                      potentially_owns_value(substitutions.at("T"))) ||
-                     (class_declaration->name == "Array" &&
-                      class_declaration->module_name ==
-                          std::optional<std::string>{"std.array"} &&
-                      node.method == "foreach" && index == 0 &&
-                      potentially_owns_value(substitutions.at("T"))));
-                const bool synchronous_callback =
-                    class_declaration != nullptr &&
-                    ((class_declaration->name == "Array" &&
-                      class_declaration->module_name ==
-                          std::optional<std::string>{"std.array"} &&
-                      (node.method == "withValue" || node.method == "foreach" ||
-                       node.method == "map" || node.method == "filter" ||
-                       node.method == "find" || node.method == "fold" ||
-                       node.method == "any" || node.method == "all" ||
-                       node.method == "count" || node.method == "sortWith")) ||
-                     (class_declaration->name == "Iterator" &&
-                      class_declaration->module_name ==
-                          std::optional<std::string>{"std.iterator"} &&
-                      node.method == "fold"));
-                if (observes_owned_callback &&
-                    !std::holds_alternative<ast::LambdaExpression>(
-                        node.arguments[index]->value))
-                  throw CompileError{
-                      expression_location(*node.arguments[index]),
-                      "observing an owned collection element requires a "
-                      "bounded lambda literal"};
-                const bool previous_contextual_borrow =
-                    contextual_borrow_lambda_parameters;
                 const bool previous_contextual_borrow_expression =
                     contextual_borrow_expression;
                 const bool previous_contextual_lambda_may_escape =
                     contextual_lambda_may_escape;
-                contextual_borrow_lambda_parameters = observes_owned_callback;
                 contextual_borrow_expression =
                     method->parameters[index].ownership ==
                         ast::ParameterOwnership::Borrow ||
                     method->parameters[index].ownership ==
                         ast::ParameterOwnership::BorrowMutable;
+                const bool synchronous_callback =
+                    class_declaration != nullptr &&
+                    class_declaration->name == "Iterator" &&
+                    class_declaration->module_name ==
+                        std::optional<std::string>{"std.iterator"} &&
+                    node.method == "fold";
                 contextual_lambda_may_escape =
-                    substituted_expected.is_function() && !synchronous_callback;
+                    substituted_expected.is_function() &&
+                    method->parameters[index].ownership !=
+                        ast::ParameterOwnership::Borrow &&
+                    method->parameters[index].ownership !=
+                        ast::ParameterOwnership::BorrowMutable &&
+                    !synchronous_callback;
                 validate_expression(
                     *node.arguments[index], substituted_expected,
                     expression_location(*node.arguments[index]));
-                contextual_borrow_lambda_parameters =
-                    previous_contextual_borrow;
                 contextual_borrow_expression =
                     previous_contextual_borrow_expression;
                 contextual_lambda_may_escape =

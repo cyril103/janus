@@ -587,8 +587,8 @@ clé `private` réserve un champ ou une méthode à sa classe. `internal` autori
 les autres déclarations du même module à y accéder, tout en interdisant son
 utilisation depuis les modules importateurs.
 
-Une méthode peut restreindre un paramètre générique de sa classe uniquement
-pour l'opération qui en a besoin :
+Une méthode de classe ou de trait peut restreindre un paramètre générique
+uniquement pour l'opération qui en a besoin :
 
 ```janus
 borrow def peekCopy() : T where T <: Copy { ... }
@@ -696,11 +696,13 @@ champ ou une globale, ni sortir de la fonction par `return`. Ces règles sont
 conservatrices et lexicales ; un bloc court permet de terminer explicitement
 la durée de vie observante.
 
-Le module `std.slice` fournit des vues contiguës sur `Array[T]` pour les types
-`Copy`. `Slice[T]` permet la lecture partagée ; `MutableSlice[T]` réserve un
-accès exclusif et ajoute `set`. Les indices sont relatifs à la vue et contrôlés
-à l'exécution. La plage est validée à la construction, le stockage n'est pas
-copié et les deux vues implémentent `Iterable[T]` :
+Le module `std.slice` fournit des vues contiguës sur `Array[T]`, y compris pour
+les éléments propriétaires non `Copy`. `Slice[T]` permet la lecture partagée ;
+`MutableSlice[T]` réserve un accès exclusif et ajoute `set`. `getBorrowed`
+retourne une observation liée à la vue. Seules les opérations qui produisent
+une copie (`get`, `getOption` et `iterator`) demandent `T <: Copy` au niveau de
+la méthode. Les indices sont relatifs à la vue et contrôlés à l'exécution. La
+plage est validée à la construction et le stockage n'est jamais copié :
 
 ```janus
 import std.array
@@ -851,10 +853,13 @@ construire le tableau à l'exécution. Les `val` et `var` globaux ordinaires
 restent des initialisations d'exécution.
 
 Les opérations directes de tableau qui retournent un élément par copie restent
-réservées aux éléments `Copy`. `withValue`, `withValues` et `foreach`
-observent en revanche des valeurs propriétaires dans une lambda littérale
-bornée : ses paramètres ne peuvent être ni déplacés, ni détruits, ni transmis
-à un paramètre propriétaire. `swap` échange deux emplacements par déplacement
+réservées aux éléments `Copy`. `getBorrowed`, `withValue`, `withValues`,
+`foreach`, `map`, `fold`, `any`, `all` et `count` observent en revanche leurs
+éléments avec des paramètres `(borrow T)`. Une lambda ou une fonction nommée
+portant ce type ne peut ni déplacer, ni détruire, ni transmettre l'élément à un
+paramètre propriétaire. `map` peut produire des valeurs propriétaires non
+`Copy`; `filter` et `find` exigent encore `Copy` puisqu'ils rendent des éléments
+du tableau sans le consommer. `swap` échange deux emplacements par déplacement
 interne, sans exiger `Copy`.
 
 Un tableau propriétaire reçoit et rend ses éléments par transfert explicite :

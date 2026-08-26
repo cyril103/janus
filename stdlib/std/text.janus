@@ -163,7 +163,7 @@ class TextBuilder() {
     }
     /// Retourne la longueur du texte construit.
     /// @return Nombre d’octets UTF-8, sans compter le NUL interne.
-    def size() : usize { return length }
+    borrow def size() : usize { return length }
     /// Emprunte le contenu courant sous forme de chaîne.
     /// @return Vue valide jusqu’à la prochaine mutation ou destruction du constructeur.
     def view() : string {

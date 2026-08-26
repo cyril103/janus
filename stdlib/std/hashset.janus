@@ -101,59 +101,33 @@ private borrow val hashing : H
         }
     }
 
-    private def restoreOccupied(
+    private def matchesAt(
     index : usize,
-    existing : T,
-    value : T
+    borrow value : T
     ) : bool {
-        val result : bool = hashing.equals(existing, value)
-        slots.set(index, SetSlot.Occupied[T](move existing))
-        return result
-    }
-
-    private def restoreDeleted(index : usize) : bool {
-        slots.set(index, SetSlot.Deleted[T]())
-        return false
-    }
-
-    private def restoreOccupiedFalse(
-    index : usize,
-    existing : T
-    ) : bool {
-        slots.set(index, SetSlot.Occupied[T](move existing))
-        return false
-    }
-
-    private def matchesAt(index : usize, value : T) : bool {
-        val slot : SetSlot[T] =
-        slots.replace(index, SetSlot.Empty[T]())
-        return match move slot {
-            Occupied(existing) =>
-            this.restoreOccupied(index, move existing, value),
+        borrow val slot : SetSlot[T] = slots.getBorrowed(index)
+        return match slot {
+            Occupied(existing) => hashing.equals(existing, value),
             Empty => false,
-            Deleted => this.restoreDeleted(index)
+            Deleted => false
         }
     }
 
-    private def isEmptyAt(index : usize) : bool {
-        val slot : SetSlot[T] =
-        slots.replace(index, SetSlot.Empty[T]())
-        return match move slot {
+    private borrow def isEmptyAt(index : usize) : bool {
+        borrow val slot : SetSlot[T] = slots.getBorrowed(index)
+        return match slot {
             Empty => true,
-            Occupied(existing) =>
-            this.restoreOccupiedFalse(index, move existing),
-            Deleted => this.restoreDeleted(index)
+            Occupied(existing) => false,
+            Deleted => false
         }
     }
 
-    private def isDeletedAt(index : usize) : bool {
-        val slot : SetSlot[T] =
-        slots.replace(index, SetSlot.Empty[T]())
-        return match move slot {
-            Deleted => this.restoreDeleted(index) || true,
+    private borrow def isDeletedAt(index : usize) : bool {
+        borrow val slot : SetSlot[T] = slots.getBorrowed(index)
+        return match slot {
+            Deleted => true,
             Empty => false,
-            Occupied(existing) =>
-            this.restoreOccupiedFalse(index, move existing)
+            Occupied(existing) => false
         }
     }
 
@@ -182,43 +156,32 @@ private borrow val hashing : H
 
     /// Retourne le nombre de valeurs stockées.
     /// @return Nombre de cases occupées, hors tombstones.
-    def size() : usize {
+    borrow def size() : usize {
         return length
     }
 
     /// Indique si l’ensemble est vide.
     /// @return `true` lorsque [[HashSet.size]] vaut zéro.
-    def isEmpty() : bool {
+    borrow def isEmpty() : bool {
         return length == usize(0)
     }
 
-    internal def storageSize() : usize {
-        this.initializeSlots()
+    internal borrow def storageSize() : usize {
         return slotCapacity
     }
 
-    internal def valueAt(index : usize) : Option[T] {
-        this.initializeSlots()
-        if index >= slotCapacity {
+    internal borrow def valueAt(
+    index : usize
+    ) : Option[T] where T <: Copy {
+        if index >= slots.size() {
             return Option.None[T]()
         }
-        val slot : SetSlot[T] =
-        slots.replace(index, SetSlot.Empty[T]())
-        return match move slot {
-            Occupied(value) =>
-            this.restoreAndCopyValue(index, move value),
+        borrow val slot : SetSlot[T] = slots.getBorrowed(index)
+        return match slot {
+            Occupied(value) => Option.Some[T](value),
             Empty => Option.None[T](),
-            Deleted => this.restoreDeletedValue(index)
+            Deleted => Option.None[T]()
         }
-    }
-
-    private def restoreAndCopyValue(
-    index : usize,
-    value : T
-    ) : Option[T] {
-        val result : Option[T] = Option.Some[T](value)
-        slots.set(index, SetSlot.Occupied[T](move value))
-        return result
     }
 
     private def restoreDeletedValue(index : usize) : Option[T] {
@@ -257,8 +220,10 @@ private borrow val hashing : H
     /// constant avec un bon hachage, mais peut devenir linéaire sous collisions.
     /// @param value Valeur à hacher puis comparer aux membres stockés.
     /// @return `true` si une valeur égale est présente.
-    def contains(value : T) : bool {
-        this.initializeSlots()
+    def contains(borrow value : T) : bool {
+        if length == usize(0) {
+            return false
+        }
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
         while probe.hasNext() {
             val index : usize = probe.next()
@@ -348,8 +313,10 @@ private borrow val hashing : H
     /// détruit lorsqu’il est trouvé et sa case devient un tombstone.
     /// @param value Valeur à rechercher selon la stratégie de l’ensemble.
     /// @return `true` si un membre a été trouvé et détruit, sinon `false`.
-    def remove(value : T) : bool {
-        this.initializeSlots()
+    def remove(borrow value : T) : bool {
+        if length == usize(0) {
+            return false
+        }
         var probe : HashProbe = hashProbe(hashing.hash(value), slotCapacity)
         while probe.hasNext() {
             val index : usize = probe.next()
@@ -389,7 +356,7 @@ private borrow val hashing : H
     /// parcours. L’ordre reflète les cases internes et peut changer après toute
     /// réorganisation.
     /// @return Un [[Iterator]] de copies des membres; exige `T <: Copy`.
-    borrow def iterator() : Iterator[T] {
+    borrow def iterator() : Iterator[T] where T <: Copy {
         val state : HashSetIteratorState[T, H] =
         new HashSetIteratorState[T, H](this, usize(0))
         return new Iterator[T](
@@ -449,7 +416,9 @@ private borrow val hashing : H
     /// La source est parcourue sans être consommée et fournit donc des copies de
     /// ses éléments. Les doublons sont éliminés par la stratégie de l’ensemble.
     /// @param source Source [[Iterable]] observée dans son ordre de parcours.
-    def addAll[C <: Iterable[T]](source : C) : Unit {
+    def addAll[C <: Iterable[T]](
+    borrow source : C
+    ) : Unit where T <: Copy {
         for value in source {
             this.add(value)
         }
@@ -457,7 +426,7 @@ private borrow val hashing : H
 
     /// Retourne le nombre de valeurs accumulées.
     /// @return Nombre de membres distincts dans l’ensemble en cours.
-    def size() : usize {
+    borrow def size() : usize {
         return values.size()
     }
 

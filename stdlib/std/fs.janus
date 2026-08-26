@@ -149,19 +149,19 @@ private val nativeSize : usize
 ) {
     /// Emprunte le premier octet du contenu.
     /// @return Pointeur lisible sur [[size]] octets pendant la vie de ce [[FileData]].
-    def data() : Ptr[byte] {
+    borrow def data() : borrow Ptr[byte] {
         return nativeData
     }
 
     /// Retourne la taille du fichier en octets.
     /// @return Nombre d’octets accessibles par [[data]] et [[view]].
-    def size() : usize {
+    borrow def size() : usize {
         return nativeSize
     }
 
     /// Emprunte le contenu comme chaîne binaire de longueur explicite.
     /// @return Vue non validée UTF-8, valable jusqu’à la destruction du propriétaire.
-    def view() : string {
+    borrow def view() : string {
         return stringView(nativeData, nativeSize)
     }
 

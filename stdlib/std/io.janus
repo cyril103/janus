@@ -128,25 +128,25 @@ class ByteBuffer(initialCapacity : usize) {
 
     /// Emprunte le début du stockage alloué.
     /// @return Pointeur lisible sur [[size]] octets, invalidable par une mutation ou la destruction.
-    def data() : Ptr[byte] {
+    borrow def data() : borrow Ptr[byte] {
         return nativeData
     }
 
     /// Retourne le nombre d’octets stockés.
     /// @return Longueur logique du contenu.
-    def size() : usize {
+    borrow def size() : usize {
         return nativeSize
     }
 
     /// Retourne la capacité actuellement réservée.
     /// @return Nombre d’octets disponibles avant une nouvelle allocation.
-    def capacity() : usize {
+    borrow def capacity() : usize {
         return allocated
     }
 
     /// Indique si le tampon est vide.
     /// @return `true` lorsque [[size]] vaut zéro.
-    def isEmpty() : bool {
+    borrow def isEmpty() : bool {
         return nativeSize == usize(0)
     }
 
@@ -211,7 +211,7 @@ class ByteBuffer(initialCapacity : usize) {
 
     /// Indique si le contenu forme une séquence UTF-8 valide.
     /// @return `true` si tous les octets constituent un UTF-8 valide, tampon vide compris.
-    def isUtf8() : bool {
+    borrow def isUtf8() : bool {
         return janus_io_valid_utf8(
         nativeData,
         nativeSize
@@ -220,7 +220,7 @@ class ByteBuffer(initialCapacity : usize) {
 
     /// Valide le contenu puis l’emprunte comme chaîne UTF-8.
     /// @return `Ok(string)` empruntant le tampon jusqu’à sa mutation ou destruction, ou `Error(InvalidUtf8)`.
-    def asText(
+    borrow def asText(
     ) : Result[string, TextDecodeError] {
         if !this.isUtf8() {
             return Result.Error[string, TextDecodeError](
@@ -334,13 +334,13 @@ private val requestedCapacity : usize
 
     /// Indique si le flux d’entrée est ouvert.
     /// @return `true` tant que [[close]] n’a pas invalidé le handle.
-    def isOpen() : bool {
+    borrow def isOpen() : bool {
         return nativeHandle >= isize(0)
     }
 
     /// Indique si la fin du flux a été atteinte.
     /// @return `true` après observation de la fin native et consommation du tampon restant.
-    def isEof() : bool {
+    borrow def isEof() : bool {
         return ended && bufferOffset >= bufferSize
     }
 
@@ -524,7 +524,7 @@ private val requestedCapacity : usize
 
     /// Indique si le flux de sortie est ouvert.
     /// @return `true` tant que [[close]] n’a pas invalidé le handle.
-    def isOpen() : bool {
+    borrow def isOpen() : bool {
         return nativeHandle >= isize(0)
     }
 

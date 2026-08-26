@@ -129,8 +129,8 @@ def main() : int {
     defer delete halved
 
     val threshold : int = 11
-    val aboveThreshold : (int) => bool =
-    (value : int) => value > threshold
+    val aboveThreshold : (borrow int) => bool =
+    (borrow value : int) => value > threshold
     defer delete aboveThreshold
     val filtered : Array[int] = values.filter(aboveThreshold)
     defer delete filtered

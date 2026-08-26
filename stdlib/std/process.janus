@@ -149,7 +149,7 @@ def programArgument(index : usize) : Option[string] {
 class EnvironmentValue(private var nativeText : isize) {
     /// Emprunte le contenu exact de la variable, sans interpréter son encodage.
     /// @return Vue valide jusqu’à la destruction de cette [[EnvironmentValue]].
-    def view() : string {
+    borrow def view() : string {
         return stringView(
         janus_process_text_data(nativeText),
         janus_process_text_size(nativeText)
@@ -158,7 +158,7 @@ class EnvironmentValue(private var nativeText : isize) {
 
     /// Retourne la longueur de la valeur d’environnement.
     /// @return Taille en octets de [[view]].
-    def size() : usize {
+    borrow def size() : usize {
         return janus_process_text_size(nativeText)
     }
 
@@ -173,7 +173,7 @@ class EnvironmentValue(private var nativeText : isize) {
 class WorkingDirectory(private var nativeText : isize) {
     /// Emprunte le chemin courant jusqu’à la destruction de cette valeur.
     /// @return Vue UTF-8 valide pendant la vie de cette [[WorkingDirectory]].
-    def view() : string {
+    borrow def view() : string {
         return stringView(
         janus_process_text_data(nativeText),
         janus_process_text_size(nativeText)
@@ -234,31 +234,31 @@ def currentWorkingDirectory(
 class ProcessResult(private var nativeResult : isize) {
     /// Retourne le code de terminaison rapporté par l’hôte.
     /// @return Code de sortie natif de l’enfant.
-    def exitCode() : int {
+    borrow def exitCode() : int {
         return janus_process_result_exit_code(nativeResult)
     }
 
     /// Emprunte le début de la sortie standard capturée.
     /// @return Pointeur lisible sur [[stdoutSize]] octets, valide pendant la vie de ce résultat.
-    def stdoutData() : Ptr[byte] {
+    borrow def stdoutData() : Ptr[byte] {
         return janus_process_result_stdout_data(nativeResult)
     }
 
     /// Retourne la taille de la sortie standard capturée.
     /// @return Nombre d’octets disponibles via [[stdoutData]], zéro si rien n’a été capturé.
-    def stdoutSize() : usize {
+    borrow def stdoutSize() : usize {
         return janus_process_result_stdout_size(nativeResult)
     }
 
     /// Emprunte le début de la sortie d’erreur capturée.
     /// @return Pointeur lisible sur [[stderrSize]] octets, valide pendant la vie de ce résultat.
-    def stderrData() : Ptr[byte] {
+    borrow def stderrData() : Ptr[byte] {
         return janus_process_result_stderr_data(nativeResult)
     }
 
     /// Retourne la taille de la sortie d’erreur capturée.
     /// @return Nombre d’octets disponibles via [[stderrData]], zéro si rien n’a été capturé.
-    def stderrSize() : usize {
+    borrow def stderrSize() : usize {
         return janus_process_result_stderr_size(nativeResult)
     }
 

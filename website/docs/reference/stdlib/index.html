@@ -68,24 +68,24 @@ observants exigent `T &lt;: Copy`, tandis que <a href="#std-array-array-intoiter
 tableau et peut transférer des valeurs non copiables.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initialCapacity</code></td><td><code>usize</code></td><td>Nombre initial d’emplacements réservés.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array</div></div><a class="permalink" href="#std-array-array" aria-label="Permanent link to std.array.Array">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-all" data-symbol data-search="std.array.Array.all method def all(predicate : Function[T, bool]) : bool Indique si tous les éléments satisfont le prédicat.
+<article class="symbol-card kind-method child" id="std-array-array-all" data-symbol data-search="std.array.Array.all method borrow def all(borrow predicate : Function[T, bool]) : bool Indique si tous les éléments satisfont le prédicat.
 
 L’évaluation s’arrête au premier échec; un tableau vide rend `true`.
-@param predicate Fonction testée dans l’ordre sur des copies des éléments.
-@return `true` si aucun élément ne viole le prédicat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def all(predicate : Function[T, bool]) : bool</code></h3>
+@param predicate Fonction observant les éléments dans l’ordre.
+@return `true` si aucun élément ne viole le prédicat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def all(borrow predicate : Function[T, bool]) : bool</code></h3>
 <p class="doc-summary">Indique si tous les éléments satisfont le prédicat.</p>
 <div class="doc-details"><p>L’évaluation s’arrête au premier échec; un tableau vide rend `true`.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction testée dans l’ordre sur des copies des éléments.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction observant les éléments dans l’ordre.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si aucun élément ne viole le prédicat.</p></section>
 <div class="qualified">std.array.Array.all</div></div><a class="permalink" href="#std-array-array-all" aria-label="Permanent link to std.array.Array.all">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-any" data-symbol data-search="std.array.Array.any method def any(predicate : Function[T, bool]) : bool Indique si au moins un élément satisfait le prédicat.
+<article class="symbol-card kind-method child" id="std-array-array-any" data-symbol data-search="std.array.Array.any method borrow def any(borrow predicate : Function[T, bool]) : bool Indique si au moins un élément satisfait le prédicat.
 
 L’évaluation s’arrête au premier succès.
-@param predicate Fonction testée dans l’ordre sur des copies des éléments.
-@return `true` si un élément est accepté, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def any(predicate : Function[T, bool]) : bool</code></h3>
+@param predicate Fonction observant les éléments dans l’ordre.
+@return `true` si un élément est accepté, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def any(borrow predicate : Function[T, bool]) : bool</code></h3>
 <p class="doc-summary">Indique si au moins un élément satisfait le prédicat.</p>
 <div class="doc-details"><p>L’évaluation s’arrête au premier succès.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction testée dans l’ordre sur des copies des éléments.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction observant les éléments dans l’ordre.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si un élément est accepté, sinon `false`.</p></section>
 <div class="qualified">std.array.Array.any</div></div><a class="permalink" href="#std-array-array-any" aria-label="Permanent link to std.array.Array.any">#</a></article>
 <article class="symbol-card kind-method child" id="std-array-array-capacity" data-symbol data-search="std.array.Array.capacity method borrow def capacity() : usize Retourne la capacité actuellement réservée.
@@ -101,52 +101,52 @@ recevoir de nouvelles valeurs."><span class="kind-icon" aria-hidden="true">m</sp
 <div class="doc-details"><p>L’opération est linéaire dans la taille actuelle; le tableau reste prêt à<br>
 recevoir de nouvelles valeurs.</p></div>
 <div class="qualified">std.array.Array.clear</div></div><a class="permalink" href="#std-array-array-clear" aria-label="Permanent link to std.array.Array.clear">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-count" data-symbol data-search="std.array.Array.count method def count(predicate : Function[T, bool]) : usize Compte les éléments qui satisfont le prédicat.
-@param predicate Fonction testée une fois sur une copie de chaque élément.
-@return Nombre d’éléments acceptés."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def count(predicate : Function[T, bool]) : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-array-array-count" data-symbol data-search="std.array.Array.count method borrow def count(borrow predicate : Function[T, bool]) : usize Compte les éléments qui satisfont le prédicat.
+@param predicate Fonction observant chaque élément une fois.
+@return Nombre d’éléments acceptés."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def count(borrow predicate : Function[T, bool]) : usize</code></h3>
 <p class="doc-summary">Compte les éléments qui satisfont le prédicat.</p>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction testée une fois sur une copie de chaque élément.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction observant chaque élément une fois.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’éléments acceptés.</p></section>
 <div class="qualified">std.array.Array.count</div></div><a class="permalink" href="#std-array-array-count" aria-label="Permanent link to std.array.Array.count">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-filter" data-symbol data-search="std.array.Array.filter method def filter(predicate : Function[T, bool]) : Array[T] Copie dans un nouveau tableau les éléments acceptés par le prédicat.
+<article class="symbol-card kind-method child" id="std-array-array-filter" data-symbol data-search="std.array.Array.filter method borrow def filter(borrow predicate : Function[T, bool]) : Array[T] Copie dans un nouveau tableau les éléments acceptés par le prédicat.
 
 La source reste inchangée. Le prédicat et la copie suivent l’ordre des
 indices; l’opération est linéaire.
-@param predicate Fonction d’acceptation appelée sur une copie de chaque élément.
-@return Nouveau tableau contenant les copies acceptées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def filter(predicate : Function[T, bool]) : Array[T]</code></h3>
+@param predicate Fonction d’acceptation observant chaque élément.
+@return Nouveau tableau contenant les copies acceptées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def filter(borrow predicate : Function[T, bool]) : Array[T]</code></h3>
 <p class="doc-summary">Copie dans un nouveau tableau les éléments acceptés par le prédicat.</p>
 <div class="doc-details"><p>La source reste inchangée. Le prédicat et la copie suivent l’ordre des<br>
 indices; l’opération est linéaire.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction d’acceptation appelée sur une copie de chaque élément.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction d’acceptation observant chaque élément.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Array[T]</code> — Nouveau tableau contenant les copies acceptées.</p></section>
 <div class="qualified">std.array.Array.filter</div></div><a class="permalink" href="#std-array-array-filter" aria-label="Permanent link to std.array.Array.filter">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-find" data-symbol data-search="std.array.Array.find method def find(predicate : Function[T, bool]) : Option[T] Recherche le premier élément qui satisfait le prédicat.
+<article class="symbol-card kind-method child" id="std-array-array-find" data-symbol data-search="std.array.Array.find method borrow def find(borrow predicate : Function[T, bool]) : Option[T] Recherche le premier élément qui satisfait le prédicat.
 
 La recherche s’arrête au premier succès et ne modifie pas le tableau.
 @param predicate Fonction testée dans l’ordre des indices.
-@return `Some` avec une copie du premier élément trouvé, sinon `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def find(predicate : Function[T, bool]) : Option[T]</code></h3>
+@return `Some` avec une copie du premier élément trouvé, sinon `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def find(borrow predicate : Function[T, bool]) : Option[T]</code></h3>
 <p class="doc-summary">Recherche le premier élément qui satisfait le prédicat.</p>
 <div class="doc-details"><p>La recherche s’arrête au premier succès et ne modifie pas le tableau.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction testée dans l’ordre des indices.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` avec une copie du premier élément trouvé, sinon `None`.</p></section>
 <div class="qualified">std.array.Array.find</div></div><a class="permalink" href="#std-array-array-find" aria-label="Permanent link to std.array.Array.find">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-fold" data-symbol data-search="std.array.Array.fold method def fold[U](initial : U, combine : Function[U, T, U]) : U Réduit les valeurs avec un accumulateur.
+<article class="symbol-card kind-method child" id="std-array-array-fold" data-symbol data-search="std.array.Array.fold method borrow def fold[U](initial : U, borrow combine : Function[U, T, U]) : U Réduit les valeurs avec un accumulateur.
 
-Les éléments sont copiés et combinés de l’indice zéro au dernier; le
+Les éléments sont empruntés et combinés de l’indice zéro au dernier; le
 tableau reste inchangé.
 @param initial Valeur initiale de l’accumulateur.
-@param combine Fonction produisant l’accumulateur suivant depuis une copie d’élément.
-@return Accumulateur final, ou `initial` si le tableau est vide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def fold[U](initial : U, combine : Function[U, T, U]) : U</code></h3>
+@param combine Fonction consommant l&#39;accumulateur et observant l&#39;élément.
+@return Accumulateur final, ou `initial` si le tableau est vide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def fold[U](initial : U, borrow combine : Function[U, T, U]) : U</code></h3>
 <p class="doc-summary">Réduit les valeurs avec un accumulateur.</p>
-<div class="doc-details"><p>Les éléments sont copiés et combinés de l’indice zéro au dernier; le<br>
+<div class="doc-details"><p>Les éléments sont empruntés et combinés de l’indice zéro au dernier; le<br>
 tableau reste inchangé.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initial</code></td><td><code>U</code></td><td>Valeur initiale de l’accumulateur.</td></tr><tr><td><code>combine</code></td><td><code>Function[U, T, U]</code></td><td>Fonction produisant l’accumulateur suivant depuis une copie d’élément.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initial</code></td><td><code>U</code></td><td>Valeur initiale de l’accumulateur.</td></tr><tr><td><code>combine</code></td><td><code>Function[U, T, U]</code></td><td>Fonction consommant l&#39;accumulateur et observant l&#39;élément.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>U</code> — Accumulateur final, ou `initial` si le tableau est vide.</p></section>
 <div class="qualified">std.array.Array.fold</div></div><a class="permalink" href="#std-array-array-fold" aria-label="Permanent link to std.array.Array.fold">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-foreach" data-symbol data-search="std.array.Array.foreach method def foreach(action : Function[T, Unit]) : Unit Applique une action à des copies de tous les éléments, dans l’ordre.
-@param action Fonction appelée une fois par élément, de l’indice zéro à la fin."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def foreach(action : Function[T, Unit]) : Unit</code></h3>
-<p class="doc-summary">Applique une action à des copies de tous les éléments, dans l’ordre.</p>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Fonction appelée une fois par élément, de l’indice zéro à la fin.</td></tr></tbody></table></section>
+<article class="symbol-card kind-method child" id="std-array-array-foreach" data-symbol data-search="std.array.Array.foreach method borrow def foreach(borrow action : Function[T, Unit]) : Unit Applique une action empruntée à tous les éléments, dans l’ordre.
+@param action Fonction observant chaque élément sans en prendre possession."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def foreach(borrow action : Function[T, Unit]) : Unit</code></h3>
+<p class="doc-summary">Applique une action empruntée à tous les éléments, dans l’ordre.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Fonction observant chaque élément sans en prendre possession.</td></tr></tbody></table></section>
 <div class="qualified">std.array.Array.foreach</div></div><a class="permalink" href="#std-array-array-foreach" aria-label="Permanent link to std.array.Array.foreach">#</a></article>
 <article class="symbol-card kind-method child" id="std-array-array-get" data-symbol data-search="std.array.Array.get method borrow def get(index : usize) : T Retourne l’élément situé à l’index demandé.
 
@@ -210,16 +210,16 @@ copie; elle n’est disponible que lorsque `T` satisfait `Copy`. Le tableau<br>
 doit rester vivant pendant le parcours.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un nouvel <a href="#std-iterator-iterator"><code>Iterator</code></a> positionné avant l’indice zéro.</p></section>
 <div class="qualified">std.array.Array.iterator</div></div><a class="permalink" href="#std-array-array-iterator" aria-label="Permanent link to std.array.Array.iterator">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-map" data-symbol data-search="std.array.Array.map method def map[U](transform : Function[T, U]) : Array[U] Construit un tableau en transformant chaque élément dans l’ordre.
+<article class="symbol-card kind-method child" id="std-array-array-map" data-symbol data-search="std.array.Array.map method borrow def map[U](borrow transform : Function[T, U]) : Array[U] Construit un tableau en transformant chaque élément dans l’ordre.
 
-La source n’est pas modifiée; `transform` reçoit une copie par élément. Le
-coût est linéaire et le résultat réserve initialement la taille source.
-@param transform Fonction produisant une valeur du résultat depuis une copie source.
-@return Nouveau tableau possédant toutes les valeurs transformées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def map[U](transform : Function[T, U]) : Array[U]</code></h3>
+La source n’est pas modifiée; `transform` reçoit un emprunt par élément.
+Le coût est linéaire et le résultat réserve initialement la taille source.
+@param transform Fonction produisant une valeur depuis une observation source.
+@return Nouveau tableau possédant toutes les valeurs transformées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def map[U](borrow transform : Function[T, U]) : Array[U]</code></h3>
 <p class="doc-summary">Construit un tableau en transformant chaque élément dans l’ordre.</p>
-<div class="doc-details"><p>La source n’est pas modifiée; `transform` reçoit une copie par élément. Le<br>
-coût est linéaire et le résultat réserve initialement la taille source.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction produisant une valeur du résultat depuis une copie source.</td></tr></tbody></table></section>
+<div class="doc-details"><p>La source n’est pas modifiée; `transform` reçoit un emprunt par élément.<br>
+Le coût est linéaire et le résultat réserve initialement la taille source.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction produisant une valeur depuis une observation source.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Array[U]</code> — Nouveau tableau possédant toutes les valeurs transformées.</p></section>
 <div class="qualified">std.array.Array.map</div></div><a class="permalink" href="#std-array-array-map" aria-label="Permanent link to std.array.Array.map">#</a></article>
 <article class="symbol-card kind-method child" id="std-array-array-pop" data-symbol data-search="std.array.Array.pop method def pop() : T Retire et retourne le dernier élément.
@@ -305,7 +305,7 @@ détruite. Si l’indice est invalide, `value` est détruite avant `panic`.</p><
 <p class="doc-summary">Retourne le nombre d’éléments stockés.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de valeurs initialisées, distinct de la capacité.</p></section>
 <div class="qualified">std.array.Array.size</div></div><a class="permalink" href="#std-array-array-size" aria-label="Permanent link to std.array.Array.size">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-array-sortwith" data-symbol data-search="std.array.Array.sortWith method def sortWith(less : Function[T, T, bool]) : Unit Trie le tableau sur place selon un ordre total strict et conserve la stabilité.
+<article class="symbol-card kind-method child" id="std-array-array-sortwith" data-symbol data-search="std.array.Array.sortWith method def sortWith(borrow less : Function[T, T, bool]) : Unit Trie le tableau sur place selon un ordre total strict et conserve la stabilité.
 
 `less(left, right)` doit définir de façon cohérente si `left` précède
 strictement `right`. Deux valeurs sont équivalentes lorsque le comparateur renvoie
@@ -315,7 +315,7 @@ fusionne. Son coût est `O(n log n)` dans le pire cas, `O(n)` en mémoire
 auxiliaire, et le tableau vide ou singleton est laissé inchangé. Cette
 méthode observe et duplique temporairement les éléments et exige donc que
 `T` satisfasse `Copy`.
-@param less Comparateur strict cohérent avec un ordre total."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def sortWith(less : Function[T, T, bool]) : Unit</code></h3>
+@param less Comparateur strict cohérent avec un ordre total."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>def sortWith(borrow less : Function[T, T, bool]) : Unit</code></h3>
 <p class="doc-summary">Trie le tableau sur place selon un ordre total strict et conserve la stabilité.</p>
 <div class="doc-details"><p>`less(left, right)` doit définir de façon cohérente si `left` précède<br>
 strictement `right`. Deux valeurs sont équivalentes lorsque le comparateur renvoie<br>
@@ -476,9 +476,9 @@ val values : Array[int] = builder.result()<br>
 <p class="doc-summary">Déplace une valeur à la fin du tableau en construction.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Élément dont le constructeur prend possession.</td></tr></tbody></table></section>
 <div class="qualified">std.array_builder.ArrayBuilder.add</div></div><a class="permalink" href="#std-array-builder-arraybuilder-add" aria-label="Permanent link to std.array_builder.ArrayBuilder.add">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-builder-arraybuilder-addall" data-symbol data-search="std.array_builder.ArrayBuilder.addAll method def addAll[C](source : C) : Unit Épuise la source et ajoute ses éléments dans leur ordre d’itération.
+<article class="symbol-card kind-method child" id="std-array-builder-arraybuilder-addall" data-symbol data-search="std.array_builder.ArrayBuilder.addAll method def addAll[C](borrow source : C) : Unit Épuise la source et ajoute ses éléments dans leur ordre d’itération.
 
-@param source Source parcourue jusqu’à sa fin."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array_builder.ArrayBuilder</div><h3><code>def addAll[C](source : C) : Unit</code></h3>
+@param source Source parcourue jusqu’à sa fin."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array_builder.ArrayBuilder</div><h3><code>def addAll[C](borrow source : C) : Unit</code></h3>
 <p class="doc-summary">Épuise la source et ajoute ses éléments dans leur ordre d’itération.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>C</code></td><td>Source parcourue jusqu’à sa fin.</td></tr></tbody></table></section>
 <div class="qualified">std.array_builder.ArrayBuilder.addAll</div></div><a class="permalink" href="#std-array-builder-arraybuilder-addall" aria-label="Permanent link to std.array_builder.ArrayBuilder.addAll">#</a></article>
@@ -494,9 +494,9 @@ Le constructeur reste utilisable et repart avec une capacité initiale nulle.
 <div class="doc-details"><p>Le constructeur reste utilisable et repart avec une capacité initiale nulle.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Array[T]</code> — Tableau propriétaire contenant les éléments dans leur ordre d’ajout.</p></section>
 <div class="qualified">std.array_builder.ArrayBuilder.result</div></div><a class="permalink" href="#std-array-builder-arraybuilder-result" aria-label="Permanent link to std.array_builder.ArrayBuilder.result">#</a></article>
-<article class="symbol-card kind-method child" id="std-array-builder-arraybuilder-size" data-symbol data-search="std.array_builder.ArrayBuilder.size method def size() : usize Compte les éléments actuellement accumulés.
+<article class="symbol-card kind-method child" id="std-array-builder-arraybuilder-size" data-symbol data-search="std.array_builder.ArrayBuilder.size method borrow def size() : usize Compte les éléments actuellement accumulés.
 
-@return Nombre d’éléments que produirait immédiatement [[result]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array_builder.ArrayBuilder</div><h3><code>def size() : usize</code></h3>
+@return Nombre d’éléments que produirait immédiatement [[result]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array_builder.ArrayBuilder</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Compte les éléments actuellement accumulés.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’éléments que produirait immédiatement <code class="unresolved">result</code>.</p></section>
 <div class="qualified">std.array_builder.ArrayBuilder.size</div></div><a class="permalink" href="#std-array-builder-arraybuilder-size" aria-label="Permanent link to std.array_builder.ArrayBuilder.size">#</a></article>
@@ -651,18 +651,18 @@ destruction. Aucune validation d’encodage n’est effectuée.
 destruction. Aucune validation d’encodage n’est effectuée.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeData</code></td><td><code>Ptr[byte]</code></td><td>Allocation native dont l’objet prend possession.</td></tr><tr><td><code>nativeSize</code></td><td><code>usize</code></td><td>Nombre d’octets lisibles à partir de `nativeData`.</td></tr></tbody></table></section>
 <div class="qualified">std.fs.FileData</div></div><a class="permalink" href="#std-fs-filedata" aria-label="Permanent link to std.fs.FileData">#</a></article>
-<article class="symbol-card kind-method child" id="std-fs-filedata-data" data-symbol data-search="std.fs.FileData.data method def data() : Ptr[byte] Emprunte le premier octet du contenu.
-@return Pointeur lisible sur [[size]] octets pendant la vie de ce [[FileData]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>def data() : Ptr[byte]</code></h3>
+<article class="symbol-card kind-method child" id="std-fs-filedata-data" data-symbol data-search="std.fs.FileData.data method borrow def data() : borrow Ptr[byte] Emprunte le premier octet du contenu.
+@return Pointeur lisible sur [[size]] octets pendant la vie de ce [[FileData]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>borrow def data() : borrow Ptr[byte]</code></h3>
 <p class="doc-summary">Emprunte le premier octet du contenu.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Ptr[byte]</code> — Pointeur lisible sur <code class="unresolved">size</code> octets pendant la vie de ce <a href="#std-fs-filedata"><code>FileData</code></a>.</p></section>
 <div class="qualified">std.fs.FileData.data</div></div><a class="permalink" href="#std-fs-filedata-data" aria-label="Permanent link to std.fs.FileData.data">#</a></article>
-<article class="symbol-card kind-method child" id="std-fs-filedata-size" data-symbol data-search="std.fs.FileData.size method def size() : usize Retourne la taille du fichier en octets.
-@return Nombre d’octets accessibles par [[data]] et [[view]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>def size() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-fs-filedata-size" data-symbol data-search="std.fs.FileData.size method borrow def size() : usize Retourne la taille du fichier en octets.
+@return Nombre d’octets accessibles par [[data]] et [[view]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne la taille du fichier en octets.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets accessibles par <code class="unresolved">data</code> et <code class="unresolved">view</code>.</p></section>
 <div class="qualified">std.fs.FileData.size</div></div><a class="permalink" href="#std-fs-filedata-size" aria-label="Permanent link to std.fs.FileData.size">#</a></article>
-<article class="symbol-card kind-method child" id="std-fs-filedata-view" data-symbol data-search="std.fs.FileData.view method def view() : string Emprunte le contenu comme chaîne binaire de longueur explicite.
-@return Vue non validée UTF-8, valable jusqu’à la destruction du propriétaire."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>def view() : string</code></h3>
+<article class="symbol-card kind-method child" id="std-fs-filedata-view" data-symbol data-search="std.fs.FileData.view method borrow def view() : string Emprunte le contenu comme chaîne binaire de longueur explicite.
+@return Vue non validée UTF-8, valable jusqu’à la destruction du propriétaire."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>borrow def view() : string</code></h3>
 <p class="doc-summary">Emprunte le contenu comme chaîne binaire de longueur explicite.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue non validée UTF-8, valable jusqu’à la destruction du propriétaire.</p></section>
 <div class="qualified">std.fs.FileData.view</div></div><a class="permalink" href="#std-fs-filedata-view" aria-label="Permanent link to std.fs.FileData.view">#</a></article>
@@ -2822,9 +2822,9 @@ val tint : Color = rgba(255, 128, 0, 255)<br>
 <p class="doc-summary">Couleur RGBA stockée sous la représentation entière compacte produite par <a href="#std-graphics-types-rgba"><code>rgba</code></a>.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>packedValue</code></td><td><code>uint</code></td><td>Représentation compacte transmise sans conversion aux opérations graphiques.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.types.Color</div></div><a class="permalink" href="#std-graphics-types-color" aria-label="Permanent link to std.graphics.types.Color">#</a></article>
-<article class="symbol-card kind-method child" id="std-graphics-types-color-packed" data-symbol data-search="std.graphics.types.Color.packed method def packed() : uint Lit la représentation entière compacte de la couleur, sans conversion.
+<article class="symbol-card kind-method child" id="std-graphics-types-color-packed" data-symbol data-search="std.graphics.types.Color.packed method borrow def packed() : uint Lit la représentation entière compacte de la couleur, sans conversion.
 
-@return La valeur RGBA compacte conservée par cette couleur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.graphics.types.Color</div><h3><code>def packed() : uint</code></h3>
+@return La valeur RGBA compacte conservée par cette couleur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.graphics.types.Color</div><h3><code>borrow def packed() : uint</code></h3>
 <p class="doc-summary">Lit la représentation entière compacte de la couleur, sans conversion.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>uint</code> — La valeur RGBA compacte conservée par cette couleur.</p></section>
 <div class="qualified">std.graphics.types.Color.packed</div></div><a class="permalink" href="#std-graphics-types-color-packed" aria-label="Permanent link to std.graphics.types.Color.packed">#</a></article>
@@ -3594,8 +3594,8 @@ L’instance n’accède pas à la table et ne possède aucune de ses valeurs.<b
 Une capacité nulle n’est pas valide pour une sonde créée par <a href="#std-hash-probe-hashprobe-function"><code>hashProbe</code></a>.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Première case qui sera produite.</td></tr><tr><td><code>capacity</code></td><td><code>usize</code></td><td>Nombre maximal de cases à visiter; doit être non nul.</td></tr><tr><td><code>checked</code></td><td><code>usize</code></td><td>Nombre de cases considérées comme déjà visitées.</td></tr></tbody></table></section>
 <div class="qualified">std.hash_probe.HashProbe</div></div><a class="permalink" href="#std-hash-probe-hashprobe" aria-label="Permanent link to std.hash_probe.HashProbe">#</a></article>
-<article class="symbol-card kind-method child" id="std-hash-probe-hashprobe-hasnext" data-symbol data-search="std.hash_probe.HashProbe.hasNext method def hasNext() : bool Indique si une case non encore visitée reste disponible.
-@return `true` avant que `capacity` indices aient été produits."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hash_probe.HashProbe</div><h3><code>def hasNext() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-hash-probe-hashprobe-hasnext" data-symbol data-search="std.hash_probe.HashProbe.hasNext method borrow def hasNext() : bool Indique si une case non encore visitée reste disponible.
+@return `true` avant que `capacity` indices aient été produits."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hash_probe.HashProbe</div><h3><code>borrow def hasNext() : bool</code></h3>
 <p class="doc-summary">Indique si une case non encore visitée reste disponible.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` avant que `capacity` indices aient été produits.</p></section>
 <div class="qualified">std.hash_probe.HashProbe.hasNext</div></div><a class="permalink" href="#std-hash-probe-hashprobe-hasnext" aria-label="Permanent link to std.hash_probe.HashProbe.hasNext">#</a></article>
@@ -3670,17 +3670,17 @@ l’égalité dérivée de `bool`."><span class="kind-icon" aria-hidden="true">c
 <div class="doc-details"><p>`false` et `true` sont convertis en `usize`, puis mélangés. L’égalité est<br>
 l’égalité dérivée de `bool`.</p></div>
 <div class="qualified">std.hashing.BoolHashing</div></div><a class="permalink" href="#std-hashing-boolhashing" aria-label="Permanent link to std.hashing.BoolHashing">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-boolhashing-equals" data-symbol data-search="std.hashing.BoolHashing.equals method def equals(left : bool, right : bool) : bool Compare deux booléens par égalité dérivée.
+<article class="symbol-card kind-method child" id="std-hashing-boolhashing-equals" data-symbol data-search="std.hashing.BoolHashing.equals method def equals(borrow left : bool, borrow right : bool) : bool Compare deux booléens par égalité dérivée.
 @param left Premier booléen.
 @param right Second booléen.
-@return `true` si les booléens ont la même valeur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.BoolHashing</div><h3><code>def equals(left : bool, right : bool) : bool</code></h3>
+@return `true` si les booléens ont la même valeur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.BoolHashing</div><h3><code>def equals(borrow left : bool, borrow right : bool) : bool</code></h3>
 <p class="doc-summary">Compare deux booléens par égalité dérivée.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>bool</code></td><td>Premier booléen.</td></tr><tr><td><code>right</code></td><td><code>bool</code></td><td>Second booléen.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si les booléens ont la même valeur.</p></section>
 <div class="qualified">std.hashing.BoolHashing.equals</div></div><a class="permalink" href="#std-hashing-boolhashing-equals" aria-label="Permanent link to std.hashing.BoolHashing.equals">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-boolhashing-hash" data-symbol data-search="std.hashing.BoolHashing.hash method def hash(value : bool) : usize Mélange la représentation numérique du booléen.
+<article class="symbol-card kind-method child" id="std-hashing-boolhashing-hash" data-symbol data-search="std.hashing.BoolHashing.hash method def hash(borrow value : bool) : usize Mélange la représentation numérique du booléen.
 @param value Booléen à hacher.
-@return Hachage mélangé de `value`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.BoolHashing</div><h3><code>def hash(value : bool) : usize</code></h3>
+@return Hachage mélangé de `value`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.BoolHashing</div><h3><code>def hash(borrow value : bool) : usize</code></h3>
 <p class="doc-summary">Mélange la représentation numérique du booléen.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>bool</code></td><td>Booléen à hacher.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Hachage mélangé de `value`.</p></section>
@@ -3693,17 +3693,17 @@ dérivée de `byte`."><span class="kind-icon" aria-hidden="true">c</span><div><s
 <div class="doc-details"><p>L’octet est élargi en `usize` avant le mélange; l’égalité reste l’égalité<br>
 dérivée de `byte`.</p></div>
 <div class="qualified">std.hashing.ByteHashing</div></div><a class="permalink" href="#std-hashing-bytehashing" aria-label="Permanent link to std.hashing.ByteHashing">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-bytehashing-equals" data-symbol data-search="std.hashing.ByteHashing.equals method def equals(left : byte, right : byte) : bool Compare deux octets par égalité dérivée.
+<article class="symbol-card kind-method child" id="std-hashing-bytehashing-equals" data-symbol data-search="std.hashing.ByteHashing.equals method def equals(borrow left : byte, borrow right : byte) : bool Compare deux octets par égalité dérivée.
 @param left Premier octet.
 @param right Second octet.
-@return `true` si les deux octets sont égaux."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.ByteHashing</div><h3><code>def equals(left : byte, right : byte) : bool</code></h3>
+@return `true` si les deux octets sont égaux."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.ByteHashing</div><h3><code>def equals(borrow left : byte, borrow right : byte) : bool</code></h3>
 <p class="doc-summary">Compare deux octets par égalité dérivée.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>byte</code></td><td>Premier octet.</td></tr><tr><td><code>right</code></td><td><code>byte</code></td><td>Second octet.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si les deux octets sont égaux.</p></section>
 <div class="qualified">std.hashing.ByteHashing.equals</div></div><a class="permalink" href="#std-hashing-bytehashing-equals" aria-label="Permanent link to std.hashing.ByteHashing.equals">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-bytehashing-hash" data-symbol data-search="std.hashing.ByteHashing.hash method def hash(value : byte) : usize Mélange la valeur numérique de l’octet.
+<article class="symbol-card kind-method child" id="std-hashing-bytehashing-hash" data-symbol data-search="std.hashing.ByteHashing.hash method def hash(borrow value : byte) : usize Mélange la valeur numérique de l’octet.
 @param value Octet à hacher.
-@return Hachage mélangé de `value`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.ByteHashing</div><h3><code>def hash(value : byte) : usize</code></h3>
+@return Hachage mélangé de `value`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.ByteHashing</div><h3><code>def hash(borrow value : byte) : usize</code></h3>
 <p class="doc-summary">Mélange la valeur numérique de l’octet.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>byte</code></td><td>Octet à hacher.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Hachage mélangé de `value`.</p></section>
@@ -3716,17 +3716,17 @@ ou équivalence textuelle supplémentaire n’est appliquée."><span class="kind
 <div class="doc-details"><p>La valeur numérique du caractère est mélangée; aucune normalisation Unicode<br>
 ou équivalence textuelle supplémentaire n’est appliquée.</p></div>
 <div class="qualified">std.hashing.CharHashing</div></div><a class="permalink" href="#std-hashing-charhashing" aria-label="Permanent link to std.hashing.CharHashing">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-charhashing-equals" data-symbol data-search="std.hashing.CharHashing.equals method def equals(left : char, right : char) : bool Compare exactement deux caractères par égalité dérivée.
+<article class="symbol-card kind-method child" id="std-hashing-charhashing-equals" data-symbol data-search="std.hashing.CharHashing.equals method def equals(borrow left : char, borrow right : char) : bool Compare exactement deux caractères par égalité dérivée.
 @param left Premier caractère.
 @param right Second caractère.
-@return `true` si les caractères sont égaux."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.CharHashing</div><h3><code>def equals(left : char, right : char) : bool</code></h3>
+@return `true` si les caractères sont égaux."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.CharHashing</div><h3><code>def equals(borrow left : char, borrow right : char) : bool</code></h3>
 <p class="doc-summary">Compare exactement deux caractères par égalité dérivée.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>char</code></td><td>Premier caractère.</td></tr><tr><td><code>right</code></td><td><code>char</code></td><td>Second caractère.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si les caractères sont égaux.</p></section>
 <div class="qualified">std.hashing.CharHashing.equals</div></div><a class="permalink" href="#std-hashing-charhashing-equals" aria-label="Permanent link to std.hashing.CharHashing.equals">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-charhashing-hash" data-symbol data-search="std.hashing.CharHashing.hash method def hash(value : char) : usize Mélange la valeur numérique du caractère.
+<article class="symbol-card kind-method child" id="std-hashing-charhashing-hash" data-symbol data-search="std.hashing.CharHashing.hash method def hash(borrow value : char) : usize Mélange la valeur numérique du caractère.
 @param value Caractère à hacher.
-@return Hachage mélangé de `value`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.CharHashing</div><h3><code>def hash(value : char) : usize</code></h3>
+@return Hachage mélangé de `value`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.CharHashing</div><h3><code>def hash(borrow value : char) : usize</code></h3>
 <p class="doc-summary">Mélange la valeur numérique du caractère.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>char</code></td><td>Caractère à hacher.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Hachage mélangé de `value`.</p></section>
@@ -3741,17 +3741,17 @@ Cette stratégie convient aux types pour lesquels `__derivedHash` et
 `__derivedEquals` décrivent déjà l’identité souhaitée. Elle ne possède aucun<br>
 état mutable.</p></div>
 <div class="qualified">std.hashing.DerivedHashing</div></div><a class="permalink" href="#std-hashing-derivedhashing" aria-label="Permanent link to std.hashing.DerivedHashing">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-derivedhashing-equals" data-symbol data-search="std.hashing.DerivedHashing.equals method def equals(left : T, right : T) : bool Compare deux valeurs avec l’égalité dérivée de `T`.
+<article class="symbol-card kind-method child" id="std-hashing-derivedhashing-equals" data-symbol data-search="std.hashing.DerivedHashing.equals method def equals(borrow left : T, borrow right : T) : bool Compare deux valeurs avec l’égalité dérivée de `T`.
 @param left Première valeur observée.
 @param right Seconde valeur observée.
-@return Résultat de `__derivedEquals[T]`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.DerivedHashing</div><h3><code>def equals(left : T, right : T) : bool</code></h3>
+@return Résultat de `__derivedEquals[T]`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.DerivedHashing</div><h3><code>def equals(borrow left : T, borrow right : T) : bool</code></h3>
 <p class="doc-summary">Compare deux valeurs avec l’égalité dérivée de `T`.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>T</code></td><td>Première valeur observée.</td></tr><tr><td><code>right</code></td><td><code>T</code></td><td>Seconde valeur observée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Résultat de `__derivedEquals[T]`.</p></section>
 <div class="qualified">std.hashing.DerivedHashing.equals</div></div><a class="permalink" href="#std-hashing-derivedhashing-equals" aria-label="Permanent link to std.hashing.DerivedHashing.equals">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-derivedhashing-hash" data-symbol data-search="std.hashing.DerivedHashing.hash method def hash(value : T) : usize Calcule le hachage dérivé de `value`.
+<article class="symbol-card kind-method child" id="std-hashing-derivedhashing-hash" data-symbol data-search="std.hashing.DerivedHashing.hash method def hash(borrow value : T) : usize Calcule le hachage dérivé de `value`.
 @param value Valeur observée à hacher.
-@return Résultat de `__derivedHash[T]`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.DerivedHashing</div><h3><code>def hash(value : T) : usize</code></h3>
+@return Résultat de `__derivedHash[T]`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.DerivedHashing</div><h3><code>def hash(borrow value : T) : usize</code></h3>
 <p class="doc-summary">Calcule le hachage dérivé de `value`.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur observée à hacher.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Résultat de `__derivedHash[T]`.</p></section>
@@ -3766,17 +3766,17 @@ dans les collections hachées."><span class="kind-icon" aria-hidden="true">t</sp
 Une stratégie sert notamment à personnaliser la notion d’identité des clés<br>
 dans les collections hachées.</p></div>
 <div class="qualified">std.hashing.Hashing</div></div><a class="permalink" href="#std-hashing-hashing" aria-label="Permanent link to std.hashing.Hashing">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-hashing-equals" data-symbol data-search="std.hashing.Hashing.equals method def equals(left : T, right : T) : bool Compare deux valeurs selon l’identité de clé de la stratégie.
+<article class="symbol-card kind-method child" id="std-hashing-hashing-equals" data-symbol data-search="std.hashing.Hashing.equals method def equals(borrow left : T, borrow right : T) : bool Compare deux valeurs selon l’identité de clé de la stratégie.
 @param left Première valeur observée.
 @param right Seconde valeur observée.
-@return `true` si les valeurs doivent être traitées comme une même clé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.Hashing</div><h3><code>def equals(left : T, right : T) : bool</code></h3>
+@return `true` si les valeurs doivent être traitées comme une même clé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.Hashing</div><h3><code>def equals(borrow left : T, borrow right : T) : bool</code></h3>
 <p class="doc-summary">Compare deux valeurs selon l’identité de clé de la stratégie.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>T</code></td><td>Première valeur observée.</td></tr><tr><td><code>right</code></td><td><code>T</code></td><td>Seconde valeur observée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si les valeurs doivent être traitées comme une même clé.</p></section>
 <div class="qualified">std.hashing.Hashing.equals</div></div><a class="permalink" href="#std-hashing-hashing-equals" aria-label="Permanent link to std.hashing.Hashing.equals">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-hashing-hash" data-symbol data-search="std.hashing.Hashing.hash method def hash(value : T) : usize Calcule un hachage déterministe compatible avec [[Hashing.equals]].
+<article class="symbol-card kind-method child" id="std-hashing-hashing-hash" data-symbol data-search="std.hashing.Hashing.hash method def hash(borrow value : T) : usize Calcule un hachage déterministe compatible avec [[Hashing.equals]].
 @param value Valeur observée à hacher.
-@return Hachage utilisé comme point de départ du sondage."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.Hashing</div><h3><code>def hash(value : T) : usize</code></h3>
+@return Hachage utilisé comme point de départ du sondage."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.Hashing</div><h3><code>def hash(borrow value : T) : usize</code></h3>
 <p class="doc-summary">Calcule un hachage déterministe compatible avec <a href="#std-hashing-hashing-equals"><code>Hashing.equals</code></a>.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur observée à hacher.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Hachage utilisé comme point de départ du sondage.</p></section>
@@ -3789,17 +3789,17 @@ l’égalité est l’égalité dérivée des entiers. La stratégie est sans é
 <div class="doc-details"><p>Le hachage convertit la valeur en `usize` puis applique un mélange affine;<br>
 l’égalité est l’égalité dérivée des entiers. La stratégie est sans état.</p></div>
 <div class="qualified">std.hashing.IntHashing</div></div><a class="permalink" href="#std-hashing-inthashing" aria-label="Permanent link to std.hashing.IntHashing">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-inthashing-equals" data-symbol data-search="std.hashing.IntHashing.equals method def equals(left : int, right : int) : bool Compare deux entiers par égalité dérivée.
+<article class="symbol-card kind-method child" id="std-hashing-inthashing-equals" data-symbol data-search="std.hashing.IntHashing.equals method def equals(borrow left : int, borrow right : int) : bool Compare deux entiers par égalité dérivée.
 @param left Premier entier.
 @param right Second entier.
-@return `true` si les deux entiers sont égaux."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.IntHashing</div><h3><code>def equals(left : int, right : int) : bool</code></h3>
+@return `true` si les deux entiers sont égaux."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.IntHashing</div><h3><code>def equals(borrow left : int, borrow right : int) : bool</code></h3>
 <p class="doc-summary">Compare deux entiers par égalité dérivée.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>int</code></td><td>Premier entier.</td></tr><tr><td><code>right</code></td><td><code>int</code></td><td>Second entier.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si les deux entiers sont égaux.</p></section>
 <div class="qualified">std.hashing.IntHashing.equals</div></div><a class="permalink" href="#std-hashing-inthashing-equals" aria-label="Permanent link to std.hashing.IntHashing.equals">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-inthashing-hash" data-symbol data-search="std.hashing.IntHashing.hash method def hash(value : int) : usize Mélange la représentation non signée de l’entier.
+<article class="symbol-card kind-method child" id="std-hashing-inthashing-hash" data-symbol data-search="std.hashing.IntHashing.hash method def hash(borrow value : int) : usize Mélange la représentation non signée de l’entier.
 @param value Entier à hacher.
-@return Hachage mélangé de `value`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.IntHashing</div><h3><code>def hash(value : int) : usize</code></h3>
+@return Hachage mélangé de `value`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.IntHashing</div><h3><code>def hash(borrow value : int) : usize</code></h3>
 <p class="doc-summary">Mélange la représentation non signée de l’entier.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>int</code></td><td>Entier à hacher.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Hachage mélangé de `value`.</p></section>
@@ -3812,17 +3812,17 @@ utilise l’égalité dérivée de `usize`."><span class="kind-icon" aria-hidden
 <div class="doc-details"><p>Elle applique le même mélange affine que les autres stratégies scalaires et<br>
 utilise l’égalité dérivée de `usize`.</p></div>
 <div class="qualified">std.hashing.USizeHashing</div></div><a class="permalink" href="#std-hashing-usizehashing" aria-label="Permanent link to std.hashing.USizeHashing">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-usizehashing-equals" data-symbol data-search="std.hashing.USizeHashing.equals method def equals(left : usize, right : usize) : bool Compare deux valeurs `usize` par égalité dérivée.
+<article class="symbol-card kind-method child" id="std-hashing-usizehashing-equals" data-symbol data-search="std.hashing.USizeHashing.equals method def equals(borrow left : usize, borrow right : usize) : bool Compare deux valeurs `usize` par égalité dérivée.
 @param left Première valeur.
 @param right Seconde valeur.
-@return `true` si les deux valeurs sont égales."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.USizeHashing</div><h3><code>def equals(left : usize, right : usize) : bool</code></h3>
+@return `true` si les deux valeurs sont égales."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.USizeHashing</div><h3><code>def equals(borrow left : usize, borrow right : usize) : bool</code></h3>
 <p class="doc-summary">Compare deux valeurs `usize` par égalité dérivée.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>usize</code></td><td>Première valeur.</td></tr><tr><td><code>right</code></td><td><code>usize</code></td><td>Seconde valeur.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si les deux valeurs sont égales.</p></section>
 <div class="qualified">std.hashing.USizeHashing.equals</div></div><a class="permalink" href="#std-hashing-usizehashing-equals" aria-label="Permanent link to std.hashing.USizeHashing.equals">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashing-usizehashing-hash" data-symbol data-search="std.hashing.USizeHashing.hash method def hash(value : usize) : usize Mélange la valeur `usize`.
+<article class="symbol-card kind-method child" id="std-hashing-usizehashing-hash" data-symbol data-search="std.hashing.USizeHashing.hash method def hash(borrow value : usize) : usize Mélange la valeur `usize`.
 @param value Entier non signé à hacher.
-@return Hachage mélangé de `value`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.USizeHashing</div><h3><code>def hash(value : usize) : usize</code></h3>
+@return Hachage mélangé de `value`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashing.USizeHashing</div><h3><code>def hash(borrow value : usize) : usize</code></h3>
 <p class="doc-summary">Mélange la valeur `usize`.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>usize</code></td><td>Entier non signé à hacher.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Hachage mélangé de `value`.</p></section>
@@ -3878,36 +3878,36 @@ linéaire dans la capacité de stockage."><span class="kind-icon" aria-hidden="t
 <div class="doc-details"><p>Toutes les cases, tombstones compris, redeviennent vides. L’opération est<br>
 linéaire dans la capacité de stockage.</p></div>
 <div class="qualified">std.hashmap.HashMap.clear</div></div><a class="permalink" href="#std-hashmap-hashmap-clear" aria-label="Permanent link to std.hashmap.HashMap.clear">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashmap-hashmap-containskey" data-symbol data-search="std.hashmap.HashMap.containsKey method def containsKey(key : K) : bool Teste la présence d’une clé selon la stratégie de la table.
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-containskey" data-symbol data-search="std.hashmap.HashMap.containsKey method def containsKey(borrow key : K) : bool Teste la présence d’une clé selon la stratégie de la table.
 
 `key` est seulement observée. Le coût est amorti constant avec un bon
 hachage et peut devenir linéaire en présence de nombreuses collisions.
 @param key Clé à hacher puis comparer aux clés stockées.
-@return `true` si une clé égale est présente."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def containsKey(key : K) : bool</code></h3>
+@return `true` si une clé égale est présente."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def containsKey(borrow key : K) : bool</code></h3>
 <p class="doc-summary">Teste la présence d’une clé selon la stratégie de la table.</p>
 <div class="doc-details"><p>`key` est seulement observée. Le coût est amorti constant avec un bon<br>
 hachage et peut devenir linéaire en présence de nombreuses collisions.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>key</code></td><td><code>K</code></td><td>Clé à hacher puis comparer aux clés stockées.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si une clé égale est présente.</p></section>
 <div class="qualified">std.hashmap.HashMap.containsKey</div></div><a class="permalink" href="#std-hashmap-hashmap-containskey" aria-label="Permanent link to std.hashmap.HashMap.containsKey">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashmap-hashmap-entries" data-symbol data-search="std.hashmap.HashMap.entries method def entries() : Iterator[MapEntry[K, V]] Crée un parcours observant de copies des associations.
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-entries" data-symbol data-search="std.hashmap.HashMap.entries method borrow def entries() : Iterator[MapEntry[K, V]] Crée un parcours observant de copies des associations.
 
 La table reste propriétaire de son contenu et doit vivre pendant le
 parcours. L’ordre correspond aux cases internes et peut changer après une
 insertion ou un redimensionnement.
-@return Un [[Iterator]] d’entrées copiées; exige clés et valeurs `Copy`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def entries() : Iterator[MapEntry[K, V]]</code></h3>
+@return Un [[Iterator]] d’entrées copiées; exige clés et valeurs `Copy`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>borrow def entries() : Iterator[MapEntry[K, V]]</code></h3>
 <p class="doc-summary">Crée un parcours observant de copies des associations.</p>
 <div class="doc-details"><p>La table reste propriétaire de son contenu et doit vivre pendant le<br>
 parcours. L’ordre correspond aux cases internes et peut changer après une<br>
 insertion ou un redimensionnement.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[MapEntry[K, V]]</code> — Un <a href="#std-iterator-iterator"><code>Iterator</code></a> d’entrées copiées; exige clés et valeurs `Copy`.</p></section>
 <div class="qualified">std.hashmap.HashMap.entries</div></div><a class="permalink" href="#std-hashmap-hashmap-entries" aria-label="Permanent link to std.hashmap.HashMap.entries">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashmap-hashmap-getoption" data-symbol data-search="std.hashmap.HashMap.getOption method def getOption(key : K) : Option[V] Retourne la valeur associée à la clé, si elle existe.
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-getoption" data-symbol data-search="std.hashmap.HashMap.getOption method def getOption(borrow key : K) : Option[V] Retourne la valeur associée à la clé, si elle existe.
 
 La table conserve l’association et rend une copie de la valeur. La
 complexité suit celle de [[HashMap.containsKey]].
 @param key Clé observée utilisée pour la recherche.
-@return `Some` avec une copie de la valeur associée, ou `None` si absente."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def getOption(key : K) : Option[V]</code></h3>
+@return `Some` avec une copie de la valeur associée, ou `None` si absente."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def getOption(borrow key : K) : Option[V]</code></h3>
 <p class="doc-summary">Retourne la valeur associée à la clé, si elle existe.</p>
 <div class="doc-details"><p>La table conserve l’association et rend une copie de la valeur. La<br>
 complexité suit celle de <a href="#std-hashmap-hashmap-containskey"><code>HashMap.containsKey</code></a>.</p></div>
@@ -3926,16 +3926,16 @@ Détruire prématurément l’itérateur détruit la table et toutes les<br>
 associations qui n’ont pas été extraites.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[MapEntry[K, V]]</code> — Un <a href="#std-iterator-iterator"><code>Iterator</code></a> propriétaire des <a href="#std-hashmap-mapentry"><code>MapEntry</code></a> de la table.</p></section>
 <div class="qualified">std.hashmap.HashMap.intoEntries</div></div><a class="permalink" href="#std-hashmap-hashmap-intoentries" aria-label="Permanent link to std.hashmap.HashMap.intoEntries">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashmap-hashmap-isempty" data-symbol data-search="std.hashmap.HashMap.isEmpty method def isEmpty() : bool Indique si la table ne contient aucune association.
-@return `true` lorsque [[HashMap.size]] vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def isEmpty() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-isempty" data-symbol data-search="std.hashmap.HashMap.isEmpty method borrow def isEmpty() : bool Indique si la table ne contient aucune association.
+@return `true` lorsque [[HashMap.size]] vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>borrow def isEmpty() : bool</code></h3>
 <p class="doc-summary">Indique si la table ne contient aucune association.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsque <a href="#std-hashmap-hashmap-size"><code>HashMap.size</code></a> vaut zéro.</p></section>
 <div class="qualified">std.hashmap.HashMap.isEmpty</div></div><a class="permalink" href="#std-hashmap-hashmap-isempty" aria-label="Permanent link to std.hashmap.HashMap.isEmpty">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashmap-hashmap-keys" data-symbol data-search="std.hashmap.HashMap.keys method def keys() : Iterator[K] Crée un parcours observant de copies des clés.
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-keys" data-symbol data-search="std.hashmap.HashMap.keys method borrow def keys() : Iterator[K] Crée un parcours observant de copies des clés.
 
 La table n’est pas consommée et doit rester vivante pendant le parcours;
 l’ordre n’est ni trié ni garanti comme ordre d’insertion.
-@return Un [[Iterator]] de clés copiées; exige `K &lt;: Copy`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def keys() : Iterator[K]</code></h3>
+@return Un [[Iterator]] de clés copiées; exige `K &lt;: Copy`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>borrow def keys() : Iterator[K]</code></h3>
 <p class="doc-summary">Crée un parcours observant de copies des clés.</p>
 <div class="doc-details"><p>La table n’est pas consommée et doit rester vivante pendant le parcours;<br>
 l’ordre n’est ni trié ni garanti comme ordre d’insertion.</p></div>
@@ -3958,13 +3958,13 @@ cases pour agrandir la table ou éliminer les tombstones.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>key</code></td><td><code>K</code></td><td>Clé déplacée dans la table.</td></tr><tr><td><code>value</code></td><td><code>V</code></td><td>Valeur déplacée dans la table.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[V]</code> — `Some` avec l’ancienne valeur remplacée, ou `None` pour une nouvelle clé.</p></section>
 <div class="qualified">std.hashmap.HashMap.put</div></div><a class="permalink" href="#std-hashmap-hashmap-put" aria-label="Permanent link to std.hashmap.HashMap.put">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashmap-hashmap-remove" data-symbol data-search="std.hashmap.HashMap.remove method def remove(key : K) : Option[V] Retire l’association et retourne son ancienne valeur.
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-remove" data-symbol data-search="std.hashmap.HashMap.remove method def remove(borrow key : K) : Option[V] Retire l’association et retourne son ancienne valeur.
 
 La clé de recherche est observée; si une association est trouvée, sa clé
 stockée est détruite et sa valeur est transférée à l’appelant. La case
 devient un tombstone jusqu’à une réorganisation ultérieure.
 @param key Clé à rechercher selon la stratégie de la table.
-@return `Some` avec la valeur retirée, ou `None` si la clé est absente."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def remove(key : K) : Option[V]</code></h3>
+@return `Some` avec la valeur retirée, ou `None` si la clé est absente."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def remove(borrow key : K) : Option[V]</code></h3>
 <p class="doc-summary">Retire l’association et retourne son ancienne valeur.</p>
 <div class="doc-details"><p>La clé de recherche est observée; si une association est trouvée, sa clé<br>
 stockée est détruite et sa valeur est transférée à l’appelant. La case<br>
@@ -3972,16 +3972,16 @@ devient un tombstone jusqu’à une réorganisation ultérieure.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>key</code></td><td><code>K</code></td><td>Clé à rechercher selon la stratégie de la table.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[V]</code> — `Some` avec la valeur retirée, ou `None` si la clé est absente.</p></section>
 <div class="qualified">std.hashmap.HashMap.remove</div></div><a class="permalink" href="#std-hashmap-hashmap-remove" aria-label="Permanent link to std.hashmap.HashMap.remove">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashmap-hashmap-size" data-symbol data-search="std.hashmap.HashMap.size method def size() : usize Retourne le nombre d’associations stockées.
-@return Nombre de cases occupées, hors tombstones."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def size() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-size" data-symbol data-search="std.hashmap.HashMap.size method borrow def size() : usize Retourne le nombre d’associations stockées.
+@return Nombre de cases occupées, hors tombstones."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre d’associations stockées.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de cases occupées, hors tombstones.</p></section>
 <div class="qualified">std.hashmap.HashMap.size</div></div><a class="permalink" href="#std-hashmap-hashmap-size" aria-label="Permanent link to std.hashmap.HashMap.size">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashmap-hashmap-values" data-symbol data-search="std.hashmap.HashMap.values method def values() : Iterator[V] Crée un parcours observant de copies des valeurs.
+<article class="symbol-card kind-method child" id="std-hashmap-hashmap-values" data-symbol data-search="std.hashmap.HashMap.values method borrow def values() : Iterator[V] Crée un parcours observant de copies des valeurs.
 
 La table conserve les associations et doit vivre pendant le parcours. Les
 valeurs suivent l’ordre interne des cases de leurs clés.
-@return Un [[Iterator]] de valeurs copiées; exige `V &lt;: Copy`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>def values() : Iterator[V]</code></h3>
+@return Un [[Iterator]] de valeurs copiées; exige `V &lt;: Copy`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.HashMap</div><h3><code>borrow def values() : Iterator[V]</code></h3>
 <p class="doc-summary">Crée un parcours observant de copies des valeurs.</p>
 <div class="doc-details"><p>La table conserve les associations et doit vivre pendant le parcours. Les<br>
 valeurs suivent l’ordre interne des cases de leurs clés.</p></div>
@@ -4023,8 +4023,8 @@ utilisable avec une nouvelle table vide de capacité initiale 8.
 utilisable avec une nouvelle table vide de capacité initiale 8.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>HashMap[K, V, H]</code> — <a href="#std-hashmap-hashmap"><code>HashMap</code></a> possédant les associations accumulées.</p></section>
 <div class="qualified">std.hashmap.MapBuilder.result</div></div><a class="permalink" href="#std-hashmap-mapbuilder-result" aria-label="Permanent link to std.hashmap.MapBuilder.result">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashmap-mapbuilder-size" data-symbol data-search="std.hashmap.MapBuilder.size method def size() : usize Retourne le nombre d’associations accumulées.
-@return Nombre de clés distinctes dans la table en cours."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.MapBuilder</div><h3><code>def size() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-hashmap-mapbuilder-size" data-symbol data-search="std.hashmap.MapBuilder.size method borrow def size() : usize Retourne le nombre d’associations accumulées.
+@return Nombre de clés distinctes dans la table en cours."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashmap.MapBuilder</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre d’associations accumulées.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de clés distinctes dans la table en cours.</p></section>
 <div class="qualified">std.hashmap.MapBuilder.size</div></div><a class="permalink" href="#std-hashmap-mapbuilder-size" aria-label="Permanent link to std.hashmap.MapBuilder.size">#</a></article>
@@ -4124,12 +4124,12 @@ capacité de stockage."><span class="kind-icon" aria-hidden="true">m</span><div>
 <div class="doc-details"><p>Les tombstones sont également supprimés. Le coût est linéaire dans la<br>
 capacité de stockage.</p></div>
 <div class="qualified">std.hashset.HashSet.clear</div></div><a class="permalink" href="#std-hashset-hashset-clear" aria-label="Permanent link to std.hashset.HashSet.clear">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashset-hashset-contains" data-symbol data-search="std.hashset.HashSet.contains method def contains(value : T) : bool Indique si la valeur appartient à l’ensemble.
+<article class="symbol-card kind-method child" id="std-hashset-hashset-contains" data-symbol data-search="std.hashset.HashSet.contains method def contains(borrow value : T) : bool Indique si la valeur appartient à l’ensemble.
 
 `value` est observée et comparée selon la stratégie. Le coût est amorti
 constant avec un bon hachage, mais peut devenir linéaire sous collisions.
 @param value Valeur à hacher puis comparer aux membres stockés.
-@return `true` si une valeur égale est présente."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def contains(value : T) : bool</code></h3>
+@return `true` si une valeur égale est présente."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def contains(borrow value : T) : bool</code></h3>
 <p class="doc-summary">Indique si la valeur appartient à l’ensemble.</p>
 <div class="doc-details"><p>`value` est observée et comparée selon la stratégie. Le coût est amorti<br>
 constant avec un bon hachage, mais peut devenir linéaire sous collisions.</p></div>
@@ -4146,8 +4146,8 @@ détruit avant épuisement, l’ensemble source détruit les membres restants.
 détruit avant épuisement, l’ensemble source détruit les membres restants.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un <a href="#std-iterator-iterator"><code>Iterator</code></a> propriétaire parcourant les membres dans l’ordre interne.</p></section>
 <div class="qualified">std.hashset.HashSet.intoIterator</div></div><a class="permalink" href="#std-hashset-hashset-intoiterator" aria-label="Permanent link to std.hashset.HashSet.intoIterator">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashset-hashset-isempty" data-symbol data-search="std.hashset.HashSet.isEmpty method def isEmpty() : bool Indique si l’ensemble est vide.
-@return `true` lorsque [[HashSet.size]] vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def isEmpty() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-hashset-hashset-isempty" data-symbol data-search="std.hashset.HashSet.isEmpty method borrow def isEmpty() : bool Indique si l’ensemble est vide.
+@return `true` lorsque [[HashSet.size]] vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>borrow def isEmpty() : bool</code></h3>
 <p class="doc-summary">Indique si l’ensemble est vide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsque <a href="#std-hashset-hashset-size"><code>HashSet.size</code></a> vaut zéro.</p></section>
 <div class="qualified">std.hashset.HashSet.isEmpty</div></div><a class="permalink" href="#std-hashset-hashset-isempty" aria-label="Permanent link to std.hashset.HashSet.isEmpty">#</a></article>
@@ -4163,20 +4163,20 @@ parcours. L’ordre reflète les cases internes et peut changer après toute<br>
 réorganisation.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un <a href="#std-iterator-iterator"><code>Iterator</code></a> de copies des membres; exige `T &lt;: Copy`.</p></section>
 <div class="qualified">std.hashset.HashSet.iterator</div></div><a class="permalink" href="#std-hashset-hashset-iterator" aria-label="Permanent link to std.hashset.HashSet.iterator">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashset-hashset-remove" data-symbol data-search="std.hashset.HashSet.remove method def remove(value : T) : bool Retire la valeur et indique si elle était présente.
+<article class="symbol-card kind-method child" id="std-hashset-hashset-remove" data-symbol data-search="std.hashset.HashSet.remove method def remove(borrow value : T) : bool Retire la valeur et indique si elle était présente.
 
 La valeur de recherche est seulement observée. Le membre stocké est
 détruit lorsqu’il est trouvé et sa case devient un tombstone.
 @param value Valeur à rechercher selon la stratégie de l’ensemble.
-@return `true` si un membre a été trouvé et détruit, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def remove(value : T) : bool</code></h3>
+@return `true` si un membre a été trouvé et détruit, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def remove(borrow value : T) : bool</code></h3>
 <p class="doc-summary">Retire la valeur et indique si elle était présente.</p>
 <div class="doc-details"><p>La valeur de recherche est seulement observée. Le membre stocké est<br>
 détruit lorsqu’il est trouvé et sa case devient un tombstone.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur à rechercher selon la stratégie de l’ensemble.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si un membre a été trouvé et détruit, sinon `false`.</p></section>
 <div class="qualified">std.hashset.HashSet.remove</div></div><a class="permalink" href="#std-hashset-hashset-remove" aria-label="Permanent link to std.hashset.HashSet.remove">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashset-hashset-size" data-symbol data-search="std.hashset.HashSet.size method def size() : usize Retourne le nombre de valeurs stockées.
-@return Nombre de cases occupées, hors tombstones."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>def size() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-hashset-hashset-size" data-symbol data-search="std.hashset.HashSet.size method borrow def size() : usize Retourne le nombre de valeurs stockées.
+@return Nombre de cases occupées, hors tombstones."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.HashSet</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre de valeurs stockées.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de cases occupées, hors tombstones.</p></section>
 <div class="qualified">std.hashset.HashSet.size</div></div><a class="permalink" href="#std-hashset-hashset-size" aria-label="Permanent link to std.hashset.HashSet.size">#</a></article>
@@ -4203,11 +4203,11 @@ détruite comme doublon.
 détruite comme doublon.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur dont la propriété est transférée au constructeur.</td></tr></tbody></table></section>
 <div class="qualified">std.hashset.SetBuilder.add</div></div><a class="permalink" href="#std-hashset-setbuilder-add" aria-label="Permanent link to std.hashset.SetBuilder.add">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashset-setbuilder-addall" data-symbol data-search="std.hashset.SetBuilder.addAll method def addAll[C](source : C) : Unit Ajoute tous les éléments de la source.
+<article class="symbol-card kind-method child" id="std-hashset-setbuilder-addall" data-symbol data-search="std.hashset.SetBuilder.addAll method def addAll[C](borrow source : C) : Unit Ajoute tous les éléments de la source.
 
 La source est parcourue sans être consommée et fournit donc des copies de
 ses éléments. Les doublons sont éliminés par la stratégie de l’ensemble.
-@param source Source [[Iterable]] observée dans son ordre de parcours."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.SetBuilder</div><h3><code>def addAll[C](source : C) : Unit</code></h3>
+@param source Source [[Iterable]] observée dans son ordre de parcours."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.SetBuilder</div><h3><code>def addAll[C](borrow source : C) : Unit</code></h3>
 <p class="doc-summary">Ajoute tous les éléments de la source.</p>
 <div class="doc-details"><p>La source est parcourue sans être consommée et fournit donc des copies de<br>
 ses éléments. Les doublons sont éliminés par la stratégie de l’ensemble.</p></div>
@@ -4226,8 +4226,8 @@ utilisable avec un nouvel ensemble vide de capacité initiale 8.
 utilisable avec un nouvel ensemble vide de capacité initiale 8.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>HashSet[T, H]</code> — <a href="#std-hashset-hashset"><code>HashSet</code></a> possédant les membres accumulés.</p></section>
 <div class="qualified">std.hashset.SetBuilder.result</div></div><a class="permalink" href="#std-hashset-setbuilder-result" aria-label="Permanent link to std.hashset.SetBuilder.result">#</a></article>
-<article class="symbol-card kind-method child" id="std-hashset-setbuilder-size" data-symbol data-search="std.hashset.SetBuilder.size method def size() : usize Retourne le nombre de valeurs accumulées.
-@return Nombre de membres distincts dans l’ensemble en cours."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.SetBuilder</div><h3><code>def size() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-hashset-setbuilder-size" data-symbol data-search="std.hashset.SetBuilder.size method borrow def size() : usize Retourne le nombre de valeurs accumulées.
+@return Nombre de membres distincts dans l’ensemble en cours."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.hashset.SetBuilder</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre de valeurs accumulées.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de membres distincts dans l’ensemble en cours.</p></section>
 <div class="qualified">std.hashset.SetBuilder.size</div></div><a class="permalink" href="#std-hashset-setbuilder-size" aria-label="Permanent link to std.hashset.SetBuilder.size">#</a></article>
@@ -4292,36 +4292,36 @@ explicitement garanti. L’échec laisse la taille logique inchangée.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>string</code></td><td>Chaîne dont les octets sont copiés ; aucune validation UTF-8 n’est effectuée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — Le résultat booléen de <code class="unresolved">append</code>.</p></section>
 <div class="qualified">std.io.ByteBuffer.appendText</div></div><a class="permalink" href="#std-io-bytebuffer-appendtext" aria-label="Permanent link to std.io.ByteBuffer.appendText">#</a></article>
-<article class="symbol-card kind-method child" id="std-io-bytebuffer-astext" data-symbol data-search="std.io.ByteBuffer.asText method def asText() : Result[string, TextDecodeError] Valide le contenu puis l’emprunte comme chaîne UTF-8.
-@return `Ok(string)` empruntant le tampon jusqu’à sa mutation ou destruction, ou `Error(InvalidUtf8)`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>def asText() : Result[string, TextDecodeError]</code></h3>
+<article class="symbol-card kind-method child" id="std-io-bytebuffer-astext" data-symbol data-search="std.io.ByteBuffer.asText method borrow def asText() : Result[string, TextDecodeError] Valide le contenu puis l’emprunte comme chaîne UTF-8.
+@return `Ok(string)` empruntant le tampon jusqu’à sa mutation ou destruction, ou `Error(InvalidUtf8)`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>borrow def asText() : Result[string, TextDecodeError]</code></h3>
 <p class="doc-summary">Valide le contenu puis l’emprunte comme chaîne UTF-8.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[string, TextDecodeError]</code> — `Ok(string)` empruntant le tampon jusqu’à sa mutation ou destruction, ou `Error(InvalidUtf8)`.</p></section>
 <div class="qualified">std.io.ByteBuffer.asText</div></div><a class="permalink" href="#std-io-bytebuffer-astext" aria-label="Permanent link to std.io.ByteBuffer.asText">#</a></article>
-<article class="symbol-card kind-method child" id="std-io-bytebuffer-capacity" data-symbol data-search="std.io.ByteBuffer.capacity method def capacity() : usize Retourne la capacité actuellement réservée.
-@return Nombre d’octets disponibles avant une nouvelle allocation."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>def capacity() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-io-bytebuffer-capacity" data-symbol data-search="std.io.ByteBuffer.capacity method borrow def capacity() : usize Retourne la capacité actuellement réservée.
+@return Nombre d’octets disponibles avant une nouvelle allocation."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>borrow def capacity() : usize</code></h3>
 <p class="doc-summary">Retourne la capacité actuellement réservée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets disponibles avant une nouvelle allocation.</p></section>
 <div class="qualified">std.io.ByteBuffer.capacity</div></div><a class="permalink" href="#std-io-bytebuffer-capacity" aria-label="Permanent link to std.io.ByteBuffer.capacity">#</a></article>
 <article class="symbol-card kind-method child" id="std-io-bytebuffer-clear" data-symbol data-search="std.io.ByteBuffer.clear method def clear() : Unit Vide le contenu sans libérer la capacité réservée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>def clear() : Unit</code></h3>
 <p class="doc-summary">Vide le contenu sans libérer la capacité réservée.</p>
 <div class="qualified">std.io.ByteBuffer.clear</div></div><a class="permalink" href="#std-io-bytebuffer-clear" aria-label="Permanent link to std.io.ByteBuffer.clear">#</a></article>
-<article class="symbol-card kind-method child" id="std-io-bytebuffer-data" data-symbol data-search="std.io.ByteBuffer.data method def data() : Ptr[byte] Emprunte le début du stockage alloué.
-@return Pointeur lisible sur [[size]] octets, invalidable par une mutation ou la destruction."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>def data() : Ptr[byte]</code></h3>
+<article class="symbol-card kind-method child" id="std-io-bytebuffer-data" data-symbol data-search="std.io.ByteBuffer.data method borrow def data() : borrow Ptr[byte] Emprunte le début du stockage alloué.
+@return Pointeur lisible sur [[size]] octets, invalidable par une mutation ou la destruction."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>borrow def data() : borrow Ptr[byte]</code></h3>
 <p class="doc-summary">Emprunte le début du stockage alloué.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Ptr[byte]</code> — Pointeur lisible sur <code class="unresolved">size</code> octets, invalidable par une mutation ou la destruction.</p></section>
 <div class="qualified">std.io.ByteBuffer.data</div></div><a class="permalink" href="#std-io-bytebuffer-data" aria-label="Permanent link to std.io.ByteBuffer.data">#</a></article>
-<article class="symbol-card kind-method child" id="std-io-bytebuffer-isempty" data-symbol data-search="std.io.ByteBuffer.isEmpty method def isEmpty() : bool Indique si le tampon est vide.
-@return `true` lorsque [[size]] vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>def isEmpty() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-io-bytebuffer-isempty" data-symbol data-search="std.io.ByteBuffer.isEmpty method borrow def isEmpty() : bool Indique si le tampon est vide.
+@return `true` lorsque [[size]] vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>borrow def isEmpty() : bool</code></h3>
 <p class="doc-summary">Indique si le tampon est vide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsque <code class="unresolved">size</code> vaut zéro.</p></section>
 <div class="qualified">std.io.ByteBuffer.isEmpty</div></div><a class="permalink" href="#std-io-bytebuffer-isempty" aria-label="Permanent link to std.io.ByteBuffer.isEmpty">#</a></article>
-<article class="symbol-card kind-method child" id="std-io-bytebuffer-isutf8" data-symbol data-search="std.io.ByteBuffer.isUtf8 method def isUtf8() : bool Indique si le contenu forme une séquence UTF-8 valide.
-@return `true` si tous les octets constituent un UTF-8 valide, tampon vide compris."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>def isUtf8() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-io-bytebuffer-isutf8" data-symbol data-search="std.io.ByteBuffer.isUtf8 method borrow def isUtf8() : bool Indique si le contenu forme une séquence UTF-8 valide.
+@return `true` si tous les octets constituent un UTF-8 valide, tampon vide compris."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>borrow def isUtf8() : bool</code></h3>
 <p class="doc-summary">Indique si le contenu forme une séquence UTF-8 valide.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si tous les octets constituent un UTF-8 valide, tampon vide compris.</p></section>
 <div class="qualified">std.io.ByteBuffer.isUtf8</div></div><a class="permalink" href="#std-io-bytebuffer-isutf8" aria-label="Permanent link to std.io.ByteBuffer.isUtf8">#</a></article>
-<article class="symbol-card kind-method child" id="std-io-bytebuffer-size" data-symbol data-search="std.io.ByteBuffer.size method def size() : usize Retourne le nombre d’octets stockés.
-@return Longueur logique du contenu."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>def size() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-io-bytebuffer-size" data-symbol data-search="std.io.ByteBuffer.size method borrow def size() : usize Retourne le nombre d’octets stockés.
+@return Longueur logique du contenu."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne le nombre d’octets stockés.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Longueur logique du contenu.</p></section>
 <div class="qualified">std.io.ByteBuffer.size</div></div><a class="permalink" href="#std-io-bytebuffer-size" aria-label="Permanent link to std.io.ByteBuffer.size">#</a></article>
@@ -4343,13 +4343,13 @@ une lecture native renvoyant zéro. Le destructeur ferme uniquement les handles 
 <p class="doc-summary">Invalide le flux et ferme son handle seulement s’il lui appartient.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[bool, SystemError]</code> — `Ok(true)` en cas de succès, ou `Error(SystemError)` ; un second appel produit `InvalidInput`.</p></section>
 <div class="qualified">std.io.InputStream.close</div></div><a class="permalink" href="#std-io-inputstream-close" aria-label="Permanent link to std.io.InputStream.close">#</a></article>
-<article class="symbol-card kind-method child" id="std-io-inputstream-iseof" data-symbol data-search="std.io.InputStream.isEof method def isEof() : bool Indique si la fin du flux a été atteinte.
-@return `true` après observation de la fin native et consommation du tampon restant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.InputStream</div><h3><code>def isEof() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-io-inputstream-iseof" data-symbol data-search="std.io.InputStream.isEof method borrow def isEof() : bool Indique si la fin du flux a été atteinte.
+@return `true` après observation de la fin native et consommation du tampon restant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.InputStream</div><h3><code>borrow def isEof() : bool</code></h3>
 <p class="doc-summary">Indique si la fin du flux a été atteinte.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` après observation de la fin native et consommation du tampon restant.</p></section>
 <div class="qualified">std.io.InputStream.isEof</div></div><a class="permalink" href="#std-io-inputstream-iseof" aria-label="Permanent link to std.io.InputStream.isEof">#</a></article>
-<article class="symbol-card kind-method child" id="std-io-inputstream-isopen" data-symbol data-search="std.io.InputStream.isOpen method def isOpen() : bool Indique si le flux d’entrée est ouvert.
-@return `true` tant que [[close]] n’a pas invalidé le handle."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.InputStream</div><h3><code>def isOpen() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-io-inputstream-isopen" data-symbol data-search="std.io.InputStream.isOpen method borrow def isOpen() : bool Indique si le flux d’entrée est ouvert.
+@return `true` tant que [[close]] n’a pas invalidé le handle."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.InputStream</div><h3><code>borrow def isOpen() : bool</code></h3>
 <p class="doc-summary">Indique si le flux d’entrée est ouvert.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` tant que <code class="unresolved">close</code> n’a pas invalidé le handle.</p></section>
 <div class="qualified">std.io.InputStream.isOpen</div></div><a class="permalink" href="#std-io-inputstream-isopen" aria-label="Permanent link to std.io.InputStream.isOpen">#</a></article>
@@ -4400,8 +4400,8 @@ La première erreur rencontrée est renvoyée ; le handle est invalidé même en
 <p class="doc-summary">Vide le tampon puis demande le flush du handle natif.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[bool, SystemError]</code> — `Ok(true)` après les deux étapes, ou `Error(SystemError)` si le flux est fermé ou une étape échoue.</p></section>
 <div class="qualified">std.io.OutputStream.flush</div></div><a class="permalink" href="#std-io-outputstream-flush" aria-label="Permanent link to std.io.OutputStream.flush">#</a></article>
-<article class="symbol-card kind-method child" id="std-io-outputstream-isopen" data-symbol data-search="std.io.OutputStream.isOpen method def isOpen() : bool Indique si le flux de sortie est ouvert.
-@return `true` tant que [[close]] n’a pas invalidé le handle."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.OutputStream</div><h3><code>def isOpen() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-io-outputstream-isopen" data-symbol data-search="std.io.OutputStream.isOpen method borrow def isOpen() : bool Indique si le flux de sortie est ouvert.
+@return `true` tant que [[close]] n’a pas invalidé le handle."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.OutputStream</div><h3><code>borrow def isOpen() : bool</code></h3>
 <p class="doc-summary">Indique si le flux de sortie est ouvert.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` tant que <code class="unresolved">close</code> n’a pas invalidé le handle.</p></section>
 <div class="qualified">std.io.OutputStream.isOpen</div></div><a class="permalink" href="#std-io-outputstream-isopen" aria-label="Permanent link to std.io.OutputStream.isOpen">#</a></article>
@@ -4564,13 +4564,13 @@ nouvel état; ils ne peuvent donc plus être utilisés séparément. Détruire u
 parcours avant son épuisement libère les ressources restantes via `release`.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>advance</code></td><td><code>Function[Option[T]]</code></td><td>Fermeture appelée pour produire la prochaine valeur ou `None`.</td></tr><tr><td><code>release</code></td><td><code>Function[Unit]</code></td><td>Fermeture appelée une fois lors de la destruction du parcours.</td></tr></tbody></table></section>
 <div class="qualified">std.iterator.Iterator</div></div><a class="permalink" href="#std-iterator-iterator" aria-label="Permanent link to std.iterator.Iterator">#</a></article>
-<article class="symbol-card kind-method child" id="std-iterator-iterator-collectwith" data-symbol data-search="std.iterator.Iterator.collectWith method consume def collectWith[C, B](builder : B) : C Consomme toutes les valeurs dans le constructeur fourni.
+<article class="symbol-card kind-method child" id="std-iterator-iterator-collectwith" data-symbol data-search="std.iterator.Iterator.collectWith method consume def collectWith[C, B](borrow var builder : B) : C Consomme toutes les valeurs dans le constructeur fourni.
 
 Chaque valeur est déplacée vers [[Builder.add]], puis le résultat est
 obtenu par [[Builder.result]]. Le constructeur reste utilisable selon le
 contrat de son implémentation.
 @param builder Constructeur recevant les valeurs dans l’ordre du parcours.
-@return La collection finalisée par le constructeur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def collectWith[C, B](builder : B) : C</code></h3>
+@return La collection finalisée par le constructeur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def collectWith[C, B](borrow var builder : B) : C</code></h3>
 <p class="doc-summary">Consomme toutes les valeurs dans le constructeur fourni.</p>
 <div class="doc-details"><p>Chaque valeur est déplacée vers <a href="#std-builder-builder-add"><code>Builder.add</code></a>, puis le résultat est<br>
 obtenu par <a href="#std-builder-builder-result"><code>Builder.result</code></a>. Le constructeur reste utilisable selon le<br>
@@ -4592,12 +4592,12 @@ nouvel <a href="#std-iterator-indexed"><code>Indexed</code></a>.</p></div>
 
 Le parcours et `predicate` sont consommés. Les valeurs refusées sont
 détruites avant la recherche de la suivante.
-@param predicate Fonction testée dans l’ordre sur chaque valeur candidate.
+@param predicate Fonction empruntant chaque valeur candidate pour la tester.
 @return Un itérateur produisant uniquement les valeurs acceptées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def filter(predicate : Function[T, bool]) : Iterator[T]</code></h3>
 <p class="doc-summary">Conserve paresseusement les valeurs qui satisfont le prédicat.</p>
 <div class="doc-details"><p>Le parcours et `predicate` sont consommés. Les valeurs refusées sont<br>
 détruites avant la recherche de la suivante.</p></div>
-<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction testée dans l’ordre sur chaque valeur candidate.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction empruntant chaque valeur candidate pour la tester.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un itérateur produisant uniquement les valeurs acceptées.</p></section>
 <div class="qualified">std.iterator.Iterator.filter</div></div><a class="permalink" href="#std-iterator-iterator-filter" aria-label="Permanent link to std.iterator.Iterator.filter">#</a></article>
 <article class="symbol-card kind-method child" id="std-iterator-iterator-flatmap" data-symbol data-search="std.iterator.Iterator.flatMap method consume def flatMap[U](transform : Function[T, Iterator[U]]) : Iterator[U] Transforme chaque valeur en itérateur puis concatène ces parcours.
@@ -5512,18 +5512,18 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée par l’opération.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, Option[U]]</code></td><td>Fonction propriétaire appelée une fois avec le contenu déplacé pour `Some`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Résultat de `transform` pour `Some`, ou `None` sans appeler `transform`.</p></section>
 <div class="qualified">std.option.andThen</div></div><a class="permalink" href="#std-option-andthen" aria-label="Permanent link to std.option.andThen">#</a></article>
-<article class="symbol-card kind-function" id="std-option-isnone" data-symbol data-search="std.option.isNone function def isNone[T](value : Option[T]) : bool Indique si l’option est vide.
+<article class="symbol-card kind-function" id="std-option-isnone" data-symbol data-search="std.option.isNone function def isNone[T](borrow value : Option[T]) : bool Indique si l’option est vide.
 
 @param value Option inspectée sans déplacer son contenu.
-@return `true` pour `None`, `false` pour `Some`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isNone[T](value : Option[T]) : bool</code></h3>
+@return `true` pour `None`, `false` pour `Some`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isNone[T](borrow value : Option[T]) : bool</code></h3>
 <p class="doc-summary">Indique si l’option est vide.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option inspectée sans déplacer son contenu.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `None`, `false` pour `Some`.</p></section>
 <div class="qualified">std.option.isNone</div></div><a class="permalink" href="#std-option-isnone" aria-label="Permanent link to std.option.isNone">#</a></article>
-<article class="symbol-card kind-function" id="std-option-issome" data-symbol data-search="std.option.isSome function def isSome[T](value : Option[T]) : bool Indique si l’option contient une valeur.
+<article class="symbol-card kind-function" id="std-option-issome" data-symbol data-search="std.option.isSome function def isSome[T](borrow value : Option[T]) : bool Indique si l’option contient une valeur.
 
 @param value Option inspectée sans déplacer son contenu.
-@return `true` pour `Some`, `false` pour `None`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isSome[T](value : Option[T]) : bool</code></h3>
+@return `true` pour `Some`, `false` pour `None`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isSome[T](borrow value : Option[T]) : bool</code></h3>
 <p class="doc-summary">Indique si l’option contient une valeur.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option inspectée sans déplacer son contenu.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Some`, `false` pour `None`.</p></section>
@@ -5592,33 +5592,33 @@ destruction du chemin. Un `Path` décrit une syntaxe de chemin, pas une entrée<
 nécessairement présente sur le système de fichiers.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeData</code></td><td><code>Ptr[byte]</code></td><td>Tampon natif normalisé dont l’objet prend possession.</td></tr><tr><td><code>nativeLength</code></td><td><code>usize</code></td><td>Nombre d’octets du chemin, hors éventuel terminateur natif.</td></tr></tbody></table></section>
 <div class="qualified">std.path.Path</div></div><a class="permalink" href="#std-path-path" aria-label="Permanent link to std.path.Path">#</a></article>
-<article class="symbol-card kind-method child" id="std-path-path-component" data-symbol data-search="std.path.Path.component method def component(index : usize) : Result[Path, SystemError] Copie un composant du chemin dans un nouveau [[Path]] propriétaire.
+<article class="symbol-card kind-method child" id="std-path-path-component" data-symbol data-search="std.path.Path.component method borrow def component(index : usize) : Result[Path, SystemError] Copie un composant du chemin dans un nouveau [[Path]] propriétaire.
 @param index Position du composant, à partir de zéro.
-@return `Ok` avec le composant, ou `Error(SystemError)` si l’indice ou le chemin est refusé par l’implémentation native."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.path.Path</div><h3><code>def component(index : usize) : Result[Path, SystemError]</code></h3>
+@return `Ok` avec le composant, ou `Error(SystemError)` si l’indice ou le chemin est refusé par l’implémentation native."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.path.Path</div><h3><code>borrow def component(index : usize) : Result[Path, SystemError]</code></h3>
 <p class="doc-summary">Copie un composant du chemin dans un nouveau <a href="#std-path-path"><code>Path</code></a> propriétaire.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position du composant, à partir de zéro.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[Path, SystemError]</code> — `Ok` avec le composant, ou `Error(SystemError)` si l’indice ou le chemin est refusé par l’implémentation native.</p></section>
 <div class="qualified">std.path.Path.component</div></div><a class="permalink" href="#std-path-path-component" aria-label="Permanent link to std.path.Path.component">#</a></article>
-<article class="symbol-card kind-method child" id="std-path-path-componentcount" data-symbol data-search="std.path.Path.componentCount method def componentCount() : usize Compte les composants du chemin normalisé.
+<article class="symbol-card kind-method child" id="std-path-path-componentcount" data-symbol data-search="std.path.Path.componentCount method borrow def componentCount() : usize Compte les composants du chemin normalisé.
 
 Une erreur native éventuelle est ramenée à zéro par cette API.
-@return Nombre de composants, ou zéro si le chemin n’en a aucun ou si le comptage natif échoue."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.path.Path</div><h3><code>def componentCount() : usize</code></h3>
+@return Nombre de composants, ou zéro si le chemin n’en a aucun ou si le comptage natif échoue."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.path.Path</div><h3><code>borrow def componentCount() : usize</code></h3>
 <p class="doc-summary">Compte les composants du chemin normalisé.</p>
 <div class="doc-details"><p>Une erreur native éventuelle est ramenée à zéro par cette API.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de composants, ou zéro si le chemin n’en a aucun ou si le comptage natif échoue.</p></section>
 <div class="qualified">std.path.Path.componentCount</div></div><a class="permalink" href="#std-path-path-componentcount" aria-label="Permanent link to std.path.Path.componentCount">#</a></article>
-<article class="symbol-card kind-method child" id="std-path-path-isabsolute" data-symbol data-search="std.path.Path.isAbsolute method def isAbsolute() : bool Teste si le chemin possède une racine absolue selon la plateforme.
-@return `true` si la syntaxe native considère le chemin absolu."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.path.Path</div><h3><code>def isAbsolute() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-path-path-isabsolute" data-symbol data-search="std.path.Path.isAbsolute method borrow def isAbsolute() : bool Teste si le chemin possède une racine absolue selon la plateforme.
+@return `true` si la syntaxe native considère le chemin absolu."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.path.Path</div><h3><code>borrow def isAbsolute() : bool</code></h3>
 <p class="doc-summary">Teste si le chemin possède une racine absolue selon la plateforme.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si la syntaxe native considère le chemin absolu.</p></section>
 <div class="qualified">std.path.Path.isAbsolute</div></div><a class="permalink" href="#std-path-path-isabsolute" aria-label="Permanent link to std.path.Path.isAbsolute">#</a></article>
-<article class="symbol-card kind-method child" id="std-path-path-size" data-symbol data-search="std.path.Path.size method def size() : usize Retourne la longueur du chemin normalisé en octets.
-@return Nombre d’octets de [[view]], hors éventuel terminateur natif."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.path.Path</div><h3><code>def size() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-path-path-size" data-symbol data-search="std.path.Path.size method borrow def size() : usize Retourne la longueur du chemin normalisé en octets.
+@return Nombre d’octets de [[view]], hors éventuel terminateur natif."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.path.Path</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne la longueur du chemin normalisé en octets.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets de <code class="unresolved">view</code>, hors éventuel terminateur natif.</p></section>
 <div class="qualified">std.path.Path.size</div></div><a class="permalink" href="#std-path-path-size" aria-label="Permanent link to std.path.Path.size">#</a></article>
-<article class="symbol-card kind-method child" id="std-path-path-view" data-symbol data-search="std.path.Path.view method def view() : string Emprunte le chemin normalisé sous forme de chaîne.
-@return Vue valide jusqu’à la destruction de ce [[Path]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.path.Path</div><h3><code>def view() : string</code></h3>
+<article class="symbol-card kind-method child" id="std-path-path-view" data-symbol data-search="std.path.Path.view method borrow def view() : string Emprunte le chemin normalisé sous forme de chaîne.
+@return Vue valide jusqu’à la destruction de ce [[Path]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.path.Path</div><h3><code>borrow def view() : string</code></h3>
 <p class="doc-summary">Emprunte le chemin normalisé sous forme de chaîne.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue valide jusqu’à la destruction de ce <a href="#std-path-path"><code>Path</code></a>.</p></section>
 <div class="qualified">std.path.Path.view</div></div><a class="permalink" href="#std-path-path-view" aria-label="Permanent link to std.path.Path.view">#</a></article>
@@ -5881,13 +5881,13 @@ Sa vue emprunte un stockage natif libéré avec l’objet.
 <div class="doc-details"><p>Sa vue emprunte un stockage natif libéré avec l’objet.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeText</code></td><td><code>isize</code></td><td>Stockage natif transféré par l’API de processus.</td></tr></tbody></table></section>
 <div class="qualified">std.process.EnvironmentValue</div></div><a class="permalink" href="#std-process-environmentvalue" aria-label="Permanent link to std.process.EnvironmentValue">#</a></article>
-<article class="symbol-card kind-method child" id="std-process-environmentvalue-size" data-symbol data-search="std.process.EnvironmentValue.size method def size() : usize Retourne la longueur de la valeur d’environnement.
-@return Taille en octets de [[view]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.EnvironmentValue</div><h3><code>def size() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-process-environmentvalue-size" data-symbol data-search="std.process.EnvironmentValue.size method borrow def size() : usize Retourne la longueur de la valeur d’environnement.
+@return Taille en octets de [[view]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.EnvironmentValue</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne la longueur de la valeur d’environnement.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Taille en octets de <code class="unresolved">view</code>.</p></section>
 <div class="qualified">std.process.EnvironmentValue.size</div></div><a class="permalink" href="#std-process-environmentvalue-size" aria-label="Permanent link to std.process.EnvironmentValue.size">#</a></article>
-<article class="symbol-card kind-method child" id="std-process-environmentvalue-view" data-symbol data-search="std.process.EnvironmentValue.view method def view() : string Emprunte le contenu exact de la variable, sans interpréter son encodage.
-@return Vue valide jusqu’à la destruction de cette [[EnvironmentValue]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.EnvironmentValue</div><h3><code>def view() : string</code></h3>
+<article class="symbol-card kind-method child" id="std-process-environmentvalue-view" data-symbol data-search="std.process.EnvironmentValue.view method borrow def view() : string Emprunte le contenu exact de la variable, sans interpréter son encodage.
+@return Vue valide jusqu’à la destruction de cette [[EnvironmentValue]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.EnvironmentValue</div><h3><code>borrow def view() : string</code></h3>
 <p class="doc-summary">Emprunte le contenu exact de la variable, sans interpréter son encodage.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue valide jusqu’à la destruction de cette <a href="#std-process-environmentvalue"><code>EnvironmentValue</code></a>.</p></section>
 <div class="qualified">std.process.EnvironmentValue.view</div></div><a class="permalink" href="#std-process-environmentvalue-view" aria-label="Permanent link to std.process.EnvironmentValue.view">#</a></article>
@@ -5901,28 +5901,28 @@ invalides à la destruction. Les données sont brutes et ne sont pas validées U
 invalides à la destruction. Les données sont brutes et ne sont pas validées UTF-8.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeResult</code></td><td><code>isize</code></td><td>Résultat natif propriétaire contenant le statut et les captures.</td></tr></tbody></table></section>
 <div class="qualified">std.process.ProcessResult</div></div><a class="permalink" href="#std-process-processresult" aria-label="Permanent link to std.process.ProcessResult">#</a></article>
-<article class="symbol-card kind-method child" id="std-process-processresult-exitcode" data-symbol data-search="std.process.ProcessResult.exitCode method def exitCode() : int Retourne le code de terminaison rapporté par l’hôte.
-@return Code de sortie natif de l’enfant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>def exitCode() : int</code></h3>
+<article class="symbol-card kind-method child" id="std-process-processresult-exitcode" data-symbol data-search="std.process.ProcessResult.exitCode method borrow def exitCode() : int Retourne le code de terminaison rapporté par l’hôte.
+@return Code de sortie natif de l’enfant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def exitCode() : int</code></h3>
 <p class="doc-summary">Retourne le code de terminaison rapporté par l’hôte.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Code de sortie natif de l’enfant.</p></section>
 <div class="qualified">std.process.ProcessResult.exitCode</div></div><a class="permalink" href="#std-process-processresult-exitcode" aria-label="Permanent link to std.process.ProcessResult.exitCode">#</a></article>
-<article class="symbol-card kind-method child" id="std-process-processresult-stderrdata" data-symbol data-search="std.process.ProcessResult.stderrData method def stderrData() : Ptr[byte] Emprunte le début de la sortie d’erreur capturée.
-@return Pointeur lisible sur [[stderrSize]] octets, valide pendant la vie de ce résultat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>def stderrData() : Ptr[byte]</code></h3>
+<article class="symbol-card kind-method child" id="std-process-processresult-stderrdata" data-symbol data-search="std.process.ProcessResult.stderrData method borrow def stderrData() : Ptr[byte] Emprunte le début de la sortie d’erreur capturée.
+@return Pointeur lisible sur [[stderrSize]] octets, valide pendant la vie de ce résultat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def stderrData() : Ptr[byte]</code></h3>
 <p class="doc-summary">Emprunte le début de la sortie d’erreur capturée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Ptr[byte]</code> — Pointeur lisible sur <a href="#std-process-processresult-stderrsize"><code>stderrSize</code></a> octets, valide pendant la vie de ce résultat.</p></section>
 <div class="qualified">std.process.ProcessResult.stderrData</div></div><a class="permalink" href="#std-process-processresult-stderrdata" aria-label="Permanent link to std.process.ProcessResult.stderrData">#</a></article>
-<article class="symbol-card kind-method child" id="std-process-processresult-stderrsize" data-symbol data-search="std.process.ProcessResult.stderrSize method def stderrSize() : usize Retourne la taille de la sortie d’erreur capturée.
-@return Nombre d’octets disponibles via [[stderrData]], zéro si rien n’a été capturé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>def stderrSize() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-process-processresult-stderrsize" data-symbol data-search="std.process.ProcessResult.stderrSize method borrow def stderrSize() : usize Retourne la taille de la sortie d’erreur capturée.
+@return Nombre d’octets disponibles via [[stderrData]], zéro si rien n’a été capturé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def stderrSize() : usize</code></h3>
 <p class="doc-summary">Retourne la taille de la sortie d’erreur capturée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets disponibles via <a href="#std-process-processresult-stderrdata"><code>stderrData</code></a>, zéro si rien n’a été capturé.</p></section>
 <div class="qualified">std.process.ProcessResult.stderrSize</div></div><a class="permalink" href="#std-process-processresult-stderrsize" aria-label="Permanent link to std.process.ProcessResult.stderrSize">#</a></article>
-<article class="symbol-card kind-method child" id="std-process-processresult-stdoutdata" data-symbol data-search="std.process.ProcessResult.stdoutData method def stdoutData() : Ptr[byte] Emprunte le début de la sortie standard capturée.
-@return Pointeur lisible sur [[stdoutSize]] octets, valide pendant la vie de ce résultat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>def stdoutData() : Ptr[byte]</code></h3>
+<article class="symbol-card kind-method child" id="std-process-processresult-stdoutdata" data-symbol data-search="std.process.ProcessResult.stdoutData method borrow def stdoutData() : Ptr[byte] Emprunte le début de la sortie standard capturée.
+@return Pointeur lisible sur [[stdoutSize]] octets, valide pendant la vie de ce résultat."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def stdoutData() : Ptr[byte]</code></h3>
 <p class="doc-summary">Emprunte le début de la sortie standard capturée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Ptr[byte]</code> — Pointeur lisible sur <a href="#std-process-processresult-stdoutsize"><code>stdoutSize</code></a> octets, valide pendant la vie de ce résultat.</p></section>
 <div class="qualified">std.process.ProcessResult.stdoutData</div></div><a class="permalink" href="#std-process-processresult-stdoutdata" aria-label="Permanent link to std.process.ProcessResult.stdoutData">#</a></article>
-<article class="symbol-card kind-method child" id="std-process-processresult-stdoutsize" data-symbol data-search="std.process.ProcessResult.stdoutSize method def stdoutSize() : usize Retourne la taille de la sortie standard capturée.
-@return Nombre d’octets disponibles via [[stdoutData]], zéro si rien n’a été capturé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>def stdoutSize() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-process-processresult-stdoutsize" data-symbol data-search="std.process.ProcessResult.stdoutSize method borrow def stdoutSize() : usize Retourne la taille de la sortie standard capturée.
+@return Nombre d’octets disponibles via [[stdoutData]], zéro si rien n’a été capturé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def stdoutSize() : usize</code></h3>
 <p class="doc-summary">Retourne la taille de la sortie standard capturée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets disponibles via <a href="#std-process-processresult-stdoutdata"><code>stdoutData</code></a>, zéro si rien n’a été capturé.</p></section>
 <div class="qualified">std.process.ProcessResult.stdoutSize</div></div><a class="permalink" href="#std-process-processresult-stdoutsize" aria-label="Permanent link to std.process.ProcessResult.stdoutSize">#</a></article>
@@ -5931,8 +5931,8 @@ invalides à la destruction. Les données sont brutes et ne sont pas validées U
 <p class="doc-summary">Répertoire de travail courant possédant sa représentation native UTF-8.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeText</code></td><td><code>isize</code></td><td>Stockage natif transféré par l’API de processus.</td></tr></tbody></table></section>
 <div class="qualified">std.process.WorkingDirectory</div></div><a class="permalink" href="#std-process-workingdirectory" aria-label="Permanent link to std.process.WorkingDirectory">#</a></article>
-<article class="symbol-card kind-method child" id="std-process-workingdirectory-view" data-symbol data-search="std.process.WorkingDirectory.view method def view() : string Emprunte le chemin courant jusqu’à la destruction de cette valeur.
-@return Vue UTF-8 valide pendant la vie de cette [[WorkingDirectory]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.WorkingDirectory</div><h3><code>def view() : string</code></h3>
+<article class="symbol-card kind-method child" id="std-process-workingdirectory-view" data-symbol data-search="std.process.WorkingDirectory.view method borrow def view() : string Emprunte le chemin courant jusqu’à la destruction de cette valeur.
+@return Vue UTF-8 valide pendant la vie de cette [[WorkingDirectory]]."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.WorkingDirectory</div><h3><code>borrow def view() : string</code></h3>
 <p class="doc-summary">Emprunte le chemin courant jusqu’à la destruction de cette valeur.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue UTF-8 valide pendant la vie de cette <a href="#std-process-workingdirectory"><code>WorkingDirectory</code></a>.</p></section>
 <div class="qualified">std.process.WorkingDirectory.view</div></div><a class="permalink" href="#std-process-workingdirectory-view" aria-label="Permanent link to std.process.WorkingDirectory.view">#</a></article>
@@ -6109,18 +6109,18 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée.</td></tr><tr><td><code>error</code></td><td><code>E</code></td><td>Erreur consommée et détruite pour `Some`, déplacée dans `Error` pour `None`.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — `Ok` avec le contenu déplacé de `Some`, sinon `Error(error)`.</p></section>
 <div class="qualified">std.result.fromOption</div></div><a class="permalink" href="#std-result-fromoption" aria-label="Permanent link to std.result.fromOption">#</a></article>
-<article class="symbol-card kind-function" id="std-result-iserror" data-symbol data-search="std.result.isError function def isError[T, E](value : Result[T, E]) : bool Indique si le résultat contient une erreur.
+<article class="symbol-card kind-function" id="std-result-iserror" data-symbol data-search="std.result.isError function def isError[T, E](borrow value : Result[T, E]) : bool Indique si le résultat contient une erreur.
 
 @param value Résultat inspecté sans déplacer sa branche.
-@return `true` pour `Error`, `false` pour `Ok`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isError[T, E](value : Result[T, E]) : bool</code></h3>
+@return `true` pour `Error`, `false` pour `Ok`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isError[T, E](borrow value : Result[T, E]) : bool</code></h3>
 <p class="doc-summary">Indique si le résultat contient une erreur.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat inspecté sans déplacer sa branche.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Error`, `false` pour `Ok`.</p></section>
 <div class="qualified">std.result.isError</div></div><a class="permalink" href="#std-result-iserror" aria-label="Permanent link to std.result.isError">#</a></article>
-<article class="symbol-card kind-function" id="std-result-isok" data-symbol data-search="std.result.isOk function def isOk[T, E](value : Result[T, E]) : bool Indique si le résultat contient une valeur de succès.
+<article class="symbol-card kind-function" id="std-result-isok" data-symbol data-search="std.result.isOk function def isOk[T, E](borrow value : Result[T, E]) : bool Indique si le résultat contient une valeur de succès.
 
 @param value Résultat inspecté sans déplacer sa branche.
-@return `true` pour `Ok`, `false` pour `Error`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isOk[T, E](value : Result[T, E]) : bool</code></h3>
+@return `true` pour `Ok`, `false` pour `Error`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isOk[T, E](borrow value : Result[T, E]) : bool</code></h3>
 <p class="doc-summary">Indique si le résultat contient une valeur de succès.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat inspecté sans déplacer sa branche.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Ok`, `false` pour `Error`.</p></section>
@@ -6182,7 +6182,7 @@ invalideraient son emprunt.">
 accès exclusif et autorise le remplacement des éléments. Une vue n&#39;alloue ni<br>
 ne copie le stockage observé. Elle doit être détruite avant son tableau<br>
 source; tant qu&#39;elle est vivante, l&#39;analyseur interdit les opérations qui<br>
-invalideraient son emprunt.</p></div></div><h3 class="member-heading">Public members <span class="member-count">13</span></h3>
+invalideraient son emprunt.</p></div></div><h3 class="member-heading">Public members <span class="member-count">15</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-slice-mutableslice" data-symbol data-search="std.slice.MutableSlice class class MutableSlice[T](borrow var source : Array[T], val start : usize, val count : usize) Vue mutable, exclusive et bornée sur une portion contiguë d&#39;un [[Array]].
 
@@ -6203,6 +6203,13 @@ modifié directement et aucune autre vue concurrente ne peut l&#39;emprunter.</p
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative à partir de zéro.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Copie de l&#39;élément observé.</p></section>
 <div class="qualified">std.slice.MutableSlice.get</div></div><a class="permalink" href="#std-slice-mutableslice-get" aria-label="Permanent link to std.slice.MutableSlice.get">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-mutableslice-getborrowed" data-symbol data-search="std.slice.MutableSlice.getBorrowed method borrow def getBorrowed(index : usize) : borrow T Emprunte l&#39;élément à l&#39;indice relatif demandé sans le copier.
+@param index Position relative à partir de zéro.
+@return Vue partagée liée à la durée de vie de cette tranche."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.MutableSlice</div><h3><code>borrow def getBorrowed(index : usize) : borrow T</code></h3>
+<p class="doc-summary">Emprunte l&#39;élément à l&#39;indice relatif demandé sans le copier.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative à partir de zéro.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Vue partagée liée à la durée de vie de cette tranche.</p></section>
+<div class="qualified">std.slice.MutableSlice.getBorrowed</div></div><a class="permalink" href="#std-slice-mutableslice-getborrowed" aria-label="Permanent link to std.slice.MutableSlice.getBorrowed">#</a></article>
 <article class="symbol-card kind-method child" id="std-slice-mutableslice-getoption" data-symbol data-search="std.slice.MutableSlice.getOption method borrow def getOption(index : usize) : Option[T] Retourne l&#39;élément demandé, ou `None` si l&#39;indice est hors limites.
 @param index Position relative recherchée.
 @return `Some` avec une copie, ou `None` si l&#39;indice est invalide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.MutableSlice</div><h3><code>borrow def getOption(index : usize) : Option[T]</code></h3>
@@ -6250,6 +6257,13 @@ Les éléments et le stockage restent la propriété du tableau source.</p></div
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative à partir de zéro.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Copie de l&#39;élément observé.</p></section>
 <div class="qualified">std.slice.Slice.get</div></div><a class="permalink" href="#std-slice-slice-get" aria-label="Permanent link to std.slice.Slice.get">#</a></article>
+<article class="symbol-card kind-method child" id="std-slice-slice-getborrowed" data-symbol data-search="std.slice.Slice.getBorrowed method borrow def getBorrowed(index : usize) : borrow T Emprunte l&#39;élément à l&#39;indice relatif demandé sans le copier.
+@param index Position relative à partir de zéro.
+@return Vue partagée liée à la durée de vie de cette tranche."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.Slice</div><h3><code>borrow def getBorrowed(index : usize) : borrow T</code></h3>
+<p class="doc-summary">Emprunte l&#39;élément à l&#39;indice relatif demandé sans le copier.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative à partir de zéro.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Vue partagée liée à la durée de vie de cette tranche.</p></section>
+<div class="qualified">std.slice.Slice.getBorrowed</div></div><a class="permalink" href="#std-slice-slice-getborrowed" aria-label="Permanent link to std.slice.Slice.getBorrowed">#</a></article>
 <article class="symbol-card kind-method child" id="std-slice-slice-getoption" data-symbol data-search="std.slice.Slice.getOption method borrow def getOption(index : usize) : Option[T] Retourne l&#39;élément demandé, ou `None` si l&#39;indice est hors limites.
 @param index Position relative recherchée.
 @return `Some` avec une copie, ou `None` si l&#39;indice est invalide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.slice.Slice</div><h3><code>borrow def getOption(index : usize) : Option[T]</code></h3>
@@ -6369,8 +6383,8 @@ et `context` servent au diagnostic. Les chaînes sont des vues copiées dans la 
 <p class="doc-summary">Ferme le descripteur et rend ce <a href="#std-system-systemfile"><code>SystemFile</code></a> inutilisable.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[bool, SystemError]</code> — `Ok(true)` si la fermeture réussit, ou `Error(SystemError)` ; un second appel renvoie `InvalidInput`.</p></section>
 <div class="qualified">std.system.SystemFile.close</div></div><a class="permalink" href="#std-system-systemfile-close" aria-label="Permanent link to std.system.SystemFile.close">#</a></article>
-<article class="symbol-card kind-method child" id="std-system-systemfile-isopen" data-symbol data-search="std.system.SystemFile.isOpen method def isOpen() : bool Indique si le fichier natif est ouvert.
-@return `true` tant que [[close]] n’a pas été appelé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.system.SystemFile</div><h3><code>def isOpen() : bool</code></h3>
+<article class="symbol-card kind-method child" id="std-system-systemfile-isopen" data-symbol data-search="std.system.SystemFile.isOpen method borrow def isOpen() : bool Indique si le fichier natif est ouvert.
+@return `true` tant que [[close]] n’a pas été appelé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.system.SystemFile</div><h3><code>borrow def isOpen() : bool</code></h3>
 <p class="doc-summary">Indique si le fichier natif est ouvert.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` tant que <code class="unresolved">close</code> n’a pas été appelé.</p></section>
 <div class="qualified">std.system.SystemFile.isOpen</div></div><a class="permalink" href="#std-system-systemfile-isopen" aria-label="Permanent link to std.system.SystemFile.isOpen">#</a></article>
@@ -6464,8 +6478,8 @@ retoucher le chemin, afin de ne pas supprimer une éventuelle ressource<br>
 recréée au même emplacement.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[bool, SystemError]</code> — `Ok(true)` après nettoyage ou après un succès précédent, ou l’erreur structurée du premier échec.</p></section>
 <div class="qualified">std.testing.TestTemporaryDirectory.cleanup</div></div><a class="permalink" href="#std-testing-testtemporarydirectory-cleanup" aria-label="Permanent link to std.testing.TestTemporaryDirectory.cleanup">#</a></article>
-<article class="symbol-card kind-method child" id="std-testing-testtemporarydirectory-path" data-symbol data-search="std.testing.TestTemporaryDirectory.path method def path() : string Emprunte le chemin natif du répertoire.
-@return Vue valide jusqu’à la destruction de cette ressource."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.testing.TestTemporaryDirectory</div><h3><code>def path() : string</code></h3>
+<article class="symbol-card kind-method child" id="std-testing-testtemporarydirectory-path" data-symbol data-search="std.testing.TestTemporaryDirectory.path method borrow def path() : string Emprunte le chemin natif du répertoire.
+@return Vue valide jusqu’à la destruction de cette ressource."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.testing.TestTemporaryDirectory</div><h3><code>borrow def path() : string</code></h3>
 <p class="doc-summary">Emprunte le chemin natif du répertoire.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue valide jusqu’à la destruction de cette ressource.</p></section>
 <div class="qualified">std.testing.TestTemporaryDirectory.path</div></div><a class="permalink" href="#std-testing-testtemporarydirectory-path" aria-label="Permanent link to std.testing.TestTemporaryDirectory.path">#</a></article>
@@ -6475,8 +6489,8 @@ recréée au même emplacement.</p></div>
 <p class="doc-summary">Compare deux valeurs disposant des capacités `Equality` et `Debug`.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>actual</code></td><td><code>T</code></td><td>Valeur obtenue.</td></tr><tr><td><code>expected</code></td><td><code>T</code></td><td>Valeur attendue.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertEqual</div></div><a class="permalink" href="#std-testing-assertequal" aria-label="Permanent link to std.testing.assertEqual">#</a></article>
-<article class="symbol-card kind-function" id="std-testing-asserterror" data-symbol data-search="std.testing.assertError function def assertError[T, E](value : Result[T, E]) : Unit Vérifie qu’un résultat représente une erreur.
-@param value Résultat inspecté sans déplacer son contenu."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertError[T, E](value : Result[T, E]) : Unit</code></h3>
+<article class="symbol-card kind-function" id="std-testing-asserterror" data-symbol data-search="std.testing.assertError function def assertError[T, E](borrow value : Result[T, E]) : Unit Vérifie qu’un résultat représente une erreur.
+@param value Résultat inspecté sans déplacer son contenu."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertError[T, E](borrow value : Result[T, E]) : Unit</code></h3>
 <p class="doc-summary">Vérifie qu’un résultat représente une erreur.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat inspecté sans déplacer son contenu.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertError</div></div><a class="permalink" href="#std-testing-asserterror" aria-label="Permanent link to std.testing.assertError">#</a></article>
@@ -6485,8 +6499,8 @@ recréée au même emplacement.</p></div>
 <p class="doc-summary">Vérifie qu’une condition est fausse.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>condition</code></td><td><code>bool</code></td><td>Condition attendue à `false`.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertFalse</div></div><a class="permalink" href="#std-testing-assertfalse" aria-label="Permanent link to std.testing.assertFalse">#</a></article>
-<article class="symbol-card kind-function" id="std-testing-assertnone" data-symbol data-search="std.testing.assertNone function def assertNone[T](value : Option[T]) : Unit Vérifie qu’une option est vide.
-@param value Option inspectée sans déplacer son contenu."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertNone[T](value : Option[T]) : Unit</code></h3>
+<article class="symbol-card kind-function" id="std-testing-assertnone" data-symbol data-search="std.testing.assertNone function def assertNone[T](borrow value : Option[T]) : Unit Vérifie qu’une option est vide.
+@param value Option inspectée sans déplacer son contenu."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertNone[T](borrow value : Option[T]) : Unit</code></h3>
 <p class="doc-summary">Vérifie qu’une option est vide.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option inspectée sans déplacer son contenu.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertNone</div></div><a class="permalink" href="#std-testing-assertnone" aria-label="Permanent link to std.testing.assertNone">#</a></article>
@@ -6496,13 +6510,13 @@ recréée au même emplacement.</p></div>
 <p class="doc-summary">Vérifie que deux valeurs comparables sont différentes.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>actual</code></td><td><code>T</code></td><td>Valeur obtenue.</td></tr><tr><td><code>expected</code></td><td><code>T</code></td><td>Valeur qui ne doit pas être obtenue.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertNotEqual</div></div><a class="permalink" href="#std-testing-assertnotequal" aria-label="Permanent link to std.testing.assertNotEqual">#</a></article>
-<article class="symbol-card kind-function" id="std-testing-assertok" data-symbol data-search="std.testing.assertOk function def assertOk[T, E](value : Result[T, E]) : Unit Vérifie qu’un résultat représente un succès.
-@param value Résultat inspecté sans déplacer son contenu."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertOk[T, E](value : Result[T, E]) : Unit</code></h3>
+<article class="symbol-card kind-function" id="std-testing-assertok" data-symbol data-search="std.testing.assertOk function def assertOk[T, E](borrow value : Result[T, E]) : Unit Vérifie qu’un résultat représente un succès.
+@param value Résultat inspecté sans déplacer son contenu."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertOk[T, E](borrow value : Result[T, E]) : Unit</code></h3>
 <p class="doc-summary">Vérifie qu’un résultat représente un succès.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat inspecté sans déplacer son contenu.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertOk</div></div><a class="permalink" href="#std-testing-assertok" aria-label="Permanent link to std.testing.assertOk">#</a></article>
-<article class="symbol-card kind-function" id="std-testing-assertsome" data-symbol data-search="std.testing.assertSome function def assertSome[T](value : Option[T]) : Unit Vérifie qu’une option contient une valeur.
-@param value Option inspectée sans déplacer son contenu."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertSome[T](value : Option[T]) : Unit</code></h3>
+<article class="symbol-card kind-function" id="std-testing-assertsome" data-symbol data-search="std.testing.assertSome function def assertSome[T](borrow value : Option[T]) : Unit Vérifie qu’une option contient une valeur.
+@param value Option inspectée sans déplacer son contenu."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertSome[T](borrow value : Option[T]) : Unit</code></h3>
 <p class="doc-summary">Vérifie qu’une option contient une valeur.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option inspectée sans déplacer son contenu.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertSome</div></div><a class="permalink" href="#std-testing-assertsome" aria-label="Permanent link to std.testing.assertSome">#</a></article>
@@ -6661,8 +6675,8 @@ un `panic`. <a href="#std-text-textbuilder-appendchar"><code>appendChar</code></
 <article class="symbol-card kind-method child" id="std-text-textbuilder-clear" data-symbol data-search="std.text.TextBuilder.clear method def clear() : Unit Vide le texte tout en conservant l’allocation."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.text.TextBuilder</div><h3><code>def clear() : Unit</code></h3>
 <p class="doc-summary">Vide le texte tout en conservant l’allocation.</p>
 <div class="qualified">std.text.TextBuilder.clear</div></div><a class="permalink" href="#std-text-textbuilder-clear" aria-label="Permanent link to std.text.TextBuilder.clear">#</a></article>
-<article class="symbol-card kind-method child" id="std-text-textbuilder-size" data-symbol data-search="std.text.TextBuilder.size method def size() : usize Retourne la longueur du texte construit.
-@return Nombre d’octets UTF-8, sans compter le NUL interne."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.text.TextBuilder</div><h3><code>def size() : usize</code></h3>
+<article class="symbol-card kind-method child" id="std-text-textbuilder-size" data-symbol data-search="std.text.TextBuilder.size method borrow def size() : usize Retourne la longueur du texte construit.
+@return Nombre d’octets UTF-8, sans compter le NUL interne."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.text.TextBuilder</div><h3><code>borrow def size() : usize</code></h3>
 <p class="doc-summary">Retourne la longueur du texte construit.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets UTF-8, sans compter le NUL interne.</p></section>
 <div class="qualified">std.text.TextBuilder.size</div></div><a class="permalink" href="#std-text-textbuilder-size" aria-label="Permanent link to std.text.TextBuilder.size">#</a></article>
@@ -6791,27 +6805,27 @@ val elapsed : Duration = started.elapsed()<br>
 <p class="doc-summary">Stocke une durée non négative sous forme d’un nombre entier de nanosecondes.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>usize</code></td><td>Nombre exact de nanosecondes à conserver.</td></tr></tbody></table></section>
 <div class="qualified">std.time.Duration</div></div><a class="permalink" href="#std-time-duration" aria-label="Permanent link to std.time.Duration">#</a></article>
-<article class="symbol-card kind-method child" id="std-time-duration-microseconds" data-symbol data-search="std.time.Duration.microseconds method def microseconds() : usize Convertit la durée en microsecondes entières.
+<article class="symbol-card kind-method child" id="std-time-duration-microseconds" data-symbol data-search="std.time.Duration.microseconds method borrow def microseconds() : usize Convertit la durée en microsecondes entières.
 
-@return Quotient par 1 000; les nanosecondes restantes sont tronquées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Duration</div><h3><code>def microseconds() : usize</code></h3>
+@return Quotient par 1 000; les nanosecondes restantes sont tronquées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Duration</div><h3><code>borrow def microseconds() : usize</code></h3>
 <p class="doc-summary">Convertit la durée en microsecondes entières.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Quotient par 1 000; les nanosecondes restantes sont tronquées.</p></section>
 <div class="qualified">std.time.Duration.microseconds</div></div><a class="permalink" href="#std-time-duration-microseconds" aria-label="Permanent link to std.time.Duration.microseconds">#</a></article>
-<article class="symbol-card kind-method child" id="std-time-duration-milliseconds" data-symbol data-search="std.time.Duration.milliseconds method def milliseconds() : usize Convertit la durée en millisecondes entières.
+<article class="symbol-card kind-method child" id="std-time-duration-milliseconds" data-symbol data-search="std.time.Duration.milliseconds method borrow def milliseconds() : usize Convertit la durée en millisecondes entières.
 
-@return Quotient par 1 000 000; la fraction restante est tronquée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Duration</div><h3><code>def milliseconds() : usize</code></h3>
+@return Quotient par 1 000 000; la fraction restante est tronquée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Duration</div><h3><code>borrow def milliseconds() : usize</code></h3>
 <p class="doc-summary">Convertit la durée en millisecondes entières.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Quotient par 1 000 000; la fraction restante est tronquée.</p></section>
 <div class="qualified">std.time.Duration.milliseconds</div></div><a class="permalink" href="#std-time-duration-milliseconds" aria-label="Permanent link to std.time.Duration.milliseconds">#</a></article>
-<article class="symbol-card kind-method child" id="std-time-duration-nanoseconds" data-symbol data-search="std.time.Duration.nanoseconds method def nanoseconds() : usize Lit la représentation exacte en nanosecondes.
+<article class="symbol-card kind-method child" id="std-time-duration-nanoseconds" data-symbol data-search="std.time.Duration.nanoseconds method borrow def nanoseconds() : usize Lit la représentation exacte en nanosecondes.
 
-@return Nombre de nanosecondes stocké."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Duration</div><h3><code>def nanoseconds() : usize</code></h3>
+@return Nombre de nanosecondes stocké."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Duration</div><h3><code>borrow def nanoseconds() : usize</code></h3>
 <p class="doc-summary">Lit la représentation exacte en nanosecondes.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de nanosecondes stocké.</p></section>
 <div class="qualified">std.time.Duration.nanoseconds</div></div><a class="permalink" href="#std-time-duration-nanoseconds" aria-label="Permanent link to std.time.Duration.nanoseconds">#</a></article>
-<article class="symbol-card kind-method child" id="std-time-duration-seconds" data-symbol data-search="std.time.Duration.seconds method def seconds() : double Convertit la durée en secondes à virgule flottante.
+<article class="symbol-card kind-method child" id="std-time-duration-seconds" data-symbol data-search="std.time.Duration.seconds method borrow def seconds() : double Convertit la durée en secondes à virgule flottante.
 
-@return Nombre de nanosecondes divisé par 1 000 000 000."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Duration</div><h3><code>def seconds() : double</code></h3>
+@return Nombre de nanosecondes divisé par 1 000 000 000."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Duration</div><h3><code>borrow def seconds() : double</code></h3>
 <p class="doc-summary">Convertit la durée en secondes à virgule flottante.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>double</code> — Nombre de nanosecondes divisé par 1 000 000 000.</p></section>
 <div class="qualified">std.time.Duration.seconds</div></div><a class="permalink" href="#std-time-duration-seconds" aria-label="Permanent link to std.time.Duration.seconds">#</a></article>
@@ -6821,17 +6835,17 @@ val elapsed : Duration = started.elapsed()<br>
 <p class="doc-summary">Représente une lecture opaque de l’horloge monotone en nanosecondes.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>usize</code></td><td>Lecture native de l’horloge monotone à conserver.</td></tr></tbody></table></section>
 <div class="qualified">std.time.Instant</div></div><a class="permalink" href="#std-time-instant" aria-label="Permanent link to std.time.Instant">#</a></article>
-<article class="symbol-card kind-method child" id="std-time-instant-durationsince" data-symbol data-search="std.time.Instant.durationSince method def durationSince(earlier : Instant) : Duration Soustrait un instant antérieur de cet instant.
+<article class="symbol-card kind-method child" id="std-time-instant-durationsince" data-symbol data-search="std.time.Instant.durationSince method borrow def durationSince(earlier : Instant) : Duration Soustrait un instant antérieur de cet instant.
 
 @param earlier Instant à soustraire; une valeur postérieure à `this` provoque une panique.
-@return Écart non négatif entre les deux lectures, en nanosecondes."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Instant</div><h3><code>def durationSince(earlier : Instant) : Duration</code></h3>
+@return Écart non négatif entre les deux lectures, en nanosecondes."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Instant</div><h3><code>borrow def durationSince(earlier : Instant) : Duration</code></h3>
 <p class="doc-summary">Soustrait un instant antérieur de cet instant.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>earlier</code></td><td><code>Instant</code></td><td>Instant à soustraire; une valeur postérieure à `this` provoque une panique.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Duration</code> — Écart non négatif entre les deux lectures, en nanosecondes.</p></section>
 <div class="qualified">std.time.Instant.durationSince</div></div><a class="permalink" href="#std-time-instant-durationsince" aria-label="Permanent link to std.time.Instant.durationSince">#</a></article>
-<article class="symbol-card kind-method child" id="std-time-instant-elapsed" data-symbol data-search="std.time.Instant.elapsed method def elapsed() : Duration Mesure la durée entre cet instant et une nouvelle lecture monotone.
+<article class="symbol-card kind-method child" id="std-time-instant-elapsed" data-symbol data-search="std.time.Instant.elapsed method borrow def elapsed() : Duration Mesure la durée entre cet instant et une nouvelle lecture monotone.
 
-@return Différence en nanosecondes entre [[monotonicNow]] et cet instant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Instant</div><h3><code>def elapsed() : Duration</code></h3>
+@return Différence en nanosecondes entre [[monotonicNow]] et cet instant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.time.Instant</div><h3><code>borrow def elapsed() : Duration</code></h3>
 <p class="doc-summary">Mesure la durée entre cet instant et une nouvelle lecture monotone.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Duration</code> — Différence en nanosecondes entre <a href="#std-time-monotonicnow"><code>monotonicNow</code></a> et cet instant.</p></section>
 <div class="qualified">std.time.Instant.elapsed</div></div><a class="permalink" href="#std-time-instant-elapsed" aria-label="Permanent link to std.time.Instant.elapsed">#</a></article>
@@ -6895,21 +6909,21 @@ println(timestamp.unixSeconds())<br>
 <p class="doc-summary">Stocke un horodatage civil comme nanosecondes écoulées depuis l’époque Unix.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>usize</code></td><td>Nombre de nanosecondes écoulées depuis l’époque Unix.</td></tr></tbody></table></section>
 <div class="qualified">std.wall_time.WallTime</div></div><a class="permalink" href="#std-wall-time-walltime" aria-label="Permanent link to std.wall_time.WallTime">#</a></article>
-<article class="symbol-card kind-method child" id="std-wall-time-walltime-unixmilliseconds" data-symbol data-search="std.wall_time.WallTime.unixMilliseconds method def unixMilliseconds() : usize Convertit l’horodatage en millisecondes Unix entières.
+<article class="symbol-card kind-method child" id="std-wall-time-walltime-unixmilliseconds" data-symbol data-search="std.wall_time.WallTime.unixMilliseconds method borrow def unixMilliseconds() : usize Convertit l’horodatage en millisecondes Unix entières.
 
-@return Quotient des nanosecondes par 1 000 000, avec troncature du reste."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.wall_time.WallTime</div><h3><code>def unixMilliseconds() : usize</code></h3>
+@return Quotient des nanosecondes par 1 000 000, avec troncature du reste."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.wall_time.WallTime</div><h3><code>borrow def unixMilliseconds() : usize</code></h3>
 <p class="doc-summary">Convertit l’horodatage en millisecondes Unix entières.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Quotient des nanosecondes par 1 000 000, avec troncature du reste.</p></section>
 <div class="qualified">std.wall_time.WallTime.unixMilliseconds</div></div><a class="permalink" href="#std-wall-time-walltime-unixmilliseconds" aria-label="Permanent link to std.wall_time.WallTime.unixMilliseconds">#</a></article>
-<article class="symbol-card kind-method child" id="std-wall-time-walltime-unixnanoseconds" data-symbol data-search="std.wall_time.WallTime.unixNanoseconds method def unixNanoseconds() : usize Lit l’horodatage exact en nanosecondes Unix.
+<article class="symbol-card kind-method child" id="std-wall-time-walltime-unixnanoseconds" data-symbol data-search="std.wall_time.WallTime.unixNanoseconds method borrow def unixNanoseconds() : usize Lit l’horodatage exact en nanosecondes Unix.
 
-@return Nombre de nanosecondes stocké depuis l’époque Unix."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.wall_time.WallTime</div><h3><code>def unixNanoseconds() : usize</code></h3>
+@return Nombre de nanosecondes stocké depuis l’époque Unix."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.wall_time.WallTime</div><h3><code>borrow def unixNanoseconds() : usize</code></h3>
 <p class="doc-summary">Lit l’horodatage exact en nanosecondes Unix.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de nanosecondes stocké depuis l’époque Unix.</p></section>
 <div class="qualified">std.wall_time.WallTime.unixNanoseconds</div></div><a class="permalink" href="#std-wall-time-walltime-unixnanoseconds" aria-label="Permanent link to std.wall_time.WallTime.unixNanoseconds">#</a></article>
-<article class="symbol-card kind-method child" id="std-wall-time-walltime-unixseconds" data-symbol data-search="std.wall_time.WallTime.unixSeconds method def unixSeconds() : usize Convertit l’horodatage en secondes Unix entières.
+<article class="symbol-card kind-method child" id="std-wall-time-walltime-unixseconds" data-symbol data-search="std.wall_time.WallTime.unixSeconds method borrow def unixSeconds() : usize Convertit l’horodatage en secondes Unix entières.
 
-@return Quotient des nanosecondes par 1 000 000 000, avec troncature du reste."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.wall_time.WallTime</div><h3><code>def unixSeconds() : usize</code></h3>
+@return Quotient des nanosecondes par 1 000 000 000, avec troncature du reste."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.wall_time.WallTime</div><h3><code>borrow def unixSeconds() : usize</code></h3>
 <p class="doc-summary">Convertit l’horodatage en secondes Unix entières.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Quotient des nanosecondes par 1 000 000 000, avec troncature du reste.</p></section>
 <div class="qualified">std.wall_time.WallTime.unixSeconds</div></div><a class="permalink" href="#std-wall-time-walltime-unixseconds" aria-label="Permanent link to std.wall_time.WallTime.unixSeconds">#</a></article>
