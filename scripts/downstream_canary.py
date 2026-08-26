@@ -16,7 +16,7 @@ from pathlib import Path, PurePosixPath
 JANUS8_REVISION = "b962b69ea14a47016556f9e2a111c7dab1e2e02d"
 JANUS8_COMMANDS = [["fmt", "--check"], ["check", "--all", "--deny-warnings"],
                    ["test", "--fail-if-empty"], ["build"]]
-JANUS_STUDIO_REVISION = "d0e88543427d462df9c34d74c0800a83f55a21ec"
+JANUS_STUDIO_REVISION = "176c16dab8b37be7d898c98ca98716457b39dbb7"
 JANUS_STUDIO_COMMANDS = [["fmt", "--check"], ["check", "--all"],
                          ["test", "--fail-if-empty", "--release"],
                          ["build", "--release"]]

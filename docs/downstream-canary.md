@@ -2,7 +2,7 @@
 
 Les publications stable et nightly épinglent Janus8 au commit complet
 `b962b69ea14a47016556f9e2a111c7dab1e2e02d` et Janus Studio au commit
-`d0e88543427d462df9c34d74c0800a83f55a21ec`. Le gate extrait exclusivement
+`176c16dab8b37be7d898c98ca98716457b39dbb7`. Le gate extrait exclusivement
 l’archive Linux candidate du workflow courant, valide son checksum SHA-256, son
 identité et la stdlib,
 puis exécute `fmt --check`, `check --all --deny-warnings`,

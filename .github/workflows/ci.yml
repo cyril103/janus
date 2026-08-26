@@ -524,7 +524,7 @@ jobs:
           git clone https://github.com/cyril103/janus8.git janus8
           git -C janus8 checkout b962b69ea14a47016556f9e2a111c7dab1e2e02d
           git clone https://github.com/cyril103/janus-studio.git janus-studio
-          git -C janus-studio checkout d0e88543427d462df9c34d74c0800a83f55a21ec
+          git -C janus-studio checkout 176c16dab8b37be7d898c98ca98716457b39dbb7
           version="$JANUS_PACKAGE_VERSION"
           archive="dist/release/janus-${version}-Linux-x86_64.tar.gz"
           test -f "$archive" && test -f "$archive.sha256"
