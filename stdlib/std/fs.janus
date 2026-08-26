@@ -12,6 +12,7 @@
 /// }
 /// ```
 module std.fs
+import std.bytes
 
 import std.option
 import std.path
@@ -157,6 +158,20 @@ private val nativeSize : usize
     /// @return Nombre d’octets accessibles par [[data]] et [[view]].
     borrow def size() : usize {
         return nativeSize
+    }
+
+    /// Observe le contenu avec une vue binaire bornée temporaire.
+    /// @param action Callback borné recevant tous les octets du fichier.
+    /// @return Résultat indépendant produit par `action`.
+    borrow def withView[U](
+    scoped action : (borrow ByteView) => U
+    ) : U {
+        defer delete action
+        val view : ByteView =
+        new ByteView(nativeData, usize(0), nativeSize)
+        val result : U = action(view)
+        delete view
+        return move result
     }
 
     /// Emprunte le contenu comme chaîne binaire de longueur explicite.

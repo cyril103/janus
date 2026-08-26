@@ -4,6 +4,7 @@ import std.io
 import std.option
 import std.process
 import std.system
+import std.bytes
 
 def argumentEquals(index : usize, expected : string) : bool {
     return match programArgument(index) {
@@ -314,17 +315,22 @@ def markerDataMatches(data : FileData) : bool {
     return matches
 }
 
+def viewEquals(borrow view : ByteView, expected : string) : bool {
+    return view.withPointer[bool](
+    (borrow data : Ptr[byte], offset : usize, size : usize) =>
+    offset == usize(0) && stringView(data, size) == expected
+    )
+}
+
 def inspectChild(result : ProcessResult, root : string) : bool {
     println(true)
     println(result.exitCode() == 23)
-    println(
-    stringView(result.stdoutData(), result.stdoutSize()) ==
-    "child-out\n"
-    )
-    println(
-    stringView(result.stderrData(), result.stderrSize()) ==
-    "child-err\n"
-    )
+    println(result.withStdoutView[bool](
+    (borrow view : ByteView) => viewEquals(view, "child-out\n")
+    ))
+    println(result.withStderrView[bool](
+    (borrow view : ByteView) => viewEquals(view, "child-err\n")
+    ))
     delete result
     val markerPath : Result[Path, SystemError] = joinPath(
     root,

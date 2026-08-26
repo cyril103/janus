@@ -36,6 +36,14 @@
       "symbols": ["Builder", "Builder.add", "Builder.result"]
     },
     {
+      "name": "std.bytes",
+      "source": "stdlib/std/bytes.janus",
+      "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
+      "status": "experimental",
+      "signature_digest": "36dadff76ca464cdf6826672b00e1c76899016c73869c2c248f17bc0f1d20d58",
+      "symbols": ["ByteView", "ByteView.size", "ByteView.isEmpty", "ByteView.get", "ByteView.getOption", "ByteView.withSlice", "ByteView.withPointer"]
+    },
+    {
       "name": "std.c",
       "source": "stdlib/std/c.janus",
       "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
@@ -113,8 +121,8 @@
       "source": "stdlib/std/fs.janus",
       "documentation": ["docs/language-guide.md", "docs/design/path-filesystem.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "6890cedf148f4e5fc992b8eabbda90beb3733437e9ec2f843e3789f912489c44",
-      "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.view", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeDirectoryAll", "removeFile", "metadata", "readDirectory"]
+      "signature_digest": "ad8813005a90be9b4160d63b0ac8e8c618639c603fdb57f2c86e79784390c030",
+      "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.withView", "FileData.view", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeDirectoryAll", "removeFile", "metadata", "readDirectory"]
     },
     {
       "name": "std.hash_probe",
@@ -153,8 +161,8 @@
       "source": "stdlib/std/io.janus",
       "documentation": ["docs/language-guide.md", "docs/design/io-streams.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "47a705eee61dc31894058980ab59b9f60f810085398c2962bef4c1527675b61d",
-      "symbols": ["TextDecodeError", "TextDecodeError.InvalidUtf8", "ByteBuffer", "ByteBuffer.data", "ByteBuffer.size", "ByteBuffer.capacity", "ByteBuffer.isEmpty", "ByteBuffer.clear", "ByteBuffer.tryReserve", "ByteBuffer.append", "ByteBuffer.appendByte", "ByteBuffer.appendText", "ByteBuffer.isUtf8", "ByteBuffer.asText", "InputStream", "InputStream.isOpen", "InputStream.isEof", "InputStream.read", "InputStream.readLine", "InputStream.close", "OutputStream", "OutputStream.isOpen", "OutputStream.write", "OutputStream.writeText", "OutputStream.flush", "OutputStream.close", "openInputStreamBuffered", "openInputStream", "openOutputStreamBuffered", "openOutputStream", "standardInput", "standardOutput", "standardError", "copyStream"]
+      "signature_digest": "38885150b30931cddea0c7fcaa4b833e8b95eae30b3b2510a1df226ec6daf777",
+      "symbols": ["TextDecodeError", "TextDecodeError.InvalidUtf8", "ByteBuffer", "ByteBuffer.data", "ByteBuffer.size", "ByteBuffer.capacity", "ByteBuffer.isEmpty", "ByteBuffer.withView", "ByteBuffer.clear", "ByteBuffer.tryReserve", "ByteBuffer.append", "ByteBuffer.appendByte", "ByteBuffer.appendText", "ByteBuffer.isUtf8", "ByteBuffer.asText", "InputStream", "InputStream.isOpen", "InputStream.isEof", "InputStream.read", "InputStream.readLine", "InputStream.close", "OutputStream", "OutputStream.isOpen", "OutputStream.write", "OutputStream.writeText", "OutputStream.flush", "OutputStream.close", "openInputStreamBuffered", "openInputStream", "openOutputStreamBuffered", "openOutputStream", "standardInput", "standardOutput", "standardError", "copyStream"]
     },
     {
       "name": "std.iterator",
@@ -225,8 +233,8 @@
       "source": "stdlib/std/process.janus",
       "documentation": ["docs/language-guide.md", "docs/design/process-runtime.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "50a4c393f465349260d8b8a00144a5044575f0c4140befa43d6f074f99074942",
-      "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "WorkingDirectory", "WorkingDirectory.view", "environmentVariable", "currentWorkingDirectory", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.stderrData", "ProcessResult.stderrSize", "ChildProcess", "ChildProcess.terminate", "ChildProcess.tryWait", "ChildProcess.tryWrite", "ChildProcess.write", "ChildProcess.writeText", "ChildProcess.read", "ChildProcess.tryRead", "ChildProcess.closeInput", "spawnProcess", "runProcess"]
+      "signature_digest": "68a89f5a6107fc97b26ebdbb847529281f3ef047e1d1a0fcd33680e065898822",
+      "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "WorkingDirectory", "WorkingDirectory.view", "environmentVariable", "currentWorkingDirectory", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.withStdoutView", "ProcessResult.stderrData", "ProcessResult.stderrSize", "ProcessResult.withStderrView", "ChildProcess", "ChildProcess.terminate", "ChildProcess.tryWait", "ChildProcess.tryWrite", "ChildProcess.write", "ChildProcess.writeText", "ChildProcess.read", "ChildProcess.tryRead", "ChildProcess.closeInput", "spawnProcess", "runProcess"]
     },
     {
       "name": "std.range",

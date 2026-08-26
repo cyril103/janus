@@ -9,11 +9,22 @@ import std.error
 import std.io
 import std.priority_queue
 import std.result
+import std.bytes
 
 var releases : int = 0
 
 class Resource(val id : int) {
     destructor { releases = releases + 1 }
+}
+
+def viewSize(borrow view : ByteView) : usize { return view.size() }
+
+def secondByte(borrow view : ByteView) : int {
+    return view.withSlice[int](
+    usize(1),
+    usize(1),
+    (borrow slice : ByteView) => int(slice.get(usize(0)))
+    )
 }
 
 def main() : int {
@@ -124,6 +135,14 @@ def main() : int {
     val buffer : ByteBuffer = new ByteBuffer(usize(0))
     println(std.result.isOk[bool, CapacityError](
     buffer.tryReserve(usize(16))
+    ))
+    buffer.appendByte(byte(10))
+    buffer.appendByte(byte(20))
+    println(buffer.withView[usize](
+    (borrow view : ByteView) => viewSize(view)
+    ))
+    println(buffer.withView[int](
+    (borrow view : ByteView) => secondByte(view)
     ))
     delete buffer
 

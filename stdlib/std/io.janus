@@ -17,6 +17,7 @@ import std.option
 import std.result
 import std.system
 import std.error
+import std.bytes
 
 private extern def janus_io_open(
 borrow path : Ptr[byte],
@@ -150,6 +151,20 @@ class ByteBuffer(initialCapacity : usize) {
     /// @return `true` lorsque [[size]] vaut zéro.
     borrow def isEmpty() : bool {
         return nativeSize == usize(0)
+    }
+
+    /// Observe le contenu avec une vue binaire bornée temporaire.
+    /// @param action Callback borné recevant la vue complète.
+    /// @return Résultat indépendant produit par `action`.
+    borrow def withView[U](
+    scoped action : (borrow ByteView) => U
+    ) : U {
+        defer delete action
+        val view : ByteView =
+        new ByteView(nativeData, usize(0), nativeSize)
+        val result : U = action(view)
+        delete view
+        return move result
     }
 
     /// Vide le contenu sans libérer la capacité réservée.

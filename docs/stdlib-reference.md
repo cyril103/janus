@@ -31,6 +31,27 @@ import std.builder
 def main() : int { return 0 }
 ```
 
+### `std.bytes`
+
+`ByteView` permet d'observer une zone binaire sans copie avec des accès bornés.
+Elle est fournie par une callback `scoped` afin de ne pas survivre au stockage
+qui la contient.
+
+```janus
+// doctest: doctest name=stdlib-std-bytes
+import std.bytes
+import std.io
+def main() : int {
+    val buffer : ByteBuffer = new ByteBuffer(usize(2))
+    buffer.appendByte(byte(7))
+    val value : int = buffer.withView[int](
+        (borrow view : ByteView) => int(view.get(usize(0)))
+    )
+    delete buffer
+    return value - 7
+}
+```
+
 ### `std.iterator`
 
 ```janus

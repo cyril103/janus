@@ -595,6 +595,68 @@ val values : Array[int] = builder.result()<br>
 <section class="doc-section"><h4>Returns</h4><p><code>C</code> — Collection construite; son ownership est transféré à l’appelant.</p></section>
 <div class="qualified">std.builder.Builder.result</div></div><a class="permalink" href="#std-builder-builder-result" aria-label="Permanent link to std.builder.Builder.result">#</a></article>
 </div></section>
+<section class="module" id="module-std-bytes" data-module data-search="std.bytes Fournit des vues binaires bornées et non propriétaires.">
+<header class="module-heading"><span class="keyword">module</span> <h2>std.bytes</h2></header>
+<div class="module-summary"><p class="doc-summary">Fournit des vues binaires bornées et non propriétaires.</p></div><h3 class="member-heading">Public members <span class="member-count">7</span></h3>
+<div class="symbol-list">
+<article class="symbol-card kind-class" id="std-bytes-byteview" data-symbol data-search="std.bytes.ByteView class class ByteView(borrow val nativeData : Ptr[byte], val start : usize, val count : usize) Vue en lecture seule sur une plage d&#39;octets empruntée.
+
+La vue conserve le pointeur de base, un décalage et une longueur. Elle ne
+libère jamais le stockage; son propriétaire doit rester vivant.
+@param nativeData Début du stockage emprunté.
+@param start Décalage du premier octet visible.
+@param count Nombre d&#39;octets visibles."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ByteView(borrow val nativeData : Ptr[byte], val start : usize, val count : usize)</code></h3>
+<p class="doc-summary">Vue en lecture seule sur une plage d&#39;octets empruntée.</p>
+<div class="doc-details"><p>La vue conserve le pointeur de base, un décalage et une longueur. Elle ne<br>
+libère jamais le stockage; son propriétaire doit rester vivant.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeData</code></td><td><code>Ptr[byte]</code></td><td>Début du stockage emprunté.</td></tr><tr><td><code>start</code></td><td><code>usize</code></td><td>Décalage du premier octet visible.</td></tr><tr><td><code>count</code></td><td><code>usize</code></td><td>Nombre d&#39;octets visibles.</td></tr></tbody></table></section>
+<div class="qualified">std.bytes.ByteView</div></div><a class="permalink" href="#std-bytes-byteview" aria-label="Permanent link to std.bytes.ByteView">#</a></article>
+<article class="symbol-card kind-method child" id="std-bytes-byteview-get" data-symbol data-search="std.bytes.ByteView.get method borrow def get(index : usize) : byte Lit un octet ou déclenche `panic` si l&#39;indice est invalide.
+@param index Position relative à la vue.
+@return Octet copié depuis le stockage emprunté."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.bytes.ByteView</div><h3><code>borrow def get(index : usize) : byte</code></h3>
+<p class="doc-summary">Lit un octet ou déclenche `panic` si l&#39;indice est invalide.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative à la vue.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>byte</code> — Octet copié depuis le stockage emprunté.</p></section>
+<div class="qualified">std.bytes.ByteView.get</div></div><a class="permalink" href="#std-bytes-byteview-get" aria-label="Permanent link to std.bytes.ByteView.get">#</a></article>
+<article class="symbol-card kind-method child" id="std-bytes-byteview-getoption" data-symbol data-search="std.bytes.ByteView.getOption method borrow def getOption(index : usize) : Option[byte] Lit un octet si l&#39;indice est valide.
+@param index Position relative à la vue.
+@return `Some` avec l&#39;octet, ou `None` hors limites."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.bytes.ByteView</div><h3><code>borrow def getOption(index : usize) : Option[byte]</code></h3>
+<p class="doc-summary">Lit un octet si l&#39;indice est valide.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>index</code></td><td><code>usize</code></td><td>Position relative à la vue.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[byte]</code> — `Some` avec l&#39;octet, ou `None` hors limites.</p></section>
+<div class="qualified">std.bytes.ByteView.getOption</div></div><a class="permalink" href="#std-bytes-byteview-getoption" aria-label="Permanent link to std.bytes.ByteView.getOption">#</a></article>
+<article class="symbol-card kind-method child" id="std-bytes-byteview-isempty" data-symbol data-search="std.bytes.ByteView.isEmpty method borrow def isEmpty() : bool Indique si la vue est vide.
+@return `true` lorsque [[ByteView.size]] vaut zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.bytes.ByteView</div><h3><code>borrow def isEmpty() : bool</code></h3>
+<p class="doc-summary">Indique si la vue est vide.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` lorsque <a href="#std-bytes-byteview-size"><code>ByteView.size</code></a> vaut zéro.</p></section>
+<div class="qualified">std.bytes.ByteView.isEmpty</div></div><a class="permalink" href="#std-bytes-byteview-isempty" aria-label="Permanent link to std.bytes.ByteView.isEmpty">#</a></article>
+<article class="symbol-card kind-method child" id="std-bytes-byteview-size" data-symbol data-search="std.bytes.ByteView.size method borrow def size() : usize Retourne le nombre d&#39;octets visibles.
+@return Longueur bornée de la vue."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.bytes.ByteView</div><h3><code>borrow def size() : usize</code></h3>
+<p class="doc-summary">Retourne le nombre d&#39;octets visibles.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Longueur bornée de la vue.</p></section>
+<div class="qualified">std.bytes.ByteView.size</div></div><a class="permalink" href="#std-bytes-byteview-size" aria-label="Permanent link to std.bytes.ByteView.size">#</a></article>
+<article class="symbol-card kind-method child" id="std-bytes-byteview-withpointer" data-symbol data-search="std.bytes.ByteView.withPointer method borrow def withPointer[U](scoped action : Function[Ptr[byte], usize, usize, U]) : U Fournit l&#39;adresse native et les bornes uniquement pendant le callback.
+
+Le callback reçoit le pointeur de base, le décalage et la longueur; il ne
+peut pas conserver la vue ni l&#39;emprunt au-delà de l&#39;appel.
+@param action Callback natif borné.
+@return Résultat indépendant produit par `action`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.bytes.ByteView</div><h3><code>borrow def withPointer[U](scoped action : Function[Ptr[byte], usize, usize, U]) : U</code></h3>
+<p class="doc-summary">Fournit l&#39;adresse native et les bornes uniquement pendant le callback.</p>
+<div class="doc-details"><p>Le callback reçoit le pointeur de base, le décalage et la longueur; il ne<br>
+peut pas conserver la vue ni l&#39;emprunt au-delà de l&#39;appel.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[Ptr[byte], usize, usize, U]</code></td><td>Callback natif borné.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Résultat indépendant produit par `action`.</p></section>
+<div class="qualified">std.bytes.ByteView.withPointer</div></div><a class="permalink" href="#std-bytes-byteview-withpointer" aria-label="Permanent link to std.bytes.ByteView.withPointer">#</a></article>
+<article class="symbol-card kind-method child" id="std-bytes-byteview-withslice" data-symbol data-search="std.bytes.ByteView.withSlice method borrow def withSlice[U](offset : usize, length : usize, scoped action : Function[ByteView, U]) : U Observe une sous-plage vérifiée pendant un callback borné.
+@param offset Décalage relatif du début.
+@param length Longueur de la sous-plage.
+@param action Callback recevant la sous-vue temporaire.
+@return Résultat indépendant produit par `action`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.bytes.ByteView</div><h3><code>borrow def withSlice[U](offset : usize, length : usize, scoped action : Function[ByteView, U]) : U</code></h3>
+<p class="doc-summary">Observe une sous-plage vérifiée pendant un callback borné.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>offset</code></td><td><code>usize</code></td><td>Décalage relatif du début.</td></tr><tr><td><code>length</code></td><td><code>usize</code></td><td>Longueur de la sous-plage.</td></tr><tr><td><code>action</code></td><td><code>Function[ByteView, U]</code></td><td>Callback recevant la sous-vue temporaire.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Résultat indépendant produit par `action`.</p></section>
+<div class="qualified">std.bytes.ByteView.withSlice</div></div><a class="permalink" href="#std-bytes-byteview-withslice" aria-label="Permanent link to std.bytes.ByteView.withSlice">#</a></article>
+</div></section>
 <section class="module" id="module-std-c" data-module data-search="std.c Déclare un sous-ensemble brut de la bibliothèque C pour l’interopérabilité.
 
 Les pointeurs, chaînes terminées par NUL, formats et durées de vie restent à la
@@ -878,7 +940,7 @@ match loaded {<br>
     Ok(file) =&gt; println(file.view()),<br>
     Error(error) =&gt; println(error.context)<br>
 }<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">25</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">26</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-fs-directoryiterator" data-symbol data-search="std.fs.DirectoryIterator class class DirectoryIterator(var nativeHandle : isize, val directoryContext : string) Parcours propriétaire et à usage unique des entrées d’un répertoire.
 
@@ -927,6 +989,13 @@ destruction. Aucune validation d’encodage n’est effectuée.</p></div>
 <p class="doc-summary">Emprunte le contenu comme chaîne binaire de longueur explicite.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue non validée UTF-8, valable jusqu’à la destruction du propriétaire.</p></section>
 <div class="qualified">std.fs.FileData.view</div></div><a class="permalink" href="#std-fs-filedata-view" aria-label="Permanent link to std.fs.FileData.view">#</a></article>
+<article class="symbol-card kind-method child" id="std-fs-filedata-withview" data-symbol data-search="std.fs.FileData.withView method borrow def withView[U](scoped action : Function[ByteView, U]) : U Observe le contenu avec une vue binaire bornée temporaire.
+@param action Callback borné recevant tous les octets du fichier.
+@return Résultat indépendant produit par `action`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.fs.FileData</div><h3><code>borrow def withView[U](scoped action : Function[ByteView, U]) : U</code></h3>
+<p class="doc-summary">Observe le contenu avec une vue binaire bornée temporaire.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[ByteView, U]</code></td><td>Callback borné recevant tous les octets du fichier.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Résultat indépendant produit par `action`.</p></section>
+<div class="qualified">std.fs.FileData.withView</div></div><a class="permalink" href="#std-fs-filedata-withview" aria-label="Permanent link to std.fs.FileData.withView">#</a></article>
 <article class="symbol-card kind-struct" id="std-fs-filemetadata" data-symbol data-search="std.fs.FileMetadata struct struct FileMetadata(val kind : FileType, val size : usize) Instantané copiable des métadonnées minimales d’une entrée.
 
 Il contient uniquement le type et la taille renvoyés par l’hôte ; leur sens
@@ -4608,7 +4677,7 @@ match opened {<br>
     Ok(input) =&gt; input.readLine(),<br>
     Error(error) =&gt; println(error.context)<br>
 }<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">34</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">35</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-io-bytebuffer" data-symbol data-search="std.io.ByteBuffer class class ByteBuffer(initialCapacity : usize) Tampon binaire redimensionnable possédant son allocation.
 
@@ -4687,6 +4756,13 @@ explicitement garanti. L’échec laisse la taille logique inchangée.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>requested</code></td><td><code>usize</code></td><td>Capacité minimale souhaitée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[bool, CapacityError]</code> — `Ok(true)` après croissance, `Ok(false)` si elle était suffisante, ou une <a href="#std-error-capacityerror"><code>CapacityError</code></a>.</p></section>
 <div class="qualified">std.io.ByteBuffer.tryReserve</div></div><a class="permalink" href="#std-io-bytebuffer-tryreserve" aria-label="Permanent link to std.io.ByteBuffer.tryReserve">#</a></article>
+<article class="symbol-card kind-method child" id="std-io-bytebuffer-withview" data-symbol data-search="std.io.ByteBuffer.withView method borrow def withView[U](scoped action : Function[ByteView, U]) : U Observe le contenu avec une vue binaire bornée temporaire.
+@param action Callback borné recevant la vue complète.
+@return Résultat indépendant produit par `action`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.io.ByteBuffer</div><h3><code>borrow def withView[U](scoped action : Function[ByteView, U]) : U</code></h3>
+<p class="doc-summary">Observe le contenu avec une vue binaire bornée temporaire.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[ByteView, U]</code></td><td>Callback borné recevant la vue complète.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Résultat indépendant produit par `action`.</p></section>
+<div class="qualified">std.io.ByteBuffer.withView</div></div><a class="permalink" href="#std-io-bytebuffer-withview" aria-label="Permanent link to std.io.ByteBuffer.withView">#</a></article>
 <article class="symbol-card kind-class" id="std-io-inputstream" data-symbol data-search="std.io.InputStream class class InputStream(var nativeHandle : isize, val ownsHandle : bool, val streamContext : string, val requestedCapacity : usize) Flux d’entrée tamponné, propriétaire ou empruntant un handle standard.
 
 Les lectures consomment d’abord le tampon interne. La fin n’est connue qu’après
@@ -6240,7 +6316,7 @@ d’environnement et résultats de commande possèdent en revanche leurs buffers
 <a href="#std-process-runprocess"><code>runProcess</code></a> attend la fin de l’enfant et peut capturer ses sorties en octets.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val args = new Array[string](usize(1))<br>
 args.push(&quot;--version&quot;)<br>
 val result = runProcess(&quot;janus&quot;, args, &quot;&quot;, true, true)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">26</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">28</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-process-childprocess" data-symbol data-search="std.process.ChildProcess class class ChildProcess(var nativeProcess : isize) Processus enfant persistant relié par des tubes à son entrée et sa sortie standard.
 
@@ -6387,6 +6463,20 @@ invalides à la destruction. Les données sont brutes et ne sont pas validées U
 <p class="doc-summary">Retourne la taille de la sortie standard capturée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’octets disponibles via <a href="#std-process-processresult-stdoutdata"><code>stdoutData</code></a>, zéro si rien n’a été capturé.</p></section>
 <div class="qualified">std.process.ProcessResult.stdoutSize</div></div><a class="permalink" href="#std-process-processresult-stdoutsize" aria-label="Permanent link to std.process.ProcessResult.stdoutSize">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-processresult-withstderrview" data-symbol data-search="std.process.ProcessResult.withStderrView method borrow def withStderrView[U](scoped action : Function[ByteView, U]) : U Observe la sortie d&#39;erreur capturée avec une vue bornée temporaire.
+@param action Callback borné recevant toute la capture d&#39;erreur.
+@return Résultat indépendant produit par `action`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def withStderrView[U](scoped action : Function[ByteView, U]) : U</code></h3>
+<p class="doc-summary">Observe la sortie d&#39;erreur capturée avec une vue bornée temporaire.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[ByteView, U]</code></td><td>Callback borné recevant toute la capture d&#39;erreur.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Résultat indépendant produit par `action`.</p></section>
+<div class="qualified">std.process.ProcessResult.withStderrView</div></div><a class="permalink" href="#std-process-processresult-withstderrview" aria-label="Permanent link to std.process.ProcessResult.withStderrView">#</a></article>
+<article class="symbol-card kind-method child" id="std-process-processresult-withstdoutview" data-symbol data-search="std.process.ProcessResult.withStdoutView method borrow def withStdoutView[U](scoped action : Function[ByteView, U]) : U Observe la sortie standard capturée avec une vue bornée temporaire.
+@param action Callback borné recevant toute la capture standard.
+@return Résultat indépendant produit par `action`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.process.ProcessResult</div><h3><code>borrow def withStdoutView[U](scoped action : Function[ByteView, U]) : U</code></h3>
+<p class="doc-summary">Observe la sortie standard capturée avec une vue bornée temporaire.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[ByteView, U]</code></td><td>Callback borné recevant toute la capture standard.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Résultat indépendant produit par `action`.</p></section>
+<div class="qualified">std.process.ProcessResult.withStdoutView</div></div><a class="permalink" href="#std-process-processresult-withstdoutview" aria-label="Permanent link to std.process.ProcessResult.withStdoutView">#</a></article>
 <article class="symbol-card kind-class" id="std-process-workingdirectory" data-symbol data-search="std.process.WorkingDirectory class class WorkingDirectory(var nativeText : isize) Répertoire de travail courant possédant sa représentation native UTF-8.
 @param nativeText Stockage natif transféré par l’API de processus."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class WorkingDirectory(var nativeText : isize)</code></h3>
 <p class="doc-summary">Répertoire de travail courant possédant sa représentation native UTF-8.</p>
@@ -7419,7 +7509,7 @@ println(timestamp.unixSeconds())<br>
 <div class="qualified">std.wall_time.wallNow</div></div><a class="permalink" href="#std-wall-time-wallnow" aria-label="Permanent link to std.wall_time.wallNow">#</a></article>
 </div></section>
 </main>
-<aside id="module-sidebar" class="sidebar"><h2>Modules</h2><nav class="module-nav" aria-label="Modules"><a class="module-link" data-module-link href="#module-std-array"><span class="dot"></span>std.array</a><a class="module-link" data-module-link href="#module-std-array-builder"><span class="dot"></span>std.array_builder</a><a class="module-link" data-module-link href="#module-std-builder"><span class="dot"></span>std.builder</a><a class="module-link" data-module-link href="#module-std-c"><span class="dot"></span>std.c</a><a class="module-link" data-module-link href="#module-std-deque"><span class="dot"></span>std.deque</a><a class="module-link" data-module-link href="#module-std-error"><span class="dot"></span>std.error</a><a class="module-link" data-module-link href="#module-std-fs"><span class="dot"></span>std.fs</a><a class="module-link" data-module-link href="#module-std-graphics"><span class="dot"></span>std.graphics</a><a class="module-link" data-module-link href="#module-std-graphics-audio"><span class="dot"></span>std.graphics.audio</a><a class="module-link" data-module-link href="#module-std-graphics-drawing"><span class="dot"></span>std.graphics.drawing</a><a class="module-link" data-module-link href="#module-std-graphics-input"><span class="dot"></span>std.graphics.input</a><a class="module-link" data-module-link href="#module-std-graphics-resources"><span class="dot"></span>std.graphics.resources</a><a class="module-link" data-module-link href="#module-std-graphics-types"><span class="dot"></span>std.graphics.types</a><a class="module-link" data-module-link href="#module-std-hash-probe"><span class="dot"></span>std.hash_probe</a><a class="module-link" data-module-link href="#module-std-hashing"><span class="dot"></span>std.hashing</a><a class="module-link" data-module-link href="#module-std-hashmap"><span class="dot"></span>std.hashmap</a><a class="module-link" data-module-link href="#module-std-hashset"><span class="dot"></span>std.hashset</a><a class="module-link" data-module-link href="#module-std-io"><span class="dot"></span>std.io</a><a class="module-link" data-module-link href="#module-std-iterator"><span class="dot"></span>std.iterator</a><a class="module-link" data-module-link href="#module-std-math"><span class="dot"></span>std.math</a><a class="module-link" data-module-link href="#module-std-numeric"><span class="dot"></span>std.numeric</a><a class="module-link" data-module-link href="#module-std-option"><span class="dot"></span>std.option</a><a class="module-link" data-module-link href="#module-std-ordering"><span class="dot"></span>std.ordering</a><a class="module-link" data-module-link href="#module-std-path"><span class="dot"></span>std.path</a><a class="module-link" data-module-link href="#module-std-priority-queue"><span class="dot"></span>std.priority_queue</a><a class="module-link" data-module-link href="#module-std-process"><span class="dot"></span>std.process</a><a class="module-link" data-module-link href="#module-std-random"><span class="dot"></span>std.random</a><a class="module-link" data-module-link href="#module-std-range"><span class="dot"></span>std.range</a><a class="module-link" data-module-link href="#module-std-result"><span class="dot"></span>std.result</a><a class="module-link" data-module-link href="#module-std-slice"><span class="dot"></span>std.slice</a><a class="module-link" data-module-link href="#module-std-system"><span class="dot"></span>std.system</a><a class="module-link" data-module-link href="#module-std-testing"><span class="dot"></span>std.testing</a><a class="module-link" data-module-link href="#module-std-text"><span class="dot"></span>std.text</a><a class="module-link" data-module-link href="#module-std-time"><span class="dot"></span>std.time</a><a class="module-link" data-module-link href="#module-std-wall-time"><span class="dot"></span>std.wall_time</a></nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
+<aside id="module-sidebar" class="sidebar"><h2>Modules</h2><nav class="module-nav" aria-label="Modules"><a class="module-link" data-module-link href="#module-std-array"><span class="dot"></span>std.array</a><a class="module-link" data-module-link href="#module-std-array-builder"><span class="dot"></span>std.array_builder</a><a class="module-link" data-module-link href="#module-std-builder"><span class="dot"></span>std.builder</a><a class="module-link" data-module-link href="#module-std-bytes"><span class="dot"></span>std.bytes</a><a class="module-link" data-module-link href="#module-std-c"><span class="dot"></span>std.c</a><a class="module-link" data-module-link href="#module-std-deque"><span class="dot"></span>std.deque</a><a class="module-link" data-module-link href="#module-std-error"><span class="dot"></span>std.error</a><a class="module-link" data-module-link href="#module-std-fs"><span class="dot"></span>std.fs</a><a class="module-link" data-module-link href="#module-std-graphics"><span class="dot"></span>std.graphics</a><a class="module-link" data-module-link href="#module-std-graphics-audio"><span class="dot"></span>std.graphics.audio</a><a class="module-link" data-module-link href="#module-std-graphics-drawing"><span class="dot"></span>std.graphics.drawing</a><a class="module-link" data-module-link href="#module-std-graphics-input"><span class="dot"></span>std.graphics.input</a><a class="module-link" data-module-link href="#module-std-graphics-resources"><span class="dot"></span>std.graphics.resources</a><a class="module-link" data-module-link href="#module-std-graphics-types"><span class="dot"></span>std.graphics.types</a><a class="module-link" data-module-link href="#module-std-hash-probe"><span class="dot"></span>std.hash_probe</a><a class="module-link" data-module-link href="#module-std-hashing"><span class="dot"></span>std.hashing</a><a class="module-link" data-module-link href="#module-std-hashmap"><span class="dot"></span>std.hashmap</a><a class="module-link" data-module-link href="#module-std-hashset"><span class="dot"></span>std.hashset</a><a class="module-link" data-module-link href="#module-std-io"><span class="dot"></span>std.io</a><a class="module-link" data-module-link href="#module-std-iterator"><span class="dot"></span>std.iterator</a><a class="module-link" data-module-link href="#module-std-math"><span class="dot"></span>std.math</a><a class="module-link" data-module-link href="#module-std-numeric"><span class="dot"></span>std.numeric</a><a class="module-link" data-module-link href="#module-std-option"><span class="dot"></span>std.option</a><a class="module-link" data-module-link href="#module-std-ordering"><span class="dot"></span>std.ordering</a><a class="module-link" data-module-link href="#module-std-path"><span class="dot"></span>std.path</a><a class="module-link" data-module-link href="#module-std-priority-queue"><span class="dot"></span>std.priority_queue</a><a class="module-link" data-module-link href="#module-std-process"><span class="dot"></span>std.process</a><a class="module-link" data-module-link href="#module-std-random"><span class="dot"></span>std.random</a><a class="module-link" data-module-link href="#module-std-range"><span class="dot"></span>std.range</a><a class="module-link" data-module-link href="#module-std-result"><span class="dot"></span>std.result</a><a class="module-link" data-module-link href="#module-std-slice"><span class="dot"></span>std.slice</a><a class="module-link" data-module-link href="#module-std-system"><span class="dot"></span>std.system</a><a class="module-link" data-module-link href="#module-std-testing"><span class="dot"></span>std.testing</a><a class="module-link" data-module-link href="#module-std-text"><span class="dot"></span>std.text</a><a class="module-link" data-module-link href="#module-std-time"><span class="dot"></span>std.time</a><a class="module-link" data-module-link href="#module-std-wall-time"><span class="dot"></span>std.wall_time</a></nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
 </div>
 <footer><p>Generated by Janus. No network resources are required.</p></footer>
 <script>

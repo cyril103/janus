@@ -1,5 +1,6 @@
 import std.fs
 import std.path
+import std.bytes
 
 def boolResult(
 result : Result[bool, SystemError]
@@ -73,10 +74,17 @@ result : Result[Path, SystemError]
     }
 }
 
+def portableView(borrow view : ByteView) : bool {
+    return view.withPointer[bool](
+    (borrow data : Ptr[byte], offset : usize, size : usize) =>
+    offset == usize(0) && stringView(data, size) == "portable"
+    )
+}
+
 def fileDataMatches(data : FileData) : bool {
-    val matches : bool =
-    data.size() == usize(8) &&
-    data.view() == "portable"
+    val matches : bool = data.withView[bool](
+    (borrow view : ByteView) => portableView(view)
+    )
     delete data
     return matches
 }

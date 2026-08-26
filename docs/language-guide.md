@@ -1258,8 +1258,17 @@ Un retour pointeur externe utilise `borrow` lorsque le stockage reste détenu
 par le code natif, et `owned` lorsque Janus doit le libérer ou le transférer.
 Une valeur retournée `borrow` ne peut pas être passée à `free`, `delete` ou à
 un paramètre `consume`. Sans contrat sur un retour `Ptr[T]`, le compilateur
-émet `JANA0022`. Les qualificateurs de retour sont limités aux déclarations
-`extern def` et aux types `Ptr[T]`.
+émet `JANA0022`. Le retour `owned` reste réservé aux pointeurs des déclarations
+`extern def`. Les fonctions Janus peuvent en revanche retourner `borrow T` ou
+`borrow var T` : le résultat reste lié à la durée de vie du propriétaire et le
+second contrat autorise sa mutation sans transférer sa propriété.
+
+Le module `std.bytes` fournit `ByteView`, une vue binaire empruntée et bornée.
+Les buffers et résultats natifs l'exposent uniquement dans une callback
+`scoped`, via `ByteBuffer.withView`, `FileData.withView`,
+`ProcessResult.withStdoutView` ou `withStderrView`. `get`, `getOption` et
+`withSlice` contrôlent les bornes ; l'adresse native n'est accessible que dans
+la callback de `withPointer`, accompagnée de son décalage et de sa longueur.
 
 Un alias local peut être déclaré sans transfert de propriété avec
 `borrow val view = owner`. Il est immutable et ne peut être ni libéré ni
@@ -1352,7 +1361,9 @@ openOutputStream("copie.txt", false)
 
 `standardInput`, `standardOutput` et `standardError` créent des wrappers qui ne
 ferment pas les handles du processus. Un buffer binaire doit appeler `isUtf8`
-ou `asText` avant d’être traité comme du texte. Le
+ou `asText` avant d’être traité comme du texte. Pour inspecter ses octets sans
+copie, `withView` fournit temporairement une `ByteView` bornée qui ne peut pas
+s'échapper de la callback. Le
 [contrat des flux](design/io-streams.md) précise les lectures partielles, les
 fins de ligne, la durée de vie des vues et le flush selon le type de handle.
 

@@ -10,6 +10,7 @@
 /// val result = runProcess("janus", args, "", true, true)
 /// ```
 module std.process
+import std.bytes
 
 import std.array
 import std.option
@@ -250,6 +251,23 @@ class ProcessResult(private var nativeResult : isize) {
         return janus_process_result_stdout_size(nativeResult)
     }
 
+    /// Observe la sortie standard capturée avec une vue bornée temporaire.
+    /// @param action Callback borné recevant toute la capture standard.
+    /// @return Résultat indépendant produit par `action`.
+    borrow def withStdoutView[U](
+    scoped action : (borrow ByteView) => U
+    ) : U {
+        defer delete action
+        val view : ByteView = new ByteView(
+        janus_process_result_stdout_data(nativeResult),
+        usize(0),
+        janus_process_result_stdout_size(nativeResult)
+        )
+        val result : U = action(view)
+        delete view
+        return move result
+    }
+
     /// Emprunte le début de la sortie d’erreur capturée.
     /// @return Pointeur lisible sur [[stderrSize]] octets, valide pendant la vie de ce résultat.
     borrow def stderrData() : Ptr[byte] {
@@ -260,6 +278,23 @@ class ProcessResult(private var nativeResult : isize) {
     /// @return Nombre d’octets disponibles via [[stderrData]], zéro si rien n’a été capturé.
     borrow def stderrSize() : usize {
         return janus_process_result_stderr_size(nativeResult)
+    }
+
+    /// Observe la sortie d'erreur capturée avec une vue bornée temporaire.
+    /// @param action Callback borné recevant toute la capture d'erreur.
+    /// @return Résultat indépendant produit par `action`.
+    borrow def withStderrView[U](
+    scoped action : (borrow ByteView) => U
+    ) : U {
+        defer delete action
+        val view : ByteView = new ByteView(
+        janus_process_result_stderr_data(nativeResult),
+        usize(0),
+        janus_process_result_stderr_size(nativeResult)
+        )
+        val result : U = action(view)
+        delete view
+        return move result
     }
 
     destructor {

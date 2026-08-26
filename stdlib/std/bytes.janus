@@ -1,0 +1,80 @@
+/// Fournit des vues binaires bornées et non propriétaires.
+module std.bytes
+import std.option
+
+/// Vue en lecture seule sur une plage d'octets empruntée.
+///
+/// La vue conserve le pointeur de base, un décalage et une longueur. Elle ne
+/// libère jamais le stockage; son propriétaire doit rester vivant.
+/// @param nativeData Début du stockage emprunté.
+/// @param start Décalage du premier octet visible.
+/// @param count Nombre d'octets visibles.
+class ByteView(
+private borrow val nativeData : Ptr[byte],
+private val start : usize,
+private val count : usize
+) {
+    /// Retourne le nombre d'octets visibles.
+    /// @return Longueur bornée de la vue.
+    borrow def size() : usize { return count }
+
+    /// Indique si la vue est vide.
+    /// @return `true` lorsque [[ByteView.size]] vaut zéro.
+    borrow def isEmpty() : bool { return count == usize(0) }
+
+    /// Lit un octet ou déclenche `panic` si l'indice est invalide.
+    /// @param index Position relative à la vue.
+    /// @return Octet copié depuis le stockage emprunté.
+    borrow def get(index : usize) : byte {
+        if index >= count { panic("ByteView index out of bounds\n") }
+        return nativeData.load(start + index)
+    }
+
+    /// Lit un octet si l'indice est valide.
+    /// @param index Position relative à la vue.
+    /// @return `Some` avec l'octet, ou `None` hors limites.
+    borrow def getOption(index : usize) : Option[byte] {
+        return if index < count {
+            Option.Some[byte](nativeData.load(start + index))
+        } else {
+            Option.None[byte]()
+        }
+    }
+
+    /// Observe une sous-plage vérifiée pendant un callback borné.
+    /// @param offset Décalage relatif du début.
+    /// @param length Longueur de la sous-plage.
+    /// @param action Callback recevant la sous-vue temporaire.
+    /// @return Résultat indépendant produit par `action`.
+    borrow def withSlice[U](
+    offset : usize,
+    length : usize,
+    scoped action : (borrow ByteView) => U
+    ) : U {
+        defer delete action
+        if offset > count || length > count - offset {
+            panic("ByteView range out of bounds\n")
+        }
+        val view : ByteView = new ByteView(
+        nativeData,
+        start + offset,
+        length
+        )
+        val result : U = action(view)
+        delete view
+        return move result
+    }
+
+    /// Fournit l'adresse native et les bornes uniquement pendant le callback.
+    ///
+    /// Le callback reçoit le pointeur de base, le décalage et la longueur; il ne
+    /// peut pas conserver la vue ni l'emprunt au-delà de l'appel.
+    /// @param action Callback natif borné.
+    /// @return Résultat indépendant produit par `action`.
+    borrow def withPointer[U](
+    scoped action : (borrow Ptr[byte], usize, usize) => U
+    ) : U {
+        defer delete action
+        return action(nativeData, start, count)
+    }
+}
