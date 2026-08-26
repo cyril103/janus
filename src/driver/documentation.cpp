@@ -344,6 +344,8 @@ std::string type_signature(const janus::ast::ClassDeclaration &value) {
     }
     signature += ']';
   }
+  if (value.is_constructor_internal)
+    signature += " internal";
   signature += '(';
   bool first_parameter = true;
   for (const auto &parameter : value.constructor_parameters) {

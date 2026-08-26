@@ -766,6 +766,14 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
     static_cast<void>(expect(TokenKind::RightBracket));
   }
 
+  const bool is_constructor_internal = current_.kind == TokenKind::Internal;
+  if (is_constructor_internal) {
+    if (is_value_type)
+      throw CompileError{current_.location,
+                         "struct constructors cannot be internal"};
+    advance();
+  }
+
   static_cast<void>(expect(TokenKind::LeftParen));
   std::vector<ast::FunctionDeclaration::Parameter> constructor_parameters;
   std::vector<ast::ValueDeclaration> constructor_fields;
@@ -905,6 +913,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
                                     std::move(type_constraints),
                                     false,
                                     false,
+                                    is_constructor_internal,
                                     std::nullopt,
                                     std::move(derivations),
                                     {}};

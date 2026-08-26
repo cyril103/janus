@@ -144,7 +144,7 @@ private def sizeOutput() : Ptr[usize] {
 /// destruction. Aucune validation d’encodage n’est effectuée.
 /// @param nativeData Allocation native dont l’objet prend possession.
 /// @param nativeSize Nombre d’octets lisibles à partir de `nativeData`.
-class FileData(
+class FileData internal(
 private var nativeData : Ptr[byte],
 private val nativeSize : usize
 ) {
@@ -192,7 +192,7 @@ private val nativeSize : usize
 /// libère le handle natif ; l’ordre des entrées est celui fourni par la plateforme.
 /// @param nativeHandle Handle de parcours natif dont l’itérateur prend possession.
 /// @param directoryContext Chemin conservé pour contextualiser les erreurs de parcours.
-class DirectoryIterator(
+class DirectoryIterator internal(
 private var nativeHandle : isize,
 private val directoryContext : string
 ) {

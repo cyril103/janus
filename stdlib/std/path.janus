@@ -87,7 +87,7 @@ private def lengthOutput() : Ptr[usize] {
 /// nécessairement présente sur le système de fichiers.
 /// @param nativeData Tampon natif normalisé dont l’objet prend possession.
 /// @param nativeLength Nombre d’octets du chemin, hors éventuel terminateur natif.
-class Path(
+class Path internal(
 private var nativeData : Ptr[byte],
 private val nativeLength : usize
 ) {

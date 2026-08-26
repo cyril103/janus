@@ -40,7 +40,7 @@
       "source": "stdlib/std/bytes.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],
       "status": "experimental",
-      "signature_digest": "36dadff76ca464cdf6826672b00e1c76899016c73869c2c248f17bc0f1d20d58",
+      "signature_digest": "bbad5a7d60a53f80993ad9e0fb8909891bd2d679083407599a88b179fd3158d8",
       "symbols": ["ByteView", "ByteView.size", "ByteView.isEmpty", "ByteView.get", "ByteView.getOption", "ByteView.withSlice", "ByteView.withPointer"]
     },
     {
@@ -81,7 +81,7 @@
       "source": "stdlib/std/graphics/audio.janus",
       "documentation": ["docs/graphics.md"],
       "status": "experimental",
-      "signature_digest": "c498cd612d54ed218e4af2f81f3366299bf8b33aad2468570c70da56b2e6505f",
+      "signature_digest": "0348917d95ca422344b254243381032c95f1148d85d85e6463218e862b8f39bd",
       "symbols": ["Sound", "Sound.isValid", "Sound.play", "Sound.stop", "Sound.isPlaying", "Sound.setVolume", "Sound.setPitch", "Sound.setPan", "Music", "Music.isValid", "Music.play", "Music.stop", "Music.update", "Music.isPlaying", "Music.setVolume", "Music.setPitch", "Music.setPan", "initAudio", "closeAudio", "setMasterVolume", "loadSound", "loadMusic"]
     },
     {
@@ -105,7 +105,7 @@
       "source": "stdlib/std/graphics/resources.janus",
       "documentation": ["docs/graphics.md"],
       "status": "experimental",
-      "signature_digest": "70e91345424788be6e438845361ecf8f36a7c5f0657462ce0dc6263c4591ed16",
+      "signature_digest": "0a239c1a17c5f6f5f18c64235b901bdddcd367f502a38eea0845bdeb8c22ddd5",
       "symbols": ["Image", "Image.isValid", "Image.width", "Image.height", "Image.mipmaps", "Image.formatValue", "Image.export", "Image.exportAsCode", "Image.copy", "Image.region", "Image.channel", "Image.convert", "Image.toPowerOfTwo", "Image.crop", "Image.alphaCrop", "Image.alphaClear", "Image.alphaMask", "Image.alphaPremultiply", "Image.blurGaussian", "Image.convolve", "Image.resize", "Image.resizeNearest", "Image.resizeCanvas", "Image.generateMipmaps", "Image.dither", "Image.flipVertical", "Image.flipHorizontal", "Image.rotate", "Image.rotateClockwise", "Image.rotateCounterClockwise", "Image.tint", "Image.invert", "Image.grayscale", "Image.contrast", "Image.brightness", "Image.replaceColor", "Image.alphaBorder", "Image.colorAt", "Image.clear", "Image.drawPixel", "Image.drawLine", "Image.drawCircle", "Image.drawCircleLines", "Image.drawRectangle", "Image.drawRectangleLines", "Image.drawTriangle", "Image.drawTriangleColors", "Image.drawTriangleLines", "Image.drawTriangleFan", "Image.drawTriangleStrip", "Image.drawImage", "Image.drawText", "Image.toTexture", "Texture", "Texture.isValid", "Texture.width", "Texture.height", "Texture.draw", "Texture.drawAt", "Texture.drawEx", "Texture.drawRegion", "Texture.drawPro", "Texture.drawNPatch", "Texture.useForShapes", "Texture.drawFrame", "Texture.setFilter", "Texture.setWrap", "Texture.generateMipmaps", "Font", "Font.isValid", "Font.draw", "Font.measure", "RenderTexture", "RenderTexture.isValid", "RenderTexture.width", "RenderTexture.height", "RenderTexture.begin", "RenderTexture.drawPro", "Shader", "Shader.isValid", "Shader.begin", "Shader.location", "Shader.setFloat", "Shader.setVector2", "Shader.setColor", "Shader.setInt", "SpriteAnimation", "SpriteAnimation.texture", "SpriteAnimation.frameWidth", "SpriteAnimation.frameHeight", "SpriteAnimation.columns", "SpriteAnimation.frameCount", "SpriteAnimation.currentFrame", "SpriteAnimation.advance", "SpriteAnimation.reset", "SpriteAnimation.draw", "loadImage", "loadRawImage", "loadImageFromMemory", "loadImageFromScreen", "imageText", "generateImageColor", "generateImageGradientLinear", "generateImageGradientRadial", "generateImageGradientSquare", "generateImageChecked", "generateImageWhiteNoise", "generateImagePerlinNoise", "generateImageCellular", "generateImageText", "loadTexture", "loadFont", "loadFontUtf8", "loadRenderTexture", "endRenderTexture", "loadFragmentShader", "loadShader", "endShader"]
     },
     {
@@ -121,7 +121,7 @@
       "source": "stdlib/std/fs.janus",
       "documentation": ["docs/language-guide.md", "docs/design/path-filesystem.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "ad8813005a90be9b4160d63b0ac8e8c618639c603fdb57f2c86e79784390c030",
+      "signature_digest": "a2fe971ab794887164a6d7ccf142e53fafa86e07546af744b44959608f46da0f",
       "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.withView", "FileData.view", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeDirectoryAll", "removeFile", "metadata", "readDirectory"]
     },
     {
@@ -161,7 +161,7 @@
       "source": "stdlib/std/io.janus",
       "documentation": ["docs/language-guide.md", "docs/design/io-streams.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "38885150b30931cddea0c7fcaa4b833e8b95eae30b3b2510a1df226ec6daf777",
+      "signature_digest": "7310e78d5572ce3ce405931acde05dd3fc1fba535bcfb307995076c5699856fd",
       "symbols": ["TextDecodeError", "TextDecodeError.InvalidUtf8", "ByteBuffer", "ByteBuffer.data", "ByteBuffer.size", "ByteBuffer.capacity", "ByteBuffer.isEmpty", "ByteBuffer.withView", "ByteBuffer.clear", "ByteBuffer.tryReserve", "ByteBuffer.append", "ByteBuffer.appendByte", "ByteBuffer.appendText", "ByteBuffer.isUtf8", "ByteBuffer.asText", "InputStream", "InputStream.isOpen", "InputStream.isEof", "InputStream.read", "InputStream.readLine", "InputStream.close", "OutputStream", "OutputStream.isOpen", "OutputStream.write", "OutputStream.writeText", "OutputStream.flush", "OutputStream.close", "openInputStreamBuffered", "openInputStream", "openOutputStreamBuffered", "openOutputStream", "standardInput", "standardOutput", "standardError", "copyStream"]
     },
     {
@@ -209,7 +209,7 @@
       "source": "stdlib/std/path.janus",
       "documentation": ["docs/language-guide.md", "docs/design/path-filesystem.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "9d7686ace21bc4f56a016ca845861d9525187029bad31f02eb322dc535f0a0b1",
+      "signature_digest": "3bc6398d9c77358c41d5665379b9199f6ec537d8e634184b4cddb50697e7a4cd",
       "symbols": ["Path", "Path.view", "Path.size", "Path.isAbsolute", "Path.componentCount", "Path.component", "normalizePath", "joinPath"]
     },
     {
@@ -233,7 +233,7 @@
       "source": "stdlib/std/process.janus",
       "documentation": ["docs/language-guide.md", "docs/design/process-runtime.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "e2c3c381effbb5da08e87146003db668a7b2722e0fae7237299cef46dba22ece",
+      "signature_digest": "f6e9028657a68dbc5139f97e20e65c1fdf6f82d6ece15baea0b1b1c41ddbd119",
       "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "WorkingDirectory", "WorkingDirectory.view", "environmentVariable", "currentWorkingDirectory", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.withStdoutView", "ProcessResult.stderrData", "ProcessResult.stderrSize", "ProcessResult.withStderrView", "ChildProcess", "ChildProcess.terminate", "ChildProcess.tryWait", "ChildProcess.tryWrite", "ChildProcess.write", "ChildProcess.writeText", "ChildProcess.read", "ChildProcess.tryRead", "ChildProcess.closeInput", "spawnProcess", "runProcess"]
     },
     {
@@ -265,7 +265,7 @@
       "source": "stdlib/std/system.janus",
       "documentation": ["docs/language-guide.md", "docs/design/system-runtime.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "ec456cecbc8a32f654c57bd5b8d5d231e84282eac21551bde83de392b248b55d",
+      "signature_digest": "55c1fe0850879714f4cfcc3052f74d5e00df51fc745769cf5a7e5e3b1a8771fa",
       "symbols": ["SystemErrorCategory", "SystemErrorCategory.NotFound", "SystemErrorCategory.PermissionDenied", "SystemErrorCategory.AlreadyExists", "SystemErrorCategory.InvalidInput", "SystemErrorCategory.Interrupted", "SystemErrorCategory.WouldBlock", "SystemErrorCategory.OutOfSpace", "SystemErrorCategory.TooLarge", "SystemErrorCategory.Unsupported", "SystemErrorCategory.ResourceExhausted", "SystemErrorCategory.Other", "SystemOpenMode", "SystemOpenMode.Read", "SystemOpenMode.Write", "SystemOpenMode.Append", "SystemError", "SystemError.operation", "SystemError.category", "SystemError.nativeCode", "SystemError.context", "SystemFile", "SystemFile.isOpen", "SystemFile.read", "SystemFile.write", "SystemFile.close", "openSystemFile", "removeSystemFile"]
     },
     {

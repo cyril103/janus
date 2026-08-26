@@ -4789,6 +4789,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   class_declaration.module_name != context_module)
                 throw CompileError{node.location,
                                    "type '" + node.class_name + "' is private"};
+              const auto module_namespace = [](const auto &module) {
+                if (!module.has_value())
+                  return std::string{};
+                const std::size_t separator = module->find('.');
+                return module->substr(0, separator);
+              };
+              if (class_declaration.is_constructor_internal &&
+                  class_declaration.module_name != context_module &&
+                  module_namespace(class_declaration.module_name) !=
+                      module_namespace(context_module))
+                throw CompileError{
+                    node.location,
+                    "constructor '" + node.class_name +
+                        "' is internal to namespace '" +
+                        module_namespace(class_declaration.module_name) + "'"};
               const std::size_t parameter_count =
                   class_declaration.constructor_parameters.size();
               const std::size_t field_count =

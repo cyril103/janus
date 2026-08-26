@@ -599,13 +599,13 @@ val values : Array[int] = builder.result()<br>
 <header class="module-heading"><span class="keyword">module</span> <h2>std.bytes</h2></header>
 <div class="module-summary"><p class="doc-summary">Fournit des vues binaires bornées et non propriétaires.</p></div><h3 class="member-heading">Public members <span class="member-count">7</span></h3>
 <div class="symbol-list">
-<article class="symbol-card kind-class" id="std-bytes-byteview" data-symbol data-search="std.bytes.ByteView class class ByteView(borrow val nativeData : Ptr[byte], val start : usize, val count : usize) Vue en lecture seule sur une plage d&#39;octets empruntée.
+<article class="symbol-card kind-class" id="std-bytes-byteview" data-symbol data-search="std.bytes.ByteView class class ByteView internal(borrow val nativeData : Ptr[byte], val start : usize, val count : usize) Vue en lecture seule sur une plage d&#39;octets empruntée.
 
 La vue conserve le pointeur de base, un décalage et une longueur. Elle ne
 libère jamais le stockage; son propriétaire doit rester vivant.
 @param nativeData Début du stockage emprunté.
 @param start Décalage du premier octet visible.
-@param count Nombre d&#39;octets visibles."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ByteView(borrow val nativeData : Ptr[byte], val start : usize, val count : usize)</code></h3>
+@param count Nombre d&#39;octets visibles."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ByteView internal(borrow val nativeData : Ptr[byte], val start : usize, val count : usize)</code></h3>
 <p class="doc-summary">Vue en lecture seule sur une plage d&#39;octets empruntée.</p>
 <div class="doc-details"><p>La vue conserve le pointeur de base, un décalage et une longueur. Elle ne<br>
 libère jamais le stockage; son propriétaire doit rester vivant.</p></div>
@@ -942,12 +942,12 @@ match loaded {<br>
 }<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">26</span></h3>
 <div class="symbol-list">
-<article class="symbol-card kind-class" id="std-fs-directoryiterator" data-symbol data-search="std.fs.DirectoryIterator class class DirectoryIterator(var nativeHandle : isize, val directoryContext : string) Parcours propriétaire et à usage unique des entrées d’un répertoire.
+<article class="symbol-card kind-class" id="std-fs-directoryiterator" data-symbol data-search="std.fs.DirectoryIterator class class DirectoryIterator internal(var nativeHandle : isize, val directoryContext : string) Parcours propriétaire et à usage unique des entrées d’un répertoire.
 
 Chaque [[next]] alloue un [[Path]] indépendant. [[close]] ou le destructeur
 libère le handle natif ; l’ordre des entrées est celui fourni par la plateforme.
 @param nativeHandle Handle de parcours natif dont l’itérateur prend possession.
-@param directoryContext Chemin conservé pour contextualiser les erreurs de parcours."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class DirectoryIterator(var nativeHandle : isize, val directoryContext : string)</code></h3>
+@param directoryContext Chemin conservé pour contextualiser les erreurs de parcours."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class DirectoryIterator internal(var nativeHandle : isize, val directoryContext : string)</code></h3>
 <p class="doc-summary">Parcours propriétaire et à usage unique des entrées d’un répertoire.</p>
 <div class="doc-details"><p>Chaque <code class="unresolved">next</code> alloue un <a href="#std-path-path"><code>Path</code></a> indépendant. <code class="unresolved">close</code> ou le destructeur<br>
 libère le handle natif ; l’ordre des entrées est celui fourni par la plateforme.</p></div>
@@ -963,12 +963,12 @@ libère le handle natif ; l’ordre des entrées est celui fourni par la platefo
 <p class="doc-summary">Avance le parcours d’une entrée.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[Option[Path], SystemError]</code> — `Ok(Some(Path))` pour une entrée, `Ok(None)` à la fin, ou `Error(SystemError)` en cas d’échec ou après fermeture.</p></section>
 <div class="qualified">std.fs.DirectoryIterator.next</div></div><a class="permalink" href="#std-fs-directoryiterator-next" aria-label="Permanent link to std.fs.DirectoryIterator.next">#</a></article>
-<article class="symbol-card kind-class" id="std-fs-filedata" data-symbol data-search="std.fs.FileData class class FileData(var nativeData : Ptr[byte], val nativeSize : usize) Contenu binaire propriétaire chargé intégralement par [[readFile]].
+<article class="symbol-card kind-class" id="std-fs-filedata" data-symbol data-search="std.fs.FileData class class FileData internal(var nativeData : Ptr[byte], val nativeSize : usize) Contenu binaire propriétaire chargé intégralement par [[readFile]].
 
 Les vues et pointeurs obtenus sont empruntés et deviennent invalides à la
 destruction. Aucune validation d’encodage n’est effectuée.
 @param nativeData Allocation native dont l’objet prend possession.
-@param nativeSize Nombre d’octets lisibles à partir de `nativeData`."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class FileData(var nativeData : Ptr[byte], val nativeSize : usize)</code></h3>
+@param nativeSize Nombre d’octets lisibles à partir de `nativeData`."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class FileData internal(var nativeData : Ptr[byte], val nativeSize : usize)</code></h3>
 <p class="doc-summary">Contenu binaire propriétaire chargé intégralement par <a href="#std-fs-readfile"><code>readFile</code></a>.</p>
 <div class="doc-details"><p>Les vues et pointeurs obtenus sont empruntés et deviennent invalides à la<br>
 destruction. Aucune validation d’encodage n’est effectuée.</p></div>
@@ -1162,9 +1162,9 @@ détruisez-les, puis terminez par <a href="#std-graphics-audio-closeaudio"><code
 }<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">22</span></h3>
 <div class="symbol-list">
-<article class="symbol-card kind-class" id="std-graphics-audio-music" data-symbol data-search="std.graphics.audio.Music class class Music(val handle : Ptr[byte]) Possède un flux musical chargé; sa destruction décharge le handle natif.
+<article class="symbol-card kind-class" id="std-graphics-audio-music" data-symbol data-search="std.graphics.audio.Music class class Music internal(val handle : Ptr[byte]) Possède un flux musical chargé; sa destruction décharge le handle natif.
 
-@param handle Flux natif créé par le backend et désormais possédé par l’objet."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Music(val handle : Ptr[byte])</code></h3>
+@param handle Flux natif créé par le backend et désormais possédé par l’objet."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Music internal(val handle : Ptr[byte])</code></h3>
 <p class="doc-summary">Possède un flux musical chargé; sa destruction décharge le handle natif.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>handle</code></td><td><code>Ptr[byte]</code></td><td>Flux natif créé par le backend et désormais possédé par l’objet.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.audio.Music</div></div><a class="permalink" href="#std-graphics-audio-music" aria-label="Permanent link to std.graphics.audio.Music">#</a></article>
@@ -1207,9 +1207,9 @@ détruisez-les, puis terminez par <a href="#std-graphics-audio-closeaudio"><code
 <article class="symbol-card kind-method child" id="std-graphics-audio-music-update" data-symbol data-search="std.graphics.audio.Music.update method def update() : Unit Alimente le flux musical en cours; appelez cette méthode régulièrement pendant sa lecture."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.graphics.audio.Music</div><h3><code>def update() : Unit</code></h3>
 <p class="doc-summary">Alimente le flux musical en cours; appelez cette méthode régulièrement pendant sa lecture.</p>
 <div class="qualified">std.graphics.audio.Music.update</div></div><a class="permalink" href="#std-graphics-audio-music-update" aria-label="Permanent link to std.graphics.audio.Music.update">#</a></article>
-<article class="symbol-card kind-class" id="std-graphics-audio-sound" data-symbol data-search="std.graphics.audio.Sound class class Sound(val handle : Ptr[byte]) Possède un effet sonore chargé; sa destruction décharge le handle natif.
+<article class="symbol-card kind-class" id="std-graphics-audio-sound" data-symbol data-search="std.graphics.audio.Sound class class Sound internal(val handle : Ptr[byte]) Possède un effet sonore chargé; sa destruction décharge le handle natif.
 
-@param handle Ressource native créée par le backend et désormais possédée par l’objet."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Sound(val handle : Ptr[byte])</code></h3>
+@param handle Ressource native créée par le backend et désormais possédée par l’objet."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Sound internal(val handle : Ptr[byte])</code></h3>
 <p class="doc-summary">Possède un effet sonore chargé; sa destruction décharge le handle natif.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>handle</code></td><td><code>Ptr[byte]</code></td><td>Ressource native créée par le backend et désormais possédée par l’objet.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.audio.Sound</div></div><a class="permalink" href="#std-graphics-audio-sound" aria-label="Permanent link to std.graphics.audio.Sound">#</a></article>
@@ -2322,9 +2322,9 @@ if texture.isValid() {<br>
 delete texture<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">118</span></h3>
 <div class="symbol-list">
-<article class="symbol-card kind-class" id="std-graphics-resources-font" data-symbol data-search="std.graphics.resources.Font class class Font(val handle : Ptr[byte]) Possède une fonte native et la libère à sa destruction.
+<article class="symbol-card kind-class" id="std-graphics-resources-font" data-symbol data-search="std.graphics.resources.Font class class Font internal(val handle : Ptr[byte]) Possède une fonte native et la libère à sa destruction.
 
-@param handle Fonte native transférée par une fonction de chargement."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Font(val handle : Ptr[byte])</code></h3>
+@param handle Fonte native transférée par une fonction de chargement."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Font internal(val handle : Ptr[byte])</code></h3>
 <p class="doc-summary">Possède une fonte native et la libère à sa destruction.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>handle</code></td><td><code>Ptr[byte]</code></td><td>Fonte native transférée par une fonction de chargement.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.resources.Font</div></div><a class="permalink" href="#std-graphics-resources-font" aria-label="Permanent link to std.graphics.resources.Font">#</a></article>
@@ -2354,8 +2354,8 @@ delete texture<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>text</code></td><td><code>string</code></td><td>Texte converti en chaîne C pour les deux mesures.</td></tr><tr><td><code>fontSize</code></td><td><code>float</code></td><td>Taille de fonte utilisée pour les deux mesures.</td></tr><tr><td><code>spacing</code></td><td><code>float</code></td><td>Espacement entre caractères utilisé pour les deux mesures.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Vector2</code> — Vecteur `(largeur, hauteur)` rapporté par le backend.</p></section>
 <div class="qualified">std.graphics.resources.Font.measure</div></div><a class="permalink" href="#std-graphics-resources-font-measure" aria-label="Permanent link to std.graphics.resources.Font.measure">#</a></article>
-<article class="symbol-card kind-class" id="std-graphics-resources-image" data-symbol data-search="std.graphics.resources.Image class class Image(val handle : Ptr[byte]) Possède une image CPU native et la libère à sa destruction.
-@param handle Image native dont la propriété est transférée à cette ressource."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Image(val handle : Ptr[byte])</code></h3>
+<article class="symbol-card kind-class" id="std-graphics-resources-image" data-symbol data-search="std.graphics.resources.Image class class Image internal(val handle : Ptr[byte]) Possède une image CPU native et la libère à sa destruction.
+@param handle Image native dont la propriété est transférée à cette ressource."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Image internal(val handle : Ptr[byte])</code></h3>
 <p class="doc-summary">Possède une image CPU native et la libère à sa destruction.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>handle</code></td><td><code>Ptr[byte]</code></td><td>Image native dont la propriété est transférée à cette ressource.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.resources.Image</div></div><a class="permalink" href="#std-graphics-resources-image" aria-label="Permanent link to std.graphics.resources.Image">#</a></article>
@@ -2662,9 +2662,9 @@ delete texture<br>
 <p class="doc-summary">Renvoie la largeur de l’image CPU.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Valeur entière rapportée par la ressource.</p></section>
 <div class="qualified">std.graphics.resources.Image.width</div></div><a class="permalink" href="#std-graphics-resources-image-width" aria-label="Permanent link to std.graphics.resources.Image.width">#</a></article>
-<article class="symbol-card kind-class" id="std-graphics-resources-rendertexture" data-symbol data-search="std.graphics.resources.RenderTexture class class RenderTexture(val handle : Ptr[byte]) Possède une cible de rendu native et la libère à sa destruction.
+<article class="symbol-card kind-class" id="std-graphics-resources-rendertexture" data-symbol data-search="std.graphics.resources.RenderTexture class class RenderTexture internal(val handle : Ptr[byte]) Possède une cible de rendu native et la libère à sa destruction.
 
-@param handle Cible de rendu native transférée par [[loadRenderTexture]]."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class RenderTexture(val handle : Ptr[byte])</code></h3>
+@param handle Cible de rendu native transférée par [[loadRenderTexture]]."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class RenderTexture internal(val handle : Ptr[byte])</code></h3>
 <p class="doc-summary">Possède une cible de rendu native et la libère à sa destruction.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>handle</code></td><td><code>Ptr[byte]</code></td><td>Cible de rendu native transférée par <a href="#std-graphics-resources-loadrendertexture"><code>loadRenderTexture</code></a>.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.resources.RenderTexture</div></div><a class="permalink" href="#std-graphics-resources-rendertexture" aria-label="Permanent link to std.graphics.resources.RenderTexture">#</a></article>
@@ -2699,9 +2699,9 @@ delete texture<br>
 <p class="doc-summary">Retourne la largeur de la texture de rendu.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Largeur en pixels rapportée par le backend.</p></section>
 <div class="qualified">std.graphics.resources.RenderTexture.width</div></div><a class="permalink" href="#std-graphics-resources-rendertexture-width" aria-label="Permanent link to std.graphics.resources.RenderTexture.width">#</a></article>
-<article class="symbol-card kind-class" id="std-graphics-resources-shader" data-symbol data-search="std.graphics.resources.Shader class class Shader(val handle : Ptr[byte]) Possède un programme shader natif et le libère à sa destruction.
+<article class="symbol-card kind-class" id="std-graphics-resources-shader" data-symbol data-search="std.graphics.resources.Shader class class Shader internal(val handle : Ptr[byte]) Possède un programme shader natif et le libère à sa destruction.
 
-@param handle Programme natif transféré par une fonction de chargement de shader."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Shader(val handle : Ptr[byte])</code></h3>
+@param handle Programme natif transféré par une fonction de chargement de shader."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Shader internal(val handle : Ptr[byte])</code></h3>
 <p class="doc-summary">Possède un programme shader natif et le libère à sa destruction.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>handle</code></td><td><code>Ptr[byte]</code></td><td>Programme natif transféré par une fonction de chargement de shader.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.resources.Shader</div></div><a class="permalink" href="#std-graphics-resources-shader" aria-label="Permanent link to std.graphics.resources.Shader">#</a></article>
@@ -2795,9 +2795,9 @@ delete texture<br>
 <article class="symbol-card kind-field child" id="std-graphics-resources-spriteanimation-texture" data-symbol data-search="std.graphics.resources.SpriteAnimation.texture field val texture : Texture Texture propriétaire contenant la feuille de sprites découpée en images."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.graphics.resources.SpriteAnimation</div><h3><code>val texture : Texture</code></h3>
 <p class="doc-summary">Texture propriétaire contenant la feuille de sprites découpée en images.</p>
 <div class="qualified">std.graphics.resources.SpriteAnimation.texture</div></div><a class="permalink" href="#std-graphics-resources-spriteanimation-texture" aria-label="Permanent link to std.graphics.resources.SpriteAnimation.texture">#</a></article>
-<article class="symbol-card kind-class" id="std-graphics-resources-texture" data-symbol data-search="std.graphics.resources.Texture class class Texture(val handle : Ptr[byte]) Possède une texture native et la libère à sa destruction.
+<article class="symbol-card kind-class" id="std-graphics-resources-texture" data-symbol data-search="std.graphics.resources.Texture class class Texture internal(val handle : Ptr[byte]) Possède une texture native et la libère à sa destruction.
 
-@param handle Texture native transférée par une fonction de chargement."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Texture(val handle : Ptr[byte])</code></h3>
+@param handle Texture native transférée par une fonction de chargement."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Texture internal(val handle : Ptr[byte])</code></h3>
 <p class="doc-summary">Possède une texture native et la libère à sa destruction.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>handle</code></td><td><code>Ptr[byte]</code></td><td>Texture native transférée par une fonction de chargement.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.resources.Texture</div></div><a class="permalink" href="#std-graphics-resources-texture" aria-label="Permanent link to std.graphics.resources.Texture">#</a></article>
@@ -4763,14 +4763,14 @@ explicitement garanti. L’échec laisse la taille logique inchangée.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[ByteView, U]</code></td><td>Callback borné recevant la vue complète.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>U</code> — Résultat indépendant produit par `action`.</p></section>
 <div class="qualified">std.io.ByteBuffer.withView</div></div><a class="permalink" href="#std-io-bytebuffer-withview" aria-label="Permanent link to std.io.ByteBuffer.withView">#</a></article>
-<article class="symbol-card kind-class" id="std-io-inputstream" data-symbol data-search="std.io.InputStream class class InputStream(var nativeHandle : isize, val ownsHandle : bool, val streamContext : string, val requestedCapacity : usize) Flux d’entrée tamponné, propriétaire ou empruntant un handle standard.
+<article class="symbol-card kind-class" id="std-io-inputstream" data-symbol data-search="std.io.InputStream class class InputStream internal(var nativeHandle : isize, val ownsHandle : bool, val streamContext : string, val requestedCapacity : usize) Flux d’entrée tamponné, propriétaire ou empruntant un handle standard.
 
 Les lectures consomment d’abord le tampon interne. La fin n’est connue qu’après
 une lecture native renvoyant zéro. Le destructeur ferme uniquement les handles possédés.
 @param nativeHandle Descripteur natif lu par le flux.
 @param ownsHandle `true` si [[close]] et le destructeur doivent fermer ce descripteur.
 @param streamContext Nom conservé pour contextualiser les erreurs de lecture.
-@param requestedCapacity Capacité initiale, en octets, du tampon interne."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class InputStream(var nativeHandle : isize, val ownsHandle : bool, val streamContext : string, val requestedCapacity : usize)</code></h3>
+@param requestedCapacity Capacité initiale, en octets, du tampon interne."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class InputStream internal(var nativeHandle : isize, val ownsHandle : bool, val streamContext : string, val requestedCapacity : usize)</code></h3>
 <p class="doc-summary">Flux d’entrée tamponné, propriétaire ou empruntant un handle standard.</p>
 <div class="doc-details"><p>Les lectures consomment d’abord le tampon interne. La fin n’est connue qu’après<br>
 une lecture native renvoyant zéro. Le destructeur ferme uniquement les handles possédés.</p></div>
@@ -4812,14 +4812,14 @@ est binaire et doit être validé avec [[ByteBuffer.asText]] si du texte est att
 est binaire et doit être validé avec <a href="#std-io-bytebuffer-astext"><code>ByteBuffer.asText</code></a> si du texte est attendu.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[Option[ByteBuffer], SystemError]</code> — `Ok(Some(ByteBuffer))` pour une ligne, y compris vide avant LF, `Ok(None)` à la fin sans octet, ou `Error(SystemError)`.</p></section>
 <div class="qualified">std.io.InputStream.readLine</div></div><a class="permalink" href="#std-io-inputstream-readline" aria-label="Permanent link to std.io.InputStream.readLine">#</a></article>
-<article class="symbol-card kind-class" id="std-io-outputstream" data-symbol data-search="std.io.OutputStream class class OutputStream(var nativeHandle : isize, val ownsHandle : bool, val streamContext : string, val requestedCapacity : usize) Flux de sortie tamponné qui possède éventuellement son handle natif.
+<article class="symbol-card kind-class" id="std-io-outputstream" data-symbol data-search="std.io.OutputStream class class OutputStream internal(var nativeHandle : isize, val ownsHandle : bool, val streamContext : string, val requestedCapacity : usize) Flux de sortie tamponné qui possède éventuellement son handle natif.
 
 [[write]] ne garantit pas que les octets ont atteint l’hôte ; appeler [[flush]]
 ou [[close]] pour vider le tampon. Le destructeur tente ces opérations sans exposer leurs erreurs.
 @param nativeHandle Descripteur natif recevant les octets du flux.
 @param ownsHandle `true` si [[close]] et le destructeur doivent fermer ce descripteur.
 @param streamContext Nom conservé pour contextualiser les erreurs d’écriture.
-@param requestedCapacity Capacité initiale, en octets, du tampon interne."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class OutputStream(var nativeHandle : isize, val ownsHandle : bool, val streamContext : string, val requestedCapacity : usize)</code></h3>
+@param requestedCapacity Capacité initiale, en octets, du tampon interne."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class OutputStream internal(var nativeHandle : isize, val ownsHandle : bool, val streamContext : string, val requestedCapacity : usize)</code></h3>
 <p class="doc-summary">Flux de sortie tamponné qui possède éventuellement son handle natif.</p>
 <div class="doc-details"><p><code class="unresolved">write</code> ne garantit pas que les octets ont atteint l’hôte ; appeler <a href="#std-io-outputstream-flush"><code>flush</code></a><br>
 ou <code class="unresolved">close</code> pour vider le tampon. Le destructeur tente ces opérations sans exposer leurs erreurs.</p></div>
@@ -6111,13 +6111,13 @@ match joined {<br>
 }<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">8</span></h3>
 <div class="symbol-list">
-<article class="symbol-card kind-class" id="std-path-path" data-symbol data-search="std.path.Path class class Path(var nativeData : Ptr[byte], val nativeLength : usize) Chemin natif normalisé possédant son tampon d’octets.
+<article class="symbol-card kind-class" id="std-path-path" data-symbol data-search="std.path.Path class class Path internal(var nativeData : Ptr[byte], val nativeLength : usize) Chemin natif normalisé possédant son tampon d’octets.
 
 La vue produite par [[view]] emprunte ce tampon et cesse d’être valide à la
 destruction du chemin. Un `Path` décrit une syntaxe de chemin, pas une entrée
 nécessairement présente sur le système de fichiers.
 @param nativeData Tampon natif normalisé dont l’objet prend possession.
-@param nativeLength Nombre d’octets du chemin, hors éventuel terminateur natif."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Path(var nativeData : Ptr[byte], val nativeLength : usize)</code></h3>
+@param nativeLength Nombre d’octets du chemin, hors éventuel terminateur natif."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class Path internal(var nativeData : Ptr[byte], val nativeLength : usize)</code></h3>
 <p class="doc-summary">Chemin natif normalisé possédant son tampon d’octets.</p>
 <div class="doc-details"><p>La vue produite par <code class="unresolved">view</code> emprunte ce tampon et cesse d’être valide à la<br>
 destruction du chemin. Un `Path` décrit une syntaxe de chemin, pas une entrée<br>
@@ -6318,14 +6318,14 @@ args.push(&quot;--version&quot;)<br>
 val result = runProcess(&quot;janus&quot;, args, &quot;&quot;, true, true)<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">28</span></h3>
 <div class="symbol-list">
-<article class="symbol-card kind-class" id="std-process-childprocess" data-symbol data-search="std.process.ChildProcess class class ChildProcess(var nativeProcess : isize) Processus enfant persistant relié par des tubes à son entrée et sa sortie standard.
+<article class="symbol-card kind-class" id="std-process-childprocess" data-symbol data-search="std.process.ChildProcess class class ChildProcess internal(var nativeProcess : isize) Processus enfant persistant relié par des tubes à son entrée et sa sortie standard.
 
 [[ChildProcess.read]] est bloquante, tandis que [[tryRead]] retourne immédiatement. Le
 destructeur ferme les tubes et termine l’enfant s’il n’a pas déjà quitté ;
 [[closeInput]] permet de lui signaler une fin de flux.
 Cet objet propriétaire est mono-thread et non thread-safe : aucun autre thread
 ne doit effectuer d’entrée-sortie concurrente sur ses handles.
-@param nativeProcess Handle natif propriétaire créé par [[spawnProcess]]."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ChildProcess(var nativeProcess : isize)</code></h3>
+@param nativeProcess Handle natif propriétaire créé par [[spawnProcess]]."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ChildProcess internal(var nativeProcess : isize)</code></h3>
 <p class="doc-summary">Processus enfant persistant relié par des tubes à son entrée et sa sortie standard.</p>
 <div class="doc-details"><p><a href="#std-process-childprocess-read"><code>ChildProcess.read</code></a> est bloquante, tandis que <a href="#std-process-childprocess-tryread"><code>tryRead</code></a> retourne immédiatement. Le<br>
 destructeur ferme les tubes et termine l’enfant s’il n’a pas déjà quitté ;<br>
@@ -6410,10 +6410,10 @@ retourne une erreur de catégorie `WouldBlock`.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>string</code></td><td>Chaîne dont tous les octets sont transmis.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[usize, SystemError]</code> — `Ok` avec la taille écrite, ou une erreur système.</p></section>
 <div class="qualified">std.process.ChildProcess.writeText</div></div><a class="permalink" href="#std-process-childprocess-writetext" aria-label="Permanent link to std.process.ChildProcess.writeText">#</a></article>
-<article class="symbol-card kind-class" id="std-process-environmentvalue" data-symbol data-search="std.process.EnvironmentValue class class EnvironmentValue(var nativeText : isize) Valeur d’environnement propriétaire obtenue par [[environmentVariable]].
+<article class="symbol-card kind-class" id="std-process-environmentvalue" data-symbol data-search="std.process.EnvironmentValue class class EnvironmentValue internal(var nativeText : isize) Valeur d’environnement propriétaire obtenue par [[environmentVariable]].
 
 Sa vue emprunte un stockage natif libéré avec l’objet.
-@param nativeText Stockage natif transféré par l’API de processus."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class EnvironmentValue(var nativeText : isize)</code></h3>
+@param nativeText Stockage natif transféré par l’API de processus."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class EnvironmentValue internal(var nativeText : isize)</code></h3>
 <p class="doc-summary">Valeur d’environnement propriétaire obtenue par <a href="#std-process-environmentvariable"><code>environmentVariable</code></a>.</p>
 <div class="doc-details"><p>Sa vue emprunte un stockage natif libéré avec l’objet.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeText</code></td><td><code>isize</code></td><td>Stockage natif transféré par l’API de processus.</td></tr></tbody></table></section>
@@ -6428,11 +6428,11 @@ Sa vue emprunte un stockage natif libéré avec l’objet.
 <p class="doc-summary">Emprunte le contenu exact de la variable, sans interpréter son encodage.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue valide jusqu’à la destruction de cette <a href="#std-process-environmentvalue"><code>EnvironmentValue</code></a>.</p></section>
 <div class="qualified">std.process.EnvironmentValue.view</div></div><a class="permalink" href="#std-process-environmentvalue-view" aria-label="Permanent link to std.process.EnvironmentValue.view">#</a></article>
-<article class="symbol-card kind-class" id="std-process-processresult" data-symbol data-search="std.process.ProcessResult class class ProcessResult(var nativeResult : isize) Résultat propriétaire d’un processus terminé et de ses sorties éventuellement capturées.
+<article class="symbol-card kind-class" id="std-process-processresult" data-symbol data-search="std.process.ProcessResult class class ProcessResult internal(var nativeResult : isize) Résultat propriétaire d’un processus terminé et de ses sorties éventuellement capturées.
 
 Les pointeurs retournés par les accesseurs de sortie sont empruntés et deviennent
 invalides à la destruction. Les données sont brutes et ne sont pas validées UTF-8.
-@param nativeResult Résultat natif propriétaire contenant le statut et les captures."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ProcessResult(var nativeResult : isize)</code></h3>
+@param nativeResult Résultat natif propriétaire contenant le statut et les captures."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ProcessResult internal(var nativeResult : isize)</code></h3>
 <p class="doc-summary">Résultat propriétaire d’un processus terminé et de ses sorties éventuellement capturées.</p>
 <div class="doc-details"><p>Les pointeurs retournés par les accesseurs de sortie sont empruntés et deviennent<br>
 invalides à la destruction. Les données sont brutes et ne sont pas validées UTF-8.</p></div>
@@ -6477,8 +6477,8 @@ invalides à la destruction. Les données sont brutes et ne sont pas validées U
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[ByteView, U]</code></td><td>Callback borné recevant toute la capture standard.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>U</code> — Résultat indépendant produit par `action`.</p></section>
 <div class="qualified">std.process.ProcessResult.withStdoutView</div></div><a class="permalink" href="#std-process-processresult-withstdoutview" aria-label="Permanent link to std.process.ProcessResult.withStdoutView">#</a></article>
-<article class="symbol-card kind-class" id="std-process-workingdirectory" data-symbol data-search="std.process.WorkingDirectory class class WorkingDirectory(var nativeText : isize) Répertoire de travail courant possédant sa représentation native UTF-8.
-@param nativeText Stockage natif transféré par l’API de processus."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class WorkingDirectory(var nativeText : isize)</code></h3>
+<article class="symbol-card kind-class" id="std-process-workingdirectory" data-symbol data-search="std.process.WorkingDirectory class class WorkingDirectory internal(var nativeText : isize) Répertoire de travail courant possédant sa représentation native UTF-8.
+@param nativeText Stockage natif transféré par l’API de processus."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class WorkingDirectory internal(var nativeText : isize)</code></h3>
 <p class="doc-summary">Répertoire de travail courant possédant sa représentation native UTF-8.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>nativeText</code></td><td><code>isize</code></td><td>Stockage natif transféré par l’API de processus.</td></tr></tbody></table></section>
 <div class="qualified">std.process.WorkingDirectory</div></div><a class="permalink" href="#std-process-workingdirectory" aria-label="Permanent link to std.process.WorkingDirectory">#</a></article>
@@ -6941,12 +6941,12 @@ et `context` servent au diagnostic. Les chaînes sont des vues copiées dans la 
 <article class="symbol-card kind-variant child" id="std-system-systemerrorcategory-wouldblock" data-symbol data-search="std.system.SystemErrorCategory.WouldBlock variant WouldBlock L’opération ne peut progresser immédiatement sur une ressource non bloquante."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.system.SystemErrorCategory</div><h3><code>WouldBlock</code></h3>
 <p class="doc-summary">L’opération ne peut progresser immédiatement sur une ressource non bloquante.</p>
 <div class="qualified">std.system.SystemErrorCategory.WouldBlock</div></div><a class="permalink" href="#std-system-systemerrorcategory-wouldblock" aria-label="Permanent link to std.system.SystemErrorCategory.WouldBlock">#</a></article>
-<article class="symbol-card kind-class" id="std-system-systemfile" data-symbol data-search="std.system.SystemFile class class SystemFile(var nativeHandle : isize, val fileContext : string) Fichier natif propriétaire offrant des entrées-sorties directes non tamponnées.
+<article class="symbol-card kind-class" id="std-system-systemfile" data-symbol data-search="std.system.SystemFile class class SystemFile internal(var nativeHandle : isize, val fileContext : string) Fichier natif propriétaire offrant des entrées-sorties directes non tamponnées.
 
 [[close]] invalide immédiatement le descripteur, même si sa fermeture native
 échoue. Le destructeur ferme silencieusement tout descripteur encore ouvert.
 @param nativeHandle Descripteur natif dont l’objet prend possession.
-@param fileContext Chemin ou libellé conservé pour enrichir les erreurs système."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class SystemFile(var nativeHandle : isize, val fileContext : string)</code></h3>
+@param fileContext Chemin ou libellé conservé pour enrichir les erreurs système."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class SystemFile internal(var nativeHandle : isize, val fileContext : string)</code></h3>
 <p class="doc-summary">Fichier natif propriétaire offrant des entrées-sorties directes non tamponnées.</p>
 <div class="doc-details"><p><code class="unresolved">close</code> invalide immédiatement le descripteur, même si sa fermeture native<br>
 échoue. Le destructeur ferme silencieusement tout descripteur encore ouvert.</p></div>

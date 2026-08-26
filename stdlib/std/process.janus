@@ -147,7 +147,7 @@ def programArgument(index : usize) : Option[string] {
 ///
 /// Sa vue emprunte un stockage natif libéré avec l’objet.
 /// @param nativeText Stockage natif transféré par l’API de processus.
-class EnvironmentValue(private var nativeText : isize) {
+class EnvironmentValue internal(private var nativeText : isize) {
     /// Emprunte le contenu exact de la variable, sans interpréter son encodage.
     /// @return Vue valide jusqu’à la destruction de cette [[EnvironmentValue]].
     borrow def view() : string {
@@ -171,7 +171,7 @@ class EnvironmentValue(private var nativeText : isize) {
 
 /// Répertoire de travail courant possédant sa représentation native UTF-8.
 /// @param nativeText Stockage natif transféré par l’API de processus.
-class WorkingDirectory(private var nativeText : isize) {
+class WorkingDirectory internal(private var nativeText : isize) {
     /// Emprunte le chemin courant jusqu’à la destruction de cette valeur.
     /// @return Vue UTF-8 valide pendant la vie de cette [[WorkingDirectory]].
     borrow def view() : string {
@@ -232,7 +232,7 @@ def currentWorkingDirectory(
 /// Les pointeurs retournés par les accesseurs de sortie sont empruntés et deviennent
 /// invalides à la destruction. Les données sont brutes et ne sont pas validées UTF-8.
 /// @param nativeResult Résultat natif propriétaire contenant le statut et les captures.
-class ProcessResult(private var nativeResult : isize) {
+class ProcessResult internal(private var nativeResult : isize) {
     /// Retourne le code de terminaison rapporté par l’hôte.
     /// @return Code de sortie natif de l’enfant.
     borrow def exitCode() : int {
@@ -311,7 +311,7 @@ class ProcessResult(private var nativeResult : isize) {
 /// Cet objet propriétaire est mono-thread et non thread-safe : aucun autre thread
 /// ne doit effectuer d’entrée-sortie concurrente sur ses handles.
 /// @param nativeProcess Handle natif propriétaire créé par [[spawnProcess]].
-class ChildProcess(private var nativeProcess : isize) {
+class ChildProcess internal(private var nativeProcess : isize) {
     /// Demande la terminaison immédiate de l’enfant sans attendre sa sortie.
     ///
     /// Envoie `SIGKILL` sur POSIX et appelle `TerminateProcess` sur Windows.

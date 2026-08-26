@@ -98,6 +98,18 @@ def main() : int {
   expect(program.classes.front().destructor.has_value(),
          "the destructor is parsed");
 
+  janus::frontend::Parser internal_constructor_parser{
+      "class Native internal(private val handle : isize) {} "
+      "def main() : int { val value = new Native(isize(1)) delete value "
+      "return 0 }"};
+  const janus::ast::Program internal_constructor_program =
+      internal_constructor_parser.parse_program();
+  expect(internal_constructor_program.classes.front().is_constructor_internal,
+         "internal marks a namespace-only constructor");
+  janus::semantic::Analyzer internal_constructor_analyzer;
+  static_cast<void>(
+      internal_constructor_analyzer.analyze(internal_constructor_program));
+
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
 

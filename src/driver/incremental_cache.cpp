@@ -322,6 +322,9 @@ std::string public_interface(std::string_view source) {
     append_type_parameters(output, class_declaration.type_parameters);
     append_constraints(output, class_declaration.type_constraints);
     append_derivations(output, class_declaration.derivations);
+    output += class_declaration.is_constructor_internal
+                  ? ":constructor-internal"
+                  : ":constructor-public";
     output += ":implements[";
     for (const auto &trait : class_declaration.implemented_traits) {
       append_type(output, trait);

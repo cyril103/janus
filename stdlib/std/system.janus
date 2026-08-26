@@ -120,7 +120,7 @@ context : string
 /// échoue. Le destructeur ferme silencieusement tout descripteur encore ouvert.
 /// @param nativeHandle Descripteur natif dont l’objet prend possession.
 /// @param fileContext Chemin ou libellé conservé pour enrichir les erreurs système.
-class SystemFile(
+class SystemFile internal(
 private var nativeHandle : isize,
 private val fileContext : string
 ) {

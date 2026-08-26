@@ -349,7 +349,7 @@ private class LineBufferState(private var line : Option[ByteBuffer]) {
 /// @param ownsHandle `true` si [[close]] et le destructeur doivent fermer ce descripteur.
 /// @param streamContext Nom conservé pour contextualiser les erreurs de lecture.
 /// @param requestedCapacity Capacité initiale, en octets, du tampon interne.
-class InputStream(
+class InputStream internal(
 private var nativeHandle : isize,
 private val ownsHandle : bool,
 private val streamContext : string,
@@ -541,7 +541,7 @@ private val requestedCapacity : usize
 /// @param ownsHandle `true` si [[close]] et le destructeur doivent fermer ce descripteur.
 /// @param streamContext Nom conservé pour contextualiser les erreurs d’écriture.
 /// @param requestedCapacity Capacité initiale, en octets, du tampon interne.
-class OutputStream(
+class OutputStream internal(
 private var nativeHandle : isize,
 private val ownsHandle : bool,
 private val streamContext : string,

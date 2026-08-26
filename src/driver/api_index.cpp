@@ -233,6 +233,8 @@ std::string type_signature(const ast::ClassDeclaration &type) {
     }
     result += ']';
   }
+  if (type.is_constructor_internal)
+    result += " internal";
   result += '(';
   bool first = true;
   for (const auto &parameter : type.constructor_parameters) {

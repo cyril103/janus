@@ -602,6 +602,21 @@ clé `private` réserve un champ ou une méthode à sa classe. `internal` autori
 les autres déclarations du même module à y accéder, tout en interdisant son
 utilisation depuis les modules importateurs.
 
+Un constructeur peut être réservé à son espace de noms racine avec `internal`
+placé avant ses paramètres. Le type reste public, mais seul un module partageant
+la même racine qualifiée peut l'instancier. La stdlib utilise cette forme pour
+exposer des wrappers natifs sans permettre aux applications de fabriquer des
+pointeurs ou des handles invalides :
+
+```janus
+module std.native
+
+class NativeHandle internal(private val handle : isize) {}
+```
+
+Les modules `std.*` peuvent construire `NativeHandle`; un module applicatif doit
+passer par une fabrique publique qui garantit les invariants du wrapper.
+
 Une méthode de classe ou de trait peut restreindre un paramètre générique
 uniquement pour l'opération qui en a besoin :
 

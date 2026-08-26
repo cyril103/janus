@@ -424,6 +424,7 @@ struct ClassDeclaration {
   std::vector<TypeConstraint> type_constraints;
   bool is_value_type{};
   bool is_private{};
+  bool is_constructor_internal{};
   std::optional<std::string> module_name;
   std::vector<Derivation> derivations;
   std::string documentation;

@@ -33,22 +33,6 @@ def main() : int {
     (borrow error : int) => error == 17
     )
 
-    val actual : ByteBuffer = new ByteBuffer(usize(2))
-    actual.appendByte(byte(3))
-    actual.appendByte(byte(5))
-    val expected : ByteBuffer = new ByteBuffer(usize(2))
-    expected.appendByte(byte(3))
-    expected.appendByte(byte(5))
-    val actualView : ByteView =
-    new ByteView(actual.data(), usize(0), actual.size())
-    val expectedView : ByteView =
-    new ByteView(expected.data(), usize(0), expected.size())
-    assertBytesEqual(actualView, expectedView)
-
-    delete expectedView
-    delete actualView
-    delete expected
-    delete actual
     delete failure
     delete success
     delete optional

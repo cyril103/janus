@@ -114,6 +114,38 @@ int main() {
   }
   expect(true, "qualified and renamed function imports resolve canonically");
 
+  std::filesystem::create_directories(import_root / "secure");
+  write_source(import_root / "secure" / "native.janus",
+               "module secure.native\n"
+               "class Handle internal(private val value : int) {}\n");
+  write_source(import_root / "secure" / "factory.janus",
+               "module secure.factory\n"
+               "import secure.native\n"
+               "def make() : Handle { return new Handle(7) }\n");
+  write_source(import_root / "internal_constructor_same_namespace.janus",
+               "import secure.factory\n"
+               "def main() : int { val handle = make() delete handle return 0 }\n");
+  static_cast<void>(import_analyzer.analyze(import_loader.load(
+      import_root / "internal_constructor_same_namespace.janus")));
+  expect(true, "internal constructors remain available within their namespace");
+
+  write_source(import_root / "internal_constructor_external.janus",
+               "import secure.native\n"
+               "def main() : int { val handle = new Handle(7) delete handle "
+               "return 0 }\n");
+  bool external_internal_constructor_rejected = false;
+  try {
+    static_cast<void>(import_analyzer.analyze(import_loader.load(
+        import_root / "internal_constructor_external.janus")));
+  } catch (const janus::CompileError &error) {
+    external_internal_constructor_rejected =
+        std::string_view{error.what()}.find(
+            "constructor 'Handle' is internal to namespace "
+            "'secure'") != std::string_view::npos;
+  }
+  expect(external_internal_constructor_rejected,
+         "internal constructors are rejected outside their namespace");
+
   write_source(import_root / "not_injected.janus",
                "import sample.api as api\n"
                "def main() : int { return answer() }\n");

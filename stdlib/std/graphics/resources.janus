@@ -266,7 +266,7 @@ value : int
 
 /// Possède une image CPU native et la libère à sa destruction.
 /// @param handle Image native dont la propriété est transférée à cette ressource.
-class Image(private val handle : Ptr[byte]) {
+class Image internal(private val handle : Ptr[byte]) {
     /// Indique si l’image contient des pixels valides.
     /// @return `true` lorsque le test ou l’opération réussit.
     def isValid() : bool {
@@ -668,7 +668,7 @@ class Image(private val handle : Ptr[byte]) {
 /// Possède une texture native et la libère à sa destruction.
 ///
 /// @param handle Texture native transférée par une fonction de chargement.
-class Texture(private val handle : Ptr[byte]) {
+class Texture internal(private val handle : Ptr[byte]) {
     /// Indique si la texture est valide.
     ///
     /// @return Validité signalée par le backend pour le handle chargé.
@@ -863,7 +863,7 @@ class Texture(private val handle : Ptr[byte]) {
 /// Possède une fonte native et la libère à sa destruction.
 ///
 /// @param handle Fonte native transférée par une fonction de chargement.
-class Font(private val handle : Ptr[byte]) {
+class Font internal(private val handle : Ptr[byte]) {
     /// Indique si la fonte est valide.
     ///
     /// @return Validité signalée par le backend pour le handle chargé.
@@ -931,7 +931,7 @@ class Font(private val handle : Ptr[byte]) {
 /// Possède une cible de rendu native et la libère à sa destruction.
 ///
 /// @param handle Cible de rendu native transférée par [[loadRenderTexture]].
-class RenderTexture(private val handle : Ptr[byte]) {
+class RenderTexture internal(private val handle : Ptr[byte]) {
     /// Indique si la texture de rendu est valide.
     ///
     /// @return Validité signalée par le backend pour le handle créé.
@@ -997,7 +997,7 @@ class RenderTexture(private val handle : Ptr[byte]) {
 /// Possède un programme shader natif et le libère à sa destruction.
 ///
 /// @param handle Programme natif transféré par une fonction de chargement de shader.
-class Shader(private val handle : Ptr[byte]) {
+class Shader internal(private val handle : Ptr[byte]) {
     /// Indique si le shader est valide.
     ///
     /// @return Validité signalée par le backend pour le handle chargé.

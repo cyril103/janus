@@ -9,7 +9,7 @@ import std.option
 /// @param nativeData Début du stockage emprunté.
 /// @param start Décalage du premier octet visible.
 /// @param count Nombre d'octets visibles.
-class ByteView(
+class ByteView internal(
 private borrow val nativeData : Ptr[byte],
 private val start : usize,
 private val count : usize
