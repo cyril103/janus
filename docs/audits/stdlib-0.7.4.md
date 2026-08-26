@@ -13,9 +13,9 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 
 ## Résumé mesuré
 
-- **32 modules**, **11187 lignes** et **1002 symboles publics** inventoriés ;
-- **1010 blocs `///` publics pour 1002 symboles** (couverture source du lot #115 : 100 %) ;
-- **172 sites d'allocation**, **251 marqueurs de nettoyage**, **170/14/42** occurrences `move`/`consume`/destructeur ;
+- **32 modules**, **11204 lignes** et **1005 symboles publics** inventoriés ;
+- **1013 blocs `///` publics pour 1005 symboles** (couverture source du lot #115 : 100 %) ;
+- **172 sites d'allocation**, **251 marqueurs de nettoyage**, **171/16/42** occurrences `move`/`consume`/destructeur ;
 - **24/32 modules** importés directement par au moins une fixture ou un test, soit **132 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
@@ -62,7 +62,7 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.hashmap` | `stable-proposed` | `conservation` | [#112 / R074-3](https://github.com/cyril103/janus/issues/112) | 23 | 738 | 27 | 38/4/3 | 0/24/0 | 16 | 20 | `std.array`, `std.builder`, `std.hash_probe`, `std.hashing`, `std.iterator`, `std.option` | 6 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.hashset` | `stable-proposed` | `conservation` | [#112 / R074-3](https://github.com/cyril103/janus/issues/112) | 16 | 499 | 20 | 15/1/3 | 0/9/0 | 10 | 14 | `std.array`, `std.builder`, `std.hash_probe`, `std.hashing`, `std.iterator`, `std.option` | 5 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.io` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 33 | 888 | 33 | 8/0/4 | 21/14/0 | 16 | 29 | `std.option`, `std.result`, `std.system` | 3 | `docs/language-guide.md`, `docs/design/io-streams.md`, `docs/stability-contract.md` |
-| `std.iterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 18 | 437 | 18 | 36/8/7 | 0/25/0 | 14 | 32 | `std.builder`, `std.option` | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
+| `std.iterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 21 | 454 | 21 | 37/10/7 | 0/25/0 | 14 | 32 | `std.builder`, `std.option` | 2 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.math` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 104 | 546 | 104 | 0/0/0 | 0/0/1 | 1 | 0 | `std.array` | 6 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.numeric` | `experimental` | `conservation` | [#142](https://github.com/cyril103/janus/issues/142) | 7 | 20 | 7 | 0/0/0 | 0/0/0 | 0 | 0 | `std.result` | 3 | `docs/numeric-conversions.md`, `docs/stdlib-reference.md`, `docs/stability-contract.md` |
 | `std.option` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 10 | 153 | 10 | 16/0/1 | 0/24/0 | 2 | 13 | — | 10 | `docs/language-guide.md`, `docs/stability-contract.md` |
@@ -921,6 +921,8 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | --- | --- | --- | --- |
 | `Iterable` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Iterable.iterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `IntoIterable` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `IntoIterable.intoIterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `ZipItem` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `ZipItem.left` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `ZipItem.right` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
@@ -929,6 +931,7 @@ Chaque symbole hérite ici d'une décision explicite et d'un propriétaire de mi
 | `Indexed.value` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Iterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Iterator.next` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
+| `Iterator.intoIterator` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Iterator.map` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Iterator.filter` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |
 | `Iterator.take` | `stable-proposed` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) |

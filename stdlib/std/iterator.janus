@@ -30,6 +30,17 @@ trait Iterable[T] {
     borrow def iterator() : Iterator[T] where T <: Copy
 }
 
+/// Décrit une source capable de transférer ses valeurs dans un parcours.
+///
+/// Contrairement à [[Iterable]], cette capacité consomme la source et n'exige
+/// pas que ses éléments soient `Copy`. Elle convient donc aux collections de
+/// ressources propriétaires.
+trait IntoIterable[T] {
+    /// Consomme la source et déplace ses éléments dans un itérateur.
+    /// @return Un [[Iterator]] propriétaire des valeurs et de l'état restant.
+    consume def intoIterator() : Iterator[T]
+}
+
 /// Regroupe les deux valeurs produites au même rang par [[Iterator.zip]].
 ///
 /// La structure possède `left` et `right`; sa destruction libère donc les
@@ -273,7 +284,7 @@ private var current : Option[Iterator[B]]
 class Iterator[T](
 private val advance : () => Option[T],
 private val release : () => Unit
-) {
+) extends IntoIterable[T] {
     /// Produit la prochaine valeur et avance irréversiblement le parcours.
     ///
     /// Une fois la source épuisée, les appels suivants dépendent de la fermeture
@@ -281,6 +292,12 @@ private val release : () => Unit
     /// @return `Some` contenant la prochaine valeur possédée, ou `None` à la fin.
     def next() : Option[T] {
         return advance()
+    }
+
+    /// Retourne ce parcours en transférant sa propriété.
+    /// @return Le même itérateur, déplacé vers l'appelant.
+    consume def intoIterator() : Iterator[T] {
+        return move this
     }
 
     /// Transforme paresseusement chaque valeur du parcours.

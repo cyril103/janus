@@ -1939,9 +1939,13 @@ private:
               class_specializations_.at(std::string{source_type.name()});
           if (source_specialization.declaration->name != "Iterator") {
             const janus::ast::FunctionDeclaration *iterator_method = nullptr;
+            const bool consumes_source =
+                std::holds_alternative<janus::ast::MoveExpression>(
+                    (*loop)->iterator.value);
             for (const janus::ast::FunctionDeclaration &method :
-                 source_specialization.declaration->methods)
-              if (method.name == "iterator")
+               source_specialization.declaration->methods)
+              if (method.name ==
+                  (consumes_source ? "intoIterator" : "iterator"))
                 iterator_method = &method;
             ::llvm::Function *iterator_function = emit_function(
                 *iterator_method, {}, source_specialization.declaration,

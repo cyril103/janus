@@ -6561,6 +6561,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           const SemanticType source_type = expression_type((*loop)->iterator);
           std::optional<SemanticType> element_type;
           bool consumes_source = false;
+          const bool moves_source = std::holds_alternative<ast::MoveExpression>(
+              (*loop)->iterator.value);
           if (source_type.is_class() && source_type.parameter == "Iterator" &&
               source_type.type_arguments.size() == 1) {
             element_type = source_type.type_arguments.front();
@@ -6575,25 +6577,36 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 class_declaration.type_parameters.end()};
             for (const ast::TypeReference &implemented :
                  class_declaration.implemented_traits) {
-              if (implemented.name != "Iterable")
+              const bool observing = implemented.name == "Iterable";
+              const bool consuming = implemented.name == "IntoIterable";
+              if ((!observing && !consuming) ||
+                  (moves_source ? !consuming : !observing))
                 continue;
               TraitInstance iterable =
                   resolve_trait(implemented, class_parameters);
-              if (iterable.type_arguments.size() == 1)
+              if (iterable.type_arguments.size() == 1) {
                 element_type =
                     substitute(iterable.type_arguments.front(), substitutions);
+                consumes_source = consuming;
+              }
             }
           } else if (const auto constraint =
                          active_trait_constraints.find(source_type.parameter);
                      constraint != active_trait_constraints.end()) {
             for (const TraitInstance &active : constraint->second)
-              if (active.declaration->name == "Iterable" &&
-                  active.type_arguments.size() == 1)
+              if (((!moves_source &&
+                    active.declaration->name == "Iterable") ||
+                   (moves_source &&
+                    active.declaration->name == "IntoIterable")) &&
+                  active.type_arguments.size() == 1) {
                 element_type = active.type_arguments.front();
+                consumes_source = moves_source;
+              }
           }
           if (!element_type.has_value())
             throw CompileError{(*loop)->location,
-                               "for requires an Iterator[T] or Iterable[T], "
+                               "for requires an Iterator[T], Iterable[T], or "
+                               "moved IntoIterable[T], "
                                "got '" +
                                    source_type.name() + "'"};
           if (consumes_source)
@@ -6602,7 +6615,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (!consumes_source && !satisfies_copy(*element_type))
             throw CompileError{(*loop)->location,
                                "for cannot copy an owned Iterable element; use "
-                               "intoIterator to consume the collection"};
+                               "'move source' or intoIterator() to consume the "
+                               "collection"};
           SymbolTable loop_symbols = block_symbols;
           loop_symbols.insert_or_assign((*loop)->binding,
                                         Symbol{*element_type, false, true});

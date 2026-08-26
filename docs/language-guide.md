@@ -943,9 +943,11 @@ détaillés dans le [design des collections hachées](design/hash-collections.md
 
 ### Observer ou consommer un parcours
 
-`iterator()` observe le conteneur et produit des copies ; il est donc
-disponible uniquement quand les éléments produits satisfont `Copy`.
-`intoIterator()` consomme un `Array` ou un `HashSet` et transfère chaque
+Le trait `Iterable[T]` décrit `iterator()`, qui observe le conteneur et produit
+des copies ; il est donc disponible uniquement quand les éléments produits
+satisfont `Copy`. Le trait distinct `IntoIterable[T]` décrit
+`intoIterator()`, qui consomme sa source sans imposer `Copy`. `Array`,
+`HashSet` et `Iterator` implémentent cette capacité et transfèrent chaque
 élément. Pour une table, `intoEntries()` transfère des `MapEntry[K, V]` ;
 `intoKey()` ou `intoValue()` permet ensuite de conserver une moitié en
 détruisant l'autre.
@@ -955,15 +957,18 @@ val resources : Array[Resource] = new Array[Resource](usize(2))
 resources.push(move first)
 resources.push(move second)
 
-for resource in resources.intoIterator() {
+for resource in move resources {
     defer delete resource
     resource.inspect()
 }
 ```
 
-Un `for` sur des valeurs propriétaires exige ce parcours consommant explicite :
-le compilateur ne transforme jamais implicitement une observation en copie
-propriétaire. Les adaptateurs `map`, `filter`, `flatMap`, `take`, `zip`,
+Un `for` sur des valeurs propriétaires exige ce parcours consommant explicite,
+soit avec `move source` pour une valeur `IntoIterable[T]`, soit avec
+`source.intoIterator()`. Sans `move`, `for` sélectionne exclusivement
+`Iterable[T]` et ne transforme jamais une observation en copie propriétaire.
+Cette séparation fonctionne aussi dans les contraintes génériques. Les
+adaptateurs `map`, `filter`, `flatMap`, `take`, `zip`,
 `enumerate`, `fold` et `collectWith` transfèrent également leurs éléments.
 La lambda de `filter` observe son paramètre pendant l'appel ; `map`, `flatMap`
 et `fold` le consomment. Un élément refusé par `filter` est détruit

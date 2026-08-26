@@ -87,7 +87,7 @@ private var index : usize
 class HashSet[T, H <: Hashing[T]](
 initialCapacity : usize,
 private borrow val hashing : H
-) extends Iterable[T] {
+) extends Iterable[T], IntoIterable[T] {
     private var slotCapacity : usize =
     normalizedHashCapacity(initialCapacity)
     private var slots : Array[SetSlot[T]] =

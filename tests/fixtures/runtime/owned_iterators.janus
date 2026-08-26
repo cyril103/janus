@@ -93,6 +93,18 @@ def exercisePipeline() : Unit {
     delete collected
 }
 
+def consumeOwned[C <: IntoIterable[Resource]](values : C) : Unit {
+    for value in move values {
+        delete value
+    }
+}
+
+def exerciseIntoIterable() : Unit {
+    val values : Array[Resource] = new Array[Resource](usize(2))
+    addArrayValues(values, 2)
+    consumeOwned[Array[Resource]](move values)
+}
+
 def exerciseBreak() : Unit {
     val values : Array[Resource] = new Array[Resource](usize(3))
     addArrayValues(values, 3)
@@ -261,6 +273,8 @@ def exerciseBorrowedMap() : Unit {
 
 def main() : int {
     exercisePipeline()
+    println(releases)
+    exerciseIntoIterable()
     println(releases)
     exerciseBreak()
     println(releases)

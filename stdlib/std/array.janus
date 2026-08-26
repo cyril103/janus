@@ -73,7 +73,7 @@ private def checkedArrayCapacity[T](count : usize) : usize {
 /// observants exigent `T <: Copy`, tandis que [[Array.intoIterator]] consomme le
 /// tableau et peut transférer des valeurs non copiables.
 /// @param initialCapacity Nombre initial d’emplacements réservés.
-class Array[T](initialCapacity : usize) extends Iterable[T] {
+class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
     private var data : Ptr[T] = alloc[T](initialCapacity)
     private var length : usize = usize(0)
     private var allocated : usize = initialCapacity

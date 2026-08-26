@@ -4552,7 +4552,7 @@ des collections intermédiaires.</p></div></div><section class="module-example d
     .filter((value : int) =&gt; value &gt; 0)<br>
     .map[int]((value : int) =&gt; value * 2)<br>
     .fold[int](0, (sum : int, value : int) =&gt; sum + value)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">18</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">21</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-struct" id="std-iterator-indexed" data-symbol data-search="std.iterator.Indexed struct struct Indexed[T](val index : usize, val value : T) Associe une valeur à son rang dans un parcours énuméré.
 
@@ -4571,6 +4571,21 @@ produite par <a href="#std-iterator-iterator-enumerate"><code>Iterator.enumerate
 <article class="symbol-card kind-field child" id="std-iterator-indexed-value" data-symbol data-search="std.iterator.Indexed.value field val value : T Valeur possédée provenant de l’itérateur source."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.iterator.Indexed</div><h3><code>val value : T</code></h3>
 <p class="doc-summary">Valeur possédée provenant de l’itérateur source.</p>
 <div class="qualified">std.iterator.Indexed.value</div></div><a class="permalink" href="#std-iterator-indexed-value" aria-label="Permanent link to std.iterator.Indexed.value">#</a></article>
+<article class="symbol-card kind-trait" id="std-iterator-intoiterable" data-symbol data-search="std.iterator.IntoIterable trait trait IntoIterable[T] Décrit une source capable de transférer ses valeurs dans un parcours.
+
+Contrairement à [[Iterable]], cette capacité consomme la source et n&#39;exige
+pas que ses éléments soient `Copy`. Elle convient donc aux collections de
+ressources propriétaires."><span class="kind-icon" aria-hidden="true">t</span><div><span class="kind">trait</span><h3><code>trait IntoIterable[T]</code></h3>
+<p class="doc-summary">Décrit une source capable de transférer ses valeurs dans un parcours.</p>
+<div class="doc-details"><p>Contrairement à <a href="#std-iterator-iterable"><code>Iterable</code></a>, cette capacité consomme la source et n&#39;exige<br>
+pas que ses éléments soient `Copy`. Elle convient donc aux collections de<br>
+ressources propriétaires.</p></div>
+<div class="qualified">std.iterator.IntoIterable</div></div><a class="permalink" href="#std-iterator-intoiterable" aria-label="Permanent link to std.iterator.IntoIterable">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-intoiterable-intoiterator" data-symbol data-search="std.iterator.IntoIterable.intoIterator method consume def intoIterator() : Iterator[T] Consomme la source et déplace ses éléments dans un itérateur.
+@return Un [[Iterator]] propriétaire des valeurs et de l&#39;état restant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.IntoIterable</div><h3><code>consume def intoIterator() : Iterator[T]</code></h3>
+<p class="doc-summary">Consomme la source et déplace ses éléments dans un itérateur.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un <a href="#std-iterator-iterator"><code>Iterator</code></a> propriétaire des valeurs et de l&#39;état restant.</p></section>
+<div class="qualified">std.iterator.IntoIterable.intoIterator</div></div><a class="permalink" href="#std-iterator-intoiterable-intoiterator" aria-label="Permanent link to std.iterator.IntoIterable.intoIterator">#</a></article>
 <article class="symbol-card kind-trait" id="std-iterator-iterable" data-symbol data-search="std.iterator.Iterable trait trait Iterable[T] Décrit une source capable de créer un parcours observant de ses valeurs.
 
 La contrainte `Copy` permet à l’itérateur produit de rendre des copies sans
@@ -4669,6 +4684,11 @@ prochaine valeur sont transmis à `combine`.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initial</code></td><td><code>U</code></td><td>Valeur initiale de l’accumulateur.</td></tr><tr><td><code>combine</code></td><td><code>Function[U, T, U]</code></td><td>Fonction produisant l’accumulateur de l’étape suivante.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>U</code> — L’accumulateur final, ou `initial` si le parcours est vide.</p></section>
 <div class="qualified">std.iterator.Iterator.fold</div></div><a class="permalink" href="#std-iterator-iterator-fold" aria-label="Permanent link to std.iterator.Iterator.fold">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-intoiterator" data-symbol data-search="std.iterator.Iterator.intoIterator method consume def intoIterator() : Iterator[T] Retourne ce parcours en transférant sa propriété.
+@return Le même itérateur, déplacé vers l&#39;appelant."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def intoIterator() : Iterator[T]</code></h3>
+<p class="doc-summary">Retourne ce parcours en transférant sa propriété.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Le même itérateur, déplacé vers l&#39;appelant.</p></section>
+<div class="qualified">std.iterator.Iterator.intoIterator</div></div><a class="permalink" href="#std-iterator-iterator-intoiterator" aria-label="Permanent link to std.iterator.Iterator.intoIterator">#</a></article>
 <article class="symbol-card kind-method child" id="std-iterator-iterator-map" data-symbol data-search="std.iterator.Iterator.map method consume def map[U](transform : Function[T, U]) : Iterator[U] Transforme paresseusement chaque valeur du parcours.
 
 Cette méthode consomme le parcours et prend possession de `transform`.
