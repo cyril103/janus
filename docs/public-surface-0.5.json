@@ -281,8 +281,8 @@
       "source": "stdlib/std/testing.janus",
       "documentation": ["docs/testing.md", "docs/tooling.md"],
       "status": "experimental",
-      "signature_digest": "350427e8be4a6fbb126cb3ced8be33e0a3b6fc7ae86d353ab893c74d4d304c20",
-      "symbols": ["TestTemporaryDirectory", "TestTemporaryDirectory.path", "TestTemporaryDirectory.cleanup", "testTemporaryDirectory", "assertTrue", "assertFalse", "assertEqual", "assertNotEqual", "assertSome", "assertNone", "assertOk", "assertError"]
+      "signature_digest": "f05de980660045d54705a77cc82a5ca521e678977fcf51ca549a303066f3f65c",
+      "symbols": ["TestTemporaryDirectory", "TestTemporaryDirectory.path", "TestTemporaryDirectory.cleanup", "testTemporaryDirectory", "fail", "assertTrue", "assertFalse", "assertEqual", "assertNotEqual", "assertBorrowedEqual", "assertSome", "assertNone", "assertSomeWhere", "assertOk", "assertError", "assertOkWhere", "assertErrorWhere", "assertBytesEqual"]
     },
     {
       "name": "std.time",

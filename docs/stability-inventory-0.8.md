@@ -86,7 +86,10 @@ symbole source non inventorié.
 | `std.array` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.array_builder` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.builder` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
+| `std.bytes` | `experimental` | [Référence stdlib](stdlib-reference.md) | Vues binaires bornées ajoutées après la baseline 0.8. |
 | `std.c` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
+| `std.deque` | `experimental` | [Référence stdlib](stdlib-reference.md) | Files et deques ajoutées après la baseline 0.8. |
+| `std.error` | `experimental` | [Référence stdlib](stdlib-reference.md) | Erreurs de collections unifiées après la baseline 0.8. |
 | `std.graphics` | `experimental` | [Graphismes](graphics.md) | Famille encore expérimentale. |
 | `std.graphics.audio` | `experimental` | [Graphismes](graphics.md) | Retenue comme expérimentale. |
 | `std.graphics.drawing` | `experimental` | [Graphismes](graphics.md) | Retenue comme expérimentale. |
@@ -102,6 +105,7 @@ symbole source non inventorié.
 | `std.math` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.numeric` | `experimental` | [Conversions numériques](numeric-conversions.md) | Nouvelle surface pré-1.0. |
 | `std.option` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
+| `std.ordering` | `experimental` | [Référence stdlib](stdlib-reference.md) | Stratégies d’ordre ajoutées après la baseline 0.8. |
 | `std.path` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.priority_queue` | `experimental` | [Référence stdlib](stdlib-reference.md) | Nouvelle collection pré-1.0. |
 | `std.random` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |

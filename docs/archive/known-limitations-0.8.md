@@ -26,6 +26,9 @@ pour expérimentation, mais ne font pas partie du candidat stable.
   courant.
 - `std.priority_queue` : la file de priorité stable a été ajoutée après la
   baseline 0.8 et reste expérimentale jusqu'à la stabilisation de son API.
+- `std.bytes`, `std.deque`, `std.error` et `std.ordering` : ces vues binaires,
+  collections et contrats partagés ont été ajoutés après la baseline 0.8 et
+  restent expérimentaux jusqu'à leur prochain inventaire de stabilité.
 
 Autres limites hors surface promise : format et ordre exacts des diagnostics,
 ABI des agrégats Janus, objets compilés entre plateformes, performances,

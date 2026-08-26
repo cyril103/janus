@@ -47,11 +47,16 @@ parallèle.
 
 ## Assertions
 
-`std.testing` fournit `assertTrue`, `assertFalse`, `assertEqual`,
+`std.testing` fournit `fail`, `assertTrue`, `assertFalse`, `assertEqual`,
 `assertNotEqual`, `assertSome`, `assertNone`, `assertOk` et `assertError`.
-Les comparaisons génériques exigent `Equality` et `Debug`; les valeurs sont
-affichées avant la panique d’assertion. Le runner rattache chaque résultat à la
-déclaration source du test.
+`assertBorrowedEqual` compare aussi les valeurs non copiables sans les
+consommer. `assertSomeWhere`, `assertOkWhere` et `assertErrorWhere` appliquent
+une callback `scoped` au contenu de la variante attendue ; elles permettent
+donc de vérifier un objet propriétaire tout en le laissant dans son conteneur.
+`assertBytesEqual` compare deux `ByteView` et signale la taille ou le premier
+indice différent. Les comparaisons génériques exigent `Equality` et `Debug` ;
+les valeurs sont affichées avant la panique d’assertion. Le runner rattache
+chaque résultat à la déclaration source du test.
 
 `testTemporaryDirectory(false)` retourne une ressource propriétaire enveloppée
 dans un `Result`. Son chemin est unique et son destructeur supprime

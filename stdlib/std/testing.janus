@@ -14,6 +14,7 @@ module std.testing
 
 import std.option
 import std.result
+import std.bytes
 import std.fs
 import std.path
 import std.system
@@ -83,6 +84,12 @@ preserve : bool
     }
 }
 
+/// Interrompt explicitement le test avec un message descriptif.
+/// @param message Raison affichée par le runner avant de classer le test en échec.
+def fail(message : string) : Unit {
+    panic(message)
+}
+
 /// Vérifie qu’une condition est vraie.
 /// @param condition Condition attendue à `true`.
 def assertTrue(condition : bool) : Unit {
@@ -125,6 +132,23 @@ def assertNotEqual[T <: Equality & Debug](actual : T, expected : T) : Unit {
     }
 }
 
+/// Compare deux valeurs par emprunt, y compris lorsqu’elles ne sont pas copiables.
+/// @param actual Valeur observée sans transfert de propriété.
+/// @param expected Valeur attendue observée sans transfert de propriété.
+def assertBorrowedEqual[T <: Equality & Debug](
+borrow actual : T,
+borrow expected : T
+) : Unit {
+    if actual != expected {
+        println("assertBorrowedEqual failed")
+        print("  expected: ")
+        debug(expected)
+        print("  actual:   ")
+        debug(actual)
+        panic("assertBorrowedEqual failed\n")
+    }
+}
+
 /// Vérifie qu’une option contient une valeur.
 /// @param value Option inspectée sans déplacer son contenu.
 def assertSome[T](borrow value : Option[T]) : Unit {
@@ -141,6 +165,26 @@ def assertNone[T](borrow value : Option[T]) : Unit {
     }
 }
 
+/// Vérifie qu’une option contient une valeur satisfaisant un prédicat.
+///
+/// Le contenu est seulement emprunté et la callback ne peut pas s’échapper :
+/// les valeurs non copiables restent donc la propriété de l’option.
+/// @param value Option inspectée sans déplacer son contenu.
+/// @param predicate Condition bornée appelée uniquement pour `Some`.
+def assertSomeWhere[T](
+borrow value : Option[T],
+scoped predicate : (borrow T) => bool
+) : Unit {
+    defer delete predicate
+    val accepted : bool = match value {
+        Some(item) => predicate(item),
+        None => false
+    }
+    if !accepted {
+        panic("assertSomeWhere failed: expected matching Some\n")
+    }
+}
+
 /// Vérifie qu’un résultat représente un succès.
 /// @param value Résultat inspecté sans déplacer son contenu.
 def assertOk[T, E](borrow value : Result[T, E]) : Unit {
@@ -154,5 +198,72 @@ def assertOk[T, E](borrow value : Result[T, E]) : Unit {
 def assertError[T, E](borrow value : Result[T, E]) : Unit {
     if !isError[T, E](value) {
         panic("assertError failed: expected Error, got Ok\n")
+    }
+}
+
+
+/// Vérifie que la valeur de succès satisfait un prédicat sans la consommer.
+/// @param value Résultat inspecté sans déplacer sa branche active.
+/// @param predicate Condition bornée appelée uniquement pour `Ok`.
+def assertOkWhere[T, E](
+borrow value : Result[T, E],
+scoped predicate : (borrow T) => bool
+) : Unit {
+    defer delete predicate
+    val accepted : bool = match value {
+        Ok(item) => predicate(item),
+        Error(error) => false
+    }
+    if !accepted {
+        panic("assertOkWhere failed: expected matching Ok\n")
+    }
+}
+
+/// Vérifie que l’erreur satisfait un prédicat sans la consommer.
+/// @param value Résultat inspecté sans déplacer sa branche active.
+/// @param predicate Condition bornée appelée uniquement pour `Error`.
+def assertErrorWhere[T, E](
+borrow value : Result[T, E],
+scoped predicate : (borrow E) => bool
+) : Unit {
+    defer delete predicate
+    val accepted : bool = match value {
+        Ok(item) => false,
+        Error(error) => predicate(error)
+    }
+    if !accepted {
+        panic("assertErrorWhere failed: expected matching Error\n")
+    }
+}
+
+/// Compare exactement deux vues binaires bornées.
+/// @param actual Suite d’octets obtenue.
+/// @param expected Suite d’octets attendue.
+def assertBytesEqual(
+borrow actual : ByteView,
+borrow expected : ByteView
+) : Unit {
+    if actual.size() != expected.size() {
+        println("assertBytesEqual failed")
+        print("  expected size: ")
+        debug(expected.size())
+        print("  actual size:   ")
+        debug(actual.size())
+        panic("assertBytesEqual failed: different sizes\n")
+    }
+
+    var index : usize = usize(0)
+    while index < actual.size() {
+        if actual.get(index) != expected.get(index) {
+            println("assertBytesEqual failed")
+            print("  index:    ")
+            debug(index)
+            print("  expected: ")
+            debug(expected.get(index))
+            print("  actual:   ")
+            debug(actual.get(index))
+            panic("assertBytesEqual failed: different bytes\n")
+        }
+        index = index + usize(1)
     }
 }

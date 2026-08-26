@@ -7025,7 +7025,7 @@ Les paniques attendues se déclarent avec `/// @shouldPanic [message]` sur la<br
 fonction `/// @test` afin que le processus parent puisse les distinguer.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>import std.testing<br>
 assertEqual[int](2 + 2, 4)<br>
 assertTrue(true)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">12</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">18</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-testing-testtemporarydirectory" data-symbol data-search="std.testing.TestTemporaryDirectory class class TestTemporaryDirectory(val location : Path, val preserve : bool) Possède un répertoire temporaire unique et le supprime à sa destruction.
 
@@ -7057,6 +7057,18 @@ recréée au même emplacement.</p></div>
 <p class="doc-summary">Emprunte le chemin natif du répertoire.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>string</code> — Vue valide jusqu’à la destruction de cette ressource.</p></section>
 <div class="qualified">std.testing.TestTemporaryDirectory.path</div></div><a class="permalink" href="#std-testing-testtemporarydirectory-path" aria-label="Permanent link to std.testing.TestTemporaryDirectory.path">#</a></article>
+<article class="symbol-card kind-function" id="std-testing-assertborrowedequal" data-symbol data-search="std.testing.assertBorrowedEqual function def assertBorrowedEqual[T](borrow actual : T, borrow expected : T) : Unit Compare deux valeurs par emprunt, y compris lorsqu’elles ne sont pas copiables.
+@param actual Valeur observée sans transfert de propriété.
+@param expected Valeur attendue observée sans transfert de propriété."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertBorrowedEqual[T](borrow actual : T, borrow expected : T) : Unit</code></h3>
+<p class="doc-summary">Compare deux valeurs par emprunt, y compris lorsqu’elles ne sont pas copiables.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>actual</code></td><td><code>T</code></td><td>Valeur observée sans transfert de propriété.</td></tr><tr><td><code>expected</code></td><td><code>T</code></td><td>Valeur attendue observée sans transfert de propriété.</td></tr></tbody></table></section>
+<div class="qualified">std.testing.assertBorrowedEqual</div></div><a class="permalink" href="#std-testing-assertborrowedequal" aria-label="Permanent link to std.testing.assertBorrowedEqual">#</a></article>
+<article class="symbol-card kind-function" id="std-testing-assertbytesequal" data-symbol data-search="std.testing.assertBytesEqual function def assertBytesEqual(borrow actual : ByteView, borrow expected : ByteView) : Unit Compare exactement deux vues binaires bornées.
+@param actual Suite d’octets obtenue.
+@param expected Suite d’octets attendue."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertBytesEqual(borrow actual : ByteView, borrow expected : ByteView) : Unit</code></h3>
+<p class="doc-summary">Compare exactement deux vues binaires bornées.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>actual</code></td><td><code>ByteView</code></td><td>Suite d’octets obtenue.</td></tr><tr><td><code>expected</code></td><td><code>ByteView</code></td><td>Suite d’octets attendue.</td></tr></tbody></table></section>
+<div class="qualified">std.testing.assertBytesEqual</div></div><a class="permalink" href="#std-testing-assertbytesequal" aria-label="Permanent link to std.testing.assertBytesEqual">#</a></article>
 <article class="symbol-card kind-function" id="std-testing-assertequal" data-symbol data-search="std.testing.assertEqual function def assertEqual[T](actual : T, expected : T) : Unit Compare deux valeurs disposant des capacités `Equality` et `Debug`.
 @param actual Valeur obtenue.
 @param expected Valeur attendue."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertEqual[T](actual : T, expected : T) : Unit</code></h3>
@@ -7068,6 +7080,12 @@ recréée au même emplacement.</p></div>
 <p class="doc-summary">Vérifie qu’un résultat représente une erreur.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat inspecté sans déplacer son contenu.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertError</div></div><a class="permalink" href="#std-testing-asserterror" aria-label="Permanent link to std.testing.assertError">#</a></article>
+<article class="symbol-card kind-function" id="std-testing-asserterrorwhere" data-symbol data-search="std.testing.assertErrorWhere function def assertErrorWhere[T, E](borrow value : Result[T, E], scoped predicate : Function[E, bool]) : Unit Vérifie que l’erreur satisfait un prédicat sans la consommer.
+@param value Résultat inspecté sans déplacer sa branche active.
+@param predicate Condition bornée appelée uniquement pour `Error`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertErrorWhere[T, E](borrow value : Result[T, E], scoped predicate : Function[E, bool]) : Unit</code></h3>
+<p class="doc-summary">Vérifie que l’erreur satisfait un prédicat sans la consommer.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat inspecté sans déplacer sa branche active.</td></tr><tr><td><code>predicate</code></td><td><code>Function[E, bool]</code></td><td>Condition bornée appelée uniquement pour `Error`.</td></tr></tbody></table></section>
+<div class="qualified">std.testing.assertErrorWhere</div></div><a class="permalink" href="#std-testing-asserterrorwhere" aria-label="Permanent link to std.testing.assertErrorWhere">#</a></article>
 <article class="symbol-card kind-function" id="std-testing-assertfalse" data-symbol data-search="std.testing.assertFalse function def assertFalse(condition : bool) : Unit Vérifie qu’une condition est fausse.
 @param condition Condition attendue à `false`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertFalse(condition : bool) : Unit</code></h3>
 <p class="doc-summary">Vérifie qu’une condition est fausse.</p>
@@ -7089,16 +7107,38 @@ recréée au même emplacement.</p></div>
 <p class="doc-summary">Vérifie qu’un résultat représente un succès.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat inspecté sans déplacer son contenu.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertOk</div></div><a class="permalink" href="#std-testing-assertok" aria-label="Permanent link to std.testing.assertOk">#</a></article>
+<article class="symbol-card kind-function" id="std-testing-assertokwhere" data-symbol data-search="std.testing.assertOkWhere function def assertOkWhere[T, E](borrow value : Result[T, E], scoped predicate : Function[T, bool]) : Unit Vérifie que la valeur de succès satisfait un prédicat sans la consommer.
+@param value Résultat inspecté sans déplacer sa branche active.
+@param predicate Condition bornée appelée uniquement pour `Ok`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertOkWhere[T, E](borrow value : Result[T, E], scoped predicate : Function[T, bool]) : Unit</code></h3>
+<p class="doc-summary">Vérifie que la valeur de succès satisfait un prédicat sans la consommer.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat inspecté sans déplacer sa branche active.</td></tr><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Condition bornée appelée uniquement pour `Ok`.</td></tr></tbody></table></section>
+<div class="qualified">std.testing.assertOkWhere</div></div><a class="permalink" href="#std-testing-assertokwhere" aria-label="Permanent link to std.testing.assertOkWhere">#</a></article>
 <article class="symbol-card kind-function" id="std-testing-assertsome" data-symbol data-search="std.testing.assertSome function def assertSome[T](borrow value : Option[T]) : Unit Vérifie qu’une option contient une valeur.
 @param value Option inspectée sans déplacer son contenu."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertSome[T](borrow value : Option[T]) : Unit</code></h3>
 <p class="doc-summary">Vérifie qu’une option contient une valeur.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option inspectée sans déplacer son contenu.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertSome</div></div><a class="permalink" href="#std-testing-assertsome" aria-label="Permanent link to std.testing.assertSome">#</a></article>
+<article class="symbol-card kind-function" id="std-testing-assertsomewhere" data-symbol data-search="std.testing.assertSomeWhere function def assertSomeWhere[T](borrow value : Option[T], scoped predicate : Function[T, bool]) : Unit Vérifie qu’une option contient une valeur satisfaisant un prédicat.
+
+Le contenu est seulement emprunté et la callback ne peut pas s’échapper :
+les valeurs non copiables restent donc la propriété de l’option.
+@param value Option inspectée sans déplacer son contenu.
+@param predicate Condition bornée appelée uniquement pour `Some`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertSomeWhere[T](borrow value : Option[T], scoped predicate : Function[T, bool]) : Unit</code></h3>
+<p class="doc-summary">Vérifie qu’une option contient une valeur satisfaisant un prédicat.</p>
+<div class="doc-details"><p>Le contenu est seulement emprunté et la callback ne peut pas s’échapper :<br>
+les valeurs non copiables restent donc la propriété de l’option.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option inspectée sans déplacer son contenu.</td></tr><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Condition bornée appelée uniquement pour `Some`.</td></tr></tbody></table></section>
+<div class="qualified">std.testing.assertSomeWhere</div></div><a class="permalink" href="#std-testing-assertsomewhere" aria-label="Permanent link to std.testing.assertSomeWhere">#</a></article>
 <article class="symbol-card kind-function" id="std-testing-asserttrue" data-symbol data-search="std.testing.assertTrue function def assertTrue(condition : bool) : Unit Vérifie qu’une condition est vraie.
 @param condition Condition attendue à `true`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertTrue(condition : bool) : Unit</code></h3>
 <p class="doc-summary">Vérifie qu’une condition est vraie.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>condition</code></td><td><code>bool</code></td><td>Condition attendue à `true`.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertTrue</div></div><a class="permalink" href="#std-testing-asserttrue" aria-label="Permanent link to std.testing.assertTrue">#</a></article>
+<article class="symbol-card kind-function" id="std-testing-fail" data-symbol data-search="std.testing.fail function def fail(message : string) : Unit Interrompt explicitement le test avec un message descriptif.
+@param message Raison affichée par le runner avant de classer le test en échec."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fail(message : string) : Unit</code></h3>
+<p class="doc-summary">Interrompt explicitement le test avec un message descriptif.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>message</code></td><td><code>string</code></td><td>Raison affichée par le runner avant de classer le test en échec.</td></tr></tbody></table></section>
+<div class="qualified">std.testing.fail</div></div><a class="permalink" href="#std-testing-fail" aria-label="Permanent link to std.testing.fail">#</a></article>
 <article class="symbol-card kind-function" id="std-testing-testtemporarydirectory-function" data-symbol data-search="std.testing.testTemporaryDirectory function def testTemporaryDirectory(preserve : bool) : Result[TestTemporaryDirectory, SystemError] Crée une ressource temporaire propre au test courant.
 @param preserve Conserve le répertoire à la destruction si `true`.
 @return Ressource propriétaire unique, ou erreur système de création."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def testTemporaryDirectory(preserve : bool) : Result[TestTemporaryDirectory, SystemError]</code></h3>

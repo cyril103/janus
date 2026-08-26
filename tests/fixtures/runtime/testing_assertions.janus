@@ -1,0 +1,59 @@
+import std.bytes
+import std.io
+import std.option
+import std.result
+import std.testing
+
+class Resource(val id : int) derives Equality, Debug {
+}
+
+def main() : int {
+    val left : Resource = new Resource(7)
+    val right : Resource = new Resource(7)
+    assertBorrowedEqual[Resource](left, right)
+
+    val optional : Option[Resource] =
+    Option.Some[Resource](new Resource(11))
+    assertSomeWhere[Resource](
+    optional,
+    (borrow value : Resource) => value.id == 11
+    )
+
+    val success : Result[Resource, int] =
+    Result.Ok[Resource, int](new Resource(13))
+    assertOkWhere[Resource, int](
+    success,
+    (borrow value : Resource) => value.id == 13
+    )
+
+    val failure : Result[Resource, int] =
+    Result.Error[Resource, int](17)
+    assertErrorWhere[Resource, int](
+    failure,
+    (borrow error : int) => error == 17
+    )
+
+    val actual : ByteBuffer = new ByteBuffer(usize(2))
+    actual.appendByte(byte(3))
+    actual.appendByte(byte(5))
+    val expected : ByteBuffer = new ByteBuffer(usize(2))
+    expected.appendByte(byte(3))
+    expected.appendByte(byte(5))
+    val actualView : ByteView =
+    new ByteView(actual.data(), usize(0), actual.size())
+    val expectedView : ByteView =
+    new ByteView(expected.data(), usize(0), expected.size())
+    assertBytesEqual(actualView, expectedView)
+
+    delete expectedView
+    delete actualView
+    delete expected
+    delete actual
+    delete failure
+    delete success
+    delete optional
+    delete right
+    delete left
+    println("testing assertions ok")
+    return 0
+}

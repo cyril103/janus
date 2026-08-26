@@ -375,7 +375,12 @@ import std.testing
 import std.option
 def main() : int {
     assertEqual[int](2 + 2, 4)
-    assertSome[int](Option.Some[int](42))
+    val answer : Option[int] = Option.Some[int](42)
+    assertSomeWhere[int](
+        answer,
+        (borrow value : int) => value == 42
+    )
+    delete answer
     return 0
 }
 ```
