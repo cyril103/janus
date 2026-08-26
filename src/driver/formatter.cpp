@@ -17,9 +17,15 @@ std::string_view trim(std::string_view line) {
   return line;
 }
 
-std::pair<int, int> braces(std::string_view line) {
-  int opens = 0;
-  int closes = 0;
+struct DelimiterCounts {
+  int block_opens{0};
+  int block_closes{0};
+  int continuation_opens{0};
+  int continuation_closes{0};
+};
+
+DelimiterCounts delimiters(std::string_view line) {
+  DelimiterCounts counts;
   char quote = '\0';
   bool escaped = false;
   for (std::size_t index = 0; index < line.size(); ++index) {
@@ -39,12 +45,29 @@ std::pair<int, int> braces(std::string_view line) {
     }
     if (character == '/' && index + 1 < line.size() && line[index + 1] == '/')
       break;
-    if (character == '{' || character == '[')
-      ++opens;
-    else if (character == '}' || character == ']')
-      ++closes;
+    if (character == '{')
+      ++counts.block_opens;
+    else if (character == '}')
+      ++counts.block_closes;
+    else if (character == '[' || character == '(')
+      ++counts.continuation_opens;
+    else if (character == ']' || character == ')')
+      ++counts.continuation_closes;
   }
-  return {opens, closes};
+  return counts;
+}
+
+DelimiterCounts leading_closes(std::string_view line) {
+  DelimiterCounts counts;
+  while (!line.empty() &&
+         (line.front() == '}' || line.front() == ']' || line.front() == ')')) {
+    if (line.front() == '}')
+      ++counts.block_closes;
+    else
+      ++counts.continuation_closes;
+    line.remove_prefix(1);
+  }
+  return counts;
 }
 
 } // namespace
@@ -94,7 +117,8 @@ std::string format_source(std::string_view source,
   std::istringstream input{std::string{source}};
   std::ostringstream output;
   std::string line;
-  int indentation = 0;
+  int block_indentation = 0;
+  int continuation_depth = 0;
   std::size_t blank_lines = 0;
   while (std::getline(input, line)) {
     const std::string_view content = trim(line);
@@ -105,16 +129,24 @@ std::string format_source(std::string_view source,
       continue;
     }
     blank_lines = 0;
-    const bool starts_with_close =
-        content.front() == '}' || content.front() == ']';
+    const DelimiterCounts leading = leading_closes(content);
+    const int visible_blocks =
+        std::max(0, block_indentation - leading.block_closes);
+    const int visible_continuations =
+        std::max(0, continuation_depth - leading.continuation_closes);
     const int line_indentation =
-        std::max(0, indentation - (starts_with_close ? 1 : 0));
+        visible_blocks + (visible_continuations > 0 ? 1 : 0);
     output << std::string(static_cast<std::size_t>(line_indentation) *
                              options.indent_width,
                          ' ')
            << content << '\n';
-    const auto [opens, closes] = braces(content);
-    indentation = std::max(0, indentation + opens - closes);
+    const DelimiterCounts counts = delimiters(content);
+    block_indentation =
+        std::max(0, block_indentation + counts.block_opens -
+                        counts.block_closes);
+    continuation_depth =
+        std::max(0, continuation_depth + counts.continuation_opens -
+                        counts.continuation_closes);
   }
   return output.str();
 }

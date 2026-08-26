@@ -117,6 +117,24 @@ int main() {
     std::cerr << "array literal formatting is not stable and idempotent\n";
     return 1;
   }
+  const std::string multiline_calls =
+      "def check() : bool {\nreturn assertTrue(checkFile(\n"
+      "\"tests/compiler.janus\",\noutput\n))\n}\n";
+  const std::string formatted_multiline_calls =
+      "def check() : bool {\n"
+      "    return assertTrue(checkFile(\n"
+      "        \"tests/compiler.janus\",\n"
+      "        output\n"
+      "    ))\n"
+      "}\n";
+  if (janus::driver::format_source(multiline_calls) !=
+          formatted_multiline_calls ||
+      janus::driver::format_source(formatted_multiline_calls) !=
+          formatted_multiline_calls) {
+    std::cerr << "multiline calls are not indented idempotently:\n"
+              << janus::driver::format_source(multiline_calls);
+    return 1;
+  }
   const std::string local_types =
       "def main() : int {\nval inferred=answer()\nval explicit:int=1\nreturn explicit\n}\n";
   const std::string formatted_local_types =
