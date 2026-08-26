@@ -1,0 +1,15 @@
+import std.bytes
+import std.io
+
+def main() : int {
+    val buffer : ByteBuffer = new ByteBuffer(usize(1))
+    defer delete buffer
+    buffer.appendByte(byte(7))
+    return buffer.withView[int](
+    (borrow view : ByteView) => view.withSlice[int](
+    usize(1),
+    usize(1),
+    (borrow slice : ByteView) => int(slice.size())
+    )
+    )
+}

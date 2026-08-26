@@ -2073,6 +2073,15 @@ private:
             block_locals.emplace(declaration->name, Local{storage, &type});
             continue;
           }
+          if (type.kind() == janus::TypeKind::Unit) {
+            if (declaration->initializer.has_value())
+              static_cast<void>(emit_expression(
+                  *declaration->initializer, type, substitutions,
+                  block_locals, builder));
+            block_locals.emplace(declaration->name,
+                                 Local{nullptr, &type});
+            continue;
+          }
           ::llvm::Value *storage = create_entry_alloca(
               builder, lower_type(type, context_), declaration->name);
           if (declaration->initializer.has_value()) {
@@ -3677,6 +3686,8 @@ private:
               return emit_static_initializer(value, *value.type);
             }
             const Local &local = resolve_storage(node.name, locals);
+            if (local.type->kind() == janus::TypeKind::Unit)
+              return nullptr;
             return builder.CreateLoad(lower_type(*local.type, context_),
                                       local.storage, node.name + ".value");
           } else if constexpr (std::is_same_v<Node,

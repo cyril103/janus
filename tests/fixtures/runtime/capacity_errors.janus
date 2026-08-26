@@ -1,0 +1,63 @@
+import std.array
+import std.deque
+import std.error
+import std.hashing
+import std.hashmap
+import std.hashset
+import std.option
+import std.priority_queue
+import std.result
+
+def overflowed(result : Result[bool, CapacityError]) : bool {
+    return match result {
+        Ok(changed) => false,
+        Error(error) => error == CapacityError.CapacityOverflow
+    }
+}
+
+def main() : int {
+    val impossible : usize = usize(-1)
+    val values : Array[int] = new Array[int](usize(1))
+    values.push(7)
+    val arrayOk : bool = overflowed(values.tryReserve(impossible)) &&
+    values.get(usize(0)) == 7
+
+    val deque : Deque[int] = new Deque[int](usize(1))
+    deque.pushBack(7)
+    val dequeOk : bool = overflowed(deque.tryReserve(impossible)) &&
+    deque.popFront() == 7
+
+    val queue : Queue[int] = new Queue[int](usize(1))
+    queue.enqueue(7)
+    val queueOk : bool = overflowed(queue.tryReserve(impossible)) &&
+    queue.dequeue() == 7
+
+    val hashing : IntHashing = new IntHashing()
+    val set : HashSet[int, IntHashing] =
+    new HashSet[int, IntHashing](usize(1), hashing)
+    set.add(7)
+    val setOk : bool = overflowed(set.tryReserve(impossible)) && set.contains(7)
+
+    val map : HashMap[int, int, IntHashing] =
+    new HashMap[int, int, IntHashing](usize(1), hashing)
+    val previous : Option[int] = map.put(7, 42)
+    val mapOk : bool = overflowed(map.tryReserve(impossible)) && map.containsKey(7)
+
+    val priority : PriorityQueue[int] = new PriorityQueue[int](
+    usize(1),
+    (borrow left : int, borrow right : int) => left < right
+    )
+    priority.enqueue(7)
+    val priorityOk : bool = overflowed(priority.tryReserve(impossible)) &&
+    priority.dequeue() == 7
+
+    println(arrayOk && dequeOk && queueOk && setOk && mapOk && priorityOk)
+    delete priority
+    delete map
+    delete set
+    delete hashing
+    delete queue
+    delete deque
+    delete values
+    return 0
+}

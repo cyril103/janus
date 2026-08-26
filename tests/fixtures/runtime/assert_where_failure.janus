@@ -1,0 +1,11 @@
+import std.option
+import std.testing
+
+def main() : int {
+    val value : Option[int] = Option.Some[int](41)
+    assertSomeWhere[int](
+    value,
+    (borrow item : int) => item == 42
+    )
+    return 0
+}

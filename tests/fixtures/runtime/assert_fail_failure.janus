@@ -1,0 +1,6 @@
+import std.testing
+
+def main() : int {
+    fail("expected explicit test failure")
+    return 0
+}

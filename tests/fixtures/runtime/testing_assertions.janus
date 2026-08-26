@@ -33,6 +33,14 @@ def main() : int {
     (borrow error : int) => error == 17
     )
 
+    val actual : ByteBuffer = new ByteBuffer(usize(2))
+    actual.appendByte(byte(3))
+    actual.appendByte(byte(5))
+    actual.withView[Unit]((borrow view : ByteView) => {
+        assertBytesEqual(view, view)
+    })
+    delete actual
+
     delete failure
     delete success
     delete optional

@@ -1,0 +1,6 @@
+import std.graphics.drawing
+
+def main() : int {
+    free(graphicsLastError())
+    return 0
+}

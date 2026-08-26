@@ -1,0 +1,22 @@
+import std.bytes
+import std.io
+import std.testing
+
+def compare(borrow first : ByteBuffer, borrow second : ByteBuffer) : Unit {
+    first.withView[Unit]((borrow left : ByteView) => {
+        second.withView[Unit]((borrow right : ByteView) => {
+            assertBytesEqual(left, right)
+        })
+    })
+}
+
+def main() : int {
+    val first : ByteBuffer = new ByteBuffer(usize(1))
+    defer delete first
+    first.appendByte(byte(1))
+    val second : ByteBuffer = new ByteBuffer(usize(1))
+    defer delete second
+    second.appendByte(byte(2))
+    compare(first, second)
+    return 0
+}

@@ -1,0 +1,31 @@
+import std.bytes
+import std.io
+import std.testing
+
+def main() : int {
+    val first : ByteBuffer = new ByteBuffer(usize(2))
+    defer delete first
+    first.appendByte(byte(3))
+    first.appendByte(byte(5))
+
+    val second : ByteBuffer = new ByteBuffer(usize(2))
+    defer delete second
+    second.appendByte(byte(3))
+    second.appendByte(byte(5))
+
+    first.withView[Unit]((borrow view : ByteView) => {
+        assertBytesEqual(view, view)
+    })
+
+    val equal : bool = first.withView[bool](
+    (borrow left : ByteView) => second.withView[bool](
+    (borrow right : ByteView) => {
+        assertBytesEqual(left, left)
+        assertBytesEqual(left, right)
+        return true
+    }
+    )
+    )
+    println(equal)
+    return 0
+}

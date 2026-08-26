@@ -1,0 +1,9 @@
+import std.bytes
+
+def main() : int {
+    val data : Ptr[byte] = alloc[byte](usize(1))
+    val view : ByteView = new ByteView(data, usize(0), usize(1))
+    delete view
+    free(data)
+    return 0
+}
