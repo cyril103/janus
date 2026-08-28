@@ -48,6 +48,21 @@ endif()
 
 file(SHA256 "${FIRST_INDEX}" FIRST_INDEX_DIGEST)
 file(SHA256 "${FIRST_HTML}" FIRST_HTML_DIGEST)
+set(COMMITTED_DIR "${SOURCE_DIR}/website/docs/reference/stdlib")
+set(COMMITTED_INDEX "${COMMITTED_DIR}/api-index.json")
+set(COMMITTED_HTML "${COMMITTED_DIR}/index.html")
+if(NOT EXISTS "${COMMITTED_INDEX}" OR NOT EXISTS "${COMMITTED_HTML}")
+    message(FATAL_ERROR "committed stdlib documentation mirrors are missing")
+endif()
+file(SHA256 "${COMMITTED_INDEX}" COMMITTED_INDEX_DIGEST)
+file(SHA256 "${COMMITTED_HTML}" COMMITTED_HTML_DIGEST)
+if(NOT FIRST_INDEX_DIGEST STREQUAL COMMITTED_INDEX_DIGEST
+   OR NOT FIRST_HTML_DIGEST STREQUAL COMMITTED_HTML_DIGEST)
+    message(FATAL_ERROR
+            "committed stdlib documentation mirrors are stale; regenerate "
+            "them with: janus doc --stdlib --offline -o "
+            "website/docs/reference/stdlib")
+endif()
 execute_process(
     COMMAND "${JANUS}" doc --stdlib --offline -o "${OUTPUT_DIR}"
     WORKING_DIRECTORY "${SOURCE_DIR}"

@@ -7,8 +7,8 @@
 /// [[prime_factors]] renvoie les facteurs croissants avec leur multiplicité.
 /// @example
 /// ```janus
-/// val divisor : usize = gcd(usize(84), usize(30))
-/// val factors : Array[usize] = prime_factors(usize(84))
+/// val divisor : usize = gcd(84, 30)
+/// val factors : Array[usize] = prime_factors(84)
 /// ```
 module std.math
 import std.array

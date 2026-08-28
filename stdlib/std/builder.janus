@@ -3,7 +3,7 @@
 /// Le devenir de l’accumulateur après [[Builder.result]] dépend de son implémentation.
 /// @example
 /// ```janus
-/// val builder : ArrayBuilder[int] = new ArrayBuilder[int](usize(2))
+/// val builder : ArrayBuilder[int] = new ArrayBuilder(2)
 /// builder.add(7)
 /// val values : Array[int] = builder.result()
 /// ```

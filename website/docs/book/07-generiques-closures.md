@@ -37,6 +37,12 @@ val result : Pair[string, int] =
     new Pair[string, int]("réponse", 42)
 ```
 
+La forme explicite ci-dessus montre la syntaxe des génériques. Dans le code
+courant, le constructeur est inféré depuis ses arguments ou depuis le type
+attendu : `val pair = new Pair("réponse", 42)` et
+`val pair : Pair[string, int] = new Pair("réponse", 42)` sont équivalents.
+Sans argument contraignant ni annotation, `[T]` reste nécessaire.
+
 ## Contraindre un paramètre
 
 La syntaxe `T <: Trait` impose un contrat. `&` combine plusieurs contraintes :

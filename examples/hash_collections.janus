@@ -7,14 +7,14 @@ def main() : int {
     defer delete hashing
 
     val unique : HashSet[int, IntHashing] =
-    new HashSet[int, IntHashing](usize(8), hashing)
+    new HashSet(8, hashing)
     defer delete unique
     unique.add(10)
     unique.add(20)
     unique.add(10)
 
     val values : HashMap[int, int, IntHashing] =
-    new HashMap[int, int, IntHashing](usize(8), hashing)
+    new HashMap(8, hashing)
     defer delete values
     val _insertedOne : Option[int] = values.put(1, 10)
     val _insertedTwo : Option[int] = values.put(2, 20)

@@ -105,6 +105,12 @@ def main() : int {
 }
 ```
 
+Les constructeurs génériques profitent de l’inférence locale dans les deux
+directions. Les arguments peuvent déterminer le type (`val box = new Box(42)`),
+ou une annotation peut fournir le contexte (`val box : Box[int] = new Box(42)`).
+Quand ni les arguments ni le contexte ne déterminent `T`, conservez
+`new Factory[int]()`.
+
 Un projet Janus possède cette structure :
 
 ```text

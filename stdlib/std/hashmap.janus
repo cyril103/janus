@@ -7,7 +7,7 @@
 /// @example
 /// ```janus
 /// val scores : HashMap[int, int, IntHashing] =
-///     new HashMap[int, int, IntHashing](usize(8), new IntHashing())
+///     new HashMap(8, new IntHashing())
 /// delete scores.put(7, 42)
 /// val score : Option[int] = scores.getOption(7)
 /// ```

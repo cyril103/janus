@@ -453,12 +453,35 @@ if(BUILD_TESTING)
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/local_type_inference_cli"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
+    add_test(
+        NAME language.contextual_constructor_inference.cli
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/contextual_constructor_inference.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/contextual_constructor_inference_cli"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
 
     add_test(
         NAME tests.no_standard_assert
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/scripts/check-test-asserts.py"
                 "${PROJECT_SOURCE_DIR}/tests"
+    )
+    add_test(
+        NAME docs.constructor_inference_audit
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/audit_constructor_inference.py"
+                --check
+    )
+    add_test(
+        NAME docs.constructor_inference_audit.guard_self_test
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/audit_constructor_inference.py"
+                --self-test
     )
     add_test(
         NAME tests.no_standard_assert.guard_self_test

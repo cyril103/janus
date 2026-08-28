@@ -13,18 +13,18 @@ val boardY : int = 88
 
 def movementDelay(score : int) : usize {
     if score < 8 {
-        return usize(116666667)
+        return 116666667
     }
     if score < 20 {
-        return usize(100000000)
+        return 100000000
     }
-    return usize(83333333)
+    return 83333333
 }
 
 struct Cell(val x : int, val y : int) {}
 
 def contains(snake : Array[Cell], x : int, y : int) : bool {
-    var index : usize = usize(0)
+    var index : usize = 0
     while index < snake.size() {
         val part : Cell = snake.get(index)
         if part.x == x && part.y == y {
@@ -225,7 +225,7 @@ def main() : int {
     )
 
     val snake : Array[Cell] =
-    new Array[Cell](numericCast[usize](columns * rows))
+    new Array(numericCast[usize](columns * rows))
     defer delete snake
     val scoreText : TextBuilder = new TextBuilder()
     defer delete scoreText
@@ -239,7 +239,7 @@ def main() : int {
     defer delete random
     var food : Cell = placeFood(snake, random)
     var score : int = 0
-    var movementElapsed : usize = usize(0)
+    var movementElapsed : usize = 0
     var paused : bool = false
     var gameOver : bool = false
 
@@ -259,7 +259,7 @@ def main() : int {
             nextX = 1
             nextY = 0
             score = 0
-            movementElapsed = usize(0)
+            movementElapsed = 0
             paused = false
             gameOver = false
             food = placeFood(snake, random)
@@ -295,13 +295,13 @@ def main() : int {
                 directionX = nextX
                 directionY = nextY
 
-                val head : Cell = snake.get(usize(0))
+                val head : Cell = snake.get(0)
                 val newX : int = head.x + directionX
                 val newY : int = head.y + directionY
                 val ate : bool = newX == food.x && newY == food.y
 
                 var hitBody : bool = false
-                var bodyIndex : usize = usize(0)
+                var bodyIndex : usize = 0
                 val collisionLimit : usize = if ate {
                     snake.size()
                 } else {
@@ -329,7 +329,7 @@ def main() : int {
                         snake.set(index, snake.get(index - usize(1)))
                         index = index - usize(1)
                     }
-                    snake.set(usize(0), new Cell(newX, newY))
+                    snake.set(0, new Cell(newX, newY))
 
                     if ate {
                         score = score + 1

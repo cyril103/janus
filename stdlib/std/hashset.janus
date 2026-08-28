@@ -7,7 +7,7 @@
 /// @example
 /// ```janus
 /// val ids : HashSet[int, IntHashing] =
-///     new HashSet[int, IntHashing](usize(8), new IntHashing())
+///     new HashSet(8, new IntHashing())
 /// val inserted : bool = ids.add(42)
 /// val present : bool = ids.contains(42)
 /// ```

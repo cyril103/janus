@@ -14,7 +14,7 @@ ou une erreur structurée au lieu de l’ignorer implicitement.
 import std.array
 def main() : int {
     val values : Array[int] = [1, 2, 3]
-    values[usize(1)] += values[usize(0)]
+    values[1] += values[0]
     val sum : int = values.fold[int](
         0,
         (total : int, value : int) => total + value
@@ -30,11 +30,11 @@ def main() : int {
 // doctest: doctest name=stdlib-std-array-builder
 import std.array_builder
 def main() : int {
-    val builder : ArrayBuilder[int] = new ArrayBuilder[int](usize(2))
+    val builder : ArrayBuilder[int] = new ArrayBuilder(2)
     builder.add(10)
     builder.add(20)
     val values : Array[int] = builder.result()
-    val valid : bool = values.size() == usize(2) && values.get(usize(1)) == 20
+    val valid : bool = values.size() == usize(2) && values.get(1) == 20
     delete values
     delete builder
     return if valid { 0 } else { 1 }
@@ -55,9 +55,9 @@ def finish[B <: Builder[int, Array[int]]](builder : B) : Array[int] {
 }
 def main() : int {
     val values : Array[int] = finish[ArrayBuilder[int]](
-        new ArrayBuilder[int](usize(1))
+        new ArrayBuilder(1)
     )
-    val valid : bool = values.get(usize(0)) == 42
+    val valid : bool = values.get(0) == 42
     delete values
     return if valid { 0 } else { 1 }
 }
@@ -74,10 +74,10 @@ qui la contient.
 import std.bytes
 import std.io
 def main() : int {
-    val buffer : ByteBuffer = new ByteBuffer(usize(2))
+    val buffer : ByteBuffer = new ByteBuffer(2)
     buffer.appendByte(byte(7))
     val value : int = buffer.withView[int](
-        (borrow view : ByteView) => int(view.get(usize(0)))
+        (borrow view : ByteView) => int(view.get(0))
     )
     delete buffer
     return value - 7
@@ -105,10 +105,10 @@ def main() : int {
 import std.array
 import std.slice
 def main() : int {
-    val values : Array[int] = new Array[int](usize(1))
+    val values : Array[int] = new Array(1)
     values.push(7)
-    val view : Slice[int] = new Slice[int](values, usize(0), usize(1))
-    val result : int = view.get(usize(0))
+    val view : Slice[int] = new Slice(values, 0, 1)
+    val result : int = view.get(0)
     delete view
     delete values
     return result - 7
@@ -203,7 +203,7 @@ fait pas partie du candidat public stable de Janus 0.8.
 // doctest: doctest name=stdlib-std-hash-probe
 import std.hash_probe
 def main() : int {
-    return if normalizedHashCapacity(usize(1)) == usize(8) { 0 } else { 1 }
+    return if normalizedHashCapacity(1) == usize(8) { 0 } else { 1 }
 }
 ```
 
@@ -230,7 +230,7 @@ import std.option
 def main() : int {
     val hashing : IntHashing = new IntHashing()
     val scores : HashMap[int, int, IntHashing] =
-        new HashMap[int, int, IntHashing](usize(4), hashing)
+        new HashMap(4, hashing)
     delete scores.put(7, 42)
     val valid : bool = match scores.getOption(7) {
         Some(value) => value == 42,
@@ -251,7 +251,7 @@ import std.hashing
 def main() : int {
     val hashing : IntHashing = new IntHashing()
     val ids : HashSet[int, IntHashing] =
-        new HashSet[int, IntHashing](usize(4), hashing)
+        new HashSet(4, hashing)
     val inserted : bool = ids.add(42)
     val valid : bool = inserted && ids.contains(42) && !ids.contains(7)
     delete ids
@@ -270,7 +270,7 @@ acceptent les types non `Copy` et peuvent être consommées par `for`.
 // doctest: doctest name=stdlib-std-deque
 import std.deque
 def main() : int {
-    val queue : Queue[int] = new Queue[int](usize(2))
+    val queue : Queue[int] = new Queue(2)
     queue.enqueue(10)
     queue.enqueue(20)
     val first : int = queue.dequeue()
@@ -290,7 +290,7 @@ import std.array
 import std.error
 import std.result
 def main() : int {
-    val values : Array[int] = new Array[int](usize(0))
+    val values : Array[int] = new Array(0)
     val empty : bool = isError[int, AccessError](values.tryPop())
     delete values
     return if empty { 0 } else { 1 }
@@ -308,8 +308,8 @@ FIFO. Les valeurs peuvent posséder des ressources et sont transférées par
 // doctest: doctest name=stdlib-std-priority-queue
 import std.priority_queue
 def main() : int {
-    val queue : PriorityQueue[int] = new PriorityQueue[int](
-        usize(4),
+    val queue : PriorityQueue[int] = new PriorityQueue(
+        4,
         (borrow left : int, borrow right : int) => left < right
     )
     queue.enqueue(3)
@@ -334,7 +334,7 @@ def main() : int {
     val ordering : IntOrdering = new IntOrdering()
     val values : Array[int] = [3, 1, 2]
     values.sortBy[IntOrdering](ordering)
-    val first : int = values.get(usize(0))
+    val first : int = values.get(0)
     delete values
     delete ordering
     return first - 1
@@ -503,7 +503,7 @@ def main() : int {
 ```janus
 // doctest: doctest name=stdlib-std-math
 import std.math
-def main() : int { return if gcd(usize(42), usize(30)) == usize(6) { 0 } else { 1 } }
+def main() : int { return if gcd(42, 30) == usize(6) { 0 } else { 1 } }
 ```
 
 ### `std.random`
@@ -512,10 +512,10 @@ def main() : int { return if gcd(usize(42), usize(30)) == usize(6) { 0 } else { 
 // doctest: doctest name=stdlib-std-random
 import std.random
 def main() : int {
-    val first : Random = new Random(usize(1234))
-    val second : Random = new Random(usize(1234))
+    val first : Random = new Random(1234)
+    val second : Random = new Random(1234)
     val valid : bool = first.nextUSize() == second.nextUSize() &&
-        first.nextBounded(usize(6)) < usize(6)
+        first.nextBounded(6) < usize(6)
     delete first
     delete second
     return if valid { 0 } else { 1 }
@@ -528,7 +528,7 @@ def main() : int {
 // doctest: doctest name=stdlib-std-time
 import std.time
 def main() : int {
-    return if seconds(usize(1)).seconds() == 1.0 { 0 } else { 1 }
+    return if seconds(1).seconds() == 1.0 { 0 } else { 1 }
 }
 ```
 

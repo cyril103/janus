@@ -5,13 +5,13 @@ def main() : int {
     var index : int = 0
     while index < 10 {
         index = index + 1
-        val value : Ptr[int] = alloc[int](usize(1))
+        val value : Ptr[int] = alloc[int](1)
         defer free(value)
-        value.store(usize(0), index)
+        value.store(0, index)
         if index % 2 == 0 {
             continue
         }
-        oddSum = oddSum + value.load(usize(0))
+        oddSum = oddSum + value.load(0)
         if oddSum > 10 {
             break
         }
@@ -19,16 +19,16 @@ def main() : int {
 
     var rangeSum : int = 0
     for value in range(0, 10) {
-        val copy : Ptr[int] = alloc[int](usize(1))
+        val copy : Ptr[int] = alloc[int](1)
         defer free(copy)
-        copy.store(usize(0), value)
+        copy.store(0, value)
         if value < 2 {
             continue
         }
         if value == 5 {
             break
         }
-        rangeSum = rangeSum + copy.load(usize(0))
+        rangeSum = rangeSum + copy.load(0)
     }
 
     var nestedCount : int = 0

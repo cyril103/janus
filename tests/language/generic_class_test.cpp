@@ -36,6 +36,21 @@ void expect_compile_error(std::string_view source,
   }
 }
 
+void expect_exact_compile_error(std::string_view source,
+                                std::string_view expected_message) {
+  try {
+    janus::frontend::Parser parser{source};
+    const janus::ast::Program program = parser.parse_program();
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(program));
+    expect(false, "invalid generic class source must fail");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()} == expected_message,
+           "ambiguous generic constructor reports the complete diagnostic, "
+           "including the [T] help");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -55,8 +70,10 @@ class Box[T](var value : T) {
 class Empty[T]() {}
 
 def main() : int {
+    val argumentDriven = new Box(42)
+    val contextDriven : Box[int] = new Box(42)
     val integers = new Box(41)
-    val result : int = integers.set(42) + integers.get()
+    val result : int = argumentDriven.get() + contextDriven.set(42)
     val text = new Box("Janus")
     val message = text.get()
     val nested = new Box(integers)
@@ -66,7 +83,9 @@ def main() : int {
     delete nested
     delete text
     delete integers
-    return result
+    delete contextDriven
+    delete argumentDriven
+    return result - 84
 }
 )";
 
@@ -83,12 +102,23 @@ def main() : int {
   expect(!integer_box.declared_type.has_value() &&
              integer_constructor != nullptr &&
              integer_constructor->type_arguments.empty(),
-         "generic class arguments may be omitted with the local type");
+         "argument-driven constructor inference omits both annotations");
+  const auto &context_box =
+      std::get<janus::ast::ValueDeclaration>(program.functions[0].body[1]);
+  const auto *context_constructor =
+      std::get_if<janus::ast::NewExpression>(&context_box.initializer->value);
+  expect(context_box.declared_type.has_value() &&
+             context_constructor != nullptr &&
+             context_constructor->type_arguments.empty(),
+         "context-driven constructor inference omits constructor arguments");
 
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
-  expect(analysis.functions.at("main").at("integers").type.name() == "Box[int]",
-         "semantic types retain concrete class arguments");
+  expect(analysis.functions.at("main").at("argumentDriven").type.name() ==
+                 "Box[int]" &&
+             analysis.functions.at("main").at("contextDriven").type.name() ==
+                 "Box[int]",
+         "argument- and context-driven inference retain concrete class arguments");
   expect(analysis.functions.at("Box.get").at("value").type.name() == "T",
          "a generic field remains symbolic while its method is analyzed");
 
@@ -122,10 +152,12 @@ def main() : int {
       "class Box[T](val value : T) {} "
       "def main() : int { val box : Box = new Box[int](1) return 0 }",
       "expects 1 type argument");
-  expect_compile_error(
+  expect_exact_compile_error(
       "class Factory[T]() {} "
       "def main() : int { val factory = new Factory() return 0 }",
-      "is not constrained by constructor arguments or context");
+      "cannot infer type of 'factory'; help: add an explicit type annotation; "
+      "note: generic type parameter 'T' is not constrained by constructor "
+      "arguments or context; help: add explicit type arguments");
   expect_compile_error(
       "class Box[T](val value : T) {} "
       "def main() : int { val box : Box[int] = new Box[string](\"x\") "

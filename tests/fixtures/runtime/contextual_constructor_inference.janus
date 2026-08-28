@@ -1,0 +1,8 @@
+import std.array
+
+def main() : int {
+    val values : Array[int] = new Array(8)
+    val capacity = values.capacity()
+    delete values
+    return if capacity >= usize(8) { 0 } else { 1 }
+}
