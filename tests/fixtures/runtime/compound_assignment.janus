@@ -1,0 +1,46 @@
+var globalCount : int = 1
+
+class Counter(var value : int) {
+    def bump() : Unit {
+        value += 2
+    }
+}
+
+def rhs() : int {
+    println("rhs")
+    return 3
+}
+
+def main() : int {
+    globalCount += rhs()
+
+    val counter = new Counter(5)
+    defer delete counter
+    counter.value *= 2
+    counter.bump()
+
+    var signed : int = 10
+    signed += 3
+    signed -= 2
+    signed *= 4
+    signed /= 2
+    signed %= 9
+    signed &= 7
+    signed |= 8
+    signed ^= 2
+    signed <<= 1
+    signed >>= 2
+
+    var unsigned : uint = 0x8000_0000
+    unsigned >>= usize(31)
+    unsigned <<= usize(4)
+
+    var floating : double = 5.0
+    floating += 1.5
+    floating -= 0.5
+    floating *= 2.0
+    floating /= 3.0
+
+    return if globalCount == 4 && counter.value == 12 && signed == 7 &&
+        unsigned == uint(16) && floating == 4.0 { 0 } else { 1 }
+}

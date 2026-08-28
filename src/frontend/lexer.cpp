@@ -285,6 +285,17 @@ Token Lexer::next() {
     return Token{TokenKind::Ellipsis, source_.substr(start_position, 3), start};
   }
 
+  if (position_ + 2 < source_.size() && source_[position_ + 2] == '=' &&
+      ((character == '<' && source_[position_ + 1] == '<') ||
+       (character == '>' && source_[position_ + 1] == '>'))) {
+    advance();
+    advance();
+    advance();
+    return Token{character == '<' ? TokenKind::ShiftLeftEqual
+                                  : TokenKind::ShiftRightEqual,
+                 source_.substr(start_position, 3), start};
+  }
+
   if (position_ + 1 < source_.size()) {
     const char next_character = source_[position_ + 1];
     TokenKind kind;
@@ -307,6 +318,18 @@ Token Lexer::next() {
       kind = TokenKind::ShiftLeft;
     } else if (character == '>' && next_character == '>') {
       kind = TokenKind::ShiftRight;
+    } else if (next_character == '=') {
+      switch (character) {
+      case '+': kind = TokenKind::PlusEqual; break;
+      case '-': kind = TokenKind::MinusEqual; break;
+      case '*': kind = TokenKind::StarEqual; break;
+      case '/': kind = TokenKind::SlashEqual; break;
+      case '%': kind = TokenKind::PercentEqual; break;
+      case '&': kind = TokenKind::AmpersandEqual; break;
+      case '|': kind = TokenKind::PipeEqual; break;
+      case '^': kind = TokenKind::CaretEqual; break;
+      default: is_two_character_token = false; break;
+      }
     } else {
       is_two_character_token = false;
     }

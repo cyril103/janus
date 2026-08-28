@@ -59,6 +59,16 @@ enum class TokenKind {
   Colon,
   Comma,
   Equal,
+  PlusEqual,
+  MinusEqual,
+  StarEqual,
+  SlashEqual,
+  PercentEqual,
+  AmpersandEqual,
+  PipeEqual,
+  CaretEqual,
+  ShiftLeftEqual,
+  ShiftRightEqual,
   Arrow,
   EqualEqual,
   Bang,
@@ -198,6 +208,26 @@ struct Token {
     return "','";
   case TokenKind::Equal:
     return "'='";
+  case TokenKind::PlusEqual:
+    return "'+='";
+  case TokenKind::MinusEqual:
+    return "'-='";
+  case TokenKind::StarEqual:
+    return "'*='";
+  case TokenKind::SlashEqual:
+    return "'/='";
+  case TokenKind::PercentEqual:
+    return "'%='";
+  case TokenKind::AmpersandEqual:
+    return "'&='";
+  case TokenKind::PipeEqual:
+    return "'|='";
+  case TokenKind::CaretEqual:
+    return "'^='";
+  case TokenKind::ShiftLeftEqual:
+    return "'<<='";
+  case TokenKind::ShiftRightEqual:
+    return "'>>='";
   case TokenKind::Arrow:
     return "'=>'";
   case TokenKind::EqualEqual:

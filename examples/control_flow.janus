@@ -3,8 +3,8 @@ def main() : int {
     var total : int = 0
 
     while index <= 5 {
-        total = total + index
-        index = index + 1
+        total += index
+        index += 1
     }
 
     if total == 15 {

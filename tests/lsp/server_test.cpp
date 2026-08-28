@@ -750,6 +750,17 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(semantic_token_type_at(bitwise_semantic_tokens, 0, 47) == 13);
   JANUS_REQUIRE(semantic_token_type_at(bitwise_semantic_tokens, 0, 52) == 13);
 
+  const auto compound_diagnostics = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///compound.janus","text":"def main() : int { var value : int = 1 value += 2 value <<= 1 return value }\n"}}})");
+  JANUS_REQUIRE(compound_diagnostics.front().find("\"diagnostics\":[]") !=
+                std::string::npos);
+  const std::string compound_tokens = require_lsp_result(
+      server.handle(
+          R"({"jsonrpc":"2.0","id":541,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///compound.janus"}}})"),
+      LspResultShape::SemanticTokens);
+  JANUS_REQUIRE(semantic_token_type_at(compound_tokens, 0, 45) == 13);
+  JANUS_REQUIRE(semantic_token_type_at(compound_tokens, 0, 56) == 13);
+
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-kinds.janus","text":"class C() { def f(x : C) : int { val local : C = x return local } }\ndef top(value : int) : int { return value }\ndef shadow(f : int) : int { return f() }\nprivate def hidden() : int { return 0 }\n"}}})"));
   const std::vector<std::string> classified_tokens = server.handle(

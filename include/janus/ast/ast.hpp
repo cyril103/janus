@@ -256,11 +256,55 @@ struct GlobalDeclaration {
   std::optional<std::string> module_name;
 };
 
+enum class AssignmentOperator {
+  Assign,
+  Add,
+  Subtract,
+  Multiply,
+  Divide,
+  Remainder,
+  BitwiseAnd,
+  BitwiseOr,
+  BitwiseXor,
+  ShiftLeft,
+  ShiftRight,
+};
+
+constexpr std::optional<BinaryOperator>
+assignment_binary_operator(AssignmentOperator operation) {
+  switch (operation) {
+  case AssignmentOperator::Assign:
+    return std::nullopt;
+  case AssignmentOperator::Add:
+    return BinaryOperator::Add;
+  case AssignmentOperator::Subtract:
+    return BinaryOperator::Subtract;
+  case AssignmentOperator::Multiply:
+    return BinaryOperator::Multiply;
+  case AssignmentOperator::Divide:
+    return BinaryOperator::Divide;
+  case AssignmentOperator::Remainder:
+    return BinaryOperator::Remainder;
+  case AssignmentOperator::BitwiseAnd:
+    return BinaryOperator::BitwiseAnd;
+  case AssignmentOperator::BitwiseOr:
+    return BinaryOperator::BitwiseOr;
+  case AssignmentOperator::BitwiseXor:
+    return BinaryOperator::BitwiseXor;
+  case AssignmentOperator::ShiftLeft:
+    return BinaryOperator::ShiftLeft;
+  case AssignmentOperator::ShiftRight:
+    return BinaryOperator::ShiftRight;
+  }
+  return std::nullopt;
+}
+
 struct AssignmentStatement {
   std::string object;
   std::string name;
   Expression expression;
   SourceLocation location;
+  AssignmentOperator operation{AssignmentOperator::Assign};
 };
 
 struct DeleteStatement {

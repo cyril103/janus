@@ -72,8 +72,8 @@ class Counter(var value : int) {
 }
 struct Point(var x : int) {}
 def increment(borrow var counter : Counter) : Unit { counter.add(1) }
-def movePoint(borrow var point : Point) : Unit { point.x = point.x + 4 }
-def increase(borrow var value : int) : Unit { value = value + 1 }
+def movePoint(borrow var point : Point) : Unit { point.x += 4 }
+def increase(borrow var value : int) : Unit { value += 1 }
 def identity(borrow var counter : Counter) : borrow var Counter {
   return counter
 }

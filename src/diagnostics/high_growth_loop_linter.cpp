@@ -72,6 +72,30 @@ bool is_self_multiplication(const ast::Expression &expression,
   return false;
 }
 
+bool is_high_growth_assignment(const ast::AssignmentStatement &assignment) {
+  switch (assignment.operation) {
+  case ast::AssignmentOperator::Assign:
+    return is_self_multiplicative_growth(assignment.expression,
+                                         assignment.name);
+  case ast::AssignmentOperator::Multiply:
+    return is_identifier(assignment.expression, assignment.name) ||
+           has_risky_integer_multiplier(assignment.expression);
+  case ast::AssignmentOperator::Add:
+  case ast::AssignmentOperator::Subtract:
+    return is_self_multiplicative_growth(assignment.expression,
+                                         assignment.name);
+  case ast::AssignmentOperator::Divide:
+  case ast::AssignmentOperator::Remainder:
+  case ast::AssignmentOperator::BitwiseAnd:
+  case ast::AssignmentOperator::BitwiseOr:
+  case ast::AssignmentOperator::BitwiseXor:
+  case ast::AssignmentOperator::ShiftLeft:
+  case ast::AssignmentOperator::ShiftRight:
+    return false;
+  }
+  return false;
+}
+
 class Linter {
 public:
   void inspect(const ast::Program &program) {
@@ -99,8 +123,7 @@ private:
     if (const auto *assignment =
             std::get_if<ast::AssignmentStatement>(&statement)) {
       if (in_loop && assignment->object.empty() &&
-          is_self_multiplicative_growth(assignment->expression,
-                                        assignment->name))
+          is_high_growth_assignment(*assignment))
         warnings_.push_back(HighGrowthLoopWarning{assignment->location});
       return;
     }

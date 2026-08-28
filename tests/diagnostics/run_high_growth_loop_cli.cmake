@@ -16,6 +16,12 @@ file(WRITE "${risky_right_source}" "def main() : int {\n    var x : int = 1\n   
 set(risky_square_source "${WORK_DIR}/risky_square.janus")
 file(WRITE "${risky_square_source}" "def main() : int {\n    var x : int = 2\n    while x < 100 {\n        x = x * x\n    }\n    return x\n}\n")
 
+set(risky_compound_source "${WORK_DIR}/risky_compound.janus")
+file(WRITE "${risky_compound_source}" "def main() : int {\n    var x : int = 1\n    while x < 100 {\n        x *= 2\n    }\n    return x\n}\n")
+
+set(safe_compound_source "${WORK_DIR}/safe_compound.janus")
+file(WRITE "${safe_compound_source}" "def main() : int {\n    var x : int = 1\n    while x < 100 {\n        x *= 1\n    }\n    return x\n}\n")
+
 set(simple_source "${WORK_DIR}/simple.janus")
 file(WRITE "${simple_source}" "def main() : int {\n    var i : int = 0\n    while i < 10 {\n        i = i + 1\n    }\n    return i\n}\n")
 
@@ -104,6 +110,22 @@ if(NOT risky_square_RESULT EQUAL 0)
 endif()
 if(NOT risky_square_COMBINED MATCHES "warning: high-growth loop")
     message(FATAL_ERROR "x * x did not produce a warning:\n${risky_square_COMBINED}")
+endif()
+
+run_janus(risky_compound check "${risky_compound_source}" --warn-high-growth-loops)
+if(NOT risky_compound_RESULT EQUAL 0)
+    message(FATAL_ERROR "risky compound source failed:\n${risky_compound_COMBINED}")
+endif()
+if(NOT risky_compound_COMBINED MATCHES "risky_compound\\.janus:4:9: warning: high-growth loop")
+    message(FATAL_ERROR "x *= 2 did not produce a warning at the assignment:\n${risky_compound_COMBINED}")
+endif()
+
+run_janus(safe_compound check "${safe_compound_source}" --warn-high-growth-loops)
+if(NOT safe_compound_RESULT EQUAL 0)
+    message(FATAL_ERROR "safe compound source failed:\n${safe_compound_COMBINED}")
+endif()
+if(safe_compound_COMBINED MATCHES "warning:")
+    message(FATAL_ERROR "x *= 1 produced a warning:\n${safe_compound_COMBINED}")
 endif()
 
 run_janus(simple check "${simple_source}" --warn-high-growth-loops)

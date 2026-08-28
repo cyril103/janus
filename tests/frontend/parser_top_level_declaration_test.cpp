@@ -1,4 +1,5 @@
 #include "janus/frontend/parser.hpp"
+#include "janus/frontend/lexer.hpp"
 
 #include <iostream>
 #include <string_view>
@@ -17,6 +18,28 @@ void expect(bool condition, std::string_view message) {
 } // namespace
 
 int main() {
+  {
+    janus::frontend::Lexer lexer{"+= -= *= /= %= &= |= ^= <<= >>= = << >>"};
+    const janus::frontend::TokenKind expected[] = {
+        janus::frontend::TokenKind::PlusEqual,
+        janus::frontend::TokenKind::MinusEqual,
+        janus::frontend::TokenKind::StarEqual,
+        janus::frontend::TokenKind::SlashEqual,
+        janus::frontend::TokenKind::PercentEqual,
+        janus::frontend::TokenKind::AmpersandEqual,
+        janus::frontend::TokenKind::PipeEqual,
+        janus::frontend::TokenKind::CaretEqual,
+        janus::frontend::TokenKind::ShiftLeftEqual,
+        janus::frontend::TokenKind::ShiftRightEqual,
+        janus::frontend::TokenKind::Equal,
+        janus::frontend::TokenKind::ShiftLeft,
+        janus::frontend::TokenKind::ShiftRight,
+    };
+    for (const auto kind : expected)
+      expect(lexer.next().kind == kind,
+             "compound assignment operators use longest-match tokenization");
+  }
+
   janus::frontend::Parser parser{R"(
 module sample
 import std.array

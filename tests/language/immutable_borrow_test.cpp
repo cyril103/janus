@@ -138,7 +138,7 @@ class Box(var value : int) {}
 def main() : int {
   val box : Box = new Box(1)
   borrow val view : Box = box
-  view.value = 2
+  view.value += 2
   return 0
 }
 )",
@@ -149,7 +149,7 @@ class Box(var value : int) {}
 def main() : int {
   val box : Box = new Box(1)
   borrow val view : Box = box
-  box.value = 2
+  box.value += 2
   return view.value
 }
 )",

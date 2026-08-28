@@ -17,13 +17,21 @@
 def main() : int {
     val depart : int = 40
     var resultat : int = depart
-    resultat = resultat + 2
+    resultat += 2
     println(resultat)
     return 0
 }
 ```
 
 Les types usuels incluent `int`, `uint`, `long`, `ulong`, `float`, `double`, `byte`, `char`, `bool`, `string`, `isize`, `usize` et `Unit`. Leur taille est définie par le langage.
+
+Une affectation composée met à jour une `var` sans répéter sa cible : `+=`,
+`-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=` et `>>=` sont disponibles.
+`cible OP= valeur` suit exactement les règles de type et d'exécution de
+`cible = cible OP valeur`, mais résout la cible une seule fois et évalue ensuite
+la valeur droite une seule fois. La cible doit rester mutable ; l'instruction
+ne produit pas de valeur. Les divisions par zéro, débordements et décalages
+invalides conservent donc les diagnostics ou `panic` de l'opérateur binaire.
 
 ## Écrire les entiers
 
@@ -57,7 +65,7 @@ def answer() : int { return 42 }
 def main() : int {
     val result = answer()
     var doubled = result + result
-    doubled = doubled + 1
+    doubled += 1
     return doubled - 85
 }
 ```

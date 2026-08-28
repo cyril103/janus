@@ -4,6 +4,6 @@ import other_config
 val localCount : int = other_config.visibleCount - 2
 
 def main() : int {
-    global_config.importedCount = 3
+    global_config.importedCount += 2
     return global_config.importedCount + other_config.visibleCount + localCount
 }

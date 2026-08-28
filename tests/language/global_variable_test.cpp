@@ -506,9 +506,15 @@ def main() : int { return callback() }
              std::string::npos,
          "entry global uses the entry symbol namespace");
   expect(imported_ir.find(
-             "store i32 3, ptr @__janus_global_global_config__importedCount") !=
-             std::string::npos,
-         "qualified assignment targets the requested module global");
+             "load i32, ptr @__janus_global_global_config__importedCount") !=
+             std::string::npos &&
+             imported_ir.find("add i32 %importedCount.value, 2") !=
+                 std::string::npos &&
+             imported_ir.find(
+                 "store i32 %add, ptr "
+                 "@__janus_global_global_config__importedCount") !=
+                 std::string::npos,
+         "qualified compound assignment reads and updates canonical module storage");
   expect(imported_ir.find(
              "ptr @__janus_global_other_config__visibleCount") !=
              std::string::npos,

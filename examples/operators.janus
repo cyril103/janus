@@ -1,4 +1,7 @@
 def main() : int {
+    var accumulator : int = 1
+    accumulator += 2
+    accumulator <<= 1
     val result : int = 10 + 3 * 2
     val remainder : int = result % 5
     val _floating : double = 1.5 * 2.0 + 1.0
@@ -6,5 +9,5 @@ def main() : int {
     val _sameText : bool = "Janus" == "Janus"
     val _characterOrder : bool = 'a' < 'b'
     val _logical : bool = !false || false
-    return result
+    return result + accumulator - 6
 }
