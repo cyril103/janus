@@ -7550,8 +7550,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (statement_return_type.is_concrete() &&
             statement_return_type.concrete->kind() == TypeKind::Unit) {
           if (return_statement.expression.has_value()) {
-            const SemanticType actual =
-                expression_type(*return_statement.expression);
+            const SemanticType actual = inferred_actual.has_value()
+                                            ? *inferred_actual
+                                            : expression_type(
+                                                  *return_statement.expression);
             if (!actual.is_concrete() ||
                 actual.concrete->kind() != TypeKind::Unit)
               throw CompileError{return_statement.location,

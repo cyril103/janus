@@ -14,6 +14,17 @@
 
 namespace janus::lsp {
 
+enum class IndexedSymbolKind {
+  Function,
+  Constant,
+  Variable,
+  Class,
+  Struct,
+  Trait,
+  Enum,
+  Parameter
+};
+
 struct IndexedSymbol {
   std::string id;
   std::string name;
@@ -26,6 +37,7 @@ struct IndexedSymbol {
   bool is_top_level{};
   bool is_private{};
   std::optional<std::string> module_name;
+  IndexedSymbolKind kind{IndexedSymbolKind::Variable};
 };
 
 struct DocumentIndex {
