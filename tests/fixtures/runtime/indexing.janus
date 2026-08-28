@@ -57,6 +57,7 @@ def main() : int {
     nested.push(7)
     var holder : IntArrayHolder = new IntArrayHolder(move nested)
     mutableHolder(holder).items[usize(0)] = 8
+    mutableHolder(holder).items[usize(0)] += 2
     println(mutableHolder(holder).items[usize(0)])
     delete holder
 
