@@ -1,0 +1,9 @@
+import std.array
+
+val first : int = values[index]
+val values : Array[int] = [41]
+val index : usize = usize(0)
+
+def main() : int {
+    return first - 41
+}

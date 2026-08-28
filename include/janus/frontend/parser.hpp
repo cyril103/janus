@@ -59,6 +59,7 @@ private:
   [[nodiscard]] std::string take_documentation();
   [[nodiscard]] Token expect(TokenKind kind);
   [[nodiscard]] bool starts_assignment() const;
+  [[nodiscard]] bool starts_generic_call() const;
   void synchronize_top_level();
   void advance();
 

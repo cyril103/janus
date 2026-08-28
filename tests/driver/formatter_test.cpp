@@ -52,6 +52,23 @@ int main() {
     std::cerr << "comments or formatter options were not preserved\n";
     return 1;
   }
+  const std::string indexing =
+      "def indexed(values : Array[string]) : string {\n"
+      "// brackets in comments [ stay untouched ]\n"
+      "val marker : string = \"[not an index]\"\n"
+      "values[usize(0)] += \"!\" // indexed target\n"
+      "return values[usize(0)]\n}\n";
+  const std::string formatted_indexing =
+      "def indexed(values : Array[string]) : string {\n"
+      "    // brackets in comments [ stay untouched ]\n"
+      "    val marker : string = \"[not an index]\"\n"
+      "    values[usize(0)] += \"!\" // indexed target\n"
+      "    return values[usize(0)]\n}\n";
+  if (janus::driver::format_source(indexing) != formatted_indexing ||
+      janus::driver::format_source(formatted_indexing) != formatted_indexing) {
+    std::cerr << "indexed syntax, comments, or strings were not preserved\n";
+    return 1;
+  }
 
   const std::string else_if =
       "def choose(first : bool, second : bool) : int {\n"

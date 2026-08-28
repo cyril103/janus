@@ -114,6 +114,22 @@ qualified_type_name(const std::vector<janus::frontend::Token> &document_tokens,
     result += "." + std::string{document_tokens[start + 2].lexeme};
     start += 2;
   }
+  if (start + 1 < document_tokens.size() &&
+      document_tokens[start + 1].kind == TokenKind::LeftBracket) {
+    int depth = 0;
+    for (std::size_t index = start + 1; index < document_tokens.size();
+         ++index) {
+      const TokenKind kind = document_tokens[index].kind;
+      if (kind == TokenKind::LeftBracket)
+        ++depth;
+      if (kind == TokenKind::Comma)
+        result += ", ";
+      else
+        result += document_tokens[index].lexeme;
+      if (kind == TokenKind::RightBracket && --depth == 0)
+        break;
+    }
+  }
   return result;
 }
 
@@ -852,6 +868,49 @@ member_qualifier_before(std::string_view source, std::uint32_t requested_line,
   if (start == cursor - 1)
     return std::nullopt;
   return std::string{source.substr(start, cursor - 1 - start)};
+}
+
+std::optional<LocatedIdentifier>
+indexed_receiver_before(std::string_view source, std::uint32_t requested_line,
+                        std::uint32_t requested_column) {
+  using janus::frontend::TokenKind;
+  const auto requested =
+      offset_from_position(source, requested_line, requested_column);
+  if (!requested || *requested < 2 || source[*requested - 1] != '.')
+    return std::nullopt;
+
+  janus::frontend::Lexer lexer{source};
+  std::vector<janus::frontend::Token> tokens;
+  while (true) {
+    janus::frontend::Token token = lexer.next();
+    tokens.push_back(token);
+    if (token.kind == TokenKind::End)
+      break;
+  }
+  const auto dot = std::find_if(
+      tokens.begin(), tokens.end(), [&](const janus::frontend::Token &token) {
+        return token.kind == TokenKind::Dot &&
+               token.location.offset == *requested - 1;
+      });
+  if (dot == tokens.end() || dot == tokens.begin())
+    return std::nullopt;
+  std::size_t cursor =
+      static_cast<std::size_t>(std::distance(tokens.begin(), dot));
+  int bracket_depth = 0;
+  while (cursor != 0) {
+    --cursor;
+    if (tokens[cursor].kind == TokenKind::RightBracket) {
+      ++bracket_depth;
+      continue;
+    }
+    if (tokens[cursor].kind != TokenKind::LeftBracket || bracket_depth == 0)
+      continue;
+    --bracket_depth;
+    if (bracket_depth == 0 && cursor != 0 &&
+        tokens[cursor - 1].kind == TokenKind::Identifier)
+      return located_identifier(tokens, cursor - 1);
+  }
+  return std::nullopt;
 }
 
 std::optional<std::filesystem::path> file_uri_path(std::string_view uri) {
@@ -3591,9 +3650,43 @@ std::vector<std::string> Server::handle(std::string_view message) {
 
       bool typed_member_context = false;
       if (member_context && !module_member_context && *character >= 2) {
-        const std::optional<LocatedIdentifier> receiver = identifier_at(
+        std::optional<LocatedIdentifier> receiver = identifier_at(
             document->second, static_cast<std::uint32_t>(*line),
             static_cast<std::uint32_t>(*character - 2));
+        const auto completion_offset = offset_from_position(
+            document->second, static_cast<std::uint32_t>(*line),
+            static_cast<std::uint32_t>(*character));
+        const bool indexed_receiver =
+            completion_offset && *completion_offset >= 2 &&
+            document->second[*completion_offset - 2] == ']';
+        if (indexed_receiver)
+          receiver = indexed_receiver_before(
+              document->second, static_cast<std::uint32_t>(*line),
+              static_cast<std::uint32_t>(*character));
+        std::size_t indexed_receiver_depth = 0;
+        if (indexed_receiver && receiver && completion_offset) {
+          std::size_t bracket_depth = 0;
+          const std::size_t receiver_end =
+              receiver->location.offset + receiver->name.size();
+          janus::frontend::Lexer receiver_lexer{document->second};
+          while (true) {
+            const janus::frontend::Token token = receiver_lexer.next();
+            if (token.kind == janus::frontend::TokenKind::End ||
+                token.location.offset >= *completion_offset)
+              break;
+            if (token.location.offset < receiver_end)
+              continue;
+            if (token.kind == janus::frontend::TokenKind::LeftBracket) {
+              if (bracket_depth == 0)
+                ++indexed_receiver_depth;
+              ++bracket_depth;
+            } else if (token.kind ==
+                           janus::frontend::TokenKind::RightBracket &&
+                       bracket_depth != 0) {
+              --bracket_depth;
+            }
+          }
+        }
         const auto bound_receiver =
             receiver ? bind_symbol(semantic_index.documents.front(), *receiver)
                      : std::nullopt;
@@ -3604,6 +3697,17 @@ std::vector<std::string> Server::handle(std::string_view message) {
             typed_member_context = true;
             std::string receiver_type =
                 bound_receiver->second.detail.substr(type_separator + 3);
+            if (indexed_receiver) {
+              for (std::size_t depth = 0; depth < indexed_receiver_depth;
+                   ++depth) {
+                const std::size_t arguments = receiver_type.find('[');
+                if (arguments == std::string::npos ||
+                    receiver_type.empty() || receiver_type.back() != ']')
+                  break;
+                receiver_type = receiver_type.substr(
+                    arguments + 1, receiver_type.size() - arguments - 2);
+              }
+            }
             if (const std::size_t arguments = receiver_type.find('[');
                 arguments != std::string::npos)
               receiver_type.resize(arguments);

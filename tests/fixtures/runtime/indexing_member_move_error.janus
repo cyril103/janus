@@ -1,0 +1,15 @@
+import std.array
+
+class Resource() {}
+class Box(val item : Resource) {}
+
+def main() : int {
+    val values : Array[Resource] = new Array[Resource](usize(1))
+    val initial : Resource = new Resource()
+    values.push(move initial)
+    val box : Box = new Box(new Resource())
+    values[usize(0)] = box.item
+    delete box
+    delete values
+    return 0
+}

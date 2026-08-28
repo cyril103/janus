@@ -1,0 +1,74 @@
+import std.array as arrays
+
+var containerCalls : int = 0
+var indexCalls : int = 0
+var evaluationOrder : int = 0
+var destroyed : int = 0
+
+class Resource(var value : int) {
+    destructor {
+        destroyed += 1
+    }
+}
+class IntArrayHolder(val items : arrays.Array[int]) {
+    destructor {
+        delete items
+    }
+}
+
+def container(borrow var values : arrays.Array[int]) : borrow var arrays.Array[int] {
+    containerCalls += 1
+    evaluationOrder = evaluationOrder * 10 + 1
+    return values
+}
+
+def nextIndex() : usize {
+    indexCalls += 1
+    evaluationOrder = evaluationOrder * 10 + 2
+    return usize(0)
+}
+
+def nextValue(value : int) : int {
+    evaluationOrder = evaluationOrder * 10 + 3
+    return value
+}
+
+def mutableHolder(borrow var holder : IntArrayHolder) : borrow var IntArrayHolder {
+    return holder
+}
+
+def main() : int {
+    var values : arrays.Array[int] = new arrays.Array[int](usize(1))
+    defer delete values
+    values.push(10)
+    println(container(values)[nextIndex()])
+    println(evaluationOrder)
+    evaluationOrder = 0
+    container(values)[nextIndex()] = nextValue(20)
+    println(evaluationOrder)
+    evaluationOrder = 0
+    container(values)[nextIndex()] += nextValue(22)
+    println(evaluationOrder)
+    println(values[usize(0)])
+    println(containerCalls)
+    println(indexCalls)
+
+    val nested : arrays.Array[int] = new arrays.Array[int](usize(1))
+    nested.push(7)
+    var holder : IntArrayHolder = new IntArrayHolder(move nested)
+    mutableHolder(holder).items[usize(0)] = 8
+    println(mutableHolder(holder).items[usize(0)])
+    delete holder
+
+    val resources : arrays.Array[Resource] =
+    new arrays.Array[Resource](usize(1))
+    val first : Resource = new Resource(1)
+    resources.push(move first)
+    val second : Resource = new Resource(2)
+    resources[usize(0)] = move second
+    println(destroyed)
+    delete resources
+    println(destroyed)
+
+    return 0
+}

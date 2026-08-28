@@ -636,6 +636,9 @@ void validate_tailrec_contract(
             } else if constexpr (std::is_same_v<T, ast::ArrayLiteralExpression>) {
               for (const auto &element : node.elements)
                 visit_expression(*element, false, pending_defer);
+            } else if constexpr (std::is_same_v<T, ast::IndexExpression>) {
+              visit_expression(*node.container, false, pending_defer);
+              visit_expression(*node.index, false, pending_defer);
             } else if constexpr (std::is_same_v<T, ast::LambdaExpression>) {
               // A lambda is a distinct LLVM function boundary. Calls in its
               // body do not participate in the enclosing declaration's
@@ -666,6 +669,12 @@ void validate_tailrec_contract(
                 if (node.initializer)
                   visit_expression(*node.initializer, false, pending_defer);
               } else if constexpr (std::is_same_v<T, ast::AssignmentStatement>) {
+                if (node.index_target) {
+                  visit_expression(*node.index_target->container, false,
+                                   pending_defer);
+                  visit_expression(*node.index_target->index, false,
+                                   pending_defer);
+                }
                 visit_expression(node.expression, false, pending_defer);
               } else if constexpr (std::is_same_v<T, ast::DeferStatement>) {
                 std::visit([&](const auto &action) {
@@ -1744,6 +1753,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{node.location,
                                  "const def '" + function.name +
                                      "' cannot perform a method/FFI/I-O call"};
+            } else if constexpr (std::is_same_v<Node, ast::IndexExpression>) {
+              throw CompileError{node.location,
+                                 "const def '" + function.name +
+                                     "' cannot perform indexed access through "
+                                     "a non-constant capability"};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MemberAccessExpression>) {
               check_expression(*node.object, scope);
@@ -2379,6 +2393,60 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  "' has a signature incompatible with trait '" +
                                  trait_declaration.name + "'"};
       }
+    }
+  }
+
+  const ast::ClassDeclaration *canonical_indexed_array = nullptr;
+  const ast::FunctionDeclaration *canonical_indexed_read = nullptr;
+  const ast::FunctionDeclaration *canonical_indexed_replace = nullptr;
+  if (const auto canonical_array = classes.find("std.array.Array");
+      canonical_array != classes.end() &&
+      canonical_array->second->module_name ==
+          std::optional<std::string>{"std.array"} &&
+      canonical_array->second->name == "Array" &&
+      canonical_array->second->type_parameters.size() == 1) {
+    canonical_indexed_array = canonical_array->second;
+    const std::string &element_parameter =
+        canonical_indexed_array->type_parameters.front();
+    for (const ast::FunctionDeclaration &method :
+         canonical_indexed_array->methods) {
+      const bool canonical_method_shape =
+          method.type_parameters.empty() && !method.is_private &&
+          !method.is_internal && !method.is_external && !method.is_variadic &&
+          !method.is_constant && !method.is_tailrec &&
+          !method.expression_body_arrow.has_value() &&
+          method.return_ownership == ast::ReturnOwnership::Unspecified &&
+          method.return_type.function_parameter_ownership.empty() &&
+          method.return_type.function_return_ownership ==
+              ast::ReturnOwnership::Unspecified;
+      const bool usize_index =
+          !method.parameters.empty() &&
+          method.parameters.front().type.name == "usize" &&
+          method.parameters.front().type.type_arguments.empty() &&
+          method.parameters.front().ownership ==
+              ast::ParameterOwnership::Unspecified &&
+          !method.parameters.front().is_scoped;
+      if (canonical_method_shape && method.name == "get" &&
+          method.parameters.size() == 1 &&
+          usize_index && method.return_type.name == element_parameter &&
+          method.return_type.type_arguments.empty() && method.is_borrowing &&
+          method.type_constraints.size() == 1 &&
+          method.type_constraints.front().parameter == element_parameter &&
+          method.type_constraints.front().trait.name == "Copy" &&
+          method.type_constraints.front().trait.type_arguments.empty() &&
+          !method.is_consuming)
+        canonical_indexed_read = &method;
+      if (canonical_method_shape && method.name == "set" &&
+          method.parameters.size() == 2 &&
+          usize_index && method.parameters[1].type.name == element_parameter &&
+          method.parameters[1].type.type_arguments.empty() &&
+          method.parameters[1].ownership ==
+              ast::ParameterOwnership::Unspecified &&
+          !method.parameters[1].is_scoped &&
+          method.return_type.name == "Unit" &&
+          method.return_type.type_arguments.empty() && !method.is_borrowing &&
+          !method.is_consuming && method.type_constraints.empty())
+        canonical_indexed_replace = &method;
     }
   }
 
@@ -6135,6 +6203,71 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               return substitute(resolve_type(method->return_type,
                                              method_parameters, &class_arities),
                                 substitutions);
+            } else if constexpr (std::is_same_v<Node, ast::IndexExpression>) {
+              const SemanticType container_type = expression_type(*node.container);
+              const auto has_temporary_owner_root =
+                  [&](const ast::Expression &candidate,
+                      const auto &self) -> bool {
+                if (std::holds_alternative<ast::NewExpression>(candidate.value))
+                  return true;
+                if (std::holds_alternative<ast::CallExpression>(candidate.value) ||
+                    std::holds_alternative<ast::MethodCallExpression>(
+                        candidate.value)) {
+                  const auto resolved = resolved_calls.find(&candidate);
+                  return resolved == resolved_calls.end() ||
+                         (resolved->second->return_ownership !=
+                              ast::ReturnOwnership::Borrow &&
+                          resolved->second->return_ownership !=
+                              ast::ReturnOwnership::BorrowMutable);
+                }
+                if (const auto *member =
+                        std::get_if<ast::MemberAccessExpression>(
+                            &candidate.value))
+                  return self(*member->object, self);
+                return false;
+              };
+              if (potentially_owns_value(container_type) &&
+                  has_temporary_owner_root(*node.container,
+                                           has_temporary_owner_root))
+                emit_warning(
+                    DiagnosticCode::AnalyzerBorrowedTemporaryOwner,
+                    node.location,
+                    "indexed read borrows a temporary owner of type '" +
+                        container_type.name() + "' that is then abandoned",
+                    {"bind the temporary to a local and schedule cleanup"});
+              if (!container_type.is_class() ||
+                  canonical_indexed_array == nullptr ||
+                  canonical_indexed_read == nullptr ||
+                  classes.find(container_type.parameter) == classes.end() ||
+                  classes.find(container_type.parameter)->second !=
+                      canonical_indexed_array ||
+                  container_type.type_arguments.size() != 1)
+                throw CompileError{
+                    node.location, "type '" + container_type.name() +
+                                       "' does not provide canonical indexed "
+                                       "read capability"};
+              validate_expression(*node.index,
+                                  SemanticType{&Type::usize_type()},
+                                  node.location);
+              const SemanticType element_type = container_type.type_arguments.front();
+              if (!satisfies_copy(element_type))
+                throw CompileError{
+                    node.location, "indexed Array read requires element type '" +
+                                       element_type.name() +
+                                       "' to satisfy Copy; help: use withValue "
+                                       "or getBorrowed for explicit borrowing"};
+              if (const auto *identifier =
+                      lexical_root_identifier(*node.container,
+                                              lexical_root_identifier))
+                if (const auto borrower = live_borrower_of(identifier->name, false))
+                  throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                     node.location, "value '" + identifier->name +
+                                                        "' is mutably borrowed by '" +
+                                                        *borrower + "'"};
+              result.indexed_capabilities.insert_or_assign(
+                  &node, AnalysisResult::IndexedCapabilities{
+                             element_type, canonical_indexed_read, nullptr});
+              return element_type;
             } else if constexpr (std::is_same_v<Node, ast::IfExpression>) {
               validate_expression(*node.condition,
                                   SemanticType{&Type::bool_type()},
@@ -7117,6 +7250,130 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
         if (const auto *assignment =
                 std::get_if<ast::AssignmentStatement>(&statement)) {
+          if (assignment->index_target != nullptr) {
+            const ast::IndexExpression &target = *assignment->index_target;
+            const SemanticType container_type =
+                expression_type(*target.container);
+            const auto borrowed_container_ownership =
+                [&](const ast::Expression &candidate,
+                    const auto &self) -> std::optional<ast::ReturnOwnership> {
+              if (const auto resolved = resolved_calls.find(&candidate);
+                  resolved != resolved_calls.end()) {
+                if (resolved->second->return_ownership ==
+                    ast::ReturnOwnership::Borrow)
+                  return ast::ReturnOwnership::Borrow;
+                if (resolved->second->return_ownership ==
+                    ast::ReturnOwnership::BorrowMutable)
+                  return ast::ReturnOwnership::BorrowMutable;
+              }
+              if (const auto *identifier =
+                      std::get_if<ast::IdentifierExpression>(&candidate.value)) {
+                if (shared_borrow_values.contains(identifier->name))
+                  return ast::ReturnOwnership::Borrow;
+                if (mutable_borrow_values.contains(identifier->name))
+                  return ast::ReturnOwnership::BorrowMutable;
+                return std::nullopt;
+              }
+              if (const auto *member =
+                      std::get_if<ast::MemberAccessExpression>(&candidate.value))
+                return self(*member->object, self);
+              return std::nullopt;
+            };
+            if (borrowed_container_ownership(*target.container,
+                                             borrowed_container_ownership) ==
+                ast::ReturnOwnership::Borrow)
+              throw CompileError{
+                  DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                  target.location,
+                  "cannot mutate through a shared borrowed indexed container"};
+            const auto has_temporary_owner_root =
+                [&](const ast::Expression &candidate,
+                    const auto &self) -> bool {
+              if (std::holds_alternative<ast::NewExpression>(candidate.value))
+                return true;
+              if (std::holds_alternative<ast::CallExpression>(candidate.value) ||
+                  std::holds_alternative<ast::MethodCallExpression>(
+                      candidate.value)) {
+                const auto resolved = resolved_calls.find(&candidate);
+                return resolved == resolved_calls.end() ||
+                       (resolved->second->return_ownership !=
+                            ast::ReturnOwnership::Borrow &&
+                        resolved->second->return_ownership !=
+                            ast::ReturnOwnership::BorrowMutable);
+              }
+              if (const auto *member =
+                      std::get_if<ast::MemberAccessExpression>(
+                          &candidate.value))
+                return self(*member->object, self);
+              return false;
+            };
+            if (potentially_owns_value(container_type) &&
+                has_temporary_owner_root(*target.container,
+                                         has_temporary_owner_root))
+              emit_warning(
+                  DiagnosticCode::AnalyzerBorrowedTemporaryOwner,
+                  target.location,
+                  "indexed replacement borrows a temporary owner of type '" +
+                      container_type.name() + "' that is then abandoned",
+                  {"bind the temporary to a local and schedule cleanup"});
+            if (!container_type.is_class() ||
+                canonical_indexed_array == nullptr ||
+                canonical_indexed_replace == nullptr ||
+                classes.find(container_type.parameter) == classes.end() ||
+                classes.find(container_type.parameter)->second !=
+                    canonical_indexed_array ||
+                container_type.type_arguments.size() != 1)
+              throw CompileError{
+                  target.location,
+                  "type '" + container_type.name() +
+                      "' does not provide canonical indexed replacement "
+                      "capability"};
+            validate_expression(*target.index,
+                                SemanticType{&Type::usize_type()},
+                                target.location);
+            if (const auto *identifier =
+                    lexical_root_identifier(*target.container,
+                                            lexical_root_identifier)) {
+              if (shared_borrow_values.contains(identifier->name))
+                throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                                   target.location,
+                                   "cannot mutate through shared borrow '" +
+                                       identifier->name + "'"};
+              require_no_live_borrow(identifier->name, target.location,
+                                     "mutated");
+            }
+            const SemanticType element_type =
+                container_type.type_arguments.front();
+            if (assignment->operation != ast::AssignmentOperator::Assign &&
+                canonical_indexed_read == nullptr)
+              throw CompileError{target.location,
+                                 "canonical indexed replacement capability is missing"};
+            if (assignment->operation != ast::AssignmentOperator::Assign &&
+                !satisfies_copy(element_type))
+              throw CompileError{
+                  target.location,
+                  "compound indexed assignment requires element type '" +
+                      element_type.name() + "' to satisfy Copy"};
+            if (assignment->operation == ast::AssignmentOperator::Assign &&
+                potentially_owns_value(element_type) &&
+                (std::holds_alternative<ast::IdentifierExpression>(
+                     assignment->expression.value) ||
+                 std::holds_alternative<ast::MemberAccessExpression>(
+                     assignment->expression.value)))
+              throw CompileError{
+                  assignment->location,
+                  "transferring an owned Array element requires an explicit "
+                  "move"};
+            validate_assignment_expression(*assignment, element_type);
+            result.indexed_capabilities.insert_or_assign(
+                &target, AnalysisResult::IndexedCapabilities{
+                             element_type,
+                             assignment->operation == ast::AssignmentOperator::Assign
+                                 ? nullptr
+                                 : canonical_indexed_read,
+                             canonical_indexed_replace});
+            continue;
+          }
           if (!assignment->object.empty()) {
             if (shared_borrow_values.contains(assignment->object))
               throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,

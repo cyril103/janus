@@ -63,6 +63,27 @@ val empty : Array[int] = []
 defer delete empty
 ```
 
+## Indexation sûre
+
+Une lecture `values[index]` copie l'élément et exige donc `Copy`. Une
+affectation remplace l'élément comme `set`; une ressource nommée exige `move`.
+Le conteneur puis l'index sont évalués chacun une fois, dans cet ordre.
+
+```janus
+// doctest: doctest name=array-indexing
+import std.array
+def main() : int {
+    val scores : Array[int] = [12, 8, 19]
+    scores[usize(1)] += 2
+    val middle : int = scores[usize(1)]
+    delete scores
+    return if middle == 10 { 0 } else { 1 }
+}
+```
+
+Pour un élément non `Copy`, utilisez `withValue` ou `getBorrowed` : les
+crochets n'introduisent jamais d'emprunt implicite.
+
 Une constante globale ne peut pas employer cette syntaxe (`JANA0023`), car le
 tableau possède un stockage dynamique construit à l'exécution.
 

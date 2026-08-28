@@ -1,0 +1,10 @@
+import std.array
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(1))
+    values.push(1)
+    borrow var element : int = values.getMutable(usize(0))
+    values[usize(0)] = element
+    delete values
+    return 0
+}

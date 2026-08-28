@@ -1240,14 +1240,9 @@ ast::Program::StaticAssertion Parser::parse_static_assertion() {
 }
 
 ast::AssignmentStatement Parser::parse_assignment_statement() {
-  const Token identifier = expect(TokenKind::Identifier);
-  std::string object;
-  std::string name{identifier.lexeme};
-  if (current_.kind == TokenKind::Dot) {
-    advance();
-    object = std::move(name);
-    name = std::string{expect(TokenKind::Identifier).lexeme};
-  }
+  ast::Expression target = parse_expression();
+  const SourceLocation target_location = std::visit(
+      [](const auto &node) { return node.location; }, target.value);
   const Token operation = current_;
   advance();
   ast::AssignmentOperator assignment_operation;
@@ -1266,9 +1261,30 @@ ast::AssignmentStatement Parser::parse_assignment_statement() {
   default:
     throw CompileError{operation.location, "expected assignment operator"};
   }
+  std::string object;
+  std::string name;
+  std::unique_ptr<ast::IndexExpression> index_target;
+  if (auto *identifier =
+          std::get_if<ast::IdentifierExpression>(&target.value)) {
+    name = std::move(identifier->name);
+  } else if (auto *member =
+                 std::get_if<ast::MemberAccessExpression>(&target.value)) {
+    auto *identifier =
+        std::get_if<ast::IdentifierExpression>(&member->object->value);
+    if (identifier == nullptr)
+      throw CompileError{target_location, "invalid assignment target"};
+    object = std::move(identifier->name);
+    name = std::move(member->member);
+  } else if (auto *index = std::get_if<ast::IndexExpression>(&target.value)) {
+    index_target = std::make_unique<ast::IndexExpression>(std::move(*index));
+  } else {
+    throw CompileError{target_location, "invalid assignment target"};
+  }
   ast::AssignmentStatement result{std::move(object), std::move(name),
-                                  parse_expression(), identifier.location};
+                                  parse_expression(), target_location,
+                                  ast::AssignmentOperator::Assign, nullptr};
   result.operation = assignment_operation;
+  result.index_target = std::move(index_target);
   return result;
 }
 
@@ -1792,7 +1808,7 @@ ast::Expression Parser::parse_primary() {
     const Token identifier = expect(TokenKind::Identifier);
     std::vector<ast::TypeReference> type_arguments;
 
-    if (current_.kind == TokenKind::LeftBracket) {
+    if (current_.kind == TokenKind::LeftBracket && starts_generic_call()) {
       advance();
       do {
         type_arguments.push_back(parse_type());
@@ -1955,7 +1971,18 @@ ast::TypeReference Parser::parse_type() {
 
 ast::Expression Parser::parse_postfix(ast::Expression expression) {
   while (current_.kind == TokenKind::Dot ||
+         current_.kind == TokenKind::LeftBracket ||
          current_.kind == TokenKind::Question) {
+    if (current_.kind == TokenKind::LeftBracket) {
+      const Token bracket = expect(TokenKind::LeftBracket);
+      ast::Expression index = parse_expression();
+      static_cast<void>(expect(TokenKind::RightBracket));
+      expression = ast::IndexExpression{
+          std::make_unique<ast::Expression>(std::move(expression)),
+          std::make_unique<ast::Expression>(std::move(index)),
+          bracket.location};
+      continue;
+    }
     if (current_.kind == TokenKind::Question) {
       const Token question = expect(TokenKind::Question);
       expression = ast::TryExpression{
@@ -1966,7 +1993,7 @@ ast::Expression Parser::parse_postfix(ast::Expression expression) {
     advance();
     const Token member = expect(TokenKind::Identifier);
     std::vector<ast::TypeReference> type_arguments;
-    if (current_.kind == TokenKind::LeftBracket) {
+    if (current_.kind == TokenKind::LeftBracket && starts_generic_call()) {
       advance();
       do {
         type_arguments.push_back(parse_type());
@@ -2068,12 +2095,62 @@ bool Parser::starts_assignment() const {
   };
   Lexer lookahead = lexer_;
   Token next = lookahead.next();
-  if (is_assignment_operator(next.kind))
-    return true;
-  if (next.kind != TokenKind::Dot)
-    return false;
-  static_cast<void>(lookahead.next());
-  return is_assignment_operator(lookahead.next().kind);
+  int brackets = 0;
+  int parentheses = 0;
+  while (next.kind != TokenKind::End) {
+    bool completed_group = false;
+    if (next.kind == TokenKind::LeftBracket)
+      ++brackets;
+    else if (next.kind == TokenKind::RightBracket) {
+      --brackets;
+      completed_group = brackets == 0 && parentheses == 0;
+    }
+    else if (next.kind == TokenKind::LeftParen)
+      ++parentheses;
+    else if (next.kind == TokenKind::RightParen) {
+      --parentheses;
+      completed_group = brackets == 0 && parentheses == 0;
+    }
+    else if (brackets == 0 && parentheses == 0 &&
+             is_assignment_operator(next.kind))
+      return true;
+    else if (brackets == 0 && parentheses == 0 &&
+             next.kind != TokenKind::Dot &&
+             next.kind != TokenKind::Question &&
+             next.kind != TokenKind::Identifier)
+      return false;
+    next = lookahead.next();
+    if (completed_group && !is_assignment_operator(next.kind) &&
+        next.kind != TokenKind::Dot &&
+        next.kind != TokenKind::LeftBracket &&
+        next.kind != TokenKind::Question)
+      return false;
+    if (brackets == 0 && parentheses == 0 &&
+        (next.kind == TokenKind::Val || next.kind == TokenKind::Var ||
+         next.kind == TokenKind::Return || next.kind == TokenKind::Delete ||
+         next.kind == TokenKind::Defer))
+      return false;
+  }
+  return false;
+}
+
+bool Parser::starts_generic_call() const {
+  Lexer lookahead = lexer_;
+  Token token = lookahead.next();
+  TokenKind previous = TokenKind::LeftBracket;
+  int depth = 1;
+  while (token.kind != TokenKind::End) {
+    if (depth == 1 && token.kind == TokenKind::LeftParen &&
+        previous == TokenKind::Identifier)
+      return false;
+    if (token.kind == TokenKind::LeftBracket)
+      ++depth;
+    else if (token.kind == TokenKind::RightBracket && --depth == 0)
+      return lookahead.next().kind == TokenKind::LeftParen;
+    previous = token.kind;
+    token = lookahead.next();
+  }
+  return false;
 }
 
 void Parser::advance() { current_ = lexer_.next(); }

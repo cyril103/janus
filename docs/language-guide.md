@@ -973,6 +973,28 @@ règles que `Array.push`; une valeur non `Copy` déjà nommée doit donc être
 et libère son stockage; si une panique interrompt la construction, les éléments
 déjà insérés suivent le mécanisme normal de nettoyage partiel de `Array`.
 
+### Indexation sûre
+
+`values[index]` est résolu sur l'identité canonique de `std.array.Array`, y
+compris avec un alias de module. Un type local homonyme et `HashMap` ne sont pas
+reconnus. La lecture équivaut à `get` : elle copie et exige `T <: Copy`. Pour
+une ressource non copiable, utilisez explicitement `withValue` ou
+`getBorrowed`; les crochets ne créent aucun emprunt implicite.
+
+Une cible `values[index] = replacement` équivaut à `set`, respecte la
+mutabilité et les emprunts actifs, exige `move` pour une valeur propriétaire et
+détruit exactement une fois l'ancien élément. Les formes composées (`+=`,
+`-=`, etc.) réutilisent la même place. Le conteneur est évalué une fois, puis
+l'index une fois, de gauche à droite. Un index hors limites produit le même
+panic et le même contexte que `get`/`set`.
+
+Le protocole reste interne dans cette livraison : le frontend lie séparément
+les capacités canoniques de lecture et de remplacement à la déclaration
+`std.array.Array`. Cela permet une extension future sans figer un trait public.
+L'indexation ne consomme jamais implicitement le conteneur ou l'élément :
+`consume`, `delete` et `defer` continuent de s'appliquer au propriétaire complet,
+et `move` reste obligatoire au point précis d'un transfert propriétaire.
+
 Les constantes globales n'acceptent pas les littéraux de tableaux : `Array[T]`
 utilise un stockage dynamique propriétaire et le compilateur n'a pas de
 représentation constante équivalente. Le diagnostic `JANA0023` demande de
