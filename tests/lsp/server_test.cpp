@@ -1238,6 +1238,52 @@ int main(int argc, char **argv) {
                 std::string::npos);
   JANUS_REQUIRE(expression_symbols.front().find("\"name\":\"use\"") !=
                 std::string::npos);
+  janus::lsp::Server constant_symbol_server;
+  static_cast<void>(constant_symbol_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///constant-symbol.janus","text":"const declarationText : string = \"def misleading\"\n"}}})"));
+  const std::vector<std::string> constant_symbols =
+      constant_symbol_server.handle(
+          R"({"jsonrpc":"2.0","id":210,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file:///constant-symbol.janus"}}})");
+  JANUS_REQUIRE(constant_symbols.size() == 1);
+  llvm::Expected<llvm::json::Value> parsed_constant_symbols =
+      llvm::json::parse(constant_symbols.front());
+  JANUS_REQUIRE(static_cast<bool>(parsed_constant_symbols));
+  const llvm::json::Array *constant_symbol_items =
+      parsed_constant_symbols->getAsObject()->getArray("result");
+  JANUS_REQUIRE(constant_symbol_items != nullptr &&
+                constant_symbol_items->size() == 1);
+  JANUS_REQUIRE(constant_symbol_items->front().getAsObject()->getInteger(
+                    "kind") == 14);
+  janus::lsp::Server symbol_kind_server;
+  static_cast<void>(symbol_kind_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///symbol-kinds.janus","text":"const c : int = 1\nval v : int = 2\nvar mutable : int = 3\ndef f() : int => 1\nclass C() { def method() : int => 1 }\nstruct S(value : int)\ntrait T { def required() : int }\nenum E { A }\n"}}})"));
+  const std::string symbol_kinds = symbol_kind_server.handle(
+      R"({"jsonrpc":"2.0","id":211,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file:///symbol-kinds.janus"}}})").front();
+  llvm::Expected<llvm::json::Value> parsed_symbol_kinds =
+      llvm::json::parse(symbol_kinds);
+  JANUS_REQUIRE(static_cast<bool>(parsed_symbol_kinds));
+  const llvm::json::Array *symbol_kind_items =
+      parsed_symbol_kinds->getAsObject()->getArray("result");
+  JANUS_REQUIRE(symbol_kind_items != nullptr);
+  const auto expect_symbol_kind = [&](llvm::StringRef name,
+                                      std::int64_t expected_kind) {
+    for (const llvm::json::Value &item : *symbol_kind_items)
+      if (const llvm::json::Object *object = item.getAsObject();
+          object != nullptr && object->getString("name") == name) {
+        JANUS_REQUIRE(object->getInteger("kind") == expected_kind);
+        return;
+      }
+    JANUS_REQUIRE(false);
+  };
+  expect_symbol_kind("c", 14);
+  expect_symbol_kind("v", 13);
+  expect_symbol_kind("mutable", 13);
+  expect_symbol_kind("f", 12);
+  expect_symbol_kind("C", 5);
+  expect_symbol_kind("method", 6);
+  expect_symbol_kind("S", 23);
+  expect_symbol_kind("T", 11);
+  expect_symbol_kind("E", 10);
   const std::vector<std::string> expression_hover = expression_body_server.handle(
       R"({"jsonrpc":"2.0","id":202,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///expression-body.janus"},"position":{"line":1,"character":20}}})");
   JANUS_REQUIRE(expression_hover.front().find(
@@ -1287,11 +1333,24 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(exact_symbols.find("\"name\":\"method\"") !=
                 std::string::npos);
   JANUS_REQUIRE(exact_symbols.find("\"kind\":6") != std::string::npos);
-  const std::string utf_selection = expression_range_server.handle(
-      R"({"jsonrpc":"2.0","id":209,"method":"textDocument/selectionRange","params":{"textDocument":{"uri":"file:///expression-ranges.janus"},"positions":[{"line":12,"character":30}]}})").front();
-  JANUS_REQUIRE(utf_selection.find("\"start\":{\"character\":26,\"line\":12}") != std::string::npos);
-  JANUS_REQUIRE(utf_selection.find("\"end\":{\"character\":32,\"line\":12}") != std::string::npos);
+  janus::lsp::Server utf_selection_server;
+  static_cast<void>(utf_selection_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///utf-selection.janus","text":"def emoji() : string => \"😀café\"\ndef number() : int => 42\n"}}})"));
+  const std::string utf_selection = utf_selection_server.handle(
+      R"({"jsonrpc":"2.0","id":209,"method":"textDocument/selectionRange","params":{"textDocument":{"uri":"file:///utf-selection.janus"},"positions":[{"line":0,"character":28},{"line":1,"character":22}]}})").front();
+  llvm::Expected<llvm::json::Value> parsed_utf_selection =
+      llvm::json::parse(utf_selection);
+  JANUS_REQUIRE(static_cast<bool>(parsed_utf_selection));
+  JANUS_REQUIRE(parsed_utf_selection->getAsObject()->getArray("result")->size() ==
+                2);
+  JANUS_REQUIRE(utf_selection.find("\"start\":{\"character\":24,\"line\":0}") != std::string::npos);
+  JANUS_REQUIRE(utf_selection.find("\"end\":{\"character\":32,\"line\":0}") != std::string::npos);
   JANUS_REQUIRE(utf_selection.find("\"parent\"") != std::string::npos);
+  const std::string expression_end_selection = utf_selection_server.handle(
+      R"({"jsonrpc":"2.0","id":212,"method":"textDocument/selectionRange","params":{"textDocument":{"uri":"file:///utf-selection.janus"},"positions":[{"line":1,"character":24}]}})").front();
+  JANUS_REQUIRE(expression_end_selection.find(
+                    "\"start\":{\"character\":22,\"line\":1},\"end\":{\"character\":24,\"line\":1}}}") ==
+                std::string::npos);
 
   const SourceResponses unknown = source_requests(unknown_uri, 109);
   require_empty_source_results(unknown);

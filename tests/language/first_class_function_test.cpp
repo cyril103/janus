@@ -50,6 +50,21 @@ void expect_analyzes(std::string_view source, std::string_view message) {
 } // namespace
 
 int main() {
+  expect_analyzes(
+      R"(
+class Box() {}
+def consumeUnit(value : Box) : Unit { delete value }
+def main() : int {
+    val consumeOnce = () => {
+        val x : Box = new Box()
+        return consumeUnit(move x)
+    }
+    delete consumeOnce
+    return 0
+}
+)",
+      "a Unit lambda return evaluates an owning move exactly once");
+
   expect_compile_error(
       R"(
 class Iterator[T]() {}

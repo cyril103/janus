@@ -28,6 +28,20 @@ int main() {
     std::cerr << "formatting is not idempotent\n";
     return 1;
   }
+  const std::string expression_body_comment =
+      "def f() : int\n"
+      "// commentaire\n"
+      "=> 1\n";
+  const std::string formatted_expression_body_comment =
+      janus::driver::format_source(expression_body_comment);
+  if (formatted_expression_body_comment != expression_body_comment ||
+      janus::driver::format_source(formatted_expression_body_comment) !=
+          expression_body_comment) {
+    std::cerr << "formatter did not preserve a comment before a function "
+                 "arrow idempotently:\n"
+              << formatted_expression_body_comment;
+    return 1;
+  }
   const std::string comments = "def main() : int {\n// keep { this comment "
                                "}\n\n\nreturn 0 // and this\n}\n";
   const janus::driver::FormatOptions compact{2, 0, 100};

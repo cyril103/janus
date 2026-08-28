@@ -313,8 +313,12 @@ std::vector<DocumentSymbol> symbols(
 
     std::string detail;
     bool is_parameter = false;
+    janus::lsp::IndexedSymbolKind symbol_kind =
+        janus::lsp::IndexedSymbolKind::Variable;
     if (token.kind == TokenKind::Const || token.kind == TokenKind::Val ||
         token.kind == TokenKind::Var) {
+      if (token.kind == TokenKind::Const)
+        symbol_kind = janus::lsp::IndexedSymbolKind::Constant;
       detail = token.kind == TokenKind::Const
                    ? "const "
                    : (token.kind == TokenKind::Val ? "val " : "var ");
@@ -337,16 +341,22 @@ std::vector<DocumentSymbol> symbols(
             constant != constant_details.end())
           detail += constant->second;
     } else if (token.kind == TokenKind::Def) {
+      symbol_kind = janus::lsp::IndexedSymbolKind::Function;
       const auto signature = function_details.find(std::string{name.lexeme});
       detail = signature == function_details.end()
                    ? "def " + std::string{name.lexeme}
                    : signature->second;
     } else if (token.kind == TokenKind::Class ||
                token.kind == TokenKind::Struct) {
+      symbol_kind = token.kind == TokenKind::Class
+                        ? janus::lsp::IndexedSymbolKind::Class
+                        : janus::lsp::IndexedSymbolKind::Struct;
       detail = "class " + std::string{name.lexeme};
     } else if (token.kind == TokenKind::Trait) {
+      symbol_kind = janus::lsp::IndexedSymbolKind::Trait;
       detail = "trait " + std::string{name.lexeme};
     } else if (token.kind == TokenKind::Enum) {
+      symbol_kind = janus::lsp::IndexedSymbolKind::Enum;
       detail = "enum " + std::string{name.lexeme};
     } else if ((token.kind == TokenKind::LeftParen ||
                 token.kind == TokenKind::Comma) &&
@@ -365,6 +375,7 @@ std::vector<DocumentSymbol> symbols(
           document_tokens[index + 3].kind == TokenKind::Identifier)
         detail += " : " + qualified_type_name(document_tokens, index + 3);
       is_parameter = true;
+      symbol_kind = janus::lsp::IndexedSymbolKind::Parameter;
     } else {
       continue;
     }
@@ -410,7 +421,8 @@ std::vector<DocumentSymbol> symbols(
     result.push_back(DocumentSymbol{
         identity, std::string{name.lexeme}, std::move(detail), name.location,
         scope_start, scope_end, scope_depth, is_global, symbol_top_level,
-        is_private, symbol_top_level ? module_name : std::nullopt});
+        is_private, symbol_top_level ? module_name : std::nullopt,
+        symbol_kind});
   }
   return result;
 }
@@ -2115,12 +2127,27 @@ std::vector<std::string> Server::handle(std::string_view message) {
                *uri, *document_source, module_search_paths_,
                workspace_search_paths_, &documents_)) {
         const bool function_symbol =
-            symbol.detail.find("def ") != std::string::npos;
+            symbol.kind == janus::lsp::IndexedSymbolKind::Function;
         if (!symbol.is_top_level && !function_symbol)
           continue;
-        const std::int64_t kind = function_symbol
-                                      ? (symbol.is_top_level ? 12 : 6)
-                                      : 13;
+        const std::int64_t kind = [&] {
+          if (function_symbol)
+            return static_cast<std::int64_t>(symbol.is_top_level ? 12 : 6);
+          switch (symbol.kind) {
+          case janus::lsp::IndexedSymbolKind::Constant:
+            return std::int64_t{14};
+          case janus::lsp::IndexedSymbolKind::Class:
+            return std::int64_t{5};
+          case janus::lsp::IndexedSymbolKind::Struct:
+            return std::int64_t{23};
+          case janus::lsp::IndexedSymbolKind::Trait:
+            return std::int64_t{11};
+          case janus::lsp::IndexedSymbolKind::Enum:
+            return std::int64_t{10};
+          default:
+            return std::int64_t{13};
+          }
+        }();
         const auto expression_bound = std::find_if(
             expression_bounds.begin(), expression_bounds.end(),
             [&](const DeclarationBounds &bounds) {
@@ -2189,7 +2216,30 @@ std::vector<std::string> Server::handle(std::string_view message) {
     llvm::json::Array result;
     const llvm::json::Array *positions =
         params == nullptr ? nullptr : params->getArray("positions");
-    if (document_source != nullptr && positions != nullptr)
+    std::vector<std::pair<std::size_t, std::size_t>> expression_ranges;
+    std::vector<frontend::Token> document_tokens;
+    if (document_source != nullptr && positions != nullptr) {
+      document_tokens = tokens(*document_source);
+      try {
+        frontend::Parser parser{*document_source};
+        const ast::Program program = parser.parse_program();
+        const auto collect = [&](const ast::FunctionDeclaration &function) {
+          if (function.expression_body_start.has_value())
+            expression_ranges.emplace_back(
+                function.expression_body_start->offset,
+                function.expression_body_end);
+        };
+        for (const ast::FunctionDeclaration &function : program.functions)
+          collect(function);
+        for (const ast::ClassDeclaration &declaration : program.classes)
+          for (const ast::FunctionDeclaration &method : declaration.methods)
+            collect(method);
+        for (const ast::TraitDeclaration &declaration : program.traits)
+          for (const ast::FunctionDeclaration &method : declaration.methods)
+            collect(method);
+        std::sort(expression_ranges.begin(), expression_ranges.end());
+      } catch (const CompileError &) {
+      }
       for (const llvm::json::Value &requested : *positions) {
         const llvm::json::Object *requested_position = requested.getAsObject();
         const auto line = requested_position == nullptr
@@ -2219,25 +2269,15 @@ std::vector<std::string> Server::handle(std::string_view message) {
                       }},
         };
         std::optional<std::pair<std::size_t, std::size_t>> expression_range;
-        try {
-          frontend::Parser parser{*document_source};
-          const ast::Program program = parser.parse_program();
-          const auto inspect = [&](const ast::FunctionDeclaration &function) {
-            if (function.expression_body_start.has_value() &&
-                *offset >= function.expression_body_start->offset &&
-                *offset <= function.expression_body_end)
-              expression_range = {function.expression_body_start->offset,
-                                  function.expression_body_end};
-          };
-          for (const ast::FunctionDeclaration &function : program.functions)
-            inspect(function);
-          for (const ast::ClassDeclaration &declaration : program.classes)
-            for (const ast::FunctionDeclaration &method : declaration.methods)
-              inspect(method);
-          for (const ast::TraitDeclaration &declaration : program.traits)
-            for (const ast::FunctionDeclaration &method : declaration.methods)
-              inspect(method);
-        } catch (const CompileError &) {
+        const auto following_expression = std::upper_bound(
+            expression_ranges.begin(), expression_ranges.end(), *offset,
+            [](std::size_t requested_offset, const auto &candidate) {
+              return requested_offset < candidate.first;
+            });
+        if (following_expression != expression_ranges.begin()) {
+          const auto candidate = std::prev(following_expression);
+          if (*offset < candidate->second)
+            expression_range = *candidate;
         }
         llvm::json::Object parent = expression_range.has_value()
                                         ? llvm::json::Object{
@@ -2250,16 +2290,18 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                                                *document_source,
                                                                expression_range->second)}}}}
                                         : std::move(line_parent);
-        const std::vector<frontend::Token> document_tokens =
-            tokens(*document_source);
         const frontend::Token *selected = nullptr;
-        for (const frontend::Token &token : document_tokens)
-          if (token.kind != frontend::TokenKind::End &&
-              *offset >= token.location.offset &&
-              *offset < token.location.offset + token.lexeme.size()) {
-            selected = &token;
-            break;
-          }
+        const auto following_token = std::upper_bound(
+            document_tokens.begin(), document_tokens.end(), *offset,
+            [](std::size_t requested_offset, const frontend::Token &token) {
+              return requested_offset < token.location.offset;
+            });
+        if (following_token != document_tokens.begin()) {
+          const frontend::Token &candidate = *std::prev(following_token);
+          if (candidate.kind != frontend::TokenKind::End &&
+              *offset < candidate.location.offset + candidate.lexeme.size())
+            selected = &candidate;
+        }
         const std::size_t token_start =
             selected == nullptr ? *offset : selected->location.offset;
         const std::size_t token_end = selected == nullptr
@@ -2276,6 +2318,7 @@ std::vector<std::string> Server::handle(std::string_view message) {
             {"parent", std::move(parent)},
         });
       }
+    }
     return {response(request_id(*request), std::move(result))};
   }
   if (*method == "textDocument/codeAction" && uri) {
