@@ -24,6 +24,10 @@
       "match": "\\b(true|false)\\b"
     },
     {
+      "name": "keyword.operator.assignment.compound.janus",
+      "match": "(?:<<=|>>=|[+\\-*/%&|^]=)"
+    },
+    {
       "name": "keyword.operator.bitwise.janus",
       "match": "(?<![&|])(?:<<|>>|[&|^])(?![&|])"
     },

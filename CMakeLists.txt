@@ -2471,6 +2471,18 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.integer_boundary COMMAND integer_boundary_test)
     add_test(
+        NAME runtime.compound_assignment
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/compound_assignment.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/compound_assignment_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/compound_assignment.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
         NAME runtime.integer_boundary
         COMMAND
             ${CMAKE_COMMAND}

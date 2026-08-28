@@ -2096,13 +2096,37 @@ private:
 
         if (const auto *assignment =
                 std::get_if<janus::ast::AssignmentStatement>(&statement)) {
+          const auto emit_assignment = [&](::llvm::Value *storage,
+                                           const janus::Type &type) {
+            if (assignment->operation ==
+                janus::ast::AssignmentOperator::Assign) {
+              builder.CreateStore(
+                  emit_expression(assignment->expression, type, substitutions,
+                                  block_locals, builder),
+                  storage);
+              return;
+            }
+            ::llvm::Value *left = builder.CreateLoad(
+                lower_type(type, context_), storage, assignment->name + ".value");
+            const janus::ast::BinaryOperator binary_operation =
+                *janus::ast::assignment_binary_operator(
+                    assignment->operation);
+            const bool is_shift =
+                binary_operation == janus::ast::BinaryOperator::ShiftLeft ||
+                binary_operation == janus::ast::BinaryOperator::ShiftRight;
+            ::llvm::Value *right = emit_expression(
+                assignment->expression,
+                is_shift ? janus::Type::usize_type() : type, substitutions,
+                block_locals, builder);
+            ::llvm::Value *value = emit_controlled_binary_operation(
+                binary_operation, left, right, type, assignment->location,
+                builder);
+            builder.CreateStore(value, storage);
+          };
           if (!assignment->object.empty()) {
             if (analysis_.qualified_global_writes.contains(assignment)) {
               const Local &global = resolve_qualified_global(*assignment);
-              builder.CreateStore(emit_expression(assignment->expression,
-                                                  *global.type, substitutions,
-                                                  block_locals, builder),
-                                  global.storage);
+              emit_assignment(global.storage, *global.type);
               continue;
             }
             const Local &object = block_locals.at(assignment->object);
@@ -2117,17 +2141,11 @@ private:
             ::llvm::Value *field_pointer = builder.CreateStructGEP(
                 llvm_class_types_.at(std::string{object.type->name()}),
                 object_pointer, field_index);
-            builder.CreateStore(emit_expression(assignment->expression,
-                                                *field_type, substitutions,
-                                                block_locals, builder),
-                                field_pointer);
+            emit_assignment(field_pointer, *field_type);
             continue;
           }
           const Local &local = resolve_storage(assignment->name, block_locals);
-          ::llvm::Value *value =
-              emit_expression(assignment->expression, *local.type,
-                              substitutions, block_locals, builder);
-          builder.CreateStore(value, local.storage);
+          emit_assignment(local.storage, *local.type);
           continue;
         }
 
@@ -3030,6 +3048,70 @@ private:
                          : builder.CreateSRem(left, right, "rem");
     return is_unsigned ? builder.CreateUDiv(left, right, "div")
                        : builder.CreateSDiv(left, right, "div");
+  }
+
+  ::llvm::Value *emit_controlled_binary_operation(
+      janus::ast::BinaryOperator operation, ::llvm::Value *left,
+      ::llvm::Value *right, const janus::Type &operand_type,
+      janus::SourceLocation location, ::llvm::IRBuilder<> &builder) {
+    if (operation == janus::ast::BinaryOperator::ShiftLeft ||
+        operation == janus::ast::BinaryOperator::ShiftRight) {
+      ::llvm::Value *invalid = builder.CreateICmpUGE(
+          right,
+          ::llvm::ConstantInt::get(right->getType(), operand_type.bit_width()),
+          "shift.count.invalid");
+      ::llvm::Function *function = builder.GetInsertBlock()->getParent();
+      auto *panic_block = ::llvm::BasicBlock::Create(
+          context_, "shift.count.panic", function);
+      auto *valid_block =
+          ::llvm::BasicBlock::Create(context_, "shift.count.valid");
+      builder.CreateCondBr(invalid, panic_block, valid_block);
+      builder.SetInsertPoint(panic_block);
+      emit_integer_panic("shift count exceeds operand width\n", location,
+                         builder);
+      function->insert(function->end(), valid_block);
+      builder.SetInsertPoint(valid_block);
+      right = builder.CreateIntCast(right, left->getType(), false,
+                                    "shift.count");
+      if (operation == janus::ast::BinaryOperator::ShiftLeft)
+        return builder.CreateShl(left, right, "shift.left");
+      return operand_type.is_signed()
+                 ? builder.CreateAShr(left, right, "shift.right")
+                 : builder.CreateLShr(left, right, "shift.right");
+    }
+
+    const bool is_floating = operand_type.is_floating_point();
+    const bool is_unsigned_integer =
+        operand_type.kind() == janus::TypeKind::Char ||
+        (operand_type.is_integer() && !operand_type.is_signed());
+    switch (operation) {
+    case janus::ast::BinaryOperator::Add:
+      return is_floating ? builder.CreateFAdd(left, right, "add")
+                         : builder.CreateAdd(left, right, "add");
+    case janus::ast::BinaryOperator::Subtract:
+      return is_floating ? builder.CreateFSub(left, right, "sub")
+                         : builder.CreateSub(left, right, "sub");
+    case janus::ast::BinaryOperator::Multiply:
+      return is_floating ? builder.CreateFMul(left, right, "mul")
+                         : builder.CreateMul(left, right, "mul");
+    case janus::ast::BinaryOperator::Divide:
+      return is_floating
+                 ? builder.CreateFDiv(left, right, "div")
+                 : emit_integer_division(left, right, operand_type, false,
+                                         is_unsigned_integer, location,
+                                         builder);
+    case janus::ast::BinaryOperator::Remainder:
+      return emit_integer_division(left, right, operand_type, true,
+                                   is_unsigned_integer, location, builder);
+    case janus::ast::BinaryOperator::BitwiseAnd:
+      return builder.CreateAnd(left, right, "bitwise.and");
+    case janus::ast::BinaryOperator::BitwiseXor:
+      return builder.CreateXor(left, right, "bitwise.xor");
+    case janus::ast::BinaryOperator::BitwiseOr:
+      return builder.CreateOr(left, right, "bitwise.or");
+    default:
+      throw std::logic_error{"unsupported arithmetic binary operator"};
+    }
   }
 
   ::llvm::Value *emit_borrow_storage(
@@ -4864,30 +4946,9 @@ private:
               ::llvm::Value *count =
                   emit_expression(*node.right, janus::Type::usize_type(),
                                   substitutions, locals, builder);
-              ::llvm::Value *invalid = builder.CreateICmpUGE(
-                  count,
-                  ::llvm::ConstantInt::get(count->getType(),
-                                           operand_type.bit_width()),
-                  "shift.count.invalid");
-              ::llvm::Function *function =
-                  builder.GetInsertBlock()->getParent();
-              auto *panic_block = ::llvm::BasicBlock::Create(
-                  context_, "shift.count.panic", function);
-              auto *valid_block =
-                  ::llvm::BasicBlock::Create(context_, "shift.count.valid");
-              builder.CreateCondBr(invalid, panic_block, valid_block);
-              builder.SetInsertPoint(panic_block);
-              emit_integer_panic("shift count exceeds operand width\n",
-                                 node.location, builder);
-              function->insert(function->end(), valid_block);
-              builder.SetInsertPoint(valid_block);
-              count = builder.CreateIntCast(count, left->getType(), false,
-                                            "shift.count");
-              if (node.operation == janus::ast::BinaryOperator::ShiftLeft)
-                return builder.CreateShl(left, count, "shift.left");
-              return operand_type.is_signed()
-                         ? builder.CreateAShr(left, count, "shift.right")
-                         : builder.CreateLShr(left, count, "shift.right");
+              return emit_controlled_binary_operation(
+                  node.operation, left, count, operand_type, node.location,
+                  builder);
             }
             ::llvm::Value *right = emit_expression(
                 *node.right, operand_type, substitutions, locals, builder);
@@ -4919,30 +4980,16 @@ private:
 
             switch (node.operation) {
             case janus::ast::BinaryOperator::Add:
-              return is_floating ? builder.CreateFAdd(left, right, "add")
-                                 : builder.CreateAdd(left, right, "add");
             case janus::ast::BinaryOperator::Subtract:
-              return is_floating ? builder.CreateFSub(left, right, "sub")
-                                 : builder.CreateSub(left, right, "sub");
             case janus::ast::BinaryOperator::Multiply:
-              return is_floating ? builder.CreateFMul(left, right, "mul")
-                                 : builder.CreateMul(left, right, "mul");
             case janus::ast::BinaryOperator::Divide:
-              return is_floating
-                         ? builder.CreateFDiv(left, right, "div")
-                         : emit_integer_division(left, right, operand_type,
-                                                 false, is_unsigned_integer,
-                                                 node.location, builder);
             case janus::ast::BinaryOperator::Remainder:
-              return emit_integer_division(left, right, operand_type, true,
-                                           is_unsigned_integer, node.location,
-                                           builder);
             case janus::ast::BinaryOperator::BitwiseAnd:
-              return builder.CreateAnd(left, right, "bitwise.and");
             case janus::ast::BinaryOperator::BitwiseXor:
-              return builder.CreateXor(left, right, "bitwise.xor");
             case janus::ast::BinaryOperator::BitwiseOr:
-              return builder.CreateOr(left, right, "bitwise.or");
+              return emit_controlled_binary_operation(
+                  node.operation, left, right, operand_type, node.location,
+                  builder);
             case janus::ast::BinaryOperator::ShiftLeft:
             case janus::ast::BinaryOperator::ShiftRight:
               return nullptr;

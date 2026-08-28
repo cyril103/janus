@@ -771,6 +771,11 @@ bool semantic_operator(janus::frontend::TokenKind kind) {
   using janus::frontend::TokenKind;
   switch (kind) {
   case TokenKind::EqualEqual: case TokenKind::Bang: case TokenKind::BangEqual:
+  case TokenKind::PlusEqual: case TokenKind::MinusEqual:
+  case TokenKind::StarEqual: case TokenKind::SlashEqual:
+  case TokenKind::PercentEqual: case TokenKind::AmpersandEqual:
+  case TokenKind::PipeEqual: case TokenKind::CaretEqual:
+  case TokenKind::ShiftLeftEqual: case TokenKind::ShiftRightEqual:
   case TokenKind::Plus: case TokenKind::Minus: case TokenKind::Star:
   case TokenKind::Slash: case TokenKind::Percent: case TokenKind::Less:
   case TokenKind::LessEqual: case TokenKind::Greater: case TokenKind::GreaterEqual:

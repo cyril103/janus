@@ -1,6 +1,6 @@
 import bridge_access
 
 def main() : int {
-    shared_access.counter = 7
+    shared_access.counter += 7
     return 0
 }

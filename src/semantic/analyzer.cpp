@@ -3654,6 +3654,114 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           }
           return substitutions;
         };
+    const auto binary_result_type =
+        [&](ast::BinaryOperator operation, const SemanticType &left_type,
+            const SemanticType &right_type,
+            SourceLocation location) -> SemanticType {
+      const bool is_shift = operation == ast::BinaryOperator::ShiftLeft ||
+                            operation == ast::BinaryOperator::ShiftRight;
+      if (is_shift) {
+        if (!left_type.is_concrete() ||
+            !left_type.concrete->is_integer())
+          throw CompileError{
+              location, "shift operators require an integer left operand"};
+        if (!right_type.is_concrete() ||
+            right_type.concrete->kind() != TypeKind::USize)
+          throw CompileError{location, "shift count must have type usize"};
+        return left_type;
+      }
+      if (!same_type(left_type, right_type)) {
+        const bool bitwise = operation == ast::BinaryOperator::BitwiseAnd ||
+                             operation == ast::BinaryOperator::BitwiseXor ||
+                             operation == ast::BinaryOperator::BitwiseOr;
+        throw CompileError{
+            location,
+            std::string{bitwise ? "bitwise operands must have the same integer "
+                                  "type, got '"
+                                : "binary operator operands must have the same "
+                                  "type, got '"} +
+                left_type.name() + "' and '" + right_type.name() + "'"};
+      }
+
+      const bool is_concrete = left_type.is_concrete();
+      const TypeKind kind =
+          is_concrete ? left_type.concrete->kind() : TypeKind::Int;
+      const bool is_numeric =
+          is_concrete && (left_type.concrete->is_integer() ||
+                          left_type.concrete->is_floating_point());
+      const bool is_orderable =
+          is_numeric || (is_concrete && kind == TypeKind::Char);
+
+      switch (operation) {
+      case ast::BinaryOperator::Add:
+      case ast::BinaryOperator::Subtract:
+      case ast::BinaryOperator::Multiply:
+      case ast::BinaryOperator::Divide:
+        if (!is_numeric)
+          throw CompileError{
+              location,
+              "arithmetic operators require operands of type 'int', 'byte', "
+              "'usize', or 'double'"};
+        return left_type;
+      case ast::BinaryOperator::Remainder:
+        if (!is_concrete || !left_type.concrete->is_integer())
+          throw CompileError{location,
+                             "operator '%' requires integer operands"};
+        return left_type;
+      case ast::BinaryOperator::BitwiseAnd:
+      case ast::BinaryOperator::BitwiseXor:
+      case ast::BinaryOperator::BitwiseOr:
+        if (!is_concrete || !left_type.concrete->is_integer())
+          throw CompileError{location,
+                             "bitwise operators require integer operands"};
+        return left_type;
+      case ast::BinaryOperator::ShiftLeft:
+      case ast::BinaryOperator::ShiftRight:
+        return left_type;
+      case ast::BinaryOperator::Less:
+      case ast::BinaryOperator::LessEqual:
+      case ast::BinaryOperator::Greater:
+      case ast::BinaryOperator::GreaterEqual:
+        if (!is_orderable)
+          throw CompileError{
+              location,
+              "comparison operators require operands of type 'int', 'byte', "
+              "'usize', 'double', or 'char'"};
+        return SemanticType{&Type::bool_type(), {}};
+      case ast::BinaryOperator::Equal:
+      case ast::BinaryOperator::NotEqual:
+        if (!is_concrete && !left_type.is_pointer() && !left_type.is_enum() &&
+            !left_type.is_class() &&
+            !supports_derivation(left_type, ast::DerivationKind::Equality))
+          throw CompileError{
+              location, "equality operators require primitive operands"};
+        if (left_type.is_class() &&
+            !supports_derivation(left_type, ast::DerivationKind::Equality))
+          throw CompileError{location, "type '" + left_type.name() +
+                                           "' does not derive Equality"};
+        if (left_type.is_enum()) {
+          const ast::EnumDeclaration &declaration =
+              *enums.at(left_type.parameter);
+          const bool has_payload = std::any_of(
+              declaration.cases.begin(), declaration.cases.end(),
+              [](const ast::EnumDeclaration::Case &enum_case) {
+                return !enum_case.payload_types.empty();
+              });
+          if (has_payload &&
+              !supports_derivation(left_type, ast::DerivationKind::Equality))
+            throw CompileError{location, "enum '" + left_type.name() +
+                                             "' does not derive Equality"};
+        }
+        return SemanticType{&Type::bool_type(), {}};
+      case ast::BinaryOperator::LogicalAnd:
+      case ast::BinaryOperator::LogicalOr:
+        if (!is_concrete || kind != TypeKind::Bool)
+          throw CompileError{
+              location, "logical operators require operands of type 'bool'"};
+        return SemanticType{&Type::bool_type(), {}};
+      }
+      throw CompileError{location, "unsupported binary operator"};
+    };
 
     validate_expression = [&](const ast::Expression &expression,
                               const SemanticType &expected,
@@ -6374,123 +6482,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               } else {
                 right_type = expression_type(*node.right);
               }
-              if (is_shift) {
-                if (!left_type.is_concrete() ||
-                    !left_type.concrete->is_integer())
-                  throw CompileError{
-                      node.location,
-                      "shift operators require an integer left operand"};
-                if (!right_type.is_concrete() ||
-                    right_type.concrete->kind() != TypeKind::USize)
-                  throw CompileError{node.location,
-                                     "shift count must have type usize"};
-                return left_type;
-              }
-              if (!same_type(left_type, right_type)) {
-                const bool bitwise =
-                    node.operation == ast::BinaryOperator::BitwiseAnd ||
-                    node.operation == ast::BinaryOperator::BitwiseXor ||
-                    node.operation == ast::BinaryOperator::BitwiseOr;
-                throw CompileError{
-                    node.location,
-                    std::string{bitwise ? "bitwise operands must have the same "
-                                          "integer type, got '"
-                                        : "binary operator operands must have "
-                                          "the same type, got '"} +
-                        left_type.name() + "' and '" + right_type.name() + "'"};
-              }
-
-              const bool is_concrete = left_type.is_concrete();
-              const TypeKind kind =
-                  is_concrete ? left_type.concrete->kind() : TypeKind::Int;
-              const bool is_numeric =
-                  is_concrete && (left_type.concrete->is_integer() ||
-                                  left_type.concrete->is_floating_point());
-              const bool is_orderable =
-                  is_numeric || (is_concrete && kind == TypeKind::Char);
-
-              switch (node.operation) {
-              case ast::BinaryOperator::Add:
-              case ast::BinaryOperator::Subtract:
-              case ast::BinaryOperator::Multiply:
-              case ast::BinaryOperator::Divide:
-                if (!is_numeric) {
-                  throw CompileError{
-                      node.location,
-                      "arithmetic operators require operands of type 'int', "
-                      "'byte', 'usize', or 'double'"};
-                }
-                return left_type;
-              case ast::BinaryOperator::Remainder:
-                if (!is_concrete || !left_type.concrete->is_integer()) {
-                  throw CompileError{node.location,
-                                     "operator '%' requires integer operands"};
-                }
-                return left_type;
-              case ast::BinaryOperator::BitwiseAnd:
-              case ast::BinaryOperator::BitwiseXor:
-              case ast::BinaryOperator::BitwiseOr:
-                if (!is_concrete || !left_type.concrete->is_integer())
-                  throw CompileError{
-                      node.location,
-                      "bitwise operators require integer operands"};
-                return left_type;
-              case ast::BinaryOperator::ShiftLeft:
-              case ast::BinaryOperator::ShiftRight:
-                return left_type;
-              case ast::BinaryOperator::Less:
-              case ast::BinaryOperator::LessEqual:
-              case ast::BinaryOperator::Greater:
-              case ast::BinaryOperator::GreaterEqual:
-                if (!is_orderable) {
-                  throw CompileError{
-                      node.location,
-                      "comparison operators require operands of type 'int', "
-                      "'byte', 'usize', 'double', or 'char'"};
-                }
-                return SemanticType{&Type::bool_type(), {}};
-              case ast::BinaryOperator::Equal:
-              case ast::BinaryOperator::NotEqual:
-                if (!is_concrete && !left_type.is_pointer() &&
-                    !left_type.is_enum() && !left_type.is_class() &&
-                    !supports_derivation(left_type,
-                                         ast::DerivationKind::Equality)) {
-                  throw CompileError{
-                      node.location,
-                      "equality operators require primitive operands"};
-                }
-                if (left_type.is_class() &&
-                    !supports_derivation(left_type,
-                                         ast::DerivationKind::Equality))
-                  throw CompileError{node.location,
-                                     "type '" + left_type.name() +
-                                         "' does not derive Equality"};
-                if (left_type.is_enum()) {
-                  const ast::EnumDeclaration &declaration =
-                      *enums.at(left_type.parameter);
-                  const bool has_payload = std::any_of(
-                      declaration.cases.begin(), declaration.cases.end(),
-                      [](const ast::EnumDeclaration::Case &enum_case) {
-                        return !enum_case.payload_types.empty();
-                      });
-                  if (has_payload &&
-                      !supports_derivation(left_type,
-                                           ast::DerivationKind::Equality))
-                    throw CompileError{node.location,
-                                       "enum '" + left_type.name() +
-                                           "' does not derive Equality"};
-                }
-                return SemanticType{&Type::bool_type(), {}};
-              case ast::BinaryOperator::LogicalAnd:
-              case ast::BinaryOperator::LogicalOr:
-                if (!is_concrete || kind != TypeKind::Bool) {
-                  throw CompileError{
-                      node.location,
-                      "logical operators require operands of type 'bool'"};
-                }
-                return SemanticType{&Type::bool_type(), {}};
-              }
-              throw CompileError{node.location, "unsupported binary operator"};
+              return binary_result_type(node.operation, left_type, right_type,
+                                        node.location);
             }
           },
           expression.value);
@@ -6516,6 +6509,34 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto *call = std::get_if<ast::CallExpression>(&value.value);
       return call != nullptr && call->callee == "null";
     };
+    const auto validate_assignment_expression =
+        [&](const ast::AssignmentStatement &assignment,
+            const SemanticType &target_type) {
+          if (assignment.operation == ast::AssignmentOperator::Assign) {
+            validate_expression(assignment.expression, target_type,
+                                assignment.location);
+            return;
+          }
+          const ast::BinaryOperator binary_operation =
+              *ast::assignment_binary_operator(assignment.operation);
+          const bool is_shift =
+              binary_operation == ast::BinaryOperator::ShiftLeft ||
+              binary_operation == ast::BinaryOperator::ShiftRight;
+          SemanticType right_type;
+          if (is_shift) {
+            right_type = SemanticType{&Type::usize_type()};
+            static_cast<void>(binary_result_type(
+                binary_operation, target_type, right_type,
+                assignment.location));
+            validate_expression(assignment.expression,
+                                right_type, assignment.location);
+            return;
+          } else {
+            right_type = expression_type(assignment.expression);
+          }
+          static_cast<void>(binary_result_type(
+              binary_operation, target_type, right_type, assignment.location));
+        };
 
     std::unordered_map<std::string, constant::Value> local_constants;
     validate_block = [&](const std::vector<ast::Statement> &statements,
@@ -7011,6 +7032,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "cannot assign to immutable global value '" +
                                        assignment->object + "." +
                                        assignment->name + "'"};
+              if (assignment->operation != ast::AssignmentOperator::Assign &&
+                  !global->symbol.is_initialized)
+                throw CompileError{assignment->location,
+                                   "global variable '" + spelling +
+                                       "' is used before initialization"};
               result.qualified_global_writes.insert_or_assign(
                   assignment,
                   global_key(global->declaration->module_name,
@@ -7023,8 +7049,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "value '" + source->name +
                         "' contains a live borrow and cannot be stored in a "
                         "global value"};
-              validate_expression(assignment->expression, global->symbol.type,
-                                  assignment->location);
+              validate_assignment_expression(*assignment, global->symbol.type);
               continue;
             }
             const auto object = block_symbols.find(assignment->object);
@@ -7084,8 +7109,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   "value '" + source->name +
                       "' contains a live borrow and cannot be stored in field '" +
                       assignment->name + "'"};
-            validate_expression(assignment->expression, field_type,
-                                assignment->location);
+            validate_assignment_expression(*assignment, field_type);
             if (potentially_owns_value(field_type))
               emit_warning(
                   DiagnosticCode::AnalyzerOwningFieldOverwritten,
@@ -7109,6 +7133,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{assignment->location,
                                  "cannot assign to immutable global value '" +
                                      assignment->name + "'"};
+            if (assignment->operation != ast::AssignmentOperator::Assign &&
+                !global->is_initialized)
+              throw CompileError{assignment->location,
+                                 "global variable '" + assignment->name +
+                                     "' is used before initialization"};
             if (const auto *source = std::get_if<ast::IdentifierExpression>(
                     &assignment->expression.value);
                 source != nullptr && borrow_sources.contains(source->name))
@@ -7118,10 +7147,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   "value '" + source->name +
                       "' contains a live borrow and cannot be stored in a "
                       "global value"};
-            validate_expression(assignment->expression, global->type,
-                                assignment->location);
+            validate_assignment_expression(*assignment, global->type);
             continue;
           }
+          if (assignment->operation != ast::AssignmentOperator::Assign &&
+              !iterator->second.is_initialized)
+            throw CompileError{assignment->location,
+                               "variable '" + assignment->name +
+                                   "' is used before initialization"};
           if (const auto borrowed = borrow_sources.find(assignment->name);
               borrowed != borrow_sources.end() &&
               !shared_borrow_values.contains(assignment->name) &&
@@ -7183,8 +7216,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               transfer_protected_values.contains(assignment->name);
           if (reinitializes_moved_loop_owner)
             transfer_protected_values.erase(assignment->name);
-          validate_expression(assignment->expression, iterator->second.type,
-                              assignment->location);
+          validate_assignment_expression(*assignment, iterator->second.type);
           if (was_transfer_protected)
             transfer_protected_values.insert(assignment->name);
           if (self_reallocation)

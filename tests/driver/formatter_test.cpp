@@ -193,6 +193,21 @@ int main() {
               << formatted_guarded_match;
     return 1;
   }
+  const std::string compound_assignments =
+      "def update() : int {\nvar x:int=1\nx+=2 // keep rhs\n"
+      "x-=3 x*=4\nx/=5\nx%=6\nx&=7\nx|=8\nx^=9\nx<<=1\nx>>=2\nreturn x\n}\n";
+  const std::string formatted_compound =
+      janus::driver::format_source(compound_assignments);
+  if (formatted_compound.find("    x += 2 // keep rhs\n") ==
+          std::string::npos ||
+      formatted_compound.find("    x -= 3 x *= 4\n") ==
+          std::string::npos ||
+      formatted_compound.find("    x <<= 1\n") == std::string::npos ||
+      janus::driver::format_source(formatted_compound) != formatted_compound) {
+    std::cerr << "compound assignments are not canonical, comment-safe and idempotent:\n"
+              << formatted_compound;
+    return 1;
+  }
   std::cout << "Janus formatting is deterministic\n";
   return 0;
 }

@@ -36,6 +36,12 @@ Cette section publie les guides canoniques du dépôt. Ils sont copiés à chaqu
 
 ## Référence canonique des opérateurs entiers
 
+Les affectations composées `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`,
+`<<=` et `>>=` sont des instructions. Elles exigent une cible mutable et
+réutilisent sans conversion supplémentaire le contrat de l'opérateur binaire
+correspondant. La cible est résolue une fois, avant le côté droit, lui-même
+évalué exactement une fois.
+
 `&`, `^` et `|` exigent deux entiers du même type. `<<` et `>>` exigent un
 entier à gauche et un `usize` à droite. Le résultat conserve le type gauche ;
 `>>` est logique sur un type non signé et arithmétique sur un type signé. Le

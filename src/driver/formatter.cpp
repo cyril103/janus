@@ -70,6 +70,63 @@ DelimiterCounts leading_closes(std::string_view line) {
   return counts;
 }
 
+std::string canonicalize_compound_assignment(std::string_view line) {
+  std::string result;
+  result.reserve(line.size());
+  char quote = '\0';
+  bool escaped = false;
+  for (std::size_t index = 0; index < line.size();) {
+    const char character = line[index];
+    if (quote != '\0') {
+      result.push_back(character);
+      ++index;
+      if (escaped)
+        escaped = false;
+      else if (character == '\\')
+        escaped = true;
+      else if (character == quote)
+        quote = '\0';
+      continue;
+    }
+    if (character == '"' || character == '\'') {
+      quote = character;
+      result.push_back(character);
+      ++index;
+      continue;
+    }
+    if (character == '/' && index + 1 < line.size() && line[index + 1] == '/') {
+      result.append(line.substr(index));
+      break;
+    }
+    const bool three = index + 2 < line.size() && line[index + 2] == '=' &&
+                       ((character == '<' && line[index + 1] == '<') ||
+                        (character == '>' && line[index + 1] == '>'));
+    const bool two = index + 1 < line.size() && line[index + 1] == '=' &&
+                     std::string_view{"+-*/%&|^"}.find(character) !=
+                         std::string_view::npos;
+    if (!three && !two) {
+      result.push_back(character);
+      ++index;
+      continue;
+    }
+
+    while (!result.empty() &&
+           std::isspace(static_cast<unsigned char>(result.back())))
+      result.pop_back();
+    if (!result.empty())
+      result.push_back(' ');
+    const std::size_t length = three ? 3 : 2;
+    result.append(line.substr(index, length));
+    index += length;
+    while (index < line.size() &&
+           std::isspace(static_cast<unsigned char>(line[index])))
+      ++index;
+    if (index < line.size())
+      result.push_back(' ');
+  }
+  return result;
+}
+
 } // namespace
 
 namespace janus::driver {
@@ -121,7 +178,10 @@ std::string format_source(std::string_view source,
   int continuation_depth = 0;
   std::size_t blank_lines = 0;
   while (std::getline(input, line)) {
-    const std::string_view content = trim(line);
+    const std::string_view trimmed_content = trim(line);
+    const std::string normalized =
+        canonicalize_compound_assignment(trimmed_content);
+    const std::string_view content = normalized;
     if (content.empty()) {
       if (blank_lines < options.max_blank_lines)
         output << '\n';

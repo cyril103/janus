@@ -1213,9 +1213,28 @@ ast::AssignmentStatement Parser::parse_assignment_statement() {
     object = std::move(name);
     name = std::string{expect(TokenKind::Identifier).lexeme};
   }
-  static_cast<void>(expect(TokenKind::Equal));
-  return ast::AssignmentStatement{std::move(object), std::move(name),
+  const Token operation = current_;
+  advance();
+  ast::AssignmentOperator assignment_operation;
+  switch (operation.kind) {
+  case TokenKind::Equal: assignment_operation = ast::AssignmentOperator::Assign; break;
+  case TokenKind::PlusEqual: assignment_operation = ast::AssignmentOperator::Add; break;
+  case TokenKind::MinusEqual: assignment_operation = ast::AssignmentOperator::Subtract; break;
+  case TokenKind::StarEqual: assignment_operation = ast::AssignmentOperator::Multiply; break;
+  case TokenKind::SlashEqual: assignment_operation = ast::AssignmentOperator::Divide; break;
+  case TokenKind::PercentEqual: assignment_operation = ast::AssignmentOperator::Remainder; break;
+  case TokenKind::AmpersandEqual: assignment_operation = ast::AssignmentOperator::BitwiseAnd; break;
+  case TokenKind::PipeEqual: assignment_operation = ast::AssignmentOperator::BitwiseOr; break;
+  case TokenKind::CaretEqual: assignment_operation = ast::AssignmentOperator::BitwiseXor; break;
+  case TokenKind::ShiftLeftEqual: assignment_operation = ast::AssignmentOperator::ShiftLeft; break;
+  case TokenKind::ShiftRightEqual: assignment_operation = ast::AssignmentOperator::ShiftRight; break;
+  default:
+    throw CompileError{operation.location, "expected assignment operator"};
+  }
+  ast::AssignmentStatement result{std::move(object), std::move(name),
                                   parse_expression(), identifier.location};
+  result.operation = assignment_operation;
+  return result;
 }
 
 ast::DeleteStatement Parser::parse_delete_statement() {
@@ -1943,14 +1962,22 @@ Token Parser::expect(TokenKind kind) {
 }
 
 bool Parser::starts_assignment() const {
+  const auto is_assignment_operator = [](TokenKind kind) {
+    return kind == TokenKind::Equal || kind == TokenKind::PlusEqual ||
+           kind == TokenKind::MinusEqual || kind == TokenKind::StarEqual ||
+           kind == TokenKind::SlashEqual || kind == TokenKind::PercentEqual ||
+           kind == TokenKind::AmpersandEqual || kind == TokenKind::PipeEqual ||
+           kind == TokenKind::CaretEqual || kind == TokenKind::ShiftLeftEqual ||
+           kind == TokenKind::ShiftRightEqual;
+  };
   Lexer lookahead = lexer_;
   Token next = lookahead.next();
-  if (next.kind == TokenKind::Equal)
+  if (is_assignment_operator(next.kind))
     return true;
   if (next.kind != TokenKind::Dot)
     return false;
   static_cast<void>(lookahead.next());
-  return lookahead.next().kind == TokenKind::Equal;
+  return is_assignment_operator(lookahead.next().kind);
 }
 
 void Parser::advance() { current_ = lexer_.next(); }

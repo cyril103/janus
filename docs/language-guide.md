@@ -35,8 +35,15 @@ val answer : int = 42
 
 ```janus
 var count : int = 0
-count = count + 1
+count += 1
 ```
+
+Les affectations composées `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`,
+`<<=` et `>>=` mettent à jour une cible mutable avec le contrat de l'opérateur
+binaire correspondant. La cible est résolue une fois, puis l'expression droite
+est évaluée exactement une fois. Elles n'ajoutent aucune conversion implicite,
+ne produisent pas de valeur et conservent les contrôles de division, de reste et
+de décalage de l'opérateur ordinaire.
 
 Dans une fonction, une déclaration initialisée peut omettre son annotation
 lorsque l'initialiseur détermine un type unique :
@@ -91,7 +98,7 @@ val answer : int = 42
 var requests : int = 0
 
 def recordRequest() : Unit {
-    requests = requests + 1
+    requests += 1
 }
 ```
 
@@ -169,7 +176,7 @@ Un export public peut également être utilisé avec le nom canonique de son
 module :
 
 ```janus
-settings.requestCount = settings.requestCount + 1
+settings.requestCount += 1
 ```
 
 Deux modules peuvent déclarer le même nom privé, tandis que deux exports
