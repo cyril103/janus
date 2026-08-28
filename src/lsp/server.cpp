@@ -161,8 +161,12 @@ void collect_local_declarations(
   }
 }
 
-std::unordered_map<std::size_t, std::string>
-analyze_local_types(
+struct AnalyzedTypes {
+  std::unordered_map<std::size_t, std::string> locals;
+  std::unordered_map<std::size_t, std::string> lambda_parameters;
+};
+
+AnalyzedTypes analyze_local_types(
     std::string_view uri, std::string_view source,
     const std::vector<std::filesystem::path> &module_search_paths = {},
     const std::vector<std::filesystem::path> &workspace_search_paths = {},
@@ -206,11 +210,15 @@ analyze_local_types(
   const janus::semantic::AnalysisResult analysis =
       analyzer.analyze(program, janus::semantic::AnalysisOptions{
                                     .require_entry_point = false, .target = {}});
-  std::unordered_map<std::size_t, std::string> result;
+  AnalyzedTypes result;
   for (const auto &[declaration, type] : analysis.local_types)
     if (entry_declarations.contains(declaration) &&
         !declaration->declared_type.has_value())
-      result.insert_or_assign(declaration->location.offset, type.name());
+      result.locals.insert_or_assign(declaration->location.offset, type.name());
+  for (const auto &parameter : analysis.inferred_lambda_parameters)
+    if (parameter.module_name == entry_module)
+      result.lambda_parameters.insert_or_assign(parameter.location.offset,
+                                                parameter.type.name());
   return result;
 }
 
@@ -228,6 +236,7 @@ std::vector<DocumentSymbol> symbols(
   std::unordered_map<std::string, std::string> function_details;
   std::unordered_map<std::size_t, std::string> constant_details;
   std::unordered_map<std::size_t, std::string> analyzed_local_types;
+  std::unordered_map<std::size_t, std::string> analyzed_lambda_parameters;
   try {
     janus::frontend::Parser parser{source};
     const janus::ast::Program program = parser.parse_program();
@@ -274,9 +283,11 @@ std::vector<DocumentSymbol> symbols(
       }
     } catch (const std::exception &) {
     }
-    analyzed_local_types = analyze_local_types(
+    AnalyzedTypes analyzed_types = analyze_local_types(
         uri, source, module_search_paths, workspace_search_paths,
         open_documents);
+    analyzed_local_types = std::move(analyzed_types.locals);
+    analyzed_lambda_parameters = std::move(analyzed_types.lambda_parameters);
   } catch (const std::exception &) {
   }
   struct Scope {
@@ -315,7 +326,14 @@ std::vector<DocumentSymbol> symbols(
     bool is_parameter = false;
     janus::lsp::IndexedSymbolKind symbol_kind =
         janus::lsp::IndexedSymbolKind::Variable;
-    if (token.kind == TokenKind::Const || token.kind == TokenKind::Val ||
+    if (const auto inferred =
+            analyzed_lambda_parameters.find(name.location.offset);
+        inferred != analyzed_lambda_parameters.end()) {
+      detail = "parameter " + std::string{name.lexeme} + " : " +
+               inferred->second;
+      is_parameter = true;
+      symbol_kind = janus::lsp::IndexedSymbolKind::Parameter;
+    } else if (token.kind == TokenKind::Const || token.kind == TokenKind::Val ||
         token.kind == TokenKind::Var) {
       if (token.kind == TokenKind::Const)
         symbol_kind = janus::lsp::IndexedSymbolKind::Constant;
@@ -2817,13 +2835,14 @@ std::vector<std::string> Server::handle(std::string_view message) {
         *range_start <= *range_end) {
       const std::vector<frontend::Token> document_tokens =
           tokens(*document_source);
-      std::unordered_map<std::size_t, std::string> analyzed_types;
+      AnalyzedTypes analyzed_types;
       try {
         analyzed_types =
             analyze_local_types(*uri, *document_source, module_search_paths_,
                                 workspace_search_paths_, &documents_);
       } catch (const std::exception &) {
-        analyzed_types.clear();
+        analyzed_types.locals.clear();
+        analyzed_types.lambda_parameters.clear();
       }
       for (std::size_t index = 0; index + 3 < document_tokens.size(); ++index) {
         if ((document_tokens[index].kind != frontend::TokenKind::Val &&
@@ -2833,12 +2852,12 @@ std::vector<std::string> Server::handle(std::string_view message) {
             document_tokens[index + 2].kind != frontend::TokenKind::Equal)
           continue;
         const auto analyzed =
-            analyzed_types.find(document_tokens[index].location.offset);
+            analyzed_types.locals.find(document_tokens[index].location.offset);
         const std::optional<std::string> fallback =
-            analyzed == analyzed_types.end()
+            analyzed == analyzed_types.locals.end()
                 ? inferred_literal_type(document_tokens, index + 3)
                 : std::nullopt;
-        if (analyzed == analyzed_types.end() && !fallback.has_value())
+        if (analyzed == analyzed_types.locals.end() && !fallback.has_value())
           continue;
         const frontend::Token &name = document_tokens[index + 1];
         const std::size_t hint_offset =
@@ -2848,10 +2867,30 @@ std::vector<std::string> Server::handle(std::string_view message) {
         hints.emplace_back(llvm::json::Object{
             {"position",
              position_at_offset(*document_source, hint_offset)},
-            {"label", ": " + (analyzed != analyzed_types.end()
+            {"label", ": " + (analyzed != analyzed_types.locals.end()
                                     ? analyzed->second
                                     : *fallback)},
             {"kind", 1},
+            {"paddingLeft", false},
+            {"paddingRight", true},
+        });
+      }
+      for (const auto &[offset, type] : analyzed_types.lambda_parameters) {
+        const auto parameter = std::find_if(
+            document_tokens.begin(), document_tokens.end(),
+            [offset](const frontend::Token &candidate) {
+              return candidate.kind == frontend::TokenKind::Identifier &&
+                     candidate.location.offset == offset;
+            });
+        if (parameter == document_tokens.end())
+          continue;
+        const std::size_t hint_offset = offset + parameter->lexeme.size();
+        if (hint_offset < *range_start || hint_offset >= *range_end)
+          continue;
+        hints.emplace_back(llvm::json::Object{
+            {"position", position_at_offset(*document_source, hint_offset)},
+            {"label", ": " + type},
+            {"kind", 2},
             {"paddingLeft", false},
             {"paddingRight", true},
         });

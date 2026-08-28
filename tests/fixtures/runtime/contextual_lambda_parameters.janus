@@ -1,0 +1,47 @@
+import std.array
+
+enum Choice { Some(int), None }
+
+class Box[T](val value : T) {}
+
+def apply[T, U](value : T, callback : (T) => U) : U {
+    val result : U = callback(value)
+    delete callback
+    return result
+}
+
+def combine(callback : (int, int) => int) : int {
+    val result : int = callback(19, 23)
+    delete callback
+    return result
+}
+
+def unwrap(callback : (Choice) => int, choice : Choice) : int {
+    val result : int = callback(choice)
+    delete callback
+    return result
+}
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(2))
+    defer delete values
+    values.push(20)
+    values.push(22)
+    val collectionTotal : int = values.iterator()
+        .map[int](value => value * 2)
+        .filter(value => value > 40)
+        .fold[int](0, (total, value) => total + value)
+    val box : Box[int] = new Box[int](40)
+    val read : (Box[int]) => int = value => value.value
+    val mapped : int = apply(box, value => read(value) + 2)
+    val selected : int = unwrap(
+        value => match value { Some(number) => number, None => 0 },
+        Choice.Some(mapped)
+    )
+    val result : int = combine((left, right) => left + right) + selected +
+        collectionTotal - 86
+    println(result)
+    delete read
+    delete box
+    return 0
+}

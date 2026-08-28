@@ -360,6 +360,30 @@ val edit : (borrow var Document) => Unit =
     (borrow var document : Document) => document.touch()
 ```
 
+Quand un contexte fournit déjà un type de fonction complet et unique, les
+annotations des paramètres de lambda peuvent être omises : `value => ...`,
+`(left, right) => ...` et `() => ...`. Les contrats explicites restent visibles
+avec `(borrow value) => ...` et `(borrow var value) => ...`. Cette omission est
+réservée aux lambdas : les paramètres d'une déclaration `def` restent annotés.
+
+```janus
+def apply(value : int, operation : (int) => int) : int {
+    return operation(value)
+}
+
+def main() : int {
+    val increment : (int) => int = value => value + 1
+    val answer : int = apply(41, value => value + 1)
+    delete increment
+    return answer - 42
+}
+```
+
+Le type attendu est fixé avant l'analyse du corps. Un paramètre nu sans
+contexte, une arité différente, ou un `borrow`/`borrow var` explicite
+incompatible est donc rejeté avec une demande d'annotation ; le corps ne sert
+jamais à choisir une surcharge ou à reconstruire la signature.
+
 Ces callbacks ne prennent pas possession de leur argument. `borrow var`
 transmet l'emplacement mutable lui-même : une modification effectuée par le
 callback reste visible après l'appel. Deux types de fonction qui diffèrent par

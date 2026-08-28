@@ -3186,6 +3186,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto mutable_borrow_values_before = mutable_borrow_values;
       const auto borrow_sources_before = borrow_sources;
       const auto inferred_calls_before = result.inferred_generic_arguments;
+      const std::size_t inferred_lambda_parameters_before =
+          result.inferred_lambda_parameters.size();
       const auto resolved_calls_before = resolved_calls;
       const std::optional<std::unordered_set<std::string>>
           active_captures_before =
@@ -3227,6 +3229,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         mutable_borrow_values = mutable_borrow_values_before;
         borrow_sources = borrow_sources_before;
         result.inferred_generic_arguments = inferred_calls_before;
+        result.inferred_lambda_parameters.resize(
+            inferred_lambda_parameters_before);
         resolved_calls = resolved_calls_before;
         if (active_captures_before.has_value())
           *active_lambda_captures_before = *active_captures_before;
@@ -3480,6 +3484,33 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
              ++index) {
           const SemanticType pattern = resolve_type(
               callee.parameters[index].type, callee_parameters, &class_arities);
+          if (const auto *lambda = std::get_if<ast::LambdaExpression>(
+                  &arguments[index]->value);
+              lambda != nullptr &&
+              std::any_of(lambda->parameters.begin(), lambda->parameters.end(),
+                          [](const ast::LambdaExpression::Parameter &parameter) {
+                            return !parameter.type.has_value();
+                          })) {
+            if (pattern.is_function() &&
+                pattern.type_arguments.size() ==
+                    lambda->parameters.size() + 1)
+              for (std::size_t parameter_index = 0;
+                   parameter_index < lambda->parameters.size();
+                   ++parameter_index) {
+                const auto &parameter = lambda->parameters[parameter_index];
+                if (!parameter.type.has_value())
+                  continue;
+                SemanticType explicit_type = resolve_type(
+                    *parameter.type, *active_type_parameters, &class_arities);
+                if (active_type_substitutions != nullptr)
+                  explicit_type = substitute(std::move(explicit_type),
+                                             *active_type_substitutions);
+                infer_from_type(infer_from_type,
+                                pattern.type_arguments[parameter_index],
+                                explicit_type);
+              }
+            continue;
+          }
           const SemanticType candidate =
               speculative_expression_type(*arguments[index]);
           infer_from_type(infer_from_type, pattern, candidate);
@@ -4071,15 +4102,42 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               signature.reserve(node.parameters.size() + 1);
               lambda_ownerships.reserve(node.parameters.size());
               try {
+                if (contextual_expected_type != nullptr &&
+                    contextual_expected_type->is_function() &&
+                    contextual_expected_type->type_arguments.size() !=
+                        node.parameters.size() + 1)
+                  throw CompileError{
+                      node.location,
+                      "lambda expects " +
+                          std::to_string(
+                              contextual_expected_type->type_arguments.size() -
+                              1) +
+                          " parameter(s), got " +
+                          std::to_string(node.parameters.size())};
                 for (const ast::LambdaExpression::Parameter &parameter :
                      node.parameters) {
                   if (!parameter_names.insert(parameter.name).second)
                     throw CompileError{parameter.location,
                                        "lambda parameter '" + parameter.name +
                                            "' is already declared"};
-                  SemanticType parameter_type = resolve_type(
-                      parameter.type, *active_type_parameters, &class_arities);
-                  if (active_type_substitutions != nullptr)
+                  const std::size_t parameter_index = signature.size();
+                  if (!parameter.type.has_value() &&
+                      (contextual_expected_type == nullptr ||
+                       !contextual_expected_type->is_function()))
+                    throw CompileError{
+                        parameter.location,
+                        "lambda parameter '" + parameter.name +
+                            "' requires a type annotation because no unique "
+                            "function type is expected"};
+                  SemanticType parameter_type =
+                      parameter.type.has_value()
+                          ? resolve_type(*parameter.type,
+                                         *active_type_parameters,
+                                         &class_arities)
+                          : contextual_expected_type
+                                ->type_arguments[parameter_index];
+                  if (parameter.type.has_value() &&
+                      active_type_substitutions != nullptr)
                     parameter_type = substitute(std::move(parameter_type),
                                                 *active_type_substitutions);
                   if (parameter_type.is_concrete() &&
@@ -4089,7 +4147,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "Unit cannot be used as a lambda parameter type"};
                   ast::ParameterOwnership effective_ownership =
                       parameter.ownership;
-                  const std::size_t parameter_index = signature.size();
+                  const ast::ParameterOwnership expected_ownership =
+                      contextual_expected_type != nullptr &&
+                              contextual_expected_type->is_function() &&
+                              parameter_index < contextual_expected_type
+                                                    ->function_parameter_ownership
+                                                    .size()
+                          ? contextual_expected_type
+                                ->function_parameter_ownership[parameter_index]
+                          : ast::ParameterOwnership::Unspecified;
+                  if (effective_ownership !=
+                          ast::ParameterOwnership::Unspecified &&
+                      contextual_expected_type != nullptr &&
+                      contextual_expected_type->is_function() &&
+                      effective_ownership != expected_ownership)
+                    throw CompileError{
+                        parameter.location,
+                        "lambda parameter '" + parameter.name +
+                            "' has explicit ownership incompatible with the "
+                            "expected function type"};
                   if (effective_ownership ==
                           ast::ParameterOwnership::Unspecified &&
                       contextual_expected_type != nullptr &&
@@ -4101,6 +4177,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         contextual_expected_type
                             ->function_parameter_ownership[parameter_index];
                   signature.push_back(parameter_type);
+                  if (!parameter.type.has_value())
+                    result.inferred_lambda_parameters.push_back(
+                        AnalysisResult::InferredLambdaParameter{
+                            context_module, parameter.location,
+                            parameter_type});
                   lambda_ownerships.push_back(effective_ownership);
                   lambda_symbols.insert_or_assign(
                       parameter.name,
@@ -5761,6 +5842,39 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       resolve_type(method->parameters[index].type,
                                    method_parameters, &class_arities);
                   pattern = substitute(std::move(pattern), substitutions);
+                  if (const auto *lambda =
+                          std::get_if<ast::LambdaExpression>(
+                              &node.arguments[index]->value);
+                      lambda != nullptr &&
+                      std::any_of(
+                          lambda->parameters.begin(), lambda->parameters.end(),
+                          [](const ast::LambdaExpression::Parameter &parameter) {
+                            return !parameter.type.has_value();
+                          })) {
+                    if (pattern.is_function() &&
+                        pattern.type_arguments.size() ==
+                            lambda->parameters.size() + 1)
+                      for (std::size_t parameter_index = 0;
+                           parameter_index < lambda->parameters.size();
+                           ++parameter_index) {
+                        const auto &parameter =
+                            lambda->parameters[parameter_index];
+                        if (!parameter.type.has_value())
+                          continue;
+                        SemanticType explicit_type = resolve_type(
+                            *parameter.type, *active_type_parameters,
+                            &class_arities);
+                        if (active_type_substitutions != nullptr)
+                          explicit_type = substitute(
+                              std::move(explicit_type),
+                              *active_type_substitutions);
+                        infer_from_type(
+                            infer_from_type,
+                            pattern.type_arguments[parameter_index],
+                            explicit_type);
+                      }
+                    continue;
+                  }
                   const SemanticType candidate =
                       speculative_expression_type(*node.arguments[index]);
                   infer_from_type(infer_from_type, pattern, candidate);

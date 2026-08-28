@@ -85,6 +85,14 @@ val isLarge : (int) => bool =
     (value : int) => value > threshold
 ```
 
+Si la variable, l'argument d'appel ou le retour impose déjà une signature de
+fonction unique, le type peut être omis : `value => value * 2`,
+`(left, right) => left + right` et `() => 42`. Les formes
+`(borrow value) => ...` et `(borrow var value) => ...` conservent explicitement
+le contrat de propriété sans répéter le type. Cette règle ne s'applique jamais
+aux paramètres d'une déclaration `def`, et une lambda sans contexte doit rester
+annotée.
+
 Une valeur closure est une ressource : conservez-la dans une liaison et libérez-la avec `delete`. Lorsqu’une API consomme la closure, comme de nombreux adaptateurs d’itérateurs, elle prend en charge cette destruction selon son contrat.
 
 Le corps peut aussi être un bloc d'instructions Janus complet : déclarations,

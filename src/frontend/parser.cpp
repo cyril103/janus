@@ -1543,6 +1543,30 @@ ast::Expression Parser::parse_unary() {
 }
 
 ast::Expression Parser::parse_primary() {
+  if (current_.kind == TokenKind::Identifier) {
+    Lexer lookahead = lexer_;
+    if (lookahead.next().kind == TokenKind::Arrow) {
+      const Token name = expect(TokenKind::Identifier);
+      static_cast<void>(expect(TokenKind::Arrow));
+      std::vector<ast::LambdaExpression::Parameter> parameters;
+      parameters.push_back(ast::LambdaExpression::Parameter{
+          std::string{name.lexeme}, std::nullopt, name.location,
+          ast::ParameterOwnership::Unspecified});
+      if (current_.kind == TokenKind::LeftBrace) {
+        const SourceLocation block_location = current_.location;
+        return ast::LambdaExpression{
+            std::move(parameters),
+            std::make_shared<ast::LambdaBlock>(
+                ast::LambdaBlock{parse_block(), block_location}),
+            name.location};
+      }
+      return ast::LambdaExpression{
+          std::move(parameters),
+          std::make_unique<ast::Expression>(parse_expression()),
+          name.location};
+    }
+  }
+
   if (current_.kind == TokenKind::LeftBracket) {
     const Token opening = expect(TokenKind::LeftBracket);
     std::vector<std::unique_ptr<ast::Expression>> elements;
@@ -1637,7 +1661,18 @@ ast::Expression Parser::parse_primary() {
       std::unique_ptr<ast::Expression> guard;
       if (current_.kind == TokenKind::If) {
         advance();
-        guard = std::make_unique<ast::Expression>(parse_expression());
+        Lexer guard_lookahead = lexer_;
+        if (current_.kind == TokenKind::Identifier &&
+            guard_lookahead.next().kind == TokenKind::Arrow) {
+          // In `case if predicate => body`, the arrow terminates the match
+          // arm; it does not start a bare-parameter lambda.
+          const Token identifier = expect(TokenKind::Identifier);
+          guard = std::make_unique<ast::Expression>(
+              ast::IdentifierExpression{std::string{identifier.lexeme},
+                                        identifier.location});
+        } else {
+          guard = std::make_unique<ast::Expression>(parse_expression());
+        }
       }
       static_cast<void>(expect(TokenKind::Arrow));
       arms.push_back(ast::MatchExpression::Arm{
@@ -1689,9 +1724,13 @@ ast::Expression Parser::parse_primary() {
             }
           }
           const Token name = expect(TokenKind::Identifier);
-          static_cast<void>(expect(TokenKind::Colon));
+          std::optional<ast::TypeReference> type;
+          if (current_.kind == TokenKind::Colon) {
+            advance();
+            type = parse_type();
+          }
           parameters.push_back(ast::LambdaExpression::Parameter{
-              std::string{name.lexeme}, parse_type(), name.location,
+              std::string{name.lexeme}, std::move(type), name.location,
               ownership});
           if (current_.kind != TokenKind::Comma)
             break;
@@ -1973,15 +2012,37 @@ bool Parser::starts_lambda() const {
   const Token first = lookahead.next();
   if (first.kind == TokenKind::RightParen)
     return lookahead.next().kind == TokenKind::Arrow;
-  Token parameter = first;
-  if (parameter.kind == TokenKind::Borrow) {
-    parameter = lookahead.next();
-    if (parameter.kind == TokenKind::Var)
-      parameter = lookahead.next();
+  Token token = first;
+  while (true) {
+    if (token.kind == TokenKind::Borrow) {
+      token = lookahead.next();
+      if (token.kind == TokenKind::Var)
+        token = lookahead.next();
+    }
+    if (token.kind != TokenKind::Identifier)
+      return false;
+    token = lookahead.next();
+    if (token.kind == TokenKind::Colon) {
+      int brackets = 0;
+      do {
+        token = lookahead.next();
+        if (token.kind == TokenKind::LeftBracket ||
+            token.kind == TokenKind::LeftParen)
+          ++brackets;
+        else if (token.kind == TokenKind::RightBracket ||
+                 (token.kind == TokenKind::RightParen && brackets > 0))
+          --brackets;
+      } while (brackets > 0 ||
+               (token.kind != TokenKind::Comma &&
+                token.kind != TokenKind::RightParen &&
+                token.kind != TokenKind::End));
+    }
+    if (token.kind == TokenKind::RightParen)
+      return lookahead.next().kind == TokenKind::Arrow;
+    if (token.kind != TokenKind::Comma)
+      return false;
+    token = lookahead.next();
   }
-  if (parameter.kind != TokenKind::Identifier)
-    return false;
-  return lookahead.next().kind == TokenKind::Colon;
 }
 
 Token Parser::expect(TokenKind kind) {

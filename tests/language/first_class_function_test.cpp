@@ -4,8 +4,10 @@
 #include "janus/semantic/analyzer.hpp"
 
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -30,9 +32,11 @@ void expect_compile_error(std::string_view source,
     static_cast<void>(analyzer.analyze(program));
     expect(false, "invalid first-class function program must fail");
   } catch (const janus::CompileError &error) {
-    expect(std::string_view{error.what()}.find(expected_message) !=
-               std::string_view::npos,
-           "function value error contains the expected explanation");
+    const bool matches = std::string_view{error.what()}.find(expected_message) !=
+                         std::string_view::npos;
+    if (!matches)
+      std::cerr << "unexpected diagnostic: " << error.what() << '\n';
+    expect(matches, "function value error contains the expected explanation");
   }
 }
 
@@ -42,7 +46,8 @@ void expect_analyzes(std::string_view source, std::string_view message) {
     janus::semantic::Analyzer analyzer;
     static_cast<void>(analyzer.analyze(parser.parse_program()));
     expect(true, message);
-  } catch (const janus::CompileError &) {
+  } catch (const janus::CompileError &error) {
+    std::cerr << "unexpected compile error: " << error.what() << '\n';
     expect(false, message);
   }
 }
@@ -50,6 +55,124 @@ void expect_analyzes(std::string_view source, std::string_view message) {
 } // namespace
 
 int main() {
+  {
+    janus::frontend::Parser warning_parser{R"(
+class Resource(val marker : int) {}
+def makeReader() : (int) => int {
+    val resource : Resource = new Resource(41)
+    return value => value + resource.marker
+}
+def main() : int { return 0 }
+)"};
+    janus::semantic::Analyzer warning_analyzer;
+    const janus::semantic::AnalysisResult warning_analysis =
+        warning_analyzer.analyze(warning_parser.parse_program());
+    const std::size_t escaping_capture_warnings = std::count_if(
+        warning_analysis.diagnostics.begin(), warning_analysis.diagnostics.end(),
+        [](const janus::Diagnostic &diagnostic) {
+          return diagnostic.code ==
+                 janus::DiagnosticCode::AnalyzerEscapingOwningCapture;
+        });
+    expect(escaping_capture_warnings == 1,
+           "contextual inference emits an existing warning exactly once");
+  }
+
+  expect_analyzes(
+      R"(
+enum Choice { First, Second }
+class Box[T](val value : T) {}
+class Calculator() {
+    def combine(callback : (int, int) => int) : int {
+        return callback(20, 22)
+    }
+    def apply[T](value : T, callback : (T) => int) : int {
+        return callback(value)
+    }
+    def mixed[T](callback : (T, T) => int) : int {
+        return 0
+    }
+}
+def apply[T, U](value : T, callback : (T) => U) : U {
+    return callback(value)
+}
+def mixed[T](callback : (T, T) => int) : int {
+    return 0
+}
+def chooseFactory() : (Choice) => int {
+    return choice => match choice { First => 1, Second => 2 }
+}
+def main() : int {
+    val increment : (int) => int = value => value + 1
+    val add : (int, int) => int = (left, right) => left + right
+    val constant : () => int = () => 7
+    val boxed : Box[int] = new Box[int](40)
+    val unbox : (Box[int]) => int = value => value.value
+    val fromFunction : int = apply(1, value => value + 1)
+    val calculator : Calculator = new Calculator()
+    val fromMethod : int = calculator.combine((left, right) => left + right)
+    val fromGenericMethod : int = calculator.apply(41, value => value + 1)
+    val fromMixedFunction : int = mixed((left : int, right) => left + right)
+    val fromMixedMethod : int =
+        calculator.mixed((left : int, right) => left + right)
+    val chooser = chooseFactory()
+    val result : int = increment(unbox(boxed)) + add(fromFunction, fromMethod) +
+        constant() + chooser(Choice.First()) + fromGenericMethod +
+        fromMixedFunction + fromMixedMethod - 126
+    delete chooser
+    delete calculator
+    delete unbox
+    delete boxed
+    delete constant
+    delete add
+    delete increment
+    return result
+}
+)",
+      "context supplies bare lambda parameter types before their bodies");
+
+  expect_analyzes(
+      R"(
+def main() : int {
+    val invoke : ((int) => int) => int =
+        (callback : (int) => int) => callback(41)
+    val result : int = invoke(value => value + 1)
+    delete invoke
+    return result - 42
+}
+)",
+      "contextual lambdas preserve explicitly typed function parameters");
+
+  expect_analyzes(
+      R"(
+class Counter(var value : int) {}
+def inspect(callback : (borrow Counter) => int, borrow counter : Counter) : int {
+    return callback(counter)
+}
+def edit(callback : (borrow var Counter) => Unit, borrow var counter : Counter) : Unit {
+    callback(counter)
+}
+def main() : int {
+    val counter : Counter = new Counter(41)
+    val observed : int = inspect((borrow value) => value.value, counter)
+    edit((borrow var value) => { value.value = value.value + 1 }, counter)
+    delete counter
+    return observed
+}
+)",
+      "borrow and borrow var remain explicit while their types are contextual");
+
+  expect_compile_error(
+      "def main() : int { val identity = value => value return 0 }",
+      "annotat");
+  expect_compile_error(
+      "def main() : int { val callback : (int, int) => int = value => value "
+      "delete callback return 0 }",
+      "expects 2 parameter");
+  expect_compile_error(
+      "class Box() {} def main() : int { val callback : (Box) => int = "
+      "(borrow value) => 1 delete callback return 0 }",
+      "ownership");
+
   expect_analyzes(
       R"(
 class Box() {}
@@ -461,6 +584,11 @@ def main() : int {
   expect(ir.find("define internal void @__janus_panic_cleanup_") !=
              std::string::npos,
          "active caller cleanups lower to context-aware panic thunks");
+  std::string verifier_error;
+  llvm::raw_string_ostream verifier_output{verifier_error};
+  expect(!llvm::verifyModule(*module, &verifier_output),
+         "lambda IR does not reference instructions from its enclosing "
+         "function: " + verifier_error);
   expect(ir.find("call void @janus_free(ptr") != std::string::npos,
          "delete releases closure environments");
   expect(ir.find("define { ptr, ptr } @makeIdentity__int()") !=
