@@ -77,3 +77,12 @@ test("TextMate recognizes tailrec as a declaration modifier keyword", () => {
   });
   assert.ok(matches.includes("tailrec"));
 });
+
+test("TextMate scopes function, lambda and match arrows consistently", () => {
+  const arrow = grammar.patterns.find(
+    (pattern) => pattern.name === "keyword.operator.arrow.janus",
+  );
+  assert.ok(arrow);
+  const source = "def f(value : int) : int => match value { 0 => 1, _ => ((x : int) => x)(value) }";
+  assert.equal([...source.matchAll(new RegExp(arrow.match, "g"))].length, 4);
+});

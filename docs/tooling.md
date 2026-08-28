@@ -309,7 +309,12 @@ concernée. Les fichiers en quarantaine sont conservés pour diagnostic et peuve
 ```toml
 indent_width = 4
 max_blank_lines = 1
+max_line_length = 100
 ```
+
+`max_line_length` accepte une valeur de 40 à 400. Le formatter conserve un
+corps expression sur la ligne de sa déclaration lorsqu'il tient dans cette
+limite ; sinon il le place dans une continuation indentée déterministe.
 
 ## Serveur de langage
 
@@ -322,6 +327,8 @@ actuellement en charge :
 - renommage sémantique à l'échelle du workspace, avec refus atomique des
   collisions et respect des symboles privés ;
 - aide à la signature lors de `(` et `,` ;
+- symboles de document, plages de sélection et pliage des corps expression
+  multilignes ;
 - jetons sémantiques pour les déclarations, identifiants, mots-clés et
   littéraux ;
 - indications de types déduits ;

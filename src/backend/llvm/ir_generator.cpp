@@ -2210,6 +2210,8 @@ private:
             return_value =
                 emit_expression(*return_statement.expression, return_type,
                                 substitutions, block_locals, builder);
+          if (return_type.kind() == janus::TypeKind::Unit)
+            return_value = nullptr;
         }
         emit_active_cleanups(builder);
         if (owner == nullptr && function.name == "main")
@@ -2289,7 +2291,14 @@ private:
         false,
         std::nullopt,
         false,
-        {}};
+        {},
+        janus::ast::ReturnOwnership::Unspecified,
+        false,
+        false,
+        false,
+        {},
+        {},
+        0};
     const std::vector<janus::ast::Statement> empty_body;
     const auto &body = specialization.declaration->destructor.has_value()
                            ? specialization.declaration->destructor->body
@@ -2592,7 +2601,7 @@ private:
           {}, {}, janus::ast::TypeReference{"Unit", lambda.location, {}}, {},
           lambda.location, true, false, {}, false, std::nullopt, false,
           std::nullopt, false, {}, janus::ast::ReturnOwnership::Unspecified,
-          false, false, false};
+          false, false, false, {}, {}, 0};
       body_function.module_name = lexical_module;
       std::vector<const janus::Type *> body_types;
       auto add_parameter = [&](std::string name, const janus::Type *type,

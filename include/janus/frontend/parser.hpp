@@ -64,6 +64,7 @@ private:
 
   Lexer lexer_;
   Token current_;
+  std::string_view source_;
 };
 
 } // namespace janus::frontend

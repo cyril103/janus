@@ -711,6 +711,19 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.compile_time_constants COMMAND compile_time_constant_test)
+    add_executable(expression_body_test
+        tests/language/expression_body_test.cpp
+    )
+    target_link_libraries(expression_body_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_include_directories(expression_body_test SYSTEM PRIVATE
+        ${JANUS_LLVM_INCLUDE_DIR}
+    )
+    target_compile_options(expression_body_test PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME language.expression_body COMMAND expression_body_test)
     add_test(
         NAME cli.compile_time_constant_probes
         COMMAND "${CMAKE_COMMAND}"
@@ -2480,6 +2493,18 @@ if(BUILD_TESTING)
             "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/compound_assignment_runtime"
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/compound_assignment.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.expression_body
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/expression_body.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/expression_body_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/expression_body.expected.txt"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(

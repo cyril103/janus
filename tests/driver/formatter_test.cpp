@@ -1,6 +1,9 @@
 #include "janus/driver/formatter.hpp"
 
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 int main() {
@@ -27,7 +30,7 @@ int main() {
   }
   const std::string comments = "def main() : int {\n// keep { this comment "
                                "}\n\n\nreturn 0 // and this\n}\n";
-  const janus::driver::FormatOptions compact{2, 0};
+  const janus::driver::FormatOptions compact{2, 0, 100};
   const std::string expected_comments =
       "def main() : int {\n  // keep { this comment }\n  return 0 // and "
       "this\n}\n";
@@ -161,6 +164,67 @@ int main() {
     std::cerr << "constant syntax formatting is not idempotent\n";
     return 1;
   }
+  const std::string expression_bodies =
+      "def square(value : int) : int=>value * value\n"
+      "def choose(value : int) : int => match value {\n"
+      "0=>0,\n_=>value\n}\n"
+      "def callback() : (int) => int => (value : int)=>value + 1\n";
+  const std::string formatted_expression_bodies =
+      "def square(value : int) : int => value * value\n"
+      "def choose(value : int) : int => match value { 0=>0, _=>value }\n"
+      "def callback() : (int) => int => (value : int)=>value + 1\n";
+  const std::string formatted_expression_body =
+      janus::driver::format_source(expression_bodies);
+  if (formatted_expression_body != formatted_expression_bodies ||
+      janus::driver::format_source(formatted_expression_body) !=
+          formatted_expression_body) {
+    std::cerr << "expression-body formatting is not canonical, disambiguated and idempotent:\n"
+              << formatted_expression_body;
+    return 1;
+  }
+  const std::string continued_expression_body =
+      "def total(first : int, second : int) : int=>\nfirst + second\n";
+  const std::string formatted_continued_expression_body =
+      "def total(first : int, second : int) : int => first + second\n";
+  if (janus::driver::format_source(continued_expression_body) !=
+          formatted_continued_expression_body ||
+      janus::driver::format_source(formatted_continued_expression_body) !=
+          formatted_continued_expression_body) {
+    std::cerr << "multiline expression-body continuation is not deterministic\n";
+    return 1;
+  }
+  const std::string complex_continuations =
+      "def total(first : int, second : int, third : int) : int\n"
+      "=>\n"
+      "first +\n"
+      "second +\n"
+      "third\n"
+      "class Calculator() {\n"
+      "def choose(value : int) : int =>\n"
+      "match value {\n"
+      "0 => (x : int)=>x(0),\n"
+      "_ => value\n"
+      "}\n"
+      "}\n";
+  const std::string formatted_complex_continuations =
+      "def total(first : int, second : int, third : int) : int => first + second + third\n"
+      "class Calculator() {\n"
+      "    def choose(value : int) : int => match value { 0 => (x : int)=>x(0), _ => value }\n"
+      "}\n";
+  const std::string formatted_complex =
+      janus::driver::format_source(complex_continuations);
+  if (formatted_complex != formatted_complex_continuations ||
+      janus::driver::format_source(formatted_complex) != formatted_complex) {
+    std::cerr << "full expression-body continuations are not deterministic:\n"
+              << formatted_complex;
+    return 1;
+  }
+  const std::string invalid_source = "def broken( : int => (x:int)=>x\n";
+  if (janus::driver::format_source(invalid_source).find("(x:int)=>x") ==
+      std::string::npos) {
+    std::cerr << "invalid-source fallback corrupts unrelated arrows\n";
+    return 1;
+  }
   const std::string integer_spellings =
       "def bits() : uint {\nreturn 0xA2_0A + 0B1111_0000 + 1_000\n}\n";
   const std::string formatted_integer_spellings =
@@ -206,6 +270,92 @@ int main() {
       janus::driver::format_source(formatted_compound) != formatted_compound) {
     std::cerr << "compound assignments are not canonical, comment-safe and idempotent:\n"
               << formatted_compound;
+    return 1;
+  }
+  janus::driver::FormatOptions narrow;
+  narrow.max_line_length = 48;
+  const std::string width_input =
+      "def short(value : int) : int =>\n"
+      "    value + 1\n"
+      "def long(first : int, second : int) : int => first + second\n";
+  const std::string width_expected =
+      "def short(value : int) : int => value + 1\n"
+      "def long(first : int, second : int) : int =>\n"
+      "    first + second\n";
+  const std::string width_formatted =
+      janus::driver::format_source(width_input, narrow);
+  if (width_formatted != width_expected ||
+      janus::driver::format_source(width_formatted, narrow) != width_expected) {
+    std::cerr << "expression bodies do not obey canonical line width idempotently:\n"
+              << width_formatted;
+    return 1;
+  }
+  const std::string semantic_input =
+      "def callback() : (int) => int => (value : int) => value + 1\n"
+      "def choose(value : int) : int => match value { 0 => 1, _ => value }\n"
+      "def text() : string =>\n"
+      "    \"=> is text, not a function arrow\" // preserve => comment\n";
+  const std::string semantic_expected =
+      "def callback() : (int) => int =>\n"
+      "    (value : int) => value + 1\n"
+      "def choose(value : int) : int =>\n"
+      "    match value { 0 => 1, _ => value }\n"
+      "def text() : string =>\n"
+      "    \"=> is text, not a function arrow\" // preserve => comment\n";
+  const std::string semantic_formatted =
+      janus::driver::format_source(semantic_input, narrow);
+  if (semantic_formatted != semantic_expected ||
+      janus::driver::format_source(semantic_formatted, narrow) !=
+          semantic_expected) {
+    std::cerr << "width formatting confused arrows or changed comments/strings:\n"
+              << semantic_formatted;
+    return 1;
+  }
+  const std::string arrow_comments =
+      "def afterArrow() : int => // keep after arrow\n"
+      "    1\n"
+      "def beforeArrow() : int // keep before arrow\n"
+      "=> 2\n";
+  const std::string formatted_arrow_comments =
+      "def afterArrow() : int => // keep after arrow\n"
+      "    1\n"
+      "def beforeArrow() : int // keep before arrow\n"
+      "=> 2\n";
+  const std::string actual_arrow_comments =
+      janus::driver::format_source(arrow_comments);
+  if (actual_arrow_comments != formatted_arrow_comments ||
+      janus::driver::format_source(actual_arrow_comments) !=
+          formatted_arrow_comments) {
+    std::cerr << "formatter moved or removed comments around a function arrow:\n"
+              << actual_arrow_comments;
+    return 1;
+  }
+  const std::filesystem::path config =
+      std::filesystem::temp_directory_path() / "janus-formatter-width-test.toml";
+  {
+    std::ofstream output{config};
+    output << "max_line_length = 72\n";
+  }
+  const janus::driver::FormatOptions configured =
+      janus::driver::load_format_options(config);
+  std::filesystem::remove(config);
+  if (configured.max_line_length != 72) {
+    std::cerr << "max_line_length configuration was not loaded\n";
+    return 1;
+  }
+  {
+    std::ofstream output{config};
+    output << "max_line_length = 20\n";
+  }
+  bool rejected_invalid_width = false;
+  try {
+    static_cast<void>(janus::driver::load_format_options(config));
+  } catch (const std::runtime_error &) {
+    rejected_invalid_width = true;
+  }
+  std::filesystem::remove(config);
+  if (!rejected_invalid_width) {
+    std::cerr << "invalid max_line_length configuration was accepted\n";
     return 1;
   }
   std::cout << "Janus formatting is deterministic\n";

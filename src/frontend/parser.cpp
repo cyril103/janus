@@ -191,7 +191,7 @@ std::optional<std::uint64_t> parse_integer_literal(std::string_view spelling) {
 } // namespace
 
 Parser::Parser(std::string_view source)
-    : lexer_{source}, current_{lexer_.next()} {}
+    : lexer_{source}, current_{lexer_.next()}, source_{source} {}
 
 ast::Program Parser::parse_program() {
   ast::Program program;
@@ -514,7 +514,14 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
                                        false,
                                        std::nullopt,
                                        false,
-                                       {}};
+                                       {},
+                                       ast::ReturnOwnership::Unspecified,
+                                       false,
+                                       false,
+                                       false,
+                                       {},
+                                       {},
+                                       0};
   declaration.is_borrowing = is_borrowing;
   declaration.return_ownership = return_ownership;
   return declaration;
@@ -1080,8 +1087,27 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
     } while (true);
   }
   std::vector<ast::Statement> body;
-  if (!is_external)
-    body = parse_block();
+  std::optional<SourceLocation> expression_body_arrow;
+  std::optional<SourceLocation> expression_body_start;
+  std::size_t expression_body_end = 0;
+  if (!is_external) {
+    if (current_.kind == TokenKind::Arrow) {
+      expression_body_arrow = current_.location;
+      advance();
+      const SourceLocation expression_location = current_.location;
+      expression_body_start = expression_location;
+      body.emplace_back(ast::ReturnStatement{
+          std::optional<ast::Expression>{parse_expression()},
+          expression_location});
+      expression_body_end = current_.location.offset;
+      while (expression_body_end > expression_location.offset &&
+             std::isspace(static_cast<unsigned char>(
+                 source_[expression_body_end - 1])))
+        --expression_body_end;
+    } else {
+      body = parse_block();
+    }
+  }
 
   ast::FunctionDeclaration declaration{std::string{name.lexeme},
                                        std::move(type_parameters),
@@ -1099,9 +1125,18 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
                                        std::nullopt,
                                        false,
                                        {},
-                                       return_ownership};
+                                       return_ownership,
+                                       false,
+                                       false,
+                                       false,
+                                       {},
+                                       {},
+                                       0};
   declaration.is_constant = is_constant;
   declaration.is_tailrec = is_tailrec;
+  declaration.expression_body_arrow = expression_body_arrow;
+  declaration.expression_body_start = expression_body_start;
+  declaration.expression_body_end = expression_body_end;
   return declaration;
 }
 

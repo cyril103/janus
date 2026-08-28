@@ -776,6 +776,7 @@ bool semantic_operator(janus::frontend::TokenKind kind) {
   case TokenKind::PercentEqual: case TokenKind::AmpersandEqual:
   case TokenKind::PipeEqual: case TokenKind::CaretEqual:
   case TokenKind::ShiftLeftEqual: case TokenKind::ShiftRightEqual:
+  case TokenKind::Arrow:
   case TokenKind::Plus: case TokenKind::Minus: case TokenKind::Star:
   case TokenKind::Slash: case TokenKind::Percent: case TokenKind::Less:
   case TokenKind::LessEqual: case TokenKind::Greater: case TokenKind::GreaterEqual:
@@ -1713,6 +1714,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
                       {"codeActionKinds", llvm::json::Array{"quickfix"}},
                   }},
                  {"workspaceSymbolProvider", true},
+                 {"documentSymbolProvider", true},
+                 {"foldingRangeProvider", true},
+                 {"selectionRangeProvider", true},
                  {"completionProvider",
                   llvm::json::Object{
                       {"triggerCharacters", llvm::json::Array{".", ":"}},
@@ -2042,7 +2046,10 @@ std::vector<std::string> Server::handle(std::string_view message) {
       *method == "textDocument/codeAction" ||
       *method == "textDocument/formatting" ||
       *method == "textDocument/semanticTokens/full" ||
-      *method == "textDocument/inlayHint";
+      *method == "textDocument/inlayHint" ||
+      *method == "textDocument/documentSymbol" ||
+      *method == "textDocument/foldingRange" ||
+      *method == "textDocument/selectionRange";
   std::string disk_source;
   const std::string *document_source = nullptr;
   if (source_request && uri) {
@@ -2075,6 +2082,201 @@ std::vector<std::string> Server::handle(std::string_view message) {
         }
       }
     }
+  }
+  if (*method == "textDocument/documentSymbol" && uri) {
+    llvm::json::Array result;
+    struct DeclarationBounds {
+      std::string name;
+      std::size_t start{};
+      std::size_t end{};
+    };
+    std::vector<DeclarationBounds> expression_bounds;
+    if (document_source != nullptr) {
+      try {
+        frontend::Parser parser{*document_source};
+        const ast::Program program = parser.parse_program();
+        const auto remember = [&](const ast::FunctionDeclaration &function) {
+          if (function.expression_body_end > 0)
+            expression_bounds.push_back(DeclarationBounds{
+                function.name, function.location.offset,
+                function.expression_body_end});
+        };
+        for (const ast::FunctionDeclaration &function : program.functions)
+          remember(function);
+        for (const ast::ClassDeclaration &declaration : program.classes)
+          for (const ast::FunctionDeclaration &method : declaration.methods)
+            remember(method);
+        for (const ast::TraitDeclaration &declaration : program.traits)
+          for (const ast::FunctionDeclaration &method : declaration.methods)
+            remember(method);
+      } catch (const CompileError &) {
+      }
+      for (const DocumentSymbol &symbol : symbols(
+               *uri, *document_source, module_search_paths_,
+               workspace_search_paths_, &documents_)) {
+        const bool function_symbol =
+            symbol.detail.find("def ") != std::string::npos;
+        if (!symbol.is_top_level && !function_symbol)
+          continue;
+        const std::int64_t kind = function_symbol
+                                      ? (symbol.is_top_level ? 12 : 6)
+                                      : 13;
+        const auto expression_bound = std::find_if(
+            expression_bounds.begin(), expression_bounds.end(),
+            [&](const DeclarationBounds &bounds) {
+              return bounds.name == symbol.name &&
+                     symbol.location.offset >= bounds.start &&
+                     symbol.location.offset < bounds.end;
+            });
+        result.emplace_back(llvm::json::Object{
+            {"name", symbol.name},
+            {"detail", symbol.detail},
+            {"kind", kind},
+            {"range", expression_bound == expression_bounds.end()
+                          ? range(*document_source, symbol.location,
+                                  symbol.name.size())
+                          : llvm::json::Object{
+                                {"start", position_at_offset(
+                                              *document_source,
+                                              expression_bound->start)},
+                                {"end", position_at_offset(
+                                            *document_source,
+                                            expression_bound->end)}}},
+            {"selectionRange", range(*document_source, symbol.location,
+                                     symbol.name.size())},
+        });
+      }
+    }
+    return {response(request_id(*request), std::move(result))};
+  }
+  if (*method == "textDocument/foldingRange" && uri) {
+    llvm::json::Array result;
+    if (document_source != nullptr) {
+      try {
+        frontend::Parser parser{*document_source};
+        const ast::Program program = parser.parse_program();
+        const auto add_function = [&](const ast::FunctionDeclaration &function) {
+          if (!function.expression_body_arrow.has_value() ||
+              function.expression_body_end == 0)
+            return;
+          const auto start = position_at_offset(*document_source,
+                                                function.location.offset);
+          const auto end = position_at_offset(*document_source,
+                                              function.expression_body_end);
+          if (*start.getInteger("line") < *end.getInteger("line"))
+            result.emplace_back(llvm::json::Object{
+                {"startLine", *start.getInteger("line")},
+                {"startCharacter", *start.getInteger("character")},
+                {"endLine", *end.getInteger("line")},
+                {"endCharacter", *end.getInteger("character")},
+                {"kind", "region"},
+            });
+        };
+        for (const ast::FunctionDeclaration &function : program.functions)
+          add_function(function);
+        for (const ast::ClassDeclaration &declaration : program.classes)
+          for (const ast::FunctionDeclaration &method : declaration.methods)
+            add_function(method);
+        for (const ast::TraitDeclaration &declaration : program.traits)
+          for (const ast::FunctionDeclaration &method : declaration.methods)
+            add_function(method);
+      } catch (const CompileError &) {
+      }
+    }
+    return {response(request_id(*request), std::move(result))};
+  }
+  if (*method == "textDocument/selectionRange" && uri) {
+    llvm::json::Array result;
+    const llvm::json::Array *positions =
+        params == nullptr ? nullptr : params->getArray("positions");
+    if (document_source != nullptr && positions != nullptr)
+      for (const llvm::json::Value &requested : *positions) {
+        const llvm::json::Object *requested_position = requested.getAsObject();
+        const auto line = requested_position == nullptr
+                              ? std::nullopt
+                              : requested_position->getInteger("line");
+        const auto character = requested_position == nullptr
+                                   ? std::nullopt
+                                   : requested_position->getInteger("character");
+        if (!line || !character)
+          continue;
+        const auto offset = offset_from_position(
+            *document_source, static_cast<std::uint32_t>(*line),
+            static_cast<std::uint32_t>(*character));
+        if (!offset)
+          continue;
+        std::size_t line_start = *offset;
+        std::size_t line_end = *offset;
+        while (line_start > 0 && document_source->at(line_start - 1) != '\n')
+          --line_start;
+        while (line_end < document_source->size() &&
+               document_source->at(line_end) != '\n')
+          ++line_end;
+        llvm::json::Object line_parent{
+            {"range", llvm::json::Object{
+                          {"start", position_at_offset(*document_source, line_start)},
+                          {"end", position_at_offset(*document_source, line_end)},
+                      }},
+        };
+        std::optional<std::pair<std::size_t, std::size_t>> expression_range;
+        try {
+          frontend::Parser parser{*document_source};
+          const ast::Program program = parser.parse_program();
+          const auto inspect = [&](const ast::FunctionDeclaration &function) {
+            if (function.expression_body_start.has_value() &&
+                *offset >= function.expression_body_start->offset &&
+                *offset <= function.expression_body_end)
+              expression_range = {function.expression_body_start->offset,
+                                  function.expression_body_end};
+          };
+          for (const ast::FunctionDeclaration &function : program.functions)
+            inspect(function);
+          for (const ast::ClassDeclaration &declaration : program.classes)
+            for (const ast::FunctionDeclaration &method : declaration.methods)
+              inspect(method);
+          for (const ast::TraitDeclaration &declaration : program.traits)
+            for (const ast::FunctionDeclaration &method : declaration.methods)
+              inspect(method);
+        } catch (const CompileError &) {
+        }
+        llvm::json::Object parent = expression_range.has_value()
+                                        ? llvm::json::Object{
+                                              {"range",
+                                               llvm::json::Object{
+                                                   {"start", position_at_offset(
+                                                                 *document_source,
+                                                                 expression_range->first)},
+                                                   {"end", position_at_offset(
+                                                               *document_source,
+                                                               expression_range->second)}}}}
+                                        : std::move(line_parent);
+        const std::vector<frontend::Token> document_tokens =
+            tokens(*document_source);
+        const frontend::Token *selected = nullptr;
+        for (const frontend::Token &token : document_tokens)
+          if (token.kind != frontend::TokenKind::End &&
+              *offset >= token.location.offset &&
+              *offset < token.location.offset + token.lexeme.size()) {
+            selected = &token;
+            break;
+          }
+        const std::size_t token_start =
+            selected == nullptr ? *offset : selected->location.offset;
+        const std::size_t token_end = selected == nullptr
+                                          ? *offset
+                                          : selected->location.offset +
+                                                selected->lexeme.size();
+        result.emplace_back(llvm::json::Object{
+            {"range", llvm::json::Object{
+                          {"start", position_at_offset(*document_source,
+                                                       token_start)},
+                          {"end", position_at_offset(*document_source,
+                                                     token_end)},
+                      }},
+            {"parent", std::move(parent)},
+        });
+      }
+    return {response(request_id(*request), std::move(result))};
   }
   if (*method == "textDocument/codeAction" && uri) {
     llvm::json::Array actions;

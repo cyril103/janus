@@ -28,6 +28,10 @@
       "match": "(?:<<=|>>=|[+\\-*/%&|^]=)"
     },
     {
+      "name": "keyword.operator.arrow.janus",
+      "match": "=>"
+    },
+    {
       "name": "keyword.operator.bitwise.janus",
       "match": "(?<![&|])(?:<<|>>|[&|^])(?![&|])"
     },

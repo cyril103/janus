@@ -2428,7 +2428,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         false,
         global.module_name,
         false,
-        {}});
+        {},
+        ast::ReturnOwnership::Unspecified,
+        false,
+        false,
+        false,
+        {},
+        {},
+        0});
     contexts.push_back(FunctionContext{&global_initializer_functions.back(),
                                        nullptr, nullptr, &global});
   }
@@ -7519,6 +7526,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
         const auto &return_statement =
             std::get<ast::ReturnStatement>(statement);
+        if (is_destructor && return_statement.expression.has_value())
+          throw CompileError{return_statement.location,
+                             "a destructor cannot return a value"};
         SemanticType statement_return_type = return_type;
         std::optional<SemanticType> inferred_actual;
         if (active_lambda_return_type != nullptr) {
@@ -7539,9 +7549,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         }
         if (statement_return_type.is_concrete() &&
             statement_return_type.concrete->kind() == TypeKind::Unit) {
-          if (return_statement.expression.has_value())
-            throw CompileError{return_statement.location,
-                               "a Unit function cannot return a value"};
+          if (return_statement.expression.has_value()) {
+            const SemanticType actual =
+                expression_type(*return_statement.expression);
+            if (!actual.is_concrete() ||
+                actual.concrete->kind() != TypeKind::Unit)
+              throw CompileError{return_statement.location,
+                                 "a Unit function cannot return a value"};
+          }
         } else {
           if (!return_statement.expression.has_value())
             throw CompileError{return_statement.location,

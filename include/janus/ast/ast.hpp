@@ -405,6 +405,9 @@ struct FunctionDeclaration {
   bool is_constant{};
   bool is_borrowing{};
   bool is_tailrec{};
+  std::optional<SourceLocation> expression_body_arrow;
+  std::optional<SourceLocation> expression_body_start;
+  std::size_t expression_body_end{};
 };
 
 struct DestructorDeclaration {

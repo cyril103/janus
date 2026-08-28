@@ -1,0 +1,32 @@
+struct Pair(val left : int, val right : int) {}
+enum Choice { Number(int), Empty }
+
+class Box(val value : int) {
+    borrow def read() : int => value
+    consume def finish() : int => value
+}
+
+def scalar(value : int) : int => value * 2
+def aggregate(value : int) : Pair => new Pair(value, value + 1)
+def variant(value : int) : Choice => Choice.Number(value)
+def owned(value : int) : Box => new Box(value)
+def transfer(value : Box) : Box => move value
+def apply(callback : (int) => int, value : int) : int => callback(value)
+def callback() : (int) => int => (value : int) => value + 3
+def generic[T](value : T) : T => value
+const def constant() : int => 7
+def unit() : Unit => println("unit")
+
+def main() : int {
+    unit()
+    val pair : Pair = aggregate(4)
+    val choice : Choice = variant(5)
+    val box : Box = transfer(owned(6))
+    val result : int = scalar(pair.left) + match choice {
+        Number(value) => value,
+        Empty => 0
+    } + box.read() + apply(callback(), generic[int](7)) + constant()
+    delete box
+    println(result)
+    return 0
+}

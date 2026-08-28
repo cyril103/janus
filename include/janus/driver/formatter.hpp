@@ -10,6 +10,7 @@ namespace janus::driver {
 struct FormatOptions {
   std::size_t indent_width{4};
   std::size_t max_blank_lines{1};
+  std::size_t max_line_length{100};
 };
 
 [[nodiscard]] FormatOptions
