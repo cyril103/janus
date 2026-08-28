@@ -99,6 +99,30 @@ int main() {
     std::cerr << "lambda block formatting is not roundtrip-idempotent\n";
     return 1;
   }
+  const std::string contextual_lambdas =
+      "def use() : int {\n"
+      "val unary : (int) => int = value=>value + 1\n"
+      "val binary : (int, int) => int = (left,right)=>left + right\n"
+      "val shared : (borrow int) => int = (borrow value)=>value\n"
+      "val mutable : (borrow var int) => int = (borrow var value)=>value\n"
+      "return binary(unary(1), shared(2))\n}\n";
+  const std::string formatted_contextual_lambdas =
+      "def use() : int {\n"
+      "    val unary : (int) => int = value=>value + 1\n"
+      "    val binary : (int, int) => int = (left,right)=>left + right\n"
+      "    val shared : (borrow int) => int = (borrow value)=>value\n"
+      "    val mutable : (borrow var int) => int = (borrow var value)=>value\n"
+      "    return binary(unary(1), shared(2))\n}\n";
+  const std::string contextual_formatted =
+      janus::driver::format_source(contextual_lambdas);
+  if (contextual_formatted != formatted_contextual_lambdas ||
+      janus::driver::format_source(contextual_formatted) !=
+          contextual_formatted) {
+    std::cerr << "contextual lambda formatting is not preserving and "
+                 "idempotent:\n"
+              << contextual_formatted;
+    return 1;
+  }
   const std::string derivations = "struct Point(val x : int, val y : int)\n"
                                   "derives Copy, Equality, Hashing, Debug {\n"
                                   "}\n";

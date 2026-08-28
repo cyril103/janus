@@ -90,7 +90,7 @@ struct ArrayLiteralExpression {
 struct LambdaExpression {
   struct Parameter {
     std::string name;
-    TypeReference type;
+    std::optional<TypeReference> type;
     SourceLocation location;
     ParameterOwnership ownership{ParameterOwnership::Unspecified};
   };

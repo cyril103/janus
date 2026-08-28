@@ -86,3 +86,23 @@ test("TextMate scopes function, lambda and match arrows consistently", () => {
   const source = "def f(value : int) : int => match value { 0 => 1, _ => ((x : int) => x)(value) }";
   assert.equal([...source.matchAll(new RegExp(arrow.match, "g"))].length, 4);
 });
+
+test("TextMate recognizes contextual lambda parameter forms", () => {
+  const source = [
+    "value => value",
+    "(left, right) => left",
+    "() => 1",
+    "(borrow value) => value",
+    "(borrow var value) => value",
+  ].join("\n");
+  const arrow = grammar.patterns.find(
+    (pattern) => pattern.name === "keyword.operator.arrow.janus",
+  );
+  assert.equal([...source.matchAll(new RegExp(arrow.match, "g"))].length, 5);
+  const nonLambdaSource =
+    "def f(value : int, other : int) : int => match value { 0 => other, _ => value }";
+  assert.equal(
+    [...nonLambdaSource.matchAll(new RegExp(arrow.match, "g"))].length,
+    3,
+  );
+});

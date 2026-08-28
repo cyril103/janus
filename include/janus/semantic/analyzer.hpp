@@ -65,6 +65,11 @@ struct Symbol {
 using SymbolTable = std::unordered_map<std::string, Symbol>;
 
 struct AnalysisResult {
+  struct InferredLambdaParameter {
+    std::optional<std::string> module_name;
+    SourceLocation location;
+    SemanticType type;
+  };
   Target target;
   SymbolTable globals;
   std::unordered_map<std::string, SymbolTable> functions;
@@ -80,6 +85,7 @@ struct AnalysisResult {
   std::vector<std::shared_ptr<Type>> constant_value_types;
   std::unordered_map<const ast::Expression *, std::vector<SemanticType>>
       inferred_generic_arguments;
+  std::vector<InferredLambdaParameter> inferred_lambda_parameters;
   std::unordered_map<const ast::Expression *, ast::ReturnOwnership>
       call_return_ownership;
   std::vector<Diagnostic> diagnostics;

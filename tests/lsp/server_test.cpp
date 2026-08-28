@@ -1199,22 +1199,30 @@ int main(int argc, char **argv) {
   static_cast<void>(source_server.handle(
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
       buffer_only_uri +
-      "\",\"text\":\"module buffer_only\\n\\ndef value() : int { return "
-      "42 }\\n\"}}}"));
+      "\",\"text\":\"module buffer_only\\n\\ndef apply(callback : (int) => int) : int { return callback(41) }\\n\"}}}"));
   static_cast<void>(source_server.handle(
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"" +
       indexed_method_consumer_uri +
-      "\"},\"contentChanges\":[{\"text\":\"import buffer_only as bo\\n\\ndef main() : int { val result = bo.value() return result }\\n\"}]}}"));
+      "\"},\"contentChanges\":[{\"text\":\"import buffer_only as bo\\n\\ndef main() : int { val result = bo.apply(value => value + 1) return result }\\n\"}]}}"));
   const std::vector<std::string> buffer_only_hints = source_server.handle(
       "{\"jsonrpc\":\"2.0\",\"id\":111,\"method\":\"textDocument/inlayHint\",\"params\":{\"textDocument\":{\"uri\":\"" +
       indexed_method_consumer_uri +
       "\"},\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":4,\"character\":0}}}}");
   JANUS_REQUIRE(buffer_only_hints.front().find("\"label\":\": int\"") !=
                 std::string::npos);
+  JANUS_REQUIRE(buffer_only_hints.front().find(
+                    "\"position\":{\"character\":46,\"line\":2}") !=
+                std::string::npos);
+  const std::vector<std::string> lambda_parameter_hover = source_server.handle(
+      "{\"jsonrpc\":\"2.0\",\"id\":1111,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" +
+      indexed_method_consumer_uri +
+      "\"},\"position\":{\"line\":2,\"character\":43}}}");
+  JANUS_REQUIRE(lambda_parameter_hover.front().find(
+                    "parameter value : int") != std::string::npos);
   const std::vector<std::string> buffer_only_hover = source_server.handle(
       "{\"jsonrpc\":\"2.0\",\"id\":112,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" +
       indexed_method_consumer_uri +
-      "\"},\"position\":{\"line\":2,\"character\":52}}}");
+      "\"},\"position\":{\"line\":2,\"character\":70}}}");
   JANUS_REQUIRE(buffer_only_hover.front().find("result : int") !=
                 std::string::npos);
   static_cast<void>(source_server.handle(
@@ -1223,7 +1231,7 @@ int main(int argc, char **argv) {
   const std::vector<std::string> closed_buffer_hover = source_server.handle(
       "{\"jsonrpc\":\"2.0\",\"id\":113,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" +
       indexed_method_consumer_uri +
-      "\"},\"position\":{\"line\":2,\"character\":52}}}");
+      "\"},\"position\":{\"line\":2,\"character\":70}}}");
   JANUS_REQUIRE(closed_buffer_hover.front().find("result : int") ==
                 std::string::npos);
 

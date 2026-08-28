@@ -2577,6 +2577,8 @@ private:
     if (const auto *expression_body = std::get_if<
             std::unique_ptr<janus::ast::Expression>>(&lambda.body)) {
       const janus::Type *previous_return_type = active_return_type_;
+      auto previous_cleanup_scopes = std::move(active_cleanup_scopes_);
+      active_cleanup_scopes_.clear();
       active_return_type_ = signature.return_type;
       ::llvm::Value *result = nullptr;
       if (signature.return_ownership ==
@@ -2589,6 +2591,7 @@ private:
                                  substitutions, lambda_locals,
                                  lambda_builder);
       active_return_type_ = previous_return_type;
+      active_cleanup_scopes_ = std::move(previous_cleanup_scopes);
       if (signature.return_type->kind() == janus::TypeKind::Unit)
         lambda_builder.CreateRetVoid();
       else
