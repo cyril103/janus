@@ -189,7 +189,11 @@ Le fichier facultatif `.janusfmt` permet de personnaliser le formatage :
 ```toml
 indent_width = 4
 max_blank_lines = 1
+max_line_length = 100
 ```
+
+La largeur accepte une valeur de 40 à 400 ; les corps expression qui la
+dépassent sont placés sur une continuation indentée.
 
 ## Désinstaller une version
 

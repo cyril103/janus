@@ -21,6 +21,9 @@ def main() : int {
 ```
 ````
 
+Les corps expression `def add(...) : int => expression` sont acceptés dans les
+doctests exactement comme dans les sources Janus ordinaires.
+
 Le nom est facultatif et doit rester unique dans le document. Un bloc `janus`
 sans commentaire doctest est illustratif et n’est pas exécuté. La directive
 `incomplete` (ou `ignore`) rend cette intention explicite :

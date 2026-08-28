@@ -26,6 +26,21 @@ def main() : int {
 
 Les paramètres et le retour portent un type. Une fonction sans valeur utile retourne `Unit`.
 
+Pour un calcul réduit à une expression, `=>` remplace exactement un bloc avec
+`return` :
+
+```janus
+// doctest: doctest name=expression-body
+def twice(value : int) : int => value * 2
+const def answer() : int => 42
+
+def main() : int => twice(21) - answer()
+```
+
+Le type de retour reste obligatoire. Cette notation accepte aussi les méthodes,
+les fonctions génériques et `const def`. Elle n'ajoute aucun retour implicite
+aux blocs `{ ... }`, qui continuent à employer `return` explicitement.
+
 ## Branches et boucles
 
 ```janus

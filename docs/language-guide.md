@@ -318,6 +318,29 @@ def identity[T](value : T) : T {
 }
 ```
 
+Lorsqu'une fonction ou une méthode ne fait que retourner une expression, son
+corps peut s'écrire avec `=>`. Cette forme est exactement équivalente à un
+bloc contenant `return` : elle conserve le typage, la propriété, les emprunts
+et les règles `tailrec`, sans créer de retour implicite dans les blocs.
+
+```janus
+def square(value : int) : int => value * value
+const def twice(value : int) : int => value * 2
+
+class Counter(val value : int) {
+    borrow def current() : int => value
+}
+```
+
+Le type de retour reste obligatoire. `=> move value` est requis dans les mêmes
+cas que `return move value`, et un retour `borrow` doit provenir de la même
+source valide que dans la forme bloc. Les méthodes déclarées dans un trait
+restent des signatures abstraites sans corps ; la classe qui étend le trait
+fournit leur implémentation. Pour `Unit`, l'expression doit elle-même
+avoir le type `Unit`. Une déclaration ou plusieurs instructions exigent
+toujours `{ ... }`. Les flèches des closures et des branches de `match`
+conservent leur sens propre, déterminé par leur contexte.
+
 Les fonctions sont des valeurs de première classe. Une closure peut capturer
 les valeurs qui l'entourent :
 

@@ -13,6 +13,8 @@
 
 #include <llvm/Support/JSON.h>
 
+#include <iostream>
+
 namespace {
 
 std::vector<std::int64_t> semantic_token_field(const std::string &response,
@@ -814,7 +816,8 @@ int main(int argc, char **argv) {
   const std::vector<std::string> callable_tokens = server.handle(
       R"({"jsonrpc":"2.0","id":49,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///semantic-callable.janus"}}})");
   JANUS_REQUIRE((semantic_token_field(callable_tokens.front(), 3) ==
-                 std::vector<std::int64_t>{10, 5, 8, 1, 1, 1, 10, 8, 12}));
+                 std::vector<std::int64_t>{10, 5, 8, 1, 13, 1, 1, 10, 8,
+                                           12}));
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///semantic-imported-generics.janus","text":"import model.{User, Box as Crate}\ndef inspect(users : Array[User], mapping : Map[string, User], nested : Array[Map[string, Crate]], qualified : Array[model.User], User : int) : int { val indexed = users[User] return User }\ndef call(User : int) : int { identity[User](User) return User }\ndef qualifiedCall(User : int) : int { model.make[model.User](User) return User }\n"}}})"));
@@ -1223,6 +1226,72 @@ int main(int argc, char **argv) {
       "\"},\"position\":{\"line\":2,\"character\":52}}}");
   JANUS_REQUIRE(closed_buffer_hover.front().find("result : int") ==
                 std::string::npos);
+
+  janus::lsp::Server expression_body_server;
+  static_cast<void>(expression_body_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///expression-body.janus","text":"def square(value : int) : int => value * value\ndef use() : int => square(6)\n"}}})"));
+  const std::vector<std::string> expression_symbols =
+      expression_body_server.handle(
+          R"({"jsonrpc":"2.0","id":201,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file:///expression-body.janus"}}})");
+  JANUS_REQUIRE(expression_symbols.size() == 1);
+  JANUS_REQUIRE(expression_symbols.front().find("\"name\":\"square\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(expression_symbols.front().find("\"name\":\"use\"") !=
+                std::string::npos);
+  const std::vector<std::string> expression_hover = expression_body_server.handle(
+      R"({"jsonrpc":"2.0","id":202,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///expression-body.janus"},"position":{"line":1,"character":20}}})");
+  JANUS_REQUIRE(expression_hover.front().find(
+                    "square(value : int) : int") != std::string::npos);
+  const std::vector<std::string> expression_signature =
+      expression_body_server.handle(
+          R"({"jsonrpc":"2.0","id":203,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///expression-body.janus"},"position":{"line":1,"character":26}}})");
+  JANUS_REQUIRE(expression_signature.front().find(
+                    "square(value : int) : int") != std::string::npos);
+  const std::vector<std::string> expression_folding = expression_body_server.handle(
+      R"({"jsonrpc":"2.0","id":204,"method":"textDocument/foldingRange","params":{"textDocument":{"uri":"file:///expression-body.janus"}}})");
+  JANUS_REQUIRE(expression_folding.size() == 1);
+  JANUS_REQUIRE(expression_folding.front().find("\"startLine\":0") ==
+                std::string::npos);
+  const std::vector<std::string> expression_selection =
+      expression_body_server.handle(
+          R"({"jsonrpc":"2.0","id":205,"method":"textDocument/selectionRange","params":{"textDocument":{"uri":"file:///expression-body.janus"},"positions":[{"line":0,"character":39}]}})");
+  JANUS_REQUIRE(expression_selection.size() == 1);
+  JANUS_REQUIRE(expression_selection.front().find("\"parent\"") !=
+                std::string::npos);
+  const std::string expression_tokens = require_lsp_result(
+      expression_body_server.handle(
+          R"({"jsonrpc":"2.0","id":206,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///expression-body.janus"}}})"),
+      LspResultShape::SemanticTokens);
+  JANUS_REQUIRE(semantic_token_type_at(expression_tokens, 0, 30) == 13);
+
+  janus::lsp::Server expression_range_server;
+  static_cast<void>(expression_range_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///expression-ranges.janus","text":"def callback() : (int) => int =>\n    (x : int) =>\n        x +\n        1\nclass Box() {\n    def method(value : int) : int =>\n        match value {\n            0 => 1,\n            _ => value\n        }\n}\ndef single() : int => 1\ndef unicode() : string => \"café\"\n"}}})"));
+  const std::string exact_folding = expression_range_server.handle(
+      R"({"jsonrpc":"2.0","id":207,"method":"textDocument/foldingRange","params":{"textDocument":{"uri":"file:///expression-ranges.janus"}}})").front();
+  if (exact_folding.find("\"startLine\":0") == std::string::npos)
+    std::cerr << "unexpected expression folding response: " << exact_folding
+              << '\n';
+  JANUS_REQUIRE(exact_folding.find("\"startLine\":0") != std::string::npos);
+  JANUS_REQUIRE(exact_folding.find("\"endLine\":3") != std::string::npos);
+  JANUS_REQUIRE(exact_folding.find("\"startLine\":5") != std::string::npos);
+  JANUS_REQUIRE(exact_folding.find("\"endLine\":9") != std::string::npos);
+  JANUS_REQUIRE(exact_folding.find("\"startLine\":11") == std::string::npos);
+  const std::string exact_symbols = expression_range_server.handle(
+      R"({"jsonrpc":"2.0","id":208,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file:///expression-ranges.janus"}}})").front();
+  if (exact_symbols.find("\"end\":{\"character\":9,\"line\":3}") ==
+      std::string::npos)
+    std::cerr << "unexpected expression symbols response: " << exact_symbols
+              << '\n';
+  JANUS_REQUIRE(exact_symbols.find("\"end\":{\"character\":9,\"line\":3}") != std::string::npos);
+  JANUS_REQUIRE(exact_symbols.find("\"name\":\"method\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(exact_symbols.find("\"kind\":6") != std::string::npos);
+  const std::string utf_selection = expression_range_server.handle(
+      R"({"jsonrpc":"2.0","id":209,"method":"textDocument/selectionRange","params":{"textDocument":{"uri":"file:///expression-ranges.janus"},"positions":[{"line":12,"character":30}]}})").front();
+  JANUS_REQUIRE(utf_selection.find("\"start\":{\"character\":26,\"line\":12}") != std::string::npos);
+  JANUS_REQUIRE(utf_selection.find("\"end\":{\"character\":32,\"line\":12}") != std::string::npos);
+  JANUS_REQUIRE(utf_selection.find("\"parent\"") != std::string::npos);
 
   const SourceResponses unknown = source_requests(unknown_uri, 109);
   require_empty_source_results(unknown);
