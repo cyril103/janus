@@ -128,6 +128,12 @@ struct MethodCallExpression {
   SourceLocation location;
 };
 
+struct IndexExpression {
+  std::unique_ptr<Expression> container;
+  std::unique_ptr<Expression> index;
+  SourceLocation location;
+};
+
 struct IfExpression {
   std::unique_ptr<Expression> condition;
   std::unique_ptr<Expression> then_expression;
@@ -207,6 +213,7 @@ struct Expression {
                    StringLiteralExpression, IdentifierExpression,
                    ArrayLiteralExpression, LambdaExpression, CallExpression,
                    NewExpression, MemberAccessExpression, MethodCallExpression,
+                   IndexExpression,
                    IfExpression, MatchExpression, MoveExpression, TryExpression,
                    UnaryExpression, BinaryExpression>;
 
@@ -305,6 +312,7 @@ struct AssignmentStatement {
   Expression expression;
   SourceLocation location;
   AssignmentOperator operation{AssignmentOperator::Assign};
+  std::unique_ptr<IndexExpression> index_target;
 };
 
 struct DeleteStatement {

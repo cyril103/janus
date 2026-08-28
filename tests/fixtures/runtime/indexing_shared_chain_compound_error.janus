@@ -1,0 +1,15 @@
+import std.array
+
+class Holder(val values : Array[int]) {}
+
+def shared(borrow holder : Holder) : borrow Holder {
+    return holder
+}
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(1))
+    values.push(1)
+    val holder : Holder = new Holder(move values)
+    shared(holder).values[usize(0)] += 1
+    return 0
+}

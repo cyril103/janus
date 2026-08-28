@@ -1,0 +1,11 @@
+import std.array
+
+class Holder(val values : Array[int]) {}
+
+def main() : int {
+    val values : Array[int] = [1]
+    val holder : Holder = new Holder(move values)
+    borrow var locked : Holder = holder
+    val observed : int = holder.values[usize(0)]
+    return observed
+}

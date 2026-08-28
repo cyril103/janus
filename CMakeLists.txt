@@ -1805,6 +1805,62 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
     )
     add_test(
+        NAME runtime.indexing
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/indexing.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/indexing_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/indexing.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.indexing_global_dependencies
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/indexing_global_dependencies.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/indexing_global_dependencies_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/indexing_global_dependencies.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.indexing_out_of_bounds
+        COMMAND ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/indexing_out_of_bounds.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/indexing_oob_runtime"
+            "-DEXPECTED_ERROR=Array index out of bounds"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    foreach(indexing_error non_copy move member_move homonym immutable borrow_conflict read_borrow_conflict const_purity shared_return shared_member shared_member_compound shared_chain shared_chain_compound)
+        if(indexing_error STREQUAL "non_copy")
+            set(indexing_expected_error "indexed Array read requires element type 'Resource' to satisfy Copy")
+        elseif(indexing_error STREQUAL "move" OR indexing_error STREQUAL "member_move")
+            set(indexing_expected_error "transferring an owned Array element requires an explicit move")
+        elseif(indexing_error STREQUAL "homonym")
+            set(indexing_expected_error "does not provide canonical indexed read capability")
+        elseif(indexing_error STREQUAL "borrow_conflict" OR indexing_error STREQUAL "read_borrow_conflict")
+            set(indexing_expected_error "cannot be accessed while mutably borrowed")
+        elseif(indexing_error STREQUAL "const_purity")
+            set(indexing_expected_error "cannot perform indexed access through a non-constant capability")
+        else()
+            set(indexing_expected_error "cannot mutate through a shared borrowed indexed container")
+        endif()
+        add_test(
+            NAME runtime.indexing_${indexing_error}_error
+            COMMAND ${CMAKE_COMMAND}
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/indexing_${indexing_error}_error.janus"
+                "-DEXPECTED_ERROR=${indexing_expected_error}"
+                -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
+        )
+    endforeach()
+    add_test(
         NAME runtime.slices
         COMMAND
             ${CMAKE_COMMAND}
@@ -3112,6 +3168,17 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.dynamic_array COMMAND dynamic_array_test)
+    add_executable(indexing_test
+        tests/language/indexing_test.cpp
+    )
+    target_link_libraries(indexing_test PRIVATE janus_frontend janus_semantic
+                                                janus_llvm_backend)
+    target_compile_definitions(indexing_test PRIVATE
+        JANUS_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+        JANUS_INDEXING_ENTRY="${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/indexing.janus"
+    )
+    target_compile_options(indexing_test PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME language.indexing COMMAND indexing_test)
 
     add_executable(module_import_test
         tests/language/module_import_test.cpp

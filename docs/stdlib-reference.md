@@ -14,12 +14,13 @@ ou une erreur structurée au lieu de l’ignorer implicitement.
 import std.array
 def main() : int {
     val values : Array[int] = [1, 2, 3]
+    values[usize(1)] += values[usize(0)]
     val sum : int = values.fold[int](
         0,
         (total : int, value : int) => total + value
     )
     delete values
-    return sum - 6
+    return sum - 7
 }
 ```
 

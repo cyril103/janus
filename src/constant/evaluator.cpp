@@ -188,6 +188,10 @@ void collect_references(const janus::ast::Expression &expression,
           else
             collect_references(*node.object, modules, references);
         } else if constexpr (std::is_same_v<Node,
+                                            janus::ast::IndexExpression>) {
+          collect_references(*node.container, modules, references);
+          collect_references(*node.index, modules, references);
+        } else if constexpr (std::is_same_v<Node,
                                             janus::ast::MethodCallExpression>) {
           collect_references(*node.object, modules, references);
           for (const auto &argument : node.arguments)

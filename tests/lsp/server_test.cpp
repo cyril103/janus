@@ -573,7 +573,63 @@ int main(int argc, char **argv) {
                 std::string::npos);
   JANUS_REQUIRE(array_member_completion.front().find(
                     "\"label\":\"takeForConsumingIterator\"") ==
+          std::string::npos);
+  const std::vector<std::string> indexed_open = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///indexed-completion.janus","text":"import std.array\nstruct Item(val value : int) derives Copy {}\ndef main() : int { val items : Array[Item] = new Array[Item](usize(1)) items[usize(0)]. return 0 }"}}})");
+  JANUS_REQUIRE(indexed_open.front().find("satisfy Copy") == std::string::npos);
+  const std::vector<std::string> indexed_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":511,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///indexed-completion.janus"},"position":{"line":2,"character":87}}})");
+  JANUS_REQUIRE(indexed_completion.front().find("\"label\":\"value\"") !=
                 std::string::npos);
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///indexed-token-aware-completion.janus","text":"import std.array\nstruct Item(val value : int) derives Copy {}\ndef pick(value : string) : usize { return usize(0) }\ndef main() : int { val items : Array[Item] = new Array[Item](usize(1)) items[pick(\"]\")]. return 0 }"}}})"));
+  const std::vector<std::string> indexed_token_aware_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":517,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///indexed-token-aware-completion.janus"},"position":{"line":3,"character":88}}})");
+  JANUS_REQUIRE(indexed_token_aware_completion.front().find(
+                    "\"label\":\"value\"") != std::string::npos);
+  JANUS_REQUIRE(indexed_token_aware_completion.front().find(
+                    "\"label\":\"pick\"") == std::string::npos);
+  JANUS_REQUIRE(indexed_token_aware_completion.front().find(
+                    "\"label\":\"main\"") == std::string::npos);
+  JANUS_REQUIRE(indexed_token_aware_completion.front().find(
+                    "\"label\":\"items\"") == std::string::npos);
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///nested-indexed-completion.janus","text":"import std.array\nclass Item(val value : int) {}\ndef main() : int { val rows : Array[Array[Item]] = new Array[Array[Item]](usize(1)) rows[usize(0)]. return 0 }"}}})"));
+  const std::vector<std::string> nested_indexed_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":514,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///nested-indexed-completion.janus"},"position":{"line":2,"character":99}}})");
+  JANUS_REQUIRE(nested_indexed_completion.front().find(
+                    "\"label\":\"push\"") != std::string::npos);
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///chained-indexed-completion.janus","text":"import std.array as arrays\nclass Item(val value : int) {}\ndef main() : int { val rows : arrays.Array[arrays.Array[Item]] = new arrays.Array[arrays.Array[Item]](usize(1)) rows[usize(0)][usize(0)]. return 0 }"}}})"));
+  const std::vector<std::string> chained_indexed_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":515,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///chained-indexed-completion.janus"},"position":{"line":2,"character":137}}})");
+  JANUS_REQUIRE(chained_indexed_completion.front().find(
+                    "\"label\":\"value\"") != std::string::npos);
+  const std::vector<std::string> indexed_diagnostics = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///indexed-diagnostics.janus","text":"import std.array\nclass Resource() {}\ndef main() : int { val values : Array[Resource] = new Array[Resource](usize(1)) val observed : Resource = values[usize(0)] return 0 }"}}})");
+  JANUS_REQUIRE(indexed_diagnostics.front().find(
+                    "indexed Array read requires element type") !=
+                std::string::npos);
+  JANUS_REQUIRE(indexed_diagnostics.front().find("satisfy Copy") !=
+                std::string::npos);
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///indexed-navigation.janus","text":"import std.array\ndef main() : int { val items : Array[int] = [1] return items[usize(0)] }"}}})"));
+  const std::vector<std::string> indexed_hover = server.handle(
+      R"({"jsonrpc":"2.0","id":512,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///indexed-navigation.janus"},"position":{"line":1,"character":57}}})");
+  JANUS_REQUIRE(indexed_hover.front().find("items : Array[int]") !=
+                std::string::npos);
+  const std::vector<std::string> indexed_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":513,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///indexed-navigation.janus"},"position":{"line":1,"character":57}}})");
+  JANUS_REQUIRE(indexed_definition.front().find("indexed-navigation.janus") !=
+                std::string::npos);
+  JANUS_REQUIRE(indexed_definition.front().find("\"line\":1") !=
+                std::string::npos);
+  JANUS_REQUIRE(indexed_definition.front().find("\"character\":23") !=
+                std::string::npos);
+  const std::vector<std::string> indexed_tokens = server.handle(
+      R"({"jsonrpc":"2.0","id":516,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///indexed-navigation.janus"}}})");
+  JANUS_REQUIRE(semantic_token_type_at(indexed_tokens.front(), 1, 55) == 7);
+  JANUS_REQUIRE(semantic_token_type_at(indexed_tokens.front(), 1, 67) == 12);
 
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///settings.janus","text":"module settings\n\nval sharedCount : int = 42\nprivate val secretCount : int = 7\n"}}})"));

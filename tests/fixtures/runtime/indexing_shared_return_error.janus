@@ -1,0 +1,13 @@
+import std.array
+
+def shared(borrow values : Array[int]) : borrow Array[int] {
+    return values
+}
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(1))
+    values.push(1)
+    shared(values)[usize(0)] = 2
+    delete values
+    return 0
+}

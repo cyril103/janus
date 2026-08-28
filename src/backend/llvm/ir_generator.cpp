@@ -2096,6 +2096,63 @@ private:
 
         if (const auto *assignment =
                 std::get_if<janus::ast::AssignmentStatement>(&statement)) {
+          if (assignment->index_target != nullptr) {
+            const janus::ast::IndexExpression &place =
+                *assignment->index_target;
+            const janus::Type &object_type = expression_type(
+                *place.container, substitutions, block_locals);
+            ::llvm::Value *object_value = emit_expression(
+                *place.container, object_type, substitutions, block_locals,
+                builder);
+            if (const auto ownership =
+                    analysis_.call_return_ownership.find(place.container.get());
+                ownership != analysis_.call_return_ownership.end() &&
+                ownership->second ==
+                    janus::ast::ReturnOwnership::BorrowMutable)
+              object_value = builder.CreateLoad(builder.getPtrTy(), object_value,
+                                                "index.mutable.object");
+            ::llvm::Value *index_value = emit_expression(
+                *place.index, janus::Type::usize_type(), substitutions,
+                block_locals, builder);
+            const auto &capabilities =
+                analysis_.indexed_capabilities.at(&place);
+            const janus::Type &element_type =
+                resolve(capabilities.element_type);
+            const ClassSpecialization &specialization =
+                class_specializations_.at(std::string{object_type.name()});
+            ::llvm::Value *replacement = nullptr;
+            if (assignment->operation ==
+                janus::ast::AssignmentOperator::Assign) {
+              replacement = emit_expression(
+                  assignment->expression, element_type, substitutions,
+                  block_locals, builder);
+            } else {
+              ::llvm::Function *get_target = emit_function(
+                  *capabilities.read, {}, specialization.declaration,
+                  &specialization.substitutions, object_type.name());
+              ::llvm::Value *left = builder.CreateCall(
+                  get_target, {object_value, index_value}, "index.old");
+              const janus::ast::BinaryOperator operation =
+                  *janus::ast::assignment_binary_operator(
+                      assignment->operation);
+              const bool is_shift =
+                  operation == janus::ast::BinaryOperator::ShiftLeft ||
+                  operation == janus::ast::BinaryOperator::ShiftRight;
+              ::llvm::Value *right = emit_expression(
+                  assignment->expression,
+                  is_shift ? janus::Type::usize_type() : element_type,
+                  substitutions, block_locals, builder);
+              replacement = emit_controlled_binary_operation(
+                  operation, left, right, element_type, assignment->location,
+                  builder);
+            }
+            ::llvm::Function *set_target = emit_function(
+                *capabilities.replace, {}, specialization.declaration,
+                &specialization.substitutions, object_type.name());
+            builder.CreateCall(set_target,
+                               {object_value, index_value, replacement});
+            continue;
+          }
           const auto emit_assignment = [&](::llvm::Value *storage,
                                            const janus::Type &type) {
             if (assignment->operation ==
@@ -2332,6 +2389,10 @@ private:
           active_bound.insert(declaration->name);
         } else if (const auto *assignment =
                        std::get_if<janus::ast::AssignmentStatement>(&statement)) {
+          if (assignment->index_target != nullptr) {
+            visit(*assignment->index_target->container, active_bound);
+            visit(*assignment->index_target->index, active_bound);
+          }
           if (!assignment->object.empty() &&
               !active_bound.contains(assignment->object) &&
               available.contains(assignment->object) &&
@@ -2424,6 +2485,10 @@ private:
               visit(*node.object, active_bound);
               for (const auto &argument : node.arguments)
                 visit(*argument, active_bound);
+            } else if constexpr (std::is_same_v<
+                                     Node, janus::ast::IndexExpression>) {
+              visit(*node.container, active_bound);
+              visit(*node.index, active_bound);
             } else if constexpr (std::is_same_v<Node,
                                                 janus::ast::IfExpression>) {
               visit(*node.condition, active_bound);
@@ -2899,6 +2964,10 @@ private:
               }
             }
             return janus::Type::int_type();
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::IndexExpression>) {
+            return resolve(
+                analysis_.indexed_capabilities.at(&node).element_type);
           } else if constexpr (std::is_same_v<Node, janus::ast::IfExpression>) {
             return expression_type(*node.then_expression, substitutions,
                                    locals);
@@ -4458,6 +4527,14 @@ private:
             } else {
               ::llvm::Value *object_value = emit_expression(
                   *node.object, object_type, substitutions, locals, builder);
+              if (const auto ownership =
+                      analysis_.call_return_ownership.find(node.object.get());
+                  ownership != analysis_.call_return_ownership.end() &&
+                  ownership->second == janus::ast::ReturnOwnership::BorrowMutable &&
+                  object_type.kind() != janus::TypeKind::Struct)
+                object_value = builder.CreateLoad(
+                    builder.getPtrTy(), object_value,
+                    node.member + ".mutable.borrow.object");
               if (object_type.kind() == janus::TypeKind::Struct) {
                 object_pointer = create_entry_alloca(
                     builder, lower_type(object_type, context_),
@@ -4630,6 +4707,31 @@ private:
                        ? builder.CreateCall(target, arguments)
                        : builder.CreateCall(target, arguments,
                                             node.method + ".result");
+          } else if constexpr (std::is_same_v<Node,
+                                              janus::ast::IndexExpression>) {
+            const janus::Type &object_type = expression_type(
+                *node.container, substitutions, locals);
+            ::llvm::Value *object_value = emit_expression(
+                *node.container, object_type, substitutions, locals, builder);
+            if (const auto ownership =
+                    analysis_.call_return_ownership.find(node.container.get());
+                ownership != analysis_.call_return_ownership.end() &&
+                ownership->second ==
+                    janus::ast::ReturnOwnership::BorrowMutable)
+              object_value = builder.CreateLoad(builder.getPtrTy(), object_value,
+                                                "index.mutable.object");
+            const ClassSpecialization &specialization =
+                class_specializations_.at(std::string{object_type.name()});
+            const auto &capabilities =
+                analysis_.indexed_capabilities.at(&node);
+            ::llvm::Function *target = emit_function(
+                *capabilities.read, {}, specialization.declaration,
+                &specialization.substitutions, object_type.name());
+            ::llvm::Value *index = emit_expression(
+                *node.index, janus::Type::usize_type(), substitutions, locals,
+                builder);
+            return builder.CreateCall(target, {object_value, index},
+                                      "index.result");
           } else if constexpr (std::is_same_v<Node, janus::ast::IfExpression>) {
             ::llvm::Value *condition =
                 emit_expression(*node.condition, janus::Type::bool_type(),

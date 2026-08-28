@@ -1,0 +1,9 @@
+import std.array
+
+const def first(values : Array[int]) : int {
+    return values[usize(0)]
+}
+
+def main() : int {
+    return 0
+}
