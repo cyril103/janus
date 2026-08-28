@@ -53,7 +53,7 @@ def summarize(values : Array[int]) : Summary {
 }
 
 def main() : int {
-    val scores : Array[int] = new Array[int](usize(4))
+    val scores : Array[int] = new Array(4)
     defer delete scores
     scores.push(12)
     scores.push(27)

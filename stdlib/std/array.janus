@@ -6,7 +6,7 @@
 /// complètes sont linéaires.
 /// @example
 /// ```janus
-/// val values : Array[int] = new Array[int](usize(2))
+/// val values : Array[int] = new Array(2)
 /// values.push(10)
 /// values.push(20)
 /// val doubled : Array[int] = values.map[int]((value : int) => value * 2)
@@ -843,7 +843,7 @@ private class ArrayFactoryState[T](private var result : Array[T]) {
 /// @example
 /// ```janus
 /// val bytes : Array[byte] =
-/// filledArray[byte](usize(4), byte(0))
+/// filledArray[byte](4, byte(0))
 /// defer delete bytes
 /// ```
 def filledArray[T <: Copy](count : usize, value : T) : Array[T] {
@@ -872,7 +872,7 @@ def filledArray[T <: Copy](count : usize, value : T) : Array[T] {
 /// @example
 /// ```janus
 /// val squares : Array[int] = generateArray[int](
-/// usize(4),
+/// 4,
 /// (index : usize) => int(index * index)
 /// )
 /// defer delete squares

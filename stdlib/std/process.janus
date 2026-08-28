@@ -5,7 +5,7 @@
 /// [[runProcess]] attend la fin de l’enfant et peut capturer ses sorties en octets.
 /// @example
 /// ```janus
-/// val args = new Array[string](usize(1))
+/// val args = new Array[string](1)
 /// args.push("--version")
 /// val result = runProcess("janus", args, "", true, true)
 /// ```

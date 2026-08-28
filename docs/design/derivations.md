@@ -182,9 +182,9 @@ standard `DerivedHashing[T]` du module `std.hashing`, utilisable directement
 comme paramètre de `HashSet` ou `HashMap` :
 
 ```janus
-val hashing : DerivedHashing[Point] = new DerivedHashing[Point]()
+val hashing : DerivedHashing[Point] = new DerivedHashing()
 val points : HashSet[Point, DerivedHashing[Point]] =
-new HashSet[Point, DerivedHashing[Point]](usize(8), hashing)
+new HashSet(8, hashing)
 ```
 
 L'intrinsèque `debug(value)` écrit une ligne déterministe sur la sortie

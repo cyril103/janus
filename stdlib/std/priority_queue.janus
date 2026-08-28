@@ -5,8 +5,8 @@
 /// retirées dans leur ordre d'insertion (FIFO).
 /// @example
 /// ```janus
-/// val queue : PriorityQueue[int] = new PriorityQueue[int](
-///     usize(4),
+/// val queue : PriorityQueue[int] = new PriorityQueue(
+///     4,
 ///     (borrow left : int, borrow right : int) => left < right
 /// )
 /// queue.enqueue(3)

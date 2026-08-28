@@ -15,7 +15,7 @@
 import std.array
 
 def main() : int {
-    val values : Array[int] = new Array[int](usize(4))
+    val values : Array[int] = new Array(4)
     defer delete values
     values.push(10)
     values.push(20)
@@ -28,7 +28,8 @@ def main() : int {
 }
 ```
 
-La capacité initiale est un `usize`. Le tableau est possédé et doit être
+La capacité initiale attend un `usize`; le littéral positif est converti par ce
+contexte. Le tableau est possédé et doit être
 détruit. `Array[T]` accepte aussi les valeurs propriétaires : les parcours
 observants comme `iterator()` exigent des éléments `Copy`, tandis que
 `intoIterator()` consomme le tableau et transfère ses éléments.
@@ -74,8 +75,8 @@ Le conteneur puis l'index sont évalués chacun une fois, dans cet ordre.
 import std.array
 def main() : int {
     val scores : Array[int] = [12, 8, 19]
-    scores[usize(1)] += 2
-    val middle : int = scores[usize(1)]
+    scores[1] += 2
+    val middle : int = scores[1]
     delete scores
     return if middle == 10 { 0 } else { 1 }
 }
@@ -101,15 +102,15 @@ import std.array
 
 def main() : int {
     val values : Array[usize] = generateArray[usize](
-        usize(5),
+        5,
         (index : usize) => usize(5) - index
     )
     defer delete values
     values.sortWith((left : usize, right : usize) => left < right)
 
-    val flags : Array[bool] = filledArray[bool](usize(3), true)
+    val flags : Array[bool] = filledArray[bool](3, true)
     defer delete flags
-    return if values.get(usize(0)) == usize(1) && flags.size() == usize(3) { 0 } else { 1 }
+    return if values.get(0) == usize(1) && flags.size() == usize(3) { 0 } else { 1 }
 }
 ```
 
@@ -127,7 +128,7 @@ Créez un tableau contenant `2`, `4`, `6`, parcourez-le et affichez leur somme.
     import std.array
 
     def main() : int {
-        val values : Array[int] = new Array[int](usize(3))
+        val values : Array[int] = new Array(3)
         defer delete values
         values.push(2)
         values.push(4)

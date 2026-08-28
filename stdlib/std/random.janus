@@ -4,8 +4,8 @@
 /// une borne strictement positive, faute de quoi ils paniquent.
 /// @example
 /// ```janus
-/// val rng : Random = new Random(usize(1234))
-/// val die : usize = rng.nextBounded(usize(6)) + usize(1)
+/// val rng : Random = new Random(1234)
+/// val die : usize = rng.nextBounded(6) + usize(1)
 /// ```
 module std.random
 

@@ -57,12 +57,12 @@ derives Copy, Equality, Hashing, Debug {}
 
 def main() : int {
     val hashing : DerivedHashing[Coordinate] =
-        new DerivedHashing[Coordinate]()
+        new DerivedHashing()
     defer delete hashing
 
     val visited : HashSet[Coordinate, DerivedHashing[Coordinate]] =
-        new HashSet[Coordinate, DerivedHashing[Coordinate]](
-            usize(8),
+        new HashSet(
+            8,
             hashing
         )
     defer delete visited

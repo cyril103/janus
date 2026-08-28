@@ -814,14 +814,14 @@ plage est validée à la construction et le stockage n'est jamais copié :
 import std.array
 import std.slice
 
-val values : Array[int] = new Array[int](usize(3))
+val values : Array[int] = new Array(3)
 values.push(10)
 values.push(20)
 values.push(30)
 if true {
     val middle : MutableSlice[int] =
-    new MutableSlice[int](values, usize(1), usize(2))
-    borrow var item : int = middle.getMutable(usize(0))
+    new MutableSlice(values, 1, 2)
+    borrow var item : int = middle.getMutable(0)
     item = 25
     delete middle
 }
@@ -909,10 +909,10 @@ Pour utiliser un type qui dérive `Hashing` comme clé, `std.hashing` fournit
 import std.hashing
 import std.hashset
 
-val hashing : DerivedHashing[Point] = new DerivedHashing[Point]()
+val hashing : DerivedHashing[Point] = new DerivedHashing()
 defer delete hashing
 val points : HashSet[Point, DerivedHashing[Point]] =
-new HashSet[Point, DerivedHashing[Point]](usize(8), hashing)
+new HashSet(8, hashing)
 defer delete points
 ```
 
@@ -933,12 +933,40 @@ La bibliothèque standard comprend notamment :
 - `Range` et itérateurs paresseux ;
 - `Option[T]` et `Result[T, E]`.
 
+### Inférence bidirectionnelle des constructeurs
+
+Pour `new Type(...)`, Janus cherche les paramètres génériques à la fois dans
+les arguments du constructeur et dans le type attendu. Un argument typé suffit
+souvent :
+
+```janus
+class Box[T](val value : T) {}
+val box = new Box(42) // Box[int], inféré depuis l'argument
+```
+
+Une annotation complète peut à l’inverse fournir le type au constructeur. Il
+est alors inutile de le répéter, et un littéral positif adopte le `usize`
+attendu :
+
+```janus
+import std.array
+val box : Box[int] = new Box(42)
+val values : Array[int] = new Array(8)
+```
+
+Si aucun argument ni type attendu ne contraint un paramètre, rendez-le
+explicite. `val factory = new Factory()` produit le diagnostic
+`cannot infer type of 'factory'; help: add an explicit type annotation; note:
+generic type parameter 'T' is not constrained by constructor arguments or
+context; help: add explicit type arguments`; écrivez par exemple
+`val factory = new Factory[int]()`.
+
 Exemple :
 
 ```janus
 import std.array
 
-val values : Array[int] = new Array[int](usize(4))
+val values : Array[int] = new Array(4)
 defer delete values
 values.push(10)
 values.push(20)
@@ -1014,12 +1042,12 @@ interne, sans exiger `Copy`.
 Un tableau propriétaire reçoit et rend ses éléments par transfert explicite :
 
 ```janus
-val resources : Array[Resource] = new Array[Resource](usize(1))
+val resources : Array[Resource] = new Array(1)
 defer delete resources
 
 val resource : Resource = new Resource()
 resources.push(move resource)
-val recovered : Resource = resources.remove(usize(0))
+val recovered : Resource = resources.remove(0)
 defer delete recovered
 ```
 
@@ -1082,7 +1110,7 @@ satisfont `Copy`. Le trait distinct `IntoIterable[T]` décrit
 détruisant l'autre.
 
 ```janus
-val resources : Array[Resource] = new Array[Resource](usize(2))
+val resources : Array[Resource] = new Array(2)
 resources.push(move first)
 resources.push(move second)
 
@@ -1198,7 +1226,7 @@ multiplications qui pourraient s'enrouler avec les règles arithmétiques de
 
 `prime_factors` retourne un nouveau `Array[usize]` possédé par l'appelant. Les
 facteurs premiers sont en ordre croissant et les multiplicités sont conservées :
-`prime_factors(usize(12))` retourne `2, 2, 3`. Pour `0` et `1`, le tableau est
+`prime_factors(12)` retourne `2, 2, 3`. Pour `0` et `1`, le tableau est
 vide. Pour une entrée première, le tableau contient seulement cette entrée.
 L'appelant doit libérer le tableau avec `delete`.
 
@@ -1207,11 +1235,11 @@ import std.math
 import std.array
 
 def main() : int {
-    val factors : Array[usize] = prime_factors(usize(49))
+    val factors : Array[usize] = prime_factors(49)
     defer delete factors
 
-    println(factors.get(usize(0))) // 7
-    println(factors.get(usize(1))) // 7
+    println(factors.get(0)) // 7
+    println(factors.get(1)) // 7
     return 0
 }
 ```
@@ -1262,11 +1290,11 @@ la même suite sur toutes les plateformes :
 ```janus
 import std.random
 
-val random : Random = new Random(usize(42))
+val random : Random = new Random(42)
 defer delete random
 
 val any : usize = random.nextUSize()
-val die : usize = random.nextBounded(usize(6)) + usize(1)
+val die : usize = random.nextBounded(6) + usize(1)
 ```
 
 `nextBounded(upperExclusive)` retourne une valeur dans

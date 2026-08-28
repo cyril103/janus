@@ -4,7 +4,7 @@
 /// achevé et réinitialise le constructeur pour permettre sa réutilisation.
 /// @example
 /// ```janus
-/// val builder : ArrayBuilder[int] = new ArrayBuilder[int](usize(2))
+/// val builder : ArrayBuilder[int] = new ArrayBuilder(2)
 /// builder.add(10)
 /// val values : Array[int] = builder.result()
 /// ```

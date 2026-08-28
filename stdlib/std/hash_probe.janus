@@ -5,8 +5,8 @@
 /// croissance employés par [[HashMap]] et [[HashSet]].
 /// @example
 /// ```janus
-/// val capacity : usize = normalizedHashCapacity(usize(3))
-/// var probe : HashProbe = hashProbe(usize(42), capacity)
+/// val capacity : usize = normalizedHashCapacity(3)
+/// var probe : HashProbe = hashProbe(42, capacity)
 /// while probe.hasNext() {
 ///     val slot : usize = probe.next()
 /// }

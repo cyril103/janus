@@ -202,6 +202,21 @@ int main() {
               << janus::driver::format_source(local_types);
     return 1;
   }
+  const std::string inferred_constructors =
+      "class Box[T](val value:T) {}\n"
+      "def main():int {\nval argumentDriven=new Box(42)\n"
+      "val contextDriven:Box[int]=new Box(42)\nreturn 0\n}\n";
+  const std::string formatted_inferred_constructors =
+      "class Box[T](val value:T) {}\n"
+      "def main():int {\n    val argumentDriven=new Box(42)\n"
+      "    val contextDriven:Box[int]=new Box(42)\n    return 0\n}\n";
+  if (janus::driver::format_source(inferred_constructors) !=
+          formatted_inferred_constructors ||
+      janus::driver::format_source(formatted_inferred_constructors) !=
+          formatted_inferred_constructors) {
+    std::cerr << "formatter changed inferred constructor spellings\n";
+    return 1;
+  }
   const std::string constants =
       "const answer : int = 42\n"
       "const def choose(flag : bool) : int {\n"

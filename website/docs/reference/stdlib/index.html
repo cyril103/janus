@@ -37,7 +37,7 @@ accès sont constants; une suppression au milieu et les transformations
 complètes sont linéaires.
 @example
 ```janus
-val values : Array[int] = new Array[int](usize(2))
+val values : Array[int] = new Array(2)
 values.push(10)
 values.push(20)
 val doubled : Array[int] = values.map[int]((value : int) =&gt; value * 2)
@@ -46,7 +46,7 @@ val doubled : Array[int] = values.map[int]((value : int) =&gt; value * 2)
 <div class="module-summary"><p class="doc-summary">Fournit un tableau dynamique propriétaire et ses opérations séquentielles.</p><div class="doc-details"><p><a href="#std-array-array"><code>Array</code></a> conserve les valeurs dans une zone contiguë, agrandit sa capacité<br>
 selon les besoins et détruit les éléments encore stockés avec le tableau. Les<br>
 accès sont constants; une suppression au milieu et les transformations<br>
-complètes sont linéaires.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val values : Array[int] = new Array[int](usize(2))<br>
+complètes sont linéaires.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val values : Array[int] = new Array(2)<br>
 values.push(10)<br>
 values.push(20)<br>
 val doubled : Array[int] = values.map[int]((value : int) =&gt; value * 2)<br>
@@ -449,7 +449,7 @@ construit est alors détruit.
 @example
 ```janus
 val bytes : Array[byte] =
-filledArray[byte](usize(4), byte(0))
+filledArray[byte](4, byte(0))
 defer delete bytes
 ```"><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def filledArray[T](count : usize, value : T) : Array[T]</code></h3>
 <p class="doc-summary">Construit un tableau contenant `count` copies de `value`.</p>
@@ -462,7 +462,7 @@ construit est alors détruit.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>count</code></td><td><code>usize</code></td><td>Nombre d’éléments à construire; zéro produit un tableau vide valide.</td></tr><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur copiée dans chaque emplacement.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Array[T]</code> — Nouveau tableau propriétaire de taille `count`.</p></section>
 <section class="doc-section"><h4>Example</h4><pre class="example"><code>val bytes : Array[byte] =<br>
-filledArray[byte](usize(4), byte(0))<br>
+filledArray[byte](4, byte(0))<br>
 defer delete bytes<br>
 </code></pre></section>
 <div class="qualified">std.array.filledArray</div></div><a class="permalink" href="#std-array-filledarray" aria-label="Permanent link to std.array.filledArray">#</a></article>
@@ -480,7 +480,7 @@ résultat est transférée exactement une fois au tableau retourné.
 @example
 ```janus
 val squares : Array[int] = generateArray[int](
-usize(4),
+4,
 (index : usize) =&gt; int(index * index)
 )
 defer delete squares
@@ -495,7 +495,7 @@ résultat est transférée exactement une fois au tableau retourné.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>count</code></td><td><code>usize</code></td><td>Nombre d’éléments à produire; zéro n’appelle pas `factory`.</td></tr><tr><td><code>factory</code></td><td><code>Function[usize, T]</code></td><td>Fonction appelée exactement une fois avec chaque index croissant.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Array[T]</code> — Nouveau tableau propriétaire de taille `count`.</p></section>
 <section class="doc-section"><h4>Example</h4><pre class="example"><code>val squares : Array[int] = generateArray[int](<br>
-usize(4),<br>
+4,<br>
 (index : usize) =&gt; int(index * index)<br>
 )<br>
 defer delete squares<br>
@@ -508,13 +508,13 @@ defer delete squares<br>
 achevé et réinitialise le constructeur pour permettre sa réutilisation.
 @example
 ```janus
-val builder : ArrayBuilder[int] = new ArrayBuilder[int](usize(2))
+val builder : ArrayBuilder[int] = new ArrayBuilder(2)
 builder.add(10)
 val values : Array[int] = builder.result()
 ```">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.array_builder</h2></header>
 <div class="module-summary"><p class="doc-summary">Construit des tableaux propriétaires à partir de valeurs ou d’itérateurs.</p><div class="doc-details"><p><a href="#std-array-builder-arraybuilder"><code>ArrayBuilder</code></a> possède chaque valeur ajoutée. <a href="#std-array-builder-arraybuilder-result"><code>ArrayBuilder.result</code></a> transfère le tableau<br>
-achevé et réinitialise le constructeur pour permettre sa réutilisation.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val builder : ArrayBuilder[int] = new ArrayBuilder[int](usize(2))<br>
+achevé et réinitialise le constructeur pour permettre sa réutilisation.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val builder : ArrayBuilder[int] = new ArrayBuilder(2)<br>
 builder.add(10)<br>
 val values : Array[int] = builder.result()<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">7</span></h3>
@@ -569,12 +569,12 @@ Le constructeur reste utilisable et repart avec une capacité initiale nulle.
 Le devenir de l’accumulateur après [[Builder.result]] dépend de son implémentation.
 @example
 ```janus
-val builder : ArrayBuilder[int] = new ArrayBuilder[int](usize(2))
+val builder : ArrayBuilder[int] = new ArrayBuilder(2)
 builder.add(7)
 val values : Array[int] = builder.result()
 ```">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.builder</h2></header>
-<div class="module-summary"><p class="doc-summary">Décrit un accumulateur qui prend possession des valeurs ajoutées et produit une collection.</p><div class="doc-details"><p>Le devenir de l’accumulateur après <a href="#std-builder-builder-result"><code>Builder.result</code></a> dépend de son implémentation.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val builder : ArrayBuilder[int] = new ArrayBuilder[int](usize(2))<br>
+<div class="module-summary"><p class="doc-summary">Décrit un accumulateur qui prend possession des valeurs ajoutées et produit une collection.</p><div class="doc-details"><p>Le devenir de l’accumulateur après <a href="#std-builder-builder-result"><code>Builder.result</code></a> dépend de son implémentation.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val builder : ArrayBuilder[int] = new ArrayBuilder(2)<br>
 builder.add(7)<br>
 val values : Array[int] = builder.result()<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">3</span></h3>
@@ -3932,8 +3932,8 @@ fonctions de ce module centralisent aussi la capacité minimale et le seuil de
 croissance employés par [[HashMap]] et [[HashSet]].
 @example
 ```janus
-val capacity : usize = normalizedHashCapacity(usize(3))
-var probe : HashProbe = hashProbe(usize(42), capacity)
+val capacity : usize = normalizedHashCapacity(3)
+var probe : HashProbe = hashProbe(42, capacity)
 while probe.hasNext() {
     val slot : usize = probe.next()
 }
@@ -3941,8 +3941,8 @@ while probe.hasNext() {
 <header class="module-heading"><span class="keyword">module</span> <h2>std.hash_probe</h2></header>
 <div class="module-summary"><p class="doc-summary">Fournit le sondage linéaire circulaire utilisé par les collections hachées.</p><div class="doc-details"><p>Une sonde visite au plus une fois chaque case d’une capacité non nulle. Les<br>
 fonctions de ce module centralisent aussi la capacité minimale et le seuil de<br>
-croissance employés par <a href="#std-hashmap-hashmap"><code>HashMap</code></a> et <a href="#std-hashset-hashset"><code>HashSet</code></a>.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val capacity : usize = normalizedHashCapacity(usize(3))<br>
-var probe : HashProbe = hashProbe(usize(42), capacity)<br>
+croissance employés par <a href="#std-hashmap-hashmap"><code>HashMap</code></a> et <a href="#std-hashset-hashset"><code>HashSet</code></a>.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val capacity : usize = normalizedHashCapacity(3)<br>
+var probe : HashProbe = hashProbe(42, capacity)<br>
 while probe.hasNext() {<br>
     val slot : usize = probe.next()<br>
 }<br>
@@ -4205,7 +4205,7 @@ l’itération suit l’ordre interne des cases et non l’ordre d’insertion.
 @example
 ```janus
 val scores : HashMap[int, int, IntHashing] =
-    new HashMap[int, int, IntHashing](usize(8), new IntHashing())
+    new HashMap(8, new IntHashing())
 delete scores.put(7, 42)
 val score : Option[int] = scores.getOption(7)
 ```">
@@ -4214,7 +4214,7 @@ val score : Option[int] = scores.getOption(7)
 avec sondage linéaire et redimensionnement automatique. Les opérations de<br>
 recherche sont amorties constantes lorsque les hachages sont bien répartis;<br>
 l’itération suit l’ordre interne des cases et non l’ordre d’insertion.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val scores : HashMap[int, int, IntHashing] =<br>
-    new HashMap[int, int, IntHashing](usize(8), new IntHashing())<br>
+    new HashMap(8, new IntHashing())<br>
 delete scores.put(7, 42)<br>
 val score : Option[int] = scores.getOption(7)<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">30</span></h3>
@@ -4503,7 +4503,7 @@ internes et ne garantit aucun ordre d’insertion.
 @example
 ```janus
 val ids : HashSet[int, IntHashing] =
-    new HashSet[int, IntHashing](usize(8), new IntHashing())
+    new HashSet(8, new IntHashing())
 val inserted : bool = ids.add(42)
 val present : bool = ids.contains(42)
 ```">
@@ -4512,7 +4512,7 @@ val present : bool = ids.contains(42)
 stratégie <a href="#std-hashing-hashing"><code>Hashing</code></a>. Le sondage linéaire donne des opérations amorties<br>
 constantes avec des hachages bien répartis; le parcours suit les cases<br>
 internes et ne garantit aucun ordre d’insertion.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val ids : HashSet[int, IntHashing] =<br>
-    new HashSet[int, IntHashing](usize(8), new IntHashing())<br>
+    new HashSet(8, new IntHashing())<br>
 val inserted : bool = ids.add(42)<br>
 val present : bool = ids.contains(42)<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">22</span></h3>
@@ -5224,16 +5224,16 @@ travaille en `double`.
 [[prime_factors]] renvoie les facteurs croissants avec leur multiplicité.
 @example
 ```janus
-val divisor : usize = gcd(usize(84), usize(30))
-val factors : Array[usize] = prime_factors(usize(84))
+val divisor : usize = gcd(84, 30)
+val factors : Array[usize] = prime_factors(84)
 ```">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.math</h2></header>
 <div class="module-summary"><p class="doc-summary">Fournit les mathématiques scalaires usuelles pour `double`, `float` et `usize`.</p><div class="doc-details"><p>Les fonctions flottantes suivent la sémantique de la bibliothèque mathématique C.<br>
 Une variante terminée par `f` travaille en `float`; la variante sans suffixe<br>
 travaille en `double`.<br>
 <a href="#std-math-lcm"><code>lcm</code></a> renvoie zéro si un opérande est nul et panique si le produit réduit déborde.<br>
-<a href="#std-math-prime-factors"><code>prime_factors</code></a> renvoie les facteurs croissants avec leur multiplicité.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val divisor : usize = gcd(usize(84), usize(30))<br>
-val factors : Array[usize] = prime_factors(usize(84))<br>
+<a href="#std-math-prime-factors"><code>prime_factors</code></a> renvoie les facteurs croissants avec leur multiplicité.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val divisor : usize = gcd(84, 30)<br>
+val factors : Array[usize] = prime_factors(84)<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">104</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-global" id="std-math-e" data-symbol data-search="std.math.E global val E : double Constante d’Euler, base du logarithme naturel, en double précision."><span class="kind-icon" aria-hidden="true">g</span><div><span class="kind">global</span><h3><code>val E : double</code></h3>
@@ -6244,8 +6244,8 @@ détermine l&#39;ordre de sortie et les valeurs de priorité équivalente sont
 retirées dans leur ordre d&#39;insertion (FIFO).
 @example
 ```janus
-val queue : PriorityQueue[int] = new PriorityQueue[int](
-    usize(4),
+val queue : PriorityQueue[int] = new PriorityQueue(
+    4,
     (borrow left : int, borrow right : int) =&gt; left &lt; right
 )
 queue.enqueue(3)
@@ -6255,8 +6255,8 @@ val first : int = queue.dequeue()
 <header class="module-heading"><span class="keyword">module</span> <h2>std.priority_queue</h2></header>
 <div class="module-summary"><p class="doc-summary">Fournit une file de priorité stable fondée sur un tas binaire.</p><div class="doc-details"><p><a href="#std-priority-queue-priorityqueue"><code>PriorityQueue</code></a> stocke ses entrées dans un <a href="#std-array-array"><code>Array</code></a>. Le comparateur<br>
 détermine l&#39;ordre de sortie et les valeurs de priorité équivalente sont<br>
-retirées dans leur ordre d&#39;insertion (FIFO).</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val queue : PriorityQueue[int] = new PriorityQueue[int](<br>
-    usize(4),<br>
+retirées dans leur ordre d&#39;insertion (FIFO).</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val queue : PriorityQueue[int] = new PriorityQueue(<br>
+    4,<br>
     (borrow left : int, borrow right : int) =&gt; left &lt; right<br>
 )<br>
 queue.enqueue(3)<br>
@@ -6390,14 +6390,14 @@ d’environnement et résultats de commande possèdent en revanche leurs buffers
 [[runProcess]] attend la fin de l’enfant et peut capturer ses sorties en octets.
 @example
 ```janus
-val args = new Array[string](usize(1))
+val args = new Array[string](1)
 args.push(&quot;--version&quot;)
 val result = runProcess(&quot;janus&quot;, args, &quot;&quot;, true, true)
 ```">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.process</h2></header>
 <div class="module-summary"><p class="doc-summary">Consulte le contexte du processus courant et lance des processus enfants.</p><div class="doc-details"><p>Les chaînes d’arguments du programme sont empruntées au runtime. Les valeurs<br>
 d’environnement et résultats de commande possèdent en revanche leurs buffers.<br>
-<a href="#std-process-runprocess"><code>runProcess</code></a> attend la fin de l’enfant et peut capturer ses sorties en octets.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val args = new Array[string](usize(1))<br>
+<a href="#std-process-runprocess"><code>runProcess</code></a> attend la fin de l’enfant et peut capturer ses sorties en octets.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val args = new Array[string](1)<br>
 args.push(&quot;--version&quot;)<br>
 val result = runProcess(&quot;janus&quot;, args, &quot;&quot;, true, true)<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">28</span></h3>
@@ -6627,13 +6627,13 @@ Une même graine produit la même suite. Les tirages bornés évitent le biais m
 une borne strictement positive, faute de quoi ils paniquent.
 @example
 ```janus
-val rng : Random = new Random(usize(1234))
-val die : usize = rng.nextBounded(usize(6)) + usize(1)
+val rng : Random = new Random(1234)
+val die : usize = rng.nextBounded(6) + usize(1)
 ```">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.random</h2></header>
 <div class="module-summary"><p class="doc-summary">Fournit des suites pseudo-aléatoires déterministes ou automatiquement initialisées.</p><div class="doc-details"><p>Une même graine produit la même suite. Les tirages bornés évitent le biais modulo et exigent<br>
-une borne strictement positive, faute de quoi ils paniquent.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val rng : Random = new Random(usize(1234))<br>
-val die : usize = rng.nextBounded(usize(6)) + usize(1)<br>
+une borne strictement positive, faute de quoi ils paniquent.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val rng : Random = new Random(1234)<br>
+val die : usize = rng.nextBounded(6) + usize(1)<br>
 </code></pre></section><h3 class="member-heading">Public members <span class="member-count">6</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-random-random" data-symbol data-search="std.random.Random class class Random(seed : usize) Générateur mutable dont chaque tirage avance un état initialisé par `seed`.

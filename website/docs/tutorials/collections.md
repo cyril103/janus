@@ -16,14 +16,15 @@
 import std.array
 import std.array_builder
 
-val values : Array[int] = new Array[int](usize(4))
+val values : Array[int] = new Array(4)
 defer delete values
 values.push(10)
 values.push(20)
 values.push(30)
 ```
 
-La capacité est un `usize`. Le `defer` garantit la libération de l’allocation à la sortie de la portée.
+Le paramètre attend un `usize`, donc le littéral positif adopte ce type. Le
+`defer` garantit la libération de l’allocation à la sortie de la portée.
 
 ## 2. Composer sans matérialiser à chaque étape
 
@@ -48,7 +49,7 @@ import std.array
 import std.array_builder
 
 def main() : int {
-    val values : Array[int] = new Array[int](usize(4))
+    val values : Array[int] = new Array(4)
     defer delete values
     values.push(10)
     values.push(20)
