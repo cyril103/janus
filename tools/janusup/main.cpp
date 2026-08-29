@@ -412,9 +412,12 @@ std::string distribution_location(const std::string &version,
 
 std::string channel_manifest_location(const std::string &name) {
   const char *configured = std::getenv("JANUS_DIST_SERVER");
-  if (configured == nullptr && name == "nightly")
-    return "https://raw.githubusercontent.com/cyril103/janus/"
-           "nightly-channel/version";
+  if (configured == nullptr) {
+    const std::string branch =
+        name == "nightly" ? "nightly-channel" : "channel-" + name;
+    return "https://raw.githubusercontent.com/cyril103/janus/" + branch +
+           "/version";
+  }
   return distribution_location("channel-" + name, "version");
 }
 
