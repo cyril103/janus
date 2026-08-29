@@ -50,7 +50,9 @@ jobs:
           curl --fail --location --proto '=https' --tlsv1.2 \
             https://raw.githubusercontent.com/cyril103/janus/nightly-channel/version \
             --output manifests/nightly/version
-          gh release download channel-stable --pattern version --dir manifests/stable
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            https://raw.githubusercontent.com/cyril103/janus/channel-stable/version \
+            --output manifests/stable/version
           nightly_release="$(awk '{if (NF != 2 && NF != 4) exit 2; print $2}' manifests/nightly/version)"
           stable_release="$(awk '{if (NF != 2 && NF != 4) exit 2; print $2}' manifests/stable/version)"
           nightly_published="$(gh release view "$nightly_release" --json publishedAt --jq .publishedAt)"

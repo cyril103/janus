@@ -36,6 +36,18 @@ if(CHANGELOG_VERSION EQUAL -1)
     message(FATAL_ERROR
         "CHANGELOG.md has no section for Janus ${PROJECT_VERSION}")
 endif()
+set(RELEASE_LINK
+    "[${PROJECT_VERSION}]: https://github.com/cyril103/janus/releases/tag/v${PROJECT_VERSION}")
+string(REPLACE "." "\\." PROJECT_VERSION_REGEX "${PROJECT_VERSION}")
+file(STRINGS "${SOURCE_DIR}/CHANGELOG.md" CHANGELOG_RELEASE_LINKS
+    REGEX
+    "^\\[${PROJECT_VERSION_REGEX}\\]: https://github.com/cyril103/janus/releases/tag/v${PROJECT_VERSION_REGEX}$"
+    ENCODING UTF-8)
+list(LENGTH CHANGELOG_RELEASE_LINKS CHANGELOG_RELEASE_LINK_COUNT)
+if(NOT CHANGELOG_RELEASE_LINK_COUNT EQUAL 1)
+    message(FATAL_ERROR
+        "CHANGELOG.md has no unique exact release link for Janus ${PROJECT_VERSION}")
+endif()
 
 file(READ "${SOURCE_DIR}/README.md" README)
 string(REGEX MATCH
