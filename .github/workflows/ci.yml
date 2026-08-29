@@ -524,9 +524,9 @@ jobs:
         id: downstream-canary
         run: |
           git clone https://github.com/cyril103/janus8.git janus8
-          git -C janus8 checkout b962b69ea14a47016556f9e2a111c7dab1e2e02d
+          git -C janus8 checkout cbeb0e4ad0de447da4a60e5598d8c16d244ce9aa
           git clone https://github.com/cyril103/janus-studio.git janus-studio
-          git -C janus-studio checkout 176c16dab8b37be7d898c98ca98716457b39dbb7
+          git -C janus-studio checkout 13f846ea7700a247342a87b91fc42b80a20c4a55
           version="$JANUS_PACKAGE_VERSION"
           archive="dist/release/janus-${version}-Linux-x86_64.tar.gz"
           test -f "$archive" && test -f "$archive.sha256"
