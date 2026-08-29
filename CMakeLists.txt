@@ -2965,6 +2965,18 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.try_operator COMMAND try_operator_test)
+    add_test(
+        NAME runtime.lambda_try_operator
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/lambda_try_operator.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/lambda_try_operator_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/lambda_try_operator.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
 
     add_executable(unit_type_test
         tests/language/unit_type_test.cpp

@@ -9,14 +9,24 @@ def convertOption(input : Option[int]) : Option[double] {
 def convertResult(input : Result[int, string]) : Result[double, string] {
     val normalized : Result[int, string] =
     std.result.map[int, int, string](
-    input,
-    (value : int) => value + 1
+        input,
+        (value : int) => value + 1
     )
     val value : int = normalized?
     return std.result.map[double, double, string](
-    Result.Ok[double, string](double(value)),
-    (item : double) => item * 2.0
+        Result.Ok[double, string](double(value)),
+        (item : double) => item * 2.0
     )
+}
+
+def convertWithLambda(input : Option[int]) : Option[int] {
+    val increment : (Option[int]) => Option[int] = value => {
+        val item : int = value?
+        return Option.Some[int](item + 1)
+    }
+    val result : Option[int] = increment(input)
+    delete increment
+    return result
 }
 
 def main() : int {
@@ -26,6 +36,8 @@ def main() : int {
     convertResult(Result.Ok[int, string](10))
     val failed : Result[double, string] =
     convertResult(Result.Error[int, string]("failure"))
+    val fromLambda : Option[int] =
+    convertWithLambda(Option.Some[int](4))
 
     val optionValue : int = match option {
         Some(value) => numericCast[int](value),
@@ -39,5 +51,9 @@ def main() : int {
         Ok(value) => 0,
         Error(message) => 1
     }
-    return optionValue + resultValue + propagated
+    val lambdaValue : int = match fromLambda {
+        Some(value) => value,
+        None => 0
+    }
+    return optionValue + resultValue + propagated + lambdaValue
 }

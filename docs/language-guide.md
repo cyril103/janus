@@ -619,6 +619,22 @@ input : Result[int, string]
 }
 ```
 
+Une lambda à corps bloc peut également employer `?` lorsque son type de
+fonction attendu fixe un retour `Option` ou `Result`. La propagation quitte la
+lambda elle-même, jamais la fonction qui la contient :
+
+```janus
+val normalize : (Result[int, string]) => Result[int, string] = input => {
+    val value : int = input?
+    return Result.Ok[int, string](value * 2)
+}
+```
+
+Sans type de fonction contextuel, annotez la liaison de la lambda afin que le
+compilateur connaisse le type propagé avant d'analyser son bloc. Les mêmes
+règles de compatibilité d'erreur, de `move` et de nettoyage s'appliquent aux
+lambdas et aux fonctions ordinaires.
+
 Pour un `Result` propriétaire, `?` consomme l'agrégat et exige un transfert
 explicite : `val resource : Resource = (move pending)?`. `pending` devient
 ensuite inutilisable. Une propagation d'erreur exécute les nettoyages actifs

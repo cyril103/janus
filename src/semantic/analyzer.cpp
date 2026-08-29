@@ -3213,6 +3213,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
         validate_block;
     std::optional<SemanticType> *active_lambda_return_type = nullptr;
+    const std::unordered_set<std::size_t> *active_lambda_outer_declarations =
+        nullptr;
     std::function<void(const ast::Expression &, const SemanticType &,
                        SourceLocation)>
         validate_expression;
@@ -3228,6 +3230,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       auto *const active_lambda_mutations_before = active_lambda_mutations;
       auto *const active_lambda_return_type_before =
           active_lambda_return_type;
+      const auto *const active_lambda_outer_declarations_before =
+          active_lambda_outer_declarations;
       const std::optional<std::optional<SemanticType>>
           active_return_type_before =
               active_lambda_return_type_before == nullptr
@@ -3277,6 +3281,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         active_lambda_captures = active_lambda_captures_before;
         active_lambda_mutations = active_lambda_mutations_before;
         active_lambda_return_type = active_lambda_return_type_before;
+        active_lambda_outer_declarations =
+            active_lambda_outer_declarations_before;
         if (active_return_type_before.has_value())
           *active_lambda_return_type_before = *active_return_type_before;
         inside_lambda = inside_lambda_before;
@@ -4150,6 +4156,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               auto *const previous_lambda_mutations = active_lambda_mutations;
               auto *const previous_lambda_return_type =
                   active_lambda_return_type;
+              const auto *const previous_lambda_outer_declarations =
+                  active_lambda_outer_declarations;
+              std::unordered_set<std::size_t> lambda_outer_declarations;
+              lambda_outer_declarations.reserve(local_declarations.size());
+              for (const auto &[name, location] : local_declarations) {
+                static_cast<void>(name);
+                lambda_outer_declarations.insert(location.offset);
+              }
               const std::size_t previous_loop_depth = loop_depth;
               const auto restore_lambda_state = [&] {
                 active_symbols = previous_symbols;
@@ -4157,6 +4171,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 active_lambda_captures = previous_lambda_captures;
                 active_lambda_mutations = previous_lambda_mutations;
                 active_lambda_return_type = previous_lambda_return_type;
+                active_lambda_outer_declarations =
+                    previous_lambda_outer_declarations;
                 transfer_protected_values = previous_transfer_protected;
                 closure_transfer_protected_values =
                     previous_closure_transfer_protected;
@@ -4272,6 +4288,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   }
                 }
                 active_symbols = &lambda_symbols;
+                active_lambda_outer_declarations = &lambda_outer_declarations;
+                active_lambda_return_type = nullptr;
                 std::unordered_set<std::string> captures;
                 std::unordered_set<std::string> mutations;
                 active_lambda_captures = &captures;
@@ -4290,6 +4308,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   signature.push_back(expression_type(**body));
                 } else {
                   std::optional<SemanticType> inferred_return;
+                  if (contextual_expected_type != nullptr &&
+                      contextual_expected_type->is_function())
+                    inferred_return =
+                        contextual_expected_type->type_arguments.back();
                   active_lambda_return_type = &inferred_return;
                   const auto &block =
                       *std::get<std::shared_ptr<ast::LambdaBlock>>(node.body);
@@ -6633,14 +6655,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               active_symbols->at(identifier->name).may_be_initialized = false;
               return moved_type;
             } else if constexpr (std::is_same_v<Node, ast::TryExpression>) {
-              if (inside_lambda)
-                throw CompileError{
-                    node.location,
-                    "operator '?' is not supported inside lambda literals"};
               if (inside_defer)
                 throw CompileError{
                     node.location,
                     "operator '?' is not supported in deferred actions"};
+              const SemanticType *propagation_return_type = &return_type;
+              if (inside_lambda) {
+                if (active_lambda_return_type == nullptr)
+                  throw CompileError{
+                      node.location,
+                      "operator '?' inside a lambda requires a block body with "
+                      "a contextual function return type"};
+                if (!active_lambda_return_type->has_value())
+                  throw CompileError{
+                      node.location,
+                      "operator '?' inside a lambda block requires a contextual "
+                      "function return type; annotate the lambda binding or pass "
+                      "it to a typed callback parameter"};
+                propagation_return_type = &**active_lambda_return_type;
+              }
               const SemanticType operand_type = expression_type(*node.operand);
               if (!operand_type.is_enum() ||
                   (operand_type.parameter != "Option" &&
@@ -6648,21 +6681,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 throw CompileError{
                     node.location,
                     "operator '?' requires an Option[T] or Result[T, E]"};
-              if (!return_type.is_enum() ||
-                  return_type.parameter != operand_type.parameter)
+              if (!propagation_return_type->is_enum() ||
+                  propagation_return_type->parameter != operand_type.parameter)
                 throw CompileError{
                     node.location,
-                    "operator '?' requires the enclosing function to return " +
+                    "operator '?' requires the enclosing " +
+                        std::string{inside_lambda ? "lambda" : "function"} +
+                        " to return " +
                         operand_type.parameter};
               if (operand_type.parameter == "Result" &&
                   !same_type(operand_type.type_arguments[1],
-                             return_type.type_arguments[1]))
+                             propagation_return_type->type_arguments[1]))
                 throw CompileError{
                     node.location,
                     "operator '?' cannot propagate error type '" +
                         operand_type.type_arguments[1].name() +
-                        "' from a function returning error type '" +
-                        return_type.type_arguments[1].name() + "'"};
+                        "' from a " +
+                        std::string{inside_lambda ? "lambda" : "function"} +
+                        " returning error type '" +
+                        propagation_return_type->type_arguments[1].name() + "'"};
               if (aggregate_owns_value(operand_type) &&
                   !std::holds_alternative<ast::MoveExpression>(
                       node.operand->value))
@@ -6671,6 +6708,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                        operand_type.name() +
                                        "' requires an explicit move"};
               for (const auto &[name, declaration] : local_declarations) {
+                if (active_lambda_outer_declarations != nullptr &&
+                    active_lambda_outer_declarations->contains(
+                        declaration.offset))
+                  continue;
                 const auto symbol = active_symbols->find(name);
                 if (symbol == active_symbols->end() ||
                     !symbol->second.may_be_initialized ||

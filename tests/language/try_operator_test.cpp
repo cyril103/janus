@@ -53,20 +53,87 @@ def resultValue(input : Result[int, string]) : Result[double, string] {
     val value : int = input?
     return Result.Ok[double, string](double(value))
 }
+def lambdaBoundary() : int {
+    val transform : (Option[int]) => Option[int] = input => {
+        val value : int = input?
+        return Option.Some[int](value + 1)
+    }
+    val propagated : Option[int] = transform(Option.None[int]())
+    delete transform
+    return match propagated {
+        Some(value) => value,
+        None => 7
+    }
+}
+def resultLambdaBoundary() : int {
+    val transform : (Result[int, string]) => Result[double, string] = input => {
+        val value : int = input?
+        return Result.Ok[double, string](double(value) + 0.5)
+    }
+    val propagated : Result[double, string] =
+        transform(Result.Error[int, string]("lambda failure"))
+    delete transform
+    return match propagated {
+        Ok(value) => int(value),
+        Error(message) => 9
+    }
+}
+def invokeOption(
+scoped transform : (Option[int]) => Option[int],
+input : Option[int]
+) : Option[int] {
+    defer delete transform
+    return transform(input)
+}
+def contextualCallbackBoundary() : int {
+    val propagated : Option[int] = invokeOption(
+        input => {
+            val value : int = input?
+            return Option.Some[int](value + 1)
+        },
+        Option.None[int]()
+    )
+    return match propagated {
+        Some(value) => value,
+        None => 0
+    }
+}
+class OuterResource() {}
+def lambdaKeepsOuterOwner() : int {
+    val resource : OuterResource = new OuterResource()
+    val transform : (Option[int]) => Option[int] = input => {
+        val value : int = input?
+        return Option.Some[int](value)
+    }
+    val propagated : Option[int] = transform(Option.None[int]())
+    delete transform
+    delete resource
+    return match propagated {
+        Some(value) => value,
+        None => 0
+    }
+}
 def main() : int {
     val option : Option[double] =
         optionValue(Option.Some[int](42))
-    return match option {
+    val optionValue : int = match option {
         Some(value) => int(value),
         None => 0
     }
+    return optionValue + lambdaBoundary() + resultLambdaBoundary() - 16
 }
 )";
 
   janus::frontend::Parser parser{source};
   const janus::ast::Program program = parser.parse_program();
   janus::semantic::Analyzer analyzer;
-  static_cast<void>(analyzer.analyze(program));
+  const janus::semantic::AnalysisResult analysis = analyzer.analyze(program);
+  std::size_t lambda_early_exit_warnings = 0;
+  for (const janus::Diagnostic &diagnostic : analysis.diagnostics)
+    if (diagnostic.code == janus::DiagnosticCode::AnalyzerUnprotectedEarlyExit)
+      ++lambda_early_exit_warnings;
+  expect(lambda_early_exit_warnings == 0,
+         "lambda propagation does not treat outer owners as lambda locals");
   llvm::LLVMContext context;
   janus::backend::llvm::IrGenerator generator{context};
   const std::unique_ptr<llvm::Module> module =
@@ -83,6 +150,12 @@ def main() : int {
          "Option propagation can change the success type");
   expect(ir.find("%enum.Result__double__string") != std::string::npos,
          "Result propagation preserves the error type");
+  expect(ir.find("define internal %enum.Option__int @__janus_lambda_body_") !=
+             std::string::npos,
+         "Option propagation is lowered inside the lambda body function");
+  expect(ir.find("define internal %enum.Result__double__string "
+                 "@__janus_lambda_body_") != std::string::npos,
+         "Result propagation is lowered inside the lambda body function");
 
   expect_compile_error(
       std::string{declarations} +
@@ -99,6 +172,54 @@ def main() : int {
       std::string{declarations} +
           "def main() : int { val value : int = 1? return value }",
       "requires an Option[T] or Result[T, E]");
+  expect_compile_error(
+      std::string{declarations} +
+          "def main() : int { val transform = (input : Option[int]) => { "
+          "val item : int = input? return Option.Some[int](item) } "
+          "delete transform return 0 }",
+      "requires a contextual function return type");
+  expect_compile_error(
+      std::string{declarations} +
+          "def main() : int { val transform : (Result[int, string]) => "
+          "Result[int, int] = input => { val item : int = input? "
+          "return Result.Ok[int, int](item) } delete transform return 0 }",
+      "cannot propagate error type 'string' from a lambda returning error type "
+      "'int'");
+  expect_compile_error(std::string{declarations} +
+                           "def main() : int { val transform : (Option[int]) "
+                           "=> int = input => { "
+                           "return input? } delete transform return 0 }",
+                       "requires the enclosing lambda to return Option");
+  expect_compile_error(
+      std::string{declarations} +
+          "def main() : int { val outer : () => Option[int] = () => { "
+          "val inner : (Option[int]) => int = input => input? "
+          "delete inner return Option.None[int]() } delete outer return 0 }",
+      "inside a lambda requires a block body");
+
+  const std::string leaking_lambda_source = std::string{declarations} + R"(
+class Resource() {}
+def main() : int {
+    val transform : (Option[int]) => Option[int] = input => {
+        val resource : Resource = new Resource()
+        val value : int = input?
+        delete resource
+        return Option.Some[int](value)
+    }
+    delete transform
+    return 0
+}
+)";
+  janus::frontend::Parser leaking_lambda_parser{leaking_lambda_source};
+  const janus::semantic::AnalysisResult leaking_lambda_analysis =
+      analyzer.analyze(leaking_lambda_parser.parse_program());
+  std::size_t local_early_exit_warnings = 0;
+  for (const janus::Diagnostic &diagnostic :
+       leaking_lambda_analysis.diagnostics)
+    if (diagnostic.code == janus::DiagnosticCode::AnalyzerUnprotectedEarlyExit)
+      ++local_early_exit_warnings;
+  expect(local_early_exit_warnings == 1,
+         "lambda propagation warns about an unprotected lambda-local owner");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

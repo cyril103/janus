@@ -1,0 +1,33 @@
+enum Option[T] {
+    Some(T),
+    None
+}
+
+class Resource(val identifier : int) {
+    destructor {
+        println(identifier)
+    }
+}
+
+def main() : int {
+    val transform : (Option[int]) => Option[int] = input => {
+        val resource : Resource = new Resource(7)
+        defer delete resource
+        val value : int = input?
+        return Option.Some[int](value + 1)
+    }
+
+    val present : Option[int] = transform(Option.Some[int](41))
+    val absent : Option[int] = transform(Option.None[int]())
+    delete transform
+
+    val presentValue : int = match present {
+        Some(value) => value,
+        None => 0
+    }
+    val absentValue : int = match absent {
+        Some(value) => value,
+        None => 0
+    }
+    return presentValue + absentValue - 42
+}
