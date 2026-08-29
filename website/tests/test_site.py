@@ -184,23 +184,23 @@ class SiteStructureTests(unittest.TestCase):
     def test_public_content_states_version_and_experimental_status(self):
         docs = WEBSITE / "docs"
         home = (docs / "index.md").read_text(encoding="utf-8")
-        self.assertIn("0.21.0", home)
+        self.assertIn("0.22.0", home)
         self.assertRegex(home.lower(), r"expérimental")
         self.assertNotIn("0.6.1", home)
 
         stale = [
             str(path.relative_to(docs))
             for path in sorted(docs.rglob("*.md"))
-            if "0.14.0" in path.read_text(encoding="utf-8")
+            if "0.21.0" in path.read_text(encoding="utf-8")
         ]
-        self.assertEqual([], stale, "public current-version pages must not advertise 0.14.0")
+        self.assertEqual([], stale, "public current-version pages must not advertise 0.21.0")
         for relative in ("reference/index.md", "book/index.md", "tutorials/index.md"):
             text = (docs / relative).read_text(encoding="utf-8")
-            self.assertIn("0.21.0", text, relative)
+            self.assertIn("0.22.0", text, relative)
 
         metadata = (WEBSITE / "overrides" / "main.html").read_text(encoding="utf-8")
-        self.assertIn("Janus 0.21.0", metadata)
-        self.assertNotIn("Janus 0.14.0", metadata)
+        self.assertIn("Janus 0.22.0", metadata)
+        self.assertNotIn("Janus 0.21.0", metadata)
 
         roadmap = (REPOSITORY / "docs" / "roadmap-1.0.md").read_text(encoding="utf-8")
         expected_milestones = (
@@ -395,7 +395,7 @@ class ReferenceSyncTests(unittest.TestCase):
         )
         rewritten = module.rewrite_links(content, source, REPOSITORY)
         self.assertIn(
-            "https://github.com/cyril103/janus/blob/v0.21.0/README.md",
+            "https://github.com/cyril103/janus/blob/v0.22.0/README.md",
             rewritten,
         )
         self.assertIn("checkedCast[ubyte](255)", rewritten)
@@ -419,11 +419,11 @@ class ReferenceSyncTests(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertIn(
-                "github.com/cyril103/janus/blob/v0.21.0/docs/registry-protocol-v1.md",
+                "github.com/cyril103/janus/blob/v0.22.0/docs/registry-protocol-v1.md",
                 registry,
             )
             self.assertIn(
-                "github.com/cyril103/janus/tree/v0.21.0/docs/schemas/registry-v1",
+                "github.com/cyril103/janus/tree/v0.22.0/docs/schemas/registry-v1",
                 registry,
             )
 
@@ -434,16 +434,16 @@ class ReferenceSyncTests(unittest.TestCase):
             module.sync(REPOSITORY, destination)
             language = (destination / "language-guide.md").read_text(encoding="utf-8")
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.21.0/stdlib/std",
+                "https://github.com/cyril103/janus/tree/v0.22.0/stdlib/std",
                 language,
             )
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.21.0/examples",
+                "https://github.com/cyril103/janus/tree/v0.22.0/examples",
                 language,
             )
             graphics = (destination / "graphics.md").read_text(encoding="utf-8")
             self.assertIn(
-                "https://github.com/cyril103/janus/tree/v0.21.0/examples/snake",
+                "https://github.com/cyril103/janus/tree/v0.22.0/examples/snake",
                 graphics,
             )
             local_links = re.findall(r"\[[^]]+\]\((?!https?://|#|mailto:)([^)]+)\)", language)
