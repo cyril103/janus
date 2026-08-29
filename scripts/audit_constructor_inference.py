@@ -15,7 +15,7 @@ ROOTS = (
     Path("stdlib"),
 )
 SUFFIXES = {".md", ".janus", ".html", ".json"}
-REPORT = Path("docs/audits/constructor-inference-0.21.md")
+REPORT = Path("docs/audits/constructor-inference-0.22.md")
 GENERATED_MIRRORS = (
     "website/docs/reference/generated/",
     "website/docs/reference/stdlib/api-index.json",

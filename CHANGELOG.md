@@ -5,6 +5,45 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.22.0] - 2026-08-28
+
+Cette version mineure réduit le bruit syntaxique des opérations courantes sans
+affaiblir le modèle explicite de propriété. Elle ajoute des écritures composées,
+des corps expression, l'inférence contextuelle des lambdas et une indexation
+sûre des tableaux, puis clarifie l'inférence des constructeurs génériques.
+
+### Langage
+
+- ajout des affectations composées `+=`, `-=`, `*=`, `/=`, `%=` ainsi que des
+  variantes bit à bit et de décalage, avec évaluation unique de la cible ;
+- ajout des fonctions et méthodes à corps expression `=> expression`, strictement
+  équivalentes à un bloc contenant `return expression` et conservant
+  l'annotation explicite du type de retour ;
+- inférence des types de paramètres des lambdas depuis un contexte fonctionnel
+  complet et non ambigu, sans inférence depuis le corps ;
+- ajout de l'indexation `container[index]` et de ses écritures, résolues par les
+  opérations canoniques `Array.get` et `Array.set` avec ordre d'évaluation
+  déterministe ;
+- simplification des constructeurs génériques lorsque leurs arguments ou le type
+  attendu contraignent entièrement leurs paramètres.
+
+### Propriété et diagnostics
+
+- conservation explicite de `move`, `borrow`, `borrow var`, `consume`, `delete`
+  et `defer` dans toutes les nouvelles formes syntaxiques ;
+- refus des écritures indexées à travers un emprunt partagé et prise en charge
+  des chaînes transitives fondées sur `borrow var` ;
+- diagnostics ciblés lorsqu'une lambda ou un constructeur reste ambigu, avec
+  aide proposant l'annotation ou les arguments de type nécessaires.
+
+### Outillage et documentation
+
+- prise en charge des nouvelles syntaxes par le formateur, le LSP et l'extension
+  VS Code, avec correction de l'indentation des continuations multilignes ;
+- mise à jour des exemples, du guide, du Book et de la référence de la stdlib ;
+- ajout d'un audit reproductible et fail-closed des constructeurs génériques et
+  casts numériques publics, avec contrôle d'identité des miroirs API générés.
+
 ## [0.21.0] - 2026-08-26
 
 Cette évolution remet la bibliothèque standard au niveau des contrats de
@@ -928,6 +967,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.22.0]: https://github.com/cyril103/janus/releases/tag/v0.22.0
 [0.21.0]: https://github.com/cyril103/janus/releases/tag/v0.21.0
 [0.20.0]: https://github.com/cyril103/janus/releases/tag/v0.20.0
 [0.19.0]: https://github.com/cyril103/janus/releases/tag/v0.19.0

@@ -97,11 +97,11 @@ class ReleasePromotionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "version"
             subprocess.run(
-                ["cmake", f"-DSOURCE_DIR={ROOT}", "-DRELEASE=v0.21.0-rc.10",
+                ["cmake", f"-DSOURCE_DIR={ROOT}", "-DRELEASE=v0.22.0-rc.10",
                  f"-DOUTPUT={output}", "-P",
                  str(ROOT / "cmake" / "write_channel_manifest.cmake")],
                 check=True)
-            self.assertEqual("0.21.0-rc.10 v0.21.0-rc.10\n", output.read_text())
+            self.assertEqual("0.22.0-rc.10 v0.22.0-rc.10\n", output.read_text())
 
 
 if __name__ == "__main__":
