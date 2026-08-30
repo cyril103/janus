@@ -18,6 +18,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Bibliothèque standard et outillage
 
+- ajout de `std.persistent_list.PersistentList[T]`, liste immutable à partage
+  structurel avec `prepend`/`tail` en O(1), transformations sans copie des
+  éléments propriétaires, itérateur de handles, conversions `Array`, égalité
+  structurelle, tests de destruction/panique et benchmark comparatif ;
 - ajout de `std.shared.Shared[T]`, handle immutable à comptage de références
   non atomique avec clonage explicite, emprunt du contenu, identité, destruction
   déterministe au dernier handle et contrats documentés pour overflow, cycles,

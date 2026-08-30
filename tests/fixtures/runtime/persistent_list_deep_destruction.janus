@@ -1,0 +1,25 @@
+import std.array
+import std.persistent_list
+
+var destroyed : int = 0
+
+class DeepResource(val value : int) {
+    destructor { destroyed = destroyed + 1 }
+}
+
+def main() : int {
+    val values : Array[DeepResource] =
+    new Array[DeepResource](usize(4096))
+    var index : int = 0
+    while index < 4096 {
+        values.push(new DeepResource(index))
+        index = index + 1
+    }
+
+    val list : PersistentList[DeepResource] =
+    persistentListFromArray[DeepResource](move values)
+    println(list.size())
+    delete list
+    println(destroyed)
+    return 0
+}

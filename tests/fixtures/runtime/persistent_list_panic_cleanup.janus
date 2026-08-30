@@ -1,0 +1,27 @@
+import std.array
+import std.persistent_list
+
+class PanicResource(val value : int) {}
+
+def fail(borrow value : PanicResource) : int {
+    if value.value == 2 {
+        panic("persistent list transform panic\n")
+    }
+    return value.value
+}
+
+def main() : int {
+    val values : Array[PanicResource] =
+    new Array[PanicResource](usize(3))
+    values.push(new PanicResource(1))
+    values.push(new PanicResource(2))
+    values.push(new PanicResource(3))
+    val list : PersistentList[PanicResource] =
+    persistentListFromArray[PanicResource](move values)
+    val mapped : PersistentList[int] = list.map[int](
+        (borrow value : PanicResource) => fail(value)
+    )
+    delete mapped
+    delete list
+    return 0
+}

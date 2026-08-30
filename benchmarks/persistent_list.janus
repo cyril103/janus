@@ -1,0 +1,36 @@
+import std.array
+import std.persistent_list
+
+def fill() : Array[int] {
+    val result : Array[int] = new Array[int](usize(20000))
+    var index : int = 0
+    while index < 20000 {
+        result.push(index)
+        index = index + 1
+    }
+    return move result
+}
+
+def main() : int {
+    val arrayValues : Array[int] = fill()
+    var arrayChecksum : long = long(0)
+    var index : usize = usize(0)
+    while index < arrayValues.size() {
+        arrayChecksum = arrayChecksum + long(arrayValues.get(index))
+        index = index + usize(1)
+    }
+
+    val listValues : PersistentList[int] =
+    persistentListFromArray[int](fill())
+    val listChecksum : long = listValues.fold[long](
+        long(0),
+        (checksum : long, borrow value : int) => checksum + long(value)
+    )
+
+    println(arrayChecksum)
+    println(listChecksum)
+    println(arrayChecksum == listChecksum)
+    delete listValues
+    delete arrayValues
+    return 0
+}

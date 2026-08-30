@@ -1,0 +1,391 @@
+/// Fournit une liste immutable a partage structurel explicite.
+///
+/// Chaque element et chaque cellule sont conserves derriere un [[Shared]].
+/// Copier une version est donc explicite, [[PersistentList.prepend]] et
+/// [[PersistentList.tail]] sont en O(1), et les suffixes communs ne sont jamais
+/// recopies. Les cellules ne sont accessibles qu'en lecture : il est impossible
+/// de construire un cycle avec l'API publique de ce module.
+module std.persistent_list
+import std.array
+import std.iterator
+import std.option
+import std.shared
+
+private def persistentListInvariant[T](message : string) : T {
+    panic(message)
+}
+
+private def persistentListSharedEquals[T](
+    left : Shared[T],
+    right : Shared[T],
+    borrow equals : (borrow T, borrow T) => bool
+) : bool {
+    val same : bool = equals(left.get(), right.get())
+    delete right
+    delete left
+    return same
+}
+
+private def persistentListTakeShared[T](
+    value : Option[Shared[T]]
+) : Shared[T] {
+    return match move value {
+        Some(item) => move item,
+        None => persistentListInvariant[Shared[T]](
+            "PersistentList iterator length invariant violated\n"
+        )
+    }
+}
+
+private def persistentListOptionEquals[T](
+    left : Option[Shared[T]],
+    right : Option[Shared[T]],
+    borrow equals : (borrow T, borrow T) => bool
+) : bool {
+    val leftItem : Shared[T] = persistentListTakeShared[T](move left)
+    val rightItem : Shared[T] = persistentListTakeShared[T](move right)
+    return persistentListSharedEquals[T](
+        move leftItem, move rightItem, equals
+    )
+}
+
+private class PersistentListNode[T](
+    private val value : Shared[T],
+    private val next : Option[Shared[PersistentListNode[T]]]
+) {
+    borrow def get() : borrow T { return value.get() }
+
+    borrow def cloneValue() : Shared[T] { return value.clone() }
+
+    borrow def cloneNext() : Option[Shared[PersistentListNode[T]]] {
+        return match next {
+            Some(node) => Option.Some[Shared[PersistentListNode[T]]](
+                node.clone()
+            ),
+            None => Option.None[Shared[PersistentListNode[T]]]()
+        }
+    }
+
+    destructor {
+        delete next
+        delete value
+    }
+}
+
+private class PersistentListIteratorState[T](
+    private var current : Option[Shared[PersistentListNode[T]]]
+) {
+    private def advance(
+        node : Shared[PersistentListNode[T]]
+    ) : Option[Shared[T]] {
+        val value : Shared[T] = node.get().cloneValue()
+        val following : Option[Shared[PersistentListNode[T]]] =
+        node.get().cloneNext()
+        delete node
+        delete current
+        current = move following
+        return Option.Some[Shared[T]](move value)
+    }
+
+    def next() : Option[Shared[T]] {
+        val active : Option[Shared[PersistentListNode[T]]] = move current
+        current = Option.None[Shared[PersistentListNode[T]]]()
+        return match move active {
+            Some(node) => this.advance(move node),
+            None => Option.None[Shared[T]]()
+        }
+    }
+
+    def dispose() : Unit { delete this }
+
+    destructor { delete current }
+}
+
+/// Liste immutable dont les versions partagent leurs suffixes et leurs valeurs.
+///
+/// Une liste possede seulement un handle vers sa premiere cellule et une taille.
+/// Les methodes qui construisent une version ne consomment donc pas la source.
+/// Chaque objet [[PersistentList]] retourne doit etre detruit avec `delete`.
+/// @param first Racine partagee interne, absente pour la liste vide.
+/// @param length Nombre de cellules accessibles depuis la racine.
+class PersistentList[T] internal(
+    private val first : Option[Shared[PersistentListNode[T]]],
+    private val length : usize
+) {
+    /// Retourne le nombre d'elements en O(1).
+    /// @return Taille logique de cette version.
+    borrow def size() : usize { return length }
+
+    /// Indique si cette version est vide.
+    /// @return `true` lorsque [[PersistentList.size]] vaut zero.
+    borrow def isEmpty() : bool { return length == usize(0) }
+
+    /// Cree un second handle de liste vers exactement la meme racine.
+    /// @return Nouvelle enveloppe partageant toutes les cellules.
+    borrow def clone() : PersistentList[T] {
+        val root : Option[Shared[PersistentListNode[T]]] = match first {
+            Some(node) => Option.Some[Shared[PersistentListNode[T]]](
+                node.clone()
+            ),
+            None => Option.None[Shared[PersistentListNode[T]]]()
+        }
+        return new PersistentList[T](move root, length)
+    }
+
+    internal borrow def prependShared(value : Shared[T]) : PersistentList[T] {
+        val tail : Option[Shared[PersistentListNode[T]]] = match first {
+            Some(node) => Option.Some[Shared[PersistentListNode[T]]](
+                node.clone()
+            ),
+            None => Option.None[Shared[PersistentListNode[T]]]()
+        }
+        val node : PersistentListNode[T] =
+        new PersistentListNode[T](move value, move tail)
+        return new PersistentList[T](
+            Option.Some[Shared[PersistentListNode[T]]](
+            share[PersistentListNode[T]](move node)
+            ),
+            length + usize(1)
+        )
+    }
+
+    /// Ajoute une valeur en tete en O(1), sans modifier cette version.
+    /// @param value Valeur proprietaire transferee dans la nouvelle tete.
+    /// @return Nouvelle version dont la queue est cette liste.
+    borrow def prepend(value : T) : PersistentList[T] {
+        return this.prependShared(share[T](move value))
+    }
+
+    /// Retourne un handle observant la tete, ou panique si la liste est vide.
+    ///
+    /// Le contenu n'est pas copie et reste immutable via [[Shared.get]].
+    /// @return Nouveau handle fort vers la premiere valeur.
+    borrow def head() : Shared[T] {
+        return match first {
+            Some(node) => node.get().cloneValue(),
+            None => persistentListInvariant[Shared[T]](
+                "cannot get head of an empty PersistentList\n"
+            )
+        }
+    }
+
+    /// Retourne la queue partagee en O(1), ou panique si la liste est vide.
+    /// @return Nouvelle enveloppe partageant le suffixe apres la tete.
+    borrow def tail() : PersistentList[T] {
+        return match first {
+            Some(node) => new PersistentList[T](
+                node.get().cloneNext(),
+                length - usize(1)
+            ),
+            None => persistentListInvariant[PersistentList[T]](
+                "cannot get tail of an empty PersistentList\n"
+            )
+        }
+    }
+
+    /// Cree un parcours qui produit des handles vers les valeurs, sans copier T.
+    /// @return Iterateur proprietaire dans l'ordre de la liste.
+    borrow def iterator() : Iterator[Shared[T]] {
+        val root : Option[Shared[PersistentListNode[T]]] = match first {
+            Some(node) => Option.Some[Shared[PersistentListNode[T]]](
+                node.clone()
+            ),
+            None => Option.None[Shared[PersistentListNode[T]]]()
+        }
+        val state : PersistentListIteratorState[T] =
+        new PersistentListIteratorState[T](move root)
+        return new Iterator[Shared[T]](
+            () => state.next(),
+            owningCapture[PersistentListIteratorState[T]](
+            state, () => state.dispose()
+            )
+        )
+    }
+
+    /// Inverse l'ordre en O(n), en partageant les valeurs.
+    /// @return Nouvelle liste parcourue dans l'ordre inverse.
+    borrow def reverse() : PersistentList[T] {
+        val state : PersistentListBuildState[T] =
+        new PersistentListBuildState[T](persistentListEmpty[T]())
+        defer delete state
+        val values : Iterator[Shared[T]] = this.iterator()
+        for value in move values {
+            state.prependShared(move value)
+        }
+        return state.finish()
+    }
+
+    /// Concatene cette liste devant `other`; la racine de `other` est partagee.
+    /// @param other Suffixe observe et conserve par partage de sa racine.
+    /// @return Nouvelle liste contenant cette liste puis `other`.
+    borrow def concat(borrow other : PersistentList[T]) : PersistentList[T] {
+        val reversed : PersistentList[T] = this.reverse()
+        defer delete reversed
+        val state : PersistentListBuildState[T] =
+        new PersistentListBuildState[T](other.clone())
+        defer delete state
+        val values : Iterator[Shared[T]] = reversed.iterator()
+        for value in move values {
+            state.prependShared(move value)
+        }
+        return state.finish()
+    }
+
+    /// Transforme chaque element observe, en conservant l'ordre.
+    /// @param transform Fonction observant une valeur et produisant sa projection.
+    /// @return Nouvelle liste des projections dans l'ordre source.
+    borrow def map[U](scoped transform : (borrow T) => U) : PersistentList[U] {
+        defer delete transform
+        val state : PersistentListBuildState[U] =
+        new PersistentListBuildState[U](persistentListEmpty[U]())
+        defer delete state
+        val values : Iterator[Shared[T]] = this.iterator()
+        for value in move values {
+            state.prepend(transform(value.get()))
+            delete value
+        }
+        val reversed : PersistentList[U] = state.finish()
+        val result : PersistentList[U] = reversed.reverse()
+        delete reversed
+        return move result
+    }
+
+    /// Conserve les elements acceptes, en partageant leurs allocations.
+    /// @param predicate Fonction observant chaque valeur dans l'ordre.
+    /// @return Nouvelle liste des valeurs acceptees dans l'ordre source.
+    borrow def filter(
+        scoped predicate : (borrow T) => bool
+    ) : PersistentList[T] {
+        defer delete predicate
+        val state : PersistentListBuildState[T] =
+        new PersistentListBuildState[T](persistentListEmpty[T]())
+        defer delete state
+        val values : Iterator[Shared[T]] = this.iterator()
+        for value in move values {
+            if predicate(value.get()) {
+                state.prependShared(move value)
+            } else {
+                delete value
+            }
+        }
+        val reversed : PersistentList[T] = state.finish()
+        val result : PersistentList[T] = reversed.reverse()
+        delete reversed
+        return move result
+    }
+
+    /// Reduit les elements de gauche a droite sans les copier.
+    /// @param initial Accumulateur initial transfere au premier appel.
+    /// @param combine Fonction recevant l'accumulateur et une valeur empruntee.
+    /// @return Accumulateur final, ou `initial` pour une liste vide.
+    borrow def fold[U](
+        initial : U,
+        scoped combine : (U, borrow T) => U
+    ) : U {
+        defer delete combine
+        var accumulator : U = initial
+        val values : Iterator[Shared[T]] = this.iterator()
+        for value in move values {
+            accumulator = combine(move accumulator, value.get())
+            delete value
+        }
+        return move accumulator
+    }
+
+    /// Compare structurellement deux listes avec un comparateur emprunte.
+    /// @param other Liste observee au meme rang que cette liste.
+    /// @param equals Comparateur des valeurs de meme rang.
+    /// @return `true` si tailles et valeurs sont egales.
+    borrow def equalsBy(
+        borrow other : PersistentList[T],
+        scoped equals : (borrow T, borrow T) => bool
+    ) : bool {
+        defer delete equals
+        if length != other.length { return false }
+        val left : Iterator[Shared[T]] = this.iterator()
+        val right : Iterator[Shared[T]] = other.iterator()
+        defer delete left
+        defer delete right
+        var remaining : usize = length
+        while remaining > usize(0) {
+            val same : bool = persistentListOptionEquals[T](
+                left.next(), right.next(), equals
+            )
+            if !same { return false }
+            remaining = remaining - usize(1)
+        }
+        return true
+    }
+
+    /// Compare avec l'egalite derivee de T, lorsqu'elle est disponible.
+    /// @param other Liste observee structurellement.
+    /// @return `true` si tailles et valeurs derivees sont egales.
+    borrow def equals(borrow other : PersistentList[T]) : bool {
+        return this.equalsBy(
+            other,
+            (borrow left : T, borrow right : T) =>
+            __derivedEquals[T](left, right)
+        )
+    }
+
+    /// Copie les elements vers un tableau lorsque T satisfait Copy.
+    /// @return Nouveau tableau dans l'ordre de la liste.
+    borrow def toArray() : Array[T] where T <: Copy {
+        val result : Array[T] = new Array[T](length)
+        val values : Iterator[Shared[T]] = this.iterator()
+        for value in move values {
+            result.push(value.get())
+            delete value
+        }
+        return move result
+    }
+
+    destructor { delete first }
+}
+
+private class PersistentListBuildState[T](
+    private var result : PersistentList[T]
+) {
+    def prepend(value : T) : Unit {
+        val previous : PersistentList[T] = move result
+        result = previous.prepend(move value)
+        delete previous
+    }
+
+    def prependShared(value : Shared[T]) : Unit {
+        val previous : PersistentList[T] = move result
+        result = previous.prependShared(move value)
+        delete previous
+    }
+
+    def finish() : PersistentList[T] {
+        val completed : PersistentList[T] = move result
+        result = persistentListEmpty[T]()
+        return move completed
+    }
+
+    destructor { delete result }
+}
+
+/// Construit la liste vide.
+/// @return Nouvelle liste sans cellule.
+def persistentListEmpty[T]() : PersistentList[T] {
+    return new PersistentList[T](
+        Option.None[Shared[PersistentListNode[T]]](),
+        usize(0)
+    )
+}
+
+/// Consomme un tableau et transfere ses valeurs dans une liste de meme ordre.
+/// @param values Tableau dont chaque valeur est deplacee depuis la fin.
+/// @return Nouvelle liste conservant l'ordre initial du tableau.
+def persistentListFromArray[T](values : Array[T]) : PersistentList[T] {
+    defer delete values
+    val state : PersistentListBuildState[T] =
+    new PersistentListBuildState[T](persistentListEmpty[T]())
+    defer delete state
+    while !values.isEmpty() {
+        state.prepend(values.pop())
+    }
+    return state.finish()
+}

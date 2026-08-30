@@ -14,6 +14,15 @@ empêche l'élimination du travail. Le test `benchmarks.shared_clone_smoke`
 exécute le même scénario sous AddressSanitizer ; les temps muraux restent
 informatifs et peuvent être mesurés avec la procédure ci-dessous.
 
+## `persistent_list.janus`
+
+Ce microbenchmark construit et parcourt 20 000 entiers dans un `Array[int]`,
+puis répète le travail avec `PersistentList[int]`. Les deux checksums attendus
+sont `199990000`; le test `benchmarks.persistent_list_smoke` verrouille aussi
+leur égalité. Le temps mur reste informatif et peut être mesuré avec la même
+commande que les autres benchmarks. Les coûts d'allocation et de partage sont
+publiés dans `docs/design/persistent-list.md`.
+
 ## `array_sort.janus`
 
 This benchmark sorts 100,000 deterministic pseudo-random integers through

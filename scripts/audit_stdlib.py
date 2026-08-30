@@ -90,6 +90,9 @@ OWNER_MODULES = {
     "#299": {
         "std.shared",
     },
+    "#300": {
+        "std.persistent_list",
+    },
 }
 IMPORT_RE = re.compile(r"^\s*import\s+([\w.]+)", re.MULTILINE)
 DOCUMENTATION_BLOCK_RE = re.compile(

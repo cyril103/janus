@@ -221,6 +221,14 @@
       "symbols": ["Path", "Path.view", "Path.size", "Path.isAbsolute", "Path.componentCount", "Path.component", "normalizePath", "joinPath"]
     },
     {
+      "name": "std.persistent_list",
+      "source": "stdlib/std/persistent_list.janus",
+      "documentation": ["docs/stdlib-reference.md", "docs/design/persistent-list.md"],
+      "status": "experimental",
+      "signature_digest": "5e0ae009f8f8809dcfeac29a4403150602cb7dcf6693b20efa26236f9e5c2fcb",
+      "symbols": ["PersistentList", "PersistentList.size", "PersistentList.isEmpty", "PersistentList.clone", "PersistentList.prepend", "PersistentList.head", "PersistentList.tail", "PersistentList.iterator", "PersistentList.reverse", "PersistentList.concat", "PersistentList.map", "PersistentList.filter", "PersistentList.fold", "PersistentList.equalsBy", "PersistentList.equals", "PersistentList.toArray", "persistentListEmpty", "persistentListFromArray"]
+    },
+    {
       "name": "std.priority_queue",
       "source": "stdlib/std/priority_queue.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md"],

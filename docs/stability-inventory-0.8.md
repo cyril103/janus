@@ -108,6 +108,7 @@ symbole source non inventorié.
 | `std.option` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.ordering` | `experimental` | [Référence stdlib](stdlib-reference.md) | Stratégies d’ordre ajoutées après la baseline 0.8. |
 | `std.path` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
+| `std.persistent_list` | `experimental` | [Liste persistante](design/persistent-list.md) | Première collection persistante, suivie par les mesures avant toute extension. |
 | `std.priority_queue` | `experimental` | [Référence stdlib](stdlib-reference.md) | Nouvelle collection pré-1.0. |
 | `std.random` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.process` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |

@@ -242,6 +242,30 @@ def main() : int {
 }
 ```
 
+### `std.persistent_list`
+
+`PersistentList[T]` conserve ses versions précédentes par partage explicite de
+cellules et de valeurs. `prepend` et `tail` sont O(1); les transformations
+empruntent leur source et acceptent les éléments propriétaires. Le
+[contrat détaillé](design/persistent-list.md) documente les complexités, les
+allocations, les cycles et les mesures face à `Array`.
+
+```janus
+// doctest: doctest name=stdlib-std-persistent-list
+import std.persistent_list
+import std.shared
+def main() : int {
+    val empty : PersistentList[int] = persistentListEmpty[int]()
+    val values : PersistentList[int] = empty.prepend(42)
+    val head : Shared[int] = values.head()
+    val valid : bool = head.get() == 42 && empty.isEmpty()
+    delete head
+    delete values
+    delete empty
+    return if valid { 0 } else { 1 }
+}
+```
+
 ### `std.validated`
 
 `Validated[T, E]` accumule les erreurs de contrôles indépendants. `map2`,

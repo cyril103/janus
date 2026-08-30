@@ -1,0 +1,108 @@
+import std.array
+import std.persistent_list
+import std.shared
+
+var destroyed : int = 0
+
+class Resource(val value : int) {
+    destructor { destroyed = destroyed + 1 }
+}
+
+def main() : int {
+    val empty : PersistentList[int] = persistentListEmpty[int]()
+    val one : PersistentList[int] = empty.prepend(1)
+    val two : PersistentList[int] = one.prepend(2)
+    val three : PersistentList[int] = two.prepend(3)
+
+    println(empty.isEmpty())
+    println(three.size())
+    val threeHead : Shared[int] = three.head()
+    val twoHead : Shared[int] = two.head()
+    println(threeHead.get())
+    println(twoHead.get())
+    delete twoHead
+    delete threeHead
+
+    val tail : PersistentList[int] = three.tail()
+    println(tail.equals(two))
+
+    var iterated : int = 0
+    for value in three.iterator() {
+        iterated = iterated + value.get()
+        delete value
+    }
+    println(iterated)
+
+    val mapped : PersistentList[int] = three.map[int](
+        (borrow value : int) => value * 10
+    )
+    println(mapped.fold[int](
+        0,
+        (total : int, borrow value : int) => total + value
+    ))
+
+    val filtered : PersistentList[int] = three.filter(
+        (borrow value : int) => value % 2 != 0
+    )
+    val filteredArray : Array[int] = filtered.toArray()
+    println(filteredArray.size())
+    println(filteredArray.get(usize(0)))
+    println(filteredArray.get(usize(1)))
+
+    val suffixEmpty : PersistentList[int] = persistentListEmpty[int]()
+    val suffix : PersistentList[int] = suffixEmpty.prepend(5)
+    delete suffixEmpty
+    val concatenated : PersistentList[int] = three.concat(suffix)
+    println(concatenated.size())
+    println(concatenated.fold[int](
+        0,
+        (total : int, borrow value : int) => total * 10 + value
+    ))
+
+    val source : Array[int] = new Array[int](usize(3))
+    source.push(7)
+    source.push(8)
+    source.push(9)
+    val converted : PersistentList[int] = persistentListFromArray[int](
+        move source
+    )
+    println(converted.fold[int](
+        0,
+        (total : int, borrow value : int) => total * 10 + value
+    ))
+
+    val ownedEmpty : PersistentList[Resource] =
+    persistentListEmpty[Resource]()
+    val owned : PersistentList[Resource] =
+    ownedEmpty.prepend(new Resource(11))
+    val ownedDiamondLeft : PersistentList[Resource] =
+    owned.prepend(new Resource(10))
+    val ownedDiamondRight : PersistentList[Resource] =
+    owned.prepend(new Resource(12))
+    val ownedFiltered : PersistentList[Resource] = ownedDiamondLeft.filter(
+        (borrow value : Resource) => value.value == 11
+    )
+    val ownedHead : Shared[Resource] = ownedFiltered.head()
+    println(ownedHead.get().value)
+    delete ownedHead
+
+    delete ownedFiltered
+    delete ownedDiamondRight
+    delete ownedDiamondLeft
+    delete owned
+    delete ownedEmpty
+    println(destroyed)
+
+    delete converted
+    delete concatenated
+    delete suffix
+    delete filteredArray
+    delete filtered
+    delete mapped
+    delete tail
+    delete three
+    delete two
+    delete one
+    delete empty
+    return 0
+}
