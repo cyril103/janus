@@ -1,0 +1,11 @@
+import std.shared
+
+class Cell(var value : int) {}
+
+def main() : int {
+    val cell : Shared[Cell] = share[Cell](new Cell(1))
+    borrow val content : Cell = cell.get()
+    content.value = 2
+    delete cell
+    return 0
+}

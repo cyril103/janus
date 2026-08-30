@@ -18,6 +18,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Bibliothèque standard et outillage
 
+- ajout de `std.shared.Shared[T]`, handle immutable à comptage de références
+  non atomique avec clonage explicite, emprunt du contenu, identité, destruction
+  déterministe au dernier handle et contrats documentés pour overflow, cycles,
+  panique et FFI ;
 - ajout de `std.functional` avec `identity`, `constant`, `compose`, `andThen`,
   `flip` et `tap`, sous forme de combinateurs synchrones sans allocation ;
 - exposition des combinateurs d'`Option` et `Result` comme méthodes chaînables,

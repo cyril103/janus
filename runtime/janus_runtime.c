@@ -39,6 +39,23 @@ void *janus_realloc(void *pointer, uint64_t bytes) {
 
 void janus_free(void *pointer) { free(pointer); }
 
+/*
+ * These ABI shims are used only by std.shared.  Ownership remains a Janus
+ * concern: alias creates another explicit handle to the same control block,
+ * while forget relinquishes one compiler-visible raw-pointer owner after the
+ * shared counter has been decremented.
+ */
+void *janus_shared_alias(void *pointer) { return pointer; }
+
+void janus_shared_forget(void *pointer) { (void)pointer; }
+
+bool janus_shared_retain(uint64_t *references) {
+  if (*references == UINT64_MAX)
+    return false;
+  ++*references;
+  return true;
+}
+
 int32_t janus_memcmp(const void *left, const void *right, uint64_t size) {
   return (int32_t)memcmp(left, right, (size_t)size);
 }

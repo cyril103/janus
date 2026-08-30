@@ -1,0 +1,16 @@
+import std.shared
+
+def main() : int {
+    val root : Shared[int] = share[int](1729)
+    var checksum : long = long(0)
+    var iteration : int = 0
+    while iteration < 100000 {
+        val alias : Shared[int] = root.clone()
+        checksum = checksum + long(alias.get())
+        delete alias
+        iteration = iteration + 1
+    }
+    println(checksum)
+    delete root
+    return 0
+}

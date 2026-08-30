@@ -1,0 +1,14 @@
+import std.shared
+
+class PanicOnDelete() {
+    destructor {
+        panic("shared payload destructor panic\n")
+    }
+}
+
+def main() : int {
+    val value : Shared[PanicOnDelete] =
+    share[PanicOnDelete](new PanicOnDelete())
+    delete value
+    return 0
+}

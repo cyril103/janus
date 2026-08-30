@@ -555,6 +555,18 @@ if(BUILD_TESTING)
     )
     add_test(NAME runtime.floating COMMAND floating_runtime_test)
 
+    add_executable(shared_runtime_test
+        tests/runtime/shared_runtime_test.c
+    )
+    target_link_libraries(shared_runtime_test PRIVATE janus_runtime)
+    target_compile_options(shared_runtime_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME runtime.shared_native COMMAND shared_runtime_test)
+
     add_test(
         NAME runtime.floating_math
         COMMAND
@@ -2756,6 +2768,51 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(
+        NAME runtime.shared
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/shared.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/shared_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/shared.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.shared_deep_destruction
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/shared_deep_destruction.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/shared_deep_destruction_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/shared_deep_destruction.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.shared_panic_cleanup
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/shared_panic_cleanup.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/shared_panic_cleanup_runtime"
+            "-DEXPECTED_ERROR=shared payload destructor panic"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
+    )
+    add_test(
+        NAME language.shared_rejects_mutation
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/shared_mutation_error.janus"
+            "-DEXPECTED_ERROR=cannot mutate through shared borrow 'content'"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
+    )
+    add_test(
         NAME benchmarks.prime_factors_smoke
         COMMAND
             ${CMAKE_COMMAND}
@@ -2765,6 +2822,18 @@ if(BUILD_TESTING)
             "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/prime_factors_benchmark_smoke"
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/benchmarks/prime_factors.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME benchmarks.shared_clone_smoke
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/benchmarks/shared_clone.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/shared_clone_benchmark_smoke"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/benchmarks/shared_clone.expected.txt"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(

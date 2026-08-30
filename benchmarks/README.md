@@ -6,6 +6,14 @@ Wall-clock times are informational only and are not CI gates. See
 [`docs/compiler-performance.md`](../docs/compiler-performance.md) for the
 compiler timing workflow and its non-blocking trend dashboard.
 
+## `shared_clone.janus`
+
+Ce microbenchmark crée une valeur `Shared[int]`, clone puis détruit 100 000
+handles et observe le contenu à chaque itération. Le checksum `172900000`
+empêche l'élimination du travail. Le test `benchmarks.shared_clone_smoke`
+exécute le même scénario sous AddressSanitizer ; les temps muraux restent
+informatifs et peuvent être mesurés avec la procédure ci-dessous.
+
 ## `array_sort.janus`
 
 This benchmark sorts 100,000 deterministic pseudo-random integers through

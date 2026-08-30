@@ -87,6 +87,9 @@ OWNER_MODULES = {
     "#294": {
         "std.functional",
     },
+    "#299": {
+        "std.shared",
+    },
 }
 IMPORT_RE = re.compile(r"^\s*import\s+([\w.]+)", re.MULTILINE)
 DOCUMENTATION_BLOCK_RE = re.compile(

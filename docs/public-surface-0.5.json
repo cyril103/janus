@@ -201,8 +201,8 @@
       "source": "stdlib/std/option.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/option-result-combinators.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "71fa1ea7fb01096c6cc1d38a88c8ac0b7416b437c549b0329a20addab4e5a1b3",
-      "symbols": ["Option", "Option.Some", "Option.None", "OptionPair", "OptionPair.left", "OptionPair.right", "isSome", "isNone", "mapBorrowed", "map", "andThen", "flatten", "filter", "fold", "contains", "zip", "map2", "inspect", "orElse", "unwrapOr", "unwrapOrElse", "orElseWith"]
+      "signature_digest": "0aa0801cc8b18b345c86a90a2841c37d463e40baf5d201e6eb21b1b524c9d79f",
+      "symbols": ["Try", "Option", "Option.Some", "Option.None", "OptionPair", "OptionPair.left", "OptionPair.right", "isSome", "isNone", "mapBorrowed", "map", "andThen", "flatten", "filter", "fold", "contains", "zip", "map2", "inspect", "orElse", "unwrapOr", "unwrapOrElse", "orElseWith"]
     },
     {
       "name": "std.ordering",
@@ -257,8 +257,16 @@
       "source": "stdlib/std/result.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/option-result-combinators.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "1afa63572e7df977144a74d30bda84fc97be77c7fd4530c92a97bee94f0b641a",
+      "signature_digest": "7966f36ad8a1ee8f19fa0c1043ebbe1c4438f430604aefc740243ee659b5159e",
       "symbols": ["Result", "Result.Ok", "Result.Error", "ResultPair", "ResultPair.left", "ResultPair.right", "isOk", "isError", "mapBorrowed", "mapErrorBorrowed", "map", "mapError", "andThen", "flatten", "fold", "zip", "map2", "inspect", "inspectError", "orElse", "unwrapOr", "unwrapOrElse", "toOption", "fromOption", "toResult", "transpose"]
+    },
+    {
+      "name": "std.shared",
+      "source": "stdlib/std/shared.janus",
+      "documentation": ["docs/design/shared-immutable.md"],
+      "status": "experimental",
+      "signature_digest": "dbd1c6760df10b1c697579fde450828c10c24e53dd4732335e682b64fdb6d1d4",
+      "symbols": ["Shared", "Shared.clone", "Shared.get", "Shared.strongCount", "Shared.isUnique", "Shared.isSame", "share"]
     },
     {
       "name": "std.slice",

@@ -29,6 +29,9 @@ pour expérimentation, mais ne font pas partie du candidat stable.
 - `std.slice` : les vues contiguës empruntées ont été ajoutées après la baseline
   0.8 et restent expérimentales jusqu'à leur validation dans un inventaire
   courant.
+- `std.shared` : le partage immutable non atomique a été ajouté après la
+  baseline 0.8 ; les cycles, les handles faibles et le partage inter-thread
+  restent hors de cette première surface.
 - `std.priority_queue` : la file de priorité stable a été ajoutée après la
   baseline 0.8 et reste expérimentale jusqu'à la stabilisation de son API.
 - `std.bytes`, `std.deque`, `std.error` et `std.ordering` : ces vues binaires,

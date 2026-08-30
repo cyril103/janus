@@ -1,0 +1,49 @@
+import std.option
+import std.shared
+
+def destroyNodeHandle(handle : Shared[Node]) : int {
+    delete handle
+    return 0
+}
+
+class Node(
+    private val next : Option[Shared[Node]],
+    private borrow val destroyed : Ptr[int]
+) {
+    destructor {
+        destroyed.overwrite(
+            usize(0),
+            destroyed.load(usize(0)) + 1
+        )
+        val _ignored : int = match move next {
+            Some(handle) => destroyNodeHandle(move handle),
+            None => 0
+        }
+    }
+}
+
+def makeChain(depth : int, borrow destroyed : Ptr[int]) : Shared[Node] {
+    if depth == 1 {
+        return share[Node](new Node(
+            Option.None[Shared[Node]](),
+            destroyed
+        ))
+    }
+    val tail : Shared[Node] = makeChain(depth - 1, destroyed)
+    return share[Node](new Node(
+        Option.Some[Shared[Node]](move tail),
+        destroyed
+    ))
+}
+
+def main() : int {
+    val destroyed : Ptr[int] = alloc[int](usize(1))
+    destroyed.initialize(usize(0), 0)
+
+    val chain : Shared[Node] = makeChain(512, destroyed)
+
+    delete chain
+    println(destroyed.load(usize(0)))
+    freeStorage(destroyed)
+    return 0
+}

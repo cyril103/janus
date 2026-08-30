@@ -1,0 +1,37 @@
+import std.shared
+
+class Payload(
+    val value : int,
+    private borrow val destroyed : Ptr[int]
+) {
+    destructor {
+        destroyed.overwrite(
+            usize(0),
+            destroyed.load(usize(0)) + 1
+        )
+    }
+}
+
+def main() : int {
+    val destroyed : Ptr[int] = alloc[int](usize(1))
+    destroyed.initialize(usize(0), 0)
+
+    val first : Shared[Payload] =
+    share[Payload](new Payload(42, destroyed))
+    val second : Shared[Payload] = first.clone()
+    val third : Shared[Payload] = second.clone()
+
+    println(first.strongCount())
+    println(first.isSame(second))
+    println(first.get().value)
+    delete second
+    println(first.strongCount())
+    delete first
+    println(destroyed.load(usize(0)))
+    println(third.isUnique())
+    delete third
+    println(destroyed.load(usize(0)))
+
+    freeStorage(destroyed)
+    return 0
+}

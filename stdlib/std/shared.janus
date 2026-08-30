@@ -1,0 +1,122 @@
+/// Fournit un partage explicite et immutable par comptage de references.
+///
+/// Un [[Shared]] possede un handle vers une valeur allouee une seule fois. Le
+/// clonage du handle est explicite, l'observation ne fournit qu'un emprunt
+/// partage et le dernier handle detruit la valeur de maniere deterministe.
+/// Le compteur n'est pas atomique : un handle ne doit pas etre utilise depuis
+/// plusieurs threads sans synchronisation externe.
+module std.shared
+
+private extern("janus_shared_alias") def sharedAliasNative(
+    borrow pointer : Ptr[byte]
+) : owned Ptr[byte]
+
+private extern("janus_shared_forget") def sharedForgetNative(
+    consume pointer : Ptr[byte]
+) : Unit
+
+private extern("janus_shared_retain") def sharedRetain(
+    borrow references : Ptr[usize]
+) : bool
+
+private def sharedAlias[T](borrow pointer : Ptr[T]) : Ptr[T] {
+    return Ptr[T](sharedAliasNative(Ptr[byte](pointer)))
+}
+
+private def sharedForget[T](pointer : Ptr[T]) : Unit {
+    sharedForgetNative(Ptr[byte](pointer))
+}
+
+/// Handle propriétaire vers une valeur partagée immutable.
+///
+/// `Shared[T]` ne donne jamais d'accès mutable à `T`. [[Shared.clone]] crée un
+/// second handle vers la même valeur et [[Shared.get]] lie l'emprunt retourné à
+/// la durée du handle observé. Comme les autres ressources Janus, chaque handle
+/// doit être détruit avec `delete` (ou `defer delete`).
+/// @param data Stockage interne déjà initialisé, réservé au constructeur du module.
+/// @param references Compteur fort interne, réservé au constructeur du module.
+class Shared[T] internal(
+    private val data : Ptr[T],
+    private val references : Ptr[usize]
+) {
+    /// Crée explicitement un second handle vers la même valeur.
+    /// @return Nouveau handle propriétaire partageant l'identité et le contenu.
+    borrow def clone() : Shared[T] {
+        if !sharedRetain(references) {
+            panic("Shared reference count overflow\n")
+        }
+        return new Shared[T](
+            sharedAlias[T](data),
+            sharedAlias[usize](references)
+        )
+    }
+
+    /// Emprunte la valeur partagée en lecture seule.
+    /// @return Emprunt immutable valable au plus aussi longtemps que ce handle.
+    borrow def get() : borrow T {
+        return data.load(usize(0))
+    }
+
+    /// Retourne le nombre de handles forts actuellement vivants.
+    /// @return Compteur non atomique, au moins égal à un.
+    borrow def strongCount() : usize {
+        return references.load(usize(0))
+    }
+
+    /// Indique si ce handle est l'unique propriétaire partagé.
+    ///
+    /// Ce test est informatif et n'accorde aucun accès mutable à la valeur.
+    /// @return `true` lorsque le compteur fort vaut un.
+    borrow def isUnique() : bool {
+        return references.load(usize(0)) == usize(1)
+    }
+
+    /// Compare l'identité de deux allocations partagées.
+    /// @param other Autre handle observé sans transfert de propriété.
+    /// @return `true` si les deux handles désignent exactement la même valeur.
+    borrow def isSame(borrow other : Shared[T]) : bool {
+        return data == other.data
+    }
+
+    destructor {
+        val current : usize = references.load(usize(0))
+        val remaining : usize = current - usize(1)
+        references.overwrite(usize(0), remaining)
+        if remaining == usize(0) {
+            val content : T = data.load(usize(0))
+            freeStorage(data)
+            freeStorage(references)
+            delete content
+        } else {
+            sharedForget[T](data)
+            sharedForget[usize](references)
+        }
+    }
+}
+
+/// Place une valeur possédée dans une allocation partagée immutable.
+///
+/// En cas d'échec d'allocation, `value` est détruite avant le `panic` et aucune
+/// allocation intermédiaire n'est conservée.
+/// @param value Valeur dont la propriété est transférée au contrôle partagé.
+/// @return Premier handle fort, avec un compteur égal à un.
+def share[T](value : T) : Shared[T] {
+    val data : Ptr[T] = alloc[T](usize(1))
+    if data == null[T]() {
+        freeStorage(data)
+        delete value
+        panic("Shared allocation failed\n")
+    }
+
+    val references : Ptr[usize] = alloc[usize](usize(1))
+    if references == null[usize]() {
+        freeStorage(references)
+        freeStorage(data)
+        delete value
+        panic("Shared allocation failed\n")
+    }
+
+    data.initialize(usize(0), move value)
+    references.initialize(usize(0), usize(1))
+    return new Shared[T](data, references)
+}

@@ -222,6 +222,26 @@ def main() : int {
 }
 ```
 
+### `std.shared`
+
+`Shared[T]` conserve une valeur immutable derrière plusieurs handles forts.
+Le clonage est explicite et chaque handle reste une ressource propriétaire à
+détruire. Le [contrat détaillé](design/shared-immutable.md) fixe notamment le
+comportement de l'overflow, des cycles et des paniques de destructeur.
+
+```janus
+// doctest: doctest name=stdlib-std-shared
+import std.shared
+def main() : int {
+    val first : Shared[int] = share[int](42)
+    val second : Shared[int] = first.clone()
+    val valid : bool = first.isSame(second) && second.get() == 42
+    delete second
+    delete first
+    return if valid { 0 } else { 1 }
+}
+```
+
 ### `std.validated`
 
 `Validated[T, E]` accumule les erreurs de contrôles indépendants. `map2`,

@@ -784,7 +784,7 @@ borrow def peekCopy() : T where T <: Copy { ... }
 
 Un trait peut aussi déclarer un type associé, défini par chaque classe qui
 l'implémente. Il est utilisé directement dans les méthodes du trait et projeté
-avec `T.Item` dans une abstraction générique :
+avec le type `Item` associé à `T` dans une abstraction générique :
 
 ```janus
 trait Producer {
