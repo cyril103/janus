@@ -1,8 +1,12 @@
 # Roadmap Janus vers 1.0
 
-Statut : proposition issue de l'[audit technique 0.17](audit-0.17.md).
-Principe : les numéros de version indiquent un ordre de livraison, pas des dates
-contractuelles.
+Statut : roadmap active, rebasée le 30 août 2026.
+
+La progression n'est plus déduite des numéros de versions : la 0.21 et la 0.22
+ont livré des surfaces différentes du séquencement imaginé lors de l'audit
+0.17. La source de vérité exécutable est désormais
+[`release-gates-1.0.json`](release-gates-1.0.json). Une gate n'est `complete`
+que si ses preuves versionnées existent et réussissent en CI.
 
 ## Objectif 1.0
 
@@ -18,6 +22,26 @@ Les priorités sont ordonnées ainsi :
    LSP ;
 3. transformer les garanties existantes en gates mesurables ;
 4. figer seulement les surfaces éprouvées par des projets aval.
+
+## Gates actives
+
+| Gate | État initial | Critère de sortie |
+| --- | --- | --- |
+| `surface-inventory` | complète | Toutes les surfaces sont classées et la dérive est refusée en CI. |
+| `semantic-core` | en cours | CLI, documentation et LSP consomment une session et un index sémantique communs. |
+| `diagnostics-zero-j0000` | en cours | Aucun chemin utilisateur ne produit `J0000`. |
+| `lsp-performance` | à faire | Budgets p50/p95 ratifiés, cancellation et absence de publication obsolète. |
+| `stdlib-review` | en cours | Chaque module est promu, maintenu expérimental, extrait ou retiré. |
+| `ecosystem-validation` | à faire | Trois canaris aval et deux cycles réels du registre sont archivés. |
+| `release-candidate` | à faire | Toutes les gates bloquantes sont complètes puis 30 jours de gel réussissent. |
+
+Les grandes familles nouvelles — async, réseau haut niveau, 3D, debugger, JIT
+et auto-hébergement — restent explicitement après 1.0.
+
+## Historique du plan versionné
+
+Les sections suivantes documentent le plan d'origine et les livraisons déjà
+effectuées. Elles ne constituent plus le tableau de pilotage courant.
 
 ## 0.18 — Rebaseline et pilotage
 

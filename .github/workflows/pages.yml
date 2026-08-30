@@ -88,6 +88,7 @@ jobs:
             --root . \
             --janus build-pages/janus
           python scripts/check_stability_inventory.py --root .
+          python scripts/check_release_gates.py --root .
           python website/tests/check_janus_snippets.py \
             --compiler build-pages/janus
 

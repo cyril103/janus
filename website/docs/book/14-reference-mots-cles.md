@@ -3,7 +3,7 @@
 
 ## Objectifs
 
-- retrouver les 36 mots-clés réservés de la version en développement de Janus ;
+- retrouver les 37 mots-clés réservés de la version en développement de Janus ;
 - comprendre leur utilité et leur contexte valide ;
 - ne pas confondre mots-clés, types primitifs, builtins et opérateurs.
 
@@ -42,7 +42,7 @@ entre crochets sont facultatifs et conservent cet ordre.
 | `class` | définit un objet possédé, alloué avec `new` | ne peut jamais dériver `Copy` |
 | `enum` | définit un ensemble de variantes, avec payloads facultatifs | se traite généralement avec `match` |
 | `trait` | définit un contrat de méthodes | les méthodes n’ont pas de corps |
-| `extend` | ajoute des méthodes statiques à un type existant | exige un receveur `borrow`, `borrow var` ou `consume` |
+| `type` | déclare un type associé dans un trait ou son implémentation | `type Item` ou `type Item = int` |
 | `extends` | annonce les traits implémentés par une classe | précède `derives` et le corps de classe |
 | `derives` | génère une ou plusieurs capacités structurelles | seulement `Copy`, `Equality`, `Hashing`, `Debug` |
 
@@ -63,6 +63,9 @@ derives Equality, Hashing, Debug {
 ```
 
 `Hashing` exige `Equality`. Les capacités sont intrinsèques et sensibles à la casse ; elles ne sont pas des mots-clés séparés. En 0.22.0, seuls les classes implémentent les traits utilisateur avec `extends` ; les structs et enums peuvent utiliser `derives`, mais pas `extends`.
+
+`extend` introduit un bloc de méthodes d'extension, mais reste un mot
+contextuel afin de ne pas rendre invalides les identifiants existants.
 
 ## Liaisons et visibilité
 

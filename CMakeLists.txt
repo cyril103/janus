@@ -1533,10 +1533,17 @@ if(BUILD_TESTING)
             --janus $<TARGET_FILE:janus>
     )
     add_test(
-        NAME docs.stability_inventory_0_8
+        NAME docs.stability_inventory_current
         COMMAND
             "${Python3_EXECUTABLE}"
             "${PROJECT_SOURCE_DIR}/scripts/check_stability_inventory.py"
+            --root "${PROJECT_SOURCE_DIR}"
+    )
+    add_test(
+        NAME docs.release_gates_1_0
+        COMMAND
+            "${Python3_EXECUTABLE}"
+            "${PROJECT_SOURCE_DIR}/scripts/check_release_gates.py"
             --root "${PROJECT_SOURCE_DIR}"
     )
     foreach(FUZZ_MODE lexer parser manifest resolver)

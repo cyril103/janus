@@ -265,7 +265,7 @@ Une extension VS Code est disponible dans
 - [Graphisme 2D](docs/graphics.md)
 - [Inventaire de la surface publique 0.5.x](docs/public-surface-0.5.json)
 - [Contrat de stabilité proposé pour Janus 1.0](docs/stability-contract.md)
-- [Baseline automatisée de stabilité 0.8](docs/stability-inventory-0.8.md)
+- [Inventaire automatisé de stabilité courant](docs/stability-inventory-current.md)
 - [Audit technique de Janus 0.17](docs/audit-0.17.md)
 - [Roadmap vers Janus 1.0](docs/roadmap-1.0.md)
 - [Spécification des emprunts lexicaux](docs/design/lexical-borrowing.md)

@@ -1,7 +1,7 @@
 # Guide du langage Janus
 
 > **Statut des API 0.8.** La syntaxe et la bibliothèque restent pré-1.0.
-> L'[inventaire de stabilité 0.8](stability-inventory-0.8.md) classe les
+> L'[inventaire de stabilité courant](stability-inventory-current.md) classe les
 > surfaces candidates et expérimentales. L'[inventaire machine de la surface
 > publique](public-surface-0.5.json), dont le nom historique est conservé pour
 > compatibilité avec les outils, relie chaque module à sa source canonique et à

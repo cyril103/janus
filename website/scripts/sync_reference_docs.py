@@ -27,6 +27,7 @@ DOCUMENTS = (
     "graphics.md",
     "stability-contract.md",
     "stability-inventory-0.8.md",
+    "stability-inventory-current.md",
     "audit-0.17.md",
     "roadmap-1.0.md",
     "release-severity-policy.md",

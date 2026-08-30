@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "updated": "2026-08-30",
+  "gates": [
+    {
+      "id": "surface-inventory",
+      "status": "complete",
+      "blocks_1_0": true,
+      "proof": ["docs/stability-inventory-current.md", "scripts/check_stability_inventory.py"]
+    },
+    {
+      "id": "semantic-core",
+      "status": "in-progress",
+      "blocks_1_0": true,
+      "proof": []
+    },
+    {
+      "id": "diagnostics-zero-j0000",
+      "status": "in-progress",
+      "blocks_1_0": true,
+      "proof": []
+    },
+    {
+      "id": "lsp-performance",
+      "status": "pending",
+      "blocks_1_0": true,
+      "proof": []
+    },
+    {
+      "id": "stdlib-review",
+      "status": "in-progress",
+      "blocks_1_0": true,
+      "proof": ["docs/stability-inventory-current.md"]
+    },
+    {
+      "id": "ecosystem-validation",
+      "status": "pending",
+      "blocks_1_0": true,
+      "proof": []
+    },
+    {
+      "id": "release-candidate",
+      "status": "pending",
+      "blocks_1_0": true,
+      "proof": []
+    }
+  ]
+}

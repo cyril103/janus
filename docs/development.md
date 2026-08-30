@@ -197,7 +197,7 @@ Checklist de release :
 
 1. vérifier que la version, le changelog et l'extension VS Code sont alignés ;
 2. relire le [contrat de stabilité](stability-contract.md) et
-   l'[inventaire 0.8](stability-inventory-0.8.md), notamment la liste des API
+   l'[inventaire courant](stability-inventory-current.md), notamment la liste des API
    expérimentales, et documenter toute promotion ou dépréciation ;
 3. à partir du candidat 0.8, exécuter la suite N/N+1 avec le dernier compilateur
    publié et le candidat ; pour 1.x, l'exécuter sur chaque plateforme tier-1 ;

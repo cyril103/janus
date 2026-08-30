@@ -26,6 +26,7 @@ EXPECTED_REFERENCE = {
     "graphics.md",
     "stability-contract.md",
     "stability-inventory-0.8.md",
+    "stability-inventory-current.md",
     "audit-0.17.md",
     "roadmap-1.0.md",
     "release-severity-policy.md",
@@ -40,6 +41,7 @@ EXPECTED_MODULES = {
     "std.deque",
     "std.error",
     "std.fs",
+    "std.functional",
     "std.graphics",
     "std.graphics.audio",
     "std.graphics.drawing",
@@ -57,16 +59,19 @@ EXPECTED_MODULES = {
     "std.option",
     "std.ordering",
     "std.path",
+    "std.persistent_list",
     "std.priority_queue",
     "std.process",
     "std.random",
     "std.range",
     "std.result",
+    "std.shared",
     "std.slice",
     "std.system",
     "std.text",
     "std.testing",
     "std.time",
+    "std.validated",
     "std.wall_time",
 }
 EXPECTED_COMMANDS = {
@@ -95,6 +100,7 @@ EXPECTED_KEYWORDS = {
     "tailrec",
     "def",
     "trait",
+    "type",
     "extends",
     "enum",
     "class",
@@ -205,10 +211,10 @@ class SiteStructureTests(unittest.TestCase):
 
         roadmap = (REPOSITORY / "docs" / "roadmap-1.0.md").read_text(encoding="utf-8")
         expected_milestones = (
-            "| 0.20 | Contrats récursifs et lambdas blocs | oui |",
-            "| 0.21 | Modèle sémantique partagé et diagnostics classifiés | oui |",
-            "| 0.22 | LSP mesuré, cancellable et fuzz semantic/backend | oui |",
-            "| 0.23 | Décision sur toutes les surfaces expérimentales | oui |",
+            "| `surface-inventory` | complète |",
+            "| `semantic-core` | en cours |",
+            "| `lsp-performance` | à faire |",
+            "| `release-candidate` | à faire |",
         )
         for milestone in expected_milestones:
             self.assertIn(milestone, roadmap)
@@ -246,7 +252,7 @@ class SiteStructureTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn(f"{len(reserved)} mots-clés réservés", book_index)
-        self.assertEqual(35, len(documented))
+        self.assertEqual(37, len(documented))
         self.assertIn("tailrec", documented)
         self.assertIn("`owned` est un qualificateur contextuel", reference)
         self.assertNotIn("owned", documented)
@@ -364,9 +370,11 @@ class SiteStructureTests(unittest.TestCase):
         self.assertEqual(
             expected_modules, {entry["name"] for entry in reference["modules"]}
         )
-        self.assertEqual(
-            expected_symbols, {entry["name"] for entry in reference["symbols"]}
-        )
+        generated_symbols = {entry["name"] for entry in reference["symbols"]}
+        # The generated index also materializes members contributed by public
+        # extension blocks. Module inventories describe declarations owned by
+        # their source module, so those projected members form a valid superset.
+        self.assertLessEqual(expected_symbols, generated_symbols)
         self.assertTrue(
             all(entry["documentation"] for entry in reference["modules"])
         )

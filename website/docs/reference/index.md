@@ -22,7 +22,7 @@ Cette section publie les guides canoniques du dépôt. Ils sont copiés à chaqu
 
 **Auditer**
 
-:   [Audit technique 0.17](generated/audit-0.17.md) · [Roadmap vers 1.0](generated/roadmap-1.0.md) · [Politique de sévérité](generated/release-severity-policy.md) · [Baseline automatisée 0.8](generated/stability-inventory-0.8.md) · [Surface publique symbolique 0.5.x](generated/public-surface-0.5.json)
+:   [Inventaire courant](generated/stability-inventory-current.md) · [Roadmap vers 1.0](generated/roadmap-1.0.md) · [Audit technique 0.17](generated/audit-0.17.md) · [Politique de sévérité](generated/release-severity-policy.md) · [Baseline historique 0.8](generated/stability-inventory-0.8.md) · [Surface publique symbolique 0.5.x](generated/public-surface-0.5.json)
 
 **Historique**
 

@@ -423,7 +423,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Validate stability inventory and links
-        run: python3 scripts/check_stability_inventory.py
+        run: |
+          python3 scripts/check_stability_inventory.py
+          python3 scripts/check_release_gates.py
 
       - name: Reject open critical issues
         shell: bash

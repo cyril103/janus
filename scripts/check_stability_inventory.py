@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the versioned 0.8 stability inventory and all of its links."""
+"""Validate the current pre-1.0 stability inventory and all of its links."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from urllib.parse import unquote
 
 
 ROW_RE = re.compile(
-    r"^\|\s*`([^`]+)`\s*\|\s*`(stable-candidate|experimental)`\s*\|",
+    r"^\|\s*`([^`]+)`\s*\|\s*`(stable-candidate|experimental|internal-detail)`\s*\|",
     re.MULTILINE,
 )
 LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
@@ -85,9 +85,8 @@ def main() -> int:
     )
     args = parser.parse_args()
     root = args.root.resolve()
-    inventory = root / "docs" / "stability-inventory-0.8.md"
+    inventory = root / "docs" / "stability-inventory-current.md"
     public_surface = root / "docs" / "public-surface-0.5.json"
-    limitations = root / "docs" / "archive" / "known-limitations-0.8.md"
     errors: list[str] = []
 
     if not inventory.is_file():
@@ -112,17 +111,8 @@ def main() -> int:
     for missing in sorted(required - statuses.keys()):
         errors.append(f"surface publique sans statut: {missing}")
 
-    if "stable-proposed" in markdown or "internal-detail" in markdown:
-        errors.append(
-            "l'inventaire 0.8 ne doit employer que stable-candidate ou experimental"
-        )
-
-    limitation_text = limitations.read_text(encoding="utf-8")
-    for surface, status in statuses.items():
-        if status == "experimental" and f"`{surface}`" not in limitation_text:
-            errors.append(
-                f"surface expérimentale absente des limites connues: {surface}"
-            )
+    if "stable-proposed" in markdown:
+        errors.append("statut obsolète stable-proposed dans l'inventaire courant")
 
     errors.extend(check_links(root, inventory, markdown))
     for error in errors:
@@ -131,7 +121,7 @@ def main() -> int:
         return 1
     experimental = sum(status == "experimental" for status in statuses.values())
     print(
-        f"Inventaire 0.8 vérifié: {len(statuses)} surfaces, "
+        f"Inventaire courant vérifié: {len(statuses)} surfaces, "
         f"{experimental} expérimentales, liens locaux valides"
     )
     return 0

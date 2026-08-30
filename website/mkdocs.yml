@@ -53,7 +53,7 @@ nav:
       - Index API de la stdlib: reference/stdlib/index.html
       - Graphisme 2D: reference/generated/graphics.md
       - Contrat de stabilité 1.0: reference/generated/stability-contract.md
-      - Inventaire de stabilité 0.8: reference/generated/stability-inventory-0.8.md
+      - Inventaire de stabilité courant: reference/generated/stability-inventory-current.md
       - Audit technique 0.17: reference/generated/audit-0.17.md
       - Roadmap vers 1.0: reference/generated/roadmap-1.0.md
       - Politique de sévérité: reference/generated/release-severity-policy.md
