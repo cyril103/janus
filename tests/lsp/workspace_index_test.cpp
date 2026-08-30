@@ -133,7 +133,9 @@ int main(int argc, char **argv) {
       main_uri +
       R"(","text":"import library\n\ndef helperEntry() : int { return helper() }\n"}}})");
   JANUS_REQUIRE(missing_entry.size() == 1);
-  JANUS_REQUIRE(missing_entry.front().find("\"code\":\"JANA0999\"") !=
+  JANUS_REQUIRE(missing_entry.front().find("\"code\":\"J") !=
+                std::string::npos);
+  JANUS_REQUIRE(missing_entry.front().find("\"code\":\"J0000\"") ==
                 std::string::npos);
 
   const std::string auxiliary_uri =

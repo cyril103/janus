@@ -16,9 +16,9 @@ informatifs et peuvent être mesurés avec la procédure ci-dessous.
 
 ## `persistent_list.janus`
 
-Ce microbenchmark construit et parcourt 20 000 entiers dans un `Array[int]`,
+Ce microbenchmark construit et parcourt 4 096 entiers dans un `Array[int]`,
 puis répète le travail avec `PersistentList[int]`. Les deux checksums attendus
-sont `199990000`; le test `benchmarks.persistent_list_smoke` verrouille aussi
+sont `8386560`; le test `benchmarks.persistent_list_smoke` verrouille aussi
 leur égalité. Le temps mur reste informatif et peut être mesuré avec la même
 commande que les autres benchmarks. Les coûts d'allocation et de partage sont
 publiés dans `docs/design/persistent-list.md`.

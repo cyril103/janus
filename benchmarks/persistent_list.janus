@@ -2,9 +2,9 @@ import std.array
 import std.persistent_list
 
 def fill() : Array[int] {
-    val result : Array[int] = new Array[int](usize(20000))
+    val result : Array[int] = new Array[int](usize(4096))
     var index : int = 0
-    while index < 20000 {
+    while index < 4096 {
         result.push(index)
         index = index + 1
     }

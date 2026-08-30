@@ -52,11 +52,11 @@ Le compteur de références est non atomique et suit le contrat de
 
 ## Mesures reproductibles
 
-`benchmarks/persistent_list.janus` construit et parcourt 20 000 entiers dans un
+`benchmarks/persistent_list.janus` construit et parcourt 4 096 entiers dans un
 `Array[int]`, puis dans un `PersistentList[int]`. Le checksum publié est
-`199990000` pour chaque structure. Sur la machine de développement Linux x86-64
-du 30 août 2026, compilée avec `clang -O3`, l'exécution combinée a pris environ
-0,01 s et un RSS maximal de 6 892 KiB. Ces valeurs sont informatives : le smoke
+`8386560` pour chaque structure. Sur la machine de développement Linux x86-64
+du 30 août 2026, compilée avec `clang -O3`, l'exécution combinée a pris moins de
+0,01 s et un RSS maximal de 2 856 KiB. Ces valeurs sont informatives : le smoke
 test ne verrouille que les checksums, et une comparaison locale se relance avec :
 
 ```bash
