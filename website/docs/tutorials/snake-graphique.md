@@ -2,7 +2,7 @@
 
 ## Prérequis
 
-- Janus 0.22.0 installé ;
+- Janus 0.23.0 installé ;
 - une session graphique locale ;
 - **raylib 6** installée comme bibliothèque partagée ;
 - le dépôt Janus cloné, car ce tutoriel exécute le vrai exemple et ses assets (`neon.fs`).
@@ -60,7 +60,7 @@ defer closeWindow()
 setTargetFps(60)
 ```
 
-À chaque image, il utilise les APIs 0.22.0 de temps et d’entrée :
+À chaque image, il utilise les APIs 0.23.0 de temps et d’entrée :
 
 ```janus
 while !windowShouldClose() && !isKeyPressed(Key.Escape) {

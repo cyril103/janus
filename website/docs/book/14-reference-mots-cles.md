@@ -62,7 +62,7 @@ derives Equality, Hashing, Debug {
 }
 ```
 
-`Hashing` exige `Equality`. Les capacités sont intrinsèques et sensibles à la casse ; elles ne sont pas des mots-clés séparés. En 0.22.0, seuls les classes implémentent les traits utilisateur avec `extends` ; les structs et enums peuvent utiliser `derives`, mais pas `extends`.
+`Hashing` exige `Equality`. Les capacités sont intrinsèques et sensibles à la casse ; elles ne sont pas des mots-clés séparés. En 0.23.0, seuls les classes implémentent les traits utilisateur avec `extends` ; les structs et enums peuvent utiliser `derives`, mais pas `extends`.
 
 `extend` introduit un bloc de méthodes d'extension, mais reste un mot
 contextuel afin de ne pas rendre invalides les identifiants existants.
