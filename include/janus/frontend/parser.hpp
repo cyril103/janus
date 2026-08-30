@@ -53,6 +53,7 @@ private:
   [[nodiscard]] ast::Expression parse_multiplicative();
   [[nodiscard]] ast::Expression parse_unary();
   [[nodiscard]] ast::Expression parse_primary();
+  [[nodiscard]] ast::MatchPattern parse_match_pattern();
   [[nodiscard]] ast::Expression parse_postfix(ast::Expression expression);
   [[nodiscard]] ast::TypeReference parse_type();
   [[nodiscard]] ast::ImportDeclaration parse_import_declaration();

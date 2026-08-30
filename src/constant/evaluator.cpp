@@ -217,21 +217,30 @@ void collect_references(const janus::ast::Expression &expression,
                                             janus::ast::MatchExpression>) {
           collect_references(*node.scrutinee, modules, references);
           for (const auto &arm : node.arms) {
-            if (arm.literal && !janus::ast::is_enum_binding_pattern(arm))
-              collect_references(*arm.literal, modules, references);
+            if (!janus::ast::is_enum_binding_pattern(arm))
+              for (const auto &pattern : arm.patterns)
+                janus::ast::visit_match_pattern(
+                    pattern, [&](const janus::ast::MatchPattern &part) {
+                      if (part.literal)
+                        collect_references(*part.literal, modules, references);
+                    });
             const std::size_t arm_reference_begin = references.size();
             if (arm.guard)
               collect_references(*arm.guard, modules, references);
             collect_references(*arm.expression, modules, references);
+            const auto pattern_bindings =
+                janus::ast::match_pattern_binding_names(arm);
             references.erase(
-                std::remove_if(
-                    references.begin() +
-                        static_cast<std::ptrdiff_t>(arm_reference_begin),
-                    references.end(), [&](const Reference &reference) {
-                      return !reference.module.has_value() &&
-                             std::find(arm.bindings.begin(), arm.bindings.end(),
-                                       reference.name) != arm.bindings.end();
-                    }),
+                std::remove_if(references.begin() + static_cast<std::ptrdiff_t>(
+                                                        arm_reference_begin),
+                               references.end(),
+                               [&](const Reference &reference) {
+                                 return !reference.module.has_value() &&
+                                        std::find(pattern_bindings.begin(),
+                                                  pattern_bindings.end(),
+                                                  reference.name) !=
+                                            pattern_bindings.end();
+                               }),
                 references.end());
           }
         } else if constexpr (std::is_same_v<Node,
@@ -371,20 +380,26 @@ bool is_plan_constant_expression(
                                             janus::ast::MatchExpression>)
           return is_plan_constant_expression(*node.scrutinee, modules,
                                              aggregate_types) &&
-                 std::all_of(node.arms.begin(), node.arms.end(),
-                             [&](const auto &arm) {
-                               return (!arm.literal || janus::ast::is_enum_binding_pattern(arm) ||
+                 std::all_of(
+                     node.arms.begin(), node.arms.end(), [&](const auto &arm) {
+                       bool patterns_constant = true;
+                       if (!janus::ast::is_enum_binding_pattern(arm))
+                         for (const auto &pattern : arm.patterns)
+                           janus::ast::visit_match_pattern(
+                               pattern, [&](const auto &part) {
+                                 if (part.literal)
+                                   patterns_constant &=
                                        is_plan_constant_expression(
-                                           *arm.literal, modules,
-                                           aggregate_types)) &&
-                                      (!arm.guard ||
-                                       is_plan_constant_expression(
-                                           *arm.guard, modules,
-                                           aggregate_types)) &&
-                                      is_plan_constant_expression(
-                                          *arm.expression, modules,
-                                          aggregate_types);
-                             });
+                                           *part.literal, modules,
+                                           aggregate_types);
+                               });
+                       return patterns_constant &&
+                              (!arm.guard ||
+                               is_plan_constant_expression(*arm.guard, modules,
+                                                           aggregate_types)) &&
+                              is_plan_constant_expression(
+                                  *arm.expression, modules, aggregate_types);
+                     });
         else
           return false;
       },
@@ -1099,36 +1114,87 @@ Value evaluate_impl(const janus::ast::Expression &expression,
               call_function);
           for (const auto &arm : node.arms) {
             std::unordered_map<std::string, Value> bindings;
-            bool matches = arm.is_wildcard;
-            if (arm.literal && scrutinee.type->kind() != TypeKind::Enum) {
-              const Value literal = evaluate_impl(
-                  *arm.literal, scrutinee.type, resolve, resolve_constructor,
-                  call_function);
-              const auto *literal_floating =
-                  std::get_if<double>(&literal.data);
-              const auto *scrutinee_floating =
-                  std::get_if<double>(&scrutinee.data);
-              matches =
-                  (literal_floating == nullptr ||
-                   !std::isnan(*literal_floating)) &&
-                  (scrutinee_floating == nullptr ||
-                   !std::isnan(*scrutinee_floating)) &&
-                  canonical_match_key(literal) ==
-                      canonical_match_key(scrutinee);
-            } else if (!arm.is_wildcard &&
-                       scrutinee.type->kind() == TypeKind::Enum &&
-                       resolve_constructor) {
-              const auto &aggregate = *std::get<std::shared_ptr<
-                  janus::constant::AggregateValue>>(scrutinee.data);
-              const auto shape = resolve_constructor(
-                  scrutinee.type->name(), arm.case_name, {}, arm.location);
-              matches = shape.has_value() && shape->tag == aggregate.tag;
-              if (matches)
-                for (std::size_t index = 0;
-                     index < arm.bindings.size() &&
-                     index < aggregate.fields.size(); ++index)
-                  bindings.emplace(arm.bindings[index],
-                                   aggregate.fields[index].second);
+            std::function<bool(const janus::ast::MatchPattern &, const Value &,
+                               std::unordered_map<std::string, Value> &)>
+                matches_pattern;
+            matches_pattern = [&](const janus::ast::MatchPattern &pattern,
+                                  const Value &value,
+                                  std::unordered_map<std::string, Value>
+                                      &pattern_bindings) {
+              if (pattern.kind == janus::ast::MatchPattern::Kind::Wildcard)
+                return true;
+              if (pattern.kind == janus::ast::MatchPattern::Kind::Alias) {
+                if (!matches_pattern(*pattern.nested, value, pattern_bindings))
+                  return false;
+                pattern_bindings.emplace(pattern.name, value);
+                return true;
+              }
+              if (pattern.literal != nullptr &&
+                  value.type->kind() != TypeKind::Enum) {
+                const Value literal =
+                    evaluate_impl(*pattern.literal, value.type, resolve,
+                                  resolve_constructor, call_function);
+                const auto *literal_floating =
+                    std::get_if<double>(&literal.data);
+                const auto *value_floating = std::get_if<double>(&value.data);
+                return (literal_floating == nullptr ||
+                        !std::isnan(*literal_floating)) &&
+                       (value_floating == nullptr ||
+                        !std::isnan(*value_floating)) &&
+                       canonical_match_key(literal) ==
+                           canonical_match_key(value);
+              }
+              if (pattern.kind == janus::ast::MatchPattern::Kind::Name &&
+                  (value.type->kind() != TypeKind::Enum ||
+                   !resolve_constructor ||
+                   !resolve_constructor(value.type->name(), pattern.name, {},
+                                        pattern.location)
+                        .has_value())) {
+                pattern_bindings.emplace(pattern.name, value);
+                return true;
+              }
+              if (value.type->kind() == TypeKind::Enum && resolve_constructor) {
+                const auto &aggregate =
+                    *std::get<std::shared_ptr<janus::constant::AggregateValue>>(
+                        value.data);
+                const auto shape = resolve_constructor(
+                    value.type->name(), pattern.name, {}, pattern.location);
+                if (!shape.has_value() || shape->tag != aggregate.tag)
+                  return false;
+                for (std::size_t index = 0; index < pattern.children.size();
+                     ++index)
+                  if (!matches_pattern(pattern.children[index],
+                                       aggregate.fields[index].second,
+                                       pattern_bindings))
+                    return false;
+                return true;
+              }
+              if ((value.type->kind() == TypeKind::Struct ||
+                   value.type->kind() == TypeKind::Class) &&
+                  pattern.kind == janus::ast::MatchPattern::Kind::Constructor) {
+                if (pattern.name != value.type->name())
+                  return false;
+                const auto &aggregate =
+                    *std::get<std::shared_ptr<janus::constant::AggregateValue>>(
+                        value.data);
+                for (std::size_t index = 0; index < pattern.children.size();
+                     ++index)
+                  if (!matches_pattern(pattern.children[index],
+                                       aggregate.fields[index].second,
+                                       pattern_bindings))
+                    return false;
+                return true;
+              }
+              return false;
+            };
+            bool matches = false;
+            for (const auto &pattern : arm.patterns) {
+              std::unordered_map<std::string, Value> candidate_bindings;
+              if (matches_pattern(pattern, scrutinee, candidate_bindings)) {
+                bindings = std::move(candidate_bindings);
+                matches = true;
+                break;
+              }
             }
             if (!matches)
               continue;
@@ -1275,14 +1341,22 @@ bool is_constant_expression(const ast::Expression &expression) {
                  is_constant_expression(*node.else_expression);
         else if constexpr (std::is_same_v<Node, ast::MatchExpression>)
           return is_constant_expression(*node.scrutinee) &&
-                 std::all_of(node.arms.begin(), node.arms.end(),
-                             [](const auto &arm) {
-                               return (!arm.literal || janus::ast::is_enum_binding_pattern(arm) ||
-                                       is_constant_expression(*arm.literal)) &&
-                                      (!arm.guard ||
-                                       is_constant_expression(*arm.guard)) &&
-                                      is_constant_expression(*arm.expression);
-                             });
+                 std::all_of(
+                     node.arms.begin(), node.arms.end(), [](const auto &arm) {
+                       bool patterns_constant = true;
+                       if (!janus::ast::is_enum_binding_pattern(arm))
+                         for (const auto &pattern : arm.patterns)
+                           janus::ast::visit_match_pattern(
+                               pattern, [&](const auto &part) {
+                                 if (part.literal)
+                                   patterns_constant &=
+                                       is_constant_expression(*part.literal);
+                               });
+                       return patterns_constant &&
+                              (!arm.guard ||
+                               is_constant_expression(*arm.guard)) &&
+                              is_constant_expression(*arm.expression);
+                     });
         else
           return false;
       },

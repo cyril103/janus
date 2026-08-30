@@ -1772,9 +1772,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               check_expression(*node.scrutinee, scope);
               for (const auto &arm : node.arms) {
                 auto arm_scope = scope;
-                arm_scope.insert(arm.bindings.begin(), arm.bindings.end());
-                if (arm.literal && !ast::is_enum_binding_pattern(arm))
-                  check_expression(*arm.literal, scope);
+                const auto bindings = ast::match_pattern_binding_names(arm);
+                arm_scope.insert(bindings.begin(), bindings.end());
+                if (!ast::is_enum_binding_pattern(arm))
+                  for (const auto &pattern : arm.patterns)
+                    ast::visit_match_pattern(pattern, [&](const auto &part) {
+                      if (part.literal)
+                        check_expression(*part.literal, scope);
+                    });
                 if (arm.guard)
                   check_expression(*arm.guard, arm_scope);
                 check_expression(*arm.expression, arm_scope);
@@ -6574,14 +6579,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               const bool borrows_scrutinee =
                   scrutinee_identifier != nullptr &&
                   borrowed_values.contains(scrutinee_identifier->name);
-              if (scrutinee_type.is_enum() &&
+              const bool owning_match_aggregate =
+                  scrutinee_type.is_enum() ||
+                  (scrutinee_type.is_class() &&
+                   classes.at(scrutinee_type.parameter)->is_value_type);
+              if (owning_match_aggregate &&
                   aggregate_owns_value(scrutinee_type) &&
                   std::holds_alternative<ast::IdentifierExpression>(
                       node.scrutinee->value) &&
                   !borrows_scrutinee)
                 throw CompileError{
                     node.location,
-                    "matching an owning enum requires an explicit move"};
+                    std::string{"matching an owning "} +
+                        (scrutinee_type.is_enum() ? "enum" : "struct") +
+                        " requires an explicit move"};
               const auto previous_transfer_protected =
                   transfer_protected_values;
               for (const auto &[name, symbol] : *active_symbols) {
@@ -6622,102 +6633,246 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   throw CompileError{
                       arm.location,
                       "match arm is unreachable after wildcard pattern"};
-                const ast::EnumDeclaration::Case *enum_case = nullptr;
-                if (enum_declaration != nullptr && !arm.is_wildcard &&
-                    !arm.case_name.empty()) {
-                  const auto found = std::find_if(
-                      enum_declaration->cases.begin(),
-                      enum_declaration->cases.end(),
-                      [&](const ast::EnumDeclaration::Case &candidate) {
-                        return candidate.name == arm.case_name;
-                      });
-                  if (found == enum_declaration->cases.end())
-                    throw CompileError{arm.location,
-                                       "enum '" + enum_declaration->name +
-                                           "' has no case '" + arm.case_name +
-                                           "'"};
-                  enum_case = &*found;
-                  if (matched_cases.contains(arm.case_name))
-                    throw CompileError{arm.location,
-                                       "match case '" + arm.case_name +
-                                           "' is already handled"};
-                  if (!arm.guard)
-                    matched_cases.insert(arm.case_name);
-                } else if (enum_declaration != nullptr && !arm.is_wildcard) {
-                  throw CompileError{arm.location,
-                                     "enum matches require enum case patterns"};
-                } else if (enum_declaration == nullptr && !arm.is_wildcard &&
-                           arm.literal == nullptr) {
-                  throw CompileError{
-                      arm.location,
-                      "literal match requires a literal or '_' pattern"};
-                }
-                if (enum_case != nullptr &&
-                    arm.bindings.size() != enum_case->payload_types.size())
-                  throw CompileError{
-                      arm.location,
-                      "enum case '" + arm.case_name + "' contains " +
-                          std::to_string(enum_case->payload_types.size()) +
-                          " value(s), but the pattern binds " +
-                          std::to_string(arm.bindings.size())};
-
-                if (arm.literal && enum_case == nullptr) {
-                  const auto is_literal_pattern =
-                      [&](const ast::Expression &expression,
-                          const auto &self) -> bool {
-                    return std::visit(
-                        [&](const auto &literal_node) -> bool {
-                          using Literal = std::decay_t<decltype(literal_node)>;
-                          if constexpr (
-                              std::is_same_v<Literal,
-                                             ast::IntegerLiteralExpression> ||
-                              std::is_same_v<Literal,
-                                             ast::DoubleLiteralExpression> ||
-                              std::is_same_v<Literal,
-                                             ast::BooleanLiteralExpression> ||
-                              std::is_same_v<Literal,
-                                             ast::StringLiteralExpression> ||
-                              std::is_same_v<Literal,
-                                             ast::CharacterLiteralExpression>)
-                            return true;
-                          else if constexpr (std::is_same_v<
-                                                 Literal,
-                                                 ast::CallExpression>) {
-                            static const std::unordered_set<std::string>
-                                literal_conversions{
-                                    "byte",   "ubyte", "short", "ushort",
-                                    "int",    "uint",  "long",  "ulong",
-                                    "isize",  "usize", "char",  "bool",
-                                    "string", "float", "double"};
-                            if (!literal_conversions.contains(
-                                    literal_node.callee) ||
-                                literal_node.arguments.size() != 1)
-                              return false;
-                            return self(*literal_node.arguments.front(), self);
-                          } else if constexpr (std::is_same_v<
-                                                   Literal,
-                                                   ast::UnaryExpression>) {
-                            return literal_node.operation ==
-                                       ast::UnaryOperator::Negate &&
-                                   self(*literal_node.operand, self);
-                          } else
+                using PatternBindings =
+                    std::unordered_map<std::string, SemanticType>;
+                PatternBindings validated_bindings;
+                std::optional<std::string> complete_root_case;
+                bool arm_is_irrefutable = false;
+                const auto is_literal_pattern =
+                    [&](const ast::Expression &expression,
+                        const auto &self) -> bool {
+                  return std::visit(
+                      [&](const auto &literal_node) -> bool {
+                        using Literal = std::decay_t<decltype(literal_node)>;
+                        if constexpr (
+                            std::is_same_v<Literal,
+                                           ast::IntegerLiteralExpression> ||
+                            std::is_same_v<Literal,
+                                           ast::DoubleLiteralExpression> ||
+                            std::is_same_v<Literal,
+                                           ast::BooleanLiteralExpression> ||
+                            std::is_same_v<Literal,
+                                           ast::StringLiteralExpression> ||
+                            std::is_same_v<Literal,
+                                           ast::CharacterLiteralExpression>)
+                          return true;
+                        else if constexpr (std::is_same_v<
+                                               Literal, ast::CallExpression>) {
+                          static const std::unordered_set<std::string>
+                              literal_conversions{"byte",   "ubyte", "short",
+                                                  "ushort", "int",   "uint",
+                                                  "long",   "ulong", "isize",
+                                                  "usize",  "char",  "bool",
+                                                  "string", "float", "double"};
+                          if (!literal_conversions.contains(
+                                  literal_node.callee) ||
+                              literal_node.arguments.size() != 1)
                             return false;
-                        },
-                        expression.value);
-                  };
-                  if (!is_literal_pattern(*arm.literal, is_literal_pattern))
-                    throw CompileError{arm.location,
-                                       "match pattern must be a literal"};
-                  const SemanticType literal_type =
-                      expression_type(*arm.literal);
-                  if (!same_type(literal_type, scrutinee_type))
-                    throw CompileError{arm.location,
-                                       "literal pattern type '" +
-                                           literal_type.name() +
-                                           "' does not match scrutinee type '" +
-                                           scrutinee_type.name() + "'"};
+                          return self(*literal_node.arguments.front(), self);
+                        } else if constexpr (std::is_same_v<
+                                                 Literal,
+                                                 ast::UnaryExpression>) {
+                          return literal_node.operation ==
+                                     ast::UnaryOperator::Negate &&
+                                 self(*literal_node.operand, self);
+                        } else
+                          return false;
+                      },
+                      expression.value);
+                };
+                std::function<bool(const ast::MatchPattern &,
+                                   const SemanticType &, PatternBindings &,
+                                   bool)>
+                    validate_pattern;
+                validate_pattern = [&](const ast::MatchPattern &pattern,
+                                       const SemanticType &expected,
+                                       PatternBindings &bindings,
+                                       bool root) -> bool {
+                  if (pattern.kind == ast::MatchPattern::Kind::Alias) {
+                    const bool irrefutable = validate_pattern(
+                        *pattern.nested, expected, bindings, root);
+                    if (!bindings.emplace(pattern.name, expected).second)
+                      throw CompileError{pattern.location,
+                                         "pattern binding '" + pattern.name +
+                                             "' is already declared"};
+                    return irrefutable;
+                  }
+                  if (pattern.kind == ast::MatchPattern::Kind::Wildcard)
+                    return true;
+                  if (pattern.literal != nullptr && !expected.is_enum()) {
+                    if (!is_literal_pattern(*pattern.literal,
+                                            is_literal_pattern))
+                      throw CompileError{pattern.location,
+                                         "match pattern must be a literal"};
+                    const SemanticType literal_type =
+                        expression_type(*pattern.literal);
+                    if (!same_type(literal_type, expected))
+                      throw CompileError{
+                          pattern.location,
+                          "literal pattern type '" + literal_type.name() +
+                              "' does not match scrutinee type '" +
+                              expected.name() + "'"};
+                    return false;
+                  }
+
+                  if (expected.is_enum()) {
+                    const ast::EnumDeclaration *declaration =
+                        enums.at(expected.parameter);
+                    const auto found = std::find_if(
+                        declaration->cases.begin(), declaration->cases.end(),
+                        [&](const auto &candidate) {
+                          return candidate.name == pattern.name;
+                        });
+                    if (found == declaration->cases.end() && !root &&
+                        pattern.kind == ast::MatchPattern::Kind::Name) {
+                      if (!bindings.emplace(pattern.name, expected).second)
+                        throw CompileError{pattern.location,
+                                           "pattern binding '" + pattern.name +
+                                               "' is already declared"};
+                      return true;
+                    }
+                    if (found == declaration->cases.end())
+                      throw CompileError{pattern.location,
+                                         "enum '" + declaration->name +
+                                             "' has no case '" + pattern.name +
+                                             "'"};
+                    const std::size_t child_count =
+                        pattern.kind == ast::MatchPattern::Kind::Constructor ||
+                                pattern.kind == ast::MatchPattern::Kind::Literal
+                            ? pattern.children.size()
+                            : 0;
+                    if (child_count != found->payload_types.size())
+                      throw CompileError{
+                          pattern.location,
+                          "enum case '" + pattern.name + "' contains " +
+                              std::to_string(found->payload_types.size()) +
+                              " value(s), but the pattern binds " +
+                              std::to_string(child_count)};
+                    std::unordered_map<std::string, SemanticType> nested_subs;
+                    for (std::size_t index = 0;
+                         index < declaration->type_parameters.size(); ++index)
+                      nested_subs.emplace(declaration->type_parameters[index],
+                                          expected.type_arguments[index]);
+                    const std::unordered_set<std::string> parameters{
+                        declaration->type_parameters.begin(),
+                        declaration->type_parameters.end()};
+                    bool children_irrefutable = true;
+                    for (std::size_t index = 0; index < child_count; ++index) {
+                      SemanticType child_type =
+                          resolve_type(found->payload_types[index], parameters,
+                                       &class_arities);
+                      child_type =
+                          substitute(std::move(child_type), nested_subs);
+                      children_irrefutable &= validate_pattern(
+                          pattern.children[index], child_type, bindings, false);
+                    }
+                    if (root && children_irrefutable)
+                      complete_root_case = pattern.name;
+                    return false;
+                  }
+
+                  if (pattern.kind == ast::MatchPattern::Kind::Name) {
+                    if (root)
+                      throw CompileError{
+                          pattern.location,
+                          "literal match requires a literal or '_' pattern"};
+                    if (!bindings.emplace(pattern.name, expected).second)
+                      throw CompileError{pattern.location,
+                                         "pattern binding '" + pattern.name +
+                                             "' is already declared"};
+                    return true;
+                  }
+
+                  if (expected.is_class()) {
+                    const ast::ClassDeclaration *declaration =
+                        classes.at(expected.parameter);
+                    if (!declaration->is_value_type ||
+                        pattern.name != declaration->name)
+                      throw CompileError{pattern.location,
+                                         "type '" + expected.name() +
+                                             "' cannot be destructured with '" +
+                                             pattern.name + "'"};
+                    if (pattern.children.size() !=
+                        declaration->constructor_fields.size())
+                      throw CompileError{
+                          pattern.location,
+                          "struct pattern '" + pattern.name + "' contains " +
+                              std::to_string(pattern.children.size()) +
+                              " field(s), expected " +
+                              std::to_string(
+                                  declaration->constructor_fields.size())};
+                    std::unordered_map<std::string, SemanticType> struct_subs;
+                    for (std::size_t index = 0;
+                         index < declaration->type_parameters.size(); ++index)
+                      struct_subs.emplace(declaration->type_parameters[index],
+                                          expected.type_arguments[index]);
+                    const std::unordered_set<std::string> parameters{
+                        declaration->type_parameters.begin(),
+                        declaration->type_parameters.end()};
+                    bool irrefutable = true;
+                    for (std::size_t index = 0; index < pattern.children.size();
+                         ++index) {
+                      SemanticType field_type = resolve_type(
+                          *declaration->constructor_fields[index].declared_type,
+                          parameters, &class_arities);
+                      field_type =
+                          substitute(std::move(field_type), struct_subs);
+                      irrefutable &= validate_pattern(
+                          pattern.children[index], field_type, bindings, false);
+                    }
+                    return irrefutable;
+                  }
+                  throw CompileError{
+                      pattern.location,
+                      "type '" + expected.name() +
+                          "' does not support constructor patterns"};
+                };
+
+                PatternBindings alternative_bindings;
+                for (std::size_t pattern_index = 0;
+                     pattern_index < arm.patterns.size(); ++pattern_index) {
+                  PatternBindings current_bindings;
+                  complete_root_case.reset();
+                  const bool irrefutable =
+                      validate_pattern(arm.patterns[pattern_index],
+                                       scrutinee_type, current_bindings, true);
+                  if (pattern_index == 0) {
+                    alternative_bindings = current_bindings;
+                    arm_is_irrefutable = irrefutable;
+                  } else {
+                    if (current_bindings.size() != alternative_bindings.size())
+                      throw CompileError{arm.patterns[pattern_index].location,
+                                         "pattern alternatives must bind "
+                                         "exactly the same names"};
+                    for (const auto &[name, type] : alternative_bindings) {
+                      const auto found = current_bindings.find(name);
+                      if (found == current_bindings.end() ||
+                          !same_type(type, found->second))
+                        throw CompileError{
+                            arm.patterns[pattern_index].location,
+                            "pattern alternatives must bind exactly the same "
+                            "names with compatible types"};
+                    }
+                    arm_is_irrefutable |= irrefutable;
+                  }
+                  if (complete_root_case.has_value()) {
+                    if (matched_cases.contains(*complete_root_case))
+                      throw CompileError{arm.patterns[pattern_index].location,
+                                         "match case '" + *complete_root_case +
+                                             "' is already handled"};
+                    if (!arm.guard)
+                      matched_cases.insert(*complete_root_case);
+                  }
+                }
+                validated_bindings = std::move(alternative_bindings);
+
+                if (arm.patterns.size() == 1 &&
+                    arm.patterns.front().literal != nullptr &&
+                    !scrutinee_type.is_enum()) {
+                  const ast::Expression &literal =
+                      *arm.patterns.front().literal;
                   const constant::Value literal_value = constant::evaluate(
-                      *arm.literal, scrutinee_type.concrete,
+                      literal, scrutinee_type.concrete,
                       [](const std::optional<std::string> &, std::string_view,
                          SourceLocation) -> std::optional<constant::Value> {
                         return std::nullopt;
@@ -6750,26 +6905,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       (*boolean ? true_handled : false_handled) = true;
                   }
                 }
-                if (arm.is_wildcard && !arm.guard)
+                if (arm_is_irrefutable && !arm.guard)
                   wildcard_handled = true;
 
                 SymbolTable arm_symbols = *active_symbols;
-                std::unordered_set<std::string> binding_names;
-                for (std::size_t index = 0; index < arm.bindings.size();
-                     ++index) {
-                  if (!binding_names.insert(arm.bindings[index]).second)
-                    throw CompileError{arm.location,
-                                       "pattern binding '" +
-                                           arm.bindings[index] +
-                                           "' is already declared"};
-                  SemanticType payload_type =
-                      resolve_type(enum_case->payload_types[index],
-                                   enum_parameters, &class_arities);
-                  payload_type =
-                      substitute(std::move(payload_type), substitutions);
+                std::vector<std::string> binding_names;
+                for (auto &[name, type] : validated_bindings) {
+                  binding_names.push_back(name);
                   arm_symbols.insert_or_assign(
-                      arm.bindings[index],
-                      Symbol{std::move(payload_type), false, true});
+                      name, Symbol{std::move(type), false, true});
                 }
                 SymbolTable *previous_symbols = active_symbols;
                 active_symbols = &arm_symbols;
@@ -6777,20 +6921,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 const auto arm_closure_transfer_protected =
                     closure_transfer_protected_values;
                 const auto arm_borrowed_values = borrowed_values;
-                for (const std::string &binding : arm.bindings) {
+                for (const std::string &binding : binding_names) {
                   transfer_protected_values.erase(binding);
                   closure_transfer_protected_values.erase(binding);
                 }
                 if (borrows_scrutinee)
-                  for (const std::string &binding : arm.bindings)
+                  for (const std::string &binding : binding_names)
                     borrowed_values.insert(binding);
                 if (arm.guard) {
-                  for (const std::string &binding : arm.bindings) {
+                  for (const std::string &binding : binding_names) {
                     transfer_protected_values.insert(binding);
                     match_guard_protected_values.insert(binding);
                   }
                   const SemanticType guard_type = expression_type(*arm.guard);
-                  for (const std::string &binding : arm.bindings) {
+                  for (const std::string &binding : binding_names) {
                     match_guard_protected_values.erase(binding);
                     transfer_protected_values.erase(binding);
                   }

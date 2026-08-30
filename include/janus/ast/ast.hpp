@@ -82,6 +82,23 @@ struct IdentifierExpression {
 struct Expression;
 struct LambdaBlock;
 
+struct MatchPattern {
+  enum class Kind { Name, Wildcard, Constructor, Literal, Alias };
+
+  Kind kind{Kind::Name};
+  std::string name;
+  std::vector<MatchPattern> children;
+  std::unique_ptr<Expression> literal;
+  std::unique_ptr<MatchPattern> nested;
+  SourceLocation location;
+
+  MatchPattern() = default;
+  MatchPattern(MatchPattern &&) noexcept = default;
+  MatchPattern &operator=(MatchPattern &&) noexcept = default;
+  MatchPattern(const MatchPattern &) = delete;
+  MatchPattern &operator=(const MatchPattern &) = delete;
+};
+
 struct ArrayLiteralExpression {
   std::vector<std::unique_ptr<Expression>> elements;
   SourceLocation location;
@@ -143,9 +160,12 @@ struct IfExpression {
 
 struct MatchExpression {
   struct Arm {
+    std::vector<MatchPattern> patterns;
+    // Flattened compatibility view used by consumers that only need the
+    // historical, non-recursive top-level pattern.
     std::string case_name;
     std::vector<std::string> bindings;
-    std::unique_ptr<Expression> literal;
+    Expression *literal{nullptr};
     bool is_wildcard{false};
     std::unique_ptr<Expression> guard;
     std::unique_ptr<Expression> expression;
@@ -156,6 +176,28 @@ struct MatchExpression {
   std::vector<Arm> arms;
   SourceLocation location;
 };
+
+template <typename Function>
+inline void visit_match_pattern(const MatchPattern &pattern,
+                                Function &&function) {
+  function(pattern);
+  if (pattern.nested)
+    visit_match_pattern(*pattern.nested, function);
+  for (const MatchPattern &child : pattern.children)
+    visit_match_pattern(child, function);
+}
+
+inline std::vector<std::string>
+match_pattern_binding_names(const MatchExpression::Arm &arm) {
+  std::vector<std::string> names;
+  for (const MatchPattern &pattern : arm.patterns)
+    visit_match_pattern(pattern, [&](const MatchPattern &part) {
+      if (part.kind == MatchPattern::Kind::Name ||
+          part.kind == MatchPattern::Kind::Alias)
+        names.push_back(part.name);
+    });
+  return names;
+}
 
 struct MoveExpression {
   std::unique_ptr<Expression> operand;
@@ -230,7 +272,7 @@ struct Expression {
 };
 
 inline bool is_enum_binding_pattern(const MatchExpression::Arm &arm) {
-  if (arm.case_name.empty() || !arm.literal)
+  if (arm.case_name.empty() || arm.literal == nullptr)
     return false;
   const auto *call = std::get_if<CallExpression>(&arm.literal->value);
   if (call == nullptr || call->callee != arm.case_name ||

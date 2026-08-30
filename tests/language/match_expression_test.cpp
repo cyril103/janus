@@ -51,6 +51,21 @@ void expect_valid(std::string_view source, std::string_view message) {
   }
 }
 
+void expect_codegen_valid(std::string_view source, std::string_view message) {
+  try {
+    janus::frontend::Parser parser{source};
+    const janus::ast::Program program = parser.parse_program();
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(program));
+    llvm::LLVMContext context;
+    janus::backend::llvm::IrGenerator generator{context};
+    static_cast<void>(generator.generate(program, "recursive_patterns"));
+  } catch (const std::exception &error) {
+    std::cerr << "FAILED: " << message << ": " << error.what() << '\n';
+    ++failures;
+  }
+}
+
 } // namespace
 
 int main() {
@@ -266,20 +281,59 @@ def main() : int {
   expect_compile_error(
       "def main() : int { return match 3 { 1 + 2 => 1, _ => 0 } }",
       "match pattern must be a literal");
-  expect_compile_error(
-      "def main() : int { return match 1 { _ => 0, 1 => 1 } }",
-      "match arm is unreachable after wildcard pattern");
-  expect_compile_error(
-      "def main() : int { return match 1 { 1 if true => 1 } }",
-      "non-exhaustive match");
-  expect_compile_error(
-      "enum E { A } def main() : int { val e = E.A() "
-      "return match e { A if true => 1 } }",
-      "non-exhaustive match for enum 'E': missing case(s): A");
-  expect_compile_error(
-      "enum E { A(int) } def main() : int { val e = E.A(1) "
-      "val x = match e { A(value) => value } return value }",
-      "unknown value 'value'");
+  expect_compile_error("def main() : int { return match 1 { _ => 0, 1 => 1 } }",
+                       "match arm is unreachable after wildcard pattern");
+  expect_compile_error("def main() : int { return match 1 { 1 if true => 1 } }",
+                       "non-exhaustive match");
+  expect_compile_error("enum E { A } def main() : int { val e = E.A() "
+                       "return match e { A if true => 1 } }",
+                       "non-exhaustive match for enum 'E': missing case(s): A");
+  expect_compile_error("enum E { A(int) } def main() : int { val e = E.A(1) "
+                       "val x = match e { A(value) => value } return value }",
+                       "unknown value 'value'");
+  expect_codegen_valid(R"(
+enum Inner[T] { Value(T), Empty }
+enum Outer[T] { Wrapped(Inner[T]), Missing }
+def unwrap(value : Outer[int]) : int {
+    return match value {
+        Wrapped(Value(item)) => item,
+        Wrapped(_) => 0,
+        Missing => -1
+    }
+}
+def main() : int { return unwrap(Outer.Wrapped(Inner.Value(42))) }
+)",
+                       "nested generic enum patterns lower recursively");
+  expect_codegen_valid(
+      R"(
+struct Address(val city : int, val zip : int) {}
+struct User(val name : int, val address : Address) {}
+def cityOf(user : User) : int {
+    return match user { User(name, Address(city, _)) as whole => name + city + whole.name }
+}
+def main() : int { return cityOf(new User(1, new Address(2, 3))) }
+)",
+      "struct patterns, nested wildcards and aliases lower recursively");
+  expect_codegen_valid(
+      R"(
+enum Choice { Left(int), Right(int), Empty }
+def number(value : Choice) : int {
+    return match value {
+        Left(item) | Right(item) => item,
+        Empty => 0
+    }
+}
+def main() : int { return number(Choice.Right(7)) }
+)",
+      "alternatives with compatible bindings lower recursively");
+  expect_compile_error(R"(
+enum Choice { Left(int), Right(int) }
+def number(value : Choice) : int {
+    return match value { Left(item) | Right(other) => item }
+}
+def main() : int { return 0 }
+)",
+                       "pattern alternatives must bind exactly the same names");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

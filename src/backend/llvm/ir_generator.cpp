@@ -2557,9 +2557,16 @@ private:
               visit(*node.scrutinee, active_bound);
               for (const janus::ast::MatchExpression::Arm &arm : node.arms) {
                 auto arm_bound = active_bound;
-                arm_bound.insert(arm.bindings.begin(), arm.bindings.end());
-                if (arm.literal && !janus::ast::is_enum_binding_pattern(arm))
-                  visit(*arm.literal, active_bound);
+                const auto bindings =
+                    janus::ast::match_pattern_binding_names(arm);
+                arm_bound.insert(bindings.begin(), bindings.end());
+                if (!janus::ast::is_enum_binding_pattern(arm))
+                  for (const auto &pattern : arm.patterns)
+                    janus::ast::visit_match_pattern(
+                        pattern, [&](const auto &part) {
+                          if (part.literal)
+                            visit(*part.literal, active_bound);
+                        });
                 if (arm.guard)
                   visit(*arm.guard, arm_bound);
                 visit(*arm.expression, arm_bound);
@@ -3053,25 +3060,64 @@ private:
                 expression_type(*node.scrutinee, substitutions, locals);
             const janus::ast::MatchExpression::Arm &arm = node.arms.front();
             std::unordered_map<std::string, Local> arm_locals = locals;
-            if (match_type.kind() == janus::TypeKind::Enum &&
-                !arm.is_wildcard) {
-              const EnumSpecialization &specialization =
-                  enum_specializations_.at(std::string{match_type.name()});
-              const auto enum_case = std::find_if(
-                  specialization.declaration->cases.begin(),
-                  specialization.declaration->cases.end(),
-                  [&](const janus::ast::EnumDeclaration::Case &candidate) {
-                    return candidate.name == arm.case_name;
-                  });
-              for (std::size_t index = 0; index < arm.bindings.size();
-                   ++index) {
-                const janus::Type &payload_type =
-                    resolve(enum_case->payload_types[index],
-                            specialization.substitutions);
-                arm_locals.insert_or_assign(arm.bindings[index],
-                                            Local{nullptr, &payload_type});
+            std::function<void(const janus::ast::MatchPattern &,
+                               const janus::Type &)>
+                add_pattern_locals;
+            add_pattern_locals = [&](const janus::ast::MatchPattern &pattern,
+                                     const janus::Type &type) {
+              if (pattern.kind == janus::ast::MatchPattern::Kind::Alias) {
+                add_pattern_locals(*pattern.nested, type);
+                arm_locals.insert_or_assign(pattern.name,
+                                            Local{nullptr, &type});
+              } else if (pattern.kind == janus::ast::MatchPattern::Kind::Name) {
+                bool enum_case = false;
+                if (type.kind() == janus::TypeKind::Enum) {
+                  const auto &specialization =
+                      enum_specializations_.at(std::string{type.name()});
+                  enum_case =
+                      std::any_of(specialization.declaration->cases.begin(),
+                                  specialization.declaration->cases.end(),
+                                  [&](const auto &candidate) {
+                                    return candidate.name == pattern.name;
+                                  });
+                }
+                if (!enum_case)
+                  arm_locals.insert_or_assign(pattern.name,
+                                              Local{nullptr, &type});
+              } else if (pattern.kind ==
+                         janus::ast::MatchPattern::Kind::Constructor) {
+                if (type.kind() == janus::TypeKind::Enum) {
+                  const EnumSpecialization &specialization =
+                      enum_specializations_.at(std::string{type.name()});
+                  const auto enum_case =
+                      std::find_if(specialization.declaration->cases.begin(),
+                                   specialization.declaration->cases.end(),
+                                   [&](const auto &candidate) {
+                                     return candidate.name == pattern.name;
+                                   });
+                  for (std::size_t index = 0; index < pattern.children.size();
+                       ++index) {
+                    const janus::Type &child_type =
+                        resolve(enum_case->payload_types[index],
+                                specialization.substitutions);
+                    add_pattern_locals(pattern.children[index], child_type);
+                  }
+                } else if (type.kind() == janus::TypeKind::Class ||
+                           type.kind() == janus::TypeKind::Struct) {
+                  const ClassSpecialization &specialization =
+                      class_specializations_.at(std::string{type.name()});
+                  for (std::size_t index = 0; index < pattern.children.size();
+                       ++index) {
+                    const janus::Type &child_type = resolve(
+                        *specialization.declaration->constructor_fields[index]
+                             .declared_type,
+                        specialization.substitutions);
+                    add_pattern_locals(pattern.children[index], child_type);
+                  }
+                }
               }
-            }
+            };
+            add_pattern_locals(arm.patterns.front(), match_type);
             return expression_type(*arm.expression, substitutions, arm_locals);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::MoveExpression>) {
@@ -4894,10 +4940,22 @@ private:
                 expression_type(*node.scrutinee, substitutions, locals);
             const bool simple_enum =
                 match_type.kind() == janus::TypeKind::Enum &&
-                std::all_of(node.arms.begin(), node.arms.end(),
-                            [](const auto &arm) {
-                              return !arm.is_wildcard && !arm.guard;
-                            });
+                std::all_of(
+                    node.arms.begin(), node.arms.end(), [](const auto &arm) {
+                      if (arm.patterns.size() != 1 || arm.guard)
+                        return false;
+                      const auto &pattern = arm.patterns.front();
+                      if (pattern.kind == janus::ast::MatchPattern::Kind::Name)
+                        return true;
+                      return pattern.kind ==
+                                 janus::ast::MatchPattern::Kind::Constructor &&
+                             std::all_of(
+                                 pattern.children.begin(),
+                                 pattern.children.end(), [](const auto &child) {
+                                   return child.kind ==
+                                          janus::ast::MatchPattern::Kind::Name;
+                                 });
+                    });
             if (simple_enum) {
               const janus::Type &enum_type = match_type;
               const EnumSpecialization &specialization =
@@ -4986,6 +5044,110 @@ private:
                   &enum_specializations_.at(std::string{match_type.name()});
               tag = builder.CreateExtractValue(scrutinee, 0, "match.tag");
             }
+            struct PatternBinding {
+              ::llvm::Value *value;
+              const janus::Type *type;
+            };
+            using PatternBindingMap =
+                std::unordered_map<std::string, PatternBinding>;
+            std::function<::llvm::Value *(const janus::ast::MatchPattern &,
+                                          ::llvm::Value *, const janus::Type &,
+                                          PatternBindingMap &)>
+                emit_pattern;
+            emit_pattern = [&](const janus::ast::MatchPattern &pattern,
+                               ::llvm::Value *value, const janus::Type &type,
+                               PatternBindingMap &bindings) -> ::llvm::Value * {
+              if (pattern.kind == janus::ast::MatchPattern::Kind::Wildcard)
+                return builder.getTrue();
+              if (pattern.kind == janus::ast::MatchPattern::Kind::Alias) {
+                ::llvm::Value *condition =
+                    emit_pattern(*pattern.nested, value, type, bindings);
+                bindings.insert_or_assign(pattern.name,
+                                          PatternBinding{value, &type});
+                return condition;
+              }
+              if (pattern.literal != nullptr &&
+                  type.kind() != janus::TypeKind::Enum) {
+                ::llvm::Value *literal = emit_expression(
+                    *pattern.literal, type, substitutions, locals, builder);
+                return emit_structural_equal(value, literal, type, builder);
+              }
+              if (pattern.kind == janus::ast::MatchPattern::Kind::Name &&
+                  (type.kind() != janus::TypeKind::Enum ||
+                   std::none_of(
+                       enum_specializations_.at(std::string{type.name()})
+                           .declaration->cases.begin(),
+                       enum_specializations_.at(std::string{type.name()})
+                           .declaration->cases.end(),
+                       [&](const auto &candidate) {
+                         return candidate.name == pattern.name;
+                       }))) {
+                bindings.insert_or_assign(pattern.name,
+                                          PatternBinding{value, &type});
+                return builder.getTrue();
+              }
+              if (type.kind() == janus::TypeKind::Enum) {
+                const EnumSpecialization &nested_specialization =
+                    enum_specializations_.at(std::string{type.name()});
+                ::llvm::Value *nested_tag =
+                    builder.CreateExtractValue(value, 0, "pattern.tag");
+                ::llvm::Value *condition =
+                    builder.CreateICmpEQ(nested_tag,
+                                         builder.getInt32(enum_case_value(
+                                             type.name(), pattern.name)),
+                                         "pattern.case");
+                if (pattern.kind ==
+                        janus::ast::MatchPattern::Kind::Constructor ||
+                    pattern.kind == janus::ast::MatchPattern::Kind::Literal) {
+                  const auto enum_case = std::find_if(
+                      nested_specialization.declaration->cases.begin(),
+                      nested_specialization.declaration->cases.end(),
+                      [&](const auto &candidate) {
+                        return candidate.name == pattern.name;
+                      });
+                  unsigned field =
+                      enum_case_payload_start(type.name(), pattern.name);
+                  for (std::size_t index = 0; index < pattern.children.size();
+                       ++index) {
+                    const janus::Type &child_type =
+                        resolve(enum_case->payload_types[index],
+                                nested_specialization.substitutions);
+                    ::llvm::Value *child = builder.CreateExtractValue(
+                        value, field++, "pattern.payload");
+                    condition = builder.CreateAnd(
+                        condition,
+                        emit_pattern(pattern.children[index], child, child_type,
+                                     bindings),
+                        "pattern.and");
+                  }
+                }
+                return condition;
+              }
+              if ((type.kind() == janus::TypeKind::Class ||
+                   type.kind() == janus::TypeKind::Struct) &&
+                  pattern.kind == janus::ast::MatchPattern::Kind::Constructor) {
+                const ClassSpecialization &nested_specialization =
+                    class_specializations_.at(std::string{type.name()});
+                ::llvm::Value *condition = builder.getTrue();
+                for (std::size_t index = 0; index < pattern.children.size();
+                     ++index) {
+                  const janus::Type &child_type =
+                      resolve(*nested_specialization.declaration
+                                   ->constructor_fields[index]
+                                   .declared_type,
+                              nested_specialization.substitutions);
+                  ::llvm::Value *child = builder.CreateExtractValue(
+                      value, static_cast<unsigned>(index), "pattern.field");
+                  condition = builder.CreateAnd(
+                      condition,
+                      emit_pattern(pattern.children[index], child, child_type,
+                                   bindings),
+                      "pattern.and");
+                }
+                return condition;
+              }
+              return builder.getFalse();
+            };
             for (std::size_t arm_index = 0; arm_index < node.arms.size();
                  ++arm_index) {
               const auto &arm = node.arms[arm_index];
@@ -4995,44 +5157,35 @@ private:
                                      ? unhandled_block
                                      : ::llvm::BasicBlock::Create(
                                            context_, "match.next", function);
-              ::llvm::Value *matches = builder.getTrue();
-              if (arm.literal && specialization == nullptr) {
-                ::llvm::Value *literal = emit_expression(
-                    *arm.literal, match_type, substitutions, locals, builder);
-                matches = emit_structural_equal(scrutinee, literal, match_type,
-                                                builder);
-              } else if (!arm.is_wildcard) {
-                matches =
-                    builder.CreateICmpEQ(tag,
-                                         builder.getInt32(enum_case_value(
-                                             match_type.name(), arm.case_name)),
-                                         "match.case");
+              ::llvm::Value *matches = builder.getFalse();
+              std::vector<::llvm::Value *> alternative_conditions;
+              std::vector<PatternBindingMap> alternative_bindings;
+              for (const auto &pattern : arm.patterns) {
+                PatternBindingMap bindings;
+                ::llvm::Value *condition =
+                    emit_pattern(pattern, scrutinee, match_type, bindings);
+                matches = builder.CreateOr(matches, condition, "pattern.or");
+                alternative_conditions.push_back(condition);
+                alternative_bindings.push_back(std::move(bindings));
               }
               builder.CreateCondBr(matches, candidate_block, next_block);
               builder.SetInsertPoint(candidate_block);
               std::unordered_map<std::string, Local> arm_locals = locals;
-              if (specialization != nullptr && !arm.is_wildcard) {
-                const auto enum_case =
-                    std::find_if(specialization->declaration->cases.begin(),
-                                 specialization->declaration->cases.end(),
-                                 [&](const auto &candidate) {
-                                   return candidate.name == arm.case_name;
-                                 });
-                unsigned field =
-                    enum_case_payload_start(match_type.name(), arm.case_name);
-                for (std::size_t index = 0; index < arm.bindings.size();
-                     ++index) {
-                  const janus::Type &payload_type =
-                      resolve(enum_case->payload_types[index],
-                              specialization->substitutions);
-                  ::llvm::Value *payload = builder.CreateExtractValue(
-                      scrutinee, field++, arm.bindings[index] + ".payload");
+              if (!alternative_bindings.empty()) {
+                for (const auto &[name, first_binding] :
+                     alternative_bindings.front()) {
+                  ::llvm::Value *selected = first_binding.value;
+                  for (std::size_t index = 1;
+                       index < alternative_bindings.size(); ++index)
+                    selected = builder.CreateSelect(
+                        alternative_conditions[index],
+                        alternative_bindings[index].at(name).value, selected,
+                        name + ".alternative");
                   ::llvm::Value *storage = create_entry_alloca(
-                      builder, lower_type(payload_type, context_),
-                      arm.bindings[index]);
-                  builder.CreateStore(payload, storage);
-                  arm_locals.insert_or_assign(arm.bindings[index],
-                                              Local{storage, &payload_type});
+                      builder, lower_type(*first_binding.type, context_), name);
+                  builder.CreateStore(selected, storage);
+                  arm_locals.insert_or_assign(
+                      name, Local{storage, first_binding.type});
                 }
               }
               auto *body_block = candidate_block;
