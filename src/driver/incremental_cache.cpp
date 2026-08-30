@@ -290,6 +290,11 @@ std::string public_interface(std::string_view source) {
     append_type_parameters(output, trait.type_parameters);
     append_constraints(output, trait.type_constraints);
     output += '{';
+    for (const auto &associated : trait.associated_types) {
+      output += "type:";
+      output += associated.name;
+      output += ';';
+    }
     for (const auto &method : trait.methods)
       append_function(output, method);
     output += '}';
@@ -331,6 +336,12 @@ std::string public_interface(std::string_view source) {
       output += ',';
     }
     output += ']';
+    for (const auto &associated : class_declaration.associated_types) {
+      output += ":associated:";
+      output += associated.name;
+      output += '=';
+      append_type(output, associated.definition);
+    }
     output += '(';
     for (const auto &parameter : class_declaration.constructor_parameters) {
       output += parameter.name;

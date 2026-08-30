@@ -765,6 +765,32 @@ uniquement pour l'opération qui en a besoin :
 borrow def peekCopy() : T where T <: Copy { ... }
 ```
 
+Un trait peut aussi déclarer un type associé, défini par chaque classe qui
+l'implémente. Il est utilisé directement dans les méthodes du trait et projeté
+avec `T.Item` dans une abstraction générique :
+
+```janus
+trait Producer {
+    type Item
+    def next() : Item
+}
+
+class IntProducer() extends Producer {
+    type Item = int
+    def next() : int { return 1 }
+}
+
+def produce[P <: Producer](producer : P) : P.Item {
+    return producer.next()
+}
+```
+
+La classe doit définir chaque type associé attendu. Les définitions manquantes,
+dupliquées, étrangères au trait ou cycliques sont rejetées. Les types associés
+génériques, leurs bornes et les égalités de projection dans `where` ne font pas
+partie de cette première version. Le contrat détaillé est fixé dans
+[la RFC des types associés](design/associated-types.md).
+
 La classe reste utilisable avec un `T` propriétaire, tandis que l'appel de
 `peekCopy` est disponible seulement lorsque `T` satisfait `Copy`. Plusieurs
 contraintes se combinent avec `&` et plusieurs paramètres avec `,`.

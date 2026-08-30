@@ -1715,8 +1715,23 @@ private:
     if (extension != nullptr)
       for (const std::string &parameter : extension->type_parameters)
         substitutions.emplace(parameter, type_arguments[type_argument_index++]);
-    for (const std::string &parameter : function.type_parameters)
-      substitutions.emplace(parameter, type_arguments[type_argument_index++]);
+    for (const std::string &parameter : function.type_parameters) {
+      const janus::Type *argument = type_arguments[type_argument_index++];
+      substitutions.emplace(parameter, argument);
+      if (argument->kind() != janus::TypeKind::Class &&
+          argument->kind() != janus::TypeKind::Struct)
+        continue;
+      const auto specialization =
+          class_specializations_.find(std::string{argument->name()});
+      if (specialization == class_specializations_.end())
+        continue;
+      for (const janus::ast::AssociatedTypeDeclaration &associated :
+           specialization->second.declaration->associated_types)
+        substitutions.insert_or_assign(
+            parameter + "." + associated.name,
+            &resolve(associated.definition,
+                     specialization->second.substitutions));
+    }
 
     const janus::Type &return_type =
         resolve(function.return_type, substitutions);

@@ -154,6 +154,24 @@ void test_tailrec_contract_changes_public_interface() {
           "tailrec is absent from the public interface fingerprint");
 }
 
+void test_associated_types_change_public_interface() {
+  const std::string item = janus::driver::public_interface_fingerprint(
+      "trait Producer { type Item def next() : Item }");
+  const std::string output = janus::driver::public_interface_fingerprint(
+      "trait Producer { type Output def next() : Output }");
+  require(item != output,
+          "associated type declarations are absent from the public interface");
+
+  const std::string integer = janus::driver::public_interface_fingerprint(
+      "trait Producer { type Item } "
+      "class Values() extends Producer { type Item = int }");
+  const std::string text = janus::driver::public_interface_fingerprint(
+      "trait Producer { type Item } "
+      "class Values() extends Producer { type Item = string }");
+  require(integer != text,
+          "associated type definitions are absent from the public interface");
+}
+
 void test_consumer_invalidation_uses_only_public_interface() {
   const auto original = base_input();
   auto private_change = original;
@@ -501,6 +519,7 @@ int main() {
     test_imported_constant_interface_is_fingerprintable();
     test_external_ownership_contract_changes_public_interface();
     test_tailrec_contract_changes_public_interface();
+    test_associated_types_change_public_interface();
     test_consumer_invalidation_uses_only_public_interface();
     test_public_interface_excludes_private_implementation();
     test_store_is_atomic_concurrent_and_validated();

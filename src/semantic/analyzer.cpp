@@ -146,6 +146,16 @@ janus::semantic::SemanticType resolve_type(
                                     "' does not accept type arguments"};
     return janus::semantic::SemanticType{nullptr, reference.name};
   }
+  if (const std::size_t separator = reference.name.find('.');
+      separator != std::string::npos &&
+      type_parameters.contains(reference.name.substr(0, separator))) {
+    if (!reference.type_arguments.empty())
+      throw janus::CompileError{
+          reference.location,
+          "associated type projection '" + reference.name +
+              "' does not accept type arguments"};
+    return janus::semantic::SemanticType{nullptr, reference.name};
+  }
   if (reference.name == "Ptr") {
     if (reference.type_arguments.size() != 1)
       throw janus::CompileError{
@@ -2171,6 +2181,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "' conflicts with a built-in type"};
     }
     validate_constraints(trait_declaration.type_constraints, trait_parameters);
+    std::unordered_set<std::string> associated_type_names;
+    for (const ast::AssociatedTypeDeclaration &associated :
+         trait_declaration.associated_types) {
+      if (!associated_type_names.insert(associated.name).second)
+        throw CompileError{associated.location,
+                           "associated type '" + associated.name +
+                               "' is already declared in trait '" +
+                               trait_declaration.name + "'"};
+      if (trait_parameters.contains(associated.name))
+        throw CompileError{associated.location,
+                           "associated type '" + associated.name +
+                               "' conflicts with a trait type parameter"};
+      if (builtin_type(associated.name) != nullptr ||
+          associated.name == "Function")
+        throw CompileError{associated.location,
+                           "associated type '" + associated.name +
+                               "' conflicts with a built-in type"};
+      trait_parameters.insert(associated.name);
+    }
     std::unordered_set<std::string> method_names;
     for (const ast::FunctionDeclaration &method : trait_declaration.methods) {
       if (!method_names.insert(method.name).second)
@@ -2221,6 +2250,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
     }
   }
+  std::unordered_map<
+      const ast::ClassDeclaration *,
+      std::unordered_map<std::string, SemanticType>>
+      class_associated_normalizations;
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
     std::unordered_set<std::string> parameters;
     for (const std::string &parameter : class_declaration.type_parameters) {
@@ -2234,6 +2267,59 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "' conflicts with a built-in type"};
     }
     validate_constraints(class_declaration.type_constraints, parameters);
+    std::unordered_map<std::string, const ast::AssociatedTypeDeclaration *>
+        class_associated_types;
+    for (const ast::AssociatedTypeDeclaration &associated :
+         class_declaration.associated_types) {
+      if (!associated.definition.has_value())
+        throw CompileError{associated.location,
+                           "associated type '" + associated.name +
+                               "' requires a definition"};
+      if (!class_associated_types.emplace(associated.name, &associated).second)
+        throw CompileError{associated.location,
+                           "associated type '" + associated.name +
+                               "' is already defined by class '" +
+                               class_declaration.name + "'"};
+    }
+    std::unordered_set<std::string> associated_parameters = parameters;
+    for (const auto &[name, _] : class_associated_types)
+      associated_parameters.insert(name);
+    std::unordered_map<std::string, SemanticType> normalized_associated_types;
+    std::unordered_set<std::string> resolving_associated_types;
+    std::function<SemanticType(const std::string &)> normalize_associated;
+    normalize_associated = [&](const std::string &name) -> SemanticType {
+      if (const auto ready = normalized_associated_types.find(name);
+          ready != normalized_associated_types.end())
+        return ready->second;
+      const auto declaration = class_associated_types.find(name);
+      if (declaration == class_associated_types.end())
+        return SemanticType{nullptr, name};
+      if (!resolving_associated_types.insert(name).second)
+        throw CompileError{declaration->second->location,
+                           "cyclic associated type definition involving '" +
+                               class_declaration.name + "." + name + "'"};
+      SemanticType resolved = resolve_type(*declaration->second->definition,
+                                           associated_parameters,
+                                           &class_arities);
+      const auto normalize_nested = [&](const auto &self,
+                                        SemanticType value) -> SemanticType {
+        if (!value.is_concrete() && !value.is_class() && !value.is_enum() &&
+            !value.is_pointer() && !value.is_function() &&
+            class_associated_types.contains(value.parameter))
+          return normalize_associated(value.parameter);
+        for (SemanticType &argument : value.type_arguments)
+          argument = self(self, std::move(argument));
+        return value;
+      };
+      resolved = normalize_nested(normalize_nested, std::move(resolved));
+      resolving_associated_types.erase(name);
+      normalized_associated_types.emplace(name, resolved);
+      return resolved;
+    };
+    for (const auto &[name, _] : class_associated_types)
+      static_cast<void>(normalize_associated(name));
+    class_associated_normalizations.emplace(&class_declaration,
+                                            normalized_associated_types);
     if (class_declaration.is_value_type) {
       if (!class_declaration.constructor_parameters.empty())
         throw CompileError{class_declaration.location,
@@ -2316,6 +2402,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                          &class_arities));
       }
 
+      for (const ast::AssociatedTypeDeclaration &associated :
+           trait_declaration.associated_types) {
+        const auto definition = class_associated_types.find(associated.name);
+        if (definition == class_associated_types.end())
+          throw CompileError{class_declaration.location,
+                             "class '" + class_declaration.name +
+                                 "' does not define associated type '" +
+                                 trait_declaration.name + "." + associated.name +
+                                 "'"};
+        trait_substitutions.emplace(
+            associated.name, normalized_associated_types.at(associated.name));
+      }
+
       for (const ast::FunctionDeclaration &required :
            trait_declaration.methods) {
         const auto implementation = std::find_if(
@@ -2354,6 +2453,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         std::unordered_set<std::string> trait_method_parameters{
             trait_declaration.type_parameters.begin(),
             trait_declaration.type_parameters.end()};
+        for (const ast::AssociatedTypeDeclaration &associated :
+             trait_declaration.associated_types)
+          trait_method_parameters.insert(associated.name);
         std::unordered_set<std::string> class_method_parameters = parameters;
         std::unordered_map<std::string, SemanticType> trait_method_canonical;
         std::unordered_map<std::string, SemanticType> class_method_canonical;
@@ -2398,6 +2500,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  "' has a signature incompatible with trait '" +
                                  trait_declaration.name + "'"};
       }
+    }
+    for (const auto &[name, associated] : class_associated_types) {
+      const bool required = std::any_of(
+          class_declaration.implemented_traits.begin(),
+          class_declaration.implemented_traits.end(),
+          [&](const ast::TypeReference &reference) {
+            const auto trait = traits.find(reference.name);
+            return trait != traits.end() &&
+                   std::any_of(trait->second->associated_types.begin(),
+                               trait->second->associated_types.end(),
+                               [&](const ast::AssociatedTypeDeclaration &item) {
+                                 return item.name == name;
+                               });
+          });
+      if (!required)
+        throw CompileError{associated->location,
+                           "associated type '" + name +
+                               "' is not declared by an implemented trait"};
     }
   }
 
@@ -2697,6 +2817,61 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     if (!is_destructor)
       validate_constraints(context.function->type_constraints, type_parameters);
+
+    const auto projection_provider_count =
+        [&](std::string_view base, std::string_view member) {
+          const auto constraints_contain =
+              [&](const std::vector<ast::TypeConstraint> &constraints) {
+                return static_cast<std::size_t>(std::count_if(
+                    constraints.begin(), constraints.end(),
+                    [&](const ast::TypeConstraint &constraint) -> bool {
+                      if (constraint.parameter != base)
+                        return false;
+                      const auto trait = traits.find(constraint.trait.name);
+                      return trait != traits.end() &&
+                             std::any_of(
+                                 trait->second->associated_types.begin(),
+                                 trait->second->associated_types.end(),
+                                 [&](const ast::AssociatedTypeDeclaration &item) {
+                                   return item.name == member;
+                                 });
+                    }));
+              };
+          return (!is_destructor
+                      ? constraints_contain(
+                            context.function->type_constraints)
+                      : 0) +
+                 (owner != nullptr
+                      ? constraints_contain(owner->type_constraints)
+                      : 0);
+        };
+    const auto validate_projections =
+        [&](const auto &self, const ast::TypeReference &reference) -> void {
+          const std::size_t separator = reference.name.find('.');
+          if (separator != std::string::npos &&
+              type_parameters.contains(reference.name.substr(0, separator))) {
+            const std::size_t providers = projection_provider_count(
+                reference.name.substr(0, separator),
+                reference.name.substr(separator + 1));
+            if (providers == 0)
+              throw CompileError{reference.location,
+                                 "associated type projection '" +
+                                     reference.name +
+                                     "' is not provided by a trait constraint"};
+            if (providers > 1)
+              throw CompileError{
+                  reference.location,
+                  "associated type projection '" + reference.name +
+                      "' is ambiguous between multiple trait constraints"};
+          }
+          for (const ast::TypeReference &argument : reference.type_arguments)
+            self(self, argument);
+        };
+    if (!is_destructor) {
+      validate_projections(validate_projections, context.function->return_type);
+      for (const ast::FunctionDeclaration::Parameter &parameter : parameters)
+        validate_projections(validate_projections, parameter.type);
+    }
 
     const SemanticType return_type =
         is_destructor ? SemanticType{&Type::unit_type()}
@@ -3800,6 +3975,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "generic type parameter '" + parameter +
                                    "' is not constrained by call arguments; "
                                    "help: add explicit type arguments"};
+      }
+      // Keep projections symbolic while checking a generic body, then
+      // materialize them once its parameters are bound to concrete classes.
+      const std::vector<std::pair<std::string, SemanticType>> bound_types{
+          substitutions.begin(), substitutions.end()};
+      for (const auto &[parameter, candidate] : bound_types) {
+        if (!candidate.is_class())
+          continue;
+        const ast::ClassDeclaration &bound_class =
+            *classes.at(candidate.parameter);
+        std::unordered_map<std::string, SemanticType> class_arguments;
+        for (std::size_t index = 0;
+             index < bound_class.type_parameters.size(); ++index)
+          class_arguments.emplace(bound_class.type_parameters[index],
+                                  candidate.type_arguments[index]);
+        for (const auto &[associated_name, associated_type] :
+             class_associated_normalizations.at(&bound_class)) {
+          SemanticType normalized = associated_type;
+          normalized = substitute(std::move(normalized), class_arguments);
+          substitutions.insert_or_assign(parameter + "." + associated_name,
+                                          std::move(normalized));
+        }
       }
       for (const ast::TypeConstraint &constraint : callee.type_constraints) {
         const SemanticType &candidate = substitutions.at(constraint.parameter);
@@ -5988,6 +6185,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   substitutions.emplace(
                       trait_declaration->type_parameters[index],
                       selected_constraint->type_arguments[index]);
+                for (const ast::AssociatedTypeDeclaration &associated :
+                     trait_declaration->associated_types) {
+                  method_parameters.insert(associated.name);
+                  substitutions.emplace(
+                      associated.name,
+                      SemanticType{nullptr, object_type.parameter + "." +
+                                               associated.name});
+                }
               }
               if (method == nullptr &&
                   (object_type.is_class() || object_type.is_enum())) {

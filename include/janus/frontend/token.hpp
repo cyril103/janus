@@ -13,6 +13,7 @@ enum class TokenKind {
   Extern,
   Tailrec,
   Def,
+  Type,
   Trait,
   Extends,
   Enum,
@@ -117,6 +118,8 @@ struct Token {
     return "'tailrec'";
   case TokenKind::Def:
     return "'def'";
+  case TokenKind::Type:
+    return "'type'";
   case TokenKind::Trait:
     return "'trait'";
   case TokenKind::Extends:

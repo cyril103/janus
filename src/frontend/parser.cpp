@@ -405,8 +405,22 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
   }
   static_cast<void>(expect(TokenKind::LeftBrace));
   std::vector<ast::FunctionDeclaration> methods;
+  std::vector<ast::AssociatedTypeDeclaration> associated_types;
   while (current_.kind != TokenKind::RightBrace) {
     std::string documentation = take_documentation();
+    if (current_.kind == TokenKind::Type) {
+      const Token keyword = expect(TokenKind::Type);
+      const Token associated_name = expect(TokenKind::Identifier);
+      if (current_.kind == TokenKind::Equal)
+        throw CompileError{current_.location,
+                           "a trait associated type cannot have a definition"};
+      associated_types.push_back(ast::AssociatedTypeDeclaration{
+          std::string{associated_name.lexeme}, std::nullopt, keyword.location,
+          std::move(documentation)});
+      if (current_.kind == TokenKind::Semicolon)
+        advance();
+      continue;
+    }
     ast::FunctionDeclaration method = parse_trait_method();
     method.documentation = std::move(documentation);
     methods.push_back(std::move(method));
@@ -421,7 +435,9 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
                                     std::move(type_constraints),
                                     false,
                                     std::nullopt,
+                                    {},
                                     {}};
+  declaration.associated_types = std::move(associated_types);
   return declaration;
 }
 
@@ -870,6 +886,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
 
   std::vector<ast::ValueDeclaration> fields;
   std::vector<ast::FunctionDeclaration> methods;
+  std::vector<ast::AssociatedTypeDeclaration> associated_types;
   std::optional<ast::DestructorDeclaration> destructor;
   while (current_.kind != TokenKind::RightBrace) {
     std::string documentation = take_documentation();
@@ -886,7 +903,18 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
     if (is_borrowing || is_consuming)
       advance();
     const bool is_tailrec = current_.kind == TokenKind::Tailrec;
-    if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
+    if (current_.kind == TokenKind::Type) {
+      if (is_private || is_internal || is_borrowing || is_consuming)
+        throw CompileError{
+            current_.location,
+            "an associated type definition cannot have member modifiers"};
+      const Token keyword = expect(TokenKind::Type);
+      const Token associated_name = expect(TokenKind::Identifier);
+      static_cast<void>(expect(TokenKind::Equal));
+      associated_types.push_back(ast::AssociatedTypeDeclaration{
+          std::string{associated_name.lexeme}, parse_type(), keyword.location,
+          std::move(documentation)});
+    } else if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
       if (is_borrowing || is_consuming)
         throw CompileError{current_.location,
                            "borrow and consume can only modify a method"};
@@ -939,8 +967,10 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
                                     is_constructor_internal,
                                     std::nullopt,
                                     std::move(derivations),
+                                    {},
                                     {}};
   declaration.is_value_type = is_value_type;
+  declaration.associated_types = std::move(associated_types);
   return declaration;
 }
 

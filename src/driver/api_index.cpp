@@ -470,6 +470,10 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
         }
         index.symbols.back().signature += ']';
       }
+      for (const auto &associated : trait.associated_types)
+        add(index, module, associated.name, "associated-type",
+            "type " + associated.name, associated.documentation, {}, {}, {}, {},
+            parent);
       for (const auto &function : trait.methods) {
         if (function.is_private || function.is_internal)
           continue;
@@ -499,6 +503,11 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
       };
       append_fields(type.constructor_fields);
       append_fields(type.fields);
+      for (const auto &associated : type.associated_types)
+        add(index, module, associated.name, "associated-type",
+            "type " + associated.name + " = " +
+                type_name(associated.definition),
+            associated.documentation, {}, {}, {}, {}, parent);
       for (const auto &function : type.methods) {
         if (function.is_private || function.is_internal)
           continue;

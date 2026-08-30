@@ -52,6 +52,12 @@ trait Sized {
     def size() : usize
 }
 
+trait Producer {
+    /// Value yielded by this producer.
+    type Item
+    def next() : Item
+}
+
 class Sequence[T](val value : T) extends Iterable[T], Sized {
     def iterator() : Iterator[T] {
         return new Iterator[T]()
@@ -70,19 +76,29 @@ class Sequence[T](val value : T) extends Iterable[T], Sized {
     }
 }
 
+class NumberProducer() extends Producer {
+    type Item = int
+    def next() : int { return 42 }
+}
+
 def visit[C <: Iterable[int] & Sized](sequence : C) : int {
     val iterator : Iterator[int] = sequence.iterator()
     delete iterator
     return int(sequence.size())
 }
 
+def produce[P <: Producer](producer : P) : P.Item {
+    return producer.next()
+}
+
 def main() : int {
-    return visit[Sequence[int]](new Sequence[int](5))
+    return visit[Sequence[int]](new Sequence[int](5)) +
+           produce[NumberProducer](new NumberProducer())
 }
 )";
   janus::frontend::Parser parser{source};
   const janus::ast::Program program = parser.parse_program();
-  expect(program.traits.size() == 2, "multiple traits are parsed");
+  expect(program.traits.size() == 3, "multiple traits are parsed");
   expect(program.traits.front().name == "Iterable",
          "the trait retains its name");
   expect(program.traits.front().type_parameters.size() == 1,
@@ -104,6 +120,13 @@ def main() : int {
          "multiple class trait implementations are parsed");
   expect(program.functions.front().type_constraints.size() == 2,
          "multiple generic trait constraints are parsed");
+  expect(program.traits[2].associated_types.size() == 1 &&
+             program.traits[2].associated_types.front().name == "Item",
+         "trait associated types are parsed");
+  expect(program.classes[2].associated_types.size() == 1 &&
+             program.classes[2].associated_types.front().definition->name ==
+                 "int",
+         "class associated type definitions are parsed");
 
   janus::semantic::Analyzer analyzer;
   static_cast<void>(analyzer.analyze(program));
@@ -118,6 +141,8 @@ def main() : int {
   output.flush();
   expect(ir.find("call ptr @Sequence__int__iterator") != std::string::npos,
          "a constrained call is statically dispatched to the concrete method");
+  expect(ir.find("NumberProducer__next") != std::string::npos,
+         "an associated return type is normalized for static dispatch");
 
   expect_compile_error("trait Duplicate[T, T] {} def main() : int { return 0 }",
                        "type parameter 'T' is already declared");
@@ -154,6 +179,31 @@ def main() : int {
       "class File() extends Resource { def close() : Unit {} } "
       "def main() : int { return 0 }",
       "ownership contract incompatible");
+  expect_compile_error(
+      "trait Producer { type Item def next() : Item } "
+      "class Missing() extends Producer { def next() : int { return 1 } } "
+      "def main() : int { return 0 }",
+      "does not define associated type 'Producer.Item'");
+  expect_compile_error(
+      "trait Producer { type Item } "
+      "class Duplicate() extends Producer { type Item = int type Item = int } "
+      "def main() : int { return 0 }",
+      "associated type 'Item' is already defined");
+  expect_compile_error(
+      "trait Pair { type Left type Right } "
+      "class Cycle() extends Pair { type Left = Right type Right = Left } "
+      "def main() : int { return 0 }",
+      "cyclic associated type definition");
+  expect_compile_error(
+      "trait Producer { type Item } "
+      "def invalid[T <: Producer](value : T) : T.Missing { return value } "
+      "def main() : int { return 0 }",
+      "is not provided by a trait constraint");
+  expect_compile_error(
+      "trait Left { type Item } trait Right { type Item } "
+      "def invalid[T <: Left & Right](value : T) : T.Item { return value } "
+      "def main() : int { return 0 }",
+      "is ambiguous between multiple trait constraints");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

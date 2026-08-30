@@ -160,7 +160,7 @@ private class HiddenOwner() { internal def hidden() : int { return 2 } }
   janus::frontend::Parser rich_parser{R"(
 module rich
 trait Constraint[T] {}
-trait GenericTrait[T <: Constraint[T]] {}
+trait GenericTrait[T <: Constraint[T]] { type Item }
 enum GenericEnum[T] { Empty, Value(T) }
 class GenericClass[T <: Constraint[T]](input : T, borrow val saved : T) {}
 extern def ownedVariadic[T](consume value : T, borrow other : T, ...) : owned T
@@ -187,11 +187,15 @@ extern def ownedVariadic[T](consume value : T, borrow other : T, ...) : owned T
              generic_class->parameters.size() == 2,
          "generic classes preserve constructor signatures and metadata");
   const auto generic_trait = find_rich("rich.GenericTrait", "trait");
+  const auto associated_type =
+      find_rich("rich.GenericTrait.Item", "associated-type");
   const auto generic_enum = find_rich("rich.GenericEnum", "enum");
   const auto payload = find_rich("rich.GenericEnum.Value", "variant");
   expect(generic_trait != rich.symbols.end() &&
              generic_trait->signature == "trait GenericTrait[T]" &&
              !generic_trait->generic_constraints.empty() &&
+             associated_type != rich.symbols.end() &&
+             associated_type->signature == "type Item" &&
              generic_enum != rich.symbols.end() &&
              generic_enum->signature == "enum GenericEnum[T]" &&
              payload != rich.symbols.end() && payload->signature == "Value(T)",

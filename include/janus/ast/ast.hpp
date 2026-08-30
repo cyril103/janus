@@ -497,6 +497,13 @@ struct EnumDeclaration {
   std::string documentation;
 };
 
+struct AssociatedTypeDeclaration {
+  std::string name;
+  std::optional<TypeReference> definition;
+  SourceLocation location;
+  std::string documentation;
+};
+
 struct TraitDeclaration {
   std::string name;
   std::vector<std::string> type_parameters;
@@ -506,6 +513,7 @@ struct TraitDeclaration {
   bool is_private{};
   std::optional<std::string> module_name;
   std::string documentation;
+  std::vector<AssociatedTypeDeclaration> associated_types;
 };
 
 struct ClassDeclaration {
@@ -525,6 +533,7 @@ struct ClassDeclaration {
   std::optional<std::string> module_name;
   std::vector<Derivation> derivations;
   std::string documentation;
+  std::vector<AssociatedTypeDeclaration> associated_types;
 };
 
 struct ExtensionDeclaration {

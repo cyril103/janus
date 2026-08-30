@@ -468,6 +468,11 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
       const std::string parent = module + '.' + trait.name;
       add_symbol(symbols, module, trait.name, "trait", trait_signature(trait),
                  trait.documentation);
+      for (const janus::ast::AssociatedTypeDeclaration &associated :
+           trait.associated_types)
+        add_symbol(symbols, module, associated.name, "associated-type",
+                   "type " + associated.name, associated.documentation,
+                   parent);
       for (const janus::ast::FunctionDeclaration &method : trait.methods) {
         if (!method.is_private && !method.is_internal)
           add_symbol(symbols, module, method.name, "method",
@@ -519,6 +524,12 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
       };
       append_fields(type.constructor_fields);
       append_fields(type.fields);
+      for (const janus::ast::AssociatedTypeDeclaration &associated :
+           type.associated_types)
+        add_symbol(symbols, module, associated.name, "associated-type",
+                   "type " + associated.name + " = " +
+                       type_name(associated.definition),
+                   associated.documentation, parent);
       for (const janus::ast::FunctionDeclaration &method : type.methods) {
         if (!method.is_private && !method.is_internal)
           add_symbol(symbols, module, method.name, "method",

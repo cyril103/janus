@@ -85,6 +85,8 @@ enum Status {
 }
 /// Visible trait.
 trait Printable {
+    /// Rendered value type.
+    type Output
     /// Render a value.
     /// @return The rendered value.
     def render() : string
@@ -133,6 +135,8 @@ private def hidden() : int { return 0 }
          "enum variants are indexed");
   expect(html.find("Visible trait.") != std::string::npos,
          "traits are indexed");
+  expect(html.find("Rendered value type.") != std::string::npos,
+         "associated types are indexed");
   expect(html.find("Creates a widget.") != std::string::npos,
          "functions are indexed");
   expect(html.find("Hidden field.") == std::string::npos,
