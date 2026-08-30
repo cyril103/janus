@@ -1,0 +1,172 @@
+import std.array
+import std.array_builder
+import std.iterator
+import std.option
+import std.result
+
+var resultRequests : int = 0
+var optionRequests : int = 0
+
+def numbers() : Array[int] {
+    val values : Array[int] = new Array[int](usize(5))
+    values.push(1)
+    values.push(2)
+    values.push(3)
+    values.push(4)
+    values.push(5)
+    return values
+}
+
+def pair(first : int, second : int) : Array[int] {
+    val values : Array[int] = new Array[int](usize(2))
+    values.push(first)
+    values.push(second)
+    return values
+}
+
+def optionalOdd(value : int) : Option[int] {
+    if value % 2 == 1 {
+        return Option.Some[int](value * 10)
+    }
+    return Option.None[int]()
+}
+
+def runningTotal(borrow var state : int, value : int) : Option[int] {
+    state = state + value
+    return Option.Some[int](state)
+}
+
+def failAtThree(total : int, value : int) : Result[int, int] {
+    if value == 3 {
+        return Result.Error[int, int](total)
+    }
+    return Result.Ok[int, int](total + value)
+}
+
+def requestedResult(value : int) : Result[int, int] {
+    resultRequests = resultRequests + 1
+    if value == 3 {
+        return Result.Error[int, int](7)
+    }
+    return Result.Ok[int, int](value)
+}
+
+def requestedOption(value : int) : Option[int] {
+    optionRequests = optionRequests + 1
+    if value == 2 {
+        return Option.None[int]()
+    }
+    return Option.Some[int](value)
+}
+
+def optionValue(value : Option[int]) : int {
+    return match value {
+        Some(item) => item,
+        None => -1
+    }
+}
+
+def resultValue(value : Result[int, int]) : int {
+    return match value {
+        Ok(item) => item,
+        Error(error) => -error
+    }
+}
+
+def ownedArrayCount(items : Array[int]) : int {
+    var count : int = 0
+    for item in items.intoIterator() {
+        count = count + 1
+    }
+    return count
+}
+
+def collectedResultValue(value : Result[Array[int], int]) : int {
+    return match move value {
+        Ok(items) => ownedArrayCount(move items),
+        Error(error) => -error
+    }
+}
+
+def collectedOptionValue(value : Option[Array[int]]) : int {
+    return match move value {
+        Some(items) => ownedArrayCount(move items),
+        None => -1
+    }
+}
+
+def main() : int {
+    println(numbers().intoIterator().drop(usize(2)).fold[int](
+        0, (total : int, value : int) => total + value
+    ))
+    println(pair(1, 2).intoIterator().chain(
+        pair(3, 4).intoIterator()
+        ).fold[int](0, (total : int, value : int) => total + value))
+    println(numbers().intoIterator().filterMap[int](
+        (value : int) => optionalOdd(value)
+        ).fold[int](0, (total : int, value : int) => total + value))
+    println(numbers().intoIterator().takeWhile(
+        (borrow value : int) => value < 4
+        ).fold[int](0, (total : int, value : int) => total + value))
+    println(numbers().intoIterator().skipWhile(
+        (borrow value : int) => value < 3
+        ).fold[int](0, (total : int, value : int) => total + value))
+    println(numbers().intoIterator().take(usize(3)).scan[int, int](
+        0,
+        (borrow var state : int, value : int) => runningTotal(state, value)
+        ).fold[int](0, (total : int, value : int) => total + value))
+
+    println(optionValue(numbers().intoIterator().find(
+        (borrow value : int) => value > 3
+    )))
+    println(numbers().intoIterator().any(
+        (borrow value : int) => value == 3
+    ))
+    println(numbers().intoIterator().all(
+        (borrow value : int) => value < 6
+    ))
+    println(numbers().intoIterator().count())
+    println(optionValue(numbers().intoIterator().reduce(
+        (total : int, value : int) => total + value
+    )))
+    println(resultValue(numbers().intoIterator().tryFold[int, int](
+        0,
+        (total : int, value : int) => failAtThree(total, value)
+    )))
+
+    val resultValues : Result[Array[int], int] = collectResult[int, int](
+        numbers().intoIterator().map[Result[int, int]](
+        (value : int) => requestedResult(value)
+        )
+    )
+    println(collectedResultValue(move resultValues))
+    println(resultRequests)
+
+    val optionValues : Option[Array[int]] = collectOption[int](
+        numbers().intoIterator().map[Option[int]](
+        (value : int) => requestedOption(value)
+        )
+    )
+    println(collectedOptionValue(move optionValues))
+    println(optionRequests)
+
+    val accepted : ArrayBuilder[int] = new ArrayBuilder[int](usize(0))
+    defer delete accepted
+    val rejected : ArrayBuilder[int] = new ArrayBuilder[int](usize(0))
+    defer delete rejected
+    val partition : PartitionResult[Array[int], Array[int]] =
+    numbers().intoIterator().partitionWith[
+        Array[int],
+        Array[int],
+        ArrayBuilder[int],
+        ArrayBuilder[int]
+    ](
+        (borrow value : int) => value % 2 == 0,
+        accepted,
+        rejected
+    )
+    println(partition.accepted.size())
+    println(partition.rejected.size())
+    delete partition
+    return 0
+}

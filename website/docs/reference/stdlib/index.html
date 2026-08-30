@@ -517,7 +517,7 @@ val values : Array[int] = builder.result()
 achevé et réinitialise le constructeur pour permettre sa réutilisation.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val builder : ArrayBuilder[int] = new ArrayBuilder(2)<br>
 builder.add(10)<br>
 val values : Array[int] = builder.result()<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">7</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">9</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-array-builder-arraybuilder" data-symbol data-search="std.array_builder.ArrayBuilder class class ArrayBuilder[T](initialCapacity : usize) Accumule des éléments propriétaires dans un tableau redimensionnable.
 
@@ -563,6 +563,30 @@ Le constructeur reste utilisable et repart avec une capacité initiale nulle.
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Iterator[T]</code></td><td>Itérateur consommé pendant la collecte.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Array[T]</code> — Tableau contenant les valeurs dans leur ordre d’itération.</p></section>
 <div class="qualified">std.array_builder.collectArray</div></div><a class="permalink" href="#std-array-builder-collectarray" aria-label="Permanent link to std.array_builder.collectArray">#</a></article>
+<article class="symbol-card kind-function" id="std-array-builder-collectoption" data-symbol data-search="std.array_builder.collectOption function def collectOption[T](source : Iterator[Option[T]]) : Option[Array[T]] Collecte les valeurs présentes jusqu&#39;à la première absence.
+
+La source n&#39;est plus interrogée après `None`. Le constructeur et ses
+valeurs partielles sont alors détruits avec le reste du parcours.
+@param source Parcours d&#39;options consommé dans l&#39;ordre.
+@return Tableau dans `Some`, ou `None` à la première absence."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def collectOption[T](source : Iterator[Option[T]]) : Option[Array[T]]</code></h3>
+<p class="doc-summary">Collecte les valeurs présentes jusqu&#39;à la première absence.</p>
+<div class="doc-details"><p>La source n&#39;est plus interrogée après `None`. Le constructeur et ses<br>
+valeurs partielles sont alors détruits avec le reste du parcours.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Iterator[Option[T]]</code></td><td>Parcours d&#39;options consommé dans l&#39;ordre.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[Array[T]]</code> — Tableau dans `Some`, ou `None` à la première absence.</p></section>
+<div class="qualified">std.array_builder.collectOption</div></div><a class="permalink" href="#std-array-builder-collectoption" aria-label="Permanent link to std.array_builder.collectOption">#</a></article>
+<article class="symbol-card kind-function" id="std-array-builder-collectresult" data-symbol data-search="std.array_builder.collectResult function def collectResult[T, E](source : Iterator[Result[T, E]]) : Result[Array[T], E] Collecte les succès jusqu&#39;à la première erreur.
+
+La source n&#39;est plus interrogée après `Error`. Le constructeur et ses
+succès partiels sont alors détruits, ainsi que le reste de l&#39;itérateur.
+@param source Parcours de résultats consommé dans l&#39;ordre.
+@return Tableau des succès, ou première erreur rencontrée."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def collectResult[T, E](source : Iterator[Result[T, E]]) : Result[Array[T], E]</code></h3>
+<p class="doc-summary">Collecte les succès jusqu&#39;à la première erreur.</p>
+<div class="doc-details"><p>La source n&#39;est plus interrogée après `Error`. Le constructeur et ses<br>
+succès partiels sont alors détruits, ainsi que le reste de l&#39;itérateur.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Iterator[Result[T, E]]</code></td><td>Parcours de résultats consommé dans l&#39;ordre.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[Array[T], E]</code> — Tableau des succès, ou première erreur rencontrée.</p></section>
+<div class="qualified">std.array_builder.collectResult</div></div><a class="permalink" href="#std-array-builder-collectresult" aria-label="Permanent link to std.array_builder.collectResult">#</a></article>
 </div></section>
 <section class="module" id="module-std-builder" data-module data-search="std.builder Décrit un accumulateur qui prend possession des valeurs ajoutées et produit une collection.
 
@@ -5010,7 +5034,7 @@ des collections intermédiaires.</p></div></div><section class="module-example d
     .filter((value : int) =&gt; value &gt; 0)<br>
     .map[int]((value : int) =&gt; value * 2)<br>
     .fold[int](0, (sum : int, value : int) =&gt; sum + value)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">21</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">37</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-struct" id="std-iterator-indexed" data-symbol data-search="std.iterator.Indexed struct struct Indexed[T](val index : usize, val value : T) Associe une valeur à son rang dans un parcours énuméré.
 
@@ -5079,6 +5103,32 @@ nouvel état; ils ne peuvent donc plus être utilisés séparément. Détruire u
 parcours avant son épuisement libère les ressources restantes via `release`.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>advance</code></td><td><code>Function[Option[T]]</code></td><td>Fermeture appelée pour produire la prochaine valeur ou `None`.</td></tr><tr><td><code>release</code></td><td><code>Function[Unit]</code></td><td>Fermeture appelée une fois lors de la destruction du parcours.</td></tr></tbody></table></section>
 <div class="qualified">std.iterator.Iterator</div></div><a class="permalink" href="#std-iterator-iterator" aria-label="Permanent link to std.iterator.Iterator">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-all" data-symbol data-search="std.iterator.Iterator.all method consume def all(scoped predicate : Function[T, bool]) : bool Indique si toutes les valeurs satisfont le prédicat.
+@param predicate Fonction empruntant les valeurs jusqu&#39;au premier refus.
+@return `false` au premier refus, sinon `true`, y compris à vide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def all(scoped predicate : Function[T, bool]) : bool</code></h3>
+<p class="doc-summary">Indique si toutes les valeurs satisfont le prédicat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction empruntant les valeurs jusqu&#39;au premier refus.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `false` au premier refus, sinon `true`, y compris à vide.</p></section>
+<div class="qualified">std.iterator.Iterator.all</div></div><a class="permalink" href="#std-iterator-iterator-all" aria-label="Permanent link to std.iterator.Iterator.all">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-any" data-symbol data-search="std.iterator.Iterator.any method consume def any(scoped predicate : Function[T, bool]) : bool Indique si au moins une valeur satisfait le prédicat.
+@param predicate Fonction empruntant les valeurs jusqu&#39;au premier succès.
+@return `true` au premier succès, sinon `false` après épuisement."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def any(scoped predicate : Function[T, bool]) : bool</code></h3>
+<p class="doc-summary">Indique si au moins une valeur satisfait le prédicat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction empruntant les valeurs jusqu&#39;au premier succès.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` au premier succès, sinon `false` après épuisement.</p></section>
+<div class="qualified">std.iterator.Iterator.any</div></div><a class="permalink" href="#std-iterator-iterator-any" aria-label="Permanent link to std.iterator.Iterator.any">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-chain" data-symbol data-search="std.iterator.Iterator.chain method consume def chain(other : Iterator[T]) : Iterator[T] Concatène paresseusement ce parcours puis `other`.
+
+Le second parcours n&#39;est interrogé qu&#39;après l&#39;épuisement du premier.
+Détruire le résultat libère les deux sources et leurs restes.
+@param other Parcours consommé après la fin du premier.
+@return Un itérateur produisant les deux sources dans leur ordre."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def chain(other : Iterator[T]) : Iterator[T]</code></h3>
+<p class="doc-summary">Concatène paresseusement ce parcours puis `other`.</p>
+<div class="doc-details"><p>Le second parcours n&#39;est interrogé qu&#39;après l&#39;épuisement du premier.<br>
+Détruire le résultat libère les deux sources et leurs restes.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>other</code></td><td><code>Iterator[T]</code></td><td>Parcours consommé après la fin du premier.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un itérateur produisant les deux sources dans leur ordre.</p></section>
+<div class="qualified">std.iterator.Iterator.chain</div></div><a class="permalink" href="#std-iterator-iterator-chain" aria-label="Permanent link to std.iterator.Iterator.chain">#</a></article>
 <article class="symbol-card kind-method child" id="std-iterator-iterator-collectwith" data-symbol data-search="std.iterator.Iterator.collectWith method consume def collectWith[C, B](borrow var builder : B) : C Consomme toutes les valeurs dans le constructeur fourni.
 
 Chaque valeur est déplacée vers [[Builder.add]], puis le résultat est
@@ -5093,6 +5143,23 @@ contrat de son implémentation.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>builder</code></td><td><code>B</code></td><td>Constructeur recevant les valeurs dans l’ordre du parcours.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>C</code> — La collection finalisée par le constructeur.</p></section>
 <div class="qualified">std.iterator.Iterator.collectWith</div></div><a class="permalink" href="#std-iterator-iterator-collectwith" aria-label="Permanent link to std.iterator.Iterator.collectWith">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-count" data-symbol data-search="std.iterator.Iterator.count method consume def count() : usize Compte toutes les valeurs du parcours.
+@return Nombre de valeurs consommées et détruites."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def count() : usize</code></h3>
+<p class="doc-summary">Compte toutes les valeurs du parcours.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre de valeurs consommées et détruites.</p></section>
+<div class="qualified">std.iterator.Iterator.count</div></div><a class="permalink" href="#std-iterator-iterator-count" aria-label="Permanent link to std.iterator.Iterator.count">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-drop" data-symbol data-search="std.iterator.Iterator.drop method consume def drop(count : usize) : Iterator[T] Ignore paresseusement les `count` premières valeurs disponibles.
+
+Aucun élément n&#39;est demandé avant le premier `next` du résultat. Les
+valeurs ignorées sont détruites immédiatement et dans l&#39;ordre source.
+@param count Nombre maximal de valeurs à ignorer.
+@return Un itérateur commençant après les valeurs ignorées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def drop(count : usize) : Iterator[T]</code></h3>
+<p class="doc-summary">Ignore paresseusement les `count` premières valeurs disponibles.</p>
+<div class="doc-details"><p>Aucun élément n&#39;est demandé avant le premier `next` du résultat. Les<br>
+valeurs ignorées sont détruites immédiatement et dans l&#39;ordre source.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>count</code></td><td><code>usize</code></td><td>Nombre maximal de valeurs à ignorer.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un itérateur commençant après les valeurs ignorées.</p></section>
+<div class="qualified">std.iterator.Iterator.drop</div></div><a class="permalink" href="#std-iterator-iterator-drop" aria-label="Permanent link to std.iterator.Iterator.drop">#</a></article>
 <article class="symbol-card kind-method child" id="std-iterator-iterator-enumerate" data-symbol data-search="std.iterator.Iterator.enumerate method consume def enumerate() : Iterator[Indexed[T]] Associe à chaque valeur son rang à partir de zéro.
 
 Le parcours source est consommé et chaque valeur est déplacée dans un
@@ -5115,6 +5182,30 @@ détruites avant la recherche de la suivante.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction empruntant chaque valeur candidate pour la tester.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un itérateur produisant uniquement les valeurs acceptées.</p></section>
 <div class="qualified">std.iterator.Iterator.filter</div></div><a class="permalink" href="#std-iterator-iterator-filter" aria-label="Permanent link to std.iterator.Iterator.filter">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-filtermap" data-symbol data-search="std.iterator.Iterator.filterMap method consume def filterMap[U](transform : Function[T, Option[U]]) : Iterator[U] Transforme et filtre chaque valeur en une seule étape paresseuse.
+
+`Some` produit une valeur; `None` poursuit la recherche sans collection
+intermédiaire. La callback consomme chaque valeur demandée.
+@param transform Fonction retournant la projection éventuelle.
+@return Un itérateur des projections présentes."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def filterMap[U](transform : Function[T, Option[U]]) : Iterator[U]</code></h3>
+<p class="doc-summary">Transforme et filtre chaque valeur en une seule étape paresseuse.</p>
+<div class="doc-details"><p>`Some` produit une valeur; `None` poursuit la recherche sans collection<br>
+intermédiaire. La callback consomme chaque valeur demandée.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, Option[U]]</code></td><td>Fonction retournant la projection éventuelle.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[U]</code> — Un itérateur des projections présentes.</p></section>
+<div class="qualified">std.iterator.Iterator.filterMap</div></div><a class="permalink" href="#std-iterator-iterator-filtermap" aria-label="Permanent link to std.iterator.Iterator.filterMap">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-find" data-symbol data-search="std.iterator.Iterator.find method consume def find(scoped predicate : Function[T, bool]) : Option[T] Retourne la première valeur satisfaisant le prédicat.
+
+Le parcours s&#39;arrête au premier succès. Les valeurs refusées et le reste
+de la source sont détruits exactement une fois.
+@param predicate Fonction empruntant chaque candidate jusqu&#39;au succès.
+@return Première valeur acceptée, ou `None` après épuisement."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def find(scoped predicate : Function[T, bool]) : Option[T]</code></h3>
+<p class="doc-summary">Retourne la première valeur satisfaisant le prédicat.</p>
+<div class="doc-details"><p>Le parcours s&#39;arrête au premier succès. Les valeurs refusées et le reste<br>
+de la source sont détruits exactement une fois.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction empruntant chaque candidate jusqu&#39;au succès.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — Première valeur acceptée, ou `None` après épuisement.</p></section>
+<div class="qualified">std.iterator.Iterator.find</div></div><a class="permalink" href="#std-iterator-iterator-find" aria-label="Permanent link to std.iterator.Iterator.find">#</a></article>
 <article class="symbol-card kind-method child" id="std-iterator-iterator-flatmap" data-symbol data-search="std.iterator.Iterator.flatMap method consume def flatMap[U](transform : Function[T, Iterator[U]]) : Iterator[U] Transforme chaque valeur en itérateur puis concatène ces parcours.
 
 L’évaluation est paresseuse et conserve au plus un parcours intérieur
@@ -5171,6 +5262,52 @@ Une fois la source épuisée, les appels suivants dépendent de la fermeture
 `advance`, mais les itérateurs de ce module continuent de rendre `None`.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` contenant la prochaine valeur possédée, ou `None` à la fin.</p></section>
 <div class="qualified">std.iterator.Iterator.next</div></div><a class="permalink" href="#std-iterator-iterator-next" aria-label="Permanent link to std.iterator.Iterator.next">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-partitionwith" data-symbol data-search="std.iterator.Iterator.partitionWith method consume def partitionWith[A, B, Left, Right](scoped predicate : Function[T, bool], borrow var accepted : Left, borrow var rejected : Right) : PartitionResult[A, B] Répartit les valeurs entre deux constructeurs explicites.
+
+Le prédicat emprunte chaque valeur une fois; la valeur est ensuite
+déplacée vers `accepted` pour `true`, sinon vers `rejected`.
+@param predicate Fonction choisissant le constructeur de destination.
+@param accepted Constructeur des valeurs acceptées.
+@param rejected Constructeur des valeurs refusées.
+@return Les deux collections finalisées dans leur ordre source relatif."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def partitionWith[A, B, Left, Right](scoped predicate : Function[T, bool], borrow var accepted : Left, borrow var rejected : Right) : PartitionResult[A, B]</code></h3>
+<p class="doc-summary">Répartit les valeurs entre deux constructeurs explicites.</p>
+<div class="doc-details"><p>Le prédicat emprunte chaque valeur une fois; la valeur est ensuite<br>
+déplacée vers `accepted` pour `true`, sinon vers `rejected`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction choisissant le constructeur de destination.</td></tr><tr><td><code>accepted</code></td><td><code>Left</code></td><td>Constructeur des valeurs acceptées.</td></tr><tr><td><code>rejected</code></td><td><code>Right</code></td><td>Constructeur des valeurs refusées.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>PartitionResult[A, B]</code> — Les deux collections finalisées dans leur ordre source relatif.</p></section>
+<div class="qualified">std.iterator.Iterator.partitionWith</div></div><a class="permalink" href="#std-iterator-iterator-partitionwith" aria-label="Permanent link to std.iterator.Iterator.partitionWith">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-reduce" data-symbol data-search="std.iterator.Iterator.reduce method consume def reduce(scoped combine : Function[T, T, T]) : Option[T] Réduit un parcours non vide sans accumulateur initial.
+@param combine Fonction combinant l&#39;accumulateur et la valeur suivante.
+@return Accumulateur final dans `Some`, ou `None` pour une source vide."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def reduce(scoped combine : Function[T, T, T]) : Option[T]</code></h3>
+<p class="doc-summary">Réduit un parcours non vide sans accumulateur initial.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>combine</code></td><td><code>Function[T, T, T]</code></td><td>Fonction combinant l&#39;accumulateur et la valeur suivante.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — Accumulateur final dans `Some`, ou `None` pour une source vide.</p></section>
+<div class="qualified">std.iterator.Iterator.reduce</div></div><a class="permalink" href="#std-iterator-iterator-reduce" aria-label="Permanent link to std.iterator.Iterator.reduce">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-scan" data-symbol data-search="std.iterator.Iterator.scan method consume def scan[S, U](initial : S, transform : Function[S, T, Option[U]]) : Iterator[U] Fait évoluer un état et produit paresseusement des projections.
+
+La callback emprunte l&#39;état de façon mutable et consomme une valeur.
+`None` termine définitivement le parcours; `Some` produit la projection.
+@param initial État propriétaire conservé par l&#39;adaptateur.
+@param transform Fonction mettant à jour l&#39;état et produisant une valeur éventuelle.
+@return Un itérateur possédant la source, l&#39;état et la callback."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def scan[S, U](initial : S, transform : Function[S, T, Option[U]]) : Iterator[U]</code></h3>
+<p class="doc-summary">Fait évoluer un état et produit paresseusement des projections.</p>
+<div class="doc-details"><p>La callback emprunte l&#39;état de façon mutable et consomme une valeur.<br>
+`None` termine définitivement le parcours; `Some` produit la projection.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initial</code></td><td><code>S</code></td><td>État propriétaire conservé par l&#39;adaptateur.</td></tr><tr><td><code>transform</code></td><td><code>Function[S, T, Option[U]]</code></td><td>Fonction mettant à jour l&#39;état et produisant une valeur éventuelle.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[U]</code> — Un itérateur possédant la source, l&#39;état et la callback.</p></section>
+<div class="qualified">std.iterator.Iterator.scan</div></div><a class="permalink" href="#std-iterator-iterator-scan" aria-label="Permanent link to std.iterator.Iterator.scan">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-skipwhile" data-symbol data-search="std.iterator.Iterator.skipWhile method consume def skipWhile(predicate : Function[T, bool]) : Iterator[T] Ignore les valeurs tant que le prédicat emprunté reste vrai.
+
+Après le premier refus, le prédicat n&#39;est plus appelé et toutes les
+valeurs suivantes sont retransmises directement.
+@param predicate Fonction observant le préfixe à ignorer.
+@return Un itérateur commençant à la première valeur refusée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def skipWhile(predicate : Function[T, bool]) : Iterator[T]</code></h3>
+<p class="doc-summary">Ignore les valeurs tant que le prédicat emprunté reste vrai.</p>
+<div class="doc-details"><p>Après le premier refus, le prédicat n&#39;est plus appelé et toutes les<br>
+valeurs suivantes sont retransmises directement.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction observant le préfixe à ignorer.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un itérateur commençant à la première valeur refusée.</p></section>
+<div class="qualified">std.iterator.Iterator.skipWhile</div></div><a class="permalink" href="#std-iterator-iterator-skipwhile" aria-label="Permanent link to std.iterator.Iterator.skipWhile">#</a></article>
 <article class="symbol-card kind-method child" id="std-iterator-iterator-take" data-symbol data-search="std.iterator.Iterator.take method consume def take(count : usize) : Iterator[T] Limite le parcours aux `count` premières valeurs disponibles.
 
 Cette méthode consomme la source. Détruire le résultat libère la partie de
@@ -5183,6 +5320,33 @@ la source qui n’a pas été parcourue.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>count</code></td><td><code>usize</code></td><td>Nombre maximal de valeurs à produire.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un itérateur qui s’arrête après `count` valeurs ou à la fin de la source.</p></section>
 <div class="qualified">std.iterator.Iterator.take</div></div><a class="permalink" href="#std-iterator-iterator-take" aria-label="Permanent link to std.iterator.Iterator.take">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-takewhile" data-symbol data-search="std.iterator.Iterator.takeWhile method consume def takeWhile(predicate : Function[T, bool]) : Iterator[T] Produit les valeurs tant que le prédicat emprunté reste vrai.
+
+La première valeur refusée est détruite et termine définitivement le
+parcours. Les valeurs suivantes restent dans la source jusqu&#39;à la
+destruction de l&#39;itérateur.
+@param predicate Fonction observant chaque valeur demandée jusqu&#39;au refus.
+@return Un itérateur du préfixe accepté."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def takeWhile(predicate : Function[T, bool]) : Iterator[T]</code></h3>
+<p class="doc-summary">Produit les valeurs tant que le prédicat emprunté reste vrai.</p>
+<div class="doc-details"><p>La première valeur refusée est détruite et termine définitivement le<br>
+parcours. Les valeurs suivantes restent dans la source jusqu&#39;à la<br>
+destruction de l&#39;itérateur.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction observant chaque valeur demandée jusqu&#39;au refus.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un itérateur du préfixe accepté.</p></section>
+<div class="qualified">std.iterator.Iterator.takeWhile</div></div><a class="permalink" href="#std-iterator-iterator-takewhile" aria-label="Permanent link to std.iterator.Iterator.takeWhile">#</a></article>
+<article class="symbol-card kind-method child" id="std-iterator-iterator-tryfold" data-symbol data-search="std.iterator.Iterator.tryFold method consume def tryFold[U, E](initial : U, scoped combine : Function[U, T, Result[U, E]]) : Result[U, E] Réduit de gauche à droite avec une étape susceptible d&#39;échouer.
+
+La première erreur est retournée immédiatement : aucune valeur suivante
+n&#39;est demandée et le reste de la source est détruit avec le parcours.
+@param initial Accumulateur initial propriétaire.
+@param combine Étape retournant le prochain accumulateur ou une erreur.
+@return Accumulateur final dans `Ok`, ou première erreur dans `Error`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.iterator.Iterator</div><h3><code>consume def tryFold[U, E](initial : U, scoped combine : Function[U, T, Result[U, E]]) : Result[U, E]</code></h3>
+<p class="doc-summary">Réduit de gauche à droite avec une étape susceptible d&#39;échouer.</p>
+<div class="doc-details"><p>La première erreur est retournée immédiatement : aucune valeur suivante<br>
+n&#39;est demandée et le reste de la source est détruit avec le parcours.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>initial</code></td><td><code>U</code></td><td>Accumulateur initial propriétaire.</td></tr><tr><td><code>combine</code></td><td><code>Function[U, T, Result[U, E]]</code></td><td>Étape retournant le prochain accumulateur ou une erreur.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[U, E]</code> — Accumulateur final dans `Ok`, ou première erreur dans `Error`.</p></section>
+<div class="qualified">std.iterator.Iterator.tryFold</div></div><a class="permalink" href="#std-iterator-iterator-tryfold" aria-label="Permanent link to std.iterator.Iterator.tryFold">#</a></article>
 <article class="symbol-card kind-method child" id="std-iterator-iterator-zip" data-symbol data-search="std.iterator.Iterator.zip method consume def zip[U](other : Iterator[U]) : Iterator[ZipItem[T, U]] Parcourt deux sources en parallèle et regroupe leurs valeurs de même rang.
 
 Les deux itérateurs sont consommés. Le résultat s’arrête dès que l’un des
@@ -5197,6 +5361,18 @@ détruite, puis les restes des deux sources sont libérés avec le résultat.</p
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>other</code></td><td><code>Iterator[U]</code></td><td>Itérateur fournissant le membre droit de chaque paire.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[ZipItem[T, U]]</code> — Un itérateur de <a href="#std-iterator-zipitem"><code>ZipItem</code></a>, limité par la source la plus courte.</p></section>
 <div class="qualified">std.iterator.Iterator.zip</div></div><a class="permalink" href="#std-iterator-iterator-zip" aria-label="Permanent link to std.iterator.Iterator.zip">#</a></article>
+<article class="symbol-card kind-struct" id="std-iterator-partitionresult" data-symbol data-search="std.iterator.PartitionResult struct struct PartitionResult[A, B](val accepted : A, val rejected : B) Regroupe les deux collections produites par [[Iterator.partitionWith]].
+@param accepted Collection des valeurs dont le prédicat vaut `true`.
+@param rejected Collection des autres valeurs."><span class="kind-icon" aria-hidden="true">s</span><div><span class="kind">struct</span><h3><code>struct PartitionResult[A, B](val accepted : A, val rejected : B)</code></h3>
+<p class="doc-summary">Regroupe les deux collections produites par <a href="#std-iterator-iterator-partitionwith"><code>Iterator.partitionWith</code></a>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>accepted</code></td><td><code>A</code></td><td>Collection des valeurs dont le prédicat vaut `true`.</td></tr><tr><td><code>rejected</code></td><td><code>B</code></td><td>Collection des autres valeurs.</td></tr></tbody></table></section>
+<div class="qualified">std.iterator.PartitionResult</div></div><a class="permalink" href="#std-iterator-partitionresult" aria-label="Permanent link to std.iterator.PartitionResult">#</a></article>
+<article class="symbol-card kind-field child" id="std-iterator-partitionresult-accepted" data-symbol data-search="std.iterator.PartitionResult.accepted field val accepted : A Collection des valeurs acceptées, dans l&#39;ordre source."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.iterator.PartitionResult</div><h3><code>val accepted : A</code></h3>
+<p class="doc-summary">Collection des valeurs acceptées, dans l&#39;ordre source.</p>
+<div class="qualified">std.iterator.PartitionResult.accepted</div></div><a class="permalink" href="#std-iterator-partitionresult-accepted" aria-label="Permanent link to std.iterator.PartitionResult.accepted">#</a></article>
+<article class="symbol-card kind-field child" id="std-iterator-partitionresult-rejected" data-symbol data-search="std.iterator.PartitionResult.rejected field val rejected : B Collection des valeurs refusées, dans l&#39;ordre source."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.iterator.PartitionResult</div><h3><code>val rejected : B</code></h3>
+<p class="doc-summary">Collection des valeurs refusées, dans l&#39;ordre source.</p>
+<div class="qualified">std.iterator.PartitionResult.rejected</div></div><a class="permalink" href="#std-iterator-partitionresult-rejected" aria-label="Permanent link to std.iterator.PartitionResult.rejected">#</a></article>
 <article class="symbol-card kind-struct" id="std-iterator-zipitem" data-symbol data-search="std.iterator.ZipItem struct struct ZipItem[A, B](val left : A, val right : B) Regroupe les deux valeurs produites au même rang par [[Iterator.zip]].
 
 La structure possède `left` et `right`; sa destruction libère donc les

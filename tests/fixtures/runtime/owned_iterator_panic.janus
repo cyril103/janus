@@ -1,9 +1,20 @@
 import std.array
+import std.iterator
+import std.result
 
 class Resource(val id : int) {
     destructor {
         println(id)
     }
+}
+
+def explode(
+    total : Resource,
+    value : Resource
+) : Result[Resource, Resource] {
+    defer delete total
+    defer delete value
+    panic("owned iterator failure\n")
 }
 
 def main() : int {
@@ -14,9 +25,11 @@ def main() : int {
         values.push(move value)
         id = id + 1
     }
-    for value in values.intoIterator() {
-        defer delete value
-        panic("owned iterator failure\n")
-    }
+    val folded : Result[Resource, Resource] = values.intoIterator()
+    .tryFold[Resource, Resource](
+        new Resource(10),
+        (total : Resource, value : Resource) => explode(total, value)
+    )
+    delete folded
     return 0
 }

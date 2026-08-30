@@ -1219,11 +1219,17 @@ soit avec `move source` pour une valeur `IntoIterable[T]`, soit avec
 `source.intoIterator()`. Sans `move`, `for` sélectionne exclusivement
 `Iterable[T]` et ne transforme jamais une observation en copie propriétaire.
 Cette séparation fonctionne aussi dans les contraintes génériques. Les
-adaptateurs `map`, `filter`, `flatMap`, `take`, `zip`,
-`enumerate`, `fold` et `collectWith` transfèrent également leurs éléments.
-La lambda de `filter` observe son paramètre pendant l'appel ; `map`, `flatMap`
-et `fold` le consomment. Un élément refusé par `filter` est détruit
-immédiatement.
+adaptateurs `map`, `filter`, `filterMap`, `flatMap`, `take`, `drop`,
+`takeWhile`, `skipWhile`, `scan`, `chain`, `zip` et `enumerate` transfèrent
+également leurs éléments. La lambda de `filter`, `takeWhile` ou `skipWhile`
+observe son paramètre pendant l'appel ; `map`, `filterMap`, `flatMap` et `scan`
+le consomment. Un élément filtré ou ignoré est détruit immédiatement.
+
+`find`, `any` et `all` court-circuitent au premier résultat décisif. `count`,
+`reduce` et `fold` épuisent la source. `tryFold` retourne la première erreur
+sans demander d'élément supplémentaire. `partitionWith` distribue chaque valeur
+vers deux `Builder` explicites et retourne leurs collections dans un
+`PartitionResult`.
 
 La destruction de l'itérateur détruit sa source et tous les éléments qui n'ont
 pas été produits. Cette garantie s'applique à la fin normale et après
@@ -1250,9 +1256,27 @@ val collected : Array[int] = collectArray[int](
 defer delete collected
 ```
 
+`collectResult` et `collectOption`, dans le même module, arrêtent la collecte au
+premier `Error` ou `None`. Les valeurs déjà collectées et le suffixe non demandé
+sont alors détruits. Le pipeline faillible suivant ne crée aucun tableau
+intermédiaire :
+
+```janus
+val checked : Result[int, string] = values.intoIterator()
+    .drop(2)
+    .filterMap[int]((value : int) => validate(value))
+    .tryFold[int, string](
+        0,
+        (total : int, value : int) => checkedAdd(total, value)
+    )
+```
+
+Le [contrat des pipelines](design/iterator-pipelines.md) précise l'état de
+chaque adaptateur, les règles d'ownership, les courts-circuits et les coûts.
+
 Les exemples `array.janus`, `hash_collections.janus` et
-`iterator_pipeline.janus` séparent respectivement les opérations de tableau,
-les tables de hachage et les pipelines paresseux.
+`iterator_adapters.janus` séparent respectivement les opérations de tableau,
+les tables de hachage et les pipelines paresseux ou faillibles.
 
 ## Mathématiques
 

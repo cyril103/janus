@@ -15,6 +15,7 @@
 module std.iterator
 import std.option
 import std.builder
+import std.result
 
 /// Décrit une source capable de créer un parcours observant de ses valeurs.
 ///
@@ -48,10 +49,10 @@ trait IntoIterable[T] {
 /// @param left Valeur provenant de l’itérateur de gauche.
 /// @param right Valeur provenant de l’itérateur de droite.
 struct ZipItem[A, B](
-/// Valeur provenant de l’itérateur de gauche.
-val left : A,
-/// Valeur provenant de l’itérateur de droite.
-val right : B
+    /// Valeur provenant de l’itérateur de gauche.
+    val left : A,
+    /// Valeur provenant de l’itérateur de droite.
+    val right : B
 ) {}
 
 /// Associe une valeur à son rang dans un parcours énuméré.
@@ -61,15 +62,63 @@ val right : B
 /// @param index Rang de la valeur, à partir de zéro.
 /// @param value Valeur possédée provenant de l’itérateur source.
 struct Indexed[T](
-/// Rang de la valeur, à partir de zéro.
-val index : usize,
-/// Valeur possédée provenant de l’itérateur source.
-val value : T
+    /// Rang de la valeur, à partir de zéro.
+    val index : usize,
+    /// Valeur possédée provenant de l’itérateur source.
+    val value : T
 ) {}
 
+/// Regroupe les deux collections produites par [[Iterator.partitionWith]].
+/// @param accepted Collection des valeurs dont le prédicat vaut `true`.
+/// @param rejected Collection des autres valeurs.
+struct PartitionResult[A, B](
+    /// Collection des valeurs acceptées, dans l'ordre source.
+    val accepted : A,
+    /// Collection des valeurs refusées, dans l'ordre source.
+    val rejected : B
+) {}
+
+private def iteratorInvariant[T]() : T {
+    panic("Iterator state invariant violated\n")
+}
+
+private def iteratorInvariantDiscard[T, U](value : U) : T {
+    delete value
+    panic("Iterator branch invariant violated\n")
+}
+
+private def takeSome[T](value : Option[T]) : T {
+    return match move value {
+        Some(item) => move item,
+        None => iteratorInvariant[T]()
+    }
+}
+
+private def takeOk[T, E](value : Result[T, E]) : T {
+    return match move value {
+        Ok(item) => move item,
+        Error(error) => iteratorInvariantDiscard[T, E](move error)
+    }
+}
+
+private class IteratorValueState[T](private var value : Option[T]) {
+    def take() : T {
+        val previous : Option[T] = move value
+        value = Option.None[T]()
+        return takeSome[T](move previous)
+    }
+
+    def store(next : T) : Unit {
+        delete value
+        value = Option.Some[T](move next)
+    }
+
+    destructor { delete value }
+}
+
 private class MapIteratorState[A, B](
-private val source : Iterator[A],
-private val transform : (A) => B
+    private val source : Iterator[A],
+    private val transform : (A) => B
 ) {
     def next() : Option[B] {
         val value : Option[A] = source.next()
@@ -90,8 +139,8 @@ private val transform : (A) => B
 }
 
 private class FilterIteratorState[T](
-private val source : Iterator[T],
-private val predicate : (borrow T) => bool
+    private val source : Iterator[T],
+    private val predicate : (borrow T) => bool
 ) {
     def next() : Option[T] {
         var candidate : Option[T] = source.next()
@@ -116,8 +165,8 @@ private val predicate : (borrow T) => bool
 }
 
 private class TakeIteratorState[T](
-private val source : Iterator[T],
-private var remaining : usize
+    private val source : Iterator[T],
+    private var remaining : usize
 ) {
     def next() : Option[T] {
         if remaining == usize(0) {
@@ -136,16 +185,206 @@ private var remaining : usize
     }
 }
 
+private class DropIteratorState[T](
+    private val source : Iterator[T],
+    private var remaining : usize
+) {
+    def next() : Option[T] {
+        while remaining > usize(0) {
+            val skipped : Option[T] = source.next()
+            if isNone[T](skipped) {
+                delete skipped
+                remaining = usize(0)
+                return Option.None[T]()
+            }
+            delete skipped
+            remaining = remaining - usize(1)
+        }
+        return source.next()
+    }
+
+    def dispose() : Unit { delete this }
+
+    destructor { delete source }
+}
+
+private class ChainIteratorState[T](
+    private var first : Option[Iterator[T]],
+    private val second : Iterator[T]
+) {
+    private def pollFirst(iterator : Iterator[T]) : Option[T] {
+        val value : Option[T] = iterator.next()
+        if isSome[T](value) {
+            delete first
+            first = Option.Some[Iterator[T]](move iterator)
+            return move value
+        }
+        delete value
+        delete iterator
+        return Option.None[T]()
+    }
+
+    def next() : Option[T] {
+        if isSome[Iterator[T]](first) {
+            val active : Option[Iterator[T]] = move first
+            first = Option.None[Iterator[T]]()
+            val value : Option[T] = match move active {
+                Some(iterator) => this.pollFirst(move iterator),
+                None => Option.None[T]()
+            }
+            if isSome[T](value) {
+                return move value
+            }
+            delete value
+        }
+        return second.next()
+    }
+
+    def dispose() : Unit { delete this }
+
+    destructor {
+        delete second
+        delete first
+    }
+}
+
+private class FilterMapIteratorState[A, B](
+    private val source : Iterator[A],
+    private val transform : (A) => Option[B]
+) {
+    def next() : Option[B] {
+        while true {
+            val candidate : Option[A] = source.next()
+            if isNone[A](candidate) {
+                delete candidate
+                return Option.None[B]()
+            }
+            val mapped : Option[B] = transform(takeSome[A](move candidate))
+            if isSome[B](mapped) {
+                return move mapped
+            }
+            delete mapped
+        }
+        return Option.None[B]()
+    }
+
+    def dispose() : Unit { delete this }
+
+    destructor {
+        delete transform
+        delete source
+    }
+}
+
+private class TakeWhileIteratorState[T](
+    private val source : Iterator[T],
+    private val predicate : (borrow T) => bool,
+    private var finished : bool
+) {
+    def next() : Option[T] {
+        if finished {
+            return Option.None[T]()
+        }
+        val candidate : Option[T] = source.next()
+        val accepted : bool = match candidate {
+            Some(item) => predicate(item),
+            None => false
+        }
+        if accepted {
+            return move candidate
+        }
+        delete candidate
+        finished = true
+        return Option.None[T]()
+    }
+
+    def dispose() : Unit { delete this }
+
+    destructor {
+        delete predicate
+        delete source
+    }
+}
+
+private class SkipWhileIteratorState[T](
+    private val source : Iterator[T],
+    private val predicate : (borrow T) => bool,
+    private var skipping : bool
+) {
+    def next() : Option[T] {
+        while skipping {
+            val candidate : Option[T] = source.next()
+            if isNone[T](candidate) {
+                delete candidate
+                skipping = false
+                return Option.None[T]()
+            }
+            val shouldSkip : bool = match candidate {
+                Some(item) => predicate(item),
+                None => false
+            }
+            if !shouldSkip {
+                skipping = false
+                return move candidate
+            }
+            delete candidate
+        }
+        return source.next()
+    }
+
+    def dispose() : Unit { delete this }
+
+    destructor {
+        delete predicate
+        delete source
+    }
+}
+
+private class ScanIteratorState[A, S, B](
+    private val source : Iterator[A],
+    private var state : S,
+    private val transform : (borrow var S, A) => Option[B],
+    private var finished : bool
+) {
+    def next() : Option[B] {
+        if finished {
+            return Option.None[B]()
+        }
+        val candidate : Option[A] = source.next()
+        if isNone[A](candidate) {
+            delete candidate
+            finished = true
+            return Option.None[B]()
+        }
+        val mapped : Option[B] = transform(
+            state,
+            takeSome[A](move candidate)
+        )
+        if isNone[B](mapped) {
+            finished = true
+        }
+        return move mapped
+    }
+
+    def dispose() : Unit { delete this }
+
+    destructor {
+        delete transform
+        delete state
+        delete source
+    }
+}
+
 private class ZipIteratorState[A, B](
-private val left : Iterator[A],
-private val right : Iterator[B]
+    private val left : Iterator[A],
+    private val right : Iterator[B]
 ) {
     private def combine(leftValue : A) : Option[ZipItem[A, B]] {
         val rightValue : Option[B] = right.next()
         return match move rightValue {
             Some(value) =>
             Option.Some[ZipItem[A, B]](
-            new ZipItem[A, B](leftValue, move value)
+                new ZipItem[A, B](leftValue, move value)
             ),
             None => this.releaseUnpaired(leftValue)
         }
@@ -175,14 +414,14 @@ private val right : Iterator[B]
 }
 
 private class EnumerateIteratorState[T](
-private val source : Iterator[T],
-private var index : usize
+    private val source : Iterator[T],
+    private var index : usize
 ) {
     private def attachIndex(value : T) : Option[Indexed[T]] {
         val current : usize = index
         index = index + usize(1)
         return Option.Some[Indexed[T]](
-        new Indexed[T](current, move value)
+            new Indexed[T](current, move value)
         )
     }
 
@@ -204,9 +443,9 @@ private var index : usize
 }
 
 private class FlatMapIteratorState[A, B](
-private val source : Iterator[A],
-private val transform : (A) => Iterator[B],
-private var current : Option[Iterator[B]]
+    private val source : Iterator[A],
+    private val transform : (A) => Iterator[B],
+    private var current : Option[Iterator[B]]
 ) {
     private def start(nextIterator : Iterator[B]) : bool {
         delete current
@@ -282,8 +521,8 @@ private var current : Option[Iterator[B]]
 /// @param advance Fermeture appelée pour produire la prochaine valeur ou `None`.
 /// @param release Fermeture appelée une fois lors de la destruction du parcours.
 class Iterator[T](
-private val advance : () => Option[T],
-private val release : () => Unit
+    private val advance : () => Option[T],
+    private val release : () => Unit
 ) extends IntoIterable[T] {
     /// Produit la prochaine valeur et avance irréversiblement le parcours.
     ///
@@ -311,10 +550,10 @@ private val release : () => Unit
         val state : MapIteratorState[T, U] =
         new MapIteratorState[T, U](move this, move transform)
         return new Iterator[U](
-        () => state.next(),
-        owningCapture[MapIteratorState[T, U]](
-        state, () => state.dispose()
-        )
+            () => state.next(),
+            owningCapture[MapIteratorState[T, U]](
+            state, () => state.dispose()
+            )
         )
     }
 
@@ -328,10 +567,10 @@ private val release : () => Unit
         val state : FilterIteratorState[T] =
         new FilterIteratorState[T](move this, move predicate)
         return new Iterator[T](
-        () => state.next(),
-        owningCapture[FilterIteratorState[T]](
-        state, () => state.dispose()
-        )
+            () => state.next(),
+            owningCapture[FilterIteratorState[T]](
+            state, () => state.dispose()
+            )
         )
     }
 
@@ -345,10 +584,128 @@ private val release : () => Unit
         val state : TakeIteratorState[T] =
         new TakeIteratorState[T](move this, count)
         return new Iterator[T](
-        () => state.next(),
-        owningCapture[TakeIteratorState[T]](
-        state, () => state.dispose()
+            () => state.next(),
+            owningCapture[TakeIteratorState[T]](
+            state, () => state.dispose()
+            )
         )
+    }
+
+    /// Ignore paresseusement les `count` premières valeurs disponibles.
+    ///
+    /// Aucun élément n'est demandé avant le premier `next` du résultat. Les
+    /// valeurs ignorées sont détruites immédiatement et dans l'ordre source.
+    /// @param count Nombre maximal de valeurs à ignorer.
+    /// @return Un itérateur commençant après les valeurs ignorées.
+    consume def drop(count : usize) : Iterator[T] {
+        val state : DropIteratorState[T] =
+        new DropIteratorState[T](move this, count)
+        return new Iterator[T](
+            () => state.next(),
+            owningCapture[DropIteratorState[T]](
+            state, () => state.dispose()
+            )
+        )
+    }
+
+    /// Concatène paresseusement ce parcours puis `other`.
+    ///
+    /// Le second parcours n'est interrogé qu'après l'épuisement du premier.
+    /// Détruire le résultat libère les deux sources et leurs restes.
+    /// @param other Parcours consommé après la fin du premier.
+    /// @return Un itérateur produisant les deux sources dans leur ordre.
+    consume def chain(other : Iterator[T]) : Iterator[T] {
+        val state : ChainIteratorState[T] =
+        new ChainIteratorState[T](
+            Option.Some[Iterator[T]](move this),
+            move other
+        )
+        return new Iterator[T](
+            () => state.next(),
+            owningCapture[ChainIteratorState[T]](
+            state, () => state.dispose()
+            )
+        )
+    }
+
+    /// Transforme et filtre chaque valeur en une seule étape paresseuse.
+    ///
+    /// `Some` produit une valeur; `None` poursuit la recherche sans collection
+    /// intermédiaire. La callback consomme chaque valeur demandée.
+    /// @param transform Fonction retournant la projection éventuelle.
+    /// @return Un itérateur des projections présentes.
+    consume def filterMap[U](
+        transform : (T) => Option[U]
+    ) : Iterator[U] {
+        val state : FilterMapIteratorState[T, U] =
+        new FilterMapIteratorState[T, U](move this, move transform)
+        return new Iterator[U](
+            () => state.next(),
+            owningCapture[FilterMapIteratorState[T, U]](
+            state, () => state.dispose()
+            )
+        )
+    }
+
+    /// Produit les valeurs tant que le prédicat emprunté reste vrai.
+    ///
+    /// La première valeur refusée est détruite et termine définitivement le
+    /// parcours. Les valeurs suivantes restent dans la source jusqu'à la
+    /// destruction de l'itérateur.
+    /// @param predicate Fonction observant chaque valeur demandée jusqu'au refus.
+    /// @return Un itérateur du préfixe accepté.
+    consume def takeWhile(
+        predicate : (borrow T) => bool
+    ) : Iterator[T] {
+        val state : TakeWhileIteratorState[T] =
+        new TakeWhileIteratorState[T](move this, move predicate, false)
+        return new Iterator[T](
+            () => state.next(),
+            owningCapture[TakeWhileIteratorState[T]](
+            state, () => state.dispose()
+            )
+        )
+    }
+
+    /// Ignore les valeurs tant que le prédicat emprunté reste vrai.
+    ///
+    /// Après le premier refus, le prédicat n'est plus appelé et toutes les
+    /// valeurs suivantes sont retransmises directement.
+    /// @param predicate Fonction observant le préfixe à ignorer.
+    /// @return Un itérateur commençant à la première valeur refusée.
+    consume def skipWhile(
+        predicate : (borrow T) => bool
+    ) : Iterator[T] {
+        val state : SkipWhileIteratorState[T] =
+        new SkipWhileIteratorState[T](move this, move predicate, true)
+        return new Iterator[T](
+            () => state.next(),
+            owningCapture[SkipWhileIteratorState[T]](
+            state, () => state.dispose()
+            )
+        )
+    }
+
+    /// Fait évoluer un état et produit paresseusement des projections.
+    ///
+    /// La callback emprunte l'état de façon mutable et consomme une valeur.
+    /// `None` termine définitivement le parcours; `Some` produit la projection.
+    /// @param initial État propriétaire conservé par l'adaptateur.
+    /// @param transform Fonction mettant à jour l'état et produisant une valeur éventuelle.
+    /// @return Un itérateur possédant la source, l'état et la callback.
+    consume def scan[S, U](
+        initial : S,
+        transform : (borrow var S, T) => Option[U]
+    ) : Iterator[U] {
+        val state : ScanIteratorState[T, S, U] =
+        new ScanIteratorState[T, S, U](
+            move this, move initial, move transform, false
+        )
+        return new Iterator[U](
+            () => state.next(),
+            owningCapture[ScanIteratorState[T, S, U]](
+            state, () => state.dispose()
+            )
         )
     }
 
@@ -360,15 +717,15 @@ private val release : () => Unit
     /// @param other Itérateur fournissant le membre droit de chaque paire.
     /// @return Un itérateur de [[ZipItem]], limité par la source la plus courte.
     consume def zip[U](
-    other : Iterator[U]
+        other : Iterator[U]
     ) : Iterator[ZipItem[T, U]] {
         val state : ZipIteratorState[T, U] =
         new ZipIteratorState[T, U](move this, move other)
         return new Iterator[ZipItem[T, U]](
-        () => state.next(),
-        owningCapture[ZipIteratorState[T, U]](
-        state, () => state.dispose()
-        )
+            () => state.next(),
+            owningCapture[ZipIteratorState[T, U]](
+            state, () => state.dispose()
+            )
         )
     }
 
@@ -381,10 +738,10 @@ private val release : () => Unit
         val state : EnumerateIteratorState[T] =
         new EnumerateIteratorState[T](move this, usize(0))
         return new Iterator[Indexed[T]](
-        () => state.next(),
-        owningCapture[EnumerateIteratorState[T]](
-        state, () => state.dispose()
-        )
+            () => state.next(),
+            owningCapture[EnumerateIteratorState[T]](
+            state, () => state.dispose()
+            )
         )
     }
 
@@ -396,19 +753,19 @@ private val release : () => Unit
     /// @param transform Fonction consommant une valeur et produisant son parcours intérieur.
     /// @return Un itérateur produisant successivement toutes les valeurs intérieures.
     consume def flatMap[U](
-    transform : (T) => Iterator[U]
+        transform : (T) => Iterator[U]
     ) : Iterator[U] {
         val state : FlatMapIteratorState[T, U] =
         new FlatMapIteratorState[T, U](
-        move this,
-        move transform,
-        Option.None[Iterator[U]]()
+            move this,
+            move transform,
+            Option.None[Iterator[U]]()
         )
         return new Iterator[U](
-        () => state.next(),
-        owningCapture[FlatMapIteratorState[T, U]](
-        state, () => state.dispose()
-        )
+            () => state.next(),
+            owningCapture[FlatMapIteratorState[T, U]](
+            state, () => state.dispose()
+            )
         )
     }
 
@@ -420,7 +777,7 @@ private val release : () => Unit
     /// @param builder Constructeur recevant les valeurs dans l’ordre du parcours.
     /// @return La collection finalisée par le constructeur.
     consume def collectWith[C, B <: Builder[T, C]](
-    borrow var builder : B
+        borrow var builder : B
     ) : C {
         for value in move this {
             builder.add(move value)
@@ -436,14 +793,155 @@ private val release : () => Unit
     /// @param combine Fonction produisant l’accumulateur de l’étape suivante.
     /// @return L’accumulateur final, ou `initial` si le parcours est vide.
     consume def fold[U](
-    initial : U,
-    scoped combine : (U, T) => U
+        initial : U,
+        scoped combine : (U, T) => U
     ) : U {
         var accumulator : U = initial
         for value in move this {
             accumulator = combine(move accumulator, move value)
         }
         return accumulator
+    }
+
+    /// Retourne la première valeur satisfaisant le prédicat.
+    ///
+    /// Le parcours s'arrête au premier succès. Les valeurs refusées et le reste
+    /// de la source sont détruits exactement une fois.
+    /// @param predicate Fonction empruntant chaque candidate jusqu'au succès.
+    /// @return Première valeur acceptée, ou `None` après épuisement.
+    consume def find(
+        scoped predicate : (borrow T) => bool
+    ) : Option[T] {
+        defer delete predicate
+        for value in move this {
+            if predicate(value) {
+                return Option.Some[T](move value)
+            }
+            delete value
+        }
+        return Option.None[T]()
+    }
+
+    /// Indique si au moins une valeur satisfait le prédicat.
+    /// @param predicate Fonction empruntant les valeurs jusqu'au premier succès.
+    /// @return `true` au premier succès, sinon `false` après épuisement.
+    consume def any(scoped predicate : (borrow T) => bool) : bool {
+        defer delete predicate
+        for value in move this {
+            val accepted : bool = predicate(value)
+            delete value
+            if accepted {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// Indique si toutes les valeurs satisfont le prédicat.
+    /// @param predicate Fonction empruntant les valeurs jusqu'au premier refus.
+    /// @return `false` au premier refus, sinon `true`, y compris à vide.
+    consume def all(scoped predicate : (borrow T) => bool) : bool {
+        defer delete predicate
+        for value in move this {
+            val accepted : bool = predicate(value)
+            delete value
+            if !accepted {
+                return false
+            }
+        }
+        return true
+    }
+
+    /// Compte toutes les valeurs du parcours.
+    /// @return Nombre de valeurs consommées et détruites.
+    consume def count() : usize {
+        var total : usize = usize(0)
+        for value in move this {
+            delete value
+            total = total + usize(1)
+        }
+        return total
+    }
+
+    /// Réduit un parcours non vide sans accumulateur initial.
+    /// @param combine Fonction combinant l'accumulateur et la valeur suivante.
+    /// @return Accumulateur final dans `Some`, ou `None` pour une source vide.
+    consume def reduce(
+        scoped combine : (T, T) => T
+    ) : Option[T] {
+        defer delete combine
+        val first : Option[T] = this.next()
+        if isNone[T](first) {
+            delete first
+            return Option.None[T]()
+        }
+        val accumulator : IteratorValueState[T] =
+        new IteratorValueState[T](move first)
+        defer delete accumulator
+        for value in move this {
+            accumulator.store(combine(accumulator.take(), move value))
+        }
+        return Option.Some[T](accumulator.take())
+    }
+
+    /// Réduit de gauche à droite avec une étape susceptible d'échouer.
+    ///
+    /// La première erreur est retournée immédiatement : aucune valeur suivante
+    /// n'est demandée et le reste de la source est détruit avec le parcours.
+    /// @param initial Accumulateur initial propriétaire.
+    /// @param combine Étape retournant le prochain accumulateur ou une erreur.
+    /// @return Accumulateur final dans `Ok`, ou première erreur dans `Error`.
+    consume def tryFold[U, E](
+        initial : U,
+        scoped combine : (U, T) => Result[U, E]
+    ) : Result[U, E] {
+        defer delete combine
+        val accumulator : IteratorValueState[U] =
+        new IteratorValueState[U](Option.Some[U](move initial))
+        defer delete accumulator
+        for value in move this {
+            val step : Result[U, E] = combine(
+                accumulator.take(),
+                move value
+            )
+            if isError[U, E](step) {
+                return move step
+            }
+            accumulator.store(takeOk[U, E](move step))
+        }
+        return Result.Ok[U, E](accumulator.take())
+    }
+
+    /// Répartit les valeurs entre deux constructeurs explicites.
+    ///
+    /// Le prédicat emprunte chaque valeur une fois; la valeur est ensuite
+    /// déplacée vers `accepted` pour `true`, sinon vers `rejected`.
+    /// @param predicate Fonction choisissant le constructeur de destination.
+    /// @param accepted Constructeur des valeurs acceptées.
+    /// @param rejected Constructeur des valeurs refusées.
+    /// @return Les deux collections finalisées dans leur ordre source relatif.
+    consume def partitionWith[
+        A,
+        B,
+        Left <: Builder[T, A],
+        Right <: Builder[T, B]
+    ](
+        scoped predicate : (borrow T) => bool,
+        borrow var accepted : Left,
+        borrow var rejected : Right
+    ) : PartitionResult[A, B] {
+        defer delete predicate
+        for value in move this {
+            if predicate(value) {
+                accepted.add(move value)
+            } else {
+                rejected.add(move value)
+            }
+        }
+        return new PartitionResult[A, B](
+            accepted.result(),
+            rejected.result()
+        )
     }
 
     destructor {

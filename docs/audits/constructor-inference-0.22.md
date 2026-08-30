@@ -27,13 +27,13 @@ les sources canoniques est vérifiée séparément par les tests du site et de l
 | `docs/design/container-ownership.md` | 189:19 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/design/lexical-borrowing.md` | 491:41 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/language-guide.md` | 1056:16 | constructeur | `new Factory[int](` | pédagogique explicite | pédagogique explicite |
-| `docs/language-guide.md` | 1391:43 | cast littéral | `usize(1)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/language-guide.md` | 1415:43 | cast littéral | `usize(1)` | test de couverture | nécessaire (opérande binaire usize) |
 | `docs/stdlib-reference.md` | 37:41 | cast littéral | `usize(2)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 250:44 | cast littéral | `usize(8)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 395:55 | cast littéral | `usize(5)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 422:49 | cast littéral | `usize(2)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 550:45 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 562:32 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 265:44 | cast littéral | `usize(8)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 410:55 | cast littéral | `usize(5)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 437:49 | cast littéral | `usize(2)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 565:45 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 577:32 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
 | `examples/array.janus` | 29:41 | cast littéral | `usize(10)` | test de couverture | nécessaire (opérande binaire usize) |
 | `examples/casts.janus` | 11:38 | cast littéral | `usize(1)` | pédagogique explicite | pédagogique (casts) |
 | `examples/casts.janus` | 12:16 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (casts) |

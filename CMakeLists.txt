@@ -2329,6 +2329,31 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(
+        NAME runtime.iterator_extended
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/iterator_extended.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/iterator_extended_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/iterator_extended.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.owned_iterator_extended
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_iterator_extended.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/owned_iterator_extended_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/owned_iterator_extended.expected.txt"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
         NAME runtime.sequence_pipeline_stress
         COMMAND
             ${CMAKE_COMMAND}
@@ -2730,6 +2755,18 @@ if(BUILD_TESTING)
             "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/sequence_pipeline_benchmark_smoke"
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/benchmarks/sequence_pipeline.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME benchmarks.fallible_sequence_pipeline_smoke
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/benchmarks/fallible_sequence_pipeline.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/fallible_sequence_pipeline_benchmark_smoke"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/benchmarks/fallible_sequence_pipeline.expected.txt"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(

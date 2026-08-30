@@ -12,12 +12,44 @@ module std.array_builder
 import std.array
 import std.builder
 import std.iterator
+import std.option
+import std.result
+
+private def collectionInvariant[T]() : T {
+    panic("Array collection state invariant violated\n")
+}
+
+private def collectionInvariantDiscard[T, U](value : U) : T {
+    delete value
+    panic("Array collection branch invariant violated\n")
+}
+
+private def takeCollectedSome[T](value : Option[T]) : T {
+    return match move value {
+        Some(item) => move item,
+        None => collectionInvariant[T]()
+    }
+}
+
+private def takeCollectedOk[T, E](value : Result[T, E]) : T {
+    return match move value {
+        Ok(item) => move item,
+        Error(error) => collectionInvariantDiscard[T, E](move error)
+    }
+}
+
+private def takeCollectedError[T, E](value : Result[T, E]) : E {
+    return match move value {
+        Ok(item) => collectionInvariantDiscard[E, T](move item),
+        Error(error) => move error
+    }
+}
 
 /// Accumule des éléments propriétaires dans un tableau redimensionnable.
 ///
 /// @param initialCapacity Nombre d’emplacements réservés avant le premier ajout.
 class ArrayBuilder[T](
-initialCapacity : usize
+    initialCapacity : usize
 ) extends Builder[T, Array[T]] {
     private var values : Array[T] =
     new Array[T](initialCapacity)
@@ -33,7 +65,7 @@ initialCapacity : usize
     ///
     /// @param source Source parcourue jusqu’à sa fin.
     def addAll[C <: Iterable[T]](
-    borrow source : C
+        borrow source : C
     ) : Unit where T <: Copy {
         for value in source {
             this.add(value)
@@ -77,4 +109,45 @@ def collectArray[T](source : Iterator[T]) : Array[T] {
     new ArrayBuilder[T](usize(0))
     defer delete builder
     return source.collectWith[Array[T], ArrayBuilder[T]](builder)
+}
+
+/// Collecte les succès jusqu'à la première erreur.
+///
+/// La source n'est plus interrogée après `Error`. Le constructeur et ses
+/// succès partiels sont alors détruits, ainsi que le reste de l'itérateur.
+/// @param source Parcours de résultats consommé dans l'ordre.
+/// @return Tableau des succès, ou première erreur rencontrée.
+def collectResult[T, E](
+    source : Iterator[Result[T, E]]
+) : Result[Array[T], E] {
+    val builder : ArrayBuilder[T] = new ArrayBuilder[T](usize(0))
+    defer delete builder
+    for current in move source {
+        if isError[T, E](current) {
+            return Result.Error[Array[T], E](
+                takeCollectedError[T, E](move current)
+            )
+        }
+        builder.add(takeCollectedOk[T, E](move current))
+    }
+    return Result.Ok[Array[T], E](builder.result())
+}
+
+/// Collecte les valeurs présentes jusqu'à la première absence.
+///
+/// La source n'est plus interrogée après `None`. Le constructeur et ses
+/// valeurs partielles sont alors détruits avec le reste du parcours.
+/// @param source Parcours d'options consommé dans l'ordre.
+/// @return Tableau dans `Some`, ou `None` à la première absence.
+def collectOption[T](source : Iterator[Option[T]]) : Option[Array[T]] {
+    val builder : ArrayBuilder[T] = new ArrayBuilder[T](usize(0))
+    defer delete builder
+    for current in move source {
+        if isNone[T](current) {
+            delete current
+            return Option.None[Array[T]]()
+        }
+        builder.add(takeCollectedSome[T](move current))
+    }
+    return Option.Some[Array[T]](builder.result())
 }

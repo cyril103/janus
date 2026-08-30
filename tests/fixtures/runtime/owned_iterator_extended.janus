@@ -1,0 +1,265 @@
+import std.array
+import std.array_builder
+import std.iterator
+import std.option
+import std.result
+
+var releases : int = 0
+var requests : int = 0
+var predicateCalls : int = 0
+var stateReleases : int = 0
+
+class Resource(val id : int) {
+    destructor { releases = releases + 1 }
+}
+
+class ScanState(var total : int) {
+    destructor { stateReleases = stateReleases + 1 }
+}
+
+def resources(count : int) : Array[Resource] {
+    val values : Array[Resource] = new Array[Resource](usize(0))
+    var id : int = 1
+    while id <= count {
+        values.push(new Resource(id))
+        id = id + 1
+    }
+    return values
+}
+
+def requested(value : Resource) : Resource {
+    requests = requests + 1
+    return value
+}
+
+def optionId(borrow value : Option[Resource]) : int {
+    return match value {
+        Some(item) => item.id,
+        None => -1
+    }
+}
+
+def resultErrorId(borrow value : Result[Resource, Resource]) : int {
+    return match value {
+        Ok(item) => -item.id,
+        Error(error) => error.id
+    }
+}
+
+def combine(left : Resource, right : Resource) : Resource {
+    val combined : Resource = new Resource(left.id + right.id)
+    delete right
+    delete left
+    return combined
+}
+
+def tryCombine(
+    total : Resource,
+    value : Resource
+) : Result[Resource, Resource] {
+    if value.id == 2 {
+        delete total
+        return Result.Error[Resource, Resource](move value)
+    }
+    return Result.Ok[Resource, Resource](combine(total, value))
+}
+
+def requestedResult(value : Resource) : Result[Resource, Resource] {
+    requests = requests + 1
+    if value.id == 3 {
+        return Result.Error[Resource, Resource](move value)
+    }
+    return Result.Ok[Resource, Resource](move value)
+}
+
+def requestedOption(value : Resource) : Option[Resource] {
+    requests = requests + 1
+    if value.id == 2 {
+        delete value
+        return Option.None[Resource]()
+    }
+    return Option.Some[Resource](move value)
+}
+
+def keepOdd(value : Resource) : Option[Resource] {
+    requests = requests + 1
+    if value.id % 2 == 1 {
+        return Option.Some[Resource](move value)
+    }
+    delete value
+    return Option.None[Resource]()
+}
+
+def scanResource(
+    borrow var state : ScanState,
+    value : Resource
+) : Option[int] {
+    state.total = state.total + value.id
+    val total : int = state.total
+    delete value
+    return Option.Some[int](total)
+}
+
+def observedPrefix(borrow value : Resource) : bool {
+    predicateCalls = predicateCalls + 1
+    return value.id < 3
+}
+
+def main() : int {
+    releases = 0
+    requests = 0
+    val lazy : Iterator[Resource] = resources(5).intoIterator()
+    .map[Resource]((value : Resource) => requested(value))
+    .drop(usize(2))
+    .take(usize(1))
+    println(requests)
+    println(releases)
+    val next : Option[Resource] = lazy.next()
+    println(optionId(next))
+    println(requests)
+    println(releases)
+    delete next
+    delete lazy
+    println(releases)
+
+    releases = 0
+    requests = 0
+    val found : Option[Resource] = resources(5).intoIterator()
+    .map[Resource]((value : Resource) => requested(value))
+    .find((borrow value : Resource) => value.id == 2)
+    println(optionId(found))
+    println(requests)
+    println(releases)
+    delete found
+    println(releases)
+
+    releases = 0
+    requests = 0
+    println(resources(3).intoIterator()
+        .map[Resource]((value : Resource) => requested(value))
+        .any((borrow value : Resource) => value.id == 2))
+    println(requests)
+    println(releases)
+
+    releases = 0
+    requests = 0
+    println(resources(3).intoIterator()
+        .map[Resource]((value : Resource) => requested(value))
+        .all((borrow value : Resource) => value.id < 2))
+    println(requests)
+    println(releases)
+
+    releases = 0
+    val reduced : Option[Resource] = resources(3).intoIterator().reduce(
+        (left : Resource, right : Resource) => combine(left, right)
+    )
+    println(optionId(reduced))
+    println(releases)
+    delete reduced
+    println(releases)
+
+    releases = 0
+    requests = 0
+    val folded : Result[Resource, Resource] = resources(3).intoIterator()
+    .map[Resource]((value : Resource) => requested(value))
+    .tryFold[Resource, Resource](
+        new Resource(10),
+        (total : Resource, value : Resource) => tryCombine(total, value)
+    )
+    println(resultErrorId(folded))
+    println(requests)
+    println(releases)
+    delete folded
+    println(releases)
+
+    releases = 0
+    requests = 0
+    val collectedResult : Result[Array[Resource], Resource] =
+    collectResult[Resource, Resource](
+        resources(4).intoIterator().map[Result[Resource, Resource]](
+        (value : Resource) => requestedResult(value)
+        )
+    )
+    println(requests)
+    println(releases)
+    delete collectedResult
+    println(releases)
+
+    releases = 0
+    requests = 0
+    val collectedOption : Option[Array[Resource]] =
+    collectOption[Resource](
+        resources(4).intoIterator().map[Option[Resource]](
+        (value : Resource) => requestedOption(value)
+        )
+    )
+    println(requests)
+    println(releases)
+    delete collectedOption
+
+    releases = 0
+    requests = 0
+    println(resources(3).intoIterator().filterMap[Resource](
+        (value : Resource) => keepOdd(value)
+        ).count())
+    println(requests)
+    println(releases)
+
+    releases = 0
+    stateReleases = 0
+    println(resources(3).intoIterator().scan[ScanState, int](
+        new ScanState(0),
+        (borrow var state : ScanState, value : Resource) =>
+        scanResource(state, value)
+        ).count())
+    println(releases)
+    println(stateReleases)
+
+    releases = 0
+    val chained : Iterator[Resource] = resources(2).intoIterator().chain(
+        resources(2).intoIterator()
+    )
+    delete chained
+    println(releases)
+
+    releases = 0
+    predicateCalls = 0
+    println(resources(4).intoIterator().takeWhile(
+        (borrow value : Resource) => observedPrefix(value)
+        ).count())
+    println(predicateCalls)
+    println(releases)
+
+    releases = 0
+    predicateCalls = 0
+    println(resources(4).intoIterator().skipWhile(
+        (borrow value : Resource) => observedPrefix(value)
+        ).count())
+    println(predicateCalls)
+    println(releases)
+
+    val accepted : ArrayBuilder[Resource] =
+    new ArrayBuilder[Resource](usize(0))
+    defer delete accepted
+    val rejected : ArrayBuilder[Resource] =
+    new ArrayBuilder[Resource](usize(0))
+    defer delete rejected
+    releases = 0
+    val partition : PartitionResult[Array[Resource], Array[Resource]] =
+    resources(4).intoIterator().partitionWith[
+        Array[Resource],
+        Array[Resource],
+        ArrayBuilder[Resource],
+        ArrayBuilder[Resource]
+    ](
+        (borrow value : Resource) => value.id % 2 == 0,
+        accepted,
+        rejected
+    )
+    println(partition.accepted.size())
+    println(partition.rejected.size())
+    println(releases)
+    delete partition
+    println(releases)
+    return 0
+}

@@ -22,10 +22,10 @@
     {
       "name": "std.array_builder",
       "source": "stdlib/std/array_builder.janus",
-      "documentation": ["docs/language-guide.md"],
+      "documentation": ["docs/language-guide.md", "docs/design/iterator-pipelines.md"],
       "status": "stable-proposed",
-      "signature_digest": "e09064f2d77e86c9a54a911268317f0917f7fd4c760c36147587d08d0d8149d3",
-      "symbols": ["ArrayBuilder", "ArrayBuilder.add", "ArrayBuilder.addAll", "ArrayBuilder.size", "ArrayBuilder.clear", "ArrayBuilder.result", "collectArray"]
+      "signature_digest": "5e7ecae470ac2e73cba0e7b7eae3dd5eed0d93e8e02d832ac9d0ab5dd91902c8",
+      "symbols": ["ArrayBuilder", "ArrayBuilder.add", "ArrayBuilder.addAll", "ArrayBuilder.size", "ArrayBuilder.clear", "ArrayBuilder.result", "collectArray", "collectResult", "collectOption"]
     },
     {
       "name": "std.builder",
@@ -167,10 +167,10 @@
     {
       "name": "std.iterator",
       "source": "stdlib/std/iterator.janus",
-      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "documentation": ["docs/language-guide.md", "docs/design/iterator-pipelines.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "6b80191496605f359329fc75cb038b2cfc28846a883ab05bffdd1d7b10c023a6",
-      "symbols": ["Iterable", "Iterable.iterator", "IntoIterable", "IntoIterable.intoIterator", "ZipItem", "ZipItem.left", "ZipItem.right", "Indexed", "Indexed.index", "Indexed.value", "Iterator", "Iterator.next", "Iterator.intoIterator", "Iterator.map", "Iterator.filter", "Iterator.take", "Iterator.zip", "Iterator.enumerate", "Iterator.flatMap", "Iterator.collectWith", "Iterator.fold"]
+      "signature_digest": "d9bf7fffa189a6ee68beee37066c1ab4dce5be9439cf8bf44c15253bafec6b97",
+      "symbols": ["Iterable", "Iterable.iterator", "IntoIterable", "IntoIterable.intoIterator", "ZipItem", "ZipItem.left", "ZipItem.right", "Indexed", "Indexed.index", "Indexed.value", "PartitionResult", "PartitionResult.accepted", "PartitionResult.rejected", "Iterator", "Iterator.next", "Iterator.intoIterator", "Iterator.map", "Iterator.filter", "Iterator.take", "Iterator.drop", "Iterator.chain", "Iterator.filterMap", "Iterator.takeWhile", "Iterator.skipWhile", "Iterator.scan", "Iterator.zip", "Iterator.enumerate", "Iterator.flatMap", "Iterator.collectWith", "Iterator.fold", "Iterator.find", "Iterator.any", "Iterator.all", "Iterator.count", "Iterator.reduce", "Iterator.tryFold", "Iterator.partitionWith"]
     },
     {
       "name": "std.math",

@@ -86,15 +86,30 @@ def main() : int {
 
 ### `std.iterator`
 
+Les adaptateurs `drop`, `chain`, `filterMap`, `takeWhile`, `skipWhile` et
+`scan` restent paresseux et conservent seulement leur source, leur callback et
+un état constant. `find`, `any`, `all` et `tryFold` court-circuitent;
+`reduce`, `count` et `partitionWith` complètent les consommateurs. Les collectes
+`collectResult` et `collectOption` de `std.array_builder` s'arrêtent au premier
+échec et détruisent les succès partiels. Voir le
+[contrat détaillé](design/iterator-pipelines.md).
+
 ```janus
 // doctest: doctest name=stdlib-std-iterator
 import std.iterator
+import std.option
 import std.range
+def keepEven(value : int) : Option[int] {
+    if value % 2 == 0 { return Option.Some[int](value) }
+    return Option.None[int]()
+}
 def main() : int {
-    val sum : int = range(1, 5)
-        .map[int]((value : int) => value * 2)
+    val sum : int = range(0, 8)
+        .drop(2)
+        .takeWhile((borrow value : int) => value < 7)
+        .filterMap[int]((value : int) => keepEven(value))
         .fold[int](0, (total : int, value : int) => total + value)
-    return sum - 20
+    return sum - 12
 }
 ```
 
