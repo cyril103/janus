@@ -1,0 +1,74 @@
+enum Option[T] {
+    Some(T),
+    None
+}
+
+extend[T] Option[T] {
+    consume def map[U](scoped transform : (T) => U) : Option[U] {
+        defer delete transform
+        return match move this {
+            Some(value) => Option.Some[U](transform(move value)),
+            None => Option.None[U]()
+        }
+    }
+
+    borrow def isSome() : bool {
+        return match this {
+            Some(value) => true,
+            None => false
+        }
+    }
+}
+
+struct Counter(var value : int) {}
+
+extend Counter {
+    borrow def get() : int {
+        return this.value
+    }
+
+    borrow var def increment(amount : int) : Unit {
+        this.value += amount
+    }
+}
+
+class Resource(val identifier : int) {
+    destructor {
+        println(identifier)
+    }
+}
+
+enum OwnedResource {
+    Value(Resource)
+}
+
+private def destroyResource(resource : Resource) : Unit {
+    delete resource
+}
+
+extend OwnedResource {
+    consume def destroy() : Unit {
+        val resource : Resource = match move this {
+            Value(value) => move value
+        }
+        destroyResource(move resource)
+    }
+}
+
+def main() : int {
+    val source : Option[int] = Option.Some[int](20)
+    val mapped : Option[int] = source.map(
+        value => value * 2
+    )
+    println(mapped.isSome())
+
+    var counter : Counter = new Counter(1)
+    counter.increment(4)
+    println(counter.get())
+
+    val owned : OwnedResource =
+    OwnedResource.Value(new Resource(9))
+    owned.destroy()
+
+    return 0
+}

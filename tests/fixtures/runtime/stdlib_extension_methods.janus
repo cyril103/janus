@@ -1,0 +1,17 @@
+import std.option
+import std.result
+
+def main() : int {
+    val option : Option[int] = Option.Some[int](20)
+    val mapped : Option[int] = option.map(value => value * 2)
+    println(mapped.isSome())
+
+    val result : Result[int, string] =
+    Result.Ok[int, string](40)
+    val chained : Result[int, string] = result.andThen(
+        value => Result.Ok[int, string](value + 2)
+    )
+    val converted : Option[int] = chained.toOption()
+    println(converted.unwrapOr(0))
+    return 0
+}

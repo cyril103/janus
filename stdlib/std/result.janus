@@ -81,8 +81,8 @@ def isError[T, E](borrow value : Result[T, E]) : bool {
 /// @param transform Fonction bornée recevant un emprunt de la valeur `Ok`.
 /// @return `Some` du résultat transformé, ou `None` pour `Error`.
 def mapBorrowed[T, U, E](
-borrow value : Result[T, E],
-scoped transform : (borrow T) => U
+    borrow value : Result[T, E],
+    scoped transform : (borrow T) => U
 ) : Option[U] {
     defer delete transform
     return match value {
@@ -96,8 +96,8 @@ scoped transform : (borrow T) => U
 /// @param transform Fonction bornée recevant un emprunt de la valeur `Error`.
 /// @return `Some` du résultat transformé pour `Error`, ou `None` pour `Ok`.
 def mapErrorBorrowed[T, E, F](
-borrow value : Result[T, E],
-scoped transform : (borrow E) => F
+    borrow value : Result[T, E],
+    scoped transform : (borrow E) => F
 ) : Option[F] {
     defer delete transform
     return match value {
@@ -112,8 +112,8 @@ scoped transform : (borrow E) => F
 /// @param transform Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.
 /// @return `Ok` transformé, ou l’erreur d’origine déplacée sans appeler `transform`.
 def map[T, U, E](
-value : Result[T, E],
-scoped transform : (T) => U
+    value : Result[T, E],
+    scoped transform : (T) => U
 ) : Result[U, E] {
     defer delete transform
     return match move value {
@@ -128,8 +128,8 @@ scoped transform : (T) => U
 /// @param transform Fonction propriétaire appelée avec l’erreur déplacée pour `Error`, puis détruite.
 /// @return Erreur transformée, ou valeur de succès d’origine déplacée sans appeler `transform`.
 def mapError[T, E, F](
-value : Result[T, E],
-scoped transform : (E) => F
+    value : Result[T, E],
+    scoped transform : (E) => F
 ) : Result[T, F] {
     defer delete transform
     return match move value {
@@ -144,8 +144,8 @@ scoped transform : (E) => F
 /// @param transform Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.
 /// @return Résultat de `transform`, ou erreur d’origine déplacée sans appeler `transform`.
 def andThen[T, U, E](
-value : Result[T, E],
-scoped transform : (T) => Result[U, E]
+    value : Result[T, E],
+    scoped transform : (T) => Result[U, E]
 ) : Result[U, E] {
     defer delete transform
     return match move value {
@@ -160,8 +160,8 @@ scoped transform : (T) => Result[U, E]
 /// @param transform Fonction propriétaire appelée avec l’erreur déplacée pour `Error`, puis détruite.
 /// @return Résultat de `transform`, ou succès d’origine déplacé sans appeler `transform`.
 def orElse[T, E, F](
-value : Result[T, E],
-scoped transform : (E) => Result[T, F]
+    value : Result[T, E],
+    scoped transform : (E) => Result[T, F]
 ) : Result[T, F] {
     defer delete transform
     return match move value {
@@ -207,8 +207,88 @@ def fromOption[T, E](value : Option[T], error : E) : Result[T, E] {
     defer delete state
     return match move value {
         Some(item) => state.discardAndReturn[Result[T, E]](
-        Result.Ok[T, E](move item)
+            Result.Ok[T, E](move item)
         ),
         None => Result.Error[T, E](state.take())
+    }
+}
+
+/// Surface de méthodes statiques pour composer les résultats avec `.`.
+extend[T, E] Result[T, E] {
+    /// Indique si ce résultat contient un succès.
+    /// @return `true` pour `Ok`, sinon `false`.
+    borrow def isOk() : bool {
+        return isOk[T, E](this)
+    }
+
+    /// Indique si ce résultat contient une erreur.
+    /// @return `true` pour `Error`, sinon `false`.
+    borrow def isError() : bool {
+        return isError[T, E](this)
+    }
+
+    /// Transforme le succès en l'observant sans consommer le résultat.
+    /// @param transform Fonction bornée recevant un emprunt du succès.
+    /// @return Option contenant le résultat transformé pour `Ok`.
+    borrow def mapBorrowed[U](
+        scoped transform : (borrow T) => U
+    ) : Option[U] {
+        return mapBorrowed[T, U, E](this, move transform)
+    }
+
+    /// Transforme l'erreur en l'observant sans consommer le résultat.
+    /// @param transform Fonction bornée recevant un emprunt de l'erreur.
+    /// @return Option contenant le résultat transformé pour `Error`.
+    borrow def mapErrorBorrowed[F](
+        scoped transform : (borrow E) => F
+    ) : Option[F] {
+        return mapErrorBorrowed[T, E, F](this, move transform)
+    }
+
+    /// Consomme ce résultat et transforme sa valeur de succès.
+    /// @param transform Fonction bornée recevant le succès déplacé.
+    /// @return Résultat contenant le succès transformé ou l'erreur d'origine.
+    consume def map[U](scoped transform : (T) => U) : Result[U, E] {
+        return map[T, U, E](move this, move transform)
+    }
+
+    /// Consomme ce résultat et transforme son erreur.
+    /// @param transform Fonction bornée recevant l'erreur déplacée.
+    /// @return Résultat contenant le succès d'origine ou l'erreur transformée.
+    consume def mapError[F](
+        scoped transform : (E) => F
+    ) : Result[T, F] {
+        return mapError[T, E, F](move this, move transform)
+    }
+
+    /// Consomme ce résultat et enchaîne une opération faillible.
+    /// @param transform Fonction bornée recevant le succès déplacé.
+    /// @return Résultat de `transform`, ou l'erreur d'origine.
+    consume def andThen[U](
+        scoped transform : (T) => Result[U, E]
+    ) : Result[U, E] {
+        return andThen[T, U, E](move this, move transform)
+    }
+
+    /// Consomme ce résultat et tente une récupération de l'erreur.
+    /// @param transform Fonction bornée recevant l'erreur déplacée.
+    /// @return Succès d'origine ou résultat de `transform`.
+    consume def orElse[F](
+        scoped transform : (E) => Result[T, F]
+    ) : Result[T, F] {
+        return orElse[T, E, F](move this, move transform)
+    }
+
+    /// Extrait le succès ou adopte une valeur de remplacement.
+    /// @param fallback Valeur de remplacement consommée.
+    /// @return Succès contenu, sinon `fallback`.
+    consume def unwrapOr(fallback : T) : T {
+        return unwrapOr[T, E](move this, move fallback)
+    }
+
+    /// Convertit ce résultat consommé en option.
+    /// @return `Some` pour `Ok`, sinon `None` après destruction de l'erreur.
+    consume def toOption() : Option[T] {
+        return toOption[T, E](move this)
     }
 }

@@ -137,6 +137,9 @@ void for_each_function(const janus::ast::Program &program, Callback callback) {
   for (const janus::ast::ClassDeclaration &declaration : program.classes)
     for (const janus::ast::FunctionDeclaration &method : declaration.methods)
       callback(method);
+  for (const janus::ast::ExtensionDeclaration &declaration : program.extensions)
+    for (const janus::ast::FunctionDeclaration &method : declaration.methods)
+      callback(method);
   for (const janus::ast::TraitDeclaration &declaration : program.traits)
     for (const janus::ast::FunctionDeclaration &method : declaration.methods)
       callback(method);

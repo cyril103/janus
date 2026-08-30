@@ -485,6 +485,17 @@ struct ClassDeclaration {
   std::string documentation;
 };
 
+struct ExtensionDeclaration {
+  std::vector<std::string> type_parameters;
+  TypeReference target_type;
+  std::vector<FunctionDeclaration> methods;
+  std::vector<ParameterOwnership> receiver_ownerships;
+  SourceLocation location;
+  bool is_private{};
+  std::optional<std::string> module_name;
+  std::string documentation;
+};
+
 struct ImportDeclaration {
   struct Symbol {
     std::string name;
@@ -518,6 +529,7 @@ struct Program {
   std::vector<TraitDeclaration> traits;
   std::vector<EnumDeclaration> enums;
   std::vector<ClassDeclaration> classes;
+  std::vector<ExtensionDeclaration> extensions;
   std::vector<FunctionDeclaration> functions;
   std::string documentation;
   std::vector<StaticAssertion> static_assertions;

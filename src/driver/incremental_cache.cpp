@@ -373,6 +373,20 @@ std::string public_interface(std::string_view source) {
       append_function(output, method);
     output += '}';
   }
+  for (const auto &extension : program.extensions) {
+    if (extension.is_private)
+      continue;
+    output += "extension:";
+    append_type(output, extension.target_type);
+    append_type_parameters(output, extension.type_parameters);
+    output += '{';
+    for (std::size_t index = 0; index < extension.methods.size(); ++index) {
+      output += ":receiver=" + std::to_string(static_cast<int>(
+                                   extension.receiver_ownerships[index]));
+      append_function(output, extension.methods[index]);
+    }
+    output += '}';
+  }
   for (const auto &function : program.functions)
     append_function(output, function);
   // Generic bodies are compiled at their use sites. Include exactly those
@@ -399,6 +413,15 @@ std::string public_interface(std::string_view source) {
         append_field(output, "generic-method-implementation",
                      declaration_source(source, method.location.offset));
   }
+  for (const auto &extension : program.extensions)
+    if (!extension.is_private &&
+        (!extension.type_parameters.empty() ||
+         std::any_of(extension.methods.begin(), extension.methods.end(),
+                     [](const ast::FunctionDeclaration &method) {
+                       return !method.type_parameters.empty();
+                     })))
+      append_field(output, "generic-extension-implementation",
+                   declaration_source(source, extension.location.offset));
   return output;
 }
 

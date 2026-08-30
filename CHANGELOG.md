@@ -5,6 +5,21 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Langage
+
+- ajout des blocs `extend[T] Type[T]` et des méthodes d'extension statiques à
+  receveur `borrow`, `borrow var` ou `consume`, avec résolution cohérente et
+  sans modification d'ABI ;
+- activation lexicale par import simple, priorité des méthodes natives et
+  diagnostic systématique des extensions ambiguës ou orphelines publiques.
+
+### Bibliothèque standard et outillage
+
+- exposition des combinateurs d'`Option` et `Result` comme méthodes chaînables,
+  tout en conservant les fonctions libres compatibles ;
+- prise en charge des extensions par le formateur, le LSP, la documentation
+  d'API, l'index incrémental et la grammaire VS Code.
+
 ## [0.22.0] - 2026-08-28
 
 Cette version mineure réduit le bruit syntaxique des opérations courantes sans

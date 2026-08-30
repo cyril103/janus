@@ -16,6 +16,14 @@
       "match": "\\b(class|trait|enum|const|tailrec|def|val|var|private|internal|extern|module|import|extends|new|destructor|borrow)\\b"
     },
     {
+      "captures": {
+        "3": {
+          "name": "keyword.control.janus"
+        }
+      },
+      "match": "^(\\s*)(private\\s+)?(extend)\\b"
+    },
+    {
       "name": "support.type.primitive.janus",
       "match": "\\b(int|double|byte|char|bool|string|unit|usize)\\b"
     },

@@ -107,6 +107,9 @@ public:
       if (klass.destructor.has_value())
         inspect_body(klass.destructor->body, false);
     }
+    for (const ast::ExtensionDeclaration &extension : program.extensions)
+      for (const ast::FunctionDeclaration &method : extension.methods)
+        inspect_body(method.body, false);
   }
 
   [[nodiscard]] const std::vector<HighGrowthLoopWarning> &warnings() const {

@@ -78,6 +78,16 @@ test("TextMate recognizes tailrec as a declaration modifier keyword", () => {
   assert.ok(matches.includes("tailrec"));
 });
 
+test("TextMate recognizes only declaration-position extend", () => {
+  const extension = grammar.patterns.find(
+    (pattern) => pattern.captures?.["3"]?.name === "keyword.control.janus",
+  );
+  assert.ok(extension);
+  assert.equal("private extend[T] Option[T] {".match(new RegExp(extension.match))?.[3], "extend");
+  assert.doesNotMatch("values.extend(items)", new RegExp(extension.match));
+  assert.doesNotMatch("def extend(value : int) : int", new RegExp(extension.match));
+});
+
 test("TextMate scopes function, lambda and match arrows consistently", () => {
   const arrow = grammar.patterns.find(
     (pattern) => pattern.name === "keyword.operator.arrow.janus",

@@ -6012,7 +6012,7 @@ val value : int = unwrapOr[int](move item, 0)
 <header class="module-heading"><span class="keyword">module</span> <h2>std.option</h2></header>
 <div class="module-summary"><p class="doc-summary">Modélise une valeur présente avec <a href="#std-option-option-some"><code>Option.Some</code></a> ou absente avec <a href="#std-option-option-none"><code>Option.None</code></a>.</p><div class="doc-details"><p>Les combinateurs consomment leur option et transfèrent la propriété de la branche conservée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val item : Option[int] = Option.Some[int](42)<br>
 val value : int = unwrapOr[int](move item, 0)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">10</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">17</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-enum" id="std-option-option" data-symbol data-search="std.option.Option enum enum Option[T] Représente soit une valeur propriétaire, soit son absence."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Option[T]</code></h3>
 <p class="doc-summary">Représente soit une valeur propriétaire, soit son absence.</p>
@@ -6023,6 +6023,51 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <article class="symbol-card kind-variant child" id="std-option-option-some" data-symbol data-search="std.option.Option.Some variant Some(T) Contient une valeur de type `T`."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.option.Option</div><h3><code>Some(T)</code></h3>
 <p class="doc-summary">Contient une valeur de type `T`.</p>
 <div class="qualified">std.option.Option.Some</div></div><a class="permalink" href="#std-option-option-some" aria-label="Permanent link to std.option.Option.Some">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-andthen" data-symbol data-search="std.option.Option.andThen method consume def andThen[U](scoped transform : Function[T, Option[U]]) : Option[U] [extension] Consomme cette option et enchaîne une opération optionnelle.
+@param transform Fonction bornée recevant le contenu déplacé.
+@return Résultat de `transform`, ou `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def andThen[U](scoped transform : Function[T, Option[U]]) : Option[U] [extension]</code></h3>
+<p class="doc-summary">Consomme cette option et enchaîne une opération optionnelle.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, Option[U]]</code></td><td>Fonction bornée recevant le contenu déplacé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Résultat de `transform`, ou `None`.</p></section>
+<div class="qualified">std.option.Option.andThen</div></div><a class="permalink" href="#std-option-option-andthen" aria-label="Permanent link to std.option.Option.andThen">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-isnone" data-symbol data-search="std.option.Option.isNone method borrow def isNone() : bool [extension] Indique si cette option est vide.
+@return `true` pour `None`, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>borrow def isNone() : bool [extension]</code></h3>
+<p class="doc-summary">Indique si cette option est vide.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `None`, sinon `false`.</p></section>
+<div class="qualified">std.option.Option.isNone</div></div><a class="permalink" href="#std-option-option-isnone" aria-label="Permanent link to std.option.Option.isNone">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-issome" data-symbol data-search="std.option.Option.isSome method borrow def isSome() : bool [extension] Indique si cette option contient une valeur.
+@return `true` pour `Some`, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>borrow def isSome() : bool [extension]</code></h3>
+<p class="doc-summary">Indique si cette option contient une valeur.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Some`, sinon `false`.</p></section>
+<div class="qualified">std.option.Option.isSome</div></div><a class="permalink" href="#std-option-option-issome" aria-label="Permanent link to std.option.Option.isSome">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-map" data-symbol data-search="std.option.Option.map method consume def map[U](scoped transform : Function[T, U]) : Option[U] [extension] Consomme cette option et transforme son contenu présent.
+@param transform Fonction bornée recevant le contenu déplacé.
+@return Option contenant le résultat transformé, ou `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def map[U](scoped transform : Function[T, U]) : Option[U] [extension]</code></h3>
+<p class="doc-summary">Consomme cette option et transforme son contenu présent.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée recevant le contenu déplacé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Option contenant le résultat transformé, ou `None`.</p></section>
+<div class="qualified">std.option.Option.map</div></div><a class="permalink" href="#std-option-option-map" aria-label="Permanent link to std.option.Option.map">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-mapborrowed" data-symbol data-search="std.option.Option.mapBorrowed method borrow def mapBorrowed[U](scoped transform : Function[T, U]) : Option[U] [extension] Transforme le contenu en l&#39;observant sans consommer l&#39;option.
+@param transform Fonction bornée recevant un emprunt du contenu.
+@return Option contenant le résultat transformé, ou `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>borrow def mapBorrowed[U](scoped transform : Function[T, U]) : Option[U] [extension]</code></h3>
+<p class="doc-summary">Transforme le contenu en l&#39;observant sans consommer l&#39;option.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée recevant un emprunt du contenu.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Option contenant le résultat transformé, ou `None`.</p></section>
+<div class="qualified">std.option.Option.mapBorrowed</div></div><a class="permalink" href="#std-option-option-mapborrowed" aria-label="Permanent link to std.option.Option.mapBorrowed">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-orelse" data-symbol data-search="std.option.Option.orElse method consume def orElse(fallback : Option[T]) : Option[T] [extension] Consomme cette option et adopte une option de remplacement si vide.
+@param fallback Option de remplacement consommée.
+@return Cette option si présente, sinon `fallback`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def orElse(fallback : Option[T]) : Option[T] [extension]</code></h3>
+<p class="doc-summary">Consomme cette option et adopte une option de remplacement si vide.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>fallback</code></td><td><code>Option[T]</code></td><td>Option de remplacement consommée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — Cette option si présente, sinon `fallback`.</p></section>
+<div class="qualified">std.option.Option.orElse</div></div><a class="permalink" href="#std-option-option-orelse" aria-label="Permanent link to std.option.Option.orElse">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-unwrapor" data-symbol data-search="std.option.Option.unwrapOr method consume def unwrapOr(fallback : T) : T [extension] Extrait le contenu ou adopte une valeur de remplacement.
+@param fallback Valeur de remplacement consommée.
+@return Contenu présent, sinon `fallback`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def unwrapOr(fallback : T) : T [extension]</code></h3>
+<p class="doc-summary">Extrait le contenu ou adopte une valeur de remplacement.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>fallback</code></td><td><code>T</code></td><td>Valeur de remplacement consommée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Contenu présent, sinon `fallback`.</p></section>
+<div class="qualified">std.option.Option.unwrapOr</div></div><a class="permalink" href="#std-option-option-unwrapor" aria-label="Permanent link to std.option.Option.unwrapOr">#</a></article>
 <article class="symbol-card kind-function" id="std-option-andthen" data-symbol data-search="std.option.andThen function def andThen[T, U](value : Option[T], scoped transform : Function[T, Option[U]]) : Option[U] Enchaîne une opération optionnelle sur la branche présente.
 
 @param value Option consommée par l’opération.
@@ -6715,7 +6760,7 @@ val value : int = unwrapOr[int, string](move item, 0)
 <header class="module-heading"><span class="keyword">module</span> <h2>std.result</h2></header>
 <div class="module-summary"><p class="doc-summary">Modélise un succès <a href="#std-result-result-ok"><code>Result.Ok</code></a> ou une erreur <a href="#std-result-result-error"><code>Result.Error</code></a>.</p><div class="doc-details"><p>Les combinateurs consomment le résultat et transfèrent la propriété de la branche conservée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val item : Result[int, string] = Result.Ok[int, string](42)<br>
 val value : int = unwrapOr[int, string](move item, 0)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">14</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">24</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-enum" id="std-result-result" data-symbol data-search="std.result.Result enum enum Result[T, E] Représente une valeur de succès ou une erreur, chacune propriétaire."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Result[T, E]</code></h3>
 <p class="doc-summary">Représente une valeur de succès ou une erreur, chacune propriétaire.</p>
@@ -6726,6 +6771,70 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <article class="symbol-card kind-variant child" id="std-result-result-ok" data-symbol data-search="std.result.Result.Ok variant Ok(T) Contient la valeur produite en cas de succès."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.result.Result</div><h3><code>Ok(T)</code></h3>
 <p class="doc-summary">Contient la valeur produite en cas de succès.</p>
 <div class="qualified">std.result.Result.Ok</div></div><a class="permalink" href="#std-result-result-ok" aria-label="Permanent link to std.result.Result.Ok">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-andthen" data-symbol data-search="std.result.Result.andThen method consume def andThen[U](scoped transform : Function[T, Result[U, E]]) : Result[U, E] [extension] Consomme ce résultat et enchaîne une opération faillible.
+@param transform Fonction bornée recevant le succès déplacé.
+@return Résultat de `transform`, ou l&#39;erreur d&#39;origine."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def andThen[U](scoped transform : Function[T, Result[U, E]]) : Result[U, E] [extension]</code></h3>
+<p class="doc-summary">Consomme ce résultat et enchaîne une opération faillible.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, Result[U, E]]</code></td><td>Fonction bornée recevant le succès déplacé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[U, E]</code> — Résultat de `transform`, ou l&#39;erreur d&#39;origine.</p></section>
+<div class="qualified">std.result.Result.andThen</div></div><a class="permalink" href="#std-result-result-andthen" aria-label="Permanent link to std.result.Result.andThen">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-iserror" data-symbol data-search="std.result.Result.isError method borrow def isError() : bool [extension] Indique si ce résultat contient une erreur.
+@return `true` pour `Error`, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>borrow def isError() : bool [extension]</code></h3>
+<p class="doc-summary">Indique si ce résultat contient une erreur.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Error`, sinon `false`.</p></section>
+<div class="qualified">std.result.Result.isError</div></div><a class="permalink" href="#std-result-result-iserror" aria-label="Permanent link to std.result.Result.isError">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-isok" data-symbol data-search="std.result.Result.isOk method borrow def isOk() : bool [extension] Indique si ce résultat contient un succès.
+@return `true` pour `Ok`, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>borrow def isOk() : bool [extension]</code></h3>
+<p class="doc-summary">Indique si ce résultat contient un succès.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Ok`, sinon `false`.</p></section>
+<div class="qualified">std.result.Result.isOk</div></div><a class="permalink" href="#std-result-result-isok" aria-label="Permanent link to std.result.Result.isOk">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-map" data-symbol data-search="std.result.Result.map method consume def map[U](scoped transform : Function[T, U]) : Result[U, E] [extension] Consomme ce résultat et transforme sa valeur de succès.
+@param transform Fonction bornée recevant le succès déplacé.
+@return Résultat contenant le succès transformé ou l&#39;erreur d&#39;origine."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def map[U](scoped transform : Function[T, U]) : Result[U, E] [extension]</code></h3>
+<p class="doc-summary">Consomme ce résultat et transforme sa valeur de succès.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée recevant le succès déplacé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[U, E]</code> — Résultat contenant le succès transformé ou l&#39;erreur d&#39;origine.</p></section>
+<div class="qualified">std.result.Result.map</div></div><a class="permalink" href="#std-result-result-map" aria-label="Permanent link to std.result.Result.map">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-mapborrowed" data-symbol data-search="std.result.Result.mapBorrowed method borrow def mapBorrowed[U](scoped transform : Function[T, U]) : Option[U] [extension] Transforme le succès en l&#39;observant sans consommer le résultat.
+@param transform Fonction bornée recevant un emprunt du succès.
+@return Option contenant le résultat transformé pour `Ok`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>borrow def mapBorrowed[U](scoped transform : Function[T, U]) : Option[U] [extension]</code></h3>
+<p class="doc-summary">Transforme le succès en l&#39;observant sans consommer le résultat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée recevant un emprunt du succès.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Option contenant le résultat transformé pour `Ok`.</p></section>
+<div class="qualified">std.result.Result.mapBorrowed</div></div><a class="permalink" href="#std-result-result-mapborrowed" aria-label="Permanent link to std.result.Result.mapBorrowed">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-maperror" data-symbol data-search="std.result.Result.mapError method consume def mapError[F](scoped transform : Function[E, F]) : Result[T, F] [extension] Consomme ce résultat et transforme son erreur.
+@param transform Fonction bornée recevant l&#39;erreur déplacée.
+@return Résultat contenant le succès d&#39;origine ou l&#39;erreur transformée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def mapError[F](scoped transform : Function[E, F]) : Result[T, F] [extension]</code></h3>
+<p class="doc-summary">Consomme ce résultat et transforme son erreur.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[E, F]</code></td><td>Fonction bornée recevant l&#39;erreur déplacée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, F]</code> — Résultat contenant le succès d&#39;origine ou l&#39;erreur transformée.</p></section>
+<div class="qualified">std.result.Result.mapError</div></div><a class="permalink" href="#std-result-result-maperror" aria-label="Permanent link to std.result.Result.mapError">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-maperrorborrowed" data-symbol data-search="std.result.Result.mapErrorBorrowed method borrow def mapErrorBorrowed[F](scoped transform : Function[E, F]) : Option[F] [extension] Transforme l&#39;erreur en l&#39;observant sans consommer le résultat.
+@param transform Fonction bornée recevant un emprunt de l&#39;erreur.
+@return Option contenant le résultat transformé pour `Error`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>borrow def mapErrorBorrowed[F](scoped transform : Function[E, F]) : Option[F] [extension]</code></h3>
+<p class="doc-summary">Transforme l&#39;erreur en l&#39;observant sans consommer le résultat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[E, F]</code></td><td>Fonction bornée recevant un emprunt de l&#39;erreur.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[F]</code> — Option contenant le résultat transformé pour `Error`.</p></section>
+<div class="qualified">std.result.Result.mapErrorBorrowed</div></div><a class="permalink" href="#std-result-result-maperrorborrowed" aria-label="Permanent link to std.result.Result.mapErrorBorrowed">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-orelse" data-symbol data-search="std.result.Result.orElse method consume def orElse[F](scoped transform : Function[E, Result[T, F]]) : Result[T, F] [extension] Consomme ce résultat et tente une récupération de l&#39;erreur.
+@param transform Fonction bornée recevant l&#39;erreur déplacée.
+@return Succès d&#39;origine ou résultat de `transform`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def orElse[F](scoped transform : Function[E, Result[T, F]]) : Result[T, F] [extension]</code></h3>
+<p class="doc-summary">Consomme ce résultat et tente une récupération de l&#39;erreur.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[E, Result[T, F]]</code></td><td>Fonction bornée recevant l&#39;erreur déplacée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, F]</code> — Succès d&#39;origine ou résultat de `transform`.</p></section>
+<div class="qualified">std.result.Result.orElse</div></div><a class="permalink" href="#std-result-result-orelse" aria-label="Permanent link to std.result.Result.orElse">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-tooption" data-symbol data-search="std.result.Result.toOption method consume def toOption() : Option[T] [extension] Convertit ce résultat consommé en option.
+@return `Some` pour `Ok`, sinon `None` après destruction de l&#39;erreur."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def toOption() : Option[T] [extension]</code></h3>
+<p class="doc-summary">Convertit ce résultat consommé en option.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` pour `Ok`, sinon `None` après destruction de l&#39;erreur.</p></section>
+<div class="qualified">std.result.Result.toOption</div></div><a class="permalink" href="#std-result-result-tooption" aria-label="Permanent link to std.result.Result.toOption">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-unwrapor" data-symbol data-search="std.result.Result.unwrapOr method consume def unwrapOr(fallback : T) : T [extension] Extrait le succès ou adopte une valeur de remplacement.
+@param fallback Valeur de remplacement consommée.
+@return Succès contenu, sinon `fallback`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def unwrapOr(fallback : T) : T [extension]</code></h3>
+<p class="doc-summary">Extrait le succès ou adopte une valeur de remplacement.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>fallback</code></td><td><code>T</code></td><td>Valeur de remplacement consommée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Succès contenu, sinon `fallback`.</p></section>
+<div class="qualified">std.result.Result.unwrapOr</div></div><a class="permalink" href="#std-result-result-unwrapor" aria-label="Permanent link to std.result.Result.unwrapOr">#</a></article>
 <article class="symbol-card kind-function" id="std-result-andthen" data-symbol data-search="std.result.andThen function def andThen[T, U, E](value : Result[T, E], scoped transform : Function[T, Result[U, E]]) : Result[U, E] Enchaîne une opération susceptible d’échouer sur la branche de succès.
 
 @param value Résultat consommé.

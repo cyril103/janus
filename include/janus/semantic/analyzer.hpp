@@ -75,6 +75,13 @@ struct AnalysisResult {
     SourceLocation location;
     SemanticType type;
   };
+  struct ExtensionCall {
+    const ast::ExtensionDeclaration *extension{};
+    const ast::FunctionDeclaration *method{};
+    ast::ParameterOwnership receiver_ownership{
+        ast::ParameterOwnership::Unspecified};
+    std::vector<SemanticType> type_arguments;
+  };
   Target target;
   SymbolTable globals;
   std::unordered_map<std::string, SymbolTable> functions;
@@ -93,6 +100,7 @@ struct AnalysisResult {
   std::vector<InferredLambdaParameter> inferred_lambda_parameters;
   std::unordered_map<const ast::Expression *, ast::ReturnOwnership>
       call_return_ownership;
+  std::unordered_map<const ast::Expression *, ExtensionCall> extension_calls;
   std::unordered_map<const ast::IndexExpression *, IndexedCapabilities>
       indexed_capabilities;
   std::vector<Diagnostic> diagnostics;

@@ -527,6 +527,25 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
                      true);
       }
     }
+    for (const janus::ast::ExtensionDeclaration &extension :
+         program.extensions) {
+      if (extension.is_private)
+        continue;
+      const std::string parent = module + '.' + extension.target_type.name;
+      for (std::size_t method_index = 0;
+           method_index < extension.methods.size(); ++method_index) {
+        const janus::ast::FunctionDeclaration &method =
+            extension.methods[method_index];
+        std::string signature = function_signature(method);
+        if (extension.receiver_ownerships[method_index] ==
+            janus::ast::ParameterOwnership::BorrowMutable)
+          signature.insert(0, "borrow var ");
+        signature += " [extension]";
+        add_symbol(symbols, module, method.name, "method", std::move(signature),
+                   method.documentation, parent, function_parameters(method),
+                   type_name(method.return_type), true);
+      }
+    }
     for (const janus::ast::FunctionDeclaration &function : program.functions) {
       if (!function.is_private && !function.is_internal)
         add_symbol(symbols, module, function.name, "function",

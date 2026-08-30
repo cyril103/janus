@@ -2965,6 +2965,21 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.try_operator COMMAND try_operator_test)
+    add_executable(extension_method_test
+        tests/language/extension_method_test.cpp
+    )
+    target_link_libraries(extension_method_test
+        PRIVATE
+            janus_semantic
+            janus_llvm_backend
+    )
+    target_compile_options(extension_method_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.extension_methods COMMAND extension_method_test)
     add_test(
         NAME runtime.lambda_try_operator
         COMMAND
@@ -2975,6 +2990,30 @@ if(BUILD_TESTING)
             "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/lambda_try_operator_runtime"
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/lambda_try_operator.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.static_extension_methods
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/static_extension_methods.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/static_extension_methods_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/static_extension_methods.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.stdlib_extension_methods
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/stdlib_extension_methods.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/stdlib_extension_methods_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/stdlib_extension_methods.expected.txt"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
 

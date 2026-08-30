@@ -73,8 +73,8 @@ def isNone[T](borrow value : Option[T]) : bool {
 /// @param transform Fonction bornée recevant un emprunt du contenu de `Some`.
 /// @return `Some` du résultat produit, ou `None` sans appeler `transform`.
 def mapBorrowed[T, U](
-borrow value : Option[T],
-scoped transform : (borrow T) => U
+    borrow value : Option[T],
+    scoped transform : (borrow T) => U
 ) : Option[U] {
     defer delete transform
     return match value {
@@ -89,8 +89,8 @@ scoped transform : (borrow T) => U
 /// @param transform Fonction propriétaire appelée une fois avec la valeur déplacée pour `Some`, puis détruite.
 /// @return `Some` du résultat de `transform`, ou `None` sans appeler `transform`.
 def map[T, U](
-value : Option[T],
-scoped transform : (T) => U
+    value : Option[T],
+    scoped transform : (T) => U
 ) : Option[U] {
     defer delete transform
     return match move value {
@@ -105,8 +105,8 @@ scoped transform : (T) => U
 /// @param transform Fonction propriétaire appelée une fois avec le contenu déplacé pour `Some`, puis détruite.
 /// @return Résultat de `transform` pour `Some`, ou `None` sans appeler `transform`.
 def andThen[T, U](
-value : Option[T],
-scoped transform : (T) => Option[U]
+    value : Option[T],
+    scoped transform : (T) => Option[U]
 ) : Option[U] {
     defer delete transform
     return match move value {
@@ -121,17 +121,17 @@ scoped transform : (T) => Option[U]
 /// @param fallback Option consommée et détruite si `value` est `Some`, sinon retournée.
 /// @return `value` lorsqu’elle est présente, sinon `fallback`.
 def orElse[T](
-value : Option[T],
-fallback : Option[T]
+    value : Option[T],
+    fallback : Option[T]
 ) : Option[T] {
     val state : OptionFallback[Option[T]] =
     new OptionFallback[Option[T]](
-    Option.Some[Option[T]](move fallback)
+        Option.Some[Option[T]](move fallback)
     )
     defer delete state
     return match move value {
         Some(item) => state.discardAndReturn[Option[T]](
-        Option.Some[T](move item)
+            Option.Some[T](move item)
         ),
         None => state.take()
     }
@@ -149,5 +149,59 @@ def unwrapOr[T](value : Option[T], fallback : T) : T {
     return match move value {
         Some(item) => state.discardAndReturn[T](move item),
         None => state.take()
+    }
+}
+
+/// Surface de méthodes statiques pour composer les options avec `.`.
+extend[T] Option[T] {
+    /// Indique si cette option contient une valeur.
+    /// @return `true` pour `Some`, sinon `false`.
+    borrow def isSome() : bool {
+        return isSome[T](this)
+    }
+
+    /// Indique si cette option est vide.
+    /// @return `true` pour `None`, sinon `false`.
+    borrow def isNone() : bool {
+        return isNone[T](this)
+    }
+
+    /// Transforme le contenu en l'observant sans consommer l'option.
+    /// @param transform Fonction bornée recevant un emprunt du contenu.
+    /// @return Option contenant le résultat transformé, ou `None`.
+    borrow def mapBorrowed[U](
+        scoped transform : (borrow T) => U
+    ) : Option[U] {
+        return mapBorrowed[T, U](this, move transform)
+    }
+
+    /// Consomme cette option et transforme son contenu présent.
+    /// @param transform Fonction bornée recevant le contenu déplacé.
+    /// @return Option contenant le résultat transformé, ou `None`.
+    consume def map[U](scoped transform : (T) => U) : Option[U] {
+        return map[T, U](move this, move transform)
+    }
+
+    /// Consomme cette option et enchaîne une opération optionnelle.
+    /// @param transform Fonction bornée recevant le contenu déplacé.
+    /// @return Résultat de `transform`, ou `None`.
+    consume def andThen[U](
+        scoped transform : (T) => Option[U]
+    ) : Option[U] {
+        return andThen[T, U](move this, move transform)
+    }
+
+    /// Consomme cette option et adopte une option de remplacement si vide.
+    /// @param fallback Option de remplacement consommée.
+    /// @return Cette option si présente, sinon `fallback`.
+    consume def orElse(fallback : Option[T]) : Option[T] {
+        return orElse[T](move this, move fallback)
+    }
+
+    /// Extrait le contenu ou adopte une valeur de remplacement.
+    /// @param fallback Valeur de remplacement consommée.
+    /// @return Contenu présent, sinon `fallback`.
+    consume def unwrapOr(fallback : T) : T {
+        return unwrapOr[T](move this, move fallback)
     }
 }

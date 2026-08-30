@@ -936,6 +936,37 @@ Le [design des dérivations structurelles](https://github.com/cyril103/janus/blo
 définit l'éligibilité champ par champ, les génériques, la visibilité, les
 diagnostics et les interdictions liées aux valeurs propriétaires.
 
+### Méthodes d'extension statiques
+
+Un bloc `extend` ajoute des méthodes résolues statiquement à une classe, un
+struct ou un enum, sans modifier sa représentation :
+
+```janus
+extend[T] Option[T] {
+    consume def map[U](scoped transform : (T) => U) : Option[U] {
+        return match move this {
+            Some(value) => Option.Some[U](transform(move value)),
+            None => Option.None[U]()
+        }
+    }
+}
+```
+
+Le receveur implicite s'appelle `this`. Chaque méthode choisit explicitement
+`borrow def`, `borrow var def` ou `consume def`. Une méthode native est
+prioritaire et ne peut pas être remplacée. Plusieurs extensions visibles de
+même nom sont rejetées comme ambiguës.
+
+Une extension publique doit vivre dans le module qui définit le type. Un autre
+module peut déclarer une `private extend` locale sur un type importé. Seul un
+import simple active les extensions publiques ; un import qualifié ou sélectif
+ne les injecte pas dans la résolution des appels. `Option` et `Result` exposent
+leurs combinateurs sous forme de méthodes tout en conservant leurs fonctions
+libres pour la compatibilité.
+
+La [RFC des méthodes d'extension](design/static-extension-methods.md) détaille
+la cohérence, la visibilité, l'ownership et l'abaissement sans vtable.
+
 ## Collections et itérateurs
 
 La bibliothèque standard comprend notamment :

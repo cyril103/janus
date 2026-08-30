@@ -295,6 +295,10 @@ ModuleLoader::take_loaded_program(const std::filesystem::path &entry_path) {
     result.classes.insert(result.classes.end(),
                           std::make_move_iterator(program.classes.begin()),
                           std::make_move_iterator(program.classes.end()));
+    result.extensions.insert(
+        result.extensions.end(),
+        std::make_move_iterator(program.extensions.begin()),
+        std::make_move_iterator(program.extensions.end()));
     result.functions.insert(result.functions.end(),
                             std::make_move_iterator(program.functions.begin()),
                             std::make_move_iterator(program.functions.end()));

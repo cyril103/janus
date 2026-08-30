@@ -508,6 +508,28 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
             parameters(function), type_name(function.return_type), parent);
       }
     }
+    for (const auto &extension : program.extensions) {
+      if (extension.is_private)
+        continue;
+      const std::string parent = module + '.' + extension.target_type.name;
+      for (std::size_t method_index = 0;
+           method_index < extension.methods.size(); ++method_index) {
+        const auto &function = extension.methods[method_index];
+        std::string signature = function_signature(function);
+        if (extension.receiver_ownerships[method_index] ==
+            ast::ParameterOwnership::BorrowMutable)
+          signature.insert(0, "borrow var ");
+        signature += " [extension]";
+        std::vector<std::string> generic_parameters = extension.type_parameters;
+        generic_parameters.insert(generic_parameters.end(),
+                                  function.type_parameters.begin(),
+                                  function.type_parameters.end());
+        add(index, module, function.name, "method", std::move(signature),
+            function.documentation, std::move(generic_parameters),
+            constraints(function.type_constraints), parameters(function),
+            type_name(function.return_type), parent);
+      }
+    }
     for (const auto &value : program.enums) {
       if (value.is_private)
         continue;

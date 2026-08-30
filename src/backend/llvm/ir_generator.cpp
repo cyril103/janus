@@ -1664,15 +1664,26 @@ private:
       const janus::ast::ClassDeclaration *owner = nullptr,
       const Substitutions *owner_substitutions = nullptr,
       std::string_view owner_key = {},
-      const std::vector<janus::ast::Statement> *body_override = nullptr) {
+      const std::vector<janus::ast::Statement> *body_override = nullptr,
+      const janus::ast::ExtensionDeclaration *extension = nullptr,
+      janus::ast::ParameterOwnership extension_receiver_ownership =
+          janus::ast::ParameterOwnership::Unspecified) {
     std::string llvm_name;
     if (function.is_external) {
       llvm_name = function.external_symbol.value_or(function.name);
     } else {
-      llvm_name =
-          (owner == nullptr ? std::string{} : std::string{owner_key} + "__") +
-          mangle(function, type_arguments);
-      if (owner == nullptr &&
+      std::string extension_prefix;
+      if (extension != nullptr) {
+        extension_prefix = extension->module_name.value_or("entry");
+        std::replace(extension_prefix.begin(), extension_prefix.end(), '.',
+                     '_');
+        extension_prefix +=
+            "__extension__" + extension->target_type.name + "__";
+      }
+      llvm_name = (owner == nullptr ? extension_prefix
+                                    : std::string{owner_key} + "__") +
+                  mangle(function, type_arguments);
+      if (owner == nullptr && extension == nullptr &&
           ambiguous_function_names_.contains(function.name) &&
           function.module_name.has_value()) {
         std::string module = *function.module_name;
@@ -1686,28 +1697,46 @@ private:
 
     const auto previous_active_module = active_module_;
     const std::string previous_active_function = active_function_;
-    active_module_ =
-        owner == nullptr ? function.module_name : owner->module_name;
+    active_module_ = owner != nullptr
+                         ? owner->module_name
+                         : (extension != nullptr ? extension->module_name
+                                                 : function.module_name);
 
     Substitutions substitutions;
     if (owner_substitutions != nullptr)
       substitutions = *owner_substitutions;
-    for (std::size_t index = 0; index < type_arguments.size(); ++index)
-      substitutions.emplace(function.type_parameters[index],
-                            type_arguments[index]);
+    std::size_t type_argument_index = 0;
+    if (extension != nullptr)
+      for (const std::string &parameter : extension->type_parameters)
+        substitutions.emplace(parameter, type_arguments[type_argument_index++]);
+    for (const std::string &parameter : function.type_parameters)
+      substitutions.emplace(parameter, type_arguments[type_argument_index++]);
 
     const janus::Type &return_type =
         resolve(function.return_type, substitutions);
     std::vector<::llvm::Type *> parameter_types;
     parameter_types.reserve(function.parameters.size() +
-                            (owner == nullptr ? 0 : 1));
-    const bool native_entry =
-        owner == nullptr && function.name == "main" && !function.is_external;
+                            (owner == nullptr && extension == nullptr ? 0 : 1));
+    const bool native_entry = owner == nullptr && extension == nullptr &&
+                              function.name == "main" && !function.is_external;
     if (native_entry) {
       parameter_types.push_back(::llvm::Type::getInt32Ty(context_));
       parameter_types.push_back(::llvm::PointerType::getUnqual(context_));
     } else if (owner != nullptr) {
       parameter_types.push_back(::llvm::PointerType::getUnqual(context_));
+    } else if (extension != nullptr) {
+      const janus::Type &receiver_type =
+          resolve(extension->target_type, substitutions);
+      const bool indirect_borrow =
+          extension_receiver_ownership ==
+              janus::ast::ParameterOwnership::BorrowMutable ||
+          (extension_receiver_ownership ==
+               janus::ast::ParameterOwnership::Borrow &&
+           (receiver_type.kind() == janus::TypeKind::Struct ||
+            receiver_type.kind() == janus::TypeKind::Enum));
+      parameter_types.push_back(indirect_borrow
+                                    ? ::llvm::PointerType::getUnqual(context_)
+                                    : lower_type(receiver_type, context_));
     }
     for (const auto &parameter : function.parameters) {
       const janus::Type &parameter_type =
@@ -1733,16 +1762,20 @@ private:
     const ::llvm::GlobalValue::LinkageTypes linkage =
         !function.is_external &&
                 (function.is_private || function.is_internal ||
-                 (owner != nullptr && function.name == "destructor"))
+                 (owner != nullptr && function.name == "destructor") ||
+                 (extension != nullptr && extension->is_private))
             ? ::llvm::Function::InternalLinkage
             : ::llvm::Function::ExternalLinkage;
     auto *llvm_function =
         ::llvm::Function::Create(function_type, linkage, llvm_name, *module_);
     const std::optional<std::string> definition_module =
-        owner == nullptr ? function.module_name : owner->module_name;
+        owner != nullptr ? owner->module_name
+                         : (extension != nullptr ? extension->module_name
+                                                 : function.module_name);
     if (is_dependency(definition_module))
       llvm_function->addFnAttr("janus.module", *definition_module);
     if (!function.type_parameters.empty() ||
+        (extension != nullptr && !extension->type_parameters.empty()) ||
         (owner != nullptr && !owner->type_parameters.empty()))
       llvm_function->addFnAttr("janus.consumer-owned");
     emitted_.emplace(llvm_name, llvm_function);
@@ -1753,7 +1786,11 @@ private:
     }
 
     active_function_ =
-        owner == nullptr ? function.name : owner->name + "." + function.name;
+        owner != nullptr
+            ? owner->name + "." + function.name
+            : (extension != nullptr
+                   ? extension->target_type.name + "." + function.name
+                   : function.name);
     auto previous_cleanup_scopes = std::move(active_cleanup_scopes_);
     active_cleanup_scopes_.clear();
 
@@ -1814,6 +1851,27 @@ private:
                       llvm_class_types_.at(std::string{owner_key}),
                       &this_argument, field_index++, field.name + ".addr"),
                   &field_type});
+      }
+    }
+    if (extension != nullptr) {
+      ::llvm::Argument &this_argument = *argument_iterator++;
+      this_argument.setName("this");
+      const janus::Type &receiver_type =
+          resolve(extension->target_type, substitutions);
+      const bool indirect_borrow =
+          extension_receiver_ownership ==
+              janus::ast::ParameterOwnership::BorrowMutable ||
+          (extension_receiver_ownership ==
+               janus::ast::ParameterOwnership::Borrow &&
+           (receiver_type.kind() == janus::TypeKind::Struct ||
+            receiver_type.kind() == janus::TypeKind::Enum));
+      if (indirect_borrow) {
+        locals.emplace("this", Local{&this_argument, &receiver_type});
+      } else {
+        ::llvm::Value *this_storage = create_entry_alloca(
+            builder, lower_type(receiver_type, context_), "this.addr");
+        builder.CreateStore(&this_argument, this_storage);
+        locals.emplace("this", Local{this_storage, &receiver_type});
       }
     }
 
@@ -2942,6 +3000,24 @@ private:
                 }
                 return ensure_enum(declaration->first, type_arguments);
               }
+            }
+            if (const auto extension =
+                    analysis_.extension_calls.find(&expression);
+                extension != analysis_.extension_calls.end()) {
+              Substitutions extension_substitutions;
+              std::size_t type_index = 0;
+              for (const std::string &parameter :
+                   extension->second.extension->type_parameters)
+                extension_substitutions.emplace(
+                    parameter,
+                    &resolve(extension->second.type_arguments[type_index++]));
+              for (const std::string &parameter :
+                   extension->second.method->type_parameters)
+                extension_substitutions.emplace(
+                    parameter,
+                    &resolve(extension->second.type_arguments[type_index++]));
+              return resolve(extension->second.method->return_type,
+                             extension_substitutions);
             }
             const janus::Type &object_type =
                 expression_type(*node.object, substitutions, locals);
@@ -4624,6 +4700,54 @@ private:
             }
             const janus::Type &object_type =
                 expression_type(*node.object, substitutions, locals);
+            if (const auto extension =
+                    analysis_.extension_calls.find(&expression);
+                extension != analysis_.extension_calls.end()) {
+              const auto &resolved = extension->second;
+              std::vector<const janus::Type *> type_arguments;
+              type_arguments.reserve(resolved.type_arguments.size());
+              for (const janus::semantic::SemanticType &argument :
+                   resolved.type_arguments)
+                type_arguments.push_back(&resolve(argument));
+              ::llvm::Function *target = emit_function(
+                  *resolved.method, type_arguments, nullptr, nullptr, {},
+                  nullptr, resolved.extension, resolved.receiver_ownership);
+              Substitutions extension_substitutions;
+              std::size_t type_index = 0;
+              for (const std::string &parameter :
+                   resolved.extension->type_parameters)
+                extension_substitutions.emplace(parameter,
+                                                type_arguments[type_index++]);
+              for (const std::string &parameter :
+                   resolved.method->type_parameters)
+                extension_substitutions.emplace(parameter,
+                                                type_arguments[type_index++]);
+              const janus::ast::FunctionDeclaration::Parameter receiver{
+                  "this", resolved.extension->target_type, node.location,
+                  resolved.receiver_ownership ==
+                          janus::ast::ParameterOwnership::Consume
+                      ? janus::ast::ParameterOwnership::Unspecified
+                      : resolved.receiver_ownership,
+                  false};
+              std::vector<::llvm::Value *> arguments;
+              arguments.reserve(node.arguments.size() + 1);
+              arguments.push_back(
+                  emit_parameter_argument(receiver, *node.object, object_type,
+                                          substitutions, locals, builder));
+              for (std::size_t index = 0; index < node.arguments.size();
+                   ++index) {
+                const janus::Type &parameter_type =
+                    resolve(resolved.method->parameters[index].type,
+                            extension_substitutions);
+                arguments.push_back(emit_parameter_argument(
+                    resolved.method->parameters[index], *node.arguments[index],
+                    parameter_type, substitutions, locals, builder));
+              }
+              return target->getReturnType()->isVoidTy()
+                         ? builder.CreateCall(target, arguments)
+                         : builder.CreateCall(target, arguments,
+                                              node.method + ".result");
+            }
             ::llvm::Value *object_value = nullptr;
             if (identifier != nullptr) {
               const Local &object = resolve_storage(identifier->name, locals);

@@ -122,13 +122,15 @@ def main() : int {
 import std.option
 def main() : int {
     val answer : Option[int] = Option.Some[int](21)
-    val doubled : Option[int] = mapBorrowed[int, int](
-        answer,
+    val doubled : Option[int] = answer.mapBorrowed[int](
         (borrow value : int) => value * 2
     )
     return match doubled { Some(value) => value - 42, None => 1 }
 }
 ```
+
+Les combinateurs restent disponibles comme fonctions libres et comme méthodes
+d'extension (`map`, `andThen`, `orElse`, `unwrapOr`, observations empruntées).
 
 ```janus
 // doctest: compile_fail=J0000 name=stdlib-std-option-requires-handling
@@ -152,6 +154,10 @@ def main() : int {
 ```
 
 ### `std.result`
+
+`Result` expose également ses combinateurs comme méthodes d'extension, dont
+`map`, `mapError`, `andThen`, `orElse` et `toOption`; les fonctions libres sont
+conservées pour la compatibilité.
 
 ```janus
 // doctest: doctest name=stdlib-std-result

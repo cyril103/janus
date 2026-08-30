@@ -41,6 +41,7 @@ entre crochets sont facultatifs et conservent cet ordre.
 | `class` | définit un objet possédé, alloué avec `new` | ne peut jamais dériver `Copy` |
 | `enum` | définit un ensemble de variantes, avec payloads facultatifs | se traite généralement avec `match` |
 | `trait` | définit un contrat de méthodes | les méthodes n’ont pas de corps |
+| `extend` | ajoute des méthodes statiques à un type existant | exige un receveur `borrow`, `borrow var` ou `consume` |
 | `extends` | annonce les traits implémentés par une classe | précède `derives` et le corps de classe |
 | `derives` | génère une ou plusieurs capacités structurelles | seulement `Copy`, `Equality`, `Hashing`, `Debug` |
 

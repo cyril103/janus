@@ -221,6 +221,10 @@ AnalyzedTypes analyze_local_types(
         collect_local_declarations(declaration.destructor->body,
                                    entry_declarations);
     }
+  for (const janus::ast::ExtensionDeclaration &declaration : program.extensions)
+    if (declaration.module_name == entry_module)
+      for (const janus::ast::FunctionDeclaration &method : declaration.methods)
+        collect_local_declarations(method.body, entry_declarations);
 
   janus::semantic::Analyzer analyzer;
   const janus::semantic::AnalysisResult analysis =
@@ -260,6 +264,10 @@ std::vector<DocumentSymbol> symbols(
     for (const janus::ast::FunctionDeclaration &function : program.functions)
       function_details.emplace(function.name,
                                "def " + function_signature(function));
+    for (const janus::ast::ExtensionDeclaration &extension : program.extensions)
+      for (const janus::ast::FunctionDeclaration &method : extension.methods)
+        function_details.emplace(method.name,
+                                 "def " + function_signature(method));
     try {
       janus::semantic::Analyzer analyzer;
       const janus::semantic::AnalysisResult analysis =
@@ -2198,6 +2206,9 @@ std::vector<std::string> Server::handle(std::string_view message) {
         for (const ast::TraitDeclaration &declaration : program.traits)
           for (const ast::FunctionDeclaration &method : declaration.methods)
             remember(method);
+        for (const ast::ExtensionDeclaration &declaration : program.extensions)
+          for (const ast::FunctionDeclaration &method : declaration.methods)
+            remember(method);
       } catch (const CompileError &) {
       }
       for (const DocumentSymbol &symbol : symbols(
@@ -3124,8 +3135,11 @@ std::vector<std::string> Server::handle(std::string_view message) {
               bound_receiver->second.detail.rfind(" : ");
           if (type_separator == std::string::npos)
             return {response(request_id(*request), nullptr)};
-          const std::string receiver_type =
+          std::string receiver_type =
               bound_receiver->second.detail.substr(type_separator + 3);
+          if (const std::size_t arguments = receiver_type.find('[');
+              arguments != std::string::npos)
+            receiver_type.resize(arguments);
           const std::size_t receiver_separator = receiver_type.rfind('.');
           const std::string receiver_class =
               receiver_separator == std::string::npos
@@ -3195,6 +3209,57 @@ std::vector<std::string> Server::handle(std::string_view message) {
             } catch (const std::exception &) {
             }
           }
+          if (signatures.empty())
+            for (const IndexedDocument &indexed : semantic_index.documents) {
+              const bool visible =
+                  indexed.uri == *uri ||
+                  (indexed.module_name.has_value() &&
+                   std::any_of(semantic_index.documents.front().imports.begin(),
+                               semantic_index.documents.front().imports.end(),
+                               [&](const ast::ImportDeclaration &import) {
+                                 return import.module_name ==
+                                            *indexed.module_name &&
+                                        !import.is_qualified() &&
+                                        !import.is_selective();
+                               }));
+              if (!visible)
+                continue;
+              try {
+                frontend::Parser parser{indexed.index->source};
+                const ast::Program program = parser.parse_program();
+                for (const ast::ExtensionDeclaration &extension :
+                     program.extensions) {
+                  if (extension.target_type.name != receiver_class ||
+                      (extension.is_private && indexed.uri != *uri))
+                    continue;
+                  for (const ast::FunctionDeclaration &method :
+                       extension.methods) {
+                    if (method.name != call->callee.name)
+                      continue;
+                    if (!signatures.empty())
+                      ambiguous_owner = true;
+                    llvm::json::Array parameters;
+                    for (const ast::FunctionDeclaration::Parameter &parameter :
+                         method.parameters)
+                      parameters.emplace_back(llvm::json::Object{
+                          {"label", parameter.name + " : " +
+                                        type_reference(parameter.type)}});
+                    const std::size_t active =
+                        method.parameters.empty()
+                            ? 0
+                            : std::min(call->active_parameter,
+                                       method.parameters.size() - 1);
+                    if (signatures.empty())
+                      active_parameter = active;
+                    signatures.emplace_back(llvm::json::Object{
+                        {"label", function_signature(method) + " [extension]"},
+                        {"parameters", std::move(parameters)},
+                    });
+                  }
+                }
+              } catch (const std::exception &) {
+              }
+            }
           if (!ambiguous_owner && !signatures.empty())
             return {response(request_id(*request),
                              llvm::json::Object{
@@ -3769,6 +3834,18 @@ std::vector<std::string> Server::handle(std::string_view message) {
               if (owner_name != receiver_class ||
                   !module_is_visible(symbol.module, symbol.required_import))
                 continue;
+              if (symbol.signature.find("[extension]") != std::string::npos &&
+                  semantic_index.documents.front().module_name !=
+                      symbol.module &&
+                  std::none_of(semantic_index.documents.front().imports.begin(),
+                               semantic_index.documents.front().imports.end(),
+                               [&](const ast::ImportDeclaration &import) {
+                                 return import.module_name ==
+                                            symbol.required_import &&
+                                        !import.is_qualified() &&
+                                        !import.is_selective();
+                               }))
+                continue;
               add_item(symbol.simple_name, symbol.signature,
                        symbol.kind == "method" ? 2 : 5);
             }
@@ -3809,6 +3886,30 @@ std::vector<std::string> Server::handle(std::string_view message) {
                     if (indexed.uri == *uri ||
                         (!member.is_private && !member.is_internal))
                       add_item(member.name, function_signature(member), 2);
+                }
+                for (const ast::ExtensionDeclaration &declaration :
+                     program.extensions) {
+                  const bool extension_visible =
+                      indexed.uri == *uri ||
+                      (indexed.module_name.has_value() &&
+                       std::any_of(
+                           semantic_index.documents.front().imports.begin(),
+                           semantic_index.documents.front().imports.end(),
+                           [&](const ast::ImportDeclaration &import) {
+                             return import.module_name ==
+                                        *indexed.module_name &&
+                                    !import.is_qualified() &&
+                                    !import.is_selective();
+                           }));
+                  if (!extension_visible)
+                    continue;
+                  if (declaration.target_type.name != receiver_class ||
+                      (declaration.is_private && indexed.uri != *uri))
+                    continue;
+                  for (const ast::FunctionDeclaration &member :
+                       declaration.methods)
+                    add_item(member.name,
+                             function_signature(member) + " [extension]", 2);
                 }
               } catch (const std::exception &) {
               }
@@ -3903,10 +4004,12 @@ std::vector<std::string> Server::handle(std::string_view message) {
                                             "bool", "string", "unit", "usize"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
-             {"const",   "staticAssert", "val", "var", "tailrec", "def", "class", "struct", "trait",
-              "enum",    "new",    "move",   "borrow", "consume", "owned",
-              "derives", "delete", "defer",  "if",     "else",    "match",
-              "for",     "while",  "return", "true",   "false"})
+             {"const", "staticAssert", "val",    "var",    "tailrec",
+              "def",   "class",        "struct", "trait",  "extend",
+              "enum",  "new",          "move",   "borrow", "consume",
+              "owned", "derives",      "delete", "defer",  "if",
+              "else",  "match",        "for",    "while",  "return",
+              "true",  "false"})
           add_item(std::string{keyword}, "Janus keyword", 14);
       }
       return {response(request_id(*request),

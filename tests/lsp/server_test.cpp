@@ -560,6 +560,21 @@ int main(int argc, char **argv) {
                 std::string::npos);
 
   static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///extension-completion.janus","text":"enum Choice { Yes }\nextend Choice { borrow def score(value : int) : int { return value } }\ndef main() : int { val choice : Choice = Choice.Yes() choice. return 0 }"}}})"));
+  const std::vector<std::string> extension_member_completion = server.handle(
+      R"({"jsonrpc":"2.0","id":501,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///extension-completion.janus"},"position":{"line":2,"character":61}}})");
+  JANUS_REQUIRE(extension_member_completion.front().find(
+                    "\"label\":\"score\"") != std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///extension-signature.janus","text":"enum Choice { Yes }\nextend Choice { borrow def score(value : int) : int { return value } }\ndef main() : int { val choice : Choice = Choice.Yes() return choice.score(1) }"}}})"));
+  const std::vector<std::string> extension_signature = server.handle(
+      R"({"jsonrpc":"2.0","id":502,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///extension-signature.janus"},"position":{"line":2,"character":75}}})");
+  JANUS_REQUIRE(extension_signature.front().find(
+                    "score(value : int) : int [extension]") !=
+                std::string::npos);
+
+  static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///array-member-completion.janus","text":"import std.array\n\ndef main() : int {\n    val xs = [1, 2, 3]\n    xs.\n    defer delete xs\n    return 0\n}\n"}}})"));
   const std::vector<std::string> array_member_completion = server.handle(
       R"({"jsonrpc":"2.0","id":51,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///array-member-completion.janus"},"position":{"line":4,"character":7}}})");

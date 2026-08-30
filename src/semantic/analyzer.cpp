@@ -2453,13 +2453,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   struct FunctionContext {
     const ast::FunctionDeclaration *function;
     const ast::ClassDeclaration *owner;
+    const ast::ExtensionDeclaration *extension;
+    ast::ParameterOwnership extension_receiver_ownership;
     const ast::DestructorDeclaration *destructor;
     const ast::GlobalDeclaration *global;
   };
   std::vector<FunctionContext> contexts;
   std::unordered_map<std::string, std::size_t> function_name_counts;
   for (const ast::FunctionDeclaration &function : program.functions) {
-    contexts.push_back(FunctionContext{&function, nullptr, nullptr, nullptr});
+    contexts.push_back(FunctionContext{&function, nullptr, nullptr,
+                                       ast::ParameterOwnership::Unspecified,
+                                       nullptr, nullptr});
     const std::string identity =
         global_key(function.module_name, function.name);
     if (!functions.emplace(identity, &function).second)
@@ -2504,8 +2508,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         {},
         {},
         0});
-    contexts.push_back(FunctionContext{&global_initializer_functions.back(),
-                                       nullptr, nullptr, &global});
+    contexts.push_back(FunctionContext{
+        &global_initializer_functions.back(), nullptr, nullptr,
+        ast::ParameterOwnership::Unspecified, nullptr, &global});
   }
   std::unordered_map<std::string, const ast::FunctionDeclaration *>
       external_symbols;
@@ -2547,13 +2552,78 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "' is already declared in class '" +
                                class_declaration.name + "'"};
       }
-      contexts.push_back(
-          FunctionContext{&method, &class_declaration, nullptr, nullptr});
+      contexts.push_back(FunctionContext{&method, &class_declaration, nullptr,
+                                         ast::ParameterOwnership::Unspecified,
+                                         nullptr, nullptr});
     }
     if (class_declaration.destructor.has_value())
-      contexts.push_back(FunctionContext{nullptr, &class_declaration,
+      contexts.push_back(FunctionContext{nullptr, &class_declaration, nullptr,
+                                         ast::ParameterOwnership::Unspecified,
                                          &*class_declaration.destructor,
                                          nullptr});
+  }
+
+  for (const ast::ExtensionDeclaration &extension : program.extensions) {
+    std::unordered_set<std::string> extension_parameters;
+    for (const std::string &parameter : extension.type_parameters) {
+      if (!extension_parameters.insert(parameter).second)
+        throw CompileError{extension.location, "extension type parameter '" +
+                                                   parameter +
+                                                   "' is already declared"};
+      if (builtin_type(parameter) != nullptr || parameter == "Function")
+        throw CompileError{extension.location,
+                           "extension type parameter '" + parameter +
+                               "' conflicts with a built-in type"};
+    }
+    const SemanticType target = resolve_type(
+        extension.target_type, extension_parameters, &class_arities,
+        extension.module_name, &scoped_type_aliases);
+    std::unordered_set<std::string> target_parameters;
+    const auto collect_target_parameters =
+        [&](const auto &self, const ast::TypeReference &type) -> void {
+      if (extension_parameters.contains(type.name))
+        target_parameters.insert(type.name);
+      for (const ast::TypeReference &argument : type.type_arguments)
+        self(self, argument);
+    };
+    collect_target_parameters(collect_target_parameters, extension.target_type);
+    for (const std::string &parameter : extension.type_parameters)
+      if (!target_parameters.contains(parameter))
+        throw CompileError{extension.location,
+                           "extension type parameter '" + parameter +
+                               "' is not used by the target type"};
+    if (!target.is_class() && !target.is_enum())
+      throw CompileError{extension.location,
+                         "extensions currently require a class, struct, or "
+                         "enum target"};
+    const std::optional<std::string> target_module =
+        target.is_class() ? classes.at(target.parameter)->module_name
+                          : enums.at(target.parameter)->module_name;
+    if (!extension.is_private && target_module != extension.module_name)
+      throw CompileError{
+          extension.location,
+          "public extension of imported type '" + target.name() +
+              "' is forbidden; declare the extension private or move it to "
+              "the type's defining module"};
+    for (std::size_t index = 0; index < extension.methods.size(); ++index) {
+      const ast::FunctionDeclaration &method = extension.methods[index];
+      if (target.is_class()) {
+        const ast::ClassDeclaration &target_class =
+            *classes.at(target.parameter);
+        if (std::any_of(target_class.methods.begin(),
+                        target_class.methods.end(),
+                        [&](const ast::FunctionDeclaration &native_method) {
+                          return native_method.name == method.name;
+                        }))
+          throw CompileError{method.location,
+                             "extension method '" + method.name +
+                                 "' cannot replace a native method of class '" +
+                                 target_class.name + "'"};
+      }
+      contexts.push_back(FunctionContext{&method, nullptr, &extension,
+                                         extension.receiver_ownerships[index],
+                                         nullptr, nullptr});
+    }
   }
 
   const auto main_iterator = functions.find("main");
@@ -2566,6 +2636,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const bool is_destructor = context.destructor != nullptr;
     const bool is_global_initializer = context.global != nullptr;
     const ast::ClassDeclaration *owner = context.owner;
+    const ast::ExtensionDeclaration *extension = context.extension;
     const std::vector<std::string> empty_type_parameters;
     const std::vector<ast::FunctionDeclaration::Parameter> empty_parameters;
     const std::vector<std::string> &function_type_parameters =
@@ -2581,12 +2652,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const std::string function_name =
         is_destructor ? "destructor" : context.function->name;
     std::optional<std::string> context_module =
-        owner != nullptr ? owner->module_name : context.function->module_name;
+        owner != nullptr
+            ? owner->module_name
+            : (extension != nullptr ? extension->module_name
+                                    : context.function->module_name);
     std::unordered_set<std::string> type_parameters;
     if (owner != nullptr) {
       type_parameters.insert(owner->type_parameters.begin(),
                              owner->type_parameters.end());
     }
+    if (extension != nullptr)
+      type_parameters.insert(extension->type_parameters.begin(),
+                             extension->type_parameters.end());
     for (const std::string &parameter : function_type_parameters) {
       if (!type_parameters.insert(parameter).second) {
         throw CompileError{function_location, "type parameter '" + parameter +
@@ -2666,6 +2743,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                    field.initializer.has_value()});
       }
     }
+    if (extension != nullptr) {
+      const SemanticType receiver_type =
+          resolve_type(extension->target_type, type_parameters, &class_arities,
+                       context_module, &scoped_type_aliases);
+      symbols.emplace("this", Symbol{receiver_type,
+                                     context.extension_receiver_ownership ==
+                                         ast::ParameterOwnership::BorrowMutable,
+                                     true});
+    }
     for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
       const SemanticType parameter_type =
           resolve_type(parameter.type, type_parameters, &class_arities,
@@ -2720,19 +2806,27 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           "borrow and owned external returns require a Ptr[T] type"};
     if (!is_destructor && !context.function->is_external &&
         is_borrowed_return(context.function->return_ownership)) {
-      const std::size_t borrowed_parameters = std::count_if(
-          parameters.begin(), parameters.end(), [](const auto &parameter) {
-            return parameter.ownership == ast::ParameterOwnership::Borrow ||
-                   parameter.ownership ==
-                       ast::ParameterOwnership::BorrowMutable;
-          });
-      if (owner != nullptr &&
+      const std::size_t borrowed_parameters =
+          std::count_if(parameters.begin(), parameters.end(),
+                        [](const auto &parameter) {
+                          return parameter.ownership ==
+                                     ast::ParameterOwnership::Borrow ||
+                                 parameter.ownership ==
+                                     ast::ParameterOwnership::BorrowMutable;
+                        }) +
+          (extension != nullptr && (context.extension_receiver_ownership ==
+                                        ast::ParameterOwnership::Borrow ||
+                                    context.extension_receiver_ownership ==
+                                        ast::ParameterOwnership::BorrowMutable)
+               ? 1
+               : 0);
+      if ((owner != nullptr || extension != nullptr) &&
           context.function->return_ownership == ast::ReturnOwnership::Borrow &&
           !context.function->is_borrowing)
         throw CompileError{
             context.function->return_type.location,
             "a method returning a borrow must be declared 'borrow def'"};
-      if (owner != nullptr &&
+      if ((owner != nullptr || extension != nullptr) &&
           context.function->return_ownership ==
               ast::ReturnOwnership::BorrowMutable &&
           context.function->is_borrowing)
@@ -3159,6 +3253,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           transfer_protected_values.insert(field);
         }
       }
+      if (extension != nullptr &&
+          (context.extension_receiver_ownership ==
+               ast::ParameterOwnership::Borrow ||
+           context.extension_receiver_ownership ==
+               ast::ParameterOwnership::BorrowMutable)) {
+        borrowed_values.insert("this");
+        transfer_protected_values.insert("this");
+        if (context.extension_receiver_ownership ==
+            ast::ParameterOwnership::Borrow)
+          shared_borrow_values.insert("this");
+        else
+          mutable_borrow_values.insert("this");
+      }
     }
     const bool report_local_warnings = context_module == program.module_name;
     const auto emit_warning =
@@ -3209,6 +3316,90 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           warn_live_owner(name, symbol->second, location);
       }
     };
+    struct ApplicableExtension {
+      const ast::ExtensionDeclaration *declaration;
+      const ast::FunctionDeclaration *method;
+      ast::ParameterOwnership receiver_ownership;
+      std::unordered_map<std::string, SemanticType> substitutions;
+    };
+    const auto extension_is_visible =
+        [&](const ast::ExtensionDeclaration &candidate) {
+          if (candidate.module_name == context_module)
+            return true;
+          if (candidate.is_private || !candidate.module_name.has_value())
+            return false;
+          return std::any_of(
+              program.imports.begin(), program.imports.end(),
+              [&](const ast::ImportDeclaration &import) {
+                return import.importing_module == context_module &&
+                       import.module_name == *candidate.module_name &&
+                       !import.is_qualified() && !import.is_selective();
+              });
+        };
+    const auto applicable_extensions =
+        [&](const SemanticType &receiver, std::string_view method_name,
+            bool visible_only) -> std::vector<ApplicableExtension> {
+      std::vector<ApplicableExtension> candidates;
+      for (const ast::ExtensionDeclaration &candidate : program.extensions) {
+        if (!extension_is_visible(candidate) &&
+            (visible_only || candidate.is_private))
+          continue;
+        const std::unordered_set<std::string> parameters{
+            candidate.type_parameters.begin(), candidate.type_parameters.end()};
+        const SemanticType pattern =
+            resolve_type(candidate.target_type, parameters, &class_arities,
+                         candidate.module_name, &scoped_type_aliases);
+        std::unordered_map<std::string, SemanticType> substitutions;
+        const auto unify = [&](const auto &self, const SemanticType &expected,
+                               const SemanticType &actual) -> bool {
+          if (!expected.is_concrete() && !expected.is_class() &&
+              !expected.is_pointer() && !expected.is_enum() &&
+              !expected.is_function() &&
+              parameters.contains(expected.parameter)) {
+            const auto [existing, inserted] =
+                substitutions.emplace(expected.parameter, actual);
+            return inserted || same_type(existing->second, actual);
+          }
+          const bool same_nominal_parameter =
+              expected.parameter == actual.parameter ||
+              (expected.is_class() && actual.is_class() &&
+               classes.at(expected.parameter) ==
+                   classes.at(actual.parameter)) ||
+              (expected.is_enum() && actual.is_enum() &&
+               enums.at(expected.parameter) == enums.at(actual.parameter));
+          if (expected.concrete != actual.concrete || !same_nominal_parameter ||
+              expected.class_type != actual.class_type ||
+              expected.pointer_type != actual.pointer_type ||
+              expected.enum_type != actual.enum_type ||
+              expected.function_type != actual.function_type ||
+              expected.function_parameter_ownership !=
+                  actual.function_parameter_ownership ||
+              expected.function_return_ownership !=
+                  actual.function_return_ownership ||
+              expected.type_arguments.size() != actual.type_arguments.size())
+            return false;
+          for (std::size_t index = 0; index < expected.type_arguments.size();
+               ++index)
+            if (!self(self, expected.type_arguments[index],
+                      actual.type_arguments[index]))
+              return false;
+          return true;
+        };
+        if (!unify(unify, pattern, receiver) ||
+            std::any_of(candidate.type_parameters.begin(),
+                        candidate.type_parameters.end(),
+                        [&](const std::string &parameter) {
+                          return !substitutions.contains(parameter);
+                        }))
+          continue;
+        for (std::size_t index = 0; index < candidate.methods.size(); ++index)
+          if (candidate.methods[index].name == method_name)
+            candidates.push_back(ApplicableExtension{
+                &candidate, &candidate.methods[index],
+                candidate.receiver_ownerships[index], substitutions});
+      }
+      return candidates;
+    };
     std::function<SemanticType(const ast::Expression &)> expression_type;
     std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
         validate_block;
@@ -3258,6 +3449,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto mutable_borrow_values_before = mutable_borrow_values;
       const auto borrow_sources_before = borrow_sources;
       const auto inferred_calls_before = result.inferred_generic_arguments;
+      const auto extension_calls_before = result.extension_calls;
       const std::size_t inferred_lambda_parameters_before =
           result.inferred_lambda_parameters.size();
       const auto resolved_calls_before = resolved_calls;
@@ -3303,6 +3495,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         mutable_borrow_values = mutable_borrow_values_before;
         borrow_sources = borrow_sources_before;
         result.inferred_generic_arguments = inferred_calls_before;
+        result.extension_calls = extension_calls_before;
         result.inferred_lambda_parameters.resize(
             inferred_lambda_parameters_before);
         resolved_calls = resolved_calls_before;
@@ -5734,6 +5927,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               const ast::FunctionDeclaration *method = nullptr;
               const ast::ClassDeclaration *class_declaration = nullptr;
               const ast::TraitDeclaration *trait_declaration = nullptr;
+              const ast::ExtensionDeclaration *extension_declaration = nullptr;
+              ast::ParameterOwnership extension_receiver_ownership =
+                  ast::ParameterOwnership::Unspecified;
               if (object_type.is_class()) {
                 class_declaration = classes.at(object_type.parameter);
                 substitutions =
@@ -5746,7 +5942,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   if (candidate.name == node.method)
                     method = &candidate;
                 }
-              } else {
+              } else if (!object_type.is_enum()) {
                 const auto constraint =
                     active_trait_constraints.find(object_type.parameter);
                 if (constraint == active_trait_constraints.end())
@@ -5788,15 +5984,50 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       trait_declaration->type_parameters[index],
                       selected_constraint->type_arguments[index]);
               }
-              if (method == nullptr)
+              if (method == nullptr &&
+                  (object_type.is_class() || object_type.is_enum())) {
+                std::vector<ApplicableExtension> candidates =
+                    applicable_extensions(object_type, node.method, true);
+                if (candidates.size() > 1)
+                  throw CompileError{node.location,
+                                     "extension method '" + node.method +
+                                         "' is ambiguous between " +
+                                         std::to_string(candidates.size()) +
+                                         " visible extension blocks"};
+                if (!candidates.empty()) {
+                  ApplicableExtension &selected = candidates.front();
+                  extension_declaration = selected.declaration;
+                  extension_receiver_ownership = selected.receiver_ownership;
+                  method = selected.method;
+                  substitutions = std::move(selected.substitutions);
+                  method_parameters.insert(
+                      extension_declaration->type_parameters.begin(),
+                      extension_declaration->type_parameters.end());
+                }
+              }
+              if (method == nullptr) {
+                if (object_type.is_class() || object_type.is_enum()) {
+                  std::vector<ApplicableExtension> hidden =
+                      applicable_extensions(object_type, node.method, false);
+                  const auto suggestion = std::find_if(
+                      hidden.begin(), hidden.end(),
+                      [&](const ApplicableExtension &candidate) {
+                        return !extension_is_visible(*candidate.declaration);
+                      });
+                  if (suggestion != hidden.end() &&
+                      suggestion->declaration->module_name.has_value())
+                    throw CompileError{
+                        node.location,
+                        "type '" + object_type.name() +
+                            "' has no visible method '" + node.method +
+                            "'; extension exists in module '" +
+                            *suggestion->declaration->module_name +
+                            "'; import that module without an alias"};
+                }
                 throw CompileError{node.location,
-                                   std::string{class_declaration != nullptr
-                                                   ? "class '"
-                                                   : "trait '"} +
-                                       (class_declaration != nullptr
-                                            ? class_declaration->name
-                                            : trait_declaration->name) +
+                                   "type '" + object_type.name() +
                                        "' has no method '" + node.method + "'"};
+              }
               if (const auto *identifier =
                       std::get_if<ast::IdentifierExpression>(
                           &node.object->value);
@@ -6220,6 +6451,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         object_type.name() + "' that is then abandoned",
                     {"bind the temporary to a local and schedule cleanup, or "
                      "call a consume method"});
+              }
+              if (extension_declaration != nullptr) {
+                std::vector<SemanticType> extension_type_arguments;
+                extension_type_arguments.reserve(
+                    extension_declaration->type_parameters.size() +
+                    method->type_parameters.size());
+                for (const std::string &parameter :
+                     extension_declaration->type_parameters)
+                  extension_type_arguments.push_back(
+                      substitutions.at(parameter));
+                for (const std::string &parameter : method->type_parameters)
+                  extension_type_arguments.push_back(
+                      substitutions.at(parameter));
+                result.extension_calls.insert_or_assign(
+                    &expression, AnalysisResult::ExtensionCall{
+                                     extension_declaration, method,
+                                     extension_receiver_ownership,
+                                     std::move(extension_type_arguments)});
               }
               resolved_calls.insert_or_assign(&expression, method);
               return substitute(resolve_type(method->return_type,
@@ -8225,7 +8474,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               return_type.name() + "' on every path"};
     }
     const std::string analysis_name =
-        owner == nullptr ? function_name : owner->name + "." + function_name;
+        owner != nullptr
+            ? owner->name + "." + function_name
+            : (extension != nullptr ? extension->target_type.name + "." +
+                                          function_name + " [extension]"
+                                    : function_name);
     result.functions.emplace(analysis_name, std::move(symbols));
   }
 

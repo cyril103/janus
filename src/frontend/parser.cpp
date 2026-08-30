@@ -2,6 +2,7 @@
 
 #include "janus/diagnostics/compile_error.hpp"
 
+#include <algorithm>
 #include <cerrno>
 #include <charconv>
 #include <cmath>
@@ -10,6 +11,7 @@
 #include <limits>
 #include <string>
 #include <system_error>
+#include <unordered_set>
 
 namespace {
 
@@ -236,7 +238,10 @@ ast::Program Parser::parse_program() {
           current_.kind != TokenKind::Extern &&
           current_.kind != TokenKind::Class &&
           current_.kind != TokenKind::Struct &&
-          current_.kind != TokenKind::Trait && current_.kind != TokenKind::Enum)
+          current_.kind != TokenKind::Trait &&
+          current_.kind != TokenKind::Enum &&
+          !(current_.kind == TokenKind::Identifier &&
+            current_.lexeme == "extend"))
         throw CompileError{
             current_.location,
             "expected a top-level declaration after 'private', found " +
@@ -252,6 +257,15 @@ ast::Program Parser::parse_program() {
         declaration.module_name = program.module_name;
         declaration.documentation = std::move(documentation);
         program.traits.push_back(std::move(declaration));
+      } else if (current_.kind == TokenKind::Identifier &&
+                 current_.lexeme == "extend") {
+        ast::ExtensionDeclaration declaration = parse_extension_declaration();
+        declaration.is_private = is_private;
+        declaration.module_name = program.module_name;
+        declaration.documentation = std::move(documentation);
+        for (ast::FunctionDeclaration &method : declaration.methods)
+          method.module_name = program.module_name;
+        program.extensions.push_back(std::move(declaration));
       } else if (current_.kind == TokenKind::Enum) {
         ast::EnumDeclaration declaration = parse_enum_declaration();
         declaration.is_private = is_private;
@@ -344,6 +358,8 @@ void Parser::synchronize_top_level() {
       ++brace_depth;
     } else if (brace_depth == 0 && (current_.kind == TokenKind::Private ||
                                     current_.kind == TokenKind::Trait ||
+                                    (current_.kind == TokenKind::Identifier &&
+                                     current_.lexeme == "extend") ||
                                     current_.kind == TokenKind::Enum ||
                                     current_.kind == TokenKind::Class ||
                                     current_.kind == TokenKind::Struct ||
@@ -926,6 +942,85 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
                                     {}};
   declaration.is_value_type = is_value_type;
   return declaration;
+}
+
+ast::ExtensionDeclaration Parser::parse_extension_declaration() {
+  if (current_.kind != TokenKind::Identifier || current_.lexeme != "extend")
+    throw CompileError{current_.location, "expected 'extend'"};
+  const Token extension_token = current_;
+  advance();
+  std::vector<std::string> type_parameters;
+  if (current_.kind == TokenKind::LeftBracket) {
+    advance();
+    do {
+      const Token parameter = expect(TokenKind::Identifier);
+      if (std::find(type_parameters.begin(), type_parameters.end(),
+                    parameter.lexeme) != type_parameters.end())
+        throw CompileError{parameter.location,
+                           "extension type parameter '" +
+                               std::string{parameter.lexeme} +
+                               "' is already declared"};
+      type_parameters.emplace_back(parameter.lexeme);
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+    static_cast<void>(expect(TokenKind::RightBracket));
+  }
+  ast::TypeReference target_type = parse_type();
+  static_cast<void>(expect(TokenKind::LeftBrace));
+
+  std::vector<ast::FunctionDeclaration> methods;
+  std::vector<ast::ParameterOwnership> receiver_ownerships;
+  std::unordered_set<std::string> method_names;
+  while (current_.kind != TokenKind::RightBrace) {
+    std::string documentation = take_documentation();
+    ast::ParameterOwnership receiver_ownership;
+    bool borrowing = false;
+    bool consuming = false;
+    if (current_.kind == TokenKind::Borrow) {
+      borrowing = true;
+      receiver_ownership = ast::ParameterOwnership::Borrow;
+      advance();
+      if (current_.kind == TokenKind::Var) {
+        receiver_ownership = ast::ParameterOwnership::BorrowMutable;
+        advance();
+      }
+    } else if (current_.kind == TokenKind::Consume) {
+      consuming = true;
+      receiver_ownership = ast::ParameterOwnership::Consume;
+      advance();
+    } else {
+      throw CompileError{
+          current_.location,
+          "extension method requires 'borrow', 'borrow var', or 'consume'"};
+    }
+    ast::FunctionDeclaration method = parse_function_declaration();
+    if (method.is_external || method.is_tailrec)
+      throw CompileError{
+          method.location,
+          "extension methods cannot be external or tail-recursive"};
+    if (!method_names.insert(method.name).second)
+      throw CompileError{method.location,
+                         "extension method '" + method.name +
+                             "' is already declared in this block"};
+    method.is_borrowing = borrowing;
+    method.is_consuming = consuming;
+    method.documentation = std::move(documentation);
+    methods.push_back(std::move(method));
+    receiver_ownerships.push_back(receiver_ownership);
+    if (current_.kind == TokenKind::Semicolon)
+      advance();
+  }
+  static_cast<void>(expect(TokenKind::RightBrace));
+  return ast::ExtensionDeclaration{std::move(type_parameters),
+                                   std::move(target_type),
+                                   std::move(methods),
+                                   std::move(receiver_ownerships),
+                                   extension_token.location,
+                                   false,
+                                   std::nullopt,
+                                   {}};
 }
 
 ast::DestructorDeclaration Parser::parse_destructor_declaration() {
