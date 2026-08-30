@@ -232,6 +232,7 @@ ast::Program Parser::parse_program() {
         advance();
       }
       if (is_private && current_.kind != TokenKind::Const &&
+          current_.kind != TokenKind::Pure &&
           current_.kind != TokenKind::Val && current_.kind != TokenKind::Var &&
           current_.kind != TokenKind::Def &&
           current_.kind != TokenKind::Tailrec &&
@@ -311,6 +312,15 @@ ast::Program Parser::parse_program() {
           program.globals.push_back(ast::GlobalDeclaration{
               std::move(declaration), program.module_name});
         }
+      } else if (current_.kind == TokenKind::Pure) {
+        advance();
+        ast::FunctionDeclaration declaration =
+            parse_function_declaration(false, true);
+        declaration.is_private = is_private;
+        declaration.is_internal = is_internal;
+        declaration.module_name = program.module_name;
+        declaration.documentation = std::move(documentation);
+        program.functions.push_back(std::move(declaration));
       } else if (current_.kind == TokenKind::Val ||
                  current_.kind == TokenKind::Var) {
         ast::ValueDeclaration declaration = parse_variable_declaration();
@@ -364,6 +374,7 @@ void Parser::synchronize_top_level() {
                                     current_.kind == TokenKind::Class ||
                                     current_.kind == TokenKind::Struct ||
                                     current_.kind == TokenKind::Const ||
+                                    current_.kind == TokenKind::Pure ||
                                     current_.kind == TokenKind::StaticAssert ||
                                     current_.kind == TokenKind::Val ||
                                     current_.kind == TokenKind::Var ||
@@ -442,6 +453,9 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
 }
 
 ast::FunctionDeclaration Parser::parse_trait_method() {
+  const bool is_pure = current_.kind == TokenKind::Pure;
+  if (is_pure)
+    advance();
   const bool is_borrowing = current_.kind == TokenKind::Borrow;
   const bool is_consuming = current_.kind == TokenKind::Consume;
   if (is_borrowing || is_consuming)
@@ -555,6 +569,7 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
                                        {},
                                        0};
   declaration.is_borrowing = is_borrowing;
+  declaration.is_pure = is_pure;
   declaration.return_ownership = return_ownership;
   return declaration;
 }
@@ -932,13 +947,16 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
         (is_internal && current_.kind == TokenKind::Private))
       throw CompileError{current_.location,
                          "a class member cannot be both private and internal"};
+    const bool is_pure = current_.kind == TokenKind::Pure;
+    if (is_pure)
+      advance();
     const bool is_borrowing = current_.kind == TokenKind::Borrow;
     const bool is_consuming = current_.kind == TokenKind::Consume;
     if (is_borrowing || is_consuming)
       advance();
     const bool is_tailrec = current_.kind == TokenKind::Tailrec;
     if (current_.kind == TokenKind::Type) {
-      if (is_private || is_internal || is_borrowing || is_consuming)
+      if (is_private || is_internal || is_pure || is_borrowing || is_consuming)
         throw CompileError{
             current_.location,
             "an associated type definition cannot have member modifiers"};
@@ -949,7 +967,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
           std::string{associated_name.lexeme}, parse_type(), keyword.location,
           std::move(documentation)});
     } else if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
-      if (is_borrowing || is_consuming)
+      if (is_pure || is_borrowing || is_consuming)
         throw CompileError{current_.location,
                            "borrow and consume can only modify a method"};
       ast::ValueDeclaration field = parse_variable_declaration();
@@ -968,10 +986,11 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       method.is_consuming = is_consuming;
       method.is_borrowing = is_borrowing;
       method.is_tailrec = is_tailrec;
+      method.is_pure = is_pure;
       method.documentation = std::move(documentation);
       methods.push_back(std::move(method));
     } else if (current_.kind == TokenKind::Destructor) {
-      if (is_private || is_internal || is_borrowing || is_consuming)
+      if (is_private || is_internal || is_pure || is_borrowing || is_consuming)
         throw CompileError{current_.location,
                            "destructor cannot have method modifiers"};
       if (destructor.has_value())
@@ -1039,6 +1058,9 @@ ast::ExtensionDeclaration Parser::parse_extension_declaration() {
   std::unordered_set<std::string> method_names;
   while (current_.kind != TokenKind::RightBrace) {
     std::string documentation = take_documentation();
+    const bool is_pure = current_.kind == TokenKind::Pure;
+    if (is_pure)
+      advance();
     ast::ParameterOwnership receiver_ownership;
     bool borrowing = false;
     bool consuming = false;
@@ -1070,6 +1092,7 @@ ast::ExtensionDeclaration Parser::parse_extension_declaration() {
                              "' is already declared in this block"};
     method.is_borrowing = borrowing;
     method.is_consuming = consuming;
+    method.is_pure = is_pure;
     method.documentation = std::move(documentation);
     methods.push_back(std::move(method));
     receiver_ownerships.push_back(receiver_ownership);
@@ -1106,7 +1129,8 @@ std::vector<ast::Statement> Parser::parse_block() {
   return body;
 }
 
-ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
+ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
+                                                             bool is_pure) {
   const bool is_tailrec = current_.kind == TokenKind::Tailrec;
   if (is_tailrec)
     advance();
@@ -1292,6 +1316,7 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant) {
                                        {},
                                        0};
   declaration.is_constant = is_constant;
+  declaration.is_pure = is_pure;
   declaration.is_tailrec = is_tailrec;
   declaration.expression_body_arrow = expression_body_arrow;
   declaration.expression_body_start = expression_body_start;
@@ -2191,6 +2216,9 @@ ast::MatchPattern Parser::parse_match_pattern() {
 }
 
 ast::TypeReference Parser::parse_type() {
+  const bool is_pure_function = current_.kind == TokenKind::Pure;
+  if (is_pure_function)
+    advance();
   if (current_.kind == TokenKind::LeftParen) {
     const Token left_parenthesis = expect(TokenKind::LeftParen);
     std::vector<ast::TypeReference> arguments;
@@ -2231,8 +2259,12 @@ ast::TypeReference Parser::parse_type() {
                               std::move(arguments)};
     result.function_parameter_ownership = std::move(ownerships);
     result.function_return_ownership = return_ownership;
+    result.is_pure_function = is_pure_function;
     return result;
   }
+  if (is_pure_function)
+    throw CompileError{current_.location,
+                       "'pure' can only qualify a function type"};
   const Token type_name = expect(TokenKind::Identifier);
   std::string qualified_type_name{type_name.lexeme};
   while (current_.kind == TokenKind::Dot) {

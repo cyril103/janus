@@ -45,6 +45,7 @@ struct TypeReference {
   std::vector<TypeReference> type_arguments;
   std::vector<ParameterOwnership> function_parameter_ownership;
   ReturnOwnership function_return_ownership{ReturnOwnership::Unspecified};
+  bool is_pure_function{};
 };
 
 struct IntegerLiteralExpression {
@@ -458,6 +459,7 @@ struct FunctionDeclaration {
   std::optional<SourceLocation> expression_body_arrow;
   std::optional<SourceLocation> expression_body_start;
   std::size_t expression_body_end{};
+  bool is_pure{};
 };
 
 struct DestructorDeclaration {

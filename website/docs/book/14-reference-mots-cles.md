@@ -3,7 +3,7 @@
 
 ## Objectifs
 
-- retrouver les 35 mots-clés réservés de la version en développement de Janus ;
+- retrouver les 36 mots-clés réservés de la version en développement de Janus ;
 - comprendre leur utilité et leur contexte valide ;
 - ne pas confondre mots-clés, types primitifs, builtins et opérateurs.
 
@@ -20,6 +20,7 @@ Un mot-clé est réservé par le lexer et ne peut pas servir de nom de variable,
 | `tailrec` | garantit et rend explicite une récursion terminale | `tailrec def loop(n : int) : int { ... }` |
 | `extern` | déclare une fonction native sans corps Janus | `extern def native_call() : int` |
 | `return` | quitte une fonction, avec sa valeur si nécessaire | `return 0` ; le type doit correspondre |
+| `pure` | garantit transitivement l'absence d'effets observables | `pure def twice(x : int) : int { return x * 2 }` |
 
 `module` et `import` acceptent un point-virgule facultatif. `extern` se combine avec `def` ; une déclaration externe variadique peut terminer ses paramètres par `...`.
 

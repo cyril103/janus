@@ -55,7 +55,7 @@ std::size_t lexical_distance(std::string_view left, std::string_view right) {
 }
 
 std::string type_name(const ast::TypeReference &type) {
-  std::string result = type.name;
+  std::string result = type.is_pure_function ? "pure " + type.name : type.name;
   if (!type.type_arguments.empty()) {
     result += '[';
     for (std::size_t i = 0; i < type.type_arguments.size(); ++i) {
@@ -125,8 +125,9 @@ std::string function_signature(const ast::FunctionDeclaration &fn) {
   std::string result =
       fn.is_constant
           ? "const def "
-          : (fn.is_consuming ? "consume def "
-                             : (fn.is_borrowing ? "borrow def " : "def "));
+          : std::string{fn.is_pure ? "pure " : ""} +
+                (fn.is_consuming ? "consume def "
+                                 : (fn.is_borrowing ? "borrow def " : "def "));
   if (fn.is_tailrec)
     result.insert(result.find("def "), "tailrec ");
   result += fn.name;

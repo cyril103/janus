@@ -23,7 +23,7 @@ private:
   [[nodiscard]] ast::DestructorDeclaration parse_destructor_declaration();
   [[nodiscard]] std::vector<ast::Statement> parse_block();
   [[nodiscard]] ast::FunctionDeclaration
-  parse_function_declaration(bool is_constant = false);
+  parse_function_declaration(bool is_constant = false, bool is_pure = false);
   [[nodiscard]] ast::Statement parse_statement();
   [[nodiscard]] ast::ValueDeclaration
   parse_variable_declaration(bool is_constant = false,

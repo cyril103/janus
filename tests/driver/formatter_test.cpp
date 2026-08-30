@@ -251,6 +251,17 @@ int main() {
     std::cerr << "constant syntax formatting is not idempotent\n";
     return 1;
   }
+  const std::string pure =
+      "pure def apply(action : pure (int) => int, value : int) : int {\n"
+      "return action(value)\n}\n";
+  const std::string formatted_pure =
+      "pure def apply(action : pure (int) => int, value : int) : int {\n"
+      "    return action(value)\n}\n";
+  if (janus::driver::format_source(pure) != formatted_pure ||
+      janus::driver::format_source(formatted_pure) != formatted_pure) {
+    std::cerr << "pure syntax formatting is not idempotent\n";
+    return 1;
+  }
   const std::string expression_bodies =
       "def square(value : int) : int=>value * value\n"
       "def choose(value : int) : int => match value {\n"

@@ -253,7 +253,8 @@ std::string anchor_for(std::string_view qualified_name) {
 }
 
 std::string type_name(const janus::ast::TypeReference &type) {
-  std::string rendered = type.name;
+  std::string rendered =
+      type.is_pure_function ? "pure " + type.name : type.name;
   if (!type.type_arguments.empty()) {
     rendered += '[';
     for (std::size_t index = 0; index < type.type_arguments.size(); ++index) {
@@ -274,6 +275,8 @@ std::string function_signature(const janus::ast::FunctionDeclaration &value) {
   std::string signature;
   if (value.is_constant)
     signature += "const ";
+  else if (value.is_pure)
+    signature += "pure ";
   if (value.is_consuming)
     signature += "consume ";
   else if (value.is_borrowing)

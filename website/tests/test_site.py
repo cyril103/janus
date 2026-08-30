@@ -119,6 +119,7 @@ EXPECTED_KEYWORDS = {
     "continue",
     "return",
     "const",
+    "pure",
     "val",
     "var",
     "true",

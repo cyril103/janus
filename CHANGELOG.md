@@ -7,6 +7,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage
 
+- ajout de `pure def`, contrat d'absence d'effets observables vérifié
+  transitivement (cycles compris), propagé aux méthodes, traits, callbacks,
+  génériques, FFI de confiance, index public et cache incrémental ;
 - ajout de l'opérateur de pipeline `|>`, associatif à gauche et de faible
   précédence, avec transmission explicite de la valeur comme premier argument
   et sans `move` implicite ;

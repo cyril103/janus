@@ -746,6 +746,12 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.compile_time_constants COMMAND compile_time_constant_test)
+    add_executable(pure_function_test
+        tests/language/pure_function_test.cpp
+    )
+    target_link_libraries(pure_function_test PRIVATE janus_semantic)
+    target_compile_options(pure_function_test PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME language.pure_functions COMMAND pure_function_test)
     add_executable(expression_body_test
         tests/language/expression_body_test.cpp
     )

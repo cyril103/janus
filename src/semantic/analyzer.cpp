@@ -137,7 +137,8 @@ janus::semantic::SemanticType resolve_type(
           "function parameter ownership count does not match its signature"};
     return janus::semantic::SemanticType{
         nullptr, "Function", false, std::move(signature), false, false, true,
-        std::move(ownerships), reference.function_return_ownership};
+        std::move(ownerships), reference.function_return_ownership,
+        reference.is_pure_function};
   }
   if (type_parameters.contains(reference.name)) {
     if (!reference.type_arguments.empty())
@@ -253,6 +254,7 @@ bool same_type(const janus::semantic::SemanticType &left,
            left.function_parameter_ownership ==
                right.function_parameter_ownership &&
            left.function_return_ownership == right.function_return_ownership &&
+           left.pure_function == right.pure_function &&
            left.type_arguments.size() == right.type_arguments.size() &&
            std::equal(left.type_arguments.begin(), left.type_arguments.end(),
                       right.type_arguments.begin(), same_type);
@@ -510,7 +512,7 @@ std::string SemanticType::name() const {
   if (is_concrete())
     return std::string{concrete->name()};
   if (is_function()) {
-    std::string result{"("};
+    std::string result{pure_function ? "pure (" : "("};
     for (std::size_t index = 0; index + 1 < type_arguments.size(); ++index) {
       if (index != 0)
         result += ", ";
@@ -1688,8 +1690,372 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     return shape;
   };
 
-  // A const function is a declaration-time purity contract.  Validate every
-  // body, even when no constant initializer happens to call it.
+  // Runtime purity is an explicit effect contract. External declarations are
+  // trusted boundaries; Janus bodies are checked transitively below.
+  enum class EffectState { Unvisited, Visiting, Complete };
+  std::unordered_map<const ast::FunctionDeclaration *, EffectState>
+      pure_effect_states;
+  std::vector<const ast::FunctionDeclaration *> all_effect_functions;
+  std::unordered_map<const ast::FunctionDeclaration *,
+                     std::unordered_set<std::string>>
+      pure_method_fields;
+  for (const ast::FunctionDeclaration &function : program.functions)
+    all_effect_functions.push_back(&function);
+  for (const ast::ClassDeclaration &declaration : program.classes) {
+    std::unordered_set<std::string> fields;
+    for (const ast::ValueDeclaration &field : declaration.constructor_fields)
+      fields.insert(field.name);
+    for (const ast::ValueDeclaration &field : declaration.fields)
+      fields.insert(field.name);
+    for (const ast::FunctionDeclaration &method : declaration.methods) {
+      all_effect_functions.push_back(&method);
+      pure_method_fields.emplace(&method, fields);
+    }
+  }
+  for (const ast::ExtensionDeclaration &declaration : program.extensions)
+    for (const ast::FunctionDeclaration &method : declaration.methods) {
+      all_effect_functions.push_back(&method);
+      pure_method_fields.emplace(&method, std::unordered_set<std::string>{});
+    }
+
+  const auto function_is_pure = [](const ast::FunctionDeclaration &function) {
+    return function.is_pure || function.is_constant;
+  };
+  const auto is_pure_builtin = [](std::string_view name) {
+    static constexpr std::array<std::string_view, 19> names{
+        "int",   "uint",  "long",           "ulong",          "float",
+        "double", "byte",  "ubyte",          "short",          "ushort",
+        "char",  "bool",  "isize",          "usize",          "saturatingCast",
+        "truncatingCast", "checkedCast", "abs", "panic"};
+    return std::find(names.begin(), names.end(), name) != names.end();
+  };
+  const auto find_effect_function =
+      [&](std::string_view name) -> const ast::FunctionDeclaration * {
+    const auto found = std::find_if(
+        program.functions.begin(), program.functions.end(),
+        [&](const ast::FunctionDeclaration &candidate) {
+          if (candidate.name == name)
+            return !candidate.module_name.has_value() ||
+                   import_allows(program.module_name, candidate.module_name,
+                                 candidate.name, name);
+          const auto aliases =
+              imported_names(candidate.module_name, candidate.name);
+          return std::find(aliases.begin(), aliases.end(), name) !=
+                 aliases.end();
+        });
+    return found == program.functions.end() ? nullptr : &*found;
+  };
+  const auto is_constructor_call = [&](std::string_view name) {
+    if (find_in_context(classes, program.module_name, name) != classes.end())
+      return true;
+    for (const auto &[key, declaration] : enums) {
+      static_cast<void>(key);
+      if (std::any_of(declaration->cases.begin(), declaration->cases.end(),
+                      [&](const ast::EnumDeclaration::Case &enum_case) {
+                        return enum_case.name == name;
+                      }))
+        return true;
+    }
+    return false;
+  };
+  std::vector<std::string> pure_call_chain;
+  const auto pure_error = [&](SourceLocation location,
+                              std::string message) -> CompileError {
+    std::string chain;
+    for (const std::string &name : pure_call_chain) {
+      if (!chain.empty())
+        chain += " -> ";
+      chain += name;
+    }
+    return CompileError{Diagnostic{DiagnosticSeverity::Error,
+                                   DiagnosticCode::Unclassified,
+                                   std::move(message), location,
+                                   chain.empty()
+                                       ? std::vector<std::string>{}
+                                       : std::vector<std::string>{
+                                             "pure call chain: " + chain},
+                                   {}, {}}};
+  };
+  std::function<void(const ast::FunctionDeclaration &)> validate_pure_effects;
+  validate_pure_effects = [&](const ast::FunctionDeclaration &function) {
+    EffectState &state = pure_effect_states[&function];
+    if (state == EffectState::Complete || state == EffectState::Visiting)
+      return;
+    state = EffectState::Visiting;
+    pure_call_chain.push_back(function.name);
+    struct ChainGuard {
+      std::vector<std::string> &chain;
+      ~ChainGuard() { chain.pop_back(); }
+    } chain_guard{pure_call_chain};
+
+    std::unordered_set<std::string> parameters;
+    std::unordered_set<std::string> locals;
+    const auto fields = pure_method_fields.find(&function);
+    const bool is_method = fields != pure_method_fields.end();
+    const std::unordered_set<std::string> member_values =
+        is_method ? fields->second : std::unordered_set<std::string>{};
+    locals.insert(member_values.begin(), member_values.end());
+    if (is_method) {
+      locals.insert("this");
+      parameters.insert("this");
+    }
+    for (const ast::FunctionDeclaration::Parameter &parameter :
+         function.parameters) {
+      parameters.insert(parameter.name);
+      locals.insert(parameter.name);
+      if (parameter.ownership == ast::ParameterOwnership::BorrowMutable)
+        throw pure_error(parameter.location,
+                         "pure def '" + function.name +
+                             "' cannot accept a mutable borrow parameter");
+    }
+    if (function.is_consuming)
+      throw pure_error(function.location,
+                       "pure method '" + function.name +
+                           "' cannot consume its receiver");
+    if (function.is_external) {
+      state = EffectState::Complete;
+      return;
+    }
+
+    std::function<void(const ast::Expression &,
+                       const std::unordered_set<std::string> &,
+                       const std::unordered_set<std::string> &)>
+        check_expression;
+    std::function<void(const std::vector<ast::Statement> &,
+                       std::unordered_set<std::string>,
+                       std::unordered_set<std::string>)>
+        check_statements;
+    check_expression = [&](const ast::Expression &expression,
+                           const std::unordered_set<std::string> &scope,
+                           const std::unordered_set<std::string> &arguments) {
+      std::visit(
+          [&](const auto &node) {
+            using Node = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<Node, ast::IdentifierExpression>) {
+              if (scope.contains(node.name))
+                return;
+              std::string key = global_key(function.module_name, node.name);
+              if (!globals.contains(key)) {
+                if (const auto exported = public_globals.find(node.name);
+                    exported != public_globals.end())
+                  key = exported->second;
+              }
+              if (const auto global = globals.find(key);
+                  global != globals.end() &&
+                  global->second.declaration->declaration.is_mutable)
+                throw pure_error(node.location,
+                                 "pure def '" + function.name +
+                                     "' cannot observe mutable global '" + key +
+                                     "'");
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::ArrayLiteralExpression>) {
+              for (const auto &element : node.elements)
+                check_expression(*element, scope, arguments);
+            } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
+              auto lambda_scope = scope;
+              auto lambda_arguments = arguments;
+              for (const ast::LambdaExpression::Parameter &parameter :
+                   node.parameters) {
+                lambda_scope.insert(parameter.name);
+                lambda_arguments.insert(parameter.name);
+              }
+              if (const auto *body =
+                      std::get_if<std::unique_ptr<ast::Expression>>(&node.body))
+                check_expression(**body, lambda_scope, lambda_arguments);
+              else
+                check_statements(
+                    (*std::get<std::shared_ptr<ast::LambdaBlock>>(node.body))
+                        .statements,
+                    std::move(lambda_scope), std::move(lambda_arguments));
+            } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              for (const auto &argument : node.arguments)
+                check_expression(*argument, scope, arguments);
+              if (is_pure_builtin(node.callee) ||
+                  is_constructor_call(node.callee))
+                return;
+              if (scope.contains(node.callee)) {
+                const auto parameter = std::find_if(
+                    function.parameters.begin(), function.parameters.end(),
+                    [&](const ast::FunctionDeclaration::Parameter &candidate) {
+                      return candidate.name == node.callee;
+                    });
+                if (parameter != function.parameters.end() &&
+                    parameter->type.name == "Function" &&
+                    parameter->type.is_pure_function)
+                  return;
+                throw pure_error(node.location,
+                                 "pure def '" + function.name +
+                                     "' cannot invoke callback '" + node.callee +
+                                     "' without a pure function contract");
+              }
+              const ast::FunctionDeclaration *callee =
+                  find_effect_function(node.callee);
+              if (callee == nullptr || !function_is_pure(*callee))
+                throw pure_error(node.location,
+                                 "pure def '" + function.name +
+                                     "' cannot call impure function '" +
+                                     node.callee + "'");
+              validate_pure_effects(*callee);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MethodCallExpression>) {
+              check_expression(*node.object, scope, arguments);
+              for (const auto &argument : node.arguments)
+                check_expression(*argument, scope, arguments);
+              const auto method = std::find_if(
+                  all_effect_functions.begin(), all_effect_functions.end(),
+                  [&](const ast::FunctionDeclaration *candidate) {
+                    return candidate->name == node.method &&
+                           function_is_pure(*candidate);
+                  });
+              if (method == all_effect_functions.end())
+                throw pure_error(node.location,
+                                 "pure def '" + function.name +
+                                     "' cannot call method '" + node.method +
+                                     "' without a pure contract");
+              validate_pure_effects(**method);
+            } else if constexpr (std::is_same_v<Node, ast::IndexExpression>) {
+              check_expression(*node.container, scope, arguments);
+              check_expression(*node.index, scope, arguments);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MemberAccessExpression>) {
+              check_expression(*node.object, scope, arguments);
+            } else if constexpr (std::is_same_v<Node, ast::NewExpression>) {
+              for (const auto &argument : node.arguments)
+                check_expression(*argument, scope, arguments);
+            } else if constexpr (std::is_same_v<Node, ast::IfExpression>) {
+              check_expression(*node.condition, scope, arguments);
+              check_expression(*node.then_expression, scope, arguments);
+              check_expression(*node.else_expression, scope, arguments);
+            } else if constexpr (std::is_same_v<Node, ast::MatchExpression>) {
+              check_expression(*node.scrutinee, scope, arguments);
+              for (const auto &arm : node.arms) {
+                auto arm_scope = scope;
+                const auto bindings = ast::match_pattern_binding_names(arm);
+                arm_scope.insert(bindings.begin(), bindings.end());
+                if (!ast::is_enum_binding_pattern(arm))
+                  for (const auto &pattern : arm.patterns)
+                    ast::visit_match_pattern(pattern, [&](const auto &part) {
+                      if (part.literal)
+                        check_expression(*part.literal, scope, arguments);
+                    });
+                if (arm.guard)
+                  check_expression(*arm.guard, arm_scope, arguments);
+                check_expression(*arm.expression, arm_scope, arguments);
+              }
+            } else if constexpr (std::is_same_v<Node, ast::MoveExpression> ||
+                                 std::is_same_v<Node, ast::TryExpression> ||
+                                 std::is_same_v<Node, ast::UnaryExpression>) {
+              check_expression(*node.operand, scope, arguments);
+            } else if constexpr (std::is_same_v<Node, ast::BinaryExpression>) {
+              check_expression(*node.left, scope, arguments);
+              check_expression(*node.right, scope, arguments);
+            }
+          },
+          expression.value);
+    };
+    check_statements = [&](const std::vector<ast::Statement> &statements,
+                           std::unordered_set<std::string> scope,
+                           std::unordered_set<std::string> arguments) {
+      for (const ast::Statement &statement : statements) {
+        if (const auto *declaration =
+                std::get_if<ast::ValueDeclaration>(&statement)) {
+          if (declaration->initializer)
+            check_expression(*declaration->initializer, scope, arguments);
+          scope.insert(declaration->name);
+        } else if (const auto *assignment =
+                       std::get_if<ast::AssignmentStatement>(&statement)) {
+          check_expression(assignment->expression, scope, arguments);
+          std::string target = assignment->object.empty()
+                                   ? assignment->name
+                                   : assignment->object;
+          if (assignment->index_target) {
+            check_expression(*assignment->index_target->container, scope,
+                             arguments);
+            check_expression(*assignment->index_target->index, scope,
+                             arguments);
+            if (const auto *identifier =
+                    std::get_if<ast::IdentifierExpression>(
+                        &assignment->index_target->container->value))
+              target = identifier->name;
+            else
+              target.clear();
+          }
+          if ((assignment->object.empty() &&
+               member_values.contains(assignment->name)) ||
+              target.empty() || !scope.contains(target) ||
+              arguments.contains(target))
+            throw pure_error(assignment->location,
+                             "pure def '" + function.name +
+                                 "' cannot mutate state visible to its caller");
+        } else if (const auto *deleted =
+                       std::get_if<ast::DeleteStatement>(&statement)) {
+          check_expression(deleted->expression, scope, arguments);
+          const auto *identifier = std::get_if<ast::IdentifierExpression>(
+              &deleted->expression.value);
+          if (identifier == nullptr || !scope.contains(identifier->name) ||
+              arguments.contains(identifier->name))
+            throw pure_error(deleted->location,
+                             "pure def '" + function.name +
+                                 "' can only delete local values");
+        } else if (const auto *returned =
+                       std::get_if<ast::ReturnStatement>(&statement)) {
+          if (returned->expression)
+            check_expression(*returned->expression, scope, arguments);
+        } else if (const auto *expression =
+                       std::get_if<ast::ExpressionStatement>(&statement)) {
+          check_expression(expression->expression, scope, arguments);
+        } else if (const auto *deferred =
+                       std::get_if<ast::DeferStatement>(&statement)) {
+          std::visit(
+              [&](const auto &action) {
+                if constexpr (std::is_same_v<std::decay_t<decltype(action)>,
+                                             ast::DeleteStatement>) {
+                  const auto *identifier =
+                      std::get_if<ast::IdentifierExpression>(
+                          &action.expression.value);
+                  if (identifier == nullptr ||
+                      !scope.contains(identifier->name) ||
+                      arguments.contains(identifier->name))
+                    throw pure_error(action.location,
+                                     "pure def '" + function.name +
+                                         "' can only defer deletion of local "
+                                         "values");
+                  check_expression(action.expression, scope, arguments);
+                } else {
+                  check_expression(action.expression, scope, arguments);
+                }
+              },
+              deferred->action);
+        } else if (const auto *conditional =
+                       std::get_if<std::shared_ptr<ast::IfStatement>>(
+                           &statement)) {
+          check_expression((*conditional)->condition, scope, arguments);
+          check_statements((*conditional)->then_body, scope, arguments);
+          check_statements((*conditional)->else_body, scope, arguments);
+        } else if (const auto *loop =
+                       std::get_if<std::shared_ptr<ast::WhileStatement>>(
+                           &statement)) {
+          check_expression((*loop)->condition, scope, arguments);
+          check_statements((*loop)->body, scope, arguments);
+        } else if (const auto *loop =
+                       std::get_if<std::shared_ptr<ast::ForStatement>>(
+                           &statement)) {
+          check_expression((*loop)->iterator, scope, arguments);
+          auto loop_scope = scope;
+          loop_scope.insert((*loop)->binding);
+          check_statements((*loop)->body, std::move(loop_scope), arguments);
+        }
+      }
+    };
+    check_statements(function.body, std::move(locals), std::move(parameters));
+    state = EffectState::Complete;
+  };
+  for (const ast::FunctionDeclaration *function : all_effect_functions)
+    if (function->is_pure)
+      validate_pure_effects(*function);
+
+  // A const function is also pure, but remains a stricter declaration-time
+  // contract. Validate every body even when no constant initializer calls it.
   enum class PurityState { Unvisited, Visiting, Complete };
   std::unordered_map<const ast::FunctionDeclaration *, PurityState>
       purity_states;
@@ -2506,7 +2872,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  "' has a signature incompatible with trait '" +
                                  trait_declaration.name + "'"};
         if (implementation->is_consuming != required.is_consuming ||
-            implementation->is_borrowing != required.is_borrowing)
+            implementation->is_borrowing != required.is_borrowing ||
+            (implementation->is_pure || implementation->is_constant) !=
+                (required.is_pure || required.is_constant))
           throw CompileError{
               implementation->location,
               "method '" + class_declaration.name + "." + implementation->name +
@@ -2823,6 +3191,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   for (const FunctionContext &context : contexts) {
     const bool is_destructor = context.destructor != nullptr;
     const bool is_global_initializer = context.global != nullptr;
+    const bool inside_pure_context =
+        !is_destructor && !is_global_initializer && context.function->is_pure;
     const ast::ClassDeclaration *owner = context.owner;
     const ast::ExtensionDeclaration *extension = context.extension;
     const std::vector<std::string> empty_type_parameters;
@@ -3298,6 +3668,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const std::unordered_map<std::string, SemanticType>
         *active_type_substitutions = nullptr;
     bool inside_lambda = false;
+    bool inside_pure_lambda = false;
     bool inside_defer = false;
     bool contextual_lambda_may_escape = false;
     bool contextual_borrow_expression = false;
@@ -3619,6 +3990,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   actual.function_parameter_ownership ||
               expected.function_return_ownership !=
                   actual.function_return_ownership ||
+              expected.pure_function != actual.pure_function ||
               expected.type_arguments.size() != actual.type_arguments.size())
             return false;
           for (std::size_t index = 0; index < expected.type_arguments.size();
@@ -3811,6 +4183,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   : std::optional<std::optional<SemanticType>>{
                         *active_lambda_return_type_before};
       const bool inside_lambda_before = inside_lambda;
+      const bool inside_pure_lambda_before = inside_pure_lambda;
       const std::optional<std::string> context_module_before = context_module;
       const std::size_t diagnostics_before = result.diagnostics.size();
       const auto warned_leaks_before = warned_leak_locations;
@@ -3859,6 +4232,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (active_return_type_before.has_value())
           *active_lambda_return_type_before = *active_return_type_before;
         inside_lambda = inside_lambda_before;
+        inside_pure_lambda = inside_pure_lambda_before;
         context_module = context_module_before;
         result.diagnostics.resize(diagnostics_before);
         warned_leak_locations = warned_leaks_before;
@@ -4063,6 +4437,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                         SourceLocation location,
                                         std::string_view display_name,
                                         const ast::Expression *expression_key) {
+      if ((inside_pure_context || inside_pure_lambda) && !callee.is_pure &&
+          !callee.is_constant)
+        throw CompileError{location,
+                           "pure lambda cannot call impure function '" +
+                               std::string{display_name} + "'"};
       const bool infer_type_arguments =
           type_arguments.empty() && !callee.type_parameters.empty();
       if (!infer_type_arguments &&
@@ -4119,6 +4498,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   candidate.function_parameter_ownership &&
               pattern.function_return_ownership ==
                   candidate.function_return_ownership &&
+              pattern.pure_function == candidate.pure_function &&
               pattern.type_arguments.size() == candidate.type_arguments.size();
           if (!same_outer_type)
             return;
@@ -4717,8 +5097,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                                 ast::IdentifierExpression>) {
               const auto iterator = active_symbols->find(node.name);
               if (iterator == active_symbols->end()) {
-                if (const Symbol *global = visible_global(node.name))
+                if (const Symbol *global = visible_global(node.name)) {
+                  if ((inside_pure_context || inside_pure_lambda) &&
+                      global->is_mutable)
+                    throw CompileError{
+                        node.location,
+                        std::string{inside_pure_lambda ? "pure lambda"
+                                                       : "pure function"} +
+                            " cannot observe mutable global '" + node.name +
+                            "'"};
                   return global->type;
+                }
                 throw CompileError{DiagnosticCode::AnalyzerUnknownValue,
                                    node.location,
                                    "unknown value '" + node.name + "'"};
@@ -4754,6 +5143,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   closure_transfer_protected_values;
               SymbolTable *const previous_symbols = active_symbols;
               const bool previous_inside_lambda = inside_lambda;
+              const bool previous_inside_pure_lambda = inside_pure_lambda;
+              const bool lambda_is_pure =
+                  contextual_expected_type != nullptr &&
+                  contextual_expected_type->is_function() &&
+                  contextual_expected_type->pure_function;
               auto *const previous_lambda_captures = active_lambda_captures;
               auto *const previous_lambda_mutations = active_lambda_mutations;
               auto *const previous_lambda_return_type =
@@ -4770,6 +5164,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               const auto restore_lambda_state = [&] {
                 active_symbols = previous_symbols;
                 inside_lambda = previous_inside_lambda;
+                inside_pure_lambda = previous_inside_pure_lambda;
                 active_lambda_captures = previous_lambda_captures;
                 active_lambda_mutations = previous_lambda_mutations;
                 active_lambda_return_type = previous_lambda_return_type;
@@ -4904,6 +5299,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   }
                 }
                 inside_lambda = true;
+                inside_pure_lambda = lambda_is_pure;
                 loop_depth = 0;
                 if (const auto *body =
                         std::get_if<std::unique_ptr<ast::Expression>>(&node.body)) {
@@ -4934,6 +5330,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 for (const std::string &parameter : parameter_names)
                   captures.erase(parameter);
+                if (lambda_is_pure)
+                  for (const std::string &capture : captures)
+                    if (const auto symbol = previous_symbols->find(capture);
+                        symbol != previous_symbols->end() &&
+                        symbol->second.is_mutable)
+                      throw CompileError{
+                          node.location,
+                          "pure lambda cannot observe mutable capture '" +
+                              capture + "'"};
                 std::vector<std::string> captured_borrows;
                 bool captures_mutable_borrow = false;
                 for (const std::string &capture : captures) {
@@ -4973,7 +5378,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 SemanticType lambda_type{
                     nullptr, "Function", false, std::move(signature),
                     false,   false,      true,
-                    std::move(lambda_ownerships)};
+                    std::move(lambda_ownerships),
+                    ast::ReturnOwnership::Unspecified,
+                    lambda_is_pure};
                 restore_lambda_state();
                 return lambda_type;
               } catch (...) {
@@ -4994,7 +5401,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          "' is used before initialization"};
                 if (!callable->type.is_function())
                   throw CompileError{node.location, "value '" + node.callee +
-                                                        "' is not callable"};
+                                      "' is not callable"};
+                if ((inside_pure_context || inside_pure_lambda) &&
+                    !callable->type.pure_function)
+                  throw CompileError{
+                      node.location,
+                      "pure lambda cannot invoke callback '" + node.callee +
+                          "' without a pure function contract"};
                 if (!node.type_arguments.empty())
                   throw CompileError{
                       node.location,
@@ -5032,6 +5445,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 return signature.back();
               }
               if (node.callee == "print" || node.callee == "println") {
+                if (inside_pure_context || inside_pure_lambda)
+                  throw CompileError{node.location,
+                                     "pure lambda cannot perform I/O through '" +
+                                         node.callee + "'"};
                 if (!node.type_arguments.empty() || node.arguments.size() != 1)
                   throw CompileError{node.location,
                                      node.callee +
@@ -5752,6 +6169,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           candidate.function_parameter_ownership &&
                       pattern.function_return_ownership ==
                           candidate.function_return_ownership &&
+                      pattern.pure_function == candidate.pure_function &&
                       pattern.type_arguments.size() ==
                           candidate.type_arguments.size();
                   if (!same_outer_type)
@@ -6204,6 +6622,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                             candidate.function_parameter_ownership &&
                         pattern.function_return_ownership ==
                             candidate.function_return_ownership &&
+                        pattern.pure_function == candidate.pure_function &&
                         pattern.type_arguments.size() ==
                             candidate.type_arguments.size();
                     if (!same_outer_type)
@@ -6474,6 +6893,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "method '" + node.method + "' is internal to module '" +
                         class_declaration->module_name.value_or("<entry>") +
                         "'"};
+              if ((inside_pure_context || inside_pure_lambda) &&
+                  !method->is_pure &&
+                  !method->is_constant)
+                throw CompileError{
+                    node.location,
+                    "pure lambda cannot call method '" + node.method +
+                        "' without a pure contract"};
               const bool infer_method_type_arguments =
                   node.type_arguments.empty() &&
                   !method->type_parameters.empty();
@@ -6565,6 +6991,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           candidate.function_parameter_ownership &&
                       pattern.function_return_ownership ==
                           candidate.function_return_ownership &&
+                      pattern.pure_function == candidate.pure_function &&
                       pattern.type_arguments.size() ==
                           candidate.type_arguments.size();
                   if (!same_outer_type)

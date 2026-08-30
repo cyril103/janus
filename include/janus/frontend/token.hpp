@@ -39,6 +39,7 @@ enum class TokenKind {
   Continue,
   Return,
   Const,
+  Pure,
   StaticAssert,
   Val,
   Var,
@@ -170,6 +171,8 @@ struct Token {
     return "'return'";
   case TokenKind::Const:
     return "'const'";
+  case TokenKind::Pure:
+    return "'pure'";
   case TokenKind::StaticAssert:
     return "'staticAssert'";
   case TokenKind::Val:

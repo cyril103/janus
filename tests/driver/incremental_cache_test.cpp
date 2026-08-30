@@ -94,6 +94,16 @@ void test_const_def_contract_includes_implementation() {
           "const def implementation is absent from its public contract");
 }
 
+void test_pure_contract_is_public() {
+  const std::string ordinary =
+      "module library\ndef answer() : int { return 1 }\n";
+  const std::string pure =
+      "module library\npure def answer() : int { return 1 }\n";
+  require(janus::driver::public_interface_fingerprint(ordinary) !=
+              janus::driver::public_interface_fingerprint(pure),
+          "pure effect is absent from the public contract");
+}
+
 void test_dependency_contract_is_nominal_and_canonical() {
   auto original = base_input();
   original.dependencies.push_back(
@@ -515,6 +525,7 @@ int main() {
     test_sha256_digest_vectors();
     test_fingerprint_covers_every_compatibility_input();
     test_const_def_contract_includes_implementation();
+    test_pure_contract_is_public();
     test_dependency_contract_is_nominal_and_canonical();
     test_imported_constant_interface_is_fingerprintable();
     test_external_ownership_contract_changes_public_interface();

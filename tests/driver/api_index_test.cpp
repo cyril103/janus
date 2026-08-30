@@ -74,6 +74,17 @@ private class HiddenOwner() { internal def hidden() : int { return 2 } }
   expect(tailrec_index.symbols.size() == 1 &&
              tailrec_index.symbols[0].signature.starts_with("tailrec def loop"),
          "API signatures preserve the tailrec contract modifier");
+  janus::frontend::Parser pure_parser{
+      "module effects\npure def apply(action : pure (int) => int, value : int) : int { return action(value) }\n"};
+  std::vector<janus::ast::Program> pure_programs;
+  pure_programs.push_back(pure_parser.parse_program());
+  const auto pure_index = janus::driver::build_api_index(
+      pure_programs, {"fixture", "1.0.0"});
+  expect(pure_index.symbols.size() == 1 &&
+             pure_index.symbols[0].signature.starts_with("pure def apply") &&
+             pure_index.symbols[0].signature.find("pure Function") !=
+                 std::string::npos,
+         "API signatures preserve pure declarations and callback types");
 
   const auto by_name = janus::driver::search_api(index, {"write"});
   expect(by_name.size() >= 2 && by_name[0].symbol->simple_name == "write" &&

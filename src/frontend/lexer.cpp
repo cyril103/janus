@@ -120,6 +120,8 @@ Token Lexer::next() {
       kind = TokenKind::Return;
     } else if (lexeme == "const") {
       kind = TokenKind::Const;
+    } else if (lexeme == "pure") {
+      kind = TokenKind::Pure;
     } else if (lexeme == "staticAssert") {
       kind = TokenKind::StaticAssert;
     } else if (lexeme == "val") {

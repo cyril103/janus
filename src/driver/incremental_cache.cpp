@@ -91,6 +91,8 @@ std::string hex_identity(std::string_view canonical) {
 }
 
 void append_type(std::string &output, const ast::TypeReference &type) {
+  if (type.is_pure_function)
+    output += "pure:";
   output += type.name;
   if (!type.type_arguments.empty()) {
     output += '[';
@@ -144,7 +146,9 @@ void append_function(std::string &output,
   if (function.is_private || function.is_internal)
     return;
   output += "fn:";
-  output += function.is_constant ? "const:" : "runtime:";
+  output += function.is_constant
+                ? "const:"
+                : (function.is_pure ? "pure:" : "runtime:");
   output += function.name;
   append_type_parameters(output, function.type_parameters);
   output += '(';
