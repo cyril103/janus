@@ -591,7 +591,7 @@ def main() : int {
          "function: " + verifier_error);
   expect(ir.find("call void @janus_free(ptr") != std::string::npos,
          "delete releases closure environments");
-  expect(ir.find("define { ptr, ptr } @makeIdentity__int()") !=
+  expect(ir.find("define { ptr, ptr, i1 } @makeIdentity__int()") !=
              std::string::npos,
          "generic factories specialize function values");
 

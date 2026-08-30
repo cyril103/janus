@@ -4,6 +4,8 @@
 #include "janus/semantic/analyzer.hpp"
 
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include <iostream>
 #include <string_view>
@@ -35,6 +37,20 @@ void expect_valid(std::string_view source, bool generate_ir = false) {
     std::cerr << "FAILED: valid source was rejected: " << error.what() << '\n';
     ++failures;
   }
+}
+
+std::string generate_ir(std::string_view source) {
+  janus::frontend::Parser parser{source};
+  const janus::ast::Program program = parser.parse_program();
+  llvm::LLVMContext context;
+  janus::backend::llvm::IrGenerator generator{context};
+  const std::unique_ptr<llvm::Module> module =
+      generator.generate(program, "closure_allocation");
+  std::string ir;
+  llvm::raw_string_ostream output{ir};
+  module->print(output, nullptr);
+  output.flush();
+  return ir;
 }
 
 void expect_compile_error(std::string_view source,
@@ -216,6 +232,47 @@ def test(borrow counter : Counter) : int {
 def main() : int { return 0 }
 )",
                true);
+
+  const std::string captureless_ir = generate_ir(R"(
+def main() : int {
+  val identity : (int) => int = (value : int) => value
+  val result : int = identity(4)
+  delete identity
+  return result
+}
+)");
+  expect(captureless_ir.find("call ptr @janus_alloc") == std::string::npos,
+         "captureless closures use a null environment without allocation");
+
+  const std::string scoped_ir = generate_ir(R"(
+def invoke(scoped callback : () => int) : int {
+  defer delete callback
+  return callback()
+}
+def test(value : int) : int {
+  return invoke(() => value + 1)
+}
+def main() : int { return test(4) }
+)");
+  expect(scoped_ir.find("lambda.environment.scoped = alloca") !=
+             std::string::npos,
+         "capturing closures passed directly to scoped parameters use stack "
+         "environments");
+  expect(scoped_ir.find("aggregate.lambda.owns.environment") !=
+             std::string::npos,
+         "closure cleanup consults the environment ownership bit");
+
+  const std::string escaping_ir = generate_ir(R"(
+def make(value : int) : () => int { return () => value }
+def main() : int {
+  val callback : () => int = make(4)
+  val result : int = callback()
+  delete callback
+  return result
+}
+)");
+  expect(escaping_ir.find("call ptr @janus_alloc") != std::string::npos,
+         "escaping capturing closures retain heap-owned environments");
 
   expect_compile_error(R"(
 def invalid(scoped value : int) : int { return value }

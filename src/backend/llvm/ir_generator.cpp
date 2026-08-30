@@ -1431,7 +1431,13 @@ private:
     if (type.kind() == janus::TypeKind::Function) {
       ::llvm::Value *environment =
           builder.CreateExtractValue(value, 1, "aggregate.lambda.environment");
-      builder.CreateCall(free_function, {environment});
+      ::llvm::Value *owns_environment = builder.CreateExtractValue(
+          value, 2, "aggregate.lambda.owns.environment");
+      ::llvm::Value *owned_environment = builder.CreateSelect(
+          owns_environment, environment,
+          ::llvm::ConstantPointerNull::get(builder.getPtrTy()),
+          "aggregate.lambda.owned.environment");
+      builder.CreateCall(free_function, {owned_environment});
       return;
     }
     if (type.kind() == janus::TypeKind::Struct) {
@@ -2603,7 +2609,8 @@ private:
               const janus::Type &function_type,
               const Substitutions &substitutions,
               const std::unordered_map<std::string, Local> &locals,
-              ::llvm::IRBuilder<> &builder) {
+              ::llvm::IRBuilder<> &builder,
+              bool stack_allocate_environment = false) {
     const std::optional<std::string> lexical_module = active_module_;
     const FunctionSignature &signature = function_signature(function_type);
     const std::vector<std::string> capture_names =
@@ -2619,13 +2626,19 @@ private:
     ::llvm::Value *environment =
         ::llvm::ConstantPointerNull::get(builder.getPtrTy());
     if (!capture_names.empty()) {
-      ::llvm::FunctionCallee malloc_function = module_->getOrInsertFunction(
-          "janus_alloc",
-          ::llvm::FunctionType::get(builder.getPtrTy(), {builder.getInt64Ty()},
-                                    false));
-      environment = builder.CreateCall(
-          malloc_function, {::llvm::ConstantExpr::getSizeOf(environment_type)},
-          "lambda.environment");
+      if (stack_allocate_environment) {
+        environment = create_entry_alloca(builder, environment_type,
+                                          "lambda.environment.scoped");
+      } else {
+        ::llvm::FunctionCallee malloc_function = module_->getOrInsertFunction(
+            "janus_alloc",
+            ::llvm::FunctionType::get(builder.getPtrTy(),
+                                      {builder.getInt64Ty()}, false));
+        environment = builder.CreateCall(
+            malloc_function,
+            {::llvm::ConstantExpr::getSizeOf(environment_type)},
+            "lambda.environment");
+      }
     }
     for (std::size_t index = 0; index < capture_names.size(); ++index) {
       const Local &capture = locals.at(capture_names[index]);
@@ -2800,7 +2813,12 @@ private:
     ::llvm::Value *closure = ::llvm::UndefValue::get(closure_type);
     closure =
         builder.CreateInsertValue(closure, lambda_function, 0, "lambda.code");
-    return builder.CreateInsertValue(closure, environment, 1, "lambda.value");
+    closure = builder.CreateInsertValue(closure, environment, 1,
+                                        "lambda.environment");
+    return builder.CreateInsertValue(
+        closure, builder.getInt1(!capture_names.empty() &&
+                                 !stack_allocate_environment),
+        2, "lambda.value");
   }
 
   const janus::Type &
@@ -3356,9 +3374,15 @@ private:
         (parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
          (parameter_type.kind() == janus::TypeKind::Struct ||
           parameter_type.kind() == janus::TypeKind::Enum));
-    if (!indirect_borrow)
+    if (!indirect_borrow) {
+      if (parameter.is_scoped)
+        if (const auto *lambda =
+                std::get_if<janus::ast::LambdaExpression>(&expression.value))
+          return emit_lambda(*lambda, parameter_type, substitutions, locals,
+                             builder, true);
       return emit_expression(expression, parameter_type, substitutions, locals,
                              builder);
+    }
     if (::llvm::Value *storage = emit_borrow_storage(
             expression, parameter_type, substitutions, locals, builder))
       return storage;
