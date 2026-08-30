@@ -1581,6 +1581,16 @@ if(BUILD_TESTING)
             -v
     )
     add_test(
+        NAME docs.higher_kinded_types_prototype
+        COMMAND
+            "${Python3_EXECUTABLE}"
+            -m unittest
+            discover
+            -s "${PROJECT_SOURCE_DIR}/tests/documentation"
+            -p "test_higher_kinded_types_prototype.py"
+            -v
+    )
+    add_test(
         NAME docs.canonical_output
         COMMAND
             ${CMAKE_COMMAND}

@@ -74,6 +74,6 @@ nouvelle identité nominale.
 
 - types associés génériques ou contraints ;
 - égalités de projections dans `where` ;
-- types de rang supérieur ;
+- [types de rang supérieur](higher-kinded-types.md) ;
 - implémentations chevauchantes ou spécialisations incohérentes ;
 - dispatch dynamique.
