@@ -554,6 +554,20 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
         }
         index.symbols.back().signature += ']';
       }
+      if (!value.implemented_traits.empty()) {
+        index.symbols.back().signature += " extends ";
+        for (std::size_t i = 0; i < value.implemented_traits.size(); ++i) {
+          if (i)
+            index.symbols.back().signature += ", ";
+          index.symbols.back().signature +=
+              type_name(value.implemented_traits[i]);
+        }
+      }
+      for (const auto &associated : value.associated_types)
+        add(index, module, associated.name, "associated-type",
+            "type " + associated.name + " = " +
+                type_name(associated.definition),
+            associated.documentation, {}, {}, {}, {}, parent);
       for (const auto &variant : value.cases) {
         std::string signature = variant.name;
         if (!variant.payload_types.empty()) {

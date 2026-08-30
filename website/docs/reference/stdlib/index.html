@@ -6257,14 +6257,20 @@ val value : int = unwrapOr[int](move item, 0)
 <header class="module-heading"><span class="keyword">module</span> <h2>std.option</h2></header>
 <div class="module-summary"><p class="doc-summary">Modélise une valeur présente avec <a href="#std-option-option-some"><code>Option.Some</code></a> ou absente avec <a href="#std-option-option-none"><code>Option.None</code></a>.</p><div class="doc-details"><p>Les combinateurs consomment leur option et transfèrent la propriété de la branche conservée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val item : Option[int] = Option.Some[int](42)<br>
 val value : int = unwrapOr[int](move item, 0)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">38</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">43</span></h3>
 <div class="symbol-list">
-<article class="symbol-card kind-enum" id="std-option-option" data-symbol data-search="std.option.Option enum enum Option[T] Représente soit une valeur propriétaire, soit son absence."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Option[T]</code></h3>
+<article class="symbol-card kind-enum" id="std-option-option" data-symbol data-search="std.option.Option enum enum Option[T] extends Try Représente soit une valeur propriétaire, soit son absence."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Option[T] extends Try</code></h3>
 <p class="doc-summary">Représente soit une valeur propriétaire, soit son absence.</p>
 <div class="qualified">std.option.Option</div></div><a class="permalink" href="#std-option-option" aria-label="Permanent link to std.option.Option">#</a></article>
 <article class="symbol-card kind-variant child" id="std-option-option-none" data-symbol data-search="std.option.Option.None variant None Ne contient aucune valeur."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.option.Option</div><h3><code>None</code></h3>
 <p class="doc-summary">Ne contient aucune valeur.</p>
 <div class="qualified">std.option.Option.None</div></div><a class="permalink" href="#std-option-option-none" aria-label="Permanent link to std.option.Option.None">#</a></article>
+<article class="symbol-card kind-associated-type child" id="std-option-option-output" data-symbol data-search="std.option.Option.Output associated-type type Output = T La valeur présente dans la branche de continuation."><span class="kind-icon" aria-hidden="true">a</span><div><span class="kind">associated-type</span><div class="owner">Member of std.option.Option</div><h3><code>type Output = T</code></h3>
+<p class="doc-summary">La valeur présente dans la branche de continuation.</p>
+<div class="qualified">std.option.Option.Output</div></div><a class="permalink" href="#std-option-option-output" aria-label="Permanent link to std.option.Option.Output">#</a></article>
+<article class="symbol-card kind-associated-type child" id="std-option-option-residual" data-symbol data-search="std.option.Option.Residual associated-type type Residual = Unit Une absence ne transporte aucune donnée."><span class="kind-icon" aria-hidden="true">a</span><div><span class="kind">associated-type</span><div class="owner">Member of std.option.Option</div><h3><code>type Residual = Unit</code></h3>
+<p class="doc-summary">Une absence ne transporte aucune donnée.</p>
+<div class="qualified">std.option.Option.Residual</div></div><a class="permalink" href="#std-option-option-residual" aria-label="Permanent link to std.option.Option.Residual">#</a></article>
 <article class="symbol-card kind-variant child" id="std-option-option-some" data-symbol data-search="std.option.Option.Some variant Some(T) Contient une valeur de type `T`."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.option.Option</div><h3><code>Some(T)</code></h3>
 <p class="doc-summary">Contient une valeur de type `T`.</p>
 <div class="qualified">std.option.Option.Some</div></div><a class="permalink" href="#std-option-option-some" aria-label="Permanent link to std.option.Option.Some">#</a></article>
@@ -6391,6 +6397,22 @@ Les membres sont déplacés depuis les deux options, de gauche à droite.
 <article class="symbol-card kind-field child" id="std-option-optionpair-right" data-symbol data-search="std.option.OptionPair.right field val right : B Valeur provenant de la seconde option."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.option.OptionPair</div><h3><code>val right : B</code></h3>
 <p class="doc-summary">Valeur provenant de la seconde option.</p>
 <div class="qualified">std.option.OptionPair.right</div></div><a class="permalink" href="#std-option-optionpair-right" aria-label="Permanent link to std.option.OptionPair.right">#</a></article>
+<article class="symbol-card kind-trait" id="std-option-try" data-symbol data-search="std.option.Try trait trait Try Contrat de propagation utilisé par l&#39;opérateur `?`.
+
+`Output` est la valeur de la branche de continuation et `Residual` la
+valeur transférée lors d&#39;un retour anticipé. La première version optimise
+directement les enums à deux branches qui implémentent ce contrat."><span class="kind-icon" aria-hidden="true">t</span><div><span class="kind">trait</span><h3><code>trait Try</code></h3>
+<p class="doc-summary">Contrat de propagation utilisé par l&#39;opérateur `?`.</p>
+<div class="doc-details"><p>`Output` est la valeur de la branche de continuation et `Residual` la<br>
+valeur transférée lors d&#39;un retour anticipé. La première version optimise<br>
+directement les enums à deux branches qui implémentent ce contrat.</p></div>
+<div class="qualified">std.option.Try</div></div><a class="permalink" href="#std-option-try" aria-label="Permanent link to std.option.Try">#</a></article>
+<article class="symbol-card kind-associated-type child" id="std-option-try-output" data-symbol data-search="std.option.Try.Output associated-type type Output Type produit lorsque le calcul peut continuer."><span class="kind-icon" aria-hidden="true">a</span><div><span class="kind">associated-type</span><div class="owner">Member of std.option.Try</div><h3><code>type Output</code></h3>
+<p class="doc-summary">Type produit lorsque le calcul peut continuer.</p>
+<div class="qualified">std.option.Try.Output</div></div><a class="permalink" href="#std-option-try-output" aria-label="Permanent link to std.option.Try.Output">#</a></article>
+<article class="symbol-card kind-associated-type child" id="std-option-try-residual" data-symbol data-search="std.option.Try.Residual associated-type type Residual Type transféré au type de retour lors d&#39;un arrêt anticipé."><span class="kind-icon" aria-hidden="true">a</span><div><span class="kind">associated-type</span><div class="owner">Member of std.option.Try</div><h3><code>type Residual</code></h3>
+<p class="doc-summary">Type transféré au type de retour lors d&#39;un arrêt anticipé.</p>
+<div class="qualified">std.option.Try.Residual</div></div><a class="permalink" href="#std-option-try-residual" aria-label="Permanent link to std.option.Try.Residual">#</a></article>
 <article class="symbol-card kind-function" id="std-option-andthen" data-symbol data-search="std.option.andThen function def andThen[T, U](value : Option[T], scoped transform : Function[T, Option[U]]) : Option[U] Enchaîne une opération optionnelle sur la branche présente.
 
 @param value Option consommée par l’opération.
@@ -7241,9 +7263,9 @@ val value : int = unwrapOr[int, string](move item, 0)
 <header class="module-heading"><span class="keyword">module</span> <h2>std.result</h2></header>
 <div class="module-summary"><p class="doc-summary">Modélise un succès <a href="#std-result-result-ok"><code>Result.Ok</code></a> ou une erreur <a href="#std-result-result-error"><code>Result.Error</code></a>.</p><div class="doc-details"><p>Les combinateurs consomment le résultat et transfèrent la propriété de la branche conservée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val item : Result[int, string] = Result.Ok[int, string](42)<br>
 val value : int = unwrapOr[int, string](move item, 0)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">44</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">46</span></h3>
 <div class="symbol-list">
-<article class="symbol-card kind-enum" id="std-result-result" data-symbol data-search="std.result.Result enum enum Result[T, E] Représente une valeur de succès ou une erreur, chacune propriétaire."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Result[T, E]</code></h3>
+<article class="symbol-card kind-enum" id="std-result-result" data-symbol data-search="std.result.Result enum enum Result[T, E] extends Try Représente une valeur de succès ou une erreur, chacune propriétaire."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Result[T, E] extends Try</code></h3>
 <p class="doc-summary">Représente une valeur de succès ou une erreur, chacune propriétaire.</p>
 <div class="qualified">std.result.Result</div></div><a class="permalink" href="#std-result-result" aria-label="Permanent link to std.result.Result">#</a></article>
 <article class="symbol-card kind-variant child" id="std-result-result-error" data-symbol data-search="std.result.Result.Error variant Error(E) Contient l’erreur produite en cas d’échec."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.result.Result</div><h3><code>Error(E)</code></h3>
@@ -7252,6 +7274,12 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <article class="symbol-card kind-variant child" id="std-result-result-ok" data-symbol data-search="std.result.Result.Ok variant Ok(T) Contient la valeur produite en cas de succès."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.result.Result</div><h3><code>Ok(T)</code></h3>
 <p class="doc-summary">Contient la valeur produite en cas de succès.</p>
 <div class="qualified">std.result.Result.Ok</div></div><a class="permalink" href="#std-result-result-ok" aria-label="Permanent link to std.result.Result.Ok">#</a></article>
+<article class="symbol-card kind-associated-type child" id="std-result-result-output" data-symbol data-search="std.result.Result.Output associated-type type Output = T La valeur produite dans la branche de succès."><span class="kind-icon" aria-hidden="true">a</span><div><span class="kind">associated-type</span><div class="owner">Member of std.result.Result</div><h3><code>type Output = T</code></h3>
+<p class="doc-summary">La valeur produite dans la branche de succès.</p>
+<div class="qualified">std.result.Result.Output</div></div><a class="permalink" href="#std-result-result-output" aria-label="Permanent link to std.result.Result.Output">#</a></article>
+<article class="symbol-card kind-associated-type child" id="std-result-result-residual" data-symbol data-search="std.result.Result.Residual associated-type type Residual = E L&#39;erreur transférée lors d&#39;un retour anticipé."><span class="kind-icon" aria-hidden="true">a</span><div><span class="kind">associated-type</span><div class="owner">Member of std.result.Result</div><h3><code>type Residual = E</code></h3>
+<p class="doc-summary">L&#39;erreur transférée lors d&#39;un retour anticipé.</p>
+<div class="qualified">std.result.Result.Residual</div></div><a class="permalink" href="#std-result-result-residual" aria-label="Permanent link to std.result.Result.Residual">#</a></article>
 <article class="symbol-card kind-method child" id="std-result-result-andthen" data-symbol data-search="std.result.Result.andThen method consume def andThen[U](scoped transform : Function[T, Result[U, E]]) : Result[U, E] [extension] Consomme ce résultat et enchaîne une opération faillible.
 @param transform Fonction bornée recevant le succès déplacé.
 @return Résultat de `transform`, ou l&#39;erreur d&#39;origine."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def andThen[U](scoped transform : Function[T, Result[U, E]]) : Result[U, E] [extension]</code></h3>

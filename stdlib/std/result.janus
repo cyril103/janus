@@ -11,7 +11,11 @@ module std.result
 import std.option
 
 /// Représente une valeur de succès ou une erreur, chacune propriétaire.
-enum Result[T, E] {
+enum Result[T, E] extends Try {
+    /// La valeur produite dans la branche de succès.
+    type Output = T
+    /// L'erreur transférée lors d'un retour anticipé.
+    type Residual = E
     /// Contient la valeur produite en cas de succès.
     Ok(T),
     /// Contient l’erreur produite en cas d’échec.

@@ -573,13 +573,45 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
     } while (true);
     static_cast<void>(expect(TokenKind::RightBracket));
   }
+  std::vector<ast::TypeReference> implemented_traits;
+  if (current_.kind == TokenKind::Extends) {
+    advance();
+    do {
+      implemented_traits.push_back(parse_type());
+      if (current_.kind != TokenKind::Comma)
+        break;
+      advance();
+    } while (true);
+  }
   std::vector<ast::Derivation> derivations = parse_derivations();
   static_cast<void>(expect(TokenKind::LeftBrace));
 
+  std::vector<ast::AssociatedTypeDeclaration> associated_types;
+  std::string pending_case_documentation;
+  while (current_.kind == TokenKind::Type ||
+         current_.kind == TokenKind::DocumentationComment) {
+    std::string documentation = take_documentation();
+    if (current_.kind != TokenKind::Type) {
+      pending_case_documentation = std::move(documentation);
+      break;
+    }
+    const Token keyword = expect(TokenKind::Type);
+    const Token associated_name = expect(TokenKind::Identifier);
+    static_cast<void>(expect(TokenKind::Equal));
+    associated_types.push_back(ast::AssociatedTypeDeclaration{
+        std::string{associated_name.lexeme}, parse_type(), keyword.location,
+        std::move(documentation)});
+    if (current_.kind == TokenKind::Comma ||
+        current_.kind == TokenKind::Semicolon)
+      advance();
+  }
   std::vector<ast::EnumDeclaration::Case> cases;
   std::int64_t next_value = 0;
   while (current_.kind != TokenKind::RightBrace) {
-    std::string documentation = take_documentation();
+    std::string documentation =
+        pending_case_documentation.empty()
+            ? take_documentation()
+            : std::exchange(pending_case_documentation, {});
     const Token case_name = expect(TokenKind::Identifier);
     std::vector<ast::TypeReference> payload_types;
     if (current_.kind == TokenKind::LeftParen) {
@@ -652,12 +684,14 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
                            "' must declare at least one case"};
   ast::EnumDeclaration declaration{std::string{name.lexeme},
                                    std::move(type_parameters),
+                                   std::move(implemented_traits),
                                    std::move(cases),
                                    enum_token.location,
                                    false,
                                    std::nullopt,
                                    std::move(derivations),
-                                   {}};
+                                   {},
+                                   std::move(associated_types)};
   return declaration;
 }
 

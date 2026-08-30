@@ -65,6 +65,13 @@ struct Symbol {
 using SymbolTable = std::unordered_map<std::string, Symbol>;
 
 struct AnalysisResult {
+  struct TryProtocol {
+    std::string success_case;
+    std::string failure_case;
+    std::string return_failure_case;
+    SemanticType output_type;
+    SemanticType residual_type;
+  };
   struct IndexedCapabilities {
     SemanticType element_type;
     const ast::FunctionDeclaration *read{};
@@ -101,6 +108,7 @@ struct AnalysisResult {
   std::unordered_map<const ast::Expression *, ast::ReturnOwnership>
       call_return_ownership;
   std::unordered_map<const ast::Expression *, ExtensionCall> extension_calls;
+  std::unordered_map<const ast::TryExpression *, TryProtocol> try_protocols;
   std::unordered_map<const ast::IndexExpression *, IndexedCapabilities>
       indexed_capabilities;
   std::vector<Diagnostic> diagnostics;

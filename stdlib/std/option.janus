@@ -8,8 +8,24 @@
 /// ```
 module std.option
 
+/// Contrat de propagation utilisé par l'opérateur `?`.
+///
+/// `Output` est la valeur de la branche de continuation et `Residual` la
+/// valeur transférée lors d'un retour anticipé. La première version optimise
+/// directement les enums à deux branches qui implémentent ce contrat.
+trait Try {
+    /// Type produit lorsque le calcul peut continuer.
+    type Output
+    /// Type transféré au type de retour lors d'un arrêt anticipé.
+    type Residual
+}
+
 /// Représente soit une valeur propriétaire, soit son absence.
-enum Option[T] {
+enum Option[T] extends Try {
+    /// La valeur présente dans la branche de continuation.
+    type Output = T
+    /// Une absence ne transporte aucune donnée.
+    type Residual = Unit
     /// Contient une valeur de type `T`.
     Some(T),
     /// Ne contient aucune valeur.

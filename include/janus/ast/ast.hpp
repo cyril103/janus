@@ -478,6 +478,13 @@ struct Derivation {
   SourceLocation location;
 };
 
+struct AssociatedTypeDeclaration {
+  std::string name;
+  std::optional<TypeReference> definition;
+  SourceLocation location;
+  std::string documentation;
+};
+
 struct EnumDeclaration {
   struct Case {
     std::string name;
@@ -489,19 +496,14 @@ struct EnumDeclaration {
 
   std::string name;
   std::vector<std::string> type_parameters;
+  std::vector<TypeReference> implemented_traits;
   std::vector<Case> cases;
   SourceLocation location;
   bool is_private{};
   std::optional<std::string> module_name;
   std::vector<Derivation> derivations;
   std::string documentation;
-};
-
-struct AssociatedTypeDeclaration {
-  std::string name;
-  std::optional<TypeReference> definition;
-  SourceLocation location;
-  std::string documentation;
+  std::vector<AssociatedTypeDeclaration> associated_types;
 };
 
 struct TraitDeclaration {

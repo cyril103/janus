@@ -378,6 +378,15 @@ std::string enum_signature(const janus::ast::EnumDeclaration &value) {
     }
     signature += ']';
   }
+  if (!value.implemented_traits.empty()) {
+    signature += " extends ";
+    for (std::size_t index = 0; index < value.implemented_traits.size();
+         ++index) {
+      if (index != 0)
+        signature += ", ";
+      signature += type_name(value.implemented_traits[index]);
+    }
+  }
   return signature;
 }
 
@@ -487,6 +496,12 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
       const std::string parent = module + '.' + enumeration.name;
       add_symbol(symbols, module, enumeration.name, "enum",
                  enum_signature(enumeration), enumeration.documentation);
+      for (const janus::ast::AssociatedTypeDeclaration &associated :
+           enumeration.associated_types)
+        add_symbol(symbols, module, associated.name, "associated-type",
+                   "type " + associated.name + " = " +
+                       type_name(associated.definition),
+                   associated.documentation, parent);
       for (const janus::ast::EnumDeclaration::Case &variant :
            enumeration.cases) {
         std::string signature = variant.name;

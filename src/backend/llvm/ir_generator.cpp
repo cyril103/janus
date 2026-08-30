@@ -1718,19 +1718,30 @@ private:
     for (const std::string &parameter : function.type_parameters) {
       const janus::Type *argument = type_arguments[type_argument_index++];
       substitutions.emplace(parameter, argument);
-      if (argument->kind() != janus::TypeKind::Class &&
-          argument->kind() != janus::TypeKind::Struct)
-        continue;
-      const auto specialization =
-          class_specializations_.find(std::string{argument->name()});
-      if (specialization == class_specializations_.end())
-        continue;
-      for (const janus::ast::AssociatedTypeDeclaration &associated :
-           specialization->second.declaration->associated_types)
-        substitutions.insert_or_assign(
-            parameter + "." + associated.name,
-            &resolve(associated.definition,
-                     specialization->second.substitutions));
+      if (argument->kind() == janus::TypeKind::Class ||
+          argument->kind() == janus::TypeKind::Struct) {
+        const auto specialization =
+            class_specializations_.find(std::string{argument->name()});
+        if (specialization == class_specializations_.end())
+          continue;
+        for (const janus::ast::AssociatedTypeDeclaration &associated :
+             specialization->second.declaration->associated_types)
+          substitutions.insert_or_assign(
+              parameter + "." + associated.name,
+              &resolve(associated.definition,
+                       specialization->second.substitutions));
+      } else if (argument->kind() == janus::TypeKind::Enum) {
+        const auto specialization =
+            enum_specializations_.find(std::string{argument->name()});
+        if (specialization == enum_specializations_.end())
+          continue;
+        for (const janus::ast::AssociatedTypeDeclaration &associated :
+             specialization->second.declaration->associated_types)
+          substitutions.insert_or_assign(
+              parameter + "." + associated.name,
+              &resolve(associated.definition,
+                       specialization->second.substitutions));
+      }
     }
 
     const janus::Type &return_type =
@@ -3157,20 +3168,19 @@ private:
             return expression_type(*node.operand, substitutions, locals);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::TryExpression>) {
-            const janus::Type &enum_type =
-                expression_type(*node.operand, substitutions, locals);
-            const EnumSpecialization &specialization =
-                enum_specializations_.at(std::string{enum_type.name()});
-            const std::string_view success_case =
-                specialization.declaration->name == "Option" ? "Some" : "Ok";
-            const auto enum_case = std::find_if(
-                specialization.declaration->cases.begin(),
-                specialization.declaration->cases.end(),
-                [&](const janus::ast::EnumDeclaration::Case &candidate) {
-                  return candidate.name == success_case;
-                });
-            return resolve(enum_case->payload_types.front(),
-                           specialization.substitutions);
+            const auto protocol = analysis_.try_protocols.find(&node);
+            if (protocol == analysis_.try_protocols.end())
+              throw std::runtime_error{"missing analyzed Try protocol"};
+            if (!protocol->second.output_type.is_concrete() &&
+                !protocol->second.output_type.is_class() &&
+                !protocol->second.output_type.is_enum() &&
+                !protocol->second.output_type.is_pointer() &&
+                !protocol->second.output_type.is_function())
+              if (const auto substitution = substitutions.find(
+                      protocol->second.output_type.parameter);
+                  substitution != substitutions.end())
+                return *substitution->second;
+            return resolve(protocol->second.output_type);
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::UnaryExpression>) {
             if (node.operation == janus::ast::UnaryOperator::LogicalNot)
@@ -4504,9 +4514,34 @@ private:
             ::llvm::Function *target = emit_function(callee, type_arguments);
 
             Substitutions callee_substitutions;
-            for (std::size_t index = 0; index < type_arguments.size(); ++index)
+            for (std::size_t index = 0; index < type_arguments.size();
+                 ++index) {
               callee_substitutions.emplace(callee.type_parameters[index],
                                            type_arguments[index]);
+              const janus::Type *argument = type_arguments[index];
+              if (argument->kind() == janus::TypeKind::Enum) {
+                const auto specialization =
+                    enum_specializations_.find(std::string{argument->name()});
+                if (specialization != enum_specializations_.end())
+                  for (const auto &associated :
+                       specialization->second.declaration->associated_types)
+                    callee_substitutions.insert_or_assign(
+                        callee.type_parameters[index] + "." + associated.name,
+                        &resolve(associated.definition,
+                                 specialization->second.substitutions));
+              } else if (argument->kind() == janus::TypeKind::Class ||
+                         argument->kind() == janus::TypeKind::Struct) {
+                const auto specialization =
+                    class_specializations_.find(std::string{argument->name()});
+                if (specialization != class_specializations_.end())
+                  for (const auto &associated :
+                       specialization->second.declaration->associated_types)
+                    callee_substitutions.insert_or_assign(
+                        callee.type_parameters[index] + "." + associated.name,
+                        &resolve(associated.definition,
+                                 specialization->second.substitutions));
+              }
+            }
             std::vector<::llvm::Value *> arguments;
             arguments.reserve(node.arguments.size());
             for (std::size_t index = 0; index < node.arguments.size();
@@ -5265,12 +5300,53 @@ private:
                                               janus::ast::TryExpression>) {
             const janus::Type &operand_type =
                 expression_type(*node.operand, substitutions, locals);
-            const EnumSpecialization &operand_specialization =
-                enum_specializations_.at(std::string{operand_type.name()});
-            const bool is_option =
-                operand_specialization.declaration->name == "Option";
-            const std::string_view success_case = is_option ? "Some" : "Ok";
-            const std::string_view failure_case = is_option ? "None" : "Error";
+            const auto protocol = analysis_.try_protocols.find(&node);
+            if (protocol == analysis_.try_protocols.end())
+              throw std::runtime_error{"missing analyzed Try protocol"};
+            const auto protocol_cases = [&](const janus::Type &type,
+                                            const janus::Type &output,
+                                            const janus::Type &residual) {
+              const EnumSpecialization &specialization =
+                  enum_specializations_.at(std::string{type.name()});
+              std::pair<std::string, std::string> names;
+              for (const auto &candidate : specialization.declaration->cases) {
+                if (candidate.payload_types.size() == 1) {
+                  const janus::Type &payload =
+                      resolve(candidate.payload_types.front(),
+                              specialization.substitutions);
+                  if (&payload == &output && names.first.empty())
+                    names.first = candidate.name;
+                  else if (&payload == &residual && names.second.empty())
+                    names.second = candidate.name;
+                } else if (candidate.payload_types.empty() &&
+                           residual.kind() == janus::TypeKind::Unit)
+                  names.second = candidate.name;
+              }
+              return names;
+            };
+            const auto resolve_protocol_type =
+                [&](const janus::semantic::SemanticType &type)
+                -> const janus::Type & {
+              if (!type.is_concrete() && !type.is_class() && !type.is_enum() &&
+                  !type.is_pointer() && !type.is_function())
+                if (const auto substitution =
+                        substitutions.find(type.parameter);
+                    substitution != substitutions.end())
+                  return *substitution->second;
+              return resolve(type);
+            };
+            const janus::Type &output_type =
+                resolve_protocol_type(protocol->second.output_type);
+            const janus::Type &residual_type =
+                resolve_protocol_type(protocol->second.residual_type);
+            std::string success_case = protocol->second.success_case;
+            std::string failure_case = protocol->second.failure_case;
+            if (success_case.empty() || failure_case.empty()) {
+              auto names =
+                  protocol_cases(operand_type, output_type, residual_type);
+              success_case = std::move(names.first);
+              failure_case = std::move(names.second);
+            }
             ::llvm::Value *operand = emit_expression(
                 *node.operand, operand_type, substitutions, locals, builder);
             ::llvm::Value *tag =
@@ -5288,22 +5364,29 @@ private:
 
             builder.SetInsertPoint(failure_block);
             const janus::Type &return_type = *active_return_type_;
+            std::string return_failure_case =
+                protocol->second.return_failure_case;
+            if (return_failure_case.empty())
+              return_failure_case =
+                  protocol_cases(return_type, output_type, residual_type)
+                      .second;
             auto *llvm_return_type = ::llvm::cast<::llvm::StructType>(
                 lower_type(return_type, context_));
             ::llvm::Value *failure = ::llvm::UndefValue::get(llvm_return_type);
             failure = builder.CreateInsertValue(
                 failure,
                 builder.getInt32(
-                    enum_case_value(return_type.name(), failure_case)),
+                    enum_case_value(return_type.name(), return_failure_case)),
                 0, "try.failure.tag");
-            if (!is_option) {
+            if (residual_type.kind() != janus::TypeKind::Unit) {
               ::llvm::Value *error = builder.CreateExtractValue(
                   operand,
                   enum_case_payload_start(operand_type.name(), failure_case),
-                  "try.error");
+                  "try.residual");
               failure = builder.CreateInsertValue(
                   failure, error,
-                  enum_case_payload_start(return_type.name(), failure_case),
+                  enum_case_payload_start(return_type.name(),
+                                          return_failure_case),
                   "try.failure.value");
             }
             emit_active_cleanups(builder);

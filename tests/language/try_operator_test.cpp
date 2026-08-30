@@ -37,8 +37,19 @@ void expect_compile_error(std::string_view source,
 }
 
 constexpr std::string_view declarations = R"(
+trait Try { type Output type Residual }
 enum Option[T] { Some(T), None }
 enum Result[T, E] { Ok(T), Error(E) }
+enum Attempt[T, E] extends Try {
+    type Output = T
+    type Residual = E
+    Continue(T), Stop(E)
+}
+enum ConcreteTry extends Try {
+    type Output = int
+    type Residual = int
+    Passed(int), Failed(int)
+}
 )";
 
 } // namespace
@@ -52,6 +63,19 @@ def optionValue(input : Option[int]) : Option[double] {
 def resultValue(input : Result[int, string]) : Result[double, string] {
     val value : int = input?
     return Result.Ok[double, string](double(value))
+}
+def attemptValue(input : Attempt[int, string]) : Attempt[double, string] {
+    val value : int = input?
+    return Attempt.Continue[double, string](double(value))
+}
+def concreteValue(input : ConcreteTry) : ConcreteTry {
+    val value : int = input?
+    return ConcreteTry.Passed(value)
+}
+def propagate[P <: Try](value : P, scoped wrap : (P.Output) => P) : P {
+    defer delete wrap
+    val output : P.Output = value?
+    return wrap(output)
 }
 def lambdaBoundary() : int {
     val transform : (Option[int]) => Option[int] = input => {
@@ -120,7 +144,15 @@ def main() : int {
         Some(value) => int(value),
         None => 0
     }
-    return optionValue + lambdaBoundary() + resultLambdaBoundary() - 16
+    val generic : Attempt[int, int] = propagate[Attempt[int, int]](
+        Attempt.Stop[int, int](5),
+        value => Attempt.Continue[int, int](value)
+    )
+    val genericValue : int = match generic {
+        Continue(value) => value,
+        Stop(residual) => residual
+    }
+    return optionValue + lambdaBoundary() + resultLambdaBoundary() + genericValue - 21
 }
 )";
 
@@ -150,6 +182,11 @@ def main() : int {
          "Option propagation can change the success type");
   expect(ir.find("%enum.Result__double__string") != std::string::npos,
          "Result propagation preserves the error type");
+  expect(ir.find("%enum.Attempt__double__string") != std::string::npos,
+         "a user-defined Try implementation is propagated");
+  expect(ir.find("define %enum.ConcreteTry @concreteValue") !=
+             std::string::npos,
+         "equal concrete Output and Residual types keep distinct branches");
   expect(ir.find("define internal %enum.Option__int @__janus_lambda_body_") !=
              std::string::npos,
          "Option propagation is lowered inside the lambda body function");
@@ -161,17 +198,17 @@ def main() : int {
       std::string{declarations} +
           "def bad(value : Option[int]) : int { return value? } "
           "def main() : int { return 0 }",
-      "enclosing function to return Option");
+      "enclosing function to return a type implementing Try");
   expect_compile_error(
       std::string{declarations} +
           "def bad(value : Result[int, string]) : Result[int, int] { "
           "val item : int = value? return Result.Ok[int, int](item) } "
           "def main() : int { return 0 }",
-      "cannot propagate error type 'string'");
+      "cannot propagate residual type 'string'");
   expect_compile_error(
       std::string{declarations} +
           "def main() : int { val value : int = 1? return value }",
-      "requires an Option[T] or Result[T, E]");
+      "requires a type implementing Try");
   expect_compile_error(
       std::string{declarations} +
           "def main() : int { val transform = (input : Option[int]) => { "
@@ -183,13 +220,13 @@ def main() : int {
           "def main() : int { val transform : (Result[int, string]) => "
           "Result[int, int] = input => { val item : int = input? "
           "return Result.Ok[int, int](item) } delete transform return 0 }",
-      "cannot propagate error type 'string' from a lambda returning error type "
+      "cannot propagate residual type 'string' from a lambda returning residual type "
       "'int'");
   expect_compile_error(std::string{declarations} +
                            "def main() : int { val transform : (Option[int]) "
                            "=> int = input => { "
                            "return input? } delete transform return 0 }",
-                       "requires the enclosing lambda to return Option");
+                       "requires the enclosing lambda to return a type implementing Try");
   expect_compile_error(
       std::string{declarations} +
           "def main() : int { val outer : () => Option[int] = () => { "

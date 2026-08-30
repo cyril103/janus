@@ -1101,11 +1101,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     check_type_visibility(check_type_visibility,
                           *global.declaration.declared_type,
                           global.module_name);
-  for (const ast::EnumDeclaration &declaration : program.enums)
+  for (const ast::EnumDeclaration &declaration : program.enums) {
+    for (const ast::TypeReference &implemented : declaration.implemented_traits)
+      check_type_visibility(check_type_visibility, implemented,
+                            declaration.module_name);
+    for (const ast::AssociatedTypeDeclaration &associated :
+         declaration.associated_types)
+      if (associated.definition.has_value())
+        check_type_visibility(check_type_visibility, *associated.definition,
+                              declaration.module_name);
     for (const ast::EnumDeclaration::Case &enum_case : declaration.cases)
       for (const ast::TypeReference &payload : enum_case.payload_types)
         check_type_visibility(check_type_visibility, payload,
                               declaration.module_name);
+  }
   for (const ast::TraitDeclaration &declaration : program.traits)
     for (const ast::FunctionDeclaration &method : declaration.methods)
       check_function_signature_visibility(method, declaration.module_name);
@@ -2111,20 +2120,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       };
   const auto satisfies_trait = [&](const SemanticType &candidate,
                                    const TraitInstance &requirement) {
-    if (!candidate.is_class())
+    if (!candidate.is_class() && !candidate.is_enum())
       return false;
-    const ast::ClassDeclaration &class_declaration =
-        *classes.at(candidate.parameter);
+    const std::vector<std::string> &type_parameters =
+        candidate.is_class() ? classes.at(candidate.parameter)->type_parameters
+                             : enums.at(candidate.parameter)->type_parameters;
+    const std::vector<ast::TypeReference> &implemented_traits =
+        candidate.is_class()
+            ? classes.at(candidate.parameter)->implemented_traits
+            : enums.at(candidate.parameter)->implemented_traits;
     std::unordered_map<std::string, SemanticType> class_substitutions;
-    for (std::size_t index = 0;
-         index < class_declaration.type_parameters.size(); ++index)
-      class_substitutions.emplace(class_declaration.type_parameters[index],
+    for (std::size_t index = 0; index < type_parameters.size(); ++index)
+      class_substitutions.emplace(type_parameters[index],
                                   candidate.type_arguments[index]);
     const std::unordered_set<std::string> class_parameters{
-        class_declaration.type_parameters.begin(),
-        class_declaration.type_parameters.end()};
-    for (const ast::TypeReference &implemented :
-         class_declaration.implemented_traits) {
+        type_parameters.begin(), type_parameters.end()};
+    for (const ast::TypeReference &implemented : implemented_traits) {
       if (implemented.name != requirement.declaration->name)
         continue;
       const TraitInstance instance =
@@ -2235,6 +2246,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           resolve_type(method.return_type, method_parameters, &class_arities));
     }
   }
+  std::unordered_map<const ast::EnumDeclaration *,
+                     std::unordered_map<std::string, SemanticType>>
+      enum_associated_normalizations;
   for (const ast::EnumDeclaration &enum_declaration : program.enums) {
     const std::unordered_set<std::string> parameters{
         enum_declaration.type_parameters.begin(),
@@ -2249,10 +2263,59 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                              "Unit cannot be stored in an enum variant"};
       }
     }
+    std::unordered_map<std::string, SemanticType> associated_types;
+    for (const ast::AssociatedTypeDeclaration &associated :
+         enum_declaration.associated_types) {
+      if (!associated.definition.has_value())
+        throw CompileError{associated.location, "associated type '" +
+                                                    associated.name +
+                                                    "' requires a definition"};
+      if (!associated_types
+               .emplace(associated.name,
+                        resolve_type(*associated.definition, parameters,
+                                     &class_arities))
+               .second)
+        throw CompileError{associated.location,
+                           "associated type '" + associated.name +
+                               "' is already defined by enum '" +
+                               enum_declaration.name + "'"};
+    }
+    std::unordered_set<std::string> required_associated_types;
+    std::unordered_set<std::string> implemented_trait_names;
+    for (const ast::TypeReference &reference :
+         enum_declaration.implemented_traits) {
+      const TraitInstance instance = resolve_trait(reference, parameters);
+      const ast::TraitDeclaration &trait = *instance.declaration;
+      if (!implemented_trait_names.insert(trait.name).second)
+        throw CompileError{reference.location,
+                           "trait '" + trait.name +
+                               "' is already implemented by enum '" +
+                               enum_declaration.name + "'"};
+      if (!trait.methods.empty())
+        throw CompileError{reference.location,
+                           "enum trait implementations currently require a "
+                           "marker trait without methods"};
+      for (const ast::AssociatedTypeDeclaration &associated :
+           trait.associated_types) {
+        required_associated_types.insert(associated.name);
+        if (!associated_types.contains(associated.name))
+          throw CompileError{enum_declaration.location,
+                             "enum '" + enum_declaration.name +
+                                 "' does not define associated type '" +
+                                 trait.name + "." + associated.name + "'"};
+      }
+    }
+    for (const ast::AssociatedTypeDeclaration &associated :
+         enum_declaration.associated_types)
+      if (!required_associated_types.contains(associated.name))
+        throw CompileError{associated.location,
+                           "associated type '" + associated.name +
+                               "' is not declared by an implemented trait"};
+    enum_associated_normalizations.emplace(&enum_declaration,
+                                           std::move(associated_types));
   }
-  std::unordered_map<
-      const ast::ClassDeclaration *,
-      std::unordered_map<std::string, SemanticType>>
+  std::unordered_map<const ast::ClassDeclaration *,
+                     std::unordered_map<std::string, SemanticType>>
       class_associated_normalizations;
   for (const ast::ClassDeclaration &class_declaration : program.classes) {
     std::unordered_set<std::string> parameters;
@@ -3580,6 +3643,144 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       }
       return candidates;
     };
+    struct ResolvedTryProtocol {
+      const ast::EnumDeclaration *declaration;
+      const ast::EnumDeclaration::Case *success_case;
+      const ast::EnumDeclaration::Case *failure_case;
+      SemanticType output_type;
+      SemanticType residual_type;
+    };
+    const auto resolve_try_protocol =
+        [&](const SemanticType &type) -> std::optional<ResolvedTryProtocol> {
+      if (!type.is_enum()) {
+        if (type.is_concrete() || type.is_class() || type.is_pointer() ||
+            type.is_function())
+          return std::nullopt;
+        const auto constraints = active_trait_constraints.find(type.parameter);
+        if (constraints == active_trait_constraints.end())
+          return std::nullopt;
+        const auto try_constraint = std::find_if(
+            constraints->second.begin(), constraints->second.end(),
+            [](const TraitInstance &instance) {
+              return instance.declaration->name == "Try" &&
+                     std::any_of(
+                         instance.declaration->associated_types.begin(),
+                         instance.declaration->associated_types.end(),
+                         [](const ast::AssociatedTypeDeclaration &item) {
+                           return item.name == "Output";
+                         }) &&
+                     std::any_of(
+                         instance.declaration->associated_types.begin(),
+                         instance.declaration->associated_types.end(),
+                         [](const ast::AssociatedTypeDeclaration &item) {
+                           return item.name == "Residual";
+                         });
+            });
+        if (try_constraint == constraints->second.end())
+          return std::nullopt;
+        return ResolvedTryProtocol{
+            nullptr, nullptr, nullptr,
+            SemanticType{nullptr, type.parameter + ".Output"},
+            SemanticType{nullptr, type.parameter + ".Residual"}};
+      }
+      const ast::EnumDeclaration *declaration = enums.at(type.parameter);
+      const std::unordered_set<std::string> parameters{
+          declaration->type_parameters.begin(),
+          declaration->type_parameters.end()};
+      std::unordered_map<std::string, SemanticType> substitutions;
+      for (std::size_t index = 0; index < declaration->type_parameters.size();
+           ++index)
+        substitutions.emplace(declaration->type_parameters[index],
+                              type.type_arguments[index]);
+
+      std::optional<SemanticType> symbolic_output;
+      std::optional<SemanticType> symbolic_residual;
+      bool explicit_protocol = false;
+      for (const ast::TypeReference &implemented :
+           declaration->implemented_traits) {
+        const TraitInstance instance = resolve_trait(implemented, parameters);
+        const ast::TraitDeclaration &trait = *instance.declaration;
+        if (trait.name != "Try")
+          continue;
+        const auto &associated = enum_associated_normalizations.at(declaration);
+        const auto output = associated.find("Output");
+        const auto residual = associated.find("Residual");
+        if (output == associated.end() || residual == associated.end())
+          return std::nullopt;
+        symbolic_output = output->second;
+        symbolic_residual = residual->second;
+        explicit_protocol = true;
+        break;
+      }
+      // Source-compatible structural form used by pre-protocol Option-like
+      // and Result-like enums. It depends only on generic positions and case
+      // payloads, never on nominal enum or case names.
+      if (!symbolic_output.has_value() &&
+          !declaration->type_parameters.empty() &&
+          declaration->type_parameters.size() <= 2) {
+        symbolic_output =
+            SemanticType{nullptr, declaration->type_parameters.front()};
+        symbolic_residual =
+            declaration->type_parameters.size() == 2
+                ? SemanticType{nullptr, declaration->type_parameters[1]}
+                : SemanticType{&Type::unit_type()};
+      }
+      if (!symbolic_output.has_value())
+        return std::nullopt;
+
+      const ast::EnumDeclaration::Case *success = nullptr;
+      const ast::EnumDeclaration::Case *failure = nullptr;
+      if (explicit_protocol &&
+          same_type(*symbolic_output, *symbolic_residual)) {
+        for (const ast::EnumDeclaration::Case &candidate : declaration->cases)
+          if (candidate.payload_types.size() == 1 &&
+              same_type(resolve_type(candidate.payload_types.front(),
+                                     parameters, &class_arities,
+                                     declaration->module_name,
+                                     &scoped_type_aliases),
+                        *symbolic_output)) {
+            if (success == nullptr)
+              success = &candidate;
+            else if (failure == nullptr)
+              failure = &candidate;
+            else
+              return std::nullopt;
+          }
+      }
+      if (success != nullptr && failure != nullptr)
+        return ResolvedTryProtocol{
+            declaration, success, failure,
+            substitute(*symbolic_output, substitutions),
+            substitute(*symbolic_residual, substitutions)};
+      for (const ast::EnumDeclaration::Case &candidate : declaration->cases) {
+        if (candidate.payload_types.size() == 1) {
+          const SemanticType payload = resolve_type(
+              candidate.payload_types.front(), parameters, &class_arities,
+              declaration->module_name, &scoped_type_aliases);
+          if (same_type(payload, *symbolic_output)) {
+            if (success != nullptr)
+              return std::nullopt;
+            success = &candidate;
+          }
+          if (same_type(payload, *symbolic_residual)) {
+            if (failure != nullptr)
+              return std::nullopt;
+            failure = &candidate;
+          }
+        } else if (candidate.payload_types.empty() &&
+                   symbolic_residual->is_concrete() &&
+                   symbolic_residual->concrete->kind() == TypeKind::Unit) {
+          if (failure != nullptr)
+            return std::nullopt;
+          failure = &candidate;
+        }
+      }
+      if (success == nullptr || failure == nullptr || success == failure)
+        return std::nullopt;
+      return ResolvedTryProtocol{declaration, success, failure,
+                                 substitute(*symbolic_output, substitutions),
+                                 substitute(*symbolic_residual, substitutions)};
+    };
     std::function<SemanticType(const ast::Expression &)> expression_type;
     std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
         validate_block;
@@ -3981,19 +4182,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const std::vector<std::pair<std::string, SemanticType>> bound_types{
           substitutions.begin(), substitutions.end()};
       for (const auto &[parameter, candidate] : bound_types) {
-        if (!candidate.is_class())
+        if (!candidate.is_class() && !candidate.is_enum())
           continue;
-        const ast::ClassDeclaration &bound_class =
-            *classes.at(candidate.parameter);
-        std::unordered_map<std::string, SemanticType> class_arguments;
-        for (std::size_t index = 0;
-             index < bound_class.type_parameters.size(); ++index)
-          class_arguments.emplace(bound_class.type_parameters[index],
-                                  candidate.type_arguments[index]);
+        const std::vector<std::string> &bound_parameters =
+            candidate.is_class()
+                ? classes.at(candidate.parameter)->type_parameters
+                : enums.at(candidate.parameter)->type_parameters;
+        std::unordered_map<std::string, SemanticType> type_arguments;
+        for (std::size_t index = 0; index < bound_parameters.size(); ++index)
+          type_arguments.emplace(bound_parameters[index],
+                                 candidate.type_arguments[index]);
+        const std::unordered_map<std::string, SemanticType> &associated_types =
+            candidate.is_class() ? class_associated_normalizations.at(
+                                       classes.at(candidate.parameter))
+                                 : enum_associated_normalizations.at(
+                                       enums.at(candidate.parameter));
         for (const auto &[associated_name, associated_type] :
-             class_associated_normalizations.at(&bound_class)) {
+             associated_types) {
           SemanticType normalized = associated_type;
-          normalized = substitute(std::move(normalized), class_arguments);
+          normalized = substitute(std::move(normalized), type_arguments);
           substitutions.insert_or_assign(parameter + "." + associated_name,
                                           std::move(normalized));
         }
@@ -7273,31 +7480,30 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 propagation_return_type = &**active_lambda_return_type;
               }
               const SemanticType operand_type = expression_type(*node.operand);
-              if (!operand_type.is_enum() ||
-                  (operand_type.parameter != "Option" &&
-                   operand_type.parameter != "Result"))
+              const std::optional<ResolvedTryProtocol> operand_protocol =
+                  resolve_try_protocol(operand_type);
+              if (!operand_protocol.has_value())
                 throw CompileError{
                     node.location,
-                    "operator '?' requires an Option[T] or Result[T, E]"};
-              if (!propagation_return_type->is_enum() ||
-                  propagation_return_type->parameter != operand_type.parameter)
+                    "operator '?' requires a type implementing Try with "
+                    "associated Output and Residual types"};
+              const std::optional<ResolvedTryProtocol> return_protocol =
+                  resolve_try_protocol(*propagation_return_type);
+              if (!return_protocol.has_value())
                 throw CompileError{
                     node.location,
                     "operator '?' requires the enclosing " +
                         std::string{inside_lambda ? "lambda" : "function"} +
-                        " to return " +
-                        operand_type.parameter};
-              if (operand_type.parameter == "Result" &&
-                  !same_type(operand_type.type_arguments[1],
-                             propagation_return_type->type_arguments[1]))
+                        " to return a type implementing Try"};
+              if (!same_type(operand_protocol->residual_type,
+                             return_protocol->residual_type))
                 throw CompileError{
                     node.location,
-                    "operator '?' cannot propagate error type '" +
-                        operand_type.type_arguments[1].name() +
-                        "' from a " +
+                    "operator '?' cannot propagate residual type '" +
+                        operand_protocol->residual_type.name() + "' from a " +
                         std::string{inside_lambda ? "lambda" : "function"} +
-                        " returning error type '" +
-                        propagation_return_type->type_arguments[1].name() + "'"};
+                        " returning residual type '" +
+                        return_protocol->residual_type.name() + "'"};
               if (aggregate_owns_value(operand_type) &&
                   !std::holds_alternative<ast::MoveExpression>(
                       node.operand->value))
@@ -7328,7 +7534,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     {DiagnosticLocation{declaration,
                                         "owning value declared here"}});
               }
-              return operand_type.type_arguments.front();
+              result.try_protocols.insert_or_assign(
+                  &node, AnalysisResult::TryProtocol{
+                             operand_protocol->success_case == nullptr
+                                 ? std::string{}
+                                 : operand_protocol->success_case->name,
+                             operand_protocol->failure_case == nullptr
+                                 ? std::string{}
+                                 : operand_protocol->failure_case->name,
+                             return_protocol->failure_case == nullptr
+                                 ? std::string{}
+                                 : return_protocol->failure_case->name,
+                             operand_protocol->output_type,
+                             operand_protocol->residual_type});
+              return operand_protocol->output_type;
             } else if constexpr (std::is_same_v<Node, ast::UnaryExpression>) {
               const SemanticType operand_type = expression_type(*node.operand);
               if (node.operation == ast::UnaryOperator::LogicalNot) {

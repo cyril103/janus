@@ -306,6 +306,18 @@ std::string public_interface(std::string_view source) {
     output += enumeration.name;
     append_type_parameters(output, enumeration.type_parameters);
     append_derivations(output, enumeration.derivations);
+    output += ":implements[";
+    for (const auto &trait : enumeration.implemented_traits) {
+      append_type(output, trait);
+      output += ',';
+    }
+    output += ']';
+    for (const auto &associated : enumeration.associated_types) {
+      output += ":associated:";
+      output += associated.name;
+      output += '=';
+      append_type(output, associated.definition);
+    }
     output += '{';
     for (const auto &entry : enumeration.cases) {
       output += entry.name;

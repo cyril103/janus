@@ -546,8 +546,25 @@ inatteignables.
 
 La bibliothèque standard fournit `Option[T]` pour une valeur éventuellement
 absente et `Result[T, E]` pour une opération qui peut échouer. L'opérateur `?`
-propage automatiquement une absence ou une erreur depuis une fonction
-compatible.
+est défini par le protocole `Try`, dont les types associés `Output` et
+`Residual` décrivent respectivement la valeur poursuivie et la valeur propagée.
+Le type de retour doit implémenter `Try` avec le même `Residual`.
+
+Un enum utilisateur peut adopter le protocole sans noms de variantes imposés :
+
+```janus
+import std.option
+
+enum Attempt[T, E] extends Try {
+    type Output = T
+    type Residual = E
+    Continue(T), Stop(E)
+}
+```
+
+La première version du protocole exige deux variantes : l'une transporte
+exactement `Output`, l'autre exactement `Residual` (ou aucune charge utile pour
+`Residual = Unit`).
 
 Le module `std.option` fournit un noyau de combinateurs génériques :
 
