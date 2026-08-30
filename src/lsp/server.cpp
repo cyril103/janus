@@ -836,7 +836,8 @@ bool semantic_operator(janus::frontend::TokenKind kind) {
   case TokenKind::LessEqual: case TokenKind::Greater: case TokenKind::GreaterEqual:
   case TokenKind::Ampersand: case TokenKind::Pipe: case TokenKind::Caret:
   case TokenKind::ShiftLeft: case TokenKind::ShiftRight: case TokenKind::AmpAmp:
-  case TokenKind::PipePipe: case TokenKind::Question:
+  case TokenKind::PipePipe: case TokenKind::PipeGreater:
+  case TokenKind::Question:
     return true;
   default:
     return false;

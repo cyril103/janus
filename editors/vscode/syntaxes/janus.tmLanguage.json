@@ -40,6 +40,10 @@
       "match": "=>"
     },
     {
+      "name": "keyword.operator.pipeline.janus",
+      "match": "\\|>"
+    },
+    {
       "name": "keyword.operator.bitwise.janus",
       "match": "(?<![&|])(?:<<|>>|[&|^])(?![&|])"
     },

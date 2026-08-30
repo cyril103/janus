@@ -23,6 +23,9 @@ pour expérimentation, mais ne font pas partie du candidat stable.
 - `std.numeric` : les politiques de conversion sont entièrement spécifiées et
   testées, mais leur nouvelle surface reste expérimentale jusqu'au prochain
   inventaire de stabilité.
+- `std.functional` : les combinateurs synchrones et l'opérateur de pipeline ont
+  été ajoutés après la baseline 0.8; leur surface reste expérimentale jusqu'à
+  la stabilisation des contrats fonctionnels propriétaires.
 - `std.slice` : les vues contiguës empruntées ont été ajoutées après la baseline
   0.8 et restent expérimentales jusqu'à leur validation dans un inventaire
   courant.

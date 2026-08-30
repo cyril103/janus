@@ -89,6 +89,7 @@ enum class TokenKind {
   ShiftRight,
   AmpAmp,
   PipePipe,
+  PipeGreater,
   Semicolon,
   Dot,
   Ellipsis,
@@ -268,6 +269,8 @@ struct Token {
     return "'&&'";
   case TokenKind::PipePipe:
     return "'||'";
+  case TokenKind::PipeGreater:
+    return "'|>'";
   case TokenKind::Semicolon:
     return "';'";
   case TokenKind::Dot:

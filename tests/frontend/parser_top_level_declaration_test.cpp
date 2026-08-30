@@ -19,7 +19,8 @@ void expect(bool condition, std::string_view message) {
 
 int main() {
   {
-    janus::frontend::Lexer lexer{"+= -= *= /= %= &= |= ^= <<= >>= = << >>"};
+    janus::frontend::Lexer lexer{
+        "+= -= *= /= %= &= |= ^= <<= >>= = << >> |> | ||"};
     const janus::frontend::TokenKind expected[] = {
         janus::frontend::TokenKind::PlusEqual,
         janus::frontend::TokenKind::MinusEqual,
@@ -34,10 +35,54 @@ int main() {
         janus::frontend::TokenKind::Equal,
         janus::frontend::TokenKind::ShiftLeft,
         janus::frontend::TokenKind::ShiftRight,
+        janus::frontend::TokenKind::PipeGreater,
+        janus::frontend::TokenKind::Pipe,
+        janus::frontend::TokenKind::PipePipe,
     };
     for (const auto kind : expected)
       expect(lexer.next().kind == kind,
              "compound assignment operators use longest-match tokenization");
+  }
+
+  {
+    janus::frontend::Parser pipeline_parser{R"(
+def increment(value : int) : int { return value + 1 }
+def add(value : int, amount : int) : int { return value + amount }
+def pipeline() : int { return 1 |> increment |> add(40) }
+)"};
+    const janus::ast::Program pipeline_program =
+        pipeline_parser.parse_program();
+    const auto *statement = std::get_if<janus::ast::ReturnStatement>(
+        &pipeline_program.functions.back().body.front());
+    const auto *outer = statement == nullptr || !statement->expression
+                            ? nullptr
+                            : std::get_if<janus::ast::CallExpression>(
+                                  &statement->expression->value);
+    const auto *inner = outer == nullptr || outer->arguments.empty()
+                            ? nullptr
+                            : std::get_if<janus::ast::CallExpression>(
+                                  &outer->arguments.front()->value);
+    expect(outer != nullptr && outer->callee == "add" &&
+               outer->arguments.size() == 2,
+           "pipeline prepends its left value to an existing call");
+    expect(inner != nullptr && inner->callee == "increment" &&
+               inner->arguments.size() == 1,
+           "pipeline is left-associative and calls a bare function");
+  }
+  {
+    bool invalid_target_rejected = false;
+    try {
+      janus::frontend::Parser invalid_pipeline{
+          "def invalid() : int { return 1 |> 2 }"};
+      static_cast<void>(invalid_pipeline.parse_program());
+    } catch (const janus::CompileError &error) {
+      invalid_target_rejected =
+          std::string_view{error.what()}.find(
+              "pipeline right-hand side must be a function or function call") !=
+          std::string_view::npos;
+    }
+    expect(invalid_target_rejected,
+           "pipeline reports a targeted error for a non-callable target");
   }
 
   janus::frontend::Parser parser{R"(

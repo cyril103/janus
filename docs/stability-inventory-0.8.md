@@ -97,6 +97,7 @@ symbole source non inventorié.
 | `std.graphics.resources` | `experimental` | [Graphismes](graphics.md) | Retenue comme expérimentale. |
 | `std.graphics.types` | `experimental` | [Graphismes](graphics.md) | Retenue comme expérimentale. |
 | `std.fs` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
+| `std.functional` | `experimental` | [Pipeline fonctionnel](design/functional-pipeline.md) | Nouvelle surface pré-1.0. |
 | `std.hashing` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.hashmap` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.hashset` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |

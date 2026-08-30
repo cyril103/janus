@@ -84,6 +84,25 @@ def main() : int {
 }
 ```
 
+### `std.functional`
+
+Le module regroupe les helpers fonctionnels explicites `identity`, `constant`,
+`compose`, `andThen`, `flip` et `tap`. Ils sont synchrones, leurs callbacks
+sont `scoped` et aucun helper n'alloue d'état. Voir la
+[matrice d'ownership](design/functional-pipeline.md).
+
+```janus
+// doctest: doctest name=stdlib-std-functional
+import std.functional
+def main() : int {
+    val result : int = 20 |> compose[int, int, int](
+        (value : int) => value + 1,
+        (value : int) => value * 2
+    )
+    return result - 41
+}
+```
+
 ### `std.iterator`
 
 Les adaptateurs `drop`, `chain`, `filterMap`, `takeWhile`, `skipWhile` et

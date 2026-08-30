@@ -314,6 +314,8 @@ Token Lexer::next() {
       kind = TokenKind::AmpAmp;
     } else if (character == '|' && next_character == '|') {
       kind = TokenKind::PipePipe;
+    } else if (character == '|' && next_character == '>') {
+      kind = TokenKind::PipeGreater;
     } else if (character == '<' && next_character == '<') {
       kind = TokenKind::ShiftLeft;
     } else if (character == '>' && next_character == '>') {

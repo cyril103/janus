@@ -125,6 +125,14 @@
       "symbols": ["FileType", "FileType.File", "FileType.Directory", "FileType.SymbolicLink", "FileType.Other", "FileMetadata", "FileMetadata.kind", "FileMetadata.size", "FileData", "FileData.data", "FileData.size", "FileData.withView", "FileData.asText", "DirectoryIterator", "DirectoryIterator.next", "DirectoryIterator.close", "readFile", "writeFileAtomic", "writeTextFileAtomic", "createDirectory", "createTemporaryDirectory", "removeDirectory", "removeDirectoryAll", "removeFile", "metadata", "readDirectory"]
     },
     {
+      "name": "std.functional",
+      "source": "stdlib/std/functional.janus",
+      "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/functional-pipeline.md"],
+      "status": "experimental",
+      "signature_digest": "d64584c9ad78ebecafc296af55672d8a795370fa5f56db79af5a0384de333f19",
+      "symbols": ["identity", "constant", "compose", "andThen", "flip", "tap"]
+    },
+    {
       "name": "std.hash_probe",
       "source": "stdlib/std/hash_probe.janus",
       "documentation": ["docs/public-surface-0.5.json"],

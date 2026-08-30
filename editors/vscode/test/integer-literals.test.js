@@ -40,6 +40,15 @@ test("TextMate scopes bitwise operators separately from logical operators", () =
     assert.doesNotMatch(spelling, operator);
 });
 
+test("TextMate scopes the pipeline operator", () => {
+  const pipeline = grammar.patterns.find(
+    (pattern) => pattern.name === "keyword.operator.pipeline.janus",
+  );
+  assert.ok(pipeline);
+  assert.match("|>", new RegExp(`^(?:${pipeline.match})$`));
+  assert.doesNotMatch("|", new RegExp(`^(?:${pipeline.match})$`));
+});
+
 test("TextMate recognizes compound assignments as longest-match operators", () => {
   const operators = grammar.patterns.filter((pattern) =>
     pattern.name?.startsWith("keyword.operator"),

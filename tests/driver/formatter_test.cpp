@@ -140,6 +140,23 @@ int main() {
               << contextual_formatted;
     return 1;
   }
+  const std::string pipeline =
+      "def transform(value : int) : int {\n"
+      "return value\n"
+      "|> increment\n"
+      "|> add(2)\n"
+      "}\n";
+  const std::string formatted_pipeline =
+      "def transform(value : int) : int {\n"
+      "    return value\n"
+      "        |> increment\n"
+      "        |> add(2)\n"
+      "}\n";
+  if (janus::driver::format_source(pipeline) != formatted_pipeline ||
+      janus::driver::format_source(formatted_pipeline) != formatted_pipeline) {
+    std::cerr << "pipeline formatting is not canonical and idempotent\n";
+    return 1;
+  }
   const std::string derivations = "struct Point(val x : int, val y : int)\n"
                                   "derives Copy, Equality, Hashing, Debug {\n"
                                   "}\n";

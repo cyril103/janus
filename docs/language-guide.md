@@ -130,10 +130,31 @@ type gauche. `>>` est logique pour les types non signés et arithmétique pour
 les types signés.
 
 Priorité décroissante : `* / %`, `+ -`, `<< >>`, `< <= > >=`, `== !=`, `&`,
-`^`, `|`, `&&`, `||`. Le compte valide va de zéro à `largeur - 1` pour les
+`^`, `|`, `&&`, `||`, `|>`. Le compte valide va de zéro à `largeur - 1` pour les
 largeurs 8, 16, 32 et 64. Une constante hors borne est diagnostiquée ; une
 valeur hors borne à l'exécution déclenche un `panic` avant le décalage. Une
 valeur négative n'est pas un `usize` valide.
+
+### Pipeline fonctionnel
+
+La forme « value |> f(arguments) » transmet la valeur comme premier argument
+et se désucre en « f(value, arguments) ». L'opérateur est associatif à gauche,
+n'évalue chaque expression qu'une fois et n'insère jamais de `move` : une
+valeur propriétaire s'écrit donc `move value |> consume`. `std.functional`
+fournit `identity`, `constant`, `compose`, `andThen`, `flip` et `tap`.
+
+```janus
+import std.functional
+
+val output : int = 20
+    |> identity[int]()
+    |> tap[int]((borrow value : int) => println(value))
+```
+
+Les parenthèses rendent explicite un postfixe appliqué au résultat complet :
+`(result |> normalize)?` ou `(value |> normalize).validate()`. La
+[spécification du pipeline](design/functional-pipeline.md) détaille la
+précédence, l'ordre d'évaluation et la propriété des closures composées.
 
 ```janus
 val configuration : Configuration = loadConfiguration()

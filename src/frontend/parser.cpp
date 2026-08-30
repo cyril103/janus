@@ -1458,7 +1458,68 @@ std::shared_ptr<ast::ForStatement> Parser::parse_for_statement() {
                         parse_block(), for_token.location});
 }
 
-ast::Expression Parser::parse_expression() { return parse_logical_or(); }
+ast::Expression Parser::parse_expression() { return parse_pipeline(); }
+
+ast::Expression Parser::parse_pipeline() {
+  ast::Expression expression = parse_logical_or();
+  const auto is_qualified_callee = [](const ast::Expression &candidate,
+                                      const auto &self) -> bool {
+    if (std::holds_alternative<ast::IdentifierExpression>(candidate.value))
+      return true;
+    if (const auto *member =
+            std::get_if<ast::MemberAccessExpression>(&candidate.value))
+      return self(*member->object, self);
+    return false;
+  };
+  while (current_.kind == TokenKind::PipeGreater) {
+    const Token operation = expect(TokenKind::PipeGreater);
+    ast::Expression target = parse_logical_or();
+    auto argument =
+        std::make_unique<ast::Expression>(std::move(expression));
+
+    if (auto *identifier =
+            std::get_if<ast::IdentifierExpression>(&target.value)) {
+      std::vector<std::unique_ptr<ast::Expression>> arguments;
+      arguments.push_back(std::move(argument));
+      expression = ast::CallExpression{identifier->name, {},
+                                       std::move(arguments),
+                                       identifier->location};
+      continue;
+    }
+    if (auto *call = std::get_if<ast::CallExpression>(&target.value)) {
+      call->arguments.insert(call->arguments.begin(), std::move(argument));
+      expression = std::move(target);
+      continue;
+    }
+    if (auto *member =
+            std::get_if<ast::MemberAccessExpression>(&target.value)) {
+      if (!is_qualified_callee(*member->object, is_qualified_callee))
+        throw CompileError{
+            operation.location,
+            "pipeline call target must be a stable qualified name"};
+      std::vector<std::unique_ptr<ast::Expression>> arguments;
+      arguments.push_back(std::move(argument));
+      expression = ast::MethodCallExpression{
+          std::move(member->object), member->member, {}, std::move(arguments),
+          member->location};
+      continue;
+    }
+    if (auto *call = std::get_if<ast::MethodCallExpression>(&target.value)) {
+      if (!is_qualified_callee(*call->object, is_qualified_callee))
+        throw CompileError{
+            operation.location,
+            "pipeline call target must be a stable qualified name"};
+      call->arguments.insert(call->arguments.begin(), std::move(argument));
+      expression = std::move(target);
+      continue;
+    }
+
+    throw CompileError{
+        operation.location,
+        "pipeline right-hand side must be a function or function call"};
+  }
+  return expression;
+}
 
 ast::Expression Parser::parse_logical_or() {
   ast::Expression expression = parse_logical_and();

@@ -69,9 +69,13 @@ const def align(value : usize, boundary : usize) : usize {
     return ((value + boundary - usize(1)) / boundary) * boundary
 }
 
+const def increment(value : int) : int { return value + 1 }
+
 const bufferSize : usize = align(usize(1000), usize(64))
+const piped : int = 41 |> increment
 staticAssert(capacity == 2000)
 staticAssert(bufferSize == usize(1024), "alignment must remain stable")
+staticAssert(piped == 42, "pipeline desugaring is available to constants")
 staticAssert(opcode == 41_482, "hexadecimal const evaluation must match decimal")
 staticAssert(sprite == ubyte(240), "binary const evaluation must match decimal")
 staticAssert(shifted == ubyte(60), "bitwise constants preserve ubyte width")

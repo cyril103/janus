@@ -1,0 +1,88 @@
+import std.functional
+import std.option
+
+var evaluationTrace : int = 0
+
+def source() : int {
+    evaluationTrace = evaluationTrace * 10 + 1
+    return 20
+}
+
+def explicitArgument() : int {
+    evaluationTrace = evaluationTrace * 10 + 3
+    return 1
+}
+
+def add(value : int, amount : int) : int {
+    evaluationTrace = evaluationTrace * 10 + 4
+    return value + amount
+}
+
+def increment(value : int) : int {
+    return value + 1
+}
+
+def unwrap(input : Option[int]) : Option[int] {
+    val value : int =
+        (input |> std.functional.identity[Option[int]]())?
+    return Option.Some[int](value)
+}
+
+struct Number(val value : int) derives Copy {}
+
+def doubleNumber(value : Number) : Number {
+    return new Number(value.value * 2)
+}
+
+extend Number {
+    borrow def squared() : int {
+        return this.value * this.value
+    }
+}
+
+class Box(val value : int) {}
+
+def consumeBox(box : Box) : int {
+    val value : int = box.value
+    delete box
+    return value
+}
+
+def main() : int {
+    val piped : int = source()
+        |> increment
+        |> add(explicitArgument())
+    println(piped)
+    println(evaluationTrace)
+
+    println(20 |> compose[int, int, int](
+        (value : int) => value + 1,
+        (value : int) => value * 2
+    ))
+
+    println(20 |> std.functional.andThen[int, int, int](
+        (value : int) => value + 1,
+        (value : int) => value * 2
+    ))
+
+    println(2 |> flip[int, int, int](9,
+        (left : int, right : int) => left - right
+    ))
+
+    println(7 |> constant[int, int](123))
+
+    val observed : int = 41 |> tap[int](
+        (borrow value : int) => println(value)
+    ) |> std.functional.identity[int]()
+    println(observed)
+
+    val option : Option[int] = unwrap(Option.Some[int](42))
+    println(match option { Some(value) => value, None => 0 })
+
+    val extended : int = (new Number(4) |> doubleNumber).squared()
+    println(extended)
+
+    val box : Box = new Box(99)
+    println(move box |> consumeBox)
+    return 0
+}

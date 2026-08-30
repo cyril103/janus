@@ -2380,6 +2380,28 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(
+        NAME runtime.functional_pipeline
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/functional_pipeline.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/functional_pipeline_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/functional_pipeline.expected.txt"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME language.functional_pipeline_requires_explicit_move
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/functional_pipeline_move_error.janus"
+            "-DEXPECTED_ERROR=requires an explicit move"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
+    )
+    add_test(
         NAME language.owned_iterator_borrow_rejects_escape
         COMMAND
             ${CMAKE_COMMAND}

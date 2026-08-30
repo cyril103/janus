@@ -823,6 +823,14 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(semantic_token_type_at(bitwise_semantic_tokens, 0, 47) == 13);
   JANUS_REQUIRE(semantic_token_type_at(bitwise_semantic_tokens, 0, 52) == 13);
 
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///pipeline.janus","text":"def increment(value : int) : int { return value + 1 }\ndef main() : int { return 41 |> increment }\n"}}})"));
+  const std::string pipeline_semantic_tokens = require_lsp_result(
+      server.handle(
+          R"({"jsonrpc":"2.0","id":542,"method":"textDocument/semanticTokens/full","params":{"textDocument":{"uri":"file:///pipeline.janus"}}})"),
+      LspResultShape::SemanticTokens);
+  JANUS_REQUIRE(semantic_token_type_at(pipeline_semantic_tokens, 1, 29) == 13);
+
   const auto compound_diagnostics = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///compound.janus","text":"def main() : int { var value : int = 1 value += 2 value <<= 1 return value }\n"}}})");
   JANUS_REQUIRE(compound_diagnostics.front().find("\"diagnostics\":[]") !=

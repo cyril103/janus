@@ -7,6 +7,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage
 
+- ajout de l'opérateur de pipeline `|>`, associatif à gauche et de faible
+  précédence, avec transmission explicite de la valeur comme premier argument
+  et sans `move` implicite ;
 - ajout des blocs `extend[T] Type[T]` et des méthodes d'extension statiques à
   receveur `borrow`, `borrow var` ou `consume`, avec résolution cohérente et
   sans modification d'ABI ;
@@ -15,6 +18,8 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Bibliothèque standard et outillage
 
+- ajout de `std.functional` avec `identity`, `constant`, `compose`, `andThen`,
+  `flip` et `tap`, sous forme de combinateurs synchrones sans allocation ;
 - exposition des combinateurs d'`Option` et `Result` comme méthodes chaînables,
   tout en conservant les fonctions libres compatibles ;
 - ajout de `flatten`, `filter`, `fold`, `contains`, `zip`, `map2`, `inspect`,

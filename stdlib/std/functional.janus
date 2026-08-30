@@ -1,0 +1,81 @@
+/// Fournit des combinateurs fonctionnels explicites et synchrones.
+///
+/// Tous les helpers s'exécutent pendant l'appel et n'allouent aucun état. Les
+/// callbacks sont `scoped` : elles peuvent capturer des emprunts, mais ne sont
+/// ni conservées ni retournées.
+module std.functional
+
+/// Retourne la valeur reçue sans transformation.
+/// @param value Valeur transmise telle quelle.
+/// @return La valeur reçue, avec la même propriété.
+def identity[T](value : T) : T {
+    return move value
+}
+
+/// Détruit un argument ignoré et retourne la valeur principale.
+/// @param value Valeur à conserver.
+/// @param discarded Valeur détruite avant le retour.
+/// @return `value`, toujours propriétaire.
+def constant[A, B](value : A, discarded : B) : A {
+    delete discarded
+    return move value
+}
+
+/// Applique `inner`, puis `outer`, à une valeur.
+///
+/// La valeur est le premier paramètre afin d'autoriser
+/// `value |> compose(outer, inner)`.
+/// @param value Valeur initiale.
+/// @param outer Seconde transformation, de `B` vers `C`.
+/// @param inner Première transformation, de `A` vers `B`.
+/// @return Résultat de `outer(inner(value))`.
+def compose[A, B, C](
+    value : A,
+    scoped outer : (B) => C,
+    scoped inner : (A) => B
+) : C {
+    defer delete outer
+    defer delete inner
+    return outer(inner(move value))
+}
+
+/// Applique `first`, puis `after`, dans l'ordre de lecture.
+/// @param value Valeur initiale.
+/// @param first Première transformation.
+/// @param after Seconde transformation.
+/// @return Résultat de `after(first(value))`.
+def andThen[A, B, C](
+    value : A,
+    scoped first : (A) => B,
+    scoped after : (B) => C
+) : C {
+    defer delete first
+    defer delete after
+    return after(first(move value))
+}
+
+/// Applique une fonction binaire en inversant ses deux valeurs.
+///
+/// `right |> flip(left, function)` appelle `function(left, right)`.
+/// @param right Second argument original, fourni en premier pour le pipeline.
+/// @param left Premier argument original.
+/// @param function Fonction binaire synchrone.
+/// @return Résultat de `function(left, right)`.
+def flip[A, B, C](
+    right : B,
+    left : A,
+    scoped function : (A, B) => C
+) : C {
+    defer delete function
+    return function(move left, move right)
+}
+
+/// Observe une valeur puis la retransmet.
+/// @param value Valeur à observer puis retransmettre.
+/// @param action Observation synchrone empruntant `value`.
+/// @return La valeur reçue, toujours propriétaire.
+def tap[T](value : T, scoped action : (borrow T) => Unit) : T {
+    defer delete action
+    action(value)
+    return move value
+}

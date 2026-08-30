@@ -396,9 +396,11 @@ std::string format_source(std::string_view source,
           return current_line > range.arrow_line && current_line <= range.end_line &&
                  range.indent_continuation;
         });
+    const bool pipeline_continuation = content.starts_with("|>");
     const int line_indentation =
         visible_blocks + (visible_continuations > 0 ? 1 : 0) +
-        (expression_body_continuation ? 1 : 0);
+        (expression_body_continuation ? 1 : 0) +
+        (pipeline_continuation ? 1 : 0);
     output << std::string(static_cast<std::size_t>(line_indentation) *
                              options.indent_width,
                          ' ')

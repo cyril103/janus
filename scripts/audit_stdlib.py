@@ -84,6 +84,9 @@ OWNER_MODULES = {
     "#264": {
         "std.slice",
     },
+    "#294": {
+        "std.functional",
+    },
 }
 IMPORT_RE = re.compile(r"^\s*import\s+([\w.]+)", re.MULTILINE)
 DOCUMENTATION_BLOCK_RE = re.compile(

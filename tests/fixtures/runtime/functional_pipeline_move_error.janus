@@ -1,0 +1,12 @@
+class Resource() {}
+struct Box(val resource : Resource) {}
+
+def consumeBox(box : Box) : int {
+    delete box
+    return 42
+}
+
+def main() : int {
+    val box : Box = new Box(new Resource())
+    return box |> consumeBox
+}
