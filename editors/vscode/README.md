@@ -21,6 +21,10 @@ La même commande avec un VSIX plus récent met l'installation existante à jour
 Après une installation ou une mise à jour, ouvrir un fichier `.janus` et
 contrôler la sortie **Janus Language Server**.
 
+Chaque tag stable publie le même VSIX, après tests et contrôle de version, sur
+Visual Studio Marketplace et Open VSX. Le workflow conserve aussi le VSIX et
+son SHA-256 comme artefacts vérifiables.
+
 ## Choix de `janus-lsp`
 
 Le serveur est recherché dans cet ordre déterministe :

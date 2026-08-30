@@ -1,4 +1,4 @@
-name: Prepare VS Code extension
+name: Publish VS Code extension
 
 on:
   push:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   handoff:
-    name: Prepare tagged VSIX for manual handoff
+    name: Package and publish tagged VSIX
     runs-on: ubuntu-24.04
 
     steps:
@@ -75,6 +75,24 @@ jobs:
         working-directory: editors/vscode
         run: |
           sha256sum janus-language.vsix > janus-language.vsix.sha256
+
+      - name: Publish to Visual Studio Marketplace
+        if: github.event_name == 'push'
+        working-directory: editors/vscode
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          test -n "$VSCE_PAT"
+          npm exec -- vsce publish --packagePath janus-language.vsix -p "$VSCE_PAT"
+
+      - name: Publish to Open VSX
+        if: github.event_name == 'push'
+        working-directory: editors/vscode
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          test -n "$OVSX_PAT"
+          npm exec -- ovsx publish janus-language.vsix -p "$OVSX_PAT"
 
       - name: Upload VSIX handoff artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

@@ -277,6 +277,13 @@ Une extension VS Code est disponible dans
 - [Exemples complets](examples)
 - [Historique des versions](CHANGELOG.md)
 
+## Contribuer et signaler un problème
+
+Consultez [CONTRIBUTING.md](CONTRIBUTING.md) pour construire et tester une
+contribution. Les vulnérabilités suivent la procédure privée de
+[SECURITY.md](SECURITY.md) ; les autres rapports utilisent les formulaires
+d'issues structurés.
+
 ## Licence
 
 Janus est distribué sous licence Apache 2.0 avec exception LLVM. Consultez

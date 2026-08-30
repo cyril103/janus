@@ -3690,6 +3690,20 @@ if(BUILD_TESTING)
             "-DEXPECTED_ERROR=shift count exceeds operand width"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_trap.cmake"
     )
+    add_test(
+        NAME example.cli_report_check
+        COMMAND $<TARGET_FILE:janus> check --all --deny-warnings
+    )
+    set_tests_properties(example.cli_report_check PROPERTIES
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/examples/cli-report"
+    )
+    add_test(
+        NAME example.cli_report_test
+        COMMAND $<TARGET_FILE:janus> test --fail-if-empty
+    )
+    set_tests_properties(example.cli_report_test PROPERTIES
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/examples/cli-report"
+    )
 endif()
 
 add_executable(janus_bundled_clang IMPORTED GLOBAL)

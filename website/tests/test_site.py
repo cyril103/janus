@@ -218,6 +218,7 @@ class SiteStructureTests(unittest.TestCase):
             "| `semantic-core` | en cours |",
             "| `lsp-performance` | en cours |",
             "| `stdlib-review` | complète |",
+            "| `ecosystem-validation` | en cours |",
             "| `release-candidate` | à faire |",
         )
         for milestone in expected_milestones:

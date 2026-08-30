@@ -1,0 +1,26 @@
+name: Proposition
+description: Proposer une évolution du langage, de la stdlib ou des outils
+title: "proposal: "
+labels: ["proposal"]
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Cas d'usage
+      description: Quel programme réel devient difficile sans ce changement ?
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Contrat proposé
+      description: Syntaxe ou API, propriété, erreurs et interaction avec l'existant
+    validations:
+      required: true
+  - type: textarea
+    id: migration
+    attributes:
+      label: Compatibilité et migration
+      description: Surface touchée, stratégie de dépréciation et gate 1.0
+    validations:
+      required: true

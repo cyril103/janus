@@ -1,0 +1,31 @@
+name: Bug
+description: Signaler une régression reproductible de Janus
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Sortie de `janus --version --json`
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Plateforme
+      options: ["Linux x86_64", "macOS ARM64", "Windows x86_64", "Autre"]
+    validations:
+      required: true
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Reproducer minimal
+      description: Sources, commande exacte, résultat observé et résultat attendu
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics et traces
+      render: shell

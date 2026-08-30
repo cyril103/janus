@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Rapport de sécurité privé
+    url: https://github.com/cyril103/janus/security/advisories/new
+    about: Signaler confidentiellement une vulnérabilité exploitable

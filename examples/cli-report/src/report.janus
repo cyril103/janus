@@ -1,0 +1,11 @@
+module report
+
+/// Calcule le nombre d'arguments utilisateur en retirant le nom du programme.
+/// @param total Nombre d'arguments fourni par le runtime.
+/// @return Nombre d'arguments appartenant à l'utilisateur.
+pure def userArgumentCount(total : usize) : usize {
+    if total == usize(0) {
+        return usize(0)
+    }
+    return total - usize(1)
+}

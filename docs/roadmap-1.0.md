@@ -32,7 +32,7 @@ Les priorités sont ordonnées ainsi :
 | `diagnostics-zero-j0000` | en cours | Aucun chemin utilisateur ne produit `J0000`. |
 | `lsp-performance` | en cours | Budgets p50/p95 ratifiés, cancellation et absence de publication obsolète. |
 | `stdlib-review` | complète | Chaque module est promu, maintenu expérimental, extrait ou retiré. |
-| `ecosystem-validation` | à faire | Trois canaris aval et deux cycles réels du registre sont archivés. |
+| `ecosystem-validation` | en cours | Trois canaris aval et deux cycles réels du registre sont archivés. |
 | `release-candidate` | à faire | Toutes les gates bloquantes sont complètes puis 30 jours de gel réussissent. |
 
 Les grandes familles nouvelles — async, réseau haut niveau, 3D, debugger, JIT

@@ -1,0 +1,8 @@
+import std.process
+import report.{userArgumentCount}
+
+def main() : int {
+    print("arguments utilisateur : ")
+    println(userArgumentCount(programArgumentCount()))
+    return 0
+}

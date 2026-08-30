@@ -34,9 +34,9 @@
     },
     {
       "id": "ecosystem-validation",
-      "status": "pending",
+      "status": "in-progress",
       "blocks_1_0": true,
-      "proof": []
+      "proof": ["CONTRIBUTING.md", "examples/cli-report/janus.toml", ".github/workflows/publish-vscode.yml"]
     },
     {
       "id": "release-candidate",

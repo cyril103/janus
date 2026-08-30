@@ -1,0 +1,12 @@
+import std.testing
+import report.{userArgumentCount}
+
+/// @test
+def removesProgramName() : Unit {
+    assertEqual[usize](userArgumentCount(usize(3)), usize(2))
+}
+
+/// @test
+def acceptsEmptyRuntimeInput() : Unit {
+    assertEqual[usize](userArgumentCount(usize(0)), usize(0))
+}
