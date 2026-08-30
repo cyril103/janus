@@ -86,7 +86,7 @@ execute_process(
   RESULT_VARIABLE IMPORTED_STATUS OUTPUT_VARIABLE IMPORTED_OUTPUT
   ERROR_VARIABLE IMPORTED_ERROR)
 if(IMPORTED_STATUS EQUAL 0 OR
-   NOT IMPORTED_ERROR MATCHES "imported_false.janus:2:1: error: static assertion failed: imported failure")
+   NOT IMPORTED_ERROR MATCHES "imported_false.janus:2:1: error: \\[JANA0999\\] static assertion failed: imported failure")
   message(FATAL_ERROR
     "imported static assertion lost its failure or provenance\n${IMPORTED_ERROR}\n${IMPORTED_OUTPUT}")
 endif()
