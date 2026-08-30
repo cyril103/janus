@@ -15,6 +15,7 @@ set(TOP_LEVEL_USAGE
   janus remove <name>
   janus search <query> [--registry <url>]
   janus publish [--registry <url>]
+  janus explain <diagnostic-code>
   janus clean
   janus check [source.janus] [--all] [--deny-warnings] [--diagnostic-format human|json]
   janus build [source.janus] [-o output] [--release] [--emit llvm-ir|object] [--panic-trace full|short|off] [--diagnostic-format human|json] [--timings[=human|json]] [--no-cache] [--deny-warnings]

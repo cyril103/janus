@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enforce the VSIX handoff and GitHub Release workflow contract."""
+"""Enforce the VSIX publication and GitHub Release workflow contract."""
 
 from __future__ import annotations
 
@@ -221,6 +221,21 @@ def _required_step(job: Job, name: str, kind: str, source: str, failures: list[s
     return step
 
 
+def _conditional_run_step(
+    job: Job, name: str, condition: str, source: str, failures: list[str]
+) -> Step | None:
+    step = _step(job, name, source, failures)
+    if step is None:
+        return None
+    if step.values.get("if") != condition:
+        failures.append(f"{source}: step {name!r} must have exactly if: {condition}")
+    if "continue-on-error" in step.values:
+        failures.append(f"{source}: step {name!r} must not have continue-on-error")
+    if "run" not in step.values or "uses" in step.values:
+        failures.append(f"{source}: step {name!r} must be a run step")
+    return step
+
+
 def _require_action(job: Job, name: str, action: str, source: str, failures: list[str]) -> Step | None:
     step = _required_step(job, name, "uses", source, failures)
     # An inline YAML comment commonly records the human-readable action version.
@@ -335,22 +350,20 @@ def validate(root: Path) -> list[str]:
     for workflow_path, (workflow_text, workflow_jobs) in workflows.items():
         source = str(workflow_path.relative_to(root))
         lowered = workflow_text.lower()
-        for forbidden in ("vsce_pat", "vscode-marketplace"):
-            if forbidden in lowered:
-                failures.append(f"{source}: workflow contains forbidden {forbidden!r}")
-        if workflow_path == handoff_path and "secrets." in lowered:
-            failures.append(f"{source}: workflow contains forbidden 'secrets.'")
-        for job in workflow_jobs.values():
-            for step in job.steps:
-                for tokens in map(_tokens, _active_lines(step.values.get("run", ""))):
-                    lowered_tokens = [token.lower() for token in tokens]
-                    if any(
-                        lowered_tokens[index : index + 2] == ["vsce", "publish"]
-                        for index in range(len(lowered_tokens) - 1)
-                    ):
-                        failures.append(
-                            f"{source}: workflow contains an active vsce publish command"
-                        )
+        if workflow_path != handoff_path:
+            for forbidden in ("vsce_pat", "ovsx_pat", "vscode-marketplace"):
+                if forbidden in lowered:
+                    failures.append(f"{source}: publication credential {forbidden!r} belongs in the extension workflow")
+            for job in workflow_jobs.values():
+                for step in job.steps:
+                    for tokens in map(_tokens, _active_lines(step.values.get("run", ""))):
+                        lowered_tokens = [token.lower() for token in tokens]
+                        if "publish" in lowered_tokens and any(
+                            tool in lowered_tokens for tool in ("vsce", "ovsx")
+                        ):
+                            failures.append(
+                                f"{source}: extension publication belongs in {handoff_source}"
+                            )
     handoff = handoff_jobs.get("handoff")
     if handoff is None:
         failures.append(f"{handoff_source}: missing handoff job")
@@ -375,6 +388,31 @@ def validate(root: Path) -> list[str]:
         _require_exact_commands(handoff, "Test extension", (("npm", "test"),), handoff_source, failures)
         _require_exact_commands(handoff, "Package VSIX and list its content", (("npm", "run", "package", "--", "--out", "janus-language.vsix"), ("npx", "vsce", "ls", "--tree")), handoff_source, failures)
         _require_exact_commands(handoff, "Produce SHA-256 checksum", (("sha256sum", "janus-language.vsix", ">", "janus-language.vsix.sha256"),), handoff_source, failures)
+        marketplace = _conditional_run_step(
+            handoff, "Publish to Visual Studio Marketplace", "github.event_name == 'push'", handoff_source, failures
+        )
+        if marketplace is not None:
+            script = marketplace.values.get("run", "")
+            for command in (
+                ("test", "-n", "$VSCE_PAT"),
+                ("npm", "exec", "--", "vsce", "publish", "--packagePath", "janus-language.vsix", "-p", "$VSCE_PAT"),
+            ):
+                if not _has_exact_command(script, command):
+                    failures.append(f"{handoff_source}: Marketplace publication lacks exact command {' '.join(command)!r}")
+        open_vsx = _conditional_run_step(
+            handoff, "Publish to Open VSX", "github.event_name == 'push'", handoff_source, failures
+        )
+        if open_vsx is not None:
+            script = open_vsx.values.get("run", "")
+            for command in (
+                ("test", "-n", "$OVSX_PAT"),
+                ("npm", "exec", "--", "ovsx", "publish", "janus-language.vsix", "-p", "$OVSX_PAT"),
+            ):
+                if not _has_exact_command(script, command):
+                    failures.append(f"{handoff_source}: Open VSX publication lacks exact command {' '.join(command)!r}")
+        for credential in ("VSCE_PAT: ${{ secrets.VSCE_PAT }}", "OVSX_PAT: ${{ secrets.OVSX_PAT }}"):
+            if handoff_text.count(credential) != 1:
+                failures.append(f"{handoff_source}: expected exactly one credential binding {credential!r}")
         upload = _require_action(handoff, "Upload VSIX handoff artifact", "actions/upload-artifact", handoff_source, failures)
         if upload is not None:
             required = {"editors/vscode/janus-language.vsix", "editors/vscode/janus-language.vsix.sha256"}
@@ -442,10 +480,9 @@ def self_test(root: Path) -> int:
     mutations = {
         "disabled handoff job": (handoff, "  handoff:\n", "  handoff:\n    if: false\n"),
         "fallible handoff job": (handoff, "  handoff:\n", "  handoff:\n    continue-on-error: true\n"),
-        "handoff job secret": (handoff, "    runs-on: ubuntu-24.04\n", "    runs-on: ubuntu-24.04\n    env:\n      VSCE_PAT: ${{ secrets.VSCE_PAT }}\n"),
-        "handoff marketplace environment": (handoff, "    runs-on: ubuntu-24.04\n", "    runs-on: ubuntu-24.04\n    environment: vscode-marketplace\n"),
-        "continued marketplace publish": (handoff, "      - name: Test extension\n", "      - name: Publish extension\n        run: |\n          npx vsce \\\n            publish --packagePath janus-language.vsix\n\n      - name: Test extension\n"),
-        "command-prefixed marketplace publish": (handoff, "      - name: Test extension\n", "      - name: Publish extension\n        run: command npx vsce publish --packagePath janus-language.vsix\n\n      - name: Test extension\n"),
+        "disabled Marketplace publication": (handoff, "      - name: Publish to Visual Studio Marketplace\n        if: github.event_name == 'push'\n", "      - name: Publish to Visual Studio Marketplace\n        if: false\n"),
+        "masked Marketplace publication": (handoff, "          npm exec -- vsce publish --packagePath janus-language.vsix -p \"$VSCE_PAT\"\n", "          npm exec -- vsce publish --packagePath janus-language.vsix -p \"$VSCE_PAT\" || true\n"),
+        "missing Open VSX credential": (handoff, "          OVSX_PAT: ${{ secrets.OVSX_PAT }}\n", "          OVSX_PAT: unavailable\n"),
         "masked npm test failure": (handoff, "        run: npm test\n", "        run: npm test || true\n"),
         "arbitrary false handoff upload": (handoff, "      - name: Upload VSIX handoff artifact\n", "      - name: Upload VSIX handoff artifact\n        if: ${{ 1 == 2 }}\n"),
         "disabled handoff package": (handoff, "      - name: Package VSIX and list its content\n", "      - name: Package VSIX and list its content\n        if: false\n"),
