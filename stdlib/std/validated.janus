@@ -1,0 +1,476 @@
+/// Accumule les erreurs de validations indépendantes dans un ordre stable.
+///
+/// Contrairement à `Result`, `Validated` fournit une composition applicative :
+/// `map2`, `map3` et `collectValidated` exécutent toutes les validations déjà
+/// construites et concatènent leurs erreurs de gauche à droite. Le module
+/// n'expose volontairement aucun `andThen`, car une étape dépendante ne peut pas
+/// produire d'erreur lorsqu'une étape précédente l'empêche de s'exécuter.
+/// @example
+/// ```janus
+/// val name : Validated[int, string] = valid[int, string](20)
+/// val age : Validated[int, string] = invalid[int, string]("age required")
+/// val form : Validated[ValidatedPair[int, int], string] = zip[int, int, string](name, age)
+/// ```
+module std.validated
+
+import std.array
+import std.iterator
+import std.option
+import std.result
+
+/// Représente une valeur validée ou toutes les erreurs indépendantes connues.
+enum Validated[T, E] {
+    /// Contient une valeur valide propriétaire.
+    Valid(T),
+    /// Contient les erreurs propriétaires dans leur ordre d'accumulation.
+    Invalid(Array[E])
+}
+
+/// Paire propriétaire produite par [[zip]].
+struct ValidatedPair[A, B](
+    /// Valeur de la validation gauche.
+    val left : A,
+    /// Valeur de la validation droite.
+    val right : B
+) {}
+
+private def validatedInvariant[T]() : T {
+    panic("Validated ownership state invariant violated\n")
+}
+
+private def validatedInvariantDiscard[T, U](value : U) : T {
+    delete value
+    panic("Validated branch invariant violated\n")
+}
+
+private class ValidatedState[T, E](
+    private var value : Option[Validated[T, E]]
+) {
+    borrow def isValid() : bool {
+        return match value {
+            Some(validation) => match validation {
+                Valid(item) => true,
+                Invalid(errors) => false
+            },
+            None => false
+        }
+    }
+
+    private def takeValidated() : Validated[T, E] {
+        val previous : Option[Validated[T, E]] = move value
+        value = Option.None[Validated[T, E]]()
+        return match move previous {
+            Some(validation) => move validation,
+            None => validatedInvariant[Validated[T, E]]()
+        }
+    }
+
+    def takeValue() : T {
+        val validation : Validated[T, E] = this.takeValidated()
+        return match move validation {
+            Valid(item) => move item,
+            Invalid(errors) => validatedInvariantDiscard[T, Array[E]](
+                move errors
+            )
+        }
+    }
+
+    def takeErrors() : Array[E] {
+        val validation : Validated[T, E] = this.takeValidated()
+        return match move validation {
+            Valid(item) => validatedInvariantDiscard[Array[E], T](move item),
+            Invalid(errors) => move errors
+        }
+    }
+
+    destructor {
+        delete value
+    }
+}
+
+private def discardAndNoErrors[T, E](value : T) : Option[Array[E]] {
+    delete value
+    return Option.None[Array[E]]()
+}
+
+private def firstError[E](errors : Array[E]) : E {
+    if errors.isEmpty() {
+        delete errors
+        return validatedInvariant[E]()
+    }
+    val first : E = errors.remove(usize(0))
+    delete errors
+    return move first
+}
+
+private def mapErrors[E, F](
+    errors : Array[E],
+    borrow transform : (E) => F
+) : Array[F] {
+    val mapped : Array[F] = new Array[F](errors.size())
+    for error in errors.intoIterator() {
+        val _size : usize = mapped.push(transform(move error))
+    }
+    return move mapped
+}
+
+/// Construit une validation réussie.
+/// @example
+/// ```janus
+/// val value : Validated[int, string] = valid[int, string](42)
+/// ```
+/// @param value Valeur dont la propriété est transférée.
+/// @return `Valid(value)`.
+def valid[T, E](value : T) : Validated[T, E] {
+    return Validated.Valid[T, E](move value)
+}
+
+/// Construit une validation contenant une erreur unique.
+///
+/// L'allocation du tableau suit le contrat d'`Array.push` et panique en cas
+/// d'échec après avoir détruit `error`.
+/// @example
+/// ```janus
+/// val value : Validated[int, string] = invalid[int, string]("required")
+/// ```
+/// @param error Erreur dont la propriété est transférée.
+/// @return `Invalid` contenant uniquement `error`.
+def invalid[T, E](error : E) : Validated[T, E] {
+    val errors : Array[E] = new Array[E](usize(1))
+    errors.push(move error)
+    return Validated.Invalid[T, E](move errors)
+}
+
+/// Indique si une validation contient une valeur valide.
+/// @param value Validation observée sans transfert.
+/// @return `true` pour `Valid`, sinon `false`.
+def isValid[T, E](borrow value : Validated[T, E]) : bool {
+    return match value {
+        Valid(item) => true,
+        Invalid(errors) => false
+    }
+}
+
+/// Indique si une validation contient des erreurs.
+/// @param value Validation observée sans transfert.
+/// @return `true` pour `Invalid`, sinon `false`.
+def isInvalid[T, E](borrow value : Validated[T, E]) : bool {
+    return !isValid[T, E](value)
+}
+
+/// Transforme la valeur valide sans modifier les erreurs.
+/// @param value Validation consommée.
+/// @param transform Callback appelée uniquement pour `Valid`.
+/// @return Validation transformée ou erreurs d'origine.
+def map[T, U, E](
+    value : Validated[T, E],
+    scoped transform : (T) => U
+) : Validated[U, E] {
+    defer delete transform
+    return match move value {
+        Valid(item) => Validated.Valid[U, E](transform(move item)),
+        Invalid(errors) => Validated.Invalid[U, E](move errors)
+    }
+}
+
+/// Transforme chaque erreur dans son ordre d'origine.
+/// @param value Validation consommée.
+/// @param transform Callback appelée une fois par erreur et jamais pour `Valid`.
+/// @return Valeur valide d'origine ou erreurs transformées.
+def mapError[T, E, F](
+    value : Validated[T, E],
+    scoped transform : (E) => F
+) : Validated[T, F] {
+    defer delete transform
+    return match move value {
+        Valid(item) => Validated.Valid[T, F](move item),
+        Invalid(errors) => Validated.Invalid[T, F](
+            mapErrors[E, F](move errors, transform)
+        )
+    }
+}
+
+/// Combine deux validations et accumule toutes leurs erreurs.
+///
+/// La validation gauche est examinée avant la droite. `combine` n'est appelée
+/// que lorsque les deux branches sont `Valid`.
+/// @param left Première validation consommée.
+/// @param right Seconde validation consommée.
+/// @param combine Constructeur recevant les deux succès dans l'ordre.
+/// @return Succès combiné ou toutes les erreurs gauche-droite.
+def map2[A, B, E, U](
+    left : Validated[A, E],
+    right : Validated[B, E],
+    scoped combine : (A, B) => U
+) : Validated[U, E] {
+    defer delete combine
+    val leftState : ValidatedState[A, E] = new ValidatedState[A, E](
+        Option.Some[Validated[A, E]](move left)
+    )
+    defer delete leftState
+    val rightState : ValidatedState[B, E] = new ValidatedState[B, E](
+        Option.Some[Validated[B, E]](move right)
+    )
+    defer delete rightState
+    val allValid : bool = leftState.isValid() && rightState.isValid()
+
+    val errors : Array[E] = new Array[E](usize(2))
+    if !leftState.isValid() {
+        val _size : usize = errors.extend(
+            leftState.takeErrors().intoIterator()
+        )
+    }
+    if !rightState.isValid() {
+        val _size : usize = errors.extend(
+            rightState.takeErrors().intoIterator()
+        )
+    }
+    if allValid {
+        delete errors
+        return Validated.Valid[U, E](combine(
+            leftState.takeValue(), rightState.takeValue()
+        ))
+    }
+    return Validated.Invalid[U, E](move errors)
+}
+
+/// Combine trois validations et accumule toutes leurs erreurs.
+///
+/// L'ordre d'accumulation est `first`, `second`, puis `third`. `combine` n'est
+/// appelée que lorsque les trois branches sont `Valid`.
+/// @param first Première validation consommée.
+/// @param second Deuxième validation consommée.
+/// @param third Troisième validation consommée.
+/// @param combine Constructeur recevant les trois succès dans l'ordre.
+/// @return Succès combiné ou toutes les erreurs gauche-droite.
+def map3[A, B, C, E, U](
+    first : Validated[A, E],
+    second : Validated[B, E],
+    third : Validated[C, E],
+    scoped combine : (A, B, C) => U
+) : Validated[U, E] {
+    defer delete combine
+    val firstState : ValidatedState[A, E] = new ValidatedState[A, E](
+        Option.Some[Validated[A, E]](move first)
+    )
+    defer delete firstState
+    val secondState : ValidatedState[B, E] = new ValidatedState[B, E](
+        Option.Some[Validated[B, E]](move second)
+    )
+    defer delete secondState
+    val thirdState : ValidatedState[C, E] = new ValidatedState[C, E](
+        Option.Some[Validated[C, E]](move third)
+    )
+    defer delete thirdState
+    val allValid : bool = firstState.isValid()
+    && secondState.isValid()
+    && thirdState.isValid()
+
+    val errors : Array[E] = new Array[E](usize(3))
+    if !firstState.isValid() {
+        val _size : usize = errors.extend(
+            firstState.takeErrors().intoIterator()
+        )
+    }
+    if !secondState.isValid() {
+        val _size : usize = errors.extend(
+            secondState.takeErrors().intoIterator()
+        )
+    }
+    if !thirdState.isValid() {
+        val _size : usize = errors.extend(
+            thirdState.takeErrors().intoIterator()
+        )
+    }
+    if allValid {
+        delete errors
+        return Validated.Valid[U, E](combine(
+            firstState.takeValue(),
+            secondState.takeValue(),
+            thirdState.takeValue()
+        ))
+    }
+    return Validated.Invalid[U, E](move errors)
+}
+
+/// Regroupe deux valeurs valides dans une paire propriétaire.
+/// @param left Première validation consommée.
+/// @param right Seconde validation consommée.
+/// @return Paire valide ou toutes les erreurs gauche-droite.
+def zip[A, B, E](
+    left : Validated[A, E],
+    right : Validated[B, E]
+) : Validated[ValidatedPair[A, B], E] {
+    return map2[A, B, E, ValidatedPair[A, B]](
+        move left,
+        move right,
+        (leftItem : A, rightItem : B) => new ValidatedPair[A, B](
+        leftItem, rightItem
+        )
+    )
+}
+
+/// Observe le tableau d'erreurs sans le transférer.
+/// @param value Validation observée.
+/// @param action Callback bornée appelée uniquement pour `Invalid`.
+/// @return `Some` du résultat indépendant de l'action, ou `None` pour `Valid`.
+def errorsBorrowed[T, E, U](
+    borrow value : Validated[T, E],
+    scoped action : (borrow Array[E]) => U
+) : Option[U] {
+    defer delete action
+    return match value {
+        Valid(item) => Option.None[U](),
+        Invalid(errors) => Option.Some[U](action(errors))
+    }
+}
+
+/// Transfère le tableau d'erreurs hors d'une validation invalide.
+/// @param value Validation consommée.
+/// @return `Some(errors)` pour `Invalid`; `None` après destruction du succès.
+def intoErrors[T, E](value : Validated[T, E]) : Option[Array[E]] {
+    return match move value {
+        Valid(item) => discardAndNoErrors[T, E](move item),
+        Invalid(errors) => Option.Some[Array[E]](move errors)
+    }
+}
+
+/// Convertit un résultat en validation sans perte d'information.
+/// @param value Résultat consommé.
+/// @return Succès valide ou tableau contenant l'erreur unique.
+def fromResult[T, E](value : Result[T, E]) : Validated[T, E] {
+    return match move value {
+        Ok(item) => Validated.Valid[T, E](move item),
+        Error(error) => invalid[T, E](move error)
+    }
+}
+
+/// Convertit une validation en résultat en conservant la première erreur.
+///
+/// Pour `Invalid`, seule l'erreur d'indice zéro est transférée dans `Error`;
+/// toutes les erreurs suivantes sont détruites. Un tableau vide viole
+/// l'invariant du type et déclenche `panic`.
+/// @param value Validation consommée.
+/// @return Succès d'origine ou première erreur accumulée.
+def toResult[T, E](value : Validated[T, E]) : Result[T, E] {
+    return match move value {
+        Valid(item) => Result.Ok[T, E](move item),
+        Invalid(errors) => Result.Error[T, E](firstError[E](move errors))
+    }
+}
+
+/// Collecte un parcours de validations en accumulant toutes les erreurs.
+///
+/// Le parcours est entièrement consommé même après une erreur. Les succès sont
+/// conservés dans l'ordre lorsque toutes les validations réussissent; sinon ils
+/// sont détruits et toutes les erreurs sont retournées dans l'ordre du parcours.
+/// @param source Itérateur de validations consommé.
+/// @return Tableau des succès ou tableau de toutes les erreurs.
+def collectValidated[T, E](
+    source : Iterator[Validated[T, E]]
+) : Validated[Array[T], E] {
+    val values : Array[T] = new Array[T](usize(0))
+    val errors : Array[E] = new Array[E](usize(0))
+    var hasInvalid : bool = false
+    for validation in move source {
+        val state : ValidatedState[T, E] = new ValidatedState[T, E](
+            Option.Some[Validated[T, E]](move validation)
+        )
+        if state.isValid() {
+            val _size : usize = values.push(state.takeValue())
+        } else {
+            hasInvalid = true
+            val _size : usize = errors.extend(
+                state.takeErrors().intoIterator()
+            )
+        }
+        delete state
+    }
+    if !hasInvalid {
+        delete errors
+        return Validated.Valid[Array[T], E](move values)
+    }
+    delete values
+    return Validated.Invalid[Array[T], E](move errors)
+}
+
+/// Surface de méthodes statiques pour composer les validations avec `.`.
+extend[T, E] Validated[T, E] {
+    /// Indique si cette validation contient un succès.
+    /// @return `true` pour `Valid`, sinon `false`.
+    borrow def isValid() : bool { return isValid[T, E](this) }
+
+    /// Indique si cette validation contient des erreurs.
+    /// @return `true` pour `Invalid`, sinon `false`.
+    borrow def isInvalid() : bool { return isInvalid[T, E](this) }
+
+    /// Transforme la valeur valide.
+    /// @param transform Callback recevant le succès déplacé.
+    /// @return Succès transformé ou erreurs d'origine.
+    consume def map[U](scoped transform : (T) => U) : Validated[U, E] {
+        return map[T, U, E](move this, move transform)
+    }
+
+    /// Transforme chaque erreur dans son ordre d'origine.
+    /// @param transform Callback recevant chaque erreur déplacée.
+    /// @return Succès d'origine ou erreurs transformées.
+    consume def mapError[F](scoped transform : (E) => F) : Validated[T, F] {
+        return mapError[T, E, F](move this, move transform)
+    }
+
+    /// Regroupe cette validation avec une seconde.
+    /// @param other Validation droite consommée.
+    /// @return Paire valide ou toutes les erreurs gauche-droite.
+    consume def zip[U](
+        other : Validated[U, E]
+    ) : Validated[ValidatedPair[T, U], E] {
+        return zip[T, U, E](move this, move other)
+    }
+
+    /// Combine cette validation avec une seconde.
+    /// @param other Validation droite consommée.
+    /// @param combine Constructeur appelé uniquement pour deux succès.
+    /// @return Succès combiné ou toutes les erreurs gauche-droite.
+    consume def map2[U, V](
+        other : Validated[U, E],
+        scoped combine : (T, U) => V
+    ) : Validated[V, E] {
+        return map2[T, U, E, V](move this, move other, move combine)
+    }
+
+    /// Combine cette validation avec deux validations supplémentaires.
+    /// @param second Deuxième validation consommée.
+    /// @param third Troisième validation consommée.
+    /// @param combine Constructeur appelé uniquement pour trois succès.
+    /// @return Succès combiné ou toutes les erreurs dans l'ordre.
+    consume def map3[U, V, W](
+        second : Validated[U, E],
+        third : Validated[V, E],
+        scoped combine : (T, U, V) => W
+    ) : Validated[W, E] {
+        return map3[T, U, V, E, W](
+            move this, move second, move third, move combine
+        )
+    }
+
+    /// Observe le tableau d'erreurs avec une callback bornée.
+    /// @param action Callback recevant un emprunt du tableau pour `Invalid`.
+    /// @return Résultat indépendant dans `Some`, ou `None` pour `Valid`.
+    borrow def errorsBorrowed[U](
+        scoped action : (borrow Array[E]) => U
+    ) : Option[U] {
+        return errorsBorrowed[T, E, U](this, move action)
+    }
+
+    /// Transfère le tableau d'erreurs hors de cette validation.
+    /// @return Tableau dans `Some`, ou `None` après destruction du succès.
+    consume def intoErrors() : Option[Array[E]] {
+        return intoErrors[T, E](move this)
+    }
+
+    /// Convertit cette validation en résultat, en gardant la première erreur.
+    /// @return Succès d'origine ou première erreur accumulée.
+    consume def toResult() : Result[T, E] {
+        return toResult[T, E](move this)
+    }
+}

@@ -1,0 +1,102 @@
+import std.array
+import std.iterator
+import std.result
+import std.validated
+
+var releases : int = 0
+var combineCalls : int = 0
+var errorOrder : int = 0
+
+class Resource(val id : int) {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+def combine2(left : Resource, right : Resource) : Resource {
+    combineCalls = combineCalls + 1
+    val combined : Resource = new Resource(left.id + right.id)
+    delete right
+    delete left
+    return combined
+}
+
+def combine3(
+    first : Resource,
+    second : Resource,
+    third : Resource
+) : Resource {
+    combineCalls = combineCalls + 1
+    val combined : Resource = new Resource(first.id + second.id + third.id)
+    delete third
+    delete second
+    delete first
+    return combined
+}
+
+def recordError(error : Resource) : Resource {
+    errorOrder = errorOrder * 10 + error.id
+    return error
+}
+
+def main() : int {
+    val accumulated : Validated[Resource, Resource] =
+    std.validated.map2[Resource, Resource, Resource, Resource](
+        std.validated.invalid[Resource, Resource](new Resource(1)),
+        std.validated.invalid[Resource, Resource](new Resource(2)),
+        (left : Resource, right : Resource) => combine2(left, right)
+    ).mapError[Resource](
+        (error : Resource) => recordError(error)
+    )
+    println(combineCalls)
+    println(errorOrder)
+    delete accumulated
+    println(releases)
+
+    val successful : Validated[Resource, Resource] =
+    std.validated.map3[Resource, Resource, Resource, Resource, Resource](
+        std.validated.valid[Resource, Resource](new Resource(3)),
+        std.validated.valid[Resource, Resource](new Resource(4)),
+        std.validated.valid[Resource, Resource](new Resource(5)),
+        (first : Resource, second : Resource, third : Resource) =>
+        combine3(first, second, third)
+    )
+    println(combineCalls)
+    delete successful
+    println(releases)
+
+    val validations : Array[Validated[Resource, Resource]] =
+    new Array[Validated[Resource, Resource]](usize(3))
+    validations.push(std.validated.valid[Resource, Resource](
+        new Resource(6)
+    ))
+    validations.push(std.validated.invalid[Resource, Resource](
+        new Resource(7)
+    ))
+    validations.push(std.validated.invalid[Resource, Resource](
+        new Resource(8)
+    ))
+    val collected : Validated[Array[Resource], Resource] =
+    std.validated.collectValidated[Resource, Resource](
+        validations.intoIterator()
+    )
+    println(releases)
+    delete collected
+    println(releases)
+
+    val lossy : Result[Resource, Resource] =
+    std.validated.toResult[Resource, Resource](
+        std.validated.map3[Resource, Resource, Resource, Resource, Resource](
+        std.validated.invalid[Resource, Resource](new Resource(9)),
+        std.validated.invalid[Resource, Resource](new Resource(1)),
+        std.validated.invalid[Resource, Resource](new Resource(2)),
+        (first : Resource, second : Resource, third : Resource) =>
+        combine3(first, second, third)
+        )
+    )
+    println(releases)
+    delete lossy
+    println(releases)
+    println(combineCalls)
+    return 0
+}

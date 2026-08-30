@@ -1,0 +1,94 @@
+import std.array
+import std.iterator
+import std.validated
+
+class Config(
+    val workers : int,
+    val port : int,
+    val tls : bool
+) {}
+
+def positive(value : int, message : string) : Validated[int, string] {
+    if value > 0 {
+        return std.validated.valid[int, string](value)
+    }
+    return std.validated.invalid[int, string](message)
+}
+
+def consumeErrors(errors : Array[string]) : usize {
+    val count : usize = errors.size()
+    delete errors
+    return count
+}
+
+def discardForm(form : ValidatedPair[int, int]) : usize {
+    return 0
+}
+
+def discardConfig(config : Config) : usize {
+    delete config
+    return 0
+}
+
+def consumeItems(items : Array[int]) : usize {
+    val count : usize = items.size()
+    delete items
+    return count
+}
+
+def formErrorCount(
+    value : Validated[ValidatedPair[int, int], string]
+) : usize {
+    return match move value {
+        Valid(form) => discardForm(form),
+        Invalid(errors) => consumeErrors(move errors)
+    }
+}
+
+def configErrorCount(value : Validated[Config, string]) : usize {
+    return match move value {
+        Valid(config) => discardConfig(move config),
+        Invalid(errors) => consumeErrors(move errors)
+    }
+}
+
+def collectionErrorCount(
+    value : Validated[Array[int], string]
+) : usize {
+    return match move value {
+        Valid(items) => consumeItems(move items),
+        Invalid(errors) => consumeErrors(move errors)
+    }
+}
+
+def main() : int {
+    val form : Validated[ValidatedPair[int, int], string] =
+    std.validated.zip[int, int, string](
+        positive(0, "name is required"),
+        positive(-1, "age must be positive")
+    )
+    println(formErrorCount(move form))
+
+    val config : Validated[Config, string] =
+    std.validated.map3[int, int, bool, string, Config](
+        positive(4, "workers must be positive"),
+        positive(0, "port must be positive"),
+        std.validated.valid[bool, string](true),
+        (workers : int, port : int, tls : bool) =>
+        new Config(workers, port, tls)
+    )
+    println(configErrorCount(move config))
+
+    val inputs : Array[int] = new Array(3)
+    inputs.push(1)
+    inputs.push(-2)
+    inputs.push(3)
+    val checked : Validated[Array[int], string] =
+    std.validated.collectValidated[int, string](
+        inputs.intoIterator().map[Validated[int, string]](
+        (value : int) => positive(value, "entry must be positive")
+        )
+    )
+    println(collectionErrorCount(move checked))
+    return 0
+}

@@ -3,6 +3,7 @@ import std.io
 import std.option
 import std.result
 import std.testing
+import std.validated
 
 class Resource(val id : int) derives Equality, Debug {
 }
@@ -15,33 +16,51 @@ def main() : int {
     val optional : Option[Resource] =
     Option.Some[Resource](new Resource(11))
     assertSomeWhere[Resource](
-    optional,
-    (borrow value : Resource) => value.id == 11
+        optional,
+        (borrow value : Resource) => value.id == 11
     )
 
     val success : Result[Resource, int] =
     Result.Ok[Resource, int](new Resource(13))
     assertOkWhere[Resource, int](
-    success,
-    (borrow value : Resource) => value.id == 13
+        success,
+        (borrow value : Resource) => value.id == 13
     )
 
     val failure : Result[Resource, int] =
     Result.Error[Resource, int](17)
     assertErrorWhere[Resource, int](
-    failure,
-    (borrow error : int) => error == 17
+        failure,
+        (borrow error : int) => error == 17
+    )
+
+    val validValue : Validated[Resource, int] =
+    Validated.Valid[Resource, int](new Resource(19))
+    assertValid[Resource, int](validValue)
+    assertValidWhere[Resource, int](
+        validValue,
+        (borrow value : Resource) => value.id == 19
+    )
+
+    val invalidValue : Validated[Resource, int] =
+    std.validated.invalid[Resource, int](23)
+    assertInvalid[Resource, int](invalidValue)
+    assertInvalidWhere[Resource, int](
+        invalidValue,
+        (borrow errors : Array[int]) => errors.size() == usize(1)
     )
 
     val actual : ByteBuffer = new ByteBuffer(usize(2))
     actual.appendByte(byte(3))
     actual.appendByte(byte(5))
     actual.withView[Unit]((borrow view : ByteView) => {
-        assertBytesEqual(view, view)
+            assertBytesEqual(view, view)
     })
     delete actual
 
     delete failure
+    delete invalidValue
+    delete validValue
     delete success
     delete optional
     delete right

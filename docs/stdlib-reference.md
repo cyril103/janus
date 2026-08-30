@@ -188,6 +188,39 @@ def main() : int {
 }
 ```
 
+### `std.validated`
+
+`Validated[T, E]` accumule les erreurs de contrôles indépendants. `map2`,
+`map3`, `zip` et `collectValidated` conservent l'ordre gauche-droite et
+n'appellent leur callback de construction que si toutes les entrées sont
+`Valid`. Le module n'expose pas d'`andThen`; utilisez `Result` lorsqu'une étape
+dépend d'un succès précédent. Le [contrat détaillé](design/validated.md) décrit
+l'ownership, les allocations et la conversion avec perte vers `Result`.
+
+```janus
+// doctest: doctest name=stdlib-std-validated
+import std.array
+import std.validated
+def countErrors(errors : Array[string]) : int {
+    val count : int = int(errors.size())
+    delete errors
+    return count
+}
+def main() : int {
+    val checked : Validated[int, string] =
+        std.validated.map3[int, int, int, string, int](
+            std.validated.invalid[int, string]("name"),
+            std.validated.valid[int, string](18),
+            std.validated.invalid[int, string]("email"),
+            (name : int, age : int, email : int) => name + age + email
+        )
+    return match move checked {
+        Valid(value) => 1,
+        Invalid(errors) => countErrors(move errors) - 2
+    }
+}
+```
+
 ### `std.numeric`
 
 ```janus

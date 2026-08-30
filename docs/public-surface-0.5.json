@@ -281,8 +281,8 @@
       "source": "stdlib/std/testing.janus",
       "documentation": ["docs/testing.md", "docs/tooling.md"],
       "status": "experimental",
-      "signature_digest": "f05de980660045d54705a77cc82a5ca521e678977fcf51ca549a303066f3f65c",
-      "symbols": ["TestTemporaryDirectory", "TestTemporaryDirectory.path", "TestTemporaryDirectory.cleanup", "testTemporaryDirectory", "fail", "assertTrue", "assertFalse", "assertEqual", "assertNotEqual", "assertBorrowedEqual", "assertSome", "assertNone", "assertSomeWhere", "assertOk", "assertError", "assertOkWhere", "assertErrorWhere", "assertBytesEqual"]
+      "signature_digest": "8af6e24ae63190e188ed5ea7b6e1c037562dd6e1e605daca37fcdc65828afbe1",
+      "symbols": ["TestTemporaryDirectory", "TestTemporaryDirectory.path", "TestTemporaryDirectory.cleanup", "testTemporaryDirectory", "fail", "assertTrue", "assertFalse", "assertEqual", "assertNotEqual", "assertBorrowedEqual", "assertSome", "assertNone", "assertSomeWhere", "assertOk", "assertError", "assertOkWhere", "assertErrorWhere", "assertValid", "assertInvalid", "assertValidWhere", "assertInvalidWhere", "assertBytesEqual"]
     },
     {
       "name": "std.time",
@@ -291,6 +291,14 @@
       "status": "stable-proposed",
       "signature_digest": "003daafe1ac85155ebf88f1bde3a6221398d4e0390f5225ae9c3c3e940c35b0d",
       "symbols": ["Duration", "Duration.nanoseconds", "Duration.microseconds", "Duration.milliseconds", "Duration.seconds", "Instant", "Instant.durationSince", "Instant.elapsed", "nanoseconds", "microseconds", "milliseconds", "seconds", "monotonicNow"]
+    },
+    {
+      "name": "std.validated",
+      "source": "stdlib/std/validated.janus",
+      "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/validated.md"],
+      "status": "experimental",
+      "signature_digest": "7f1ed72cc2d04415429ad794234b79e7bfbbf20fbef64efe6fe039fa338b1318",
+      "symbols": ["Validated", "Validated.Valid", "Validated.Invalid", "ValidatedPair", "ValidatedPair.left", "ValidatedPair.right", "valid", "invalid", "isValid", "isInvalid", "map", "mapError", "map2", "map3", "zip", "errorsBorrowed", "intoErrors", "fromResult", "toResult", "collectValidated"]
     },
     {
       "name": "std.wall_time",

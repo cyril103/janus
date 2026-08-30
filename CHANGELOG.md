@@ -22,6 +22,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
   contrats explicites de paresse, d'ordre d'évaluation et de destruction ;
 - formalisation des lois de `map` et `andThen` pour valeurs copiables et
   propriétaires, testées sous sanitizers ;
+- ajout de `std.validated` pour accumuler les erreurs de validations
+  indépendantes avec `map2`, `map3`, `zip` et `collectValidated`, ainsi que les
+  assertions `Valid`/`Invalid` de `std.testing` ;
 - prise en charge des extensions par le formateur, le LSP, la documentation
   d'API, l'index incrémental et la grammaire VS Code.
 

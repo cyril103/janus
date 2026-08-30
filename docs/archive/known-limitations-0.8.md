@@ -18,6 +18,8 @@ pour expérimentation, mais ne font pas partie du candidat stable.
   couverture tier-1 ne satisfont pas encore le niveau du noyau de la stdlib.
 - `std.testing` : les métadonnées, le schéma JSON et la représentation JUnit
   sont versionnés pour l’expérimentation, mais restent hors du gel 1.0 initial.
+- `std.validated` : l'accumulation applicative d'erreurs a été ajoutée après la
+  baseline 0.8 et reste expérimentale jusqu'à la stabilisation de son API.
 - `std.numeric` : les politiques de conversion sont entièrement spécifiées et
   testées, mais leur nouvelle surface reste expérimentale jusqu'au prochain
   inventaire de stabilité.

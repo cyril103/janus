@@ -117,6 +117,7 @@ symbole source non inventorié.
 | `std.text` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 | `std.testing` | `experimental` | [Tests unitaires natifs](testing.md) | Nouvelle surface de test, hors gel 1.0 initial. |
 | `std.time` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
+| `std.validated` | `experimental` | [Contrat Validated](design/validated.md) | Nouvelle surface applicative pré-1.0. |
 | `std.wall_time` | `stable-candidate` | [Référence stdlib](stdlib-reference.md) | Retenue. |
 
 ## Preuves de gel

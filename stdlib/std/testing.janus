@@ -18,6 +18,7 @@ import std.bytes
 import std.fs
 import std.path
 import std.system
+import std.validated
 
 /// Possède un répertoire temporaire unique et le supprime à sa destruction.
 ///
@@ -27,8 +28,8 @@ import std.system
 /// @param location Chemin propriétaire du répertoire déjà créé.
 /// @param preserve Politique de conservation appliquée à la destruction.
 class TestTemporaryDirectory(
-private val location : Path,
-private val preserve : bool
+    private val location : Path,
+    private val preserve : bool
 ) {
     private var cleaned : bool = false
 
@@ -70,16 +71,16 @@ private val preserve : bool
 /// @param preserve Conserve le répertoire à la destruction si `true`.
 /// @return Ressource propriétaire unique, ou erreur système de création.
 def testTemporaryDirectory(
-preserve : bool
+    preserve : bool
 ) : Result[TestTemporaryDirectory, SystemError] {
     val created : Result[Path, SystemError] =
     createTemporaryDirectory("janus-test")
     return match move created {
         Ok(path) => Result.Ok[TestTemporaryDirectory, SystemError](
-        new TestTemporaryDirectory(move path, preserve)
+            new TestTemporaryDirectory(move path, preserve)
         ),
         Error(error) => Result.Error[TestTemporaryDirectory, SystemError](
-        error
+            error
         )
     }
 }
@@ -136,8 +137,8 @@ def assertNotEqual[T <: Equality & Debug](actual : T, expected : T) : Unit {
 /// @param actual Valeur observée sans transfert de propriété.
 /// @param expected Valeur attendue observée sans transfert de propriété.
 def assertBorrowedEqual[T <: Equality & Debug](
-borrow actual : T,
-borrow expected : T
+    borrow actual : T,
+    borrow expected : T
 ) : Unit {
     if actual != expected {
         println("assertBorrowedEqual failed")
@@ -172,8 +173,8 @@ def assertNone[T](borrow value : Option[T]) : Unit {
 /// @param value Option inspectée sans déplacer son contenu.
 /// @param predicate Condition bornée appelée uniquement pour `Some`.
 def assertSomeWhere[T](
-borrow value : Option[T],
-scoped predicate : (borrow T) => bool
+    borrow value : Option[T],
+    scoped predicate : (borrow T) => bool
 ) : Unit {
     defer delete predicate
     val accepted : bool = match value {
@@ -201,13 +202,12 @@ def assertError[T, E](borrow value : Result[T, E]) : Unit {
     }
 }
 
-
 /// Vérifie que la valeur de succès satisfait un prédicat sans la consommer.
 /// @param value Résultat inspecté sans déplacer sa branche active.
 /// @param predicate Condition bornée appelée uniquement pour `Ok`.
 def assertOkWhere[T, E](
-borrow value : Result[T, E],
-scoped predicate : (borrow T) => bool
+    borrow value : Result[T, E],
+    scoped predicate : (borrow T) => bool
 ) : Unit {
     defer delete predicate
     val accepted : bool = match value {
@@ -223,8 +223,8 @@ scoped predicate : (borrow T) => bool
 /// @param value Résultat inspecté sans déplacer sa branche active.
 /// @param predicate Condition bornée appelée uniquement pour `Error`.
 def assertErrorWhere[T, E](
-borrow value : Result[T, E],
-scoped predicate : (borrow E) => bool
+    borrow value : Result[T, E],
+    scoped predicate : (borrow E) => bool
 ) : Unit {
     defer delete predicate
     val accepted : bool = match value {
@@ -236,12 +236,62 @@ scoped predicate : (borrow E) => bool
     }
 }
 
+/// Vérifie qu'une validation contient une valeur valide.
+/// @param value Validation inspectée sans déplacer sa branche active.
+def assertValid[T, E](borrow value : Validated[T, E]) : Unit {
+    if !std.validated.isValid[T, E](value) {
+        panic("assertValid failed: expected Valid, got Invalid\n")
+    }
+}
+
+/// Vérifie qu'une validation contient des erreurs.
+/// @param value Validation inspectée sans déplacer sa branche active.
+def assertInvalid[T, E](borrow value : Validated[T, E]) : Unit {
+    if !std.validated.isInvalid[T, E](value) {
+        panic("assertInvalid failed: expected Invalid, got Valid\n")
+    }
+}
+
+/// Vérifie que la valeur valide satisfait un prédicat sans la consommer.
+/// @param value Validation inspectée sans déplacer sa branche active.
+/// @param predicate Condition bornée appelée uniquement pour `Valid`.
+def assertValidWhere[T, E](
+    borrow value : Validated[T, E],
+    scoped predicate : (borrow T) => bool
+) : Unit {
+    defer delete predicate
+    val accepted : bool = match value {
+        Valid(item) => predicate(item),
+        Invalid(errors) => false
+    }
+    if !accepted {
+        panic("assertValidWhere failed: expected matching Valid\n")
+    }
+}
+
+/// Vérifie que le tableau d'erreurs satisfait un prédicat sans le consommer.
+/// @param value Validation inspectée sans déplacer sa branche active.
+/// @param predicate Condition bornée appelée uniquement pour `Invalid`.
+def assertInvalidWhere[T, E](
+    borrow value : Validated[T, E],
+    scoped predicate : (borrow Array[E]) => bool
+) : Unit {
+    defer delete predicate
+    val accepted : bool = match value {
+        Valid(item) => false,
+        Invalid(errors) => predicate(errors)
+    }
+    if !accepted {
+        panic("assertInvalidWhere failed: expected matching Invalid\n")
+    }
+}
+
 /// Compare exactement deux vues binaires bornées.
 /// @param actual Suite d’octets obtenue.
 /// @param expected Suite d’octets attendue.
 def assertBytesEqual(
-borrow actual : ByteView,
-borrow expected : ByteView
+    borrow actual : ByteView,
+    borrow expected : ByteView
 ) : Unit {
     if actual.size() != expected.size() {
         println("assertBytesEqual failed")

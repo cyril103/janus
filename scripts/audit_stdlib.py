@@ -46,6 +46,7 @@ OWNER_MODULES = {
         "std.priority_queue",
         "std.range",
         "std.result",
+        "std.validated",
     },
     "#112 / R074-3": {
         "std.hash_probe",

@@ -476,7 +476,7 @@ for item in collection {
 suivante. Une chaîne peut contenir autant de branches `else if` que nécessaire ;
 chaque branche possède la même portée locale qu'un bloc `if` indépendant.
 
-## Enums, `match`, `Option` et `Result`
+## Enums, `match`, `Option`, `Result` et `Validated`
 
 Un enum peut transporter des données et être générique :
 
@@ -663,6 +663,30 @@ explicite : `val resource : Resource = (move pending)?`. `pending` devient
 ensuite inutilisable. Une propagation d'erreur exécute les nettoyages actifs
 avant de transférer l'erreur à l'appelant. Les conversions `toOption` et
 `fromOption` transfèrent uniquement la variante active.
+
+Le module `std.validated` complète `Result` pour les contrôles indépendants.
+`Validated[T, E]` contient `Valid(T)` ou `Invalid(Array[E])`. Ses opérations
+`map2`, `map3`, `zip` et `collectValidated` accumulent toutes les erreurs de
+gauche à droite et n'appellent leur constructeur que si toutes les entrées sont
+valides. Elles consomment leurs entrées et transfèrent ou détruisent chaque
+valeur propriétaire exactement une fois.
+
+```janus
+val checked : Validated[int, string] =
+    std.validated.map2[int, int, string, int](
+        validateWidth(width),
+        validateHeight(height),
+        (checkedWidth : int, checkedHeight : int) =>
+            checkedWidth * checkedHeight
+    )
+```
+
+`Validated` n'a pas d'`andThen` : une validation dépendante ne peut pas
+accumuler les erreurs d'une étape qui n'a pas été exécutée. Utilisez
+`andThen` de `std.result` pour ce flux court-circuité. `fromResult` ne perd aucune
+information ; `toResult` conserve la première erreur et détruit les suivantes.
+Le [contrat complet](design/validated.md) précise l'ordre, l'allocation et les
+cas formulaire, configuration et itérateur.
 
 Le module `std.error` fournit deux erreurs communes aux couches basses de la
 stdlib. `AccessError.Empty` signale les retraits impossibles et

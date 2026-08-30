@@ -7668,7 +7668,7 @@ Les paniques attendues se déclarent avec `/// @shouldPanic [message]` sur la<br
 fonction `/// @test` afin que le processus parent puisse les distinguer.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>import std.testing<br>
 assertEqual[int](2 + 2, 4)<br>
 assertTrue(true)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">18</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">22</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-class" id="std-testing-testtemporarydirectory" data-symbol data-search="std.testing.TestTemporaryDirectory class class TestTemporaryDirectory(val location : Path, val preserve : bool) Possède un répertoire temporaire unique et le supprime à sa destruction.
 
@@ -7734,6 +7734,17 @@ recréée au même emplacement.</p></div>
 <p class="doc-summary">Vérifie qu’une condition est fausse.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>condition</code></td><td><code>bool</code></td><td>Condition attendue à `false`.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertFalse</div></div><a class="permalink" href="#std-testing-assertfalse" aria-label="Permanent link to std.testing.assertFalse">#</a></article>
+<article class="symbol-card kind-function" id="std-testing-assertinvalid" data-symbol data-search="std.testing.assertInvalid function def assertInvalid[T, E](borrow value : Validated[T, E]) : Unit Vérifie qu&#39;une validation contient des erreurs.
+@param value Validation inspectée sans déplacer sa branche active."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertInvalid[T, E](borrow value : Validated[T, E]) : Unit</code></h3>
+<p class="doc-summary">Vérifie qu&#39;une validation contient des erreurs.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation inspectée sans déplacer sa branche active.</td></tr></tbody></table></section>
+<div class="qualified">std.testing.assertInvalid</div></div><a class="permalink" href="#std-testing-assertinvalid" aria-label="Permanent link to std.testing.assertInvalid">#</a></article>
+<article class="symbol-card kind-function" id="std-testing-assertinvalidwhere" data-symbol data-search="std.testing.assertInvalidWhere function def assertInvalidWhere[T, E](borrow value : Validated[T, E], scoped predicate : Function[Array[E], bool]) : Unit Vérifie que le tableau d&#39;erreurs satisfait un prédicat sans le consommer.
+@param value Validation inspectée sans déplacer sa branche active.
+@param predicate Condition bornée appelée uniquement pour `Invalid`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertInvalidWhere[T, E](borrow value : Validated[T, E], scoped predicate : Function[Array[E], bool]) : Unit</code></h3>
+<p class="doc-summary">Vérifie que le tableau d&#39;erreurs satisfait un prédicat sans le consommer.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation inspectée sans déplacer sa branche active.</td></tr><tr><td><code>predicate</code></td><td><code>Function[Array[E], bool]</code></td><td>Condition bornée appelée uniquement pour `Invalid`.</td></tr></tbody></table></section>
+<div class="qualified">std.testing.assertInvalidWhere</div></div><a class="permalink" href="#std-testing-assertinvalidwhere" aria-label="Permanent link to std.testing.assertInvalidWhere">#</a></article>
 <article class="symbol-card kind-function" id="std-testing-assertnone" data-symbol data-search="std.testing.assertNone function def assertNone[T](borrow value : Option[T]) : Unit Vérifie qu’une option est vide.
 @param value Option inspectée sans déplacer son contenu."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertNone[T](borrow value : Option[T]) : Unit</code></h3>
 <p class="doc-summary">Vérifie qu’une option est vide.</p>
@@ -7777,6 +7788,17 @@ les valeurs non copiables restent donc la propriété de l’option.</p></div>
 <p class="doc-summary">Vérifie qu’une condition est vraie.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>condition</code></td><td><code>bool</code></td><td>Condition attendue à `true`.</td></tr></tbody></table></section>
 <div class="qualified">std.testing.assertTrue</div></div><a class="permalink" href="#std-testing-asserttrue" aria-label="Permanent link to std.testing.assertTrue">#</a></article>
+<article class="symbol-card kind-function" id="std-testing-assertvalid" data-symbol data-search="std.testing.assertValid function def assertValid[T, E](borrow value : Validated[T, E]) : Unit Vérifie qu&#39;une validation contient une valeur valide.
+@param value Validation inspectée sans déplacer sa branche active."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertValid[T, E](borrow value : Validated[T, E]) : Unit</code></h3>
+<p class="doc-summary">Vérifie qu&#39;une validation contient une valeur valide.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation inspectée sans déplacer sa branche active.</td></tr></tbody></table></section>
+<div class="qualified">std.testing.assertValid</div></div><a class="permalink" href="#std-testing-assertvalid" aria-label="Permanent link to std.testing.assertValid">#</a></article>
+<article class="symbol-card kind-function" id="std-testing-assertvalidwhere" data-symbol data-search="std.testing.assertValidWhere function def assertValidWhere[T, E](borrow value : Validated[T, E], scoped predicate : Function[T, bool]) : Unit Vérifie que la valeur valide satisfait un prédicat sans la consommer.
+@param value Validation inspectée sans déplacer sa branche active.
+@param predicate Condition bornée appelée uniquement pour `Valid`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def assertValidWhere[T, E](borrow value : Validated[T, E], scoped predicate : Function[T, bool]) : Unit</code></h3>
+<p class="doc-summary">Vérifie que la valeur valide satisfait un prédicat sans la consommer.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation inspectée sans déplacer sa branche active.</td></tr><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Condition bornée appelée uniquement pour `Valid`.</td></tr></tbody></table></section>
+<div class="qualified">std.testing.assertValidWhere</div></div><a class="permalink" href="#std-testing-assertvalidwhere" aria-label="Permanent link to std.testing.assertValidWhere">#</a></article>
 <article class="symbol-card kind-function" id="std-testing-fail" data-symbol data-search="std.testing.fail function def fail(message : string) : Unit Interrompt explicitement le test avec un message descriptif.
 @param message Raison affichée par le runner avant de classer le test en échec."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fail(message : string) : Unit</code></h3>
 <p class="doc-summary">Interrompt explicitement le test avec un message descriptif.</p>
@@ -8145,6 +8167,262 @@ val elapsed : Duration = started.elapsed()<br>
 <section class="doc-section"><h4>Returns</h4><p><code>Duration</code> — Durée de `value * 1 000 000 000` nanosecondes.</p></section>
 <div class="qualified">std.time.seconds</div></div><a class="permalink" href="#std-time-seconds" aria-label="Permanent link to std.time.seconds">#</a></article>
 </div></section>
+<section class="module" id="module-std-validated" data-module data-search="std.validated Accumule les erreurs de validations indépendantes dans un ordre stable.
+
+Contrairement à `Result`, `Validated` fournit une composition applicative :
+`map2`, `map3` et `collectValidated` exécutent toutes les validations déjà
+construites et concatènent leurs erreurs de gauche à droite. Le module
+n&#39;expose volontairement aucun `andThen`, car une étape dépendante ne peut pas
+produire d&#39;erreur lorsqu&#39;une étape précédente l&#39;empêche de s&#39;exécuter.
+@example
+```janus
+val name : Validated[int, string] = valid[int, string](20)
+val age : Validated[int, string] = invalid[int, string](&quot;age required&quot;)
+val form : Validated[ValidatedPair[int, int], string] = zip[int, int, string](name, age)
+```">
+<header class="module-heading"><span class="keyword">module</span> <h2>std.validated</h2></header>
+<div class="module-summary"><p class="doc-summary">Accumule les erreurs de validations indépendantes dans un ordre stable.</p><div class="doc-details"><p>Contrairement à `Result`, `Validated` fournit une composition applicative :<br>
+`map2`, `map3` et `collectValidated` exécutent toutes les validations déjà<br>
+construites et concatènent leurs erreurs de gauche à droite. Le module<br>
+n&#39;expose volontairement aucun `andThen`, car une étape dépendante ne peut pas<br>
+produire d&#39;erreur lorsqu&#39;une étape précédente l&#39;empêche de s&#39;exécuter.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val name : Validated[int, string] = valid[int, string](20)<br>
+val age : Validated[int, string] = invalid[int, string](&quot;age required&quot;)<br>
+val form : Validated[ValidatedPair[int, int], string] = zip[int, int, string](name, age)<br>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">30</span></h3>
+<div class="symbol-list">
+<article class="symbol-card kind-enum" id="std-validated-validated" data-symbol data-search="std.validated.Validated enum enum Validated[T, E] Représente une valeur validée ou toutes les erreurs indépendantes connues."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Validated[T, E]</code></h3>
+<p class="doc-summary">Représente une valeur validée ou toutes les erreurs indépendantes connues.</p>
+<div class="qualified">std.validated.Validated</div></div><a class="permalink" href="#std-validated-validated" aria-label="Permanent link to std.validated.Validated">#</a></article>
+<article class="symbol-card kind-variant child" id="std-validated-validated-invalid" data-symbol data-search="std.validated.Validated.Invalid variant Invalid(Array[E]) Contient les erreurs propriétaires dans leur ordre d&#39;accumulation."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.validated.Validated</div><h3><code>Invalid(Array[E])</code></h3>
+<p class="doc-summary">Contient les erreurs propriétaires dans leur ordre d&#39;accumulation.</p>
+<div class="qualified">std.validated.Validated.Invalid</div></div><a class="permalink" href="#std-validated-validated-invalid" aria-label="Permanent link to std.validated.Validated.Invalid">#</a></article>
+<article class="symbol-card kind-variant child" id="std-validated-validated-valid" data-symbol data-search="std.validated.Validated.Valid variant Valid(T) Contient une valeur valide propriétaire."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.validated.Validated</div><h3><code>Valid(T)</code></h3>
+<p class="doc-summary">Contient une valeur valide propriétaire.</p>
+<div class="qualified">std.validated.Validated.Valid</div></div><a class="permalink" href="#std-validated-validated-valid" aria-label="Permanent link to std.validated.Validated.Valid">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validated-errorsborrowed" data-symbol data-search="std.validated.Validated.errorsBorrowed method borrow def errorsBorrowed[U](scoped action : Function[Array[E], U]) : Option[U] [extension] Observe le tableau d&#39;erreurs avec une callback bornée.
+@param action Callback recevant un emprunt du tableau pour `Invalid`.
+@return Résultat indépendant dans `Some`, ou `None` pour `Valid`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.Validated</div><h3><code>borrow def errorsBorrowed[U](scoped action : Function[Array[E], U]) : Option[U] [extension]</code></h3>
+<p class="doc-summary">Observe le tableau d&#39;erreurs avec une callback bornée.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[Array[E], U]</code></td><td>Callback recevant un emprunt du tableau pour `Invalid`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Résultat indépendant dans `Some`, ou `None` pour `Valid`.</p></section>
+<div class="qualified">std.validated.Validated.errorsBorrowed</div></div><a class="permalink" href="#std-validated-validated-errorsborrowed" aria-label="Permanent link to std.validated.Validated.errorsBorrowed">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validated-intoerrors" data-symbol data-search="std.validated.Validated.intoErrors method consume def intoErrors() : Option[Array[E]] [extension] Transfère le tableau d&#39;erreurs hors de cette validation.
+@return Tableau dans `Some`, ou `None` après destruction du succès."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.Validated</div><h3><code>consume def intoErrors() : Option[Array[E]] [extension]</code></h3>
+<p class="doc-summary">Transfère le tableau d&#39;erreurs hors de cette validation.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[Array[E]]</code> — Tableau dans `Some`, ou `None` après destruction du succès.</p></section>
+<div class="qualified">std.validated.Validated.intoErrors</div></div><a class="permalink" href="#std-validated-validated-intoerrors" aria-label="Permanent link to std.validated.Validated.intoErrors">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validated-isinvalid" data-symbol data-search="std.validated.Validated.isInvalid method borrow def isInvalid() : bool [extension] Indique si cette validation contient des erreurs.
+@return `true` pour `Invalid`, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.Validated</div><h3><code>borrow def isInvalid() : bool [extension]</code></h3>
+<p class="doc-summary">Indique si cette validation contient des erreurs.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Invalid`, sinon `false`.</p></section>
+<div class="qualified">std.validated.Validated.isInvalid</div></div><a class="permalink" href="#std-validated-validated-isinvalid" aria-label="Permanent link to std.validated.Validated.isInvalid">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validated-isvalid" data-symbol data-search="std.validated.Validated.isValid method borrow def isValid() : bool [extension] Indique si cette validation contient un succès.
+@return `true` pour `Valid`, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.Validated</div><h3><code>borrow def isValid() : bool [extension]</code></h3>
+<p class="doc-summary">Indique si cette validation contient un succès.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Valid`, sinon `false`.</p></section>
+<div class="qualified">std.validated.Validated.isValid</div></div><a class="permalink" href="#std-validated-validated-isvalid" aria-label="Permanent link to std.validated.Validated.isValid">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validated-map" data-symbol data-search="std.validated.Validated.map method consume def map[U](scoped transform : Function[T, U]) : Validated[U, E] [extension] Transforme la valeur valide.
+@param transform Callback recevant le succès déplacé.
+@return Succès transformé ou erreurs d&#39;origine."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.Validated</div><h3><code>consume def map[U](scoped transform : Function[T, U]) : Validated[U, E] [extension]</code></h3>
+<p class="doc-summary">Transforme la valeur valide.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Callback recevant le succès déplacé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[U, E]</code> — Succès transformé ou erreurs d&#39;origine.</p></section>
+<div class="qualified">std.validated.Validated.map</div></div><a class="permalink" href="#std-validated-validated-map" aria-label="Permanent link to std.validated.Validated.map">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validated-map2" data-symbol data-search="std.validated.Validated.map2 method consume def map2[U, V](other : Validated[U, E], scoped combine : Function[T, U, V]) : Validated[V, E] [extension] Combine cette validation avec une seconde.
+@param other Validation droite consommée.
+@param combine Constructeur appelé uniquement pour deux succès.
+@return Succès combiné ou toutes les erreurs gauche-droite."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.Validated</div><h3><code>consume def map2[U, V](other : Validated[U, E], scoped combine : Function[T, U, V]) : Validated[V, E] [extension]</code></h3>
+<p class="doc-summary">Combine cette validation avec une seconde.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>other</code></td><td><code>Validated[U, E]</code></td><td>Validation droite consommée.</td></tr><tr><td><code>combine</code></td><td><code>Function[T, U, V]</code></td><td>Constructeur appelé uniquement pour deux succès.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[V, E]</code> — Succès combiné ou toutes les erreurs gauche-droite.</p></section>
+<div class="qualified">std.validated.Validated.map2</div></div><a class="permalink" href="#std-validated-validated-map2" aria-label="Permanent link to std.validated.Validated.map2">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validated-map3" data-symbol data-search="std.validated.Validated.map3 method consume def map3[U, V, W](second : Validated[U, E], third : Validated[V, E], scoped combine : Function[T, U, V, W]) : Validated[W, E] [extension] Combine cette validation avec deux validations supplémentaires.
+@param second Deuxième validation consommée.
+@param third Troisième validation consommée.
+@param combine Constructeur appelé uniquement pour trois succès.
+@return Succès combiné ou toutes les erreurs dans l&#39;ordre."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.Validated</div><h3><code>consume def map3[U, V, W](second : Validated[U, E], third : Validated[V, E], scoped combine : Function[T, U, V, W]) : Validated[W, E] [extension]</code></h3>
+<p class="doc-summary">Combine cette validation avec deux validations supplémentaires.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>second</code></td><td><code>Validated[U, E]</code></td><td>Deuxième validation consommée.</td></tr><tr><td><code>third</code></td><td><code>Validated[V, E]</code></td><td>Troisième validation consommée.</td></tr><tr><td><code>combine</code></td><td><code>Function[T, U, V, W]</code></td><td>Constructeur appelé uniquement pour trois succès.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[W, E]</code> — Succès combiné ou toutes les erreurs dans l&#39;ordre.</p></section>
+<div class="qualified">std.validated.Validated.map3</div></div><a class="permalink" href="#std-validated-validated-map3" aria-label="Permanent link to std.validated.Validated.map3">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validated-maperror" data-symbol data-search="std.validated.Validated.mapError method consume def mapError[F](scoped transform : Function[E, F]) : Validated[T, F] [extension] Transforme chaque erreur dans son ordre d&#39;origine.
+@param transform Callback recevant chaque erreur déplacée.
+@return Succès d&#39;origine ou erreurs transformées."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.Validated</div><h3><code>consume def mapError[F](scoped transform : Function[E, F]) : Validated[T, F] [extension]</code></h3>
+<p class="doc-summary">Transforme chaque erreur dans son ordre d&#39;origine.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[E, F]</code></td><td>Callback recevant chaque erreur déplacée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[T, F]</code> — Succès d&#39;origine ou erreurs transformées.</p></section>
+<div class="qualified">std.validated.Validated.mapError</div></div><a class="permalink" href="#std-validated-validated-maperror" aria-label="Permanent link to std.validated.Validated.mapError">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validated-toresult" data-symbol data-search="std.validated.Validated.toResult method consume def toResult() : Result[T, E] [extension] Convertit cette validation en résultat, en gardant la première erreur.
+@return Succès d&#39;origine ou première erreur accumulée."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.Validated</div><h3><code>consume def toResult() : Result[T, E] [extension]</code></h3>
+<p class="doc-summary">Convertit cette validation en résultat, en gardant la première erreur.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — Succès d&#39;origine ou première erreur accumulée.</p></section>
+<div class="qualified">std.validated.Validated.toResult</div></div><a class="permalink" href="#std-validated-validated-toresult" aria-label="Permanent link to std.validated.Validated.toResult">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validated-zip" data-symbol data-search="std.validated.Validated.zip method consume def zip[U](other : Validated[U, E]) : Validated[ValidatedPair[T, U], E] [extension] Regroupe cette validation avec une seconde.
+@param other Validation droite consommée.
+@return Paire valide ou toutes les erreurs gauche-droite."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.Validated</div><h3><code>consume def zip[U](other : Validated[U, E]) : Validated[ValidatedPair[T, U], E] [extension]</code></h3>
+<p class="doc-summary">Regroupe cette validation avec une seconde.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>other</code></td><td><code>Validated[U, E]</code></td><td>Validation droite consommée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[ValidatedPair[T, U], E]</code> — Paire valide ou toutes les erreurs gauche-droite.</p></section>
+<div class="qualified">std.validated.Validated.zip</div></div><a class="permalink" href="#std-validated-validated-zip" aria-label="Permanent link to std.validated.Validated.zip">#</a></article>
+<article class="symbol-card kind-struct" id="std-validated-validatedpair" data-symbol data-search="std.validated.ValidatedPair struct struct ValidatedPair[A, B](val left : A, val right : B) Paire propriétaire produite par [[zip]]."><span class="kind-icon" aria-hidden="true">s</span><div><span class="kind">struct</span><h3><code>struct ValidatedPair[A, B](val left : A, val right : B)</code></h3>
+<p class="doc-summary">Paire propriétaire produite par <code class="unresolved">zip</code>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>A</code></td><td>Valeur de la validation gauche.</td></tr><tr><td><code>right</code></td><td><code>B</code></td><td>Valeur de la validation droite.</td></tr></tbody></table></section>
+<div class="qualified">std.validated.ValidatedPair</div></div><a class="permalink" href="#std-validated-validatedpair" aria-label="Permanent link to std.validated.ValidatedPair">#</a></article>
+<article class="symbol-card kind-field child" id="std-validated-validatedpair-left" data-symbol data-search="std.validated.ValidatedPair.left field val left : A Valeur de la validation gauche."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.validated.ValidatedPair</div><h3><code>val left : A</code></h3>
+<p class="doc-summary">Valeur de la validation gauche.</p>
+<div class="qualified">std.validated.ValidatedPair.left</div></div><a class="permalink" href="#std-validated-validatedpair-left" aria-label="Permanent link to std.validated.ValidatedPair.left">#</a></article>
+<article class="symbol-card kind-field child" id="std-validated-validatedpair-right" data-symbol data-search="std.validated.ValidatedPair.right field val right : B Valeur de la validation droite."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.validated.ValidatedPair</div><h3><code>val right : B</code></h3>
+<p class="doc-summary">Valeur de la validation droite.</p>
+<div class="qualified">std.validated.ValidatedPair.right</div></div><a class="permalink" href="#std-validated-validatedpair-right" aria-label="Permanent link to std.validated.ValidatedPair.right">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-collectvalidated" data-symbol data-search="std.validated.collectValidated function def collectValidated[T, E](source : Iterator[Validated[T, E]]) : Validated[Array[T], E] Collecte un parcours de validations en accumulant toutes les erreurs.
+
+Le parcours est entièrement consommé même après une erreur. Les succès sont
+conservés dans l&#39;ordre lorsque toutes les validations réussissent; sinon ils
+sont détruits et toutes les erreurs sont retournées dans l&#39;ordre du parcours.
+@param source Itérateur de validations consommé.
+@return Tableau des succès ou tableau de toutes les erreurs."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def collectValidated[T, E](source : Iterator[Validated[T, E]]) : Validated[Array[T], E]</code></h3>
+<p class="doc-summary">Collecte un parcours de validations en accumulant toutes les erreurs.</p>
+<div class="doc-details"><p>Le parcours est entièrement consommé même après une erreur. Les succès sont<br>
+conservés dans l&#39;ordre lorsque toutes les validations réussissent; sinon ils<br>
+sont détruits et toutes les erreurs sont retournées dans l&#39;ordre du parcours.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>source</code></td><td><code>Iterator[Validated[T, E]]</code></td><td>Itérateur de validations consommé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[Array[T], E]</code> — Tableau des succès ou tableau de toutes les erreurs.</p></section>
+<div class="qualified">std.validated.collectValidated</div></div><a class="permalink" href="#std-validated-collectvalidated" aria-label="Permanent link to std.validated.collectValidated">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-errorsborrowed" data-symbol data-search="std.validated.errorsBorrowed function def errorsBorrowed[T, E, U](borrow value : Validated[T, E], scoped action : Function[Array[E], U]) : Option[U] Observe le tableau d&#39;erreurs sans le transférer.
+@param value Validation observée.
+@param action Callback bornée appelée uniquement pour `Invalid`.
+@return `Some` du résultat indépendant de l&#39;action, ou `None` pour `Valid`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def errorsBorrowed[T, E, U](borrow value : Validated[T, E], scoped action : Function[Array[E], U]) : Option[U]</code></h3>
+<p class="doc-summary">Observe le tableau d&#39;erreurs sans le transférer.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation observée.</td></tr><tr><td><code>action</code></td><td><code>Function[Array[E], U]</code></td><td>Callback bornée appelée uniquement pour `Invalid`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — `Some` du résultat indépendant de l&#39;action, ou `None` pour `Valid`.</p></section>
+<div class="qualified">std.validated.errorsBorrowed</div></div><a class="permalink" href="#std-validated-errorsborrowed" aria-label="Permanent link to std.validated.errorsBorrowed">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-fromresult" data-symbol data-search="std.validated.fromResult function def fromResult[T, E](value : Result[T, E]) : Validated[T, E] Convertit un résultat en validation sans perte d&#39;information.
+@param value Résultat consommé.
+@return Succès valide ou tableau contenant l&#39;erreur unique."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fromResult[T, E](value : Result[T, E]) : Validated[T, E]</code></h3>
+<p class="doc-summary">Convertit un résultat en validation sans perte d&#39;information.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[T, E]</code> — Succès valide ou tableau contenant l&#39;erreur unique.</p></section>
+<div class="qualified">std.validated.fromResult</div></div><a class="permalink" href="#std-validated-fromresult" aria-label="Permanent link to std.validated.fromResult">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-intoerrors" data-symbol data-search="std.validated.intoErrors function def intoErrors[T, E](value : Validated[T, E]) : Option[Array[E]] Transfère le tableau d&#39;erreurs hors d&#39;une validation invalide.
+@param value Validation consommée.
+@return `Some(errors)` pour `Invalid`; `None` après destruction du succès."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def intoErrors[T, E](value : Validated[T, E]) : Option[Array[E]]</code></h3>
+<p class="doc-summary">Transfère le tableau d&#39;erreurs hors d&#39;une validation invalide.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation consommée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[Array[E]]</code> — `Some(errors)` pour `Invalid`; `None` après destruction du succès.</p></section>
+<div class="qualified">std.validated.intoErrors</div></div><a class="permalink" href="#std-validated-intoerrors" aria-label="Permanent link to std.validated.intoErrors">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-invalid" data-symbol data-search="std.validated.invalid function def invalid[T, E](error : E) : Validated[T, E] Construit une validation contenant une erreur unique.
+
+L&#39;allocation du tableau suit le contrat d&#39;`Array.push` et panique en cas
+d&#39;échec après avoir détruit `error`.
+@example
+```janus
+val value : Validated[int, string] = invalid[int, string](&quot;required&quot;)
+```
+@param error Erreur dont la propriété est transférée.
+@return `Invalid` contenant uniquement `error`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def invalid[T, E](error : E) : Validated[T, E]</code></h3>
+<p class="doc-summary">Construit une validation contenant une erreur unique.</p>
+<div class="doc-details"><p>L&#39;allocation du tableau suit le contrat d&#39;`Array.push` et panique en cas<br>
+d&#39;échec après avoir détruit `error`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>error</code></td><td><code>E</code></td><td>Erreur dont la propriété est transférée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[T, E]</code> — `Invalid` contenant uniquement `error`.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val value : Validated[int, string] = invalid[int, string](&quot;required&quot;)<br>
+</code></pre></section>
+<div class="qualified">std.validated.invalid</div></div><a class="permalink" href="#std-validated-invalid" aria-label="Permanent link to std.validated.invalid">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-isinvalid" data-symbol data-search="std.validated.isInvalid function def isInvalid[T, E](borrow value : Validated[T, E]) : bool Indique si une validation contient des erreurs.
+@param value Validation observée sans transfert.
+@return `true` pour `Invalid`, sinon `false`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isInvalid[T, E](borrow value : Validated[T, E]) : bool</code></h3>
+<p class="doc-summary">Indique si une validation contient des erreurs.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation observée sans transfert.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Invalid`, sinon `false`.</p></section>
+<div class="qualified">std.validated.isInvalid</div></div><a class="permalink" href="#std-validated-isinvalid" aria-label="Permanent link to std.validated.isInvalid">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-isvalid" data-symbol data-search="std.validated.isValid function def isValid[T, E](borrow value : Validated[T, E]) : bool Indique si une validation contient une valeur valide.
+@param value Validation observée sans transfert.
+@return `true` pour `Valid`, sinon `false`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isValid[T, E](borrow value : Validated[T, E]) : bool</code></h3>
+<p class="doc-summary">Indique si une validation contient une valeur valide.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation observée sans transfert.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour `Valid`, sinon `false`.</p></section>
+<div class="qualified">std.validated.isValid</div></div><a class="permalink" href="#std-validated-isvalid" aria-label="Permanent link to std.validated.isValid">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-map" data-symbol data-search="std.validated.map function def map[T, U, E](value : Validated[T, E], scoped transform : Function[T, U]) : Validated[U, E] Transforme la valeur valide sans modifier les erreurs.
+@param value Validation consommée.
+@param transform Callback appelée uniquement pour `Valid`.
+@return Validation transformée ou erreurs d&#39;origine."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def map[T, U, E](value : Validated[T, E], scoped transform : Function[T, U]) : Validated[U, E]</code></h3>
+<p class="doc-summary">Transforme la valeur valide sans modifier les erreurs.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation consommée.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Callback appelée uniquement pour `Valid`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[U, E]</code> — Validation transformée ou erreurs d&#39;origine.</p></section>
+<div class="qualified">std.validated.map</div></div><a class="permalink" href="#std-validated-map" aria-label="Permanent link to std.validated.map">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-map2" data-symbol data-search="std.validated.map2 function def map2[A, B, E, U](left : Validated[A, E], right : Validated[B, E], scoped combine : Function[A, B, U]) : Validated[U, E] Combine deux validations et accumule toutes leurs erreurs.
+
+La validation gauche est examinée avant la droite. `combine` n&#39;est appelée
+que lorsque les deux branches sont `Valid`.
+@param left Première validation consommée.
+@param right Seconde validation consommée.
+@param combine Constructeur recevant les deux succès dans l&#39;ordre.
+@return Succès combiné ou toutes les erreurs gauche-droite."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def map2[A, B, E, U](left : Validated[A, E], right : Validated[B, E], scoped combine : Function[A, B, U]) : Validated[U, E]</code></h3>
+<p class="doc-summary">Combine deux validations et accumule toutes leurs erreurs.</p>
+<div class="doc-details"><p>La validation gauche est examinée avant la droite. `combine` n&#39;est appelée<br>
+que lorsque les deux branches sont `Valid`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>Validated[A, E]</code></td><td>Première validation consommée.</td></tr><tr><td><code>right</code></td><td><code>Validated[B, E]</code></td><td>Seconde validation consommée.</td></tr><tr><td><code>combine</code></td><td><code>Function[A, B, U]</code></td><td>Constructeur recevant les deux succès dans l&#39;ordre.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[U, E]</code> — Succès combiné ou toutes les erreurs gauche-droite.</p></section>
+<div class="qualified">std.validated.map2</div></div><a class="permalink" href="#std-validated-map2" aria-label="Permanent link to std.validated.map2">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-map3" data-symbol data-search="std.validated.map3 function def map3[A, B, C, E, U](first : Validated[A, E], second : Validated[B, E], third : Validated[C, E], scoped combine : Function[A, B, C, U]) : Validated[U, E] Combine trois validations et accumule toutes leurs erreurs.
+
+L&#39;ordre d&#39;accumulation est `first`, `second`, puis `third`. `combine` n&#39;est
+appelée que lorsque les trois branches sont `Valid`.
+@param first Première validation consommée.
+@param second Deuxième validation consommée.
+@param third Troisième validation consommée.
+@param combine Constructeur recevant les trois succès dans l&#39;ordre.
+@return Succès combiné ou toutes les erreurs gauche-droite."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def map3[A, B, C, E, U](first : Validated[A, E], second : Validated[B, E], third : Validated[C, E], scoped combine : Function[A, B, C, U]) : Validated[U, E]</code></h3>
+<p class="doc-summary">Combine trois validations et accumule toutes leurs erreurs.</p>
+<div class="doc-details"><p>L&#39;ordre d&#39;accumulation est `first`, `second`, puis `third`. `combine` n&#39;est<br>
+appelée que lorsque les trois branches sont `Valid`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>first</code></td><td><code>Validated[A, E]</code></td><td>Première validation consommée.</td></tr><tr><td><code>second</code></td><td><code>Validated[B, E]</code></td><td>Deuxième validation consommée.</td></tr><tr><td><code>third</code></td><td><code>Validated[C, E]</code></td><td>Troisième validation consommée.</td></tr><tr><td><code>combine</code></td><td><code>Function[A, B, C, U]</code></td><td>Constructeur recevant les trois succès dans l&#39;ordre.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[U, E]</code> — Succès combiné ou toutes les erreurs gauche-droite.</p></section>
+<div class="qualified">std.validated.map3</div></div><a class="permalink" href="#std-validated-map3" aria-label="Permanent link to std.validated.map3">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-maperror" data-symbol data-search="std.validated.mapError function def mapError[T, E, F](value : Validated[T, E], scoped transform : Function[E, F]) : Validated[T, F] Transforme chaque erreur dans son ordre d&#39;origine.
+@param value Validation consommée.
+@param transform Callback appelée une fois par erreur et jamais pour `Valid`.
+@return Valeur valide d&#39;origine ou erreurs transformées."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def mapError[T, E, F](value : Validated[T, E], scoped transform : Function[E, F]) : Validated[T, F]</code></h3>
+<p class="doc-summary">Transforme chaque erreur dans son ordre d&#39;origine.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation consommée.</td></tr><tr><td><code>transform</code></td><td><code>Function[E, F]</code></td><td>Callback appelée une fois par erreur et jamais pour `Valid`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[T, F]</code> — Valeur valide d&#39;origine ou erreurs transformées.</p></section>
+<div class="qualified">std.validated.mapError</div></div><a class="permalink" href="#std-validated-maperror" aria-label="Permanent link to std.validated.mapError">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-toresult" data-symbol data-search="std.validated.toResult function def toResult[T, E](value : Validated[T, E]) : Result[T, E] Convertit une validation en résultat en conservant la première erreur.
+
+Pour `Invalid`, seule l&#39;erreur d&#39;indice zéro est transférée dans `Error`;
+toutes les erreurs suivantes sont détruites. Un tableau vide viole
+l&#39;invariant du type et déclenche `panic`.
+@param value Validation consommée.
+@return Succès d&#39;origine ou première erreur accumulée."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def toResult[T, E](value : Validated[T, E]) : Result[T, E]</code></h3>
+<p class="doc-summary">Convertit une validation en résultat en conservant la première erreur.</p>
+<div class="doc-details"><p>Pour `Invalid`, seule l&#39;erreur d&#39;indice zéro est transférée dans `Error`;<br>
+toutes les erreurs suivantes sont détruites. Un tableau vide viole<br>
+l&#39;invariant du type et déclenche `panic`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation consommée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — Succès d&#39;origine ou première erreur accumulée.</p></section>
+<div class="qualified">std.validated.toResult</div></div><a class="permalink" href="#std-validated-toresult" aria-label="Permanent link to std.validated.toResult">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-valid" data-symbol data-search="std.validated.valid function def valid[T, E](value : T) : Validated[T, E] Construit une validation réussie.
+@example
+```janus
+val value : Validated[int, string] = valid[int, string](42)
+```
+@param value Valeur dont la propriété est transférée.
+@return `Valid(value)`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def valid[T, E](value : T) : Validated[T, E]</code></h3>
+<p class="doc-summary">Construit une validation réussie.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>T</code></td><td>Valeur dont la propriété est transférée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[T, E]</code> — `Valid(value)`.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val value : Validated[int, string] = valid[int, string](42)<br>
+</code></pre></section>
+<div class="qualified">std.validated.valid</div></div><a class="permalink" href="#std-validated-valid" aria-label="Permanent link to std.validated.valid">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-zip" data-symbol data-search="std.validated.zip function def zip[A, B, E](left : Validated[A, E], right : Validated[B, E]) : Validated[ValidatedPair[A, B], E] Regroupe deux valeurs valides dans une paire propriétaire.
+@param left Première validation consommée.
+@param right Seconde validation consommée.
+@return Paire valide ou toutes les erreurs gauche-droite."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def zip[A, B, E](left : Validated[A, E], right : Validated[B, E]) : Validated[ValidatedPair[A, B], E]</code></h3>
+<p class="doc-summary">Regroupe deux valeurs valides dans une paire propriétaire.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>Validated[A, E]</code></td><td>Première validation consommée.</td></tr><tr><td><code>right</code></td><td><code>Validated[B, E]</code></td><td>Seconde validation consommée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Validated[ValidatedPair[A, B], E]</code> — Paire valide ou toutes les erreurs gauche-droite.</p></section>
+<div class="qualified">std.validated.zip</div></div><a class="permalink" href="#std-validated-zip" aria-label="Permanent link to std.validated.zip">#</a></article>
+</div></section>
 <section class="module" id="module-std-wall-time" data-module data-search="std.wall_time Lit le temps civil écoulé depuis l’époque Unix.
 
 Contrairement à [[Instant]], cette horloge peut refléter les corrections du système. Les
@@ -8192,7 +8470,7 @@ println(timestamp.unixSeconds())<br>
 <div class="qualified">std.wall_time.wallNow</div></div><a class="permalink" href="#std-wall-time-wallnow" aria-label="Permanent link to std.wall_time.wallNow">#</a></article>
 </div></section>
 </main>
-<aside id="module-sidebar" class="sidebar"><h2>Modules</h2><nav class="module-nav" aria-label="Modules"><a class="module-link" data-module-link href="#module-std-array"><span class="dot"></span>std.array</a><a class="module-link" data-module-link href="#module-std-array-builder"><span class="dot"></span>std.array_builder</a><a class="module-link" data-module-link href="#module-std-builder"><span class="dot"></span>std.builder</a><a class="module-link" data-module-link href="#module-std-bytes"><span class="dot"></span>std.bytes</a><a class="module-link" data-module-link href="#module-std-c"><span class="dot"></span>std.c</a><a class="module-link" data-module-link href="#module-std-deque"><span class="dot"></span>std.deque</a><a class="module-link" data-module-link href="#module-std-error"><span class="dot"></span>std.error</a><a class="module-link" data-module-link href="#module-std-fs"><span class="dot"></span>std.fs</a><a class="module-link" data-module-link href="#module-std-graphics"><span class="dot"></span>std.graphics</a><a class="module-link" data-module-link href="#module-std-graphics-audio"><span class="dot"></span>std.graphics.audio</a><a class="module-link" data-module-link href="#module-std-graphics-drawing"><span class="dot"></span>std.graphics.drawing</a><a class="module-link" data-module-link href="#module-std-graphics-input"><span class="dot"></span>std.graphics.input</a><a class="module-link" data-module-link href="#module-std-graphics-resources"><span class="dot"></span>std.graphics.resources</a><a class="module-link" data-module-link href="#module-std-graphics-types"><span class="dot"></span>std.graphics.types</a><a class="module-link" data-module-link href="#module-std-hash-probe"><span class="dot"></span>std.hash_probe</a><a class="module-link" data-module-link href="#module-std-hashing"><span class="dot"></span>std.hashing</a><a class="module-link" data-module-link href="#module-std-hashmap"><span class="dot"></span>std.hashmap</a><a class="module-link" data-module-link href="#module-std-hashset"><span class="dot"></span>std.hashset</a><a class="module-link" data-module-link href="#module-std-io"><span class="dot"></span>std.io</a><a class="module-link" data-module-link href="#module-std-iterator"><span class="dot"></span>std.iterator</a><a class="module-link" data-module-link href="#module-std-math"><span class="dot"></span>std.math</a><a class="module-link" data-module-link href="#module-std-numeric"><span class="dot"></span>std.numeric</a><a class="module-link" data-module-link href="#module-std-option"><span class="dot"></span>std.option</a><a class="module-link" data-module-link href="#module-std-ordering"><span class="dot"></span>std.ordering</a><a class="module-link" data-module-link href="#module-std-path"><span class="dot"></span>std.path</a><a class="module-link" data-module-link href="#module-std-priority-queue"><span class="dot"></span>std.priority_queue</a><a class="module-link" data-module-link href="#module-std-process"><span class="dot"></span>std.process</a><a class="module-link" data-module-link href="#module-std-random"><span class="dot"></span>std.random</a><a class="module-link" data-module-link href="#module-std-range"><span class="dot"></span>std.range</a><a class="module-link" data-module-link href="#module-std-result"><span class="dot"></span>std.result</a><a class="module-link" data-module-link href="#module-std-slice"><span class="dot"></span>std.slice</a><a class="module-link" data-module-link href="#module-std-system"><span class="dot"></span>std.system</a><a class="module-link" data-module-link href="#module-std-testing"><span class="dot"></span>std.testing</a><a class="module-link" data-module-link href="#module-std-text"><span class="dot"></span>std.text</a><a class="module-link" data-module-link href="#module-std-time"><span class="dot"></span>std.time</a><a class="module-link" data-module-link href="#module-std-wall-time"><span class="dot"></span>std.wall_time</a></nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
+<aside id="module-sidebar" class="sidebar"><h2>Modules</h2><nav class="module-nav" aria-label="Modules"><a class="module-link" data-module-link href="#module-std-array"><span class="dot"></span>std.array</a><a class="module-link" data-module-link href="#module-std-array-builder"><span class="dot"></span>std.array_builder</a><a class="module-link" data-module-link href="#module-std-builder"><span class="dot"></span>std.builder</a><a class="module-link" data-module-link href="#module-std-bytes"><span class="dot"></span>std.bytes</a><a class="module-link" data-module-link href="#module-std-c"><span class="dot"></span>std.c</a><a class="module-link" data-module-link href="#module-std-deque"><span class="dot"></span>std.deque</a><a class="module-link" data-module-link href="#module-std-error"><span class="dot"></span>std.error</a><a class="module-link" data-module-link href="#module-std-fs"><span class="dot"></span>std.fs</a><a class="module-link" data-module-link href="#module-std-graphics"><span class="dot"></span>std.graphics</a><a class="module-link" data-module-link href="#module-std-graphics-audio"><span class="dot"></span>std.graphics.audio</a><a class="module-link" data-module-link href="#module-std-graphics-drawing"><span class="dot"></span>std.graphics.drawing</a><a class="module-link" data-module-link href="#module-std-graphics-input"><span class="dot"></span>std.graphics.input</a><a class="module-link" data-module-link href="#module-std-graphics-resources"><span class="dot"></span>std.graphics.resources</a><a class="module-link" data-module-link href="#module-std-graphics-types"><span class="dot"></span>std.graphics.types</a><a class="module-link" data-module-link href="#module-std-hash-probe"><span class="dot"></span>std.hash_probe</a><a class="module-link" data-module-link href="#module-std-hashing"><span class="dot"></span>std.hashing</a><a class="module-link" data-module-link href="#module-std-hashmap"><span class="dot"></span>std.hashmap</a><a class="module-link" data-module-link href="#module-std-hashset"><span class="dot"></span>std.hashset</a><a class="module-link" data-module-link href="#module-std-io"><span class="dot"></span>std.io</a><a class="module-link" data-module-link href="#module-std-iterator"><span class="dot"></span>std.iterator</a><a class="module-link" data-module-link href="#module-std-math"><span class="dot"></span>std.math</a><a class="module-link" data-module-link href="#module-std-numeric"><span class="dot"></span>std.numeric</a><a class="module-link" data-module-link href="#module-std-option"><span class="dot"></span>std.option</a><a class="module-link" data-module-link href="#module-std-ordering"><span class="dot"></span>std.ordering</a><a class="module-link" data-module-link href="#module-std-path"><span class="dot"></span>std.path</a><a class="module-link" data-module-link href="#module-std-priority-queue"><span class="dot"></span>std.priority_queue</a><a class="module-link" data-module-link href="#module-std-process"><span class="dot"></span>std.process</a><a class="module-link" data-module-link href="#module-std-random"><span class="dot"></span>std.random</a><a class="module-link" data-module-link href="#module-std-range"><span class="dot"></span>std.range</a><a class="module-link" data-module-link href="#module-std-result"><span class="dot"></span>std.result</a><a class="module-link" data-module-link href="#module-std-slice"><span class="dot"></span>std.slice</a><a class="module-link" data-module-link href="#module-std-system"><span class="dot"></span>std.system</a><a class="module-link" data-module-link href="#module-std-testing"><span class="dot"></span>std.testing</a><a class="module-link" data-module-link href="#module-std-text"><span class="dot"></span>std.text</a><a class="module-link" data-module-link href="#module-std-time"><span class="dot"></span>std.time</a><a class="module-link" data-module-link href="#module-std-validated"><span class="dot"></span>std.validated</a><a class="module-link" data-module-link href="#module-std-wall-time"><span class="dot"></span>std.wall_time</a></nav><div class="legend" aria-label="Symbol legend"><p><i class="kind-class">t</i>types and traits</p><p><i class="kind-function">f</i>functions and methods</p><p><i class="kind-global">v</i>values and fields</p><p><i class="kind-variant">c</i>enum variants</p></div></aside>
 </div>
 <footer><p>Generated by Janus. No network resources are required.</p></footer>
 <script>

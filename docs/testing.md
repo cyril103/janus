@@ -48,10 +48,12 @@ parallèle.
 ## Assertions
 
 `std.testing` fournit `fail`, `assertTrue`, `assertFalse`, `assertEqual`,
-`assertNotEqual`, `assertSome`, `assertNone`, `assertOk` et `assertError`.
+`assertNotEqual`, `assertSome`, `assertNone`, `assertOk`, `assertError`,
+`assertValid` et `assertInvalid`.
 `assertBorrowedEqual` compare aussi les valeurs non copiables sans les
-consommer. `assertSomeWhere`, `assertOkWhere` et `assertErrorWhere` appliquent
-une callback `scoped` au contenu de la variante attendue ; elles permettent
+consommer. `assertSomeWhere`, `assertOkWhere`, `assertErrorWhere`,
+`assertValidWhere` et `assertInvalidWhere` appliquent une callback `scoped` au
+contenu de la variante attendue ; elles permettent
 donc de vérifier un objet propriétaire tout en le laissant dans son conteneur.
 `assertBytesEqual` compare deux `ByteView` et signale la taille ou le premier
 indice différent. Les comparaisons génériques exigent `Equality` et `Debug` ;

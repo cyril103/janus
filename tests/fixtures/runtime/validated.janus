@@ -1,0 +1,153 @@
+import std.array
+import std.iterator
+import std.option
+import std.result
+import std.validated
+
+var combineCalls : int = 0
+
+def sum2(left : int, right : int) : int {
+    combineCalls = combineCalls + 1
+    return left + right
+}
+
+def sum3(first : int, second : int, third : int) : int {
+    combineCalls = combineCalls + 1
+    return first + second + third
+}
+
+def printItem(item : int) : usize {
+    println(item)
+    return usize(1)
+}
+
+def printErrors(errors : Array[string]) : usize {
+    val count : usize = errors.size()
+    for error in errors.intoIterator() {
+        println(error)
+    }
+    return count
+}
+
+def printValidation(value : Validated[int, string]) : usize {
+    return match move value {
+        Valid(item) => printItem(item),
+        Invalid(errors) => printErrors(move errors)
+    }
+}
+
+def printCollected(value : Validated[Array[int], string]) : usize {
+    return match move value {
+        Valid(items) => items.size(),
+        Invalid(errors) => printErrors(move errors)
+    }
+}
+
+def printPair(
+    value : Validated[ValidatedPair[int, int], string]
+) : usize {
+    return match move value {
+        Valid(pair) => printItem(pair.left + pair.right),
+        Invalid(errors) => printErrors(move errors)
+    }
+}
+
+def printString(error : string) : usize {
+    println(error)
+    return usize(1)
+}
+
+def printResult(value : Result[int, string]) : usize {
+    return match value {
+        Ok(item) => printItem(item),
+        Error(error) => printString(error)
+    }
+}
+
+def errorCount(borrow errors : Array[string]) : usize {
+    return errors.size()
+}
+
+def ownedErrorCount(value : Option[Array[string]]) : usize {
+    return match move value {
+        Some(errors) => printErrors(move errors),
+        None => usize(0)
+    }
+}
+
+def main() : int {
+    val _printedMapped : usize = printValidation(
+        std.validated.valid[int, string](4).map[int](
+        (value : int) => value + 1
+        )
+    )
+    val _printedPair : usize = printPair(
+        std.validated.valid[int, string](2).zip[int](
+        std.validated.valid[int, string](3)
+        )
+    )
+
+    val twoErrors : Validated[int, string] = std.validated.map2[int, int, string, int](
+        std.validated.invalid[int, string]("left"),
+        std.validated.invalid[int, string]("right"),
+        (left : int, right : int) => sum2(left, right)
+    )
+    println(twoErrors.isInvalid())
+    println(twoErrors.errorsBorrowed[usize](
+        (borrow errors : Array[string]) => errorCount(errors)
+        ).unwrapOr(usize(0)))
+    val _printedTwo : usize = printValidation(move twoErrors)
+    println(combineCalls)
+
+    val _printedSuccess : usize = printValidation(std.validated.map3[int, int, int, string, int](
+        std.validated.valid[int, string](1),
+        std.validated.valid[int, string](2),
+        std.validated.valid[int, string](3),
+        (first : int, second : int, third : int) =>
+        sum3(first, second, third)
+    ))
+    println(combineCalls)
+
+    val source : Array[Validated[int, string]] =
+    new Array[Validated[int, string]](usize(3))
+    source.push(std.validated.valid[int, string](10))
+    source.push(std.validated.invalid[int, string]("middle"))
+    source.push(std.validated.invalid[int, string]("last"))
+    val _printedCollected : usize = printCollected(
+        std.validated.collectValidated[int, string](source.intoIterator())
+    )
+
+    val _printedResult : usize = printResult(std.validated.toResult[int, string](std.validated.map3[int, int, int, string, int](
+        std.validated.invalid[int, string]("first"),
+        std.validated.invalid[int, string]("discarded-1"),
+        std.validated.invalid[int, string]("discarded-2"),
+        (first : int, second : int, third : int) =>
+        sum3(first, second, third)
+    )))
+    val _printedFromResult : usize = printValidation(std.validated.fromResult[int, string](
+        Result.Error[int, string]("result-error")
+    ))
+
+    val emptyErrors : Array[string] = new Array[string](usize(0))
+    val emptyInvalid : Validated[int, string] =
+    Validated.Invalid[int, string](move emptyErrors)
+    val preservedEmpty : Validated[int, string] =
+    std.validated.map2[int, int, string, int](
+        move emptyInvalid,
+        std.validated.valid[int, string](9),
+        (left : int, right : int) => sum2(left, right)
+    )
+    println(preservedEmpty.isInvalid())
+    println(preservedEmpty.errorsBorrowed[usize](
+        (borrow errors : Array[string]) => errorCount(errors)
+        ).unwrapOr(usize(1)))
+    delete preservedEmpty
+    println(combineCalls)
+    println(ownedErrorCount(std.validated.intoErrors[int, string](
+        std.validated.invalid[int, string]("owned")
+    )))
+    println(ownedErrorCount(std.validated.intoErrors[int, string](
+        std.validated.valid[int, string](11)
+    )))
+    return 0
+}
