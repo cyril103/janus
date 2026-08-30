@@ -26,6 +26,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(GNUInstallDirs)
 include(cmake/resolve_toolchain_executable.cmake)
+include(cmake/JanusQualityGates.cmake)
 
 find_package(LLVM REQUIRED CONFIG)
 include(cmake/validate_llvm_version.cmake)
@@ -328,6 +329,7 @@ target_compile_definitions(janus_driver
 )
 
 add_executable(janus
+    tools/janus/commands.cpp
     tools/janus/main.cpp
 )
 add_dependencies(janus janus_runtime janus_build_identity)
@@ -1550,34 +1552,10 @@ if(BUILD_TESTING)
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/loop_jumps_runtime"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
-    add_test(
-        NAME docs.version_consistency
-        COMMAND
-            ${CMAKE_COMMAND}
-            "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
-            -P "${PROJECT_SOURCE_DIR}/cmake/verify_documentation.cmake"
-    )
-    add_test(
-        NAME docs.public_surface
-        COMMAND
-            "${Python3_EXECUTABLE}"
-            "${PROJECT_SOURCE_DIR}/scripts/check_public_surface.py"
-            --root "${PROJECT_SOURCE_DIR}"
-            --janus $<TARGET_FILE:janus>
-    )
-    add_test(
-        NAME docs.stability_inventory_current
-        COMMAND
-            "${Python3_EXECUTABLE}"
-            "${PROJECT_SOURCE_DIR}/scripts/check_stability_inventory.py"
-            --root "${PROJECT_SOURCE_DIR}"
-    )
-    add_test(
-        NAME docs.release_gates_1_0
-        COMMAND
-            "${Python3_EXECUTABLE}"
-            "${PROJECT_SOURCE_DIR}/scripts/check_release_gates.py"
-            --root "${PROJECT_SOURCE_DIR}"
+    janus_add_release_quality_tests(
+        "${Python3_EXECUTABLE}"
+        "${PROJECT_SOURCE_DIR}"
+        janus
     )
     foreach(FUZZ_MODE lexer parser manifest resolver)
         add_test(

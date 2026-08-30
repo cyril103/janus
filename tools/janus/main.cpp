@@ -2,7 +2,6 @@
 #include "janus/backend/llvm/object_emitter.hpp"
 #include "janus/build_identity.hpp"
 #include "janus/diagnostics/compile_error.hpp"
-#include "janus/diagnostics/catalog.hpp"
 #include "janus/diagnostics/high_growth_loop_linter.hpp"
 #include "janus/diagnostics/renderer.hpp"
 #include "janus/driver/api_index.hpp"
@@ -21,6 +20,7 @@
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
 #include "janus/semantic/compilation_session.hpp"
+#include "commands.hpp"
 
 #include <algorithm>
 #include <array>
@@ -227,97 +227,6 @@ first_api_index(const std::vector<std::filesystem::path> &candidates) {
                                         candidate);
                                   });
   return found == candidates.end() ? std::filesystem::path{} : *found;
-}
-
-void print_usage(std::ostream &output) {
-  output << "usage:\n"
-         << "  janus new <directory> [--name <name>]\n"
-         << "  janus init [directory] [--name <name>]\n"
-         << "  janus add <name>[@<version>] [--path <path> | "
-            "--git <url> --rev <commit>] [--registry <url>]\n"
-         << "  janus remove <name>\n"
-         << "  janus search <query> [--registry <url>]\n"
-         << "  janus publish [--registry <url>]\n"
-         << "  janus explain <diagnostic-code>\n"
-         << "  janus clean\n"
-         << "  janus check [source.janus] "
-            "[--all] [--deny-warnings] "
-            "[--diagnostic-format human|json]\n"
-         << "  janus build [source.janus] [-o output] [--release] "
-            "[--emit llvm-ir|object] [--panic-trace full|short|off] "
-            "[--diagnostic-format human|json] [--timings[=human|json]] "
-            "[--no-cache] [--deny-warnings]\n"
-         << "  janus run [source.janus] [--release] "
-            "[--panic-trace full|short|off] [-- [arguments...]]\n"
-         << "  janus test [filter] [--doc] [--doc-path <path>] "
-            "[--list] [--exact] [--ignored|--include-ignored] "
-            "[--jobs <count>] [--timeout <duration>] [--fail-fast] "
-            "[--fail-if-empty] [--format human|json|junit] [--release] "
-            "[--panic-trace full|short|off]\n"
-         << "  janus fmt [source.janus] [--check]\n"
-         << "  janus doc [--stdlib] [-o directory] [--open] [--offline] "
-            "[--search QUERY] [--format human|json] "
-            "[--module NAME] [--kind KIND] [--package NAME]\n"
-         << "  diagnostics: --warn-high-growth-loops for check, build, "
-            "run\n"
-         << "  dependency options: --locked --offline\n"
-         << "  janus --help\n"
-         << "  janus --version\n";
-}
-
-int explain_diagnostic(int argc, char **argv) {
-  if (argc != 3)
-    throw std::runtime_error{"explain requires one diagnostic code"};
-  const auto code = janus::diagnostics::diagnostic_code_from_name(argv[2]);
-  if (!code)
-    throw std::runtime_error{"unknown diagnostic code '" +
-                             std::string{argv[2]} + "'"};
-  const janus::diagnostics::DiagnosticExplanation explanation =
-      janus::diagnostics::explain_diagnostic(*code);
-  std::cout << janus::diagnostic_code_name(explanation.code) << ": "
-            << explanation.title << "\n\n"
-            << explanation.explanation << "\n\nhelp: " << explanation.action
-            << '\n';
-  return 0;
-}
-
-void print_command_usage(std::ostream &output, std::string_view command) {
-  output << "usage: janus " << command;
-  if (command == "check")
-    output << " [source.janus] [--locked] [--offline] "
-              "[--all] [--deny-warnings] [--warn-high-growth-loops] "
-              "[--diagnostic-format human|json]\n";
-  else if (command == "build")
-    output << " [source.janus] [-o output] [--release] "
-              "[--emit llvm-ir|object] [--locked] [--offline] "
-              "[--panic-trace full|short|off] "
-              "[--warn-high-growth-loops] "
-              "[--diagnostic-format human|json] "
-              "[--timings[=human|json]] [--no-cache] [--deny-warnings]\n";
-  else if (command == "run")
-    output << " [source.janus] [--release] [--locked] [--offline] "
-              "[--panic-trace full|short|off] [--warn-high-growth-loops] "
-              "[-- [arguments...]]\n";
-  else if (command == "test")
-    output << " [filter] [--doc] [--doc-path <path>] [--list] [--exact] "
-              "[--ignored|--include-ignored] [--jobs <count>] "
-              "[--timeout <duration>] [--fail-fast] [--fail-if-empty] "
-              "[--format human|json|junit] [--release] "
-              "[--locked] [--offline] "
-              "[--panic-trace full|short|off]\n";
-  else if (command == "doc")
-    output << " [--stdlib] [-o directory] [--open] [--offline] "
-              "[--search QUERY] [--format human|json] "
-              "[--module NAME] [--kind KIND] [--package NAME]\n";
-  else if (command == "clean")
-    output << '\n';
-  else
-    output << " [source.janus] [--check]\n";
-}
-
-bool is_execution_command(std::string_view command) {
-  return command == "check" || command == "build" || command == "run" ||
-         command == "test" || command == "doc" || command == "clean";
 }
 
 void print_compile_error(const std::filesystem::path &path,
@@ -2477,7 +2386,7 @@ int main(int argc, char **argv) {
   }
 #endif
   if (argc == 2 && std::string_view{argv[1]} == "--help") {
-    print_usage(std::cout);
+    janus::cli::print_usage(std::cout);
     return 0;
   }
   if (argc == 2 && std::string_view{argv[1]} == "--version") {
@@ -2489,9 +2398,9 @@ int main(int argc, char **argv) {
     std::cout << janus::build::json() << '\n';
     return 0;
   }
-  if (argc == 3 && is_execution_command(argv[1]) &&
+  if (argc == 3 && janus::cli::is_execution_command(argv[1]) &&
       std::string_view{argv[2]} == "--help") {
-    print_command_usage(std::cout, argv[1]);
+    janus::cli::print_command_usage(std::cout, argv[1]);
     return 0;
   }
 
@@ -2500,7 +2409,7 @@ int main(int argc, char **argv) {
       janus::diagnostics::DiagnosticFormat::Human;
   try {
     if (argc >= 2 && std::string_view{argv[1]} == "explain")
-      return explain_diagnostic(argc, argv);
+      return janus::cli::explain_diagnostic(argc, argv);
     if (argc >= 2 && (std::string_view{argv[1]} == "new" ||
                       std::string_view{argv[1]} == "init"))
       return create_or_initialize(argc, argv);
@@ -2669,9 +2578,9 @@ int main(int argc, char **argv) {
       std::cerr << ' ' << error.command();
     std::cerr << ": error: " << error.what() << '\n';
     if (error.command().empty())
-      print_usage(std::cerr);
+      janus::cli::print_usage(std::cerr);
     else
-      print_command_usage(std::cerr, error.command());
+      janus::cli::print_command_usage(std::cerr, error.command());
     return 2;
   } catch (const janus::CompileError &error) {
     print_compile_error(diagnostic_path, error, diagnostic_format);

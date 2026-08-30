@@ -3,6 +3,12 @@
 Cette page s'adresse aux personnes qui souhaitent modifier le compilateur.
 Pour écrire des programmes Janus, utilisez plutôt les paquets officiels.
 
+Le point d'entrée CLI conserve l'orchestration de compilation dans
+`tools/janus/main.cpp`; les commandes informationnelles et l'aide vivent dans
+`tools/janus/commands.cpp`. Les gates documentaires de release sont déclarées
+dans `cmake/JanusQualityGates.cmake`, afin que leur politique ne se perde pas
+dans la liste des tests de langage.
+
 ## Prérequis
 
 - un compilateur C++20 ;
