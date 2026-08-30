@@ -17,7 +17,8 @@ TYPE_RE = re.compile(
     r"(?:(private|internal)\s+)?(class|struct|enum|trait)\s+([A-Za-z_]\w*)"
 )
 FUNCTION_RE = re.compile(
-    r"(?:(private|internal)\s+)?(?:(extern(?:\(\"[^\"]+\"\))?)\s+)?(?:(consume)\s+)?"
+    r"(?:(private|internal)\s+)?(?:(pure)\s+)?"
+    r"(?:(extern(?:\(\"[^\"]+\"\))?)\s+)?(?:(consume)\s+)?"
     r"(?:borrow\s+)?def\s+([A-Za-z_]\w*)"
 )
 VALUE_RE = re.compile(
@@ -187,7 +188,7 @@ def parse_module(path: Path) -> ParsedModule:
         )
         function_match = FUNCTION_RE.match(stripped) if at_public_scope else None
         if function_match is not None:
-            visibility, _, _, name = function_match.groups()
+            visibility, _, _, _, name = function_match.groups()
             symbol = f"{context}.{name}" if context is not None else name
             pending = PendingDeclaration(
                 "function", symbol, visibility, context, [stripped]

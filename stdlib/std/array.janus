@@ -106,19 +106,19 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
 
     /// Retourne le nombre d’éléments stockés.
     /// @return Nombre de valeurs initialisées, distinct de la capacité.
-    borrow def size() : usize {
+    pure borrow def size() : usize {
         return length
     }
 
     /// Retourne la capacité actuellement réservée.
     /// @return Nombre d’éléments pouvant être stockés sans nouvelle allocation.
-    borrow def capacity() : usize {
+    pure borrow def capacity() : usize {
         return allocated
     }
 
     /// Indique si le tableau est vide.
     /// @return `true` lorsque [[Array.size]] vaut zéro.
-    borrow def isEmpty() : bool {
+    pure borrow def isEmpty() : bool {
         return length == usize(0)
     }
 

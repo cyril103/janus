@@ -21,6 +21,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Bibliothèque standard et outillage
 
+- adoption de `pure` par les calculs déterministes de `std.math`, les
+  conversions de `Duration`, les observateurs de collections, d'`Option` et de
+  `Result`, ainsi que les helpers fonctionnels et de sondage compatibles ;
+- reconnaissance des constructeurs qualifiés de variantes et des intrinsics
+  déterministes de conversion/dérivation dans le vérificateur d'effets purs ;
 - ajout de `std.persistent_list.PersistentList[T]`, liste immutable à partage
   structurel avec `prepend`/`tail` en O(1), transformations sans copie des
   éléments propriétaires, itérateur de handles, conversions `Array`, égalité

@@ -114,11 +114,11 @@ class PersistentList[T] internal(
 ) {
     /// Retourne le nombre d'elements en O(1).
     /// @return Taille logique de cette version.
-    borrow def size() : usize { return length }
+    pure borrow def size() : usize { return length }
 
     /// Indique si cette version est vide.
     /// @return `true` lorsque [[PersistentList.size]] vaut zero.
-    borrow def isEmpty() : bool { return length == usize(0) }
+    pure borrow def isEmpty() : bool { return length == usize(0) }
 
     /// Cree un second handle de liste vers exactement la meme racine.
     /// @return Nouvelle enveloppe partageant toutes les cellules.

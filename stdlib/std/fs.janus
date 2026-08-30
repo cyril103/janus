@@ -164,7 +164,7 @@ private val nativeSize : usize
 
     /// Retourne la taille du fichier en octets.
     /// @return Nombre d’octets accessibles par [[data]] et [[withView]].
-    borrow def size() : usize {
+    pure borrow def size() : usize {
         return nativeSize
     }
 

@@ -1,0 +1,33 @@
+import std.array
+import std.functional
+import std.hash_probe
+import std.math
+import std.option
+import std.result
+import std.time
+
+pure def deterministicSummary(
+borrow values : Array[int],
+borrow optional : Option[int],
+borrow fallible : Result[int, int]
+) : bool {
+    val probe : HashProbe = hashProbe(17, normalizedHashCapacity(3))
+    val duration : Duration = milliseconds(2)
+    return identity[usize](values.size()) == usize(2) &&
+        !values.isEmpty() && values.capacity() >= values.size() &&
+        isSome[int](optional) && !isNone[int](optional) &&
+        isOk[int, int](fallible) && !isError[int, int](fallible) &&
+        probe.hasNext() && duration.nanoseconds() == usize(2000000) &&
+        gcd(84, 30) == usize(6) && sqrt(81.0) == 9.0
+}
+
+def main() : int {
+    val values : Array[int] = new Array[int](usize(2))
+    values.push(20)
+    values.push(22)
+    val optional : Option[int] = Option.Some[int](42)
+    val fallible : Result[int, int] = Result.Ok[int, int](42)
+    println(deterministicSummary(values, optional, fallible))
+    delete values
+    return 0
+}

@@ -99,7 +99,7 @@ private val nativeLength : usize
 
     /// Retourne la longueur du chemin normalisé en octets.
     /// @return Nombre d’octets de [[view]], hors éventuel terminateur natif.
-    borrow def size() : usize {
+    pure borrow def size() : usize {
         return nativeLength
     }
 

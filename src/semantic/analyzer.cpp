@@ -1722,11 +1722,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     return function.is_pure || function.is_constant;
   };
   const auto is_pure_builtin = [](std::string_view name) {
-    static constexpr std::array<std::string_view, 19> names{
+    static constexpr std::array<std::string_view, 22> names{
         "int",   "uint",  "long",           "ulong",          "float",
         "double", "byte",  "ubyte",          "short",          "ushort",
         "char",  "bool",  "isize",          "usize",          "saturatingCast",
-        "truncatingCast", "checkedCast", "abs", "panic"};
+        "truncatingCast", "checkedCast",      "numericCast",    "abs",
+        "panic",          "__derivedHash",    "__derivedEquals"};
     return std::find(names.begin(), names.end(), name) != names.end();
   };
   const auto find_effect_function =
@@ -1758,6 +1759,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
     return false;
   };
+  const auto is_enum_constructor_call =
+      [&](const ast::MethodCallExpression &call,
+          const std::unordered_set<std::string> &scope) {
+        const auto *identifier =
+            std::get_if<ast::IdentifierExpression>(&call.object->value);
+        if (identifier == nullptr || scope.contains(identifier->name))
+          return false;
+        const auto declaration =
+            find_in_context(enums, program.module_name, identifier->name);
+        return declaration != enums.end() &&
+               std::any_of(declaration->second->cases.begin(),
+                           declaration->second->cases.end(),
+                           [&](const ast::EnumDeclaration::Case &candidate) {
+                             return candidate.name == call.method;
+                           });
+      };
   std::vector<std::string> pure_call_chain;
   const auto pure_error = [&](SourceLocation location,
                               std::string message) -> CompileError {
@@ -1901,6 +1918,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               check_expression(*node.object, scope, arguments);
               for (const auto &argument : node.arguments)
                 check_expression(*argument, scope, arguments);
+              if (is_enum_constructor_call(node, scope))
+                return;
               const auto method = std::find_if(
                   all_effect_functions.begin(), all_effect_functions.end(),
                   [&](const ast::FunctionDeclaration *candidate) {

@@ -156,7 +156,7 @@ private def observeError[T, E](
 ///
 /// @param value Résultat inspecté sans déplacer sa branche.
 /// @return `true` pour `Ok`, `false` pour `Error`.
-def isOk[T, E](borrow value : Result[T, E]) : bool {
+pure def isOk[T, E](borrow value : Result[T, E]) : bool {
     return match value {
         Ok(item) => true,
         Error(error) => false
@@ -167,7 +167,7 @@ def isOk[T, E](borrow value : Result[T, E]) : bool {
 ///
 /// @param value Résultat inspecté sans déplacer sa branche.
 /// @return `true` pour `Error`, `false` pour `Ok`.
-def isError[T, E](borrow value : Result[T, E]) : bool {
+pure def isError[T, E](borrow value : Result[T, E]) : bool {
     return match value {
         Ok(item) => false,
         Error(error) => true

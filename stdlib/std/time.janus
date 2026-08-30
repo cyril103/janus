@@ -18,28 +18,28 @@ struct Duration(private val value : usize) {
     /// Lit la représentation exacte en nanosecondes.
     ///
     /// @return Nombre de nanosecondes stocké.
-    borrow def nanoseconds() : usize {
+    pure borrow def nanoseconds() : usize {
         return value
     }
 
     /// Convertit la durée en microsecondes entières.
     ///
     /// @return Quotient par 1 000; les nanosecondes restantes sont tronquées.
-    borrow def microseconds() : usize {
+    pure borrow def microseconds() : usize {
         return value / usize(1000)
     }
 
     /// Convertit la durée en millisecondes entières.
     ///
     /// @return Quotient par 1 000 000; la fraction restante est tronquée.
-    borrow def milliseconds() : usize {
+    pure borrow def milliseconds() : usize {
         return value / usize(1000000)
     }
 
     /// Convertit la durée en secondes à virgule flottante.
     ///
     /// @return Nombre de nanosecondes divisé par 1 000 000 000.
-    borrow def seconds() : double {
+    pure borrow def seconds() : double {
         return double(value) / double(1000000000.0)
     }
 }
@@ -52,7 +52,7 @@ struct Instant(private val value : usize) {
     ///
     /// @param earlier Instant à soustraire; une valeur postérieure à `this` provoque une panique.
     /// @return Écart non négatif entre les deux lectures, en nanosecondes.
-    borrow def durationSince(earlier : Instant) : Duration {
+    pure borrow def durationSince(earlier : Instant) : Duration {
         if value < earlier.value {
             panic("instant precedes earlier instant\n")
         }
@@ -72,11 +72,11 @@ struct Instant(private val value : usize) {
 ///
 /// @param value Nombre de nanosecondes à stocker sans conversion.
 /// @return Durée contenant exactement `value` nanosecondes.
-def nanoseconds(value : usize) : Duration {
+pure def nanoseconds(value : usize) : Duration {
     return new Duration(value)
 }
 
-private def scaledDuration(
+private pure def scaledDuration(
 value : usize,
 scale : usize
 ) : Duration {
@@ -91,7 +91,7 @@ scale : usize
 ///
 /// @param value Nombre de microsecondes; une multiplication hors de `usize` provoque une panique.
 /// @return Durée de `value * 1 000` nanosecondes.
-def microseconds(value : usize) : Duration {
+pure def microseconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000))
 }
 
@@ -99,7 +99,7 @@ def microseconds(value : usize) : Duration {
 ///
 /// @param value Nombre de millisecondes; une multiplication hors de `usize` provoque une panique.
 /// @return Durée de `value * 1 000 000` nanosecondes.
-def milliseconds(value : usize) : Duration {
+pure def milliseconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000000))
 }
 
@@ -107,7 +107,7 @@ def milliseconds(value : usize) : Duration {
 ///
 /// @param value Nombre de secondes; une multiplication hors de `usize` provoque une panique.
 /// @return Durée de `value * 1 000 000 000` nanosecondes.
-def seconds(value : usize) : Duration {
+pure def seconds(value : usize) : Duration {
     return scaledDuration(value, usize(1000000000))
 }
 

@@ -125,7 +125,7 @@ private def observeSome[T](
 ///
 /// @param value Option inspectée sans déplacer son contenu.
 /// @return `true` pour `Some`, `false` pour `None`.
-def isSome[T](borrow value : Option[T]) : bool {
+pure def isSome[T](borrow value : Option[T]) : bool {
     return match value {
         Some(item) => true,
         None => false
@@ -136,7 +136,7 @@ def isSome[T](borrow value : Option[T]) : bool {
 ///
 /// @param value Option inspectée sans déplacer son contenu.
 /// @return `true` pour `None`, `false` pour `Some`.
-def isNone[T](borrow value : Option[T]) : bool {
+pure def isNone[T](borrow value : Option[T]) : bool {
     return match value {
         Some(item) => false,
         None => true

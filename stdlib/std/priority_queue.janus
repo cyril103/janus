@@ -116,13 +116,13 @@ private val less : (borrow T, borrow T) => bool
 
     /// Retourne le nombre de valeurs actuellement stockées.
     /// @return Taille logique de la file.
-    borrow def size() : usize {
+    pure borrow def size() : usize {
         return values.size()
     }
 
     /// Retourne la capacité utilisable par les deux stockages du tas.
     /// @return Nombre d’éléments insérables sans croissance.
-    borrow def capacity() : usize {
+    pure borrow def capacity() : usize {
         return if values.capacity() < sequences.capacity() {
             values.capacity()
         } else {
@@ -132,7 +132,7 @@ private val less : (borrow T, borrow T) => bool
 
     /// Indique si la file ne contient aucune valeur.
     /// @return `true` lorsque [[PriorityQueue.size]] vaut zéro.
-    borrow def isEmpty() : bool {
+    pure borrow def isEmpty() : bool {
         return values.isEmpty()
     }
 

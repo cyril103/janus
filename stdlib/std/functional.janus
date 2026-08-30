@@ -8,7 +8,7 @@ module std.functional
 /// Retourne la valeur reçue sans transformation.
 /// @param value Valeur transmise telle quelle.
 /// @return La valeur reçue, avec la même propriété.
-def identity[T](value : T) : T {
+pure def identity[T](value : T) : T {
     return move value
 }
 

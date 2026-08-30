@@ -22,11 +22,11 @@ private val count : usize
 ) {
     /// Retourne le nombre d'octets visibles.
     /// @return Longueur bornée de la vue.
-    borrow def size() : usize { return count }
+    pure borrow def size() : usize { return count }
 
     /// Indique si la vue est vide.
     /// @return `true` lorsque [[ByteView.size]] vaut zéro.
-    borrow def isEmpty() : bool { return count == usize(0) }
+    pure borrow def isEmpty() : bool { return count == usize(0) }
 
     /// Lit un octet ou déclenche `panic` si l'indice est invalide.
     /// @param index Position relative à la vue.

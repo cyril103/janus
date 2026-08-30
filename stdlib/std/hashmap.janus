@@ -324,19 +324,19 @@ private borrow val hashing : H
 
     /// Retourne le nombre d’associations stockées.
     /// @return Nombre de cases occupées, hors tombstones.
-    borrow def size() : usize {
+    pure borrow def size() : usize {
         return length
     }
 
     /// Retourne le nombre de cases de la table.
     /// @return Capacité interne avant une prochaine réorganisation.
-    borrow def capacity() : usize {
+    pure borrow def capacity() : usize {
         return slotCapacity
     }
 
     /// Indique si la table ne contient aucune association.
     /// @return `true` lorsque [[HashMap.size]] vaut zéro.
-    borrow def isEmpty() : bool {
+    pure borrow def isEmpty() : bool {
         return length == usize(0)
     }
 
@@ -887,7 +887,7 @@ private borrow val hashing : H
 
     /// Retourne le nombre d’associations accumulées.
     /// @return Nombre de clés distinctes dans la table en cours.
-    borrow def size() : usize {
+    pure borrow def size() : usize {
         return values.size()
     }
 

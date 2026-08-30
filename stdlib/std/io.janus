@@ -133,19 +133,19 @@ class ByteBuffer(initialCapacity : usize) {
 
     /// Retourne le nombre d’octets stockés.
     /// @return Longueur logique du contenu.
-    borrow def size() : usize {
+    pure borrow def size() : usize {
         return nativeSize
     }
 
     /// Retourne la capacité actuellement réservée.
     /// @return Nombre d’octets disponibles avant une nouvelle allocation.
-    borrow def capacity() : usize {
+    pure borrow def capacity() : usize {
         return allocated
     }
 
     /// Indique si le tampon est vide.
     /// @return `true` lorsque [[size]] vaut zéro.
-    borrow def isEmpty() : bool {
+    pure borrow def isEmpty() : bool {
         return nativeSize == usize(0)
     }
 

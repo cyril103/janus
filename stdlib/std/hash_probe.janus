@@ -28,7 +28,7 @@ private var checked : usize
 ) {
     /// Indique si une case non encore visitée reste disponible.
     /// @return `true` avant que `capacity` indices aient été produits.
-    borrow def hasNext() : bool {
+    pure borrow def hasNext() : bool {
         return checked < capacity
     }
 
@@ -48,7 +48,7 @@ private var checked : usize
 /// Applique la capacité minimale des tables hachées.
 /// @param requested Capacité souhaitée par l’appelant.
 /// @return `requested` s’il vaut au moins 8, sinon 8.
-def normalizedHashCapacity(requested : usize) : usize {
+pure def normalizedHashCapacity(requested : usize) : usize {
     return if requested < usize(8) {
         usize(8)
     } else {
@@ -65,7 +65,7 @@ def normalizedHashCapacity(requested : usize) : usize {
 /// @param deletedCount Nombre de tombstones issus de suppressions.
 /// @param capacity Nombre total de cases disponibles.
 /// @return `true` si l’insertion suivante atteint ou dépasse le seuil.
-def hashTableShouldGrow(
+pure def hashTableShouldGrow(
 length : usize,
 deletedCount : usize,
 capacity : usize
@@ -78,6 +78,6 @@ capacity : usize
 /// @param hash Hachage dont le reste détermine la première case.
 /// @param capacity Nombre de cases à visiter; doit être strictement positif.
 /// @return Une sonde neuve pouvant produire exactement `capacity` indices.
-def hashProbe(hash : usize, capacity : usize) : HashProbe {
+pure def hashProbe(hash : usize, capacity : usize) : HashProbe {
     return new HashProbe(hash % capacity, capacity, usize(0))
 }

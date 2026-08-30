@@ -137,19 +137,19 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
 
     /// Retourne le nombre d'éléments stockés.
     /// @return Taille logique de la deque.
-    borrow def size() : usize {
+    pure borrow def size() : usize {
         return length
     }
 
     /// Retourne la capacité du tampon circulaire.
     /// @return Nombre de valeurs stockables sans agrandissement.
-    borrow def capacity() : usize {
+    pure borrow def capacity() : usize {
         return slotCapacity
     }
 
     /// Indique si la deque est vide.
     /// @return `true` lorsque [[Deque.size]] vaut zéro.
-    borrow def isEmpty() : bool {
+    pure borrow def isEmpty() : bool {
         return length == usize(0)
     }
 
@@ -399,15 +399,15 @@ class Queue[T](initialCapacity : usize) extends IntoIterable[T] {
 
     /// Retourne le nombre de valeurs en attente.
     /// @return Taille logique de la file.
-    borrow def size() : usize { return values.size() }
+    pure borrow def size() : usize { return values.size() }
 
     /// Retourne la capacité du tampon FIFO sous-jacent.
     /// @return Nombre de valeurs stockables sans croissance.
-    borrow def capacity() : usize { return values.capacity() }
+    pure borrow def capacity() : usize { return values.capacity() }
 
     /// Indique si la file est vide.
     /// @return `true` lorsqu'aucune valeur n'est en attente.
-    borrow def isEmpty() : bool { return values.isEmpty() }
+    pure borrow def isEmpty() : bool { return values.isEmpty() }
 
     /// Ajoute une valeur en fin de file.
     /// @param value Valeur dont la file prend possession.

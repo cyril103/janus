@@ -99,6 +99,26 @@ pure def fail(value : int) : int {
 def main() : int { return fail(1) }
 )", "deterministic panic is allowed by the pure contract");
 
+  expect_valid(R"(
+enum Maybe[T] { Some(T), None }
+struct Key(val value : int) derives Hashing, Equality {}
+pure def absent() : Maybe[int] { return Maybe.None[int]() }
+pure def hashKey(borrow key : Key) : usize {
+    return __derivedHash[Key](key)
+}
+pure def equalKeys(borrow left : Key, borrow right : Key) : bool {
+    return __derivedEquals[Key](left, right)
+}
+pure def asSize(value : int) : usize { return numericCast[usize](value) }
+def main() : int {
+    val left : Key = new Key(7)
+    val right : Key = new Key(7)
+    val none : Maybe[int] = absent()
+    return if equalKeys(left, right) && hashKey(left) == hashKey(right) &&
+              asSize(7) == usize(7) { 0 } else { 1 }
+}
+)", "qualified enum constructors and deterministic intrinsics are pure");
+
   expect_error(R"(
 var state : int = 1
 pure def readState() : int { return state }
@@ -168,6 +188,14 @@ def main() : int {
 }
 )", "pure lambda cannot call impure function 'io'",
                "pure lambdas reject transitive impure calls");
+
+  expect_error(R"(
+enum Maybe { None }
+class Box() { borrow def None() : int { return 1 } }
+pure def inspect(borrow Maybe : Box) : int { return Maybe.None() }
+def main() : int { return 0 }
+)", "without a pure contract",
+               "a local shadowing an enum name is not a pure constructor");
 
   return failures == 0 ? 0 : 1;
 }

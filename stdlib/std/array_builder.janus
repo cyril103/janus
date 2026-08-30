@@ -75,7 +75,7 @@ class ArrayBuilder[T](
     /// Compte les éléments actuellement accumulés.
     ///
     /// @return Nombre d’éléments que produirait immédiatement [[result]].
-    borrow def size() : usize {
+    pure borrow def size() : usize {
         return values.size()
     }
 
