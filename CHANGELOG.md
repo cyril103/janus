@@ -5,6 +5,24 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Consolidation pré-1.0
+
+- remplacement de l'ancienne planification calendaire par sept gates 1.0
+  vérifiables, un inventaire de stabilité courant et leurs contrôles CI ;
+- ajout d'une session de compilation partagée par la CLI, le LSP, la
+  documentation et l'index d'API, puis découpage des commandes CLI et des
+  contrôles CMake hors de leurs fichiers monolithiques ;
+- suppression des diagnostics `J0000` en production au profit de codes stables
+  par sous-système, ajout de `janus explain`, d'un catalogue d'explications et
+  d'un budget CI pour réduire les codes génériques `0999` ;
+- ajout de `@deprecated use`, du diagnostic `JANA0033` et de sa propagation
+  dans la documentation HTML ;
+- traitement concurrent des requêtes LSP avec annulation des travaux obsolètes,
+  diagnostics versionnés et benchmark reproductible de latence ;
+- ajout des documents de contribution, sécurité et conduite, d'un exemple de
+  projet multi-module testé et de la publication automatique de l'extension
+  sur Visual Studio Marketplace et Open VSX pour les tags stables.
+
 ### Langage
 
 - ajout de `pure def`, contrat d'absence d'effets observables vérifié
