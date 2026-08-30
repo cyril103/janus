@@ -28,9 +28,9 @@
     },
     {
       "id": "stdlib-review",
-      "status": "in-progress",
+      "status": "complete",
       "blocks_1_0": true,
-      "proof": ["docs/stability-inventory-current.md"]
+      "proof": ["docs/stability-inventory-current.md", "docs/stdlib-surface-policy.md"]
     },
     {
       "id": "ecosystem-validation",

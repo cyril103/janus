@@ -27,6 +27,27 @@ bool is_borrowed_return(janus::ast::ReturnOwnership ownership) {
          ownership == janus::ast::ReturnOwnership::BorrowMutable;
 }
 
+std::optional<std::string>
+deprecated_replacement(std::string_view documentation) {
+  const std::size_t marker = documentation.find("@deprecated");
+  if (marker == std::string_view::npos)
+    return std::nullopt;
+  const std::size_t end = documentation.find('\n', marker);
+  std::string_view value = documentation.substr(
+      marker + std::string_view{"@deprecated"}.size(),
+      end == std::string_view::npos ? std::string_view::npos
+                                    : end - marker - 11);
+  while (!value.empty() && (value.front() == ' ' || value.front() == '\t'))
+    value.remove_prefix(1);
+  if (value.starts_with("use "))
+    value.remove_prefix(4);
+  if (value.starts_with("[[") && value.ends_with("]]")) {
+    value.remove_prefix(2);
+    value.remove_suffix(2);
+  }
+  return std::string{value};
+}
+
 const janus::Type *builtin_type(std::string_view name) {
   if (name == "int")
     return &janus::Type::int_type();
@@ -6098,6 +6119,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 throw CompileError{node.location,
                                    "function '" + node.callee +
                                        "' is not imported in this module"};
+              if (const auto replacement =
+                      deprecated_replacement(callee.documentation))
+                emit_warning(
+                    DiagnosticCode::AnalyzerDeprecatedUse, node.location,
+                    "function '" + node.callee + "' is deprecated",
+                    replacement->empty()
+                        ? std::vector<std::string>{}
+                        : std::vector<std::string>{"use '" + *replacement +
+                                                   "' instead"});
               return declared_call_type(callee, node.type_arguments,
                                         node.arguments, node.location,
                                         node.callee, &expression);
@@ -6554,6 +6584,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     throw CompileError{node.location,
                                        "function '" + qualified +
                                            "' is not imported in this module"};
+                  if (const auto replacement =
+                          deprecated_replacement(
+                              function->second->documentation))
+                    emit_warning(
+                        DiagnosticCode::AnalyzerDeprecatedUse, node.location,
+                        "function '" + qualified + "' is deprecated",
+                        replacement->empty()
+                            ? std::vector<std::string>{}
+                            : std::vector<std::string>{
+                                  "use '" + *replacement + "' instead"});
                   return declared_call_type(
                       *function->second, node.type_arguments, node.arguments,
                       node.location, qualified, &expression);
@@ -6912,6 +6952,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "method '" + node.method + "' is internal to module '" +
                         class_declaration->module_name.value_or("<entry>") +
                         "'"};
+              if (const auto replacement =
+                      deprecated_replacement(method->documentation))
+                emit_warning(
+                    DiagnosticCode::AnalyzerDeprecatedUse, node.location,
+                    "method '" + node.method + "' is deprecated",
+                    replacement->empty()
+                        ? std::vector<std::string>{}
+                        : std::vector<std::string>{"use '" + *replacement +
+                                                   "' instead"});
               if ((inside_pure_context || inside_pure_lambda) &&
                   !method->is_pure &&
                   !method->is_constant)

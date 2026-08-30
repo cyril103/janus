@@ -51,6 +51,7 @@ nav:
       - Diagnostics structurés: reference/generated/diagnostics.md
       - Performance du LSP: reference/generated/lsp-performance.md
       - Guide de la bibliothèque standard: reference/generated/stdlib-reference.md
+      - Politique de surface stdlib: reference/generated/stdlib-surface-policy.md
       - Index API de la stdlib: reference/stdlib/index.html
       - Graphisme 2D: reference/generated/graphics.md
       - Contrat de stabilité 1.0: reference/generated/stability-contract.md

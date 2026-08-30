@@ -76,6 +76,7 @@ doivent être corrigés en exprimant l'intention, pas masqués mécaniquement.
 | `JANA0020` | paramètre pointeur `extern` sans contrat | ajouter `borrow` ou `consume` |
 | `JANA0021` | cycle potentiel entre propriétaires | remplacer une arête par un champ `borrow val` |
 | `JANA0022` | pointeur retourné par `extern` sans contrat | qualifier le retour `borrow` ou `owned` |
+| `JANA0033` | appel d'une API dépréciée | migrer vers le remplacement indiqué par `@deprecated use` |
 
 ## Erreurs du système d'emprunts
 

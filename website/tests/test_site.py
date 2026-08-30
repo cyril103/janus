@@ -24,6 +24,7 @@ EXPECTED_REFERENCE = {
     "diagnostics.md",
     "lsp-performance.md",
     "stdlib-reference.md",
+    "stdlib-surface-policy.md",
     "graphics.md",
     "stability-contract.md",
     "stability-inventory-0.8.md",
@@ -216,6 +217,7 @@ class SiteStructureTests(unittest.TestCase):
             "| `surface-inventory` | complète |",
             "| `semantic-core` | en cours |",
             "| `lsp-performance` | en cours |",
+            "| `stdlib-review` | complète |",
             "| `release-candidate` | à faire |",
         )
         for milestone in expected_milestones:

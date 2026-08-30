@@ -59,6 +59,7 @@ enum class DiagnosticCode {
   AnalyzerInvalidTailrec,
   AnalyzerNonTerminalTailrec,
   AnalyzerIncompatibleTailrec,
+  AnalyzerDeprecatedUse,
   ModuleNotFound,
   BackendCyclicGlobalConstant,
 };
@@ -136,6 +137,8 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0031";
   case DiagnosticCode::AnalyzerIncompatibleTailrec:
     return "JANA0032";
+  case DiagnosticCode::AnalyzerDeprecatedUse:
+    return "JANA0033";
   case DiagnosticCode::ModuleNotFound:
     return "JMOD0001";
   case DiagnosticCode::BackendCyclicGlobalConstant:

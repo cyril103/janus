@@ -113,9 +113,9 @@ n’est jamais dupliqué. En cas de collision du même nom entre modules, les
 candidats restent visibles et explicites mais aucune édition d’import n’est
 attachée. Les complétions après `.` conservent le chemin typé existant.
 
-Limite syntaxique actuelle : Janus n’a pas encore d’attribut de dépréciation
-dédié. L’index reconnaît la directive documentaire
-`@deprecated use [[module.symbole]]` (le module peut être omis). Les
+La directive documentaire `@deprecated use [[module.symbole]]` (le module peut
+être omis) marque une API dans l'index, la documentation, la complétion et
+produit le warning `JANA0033` à chaque appel. Les
 contraintes génériques publiées correspondent aux contraintes représentables
 par l’AST courant ; aucun mot-clé ou score d’usage non déterministe n’est
 inventé.

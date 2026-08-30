@@ -25,6 +25,7 @@ DOCUMENTS = (
     "diagnostics.md",
     "lsp-performance.md",
     "stdlib-reference.md",
+    "stdlib-surface-policy.md",
     "graphics.md",
     "stability-contract.md",
     "stability-inventory-0.8.md",

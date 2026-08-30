@@ -31,7 +31,7 @@ Les priorités sont ordonnées ainsi :
 | `semantic-core` | en cours | CLI, documentation et LSP consomment une session et un index sémantique communs. |
 | `diagnostics-zero-j0000` | en cours | Aucun chemin utilisateur ne produit `J0000`. |
 | `lsp-performance` | en cours | Budgets p50/p95 ratifiés, cancellation et absence de publication obsolète. |
-| `stdlib-review` | en cours | Chaque module est promu, maintenu expérimental, extrait ou retiré. |
+| `stdlib-review` | complète | Chaque module est promu, maintenu expérimental, extrait ou retiré. |
 | `ecosystem-validation` | à faire | Trois canaris aval et deux cycles réels du registre sont archivés. |
 | `release-candidate` | à faire | Toutes les gates bloquantes sont complètes puis 30 jours de gel réussissent. |
 

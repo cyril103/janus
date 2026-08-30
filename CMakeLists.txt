@@ -1782,6 +1782,16 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.first_class_function COMMAND first_class_function_test)
 
+    add_executable(deprecation_test tests/language/deprecation_test.cpp)
+    target_link_libraries(deprecation_test PRIVATE janus_semantic)
+    target_compile_options(deprecation_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME language.deprecation COMMAND deprecation_test)
+
     add_executable(mutable_variable_test
         tests/language/mutable_variable_test.cpp
     )

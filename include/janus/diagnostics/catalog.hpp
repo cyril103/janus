@@ -51,6 +51,7 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::AnalyzerInvalidTailrec,
     DiagnosticCode::AnalyzerNonTerminalTailrec,
     DiagnosticCode::AnalyzerIncompatibleTailrec,
+    DiagnosticCode::AnalyzerDeprecatedUse,
     DiagnosticCode::ModuleNotFound,
     DiagnosticCode::BackendCyclicGlobalConstant,
 };
@@ -113,6 +114,10 @@ explain_diagnostic(DiagnosticCode code) noexcept {
     return {code, "invalid tail-recursion contract",
             "The declared recursion cycle does not match the backend musttail contract.",
             "Make every cycle edge terminal and signature-compatible, or remove tailrec."};
+  case DiagnosticCode::AnalyzerDeprecatedUse:
+    return {code, "deprecated API use",
+            "The referenced declaration is retained only for source migration.",
+            "Use the replacement named in the diagnostic before the API is removed."};
   case DiagnosticCode::ModuleNotFound:
     return {code, "module not found",
             "Module resolution exhausted the project, dependency and standard-library roots.",
