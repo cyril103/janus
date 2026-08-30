@@ -5,6 +5,15 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.23.1] - 2026-08-30
+
+### Correctifs
+
+- validation LSP rendue indépendante du code générique produit par la
+  plateforme, tout en interdisant explicitement le code de secours `J0000` ;
+- profondeur du smoke benchmark des listes persistantes alignée sur le test de
+  destruction profonde portable sous AddressSanitizer, notamment sous Windows.
+
 ## [0.23.0] - 2026-08-30
 
 ### Consolidation pré-1.0
@@ -1034,6 +1043,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.23.1]: https://github.com/cyril103/janus/releases/tag/v0.23.1
 [0.23.0]: https://github.com/cyril103/janus/releases/tag/v0.23.0
 [0.22.0]: https://github.com/cyril103/janus/releases/tag/v0.22.0
 [0.21.0]: https://github.com/cyril103/janus/releases/tag/v0.21.0

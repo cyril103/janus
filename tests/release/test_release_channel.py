@@ -80,8 +80,8 @@ class ReleasePromotionTests(unittest.TestCase):
             subprocess.run(command, check=True, capture_output=True, text=True)
             changelog = source / "CHANGELOG.md"
             changelog.write_text(changelog.read_text().replace(
-                "[0.23.0]: https://github.com/cyril103/janus/releases/tag/v0.23.0",
-                "[0.23.0]: https://github.com/cyril103/janus/releases/tag/v0.23.0-wrong"))
+                "[0.23.1]: https://github.com/cyril103/janus/releases/tag/v0.23.1",
+                "[0.23.1]: https://github.com/cyril103/janus/releases/tag/v0.23.1-wrong"))
             result = subprocess.run(command, capture_output=True, text=True)
             self.assertNotEqual(0, result.returncode)
             self.assertIn("exact release link", result.stderr)
@@ -185,11 +185,11 @@ class ReleasePromotionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "version"
             subprocess.run(
-                ["cmake", f"-DSOURCE_DIR={ROOT}", "-DRELEASE=v0.23.0-rc.10",
+                ["cmake", f"-DSOURCE_DIR={ROOT}", "-DRELEASE=v0.23.1-rc.10",
                  f"-DOUTPUT={output}", "-P",
                  str(ROOT / "cmake" / "write_channel_manifest.cmake")],
                 check=True)
-            self.assertEqual("0.23.0-rc.10 v0.23.0-rc.10\n", output.read_text())
+            self.assertEqual("0.23.1-rc.10 v0.23.1-rc.10\n", output.read_text())
 
 
 if __name__ == "__main__":
