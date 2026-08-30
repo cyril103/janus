@@ -17,6 +17,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 - exposition des combinateurs d'`Option` et `Result` comme méthodes chaînables,
   tout en conservant les fonctions libres compatibles ;
+- ajout de `flatten`, `filter`, `fold`, `contains`, `zip`, `map2`, `inspect`,
+  `unwrapOrElse`, `orElseWith`, `toResult`, `inspectError` et `transpose`, avec
+  contrats explicites de paresse, d'ordre d'évaluation et de destruction ;
+- formalisation des lois de `map` et `andThen` pour valeurs copiables et
+  propriétaires, testées sous sanitizers ;
 - prise en charge des extensions par le formateur, le LSP, la documentation
   d'API, l'index incrémental et la grammaire VS Code.
 

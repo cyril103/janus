@@ -1,6 +1,12 @@
 import std.option
 import std.result
 
+var observations : int = 0
+
+def intResultValue(value : Result[int, int]) : int {
+    return std.result.unwrapOr[int, int](value, 0)
+}
+
 def main() : int {
     val option : Option[int] = Option.Some[int](20)
     val mapped : Option[int] = option.map(value => value * 2)
@@ -13,5 +19,62 @@ def main() : int {
     )
     val converted : Option[int] = chained.toOption()
     println(converted.unwrapOr(0))
+
+    println(Option.Some[Option[int]](
+        Option.Some[int](3)
+        ).flatten().unwrapOr(0))
+    println(Option.Some[int](4).filter(
+        (borrow value : int) => value % 2 == 0
+        ).contains(4))
+    println(Option.Some[int](2).fold[int](
+        7, (value : int) => value + 1
+    ))
+    val optionPair : Option[OptionPair[int, int]] =
+    Option.Some[int](2).zip[int](Option.Some[int](5))
+    println(match optionPair {
+            Some(pair) => pair.left + pair.right,
+            None => -1
+    })
+    println(Option.Some[int](2).map2[int, int](
+        Option.Some[int](5),
+        (left : int, right : int) => left * right
+        ).unwrapOr(0))
+    println(Option.Some[int](4).inspect(
+        (borrow value : int) => { observations = observations + value }
+        ).unwrapOr(0))
+    println(Option.None[int]().unwrapOrElse(() => 9))
+    println(Option.None[int]().orElseWith(
+        () => Option.Some[int](10)
+        ).unwrapOr(0))
+
+    println(Result.Ok[Result[int, int], int](
+        Result.Ok[int, int](3)
+        ).flatten().unwrapOr(0))
+    println(Result.Error[int, int](3).fold[int](
+        (value : int) => value,
+        (error : int) => error * 2
+    ))
+    val resultPair : Result[ResultPair[int, int], int] =
+    Result.Ok[int, int](2).zip[int](Result.Ok[int, int](5))
+    println(match resultPair {
+            Ok(pair) => pair.left + pair.right,
+            Error(error) => -error
+    })
+    println(Result.Ok[int, int](2).map2[int, int](
+        Result.Ok[int, int](5),
+        (left : int, right : int) => left * right
+        ).unwrapOr(0))
+    println(Result.Ok[int, int](4).inspect(
+        (borrow value : int) => { observations = observations + value }
+        ).unwrapOr(0))
+    println(Result.Error[int, int](3).inspectError(
+        (borrow error : int) => { observations = observations + error }
+        ).unwrapOrElse((error : int) => error + 10))
+    println(Result.Ok[Option[int], int](
+        Option.Some[int](6)
+        ).transpose().map[int](
+        (value : Result[int, int]) => intResultValue(value)
+        ).unwrapOr(0))
+    println(observations)
     return 0
 }

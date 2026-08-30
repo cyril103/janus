@@ -1,0 +1,230 @@
+import std.option
+import std.result
+
+var optionCalls : int = 0
+var resultCalls : int = 0
+
+def identity(value : int) : int { return value }
+def plusOne(value : int) : int { return value + 1 }
+def timesTwo(value : int) : int { return value * 2 }
+def composed(value : int) : int { return timesTwo(plusOne(value)) }
+
+def someIdentity(value : int) : Option[int] {
+    return Option.Some[int](value)
+}
+
+def somePlusOne(value : int) : Option[int] {
+    return Option.Some[int](value + 1)
+}
+
+def someTimesTwo(value : int) : Option[int] {
+    return Option.Some[int](value * 2)
+}
+
+def okIdentity(value : int) : Result[int, int] {
+    return Result.Ok[int, int](value)
+}
+
+def okPlusOne(value : int) : Result[int, int] {
+    return Result.Ok[int, int](value + 1)
+}
+
+def okTimesTwo(value : int) : Result[int, int] {
+    return Result.Ok[int, int](value * 2)
+}
+
+def optionValue(value : Option[int]) : int {
+    return std.option.unwrapOr[int](value, -1)
+}
+
+def resultValue(value : Result[int, int]) : int {
+    return std.result.unwrapOr[int, int](value, -1)
+}
+
+def optionFallback() : int {
+    optionCalls = optionCalls + 1
+    return 9
+}
+
+def optionAlternative() : Option[int] {
+    optionCalls = optionCalls + 1
+    return Option.Some[int](10)
+}
+
+def resultFallback(error : int) : int {
+    resultCalls = resultCalls + 1
+    return error + 10
+}
+
+def observeOption(borrow value : int) : Unit {
+    optionCalls = optionCalls + value
+}
+
+def observeResult(borrow value : int) : Unit {
+    resultCalls = resultCalls + value
+}
+
+def main() : int {
+    println(optionValue(std.option.flatten[int](
+        Option.Some[Option[int]](Option.Some[int](3))
+    )))
+    println(optionValue(filter[int](
+        Option.Some[int](4),
+        (borrow value : int) => value % 2 == 0
+    )))
+    println(optionValue(filter[int](
+        Option.Some[int](3),
+        (borrow value : int) => value % 2 == 0
+    )))
+    println(std.option.fold[int, int](
+        Option.Some[int](2), 7, (value : int) => plusOne(value)
+    ))
+    println(std.option.fold[int, int](
+        Option.None[int](), 7, (value : int) => plusOne(value)
+    ))
+    println(contains[int](Option.Some[int](3), 3))
+
+    val optionPair : Option[OptionPair[int, int]] = std.option.zip[int, int](
+        Option.Some[int](2), Option.Some[int](5)
+    )
+    println(match optionPair {
+            Some(pair) => pair.left + pair.right,
+            None => -1
+    })
+    println(optionValue(std.option.map2[int, int, int](
+        Option.Some[int](2), Option.Some[int](5),
+        (left : int, right : int) => left * right
+    )))
+
+    println(optionValue(std.option.inspect[int](
+        Option.Some[int](4),
+        (borrow value : int) => observeOption(value)
+    )))
+    println(optionCalls)
+    println(std.option.unwrapOrElse[int](
+        Option.Some[int](8), () => optionFallback()
+    ))
+    println(std.option.unwrapOrElse[int](
+        Option.None[int](), () => optionFallback()
+    ))
+    println(optionValue(orElseWith[int](
+        Option.Some[int](11), () => optionAlternative()
+    )))
+    println(optionValue(orElseWith[int](
+        Option.None[int](), () => optionAlternative()
+    )))
+    println(optionCalls)
+
+    println(optionValue(std.option.map[int, int](
+        Option.Some[int](5), (value : int) => identity(value)
+        )) == 5)
+    println(optionValue(std.option.map[int, int](
+        std.option.map[int, int](
+        Option.Some[int](5), (value : int) => plusOne(value)
+        ),
+        (value : int) => timesTwo(value)
+        )) == optionValue(std.option.map[int, int](
+        Option.Some[int](5), (value : int) => composed(value)
+    )))
+    println(optionValue(std.option.andThen[int, int](
+        Option.Some[int](5), (value : int) => someIdentity(value)
+        )) == 5)
+    println(optionValue(std.option.andThen[int, int](
+        Option.Some[int](5), (value : int) => somePlusOne(value)
+        )) == optionValue(somePlusOne(5)))
+    println(optionValue(std.option.andThen[int, int](
+        std.option.andThen[int, int](
+        Option.Some[int](5), (value : int) => somePlusOne(value)
+        ),
+        (value : int) => someTimesTwo(value)
+        )) == optionValue(std.option.andThen[int, int](
+        Option.Some[int](5),
+        (value : int) => std.option.andThen[int, int](
+        somePlusOne(value), (next : int) => someTimesTwo(next)
+        )
+    )))
+
+    println(resultValue(std.result.flatten[int, int](
+        Result.Ok[Result[int, int], int](Result.Ok[int, int](3))
+    )))
+    println(std.result.fold[int, int, int](
+        Result.Ok[int, int](2),
+        (value : int) => plusOne(value),
+        (error : int) => timesTwo(error)
+    ))
+    println(std.result.fold[int, int, int](
+        Result.Error[int, int](3),
+        (value : int) => plusOne(value),
+        (error : int) => timesTwo(error)
+    ))
+
+    val resultPair : Result[ResultPair[int, int], int] = std.result.zip[int, int, int](
+        Result.Ok[int, int](2), Result.Ok[int, int](5)
+    )
+    println(match resultPair {
+            Ok(pair) => pair.left + pair.right,
+            Error(error) => -error
+    })
+    println(resultValue(std.result.map2[int, int, int, int](
+        Result.Ok[int, int](2), Result.Ok[int, int](5),
+        (left : int, right : int) => left * right
+    )))
+
+    println(resultValue(std.result.inspect[int, int](
+        Result.Ok[int, int](4),
+        (borrow value : int) => observeResult(value)
+    )))
+    println(resultValue(inspectError[int, int](
+        Result.Error[int, int](3),
+        (borrow error : int) => observeResult(error)
+    )))
+    println(resultCalls)
+    println(std.result.unwrapOrElse[int, int](
+        Result.Ok[int, int](8), (error : int) => resultFallback(error)
+    ))
+    println(std.result.unwrapOrElse[int, int](
+        Result.Error[int, int](2), (error : int) => resultFallback(error)
+    ))
+    println(resultCalls)
+
+    println(optionValue(transpose[int, int](
+        Result.Ok[Option[int], int](Option.Some[int](6))
+        ).map[int]((value : Result[int, int]) => resultValue(value))))
+    println(isNone[Result[int, int]](transpose[int, int](
+        Result.Ok[Option[int], int](Option.None[int]())
+    )))
+    println(optionValue(transpose[int, int](
+        Result.Error[Option[int], int](7)
+        ).map[int]((value : Result[int, int]) => resultValue(value))))
+    println(resultValue(toResult[int, int](Option.Some[int](12), 4)))
+
+    println(resultValue(std.result.map[int, int, int](
+        Result.Ok[int, int](5), (value : int) => identity(value)
+        )) == 5)
+    println(resultValue(std.result.map[int, int, int](
+        std.result.map[int, int, int](
+        Result.Ok[int, int](5), (value : int) => plusOne(value)
+        ),
+        (value : int) => timesTwo(value)
+        )) == resultValue(std.result.map[int, int, int](
+        Result.Ok[int, int](5), (value : int) => composed(value)
+    )))
+    println(resultValue(std.result.andThen[int, int, int](
+        Result.Ok[int, int](5), (value : int) => okIdentity(value)
+        )) == 5)
+    println(resultValue(std.result.andThen[int, int, int](
+        Result.Ok[int, int](5), (value : int) => okPlusOne(value)
+        )) == resultValue(okPlusOne(5)))
+    println(resultValue(std.result.andThen[int, int, int](
+        std.result.andThen[int, int, int](
+        Result.Ok[int, int](5), (value : int) => okPlusOne(value)
+        ),
+        (value : int) => okTimesTwo(value)
+        )) == resultValue(std.result.andThen[int, int, int](
+        Result.Ok[int, int](5),
+        (value : int) => std.result.andThen[int, int, int](
+        okPlusOne(value), (next : int) => okTimesTwo(next)
+        )
+    )))
+    return 0
+}

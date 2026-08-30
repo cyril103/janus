@@ -130,7 +130,10 @@ def main() : int {
 ```
 
 Les combinateurs restent disponibles comme fonctions libres et comme méthodes
-d'extension (`map`, `andThen`, `orElse`, `unwrapOr`, observations empruntées).
+d'extension. La surface comprend notamment `flatten`, `filter`, `fold`,
+`contains`, `zip`, `map2`, `inspect`, `unwrapOrElse` et `orElseWith`. La
+[matrice ownership/paresse/coût](design/option-result-combinators.md) fixe leur
+ordre d'évaluation et la destruction des branches inactives.
 
 ```janus
 // doctest: compile_fail=J0000 name=stdlib-std-option-requires-handling
@@ -155,9 +158,11 @@ def main() : int {
 
 ### `std.result`
 
-`Result` expose également ses combinateurs comme méthodes d'extension, dont
-`map`, `mapError`, `andThen`, `orElse` et `toOption`; les fonctions libres sont
-conservées pour la compatibilité.
+`Result` expose également `flatten`, `fold`, `zip`, `map2`, `inspect`,
+`inspectError`, `unwrapOrElse` et `transpose` comme méthodes d'extension. Les
+fonctions libres sont conservées. `std.result.toResult(option, error)` fournit
+la conversion depuis `Option`; elle vit dans ce module afin d'éviter un cycle
+entre `std.option` et `std.result`.
 
 ```janus
 // doctest: doctest name=stdlib-std-result

@@ -1,0 +1,328 @@
+import std.option
+import std.result
+
+var releases : int = 0
+var observations : int = 0
+var fallbackCalls : int = 0
+
+class Resource(val id : int) {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+def identityResource(value : Resource) : Resource {
+    return move value
+}
+
+def plusOneResource(value : Resource) : Resource {
+    val result : Resource = new Resource(value.id + 1)
+    delete value
+    return result
+}
+
+def timesTwoResource(value : Resource) : Resource {
+    val result : Resource = new Resource(value.id * 2)
+    delete value
+    return result
+}
+
+def composedResource(value : Resource) : Resource {
+    return timesTwoResource(plusOneResource(move value))
+}
+
+def someIdentityResource(value : Resource) : Option[Resource] {
+    return Option.Some[Resource](move value)
+}
+
+def somePlusOneResource(value : Resource) : Option[Resource] {
+    return Option.Some[Resource](plusOneResource(move value))
+}
+
+def someTimesTwoResource(value : Resource) : Option[Resource] {
+    return Option.Some[Resource](timesTwoResource(move value))
+}
+
+def okIdentityResource(value : Resource) : Result[Resource, Resource] {
+    return Result.Ok[Resource, Resource](move value)
+}
+
+def okPlusOneResource(value : Resource) : Result[Resource, Resource] {
+    return Result.Ok[Resource, Resource](plusOneResource(move value))
+}
+
+def okTimesTwoResource(value : Resource) : Result[Resource, Resource] {
+    return Result.Ok[Resource, Resource](timesTwoResource(move value))
+}
+
+def optionId(value : Option[Resource]) : int {
+    val id : Option[int] = std.option.mapBorrowed[Resource, int](
+        value, (borrow item : Resource) => item.id
+    )
+    val result : int = std.option.unwrapOr[int](id, -1)
+    delete value
+    return result
+}
+
+def resultId(value : Result[Resource, Resource]) : int {
+    val id : Option[int] = std.result.mapBorrowed[Resource, int, Resource](
+        value, (borrow item : Resource) => item.id
+    )
+    val result : int = std.option.unwrapOr[int](id, -1)
+    delete value
+    return result
+}
+
+def combineResources(left : Resource, right : Resource) : Resource {
+    val result : Resource = new Resource(left.id + right.id)
+    delete left
+    delete right
+    return result
+}
+
+def observeResource(borrow value : Resource) : Unit {
+    observations = observations + value.id
+}
+
+def trackedFallback(value : int) : () => Resource {
+    return () => {
+        fallbackCalls = fallbackCalls + 1
+        return new Resource(value)
+    }
+}
+
+def trackedOptionFallback(value : int) : () => Option[Resource] {
+    return () => {
+        fallbackCalls = fallbackCalls + 1
+        return Option.Some[Resource](new Resource(value))
+    }
+}
+
+def main() : int {
+    println(optionId(std.option.map[Resource, Resource](
+        Option.Some[Resource](new Resource(5)),
+        (value : Resource) => identityResource(value)
+        )) == 5)
+
+    val optionComposedLeft : int = optionId(std.option.map[Resource, Resource](
+        std.option.map[Resource, Resource](
+        Option.Some[Resource](new Resource(5)),
+        (value : Resource) => plusOneResource(value)
+        ),
+        (value : Resource) => timesTwoResource(value)
+    ))
+    val optionComposedRight : int = optionId(std.option.map[Resource, Resource](
+        Option.Some[Resource](new Resource(5)),
+        (value : Resource) => composedResource(value)
+    ))
+    println(optionComposedLeft == optionComposedRight)
+
+    println(optionId(std.option.andThen[Resource, Resource](
+        Option.Some[Resource](new Resource(6)),
+        (value : Resource) => someIdentityResource(value)
+        )) == 6)
+    println(optionId(std.option.andThen[Resource, Resource](
+        Option.Some[Resource](new Resource(6)),
+        (value : Resource) => somePlusOneResource(value)
+        )) == optionId(somePlusOneResource(new Resource(6))))
+    println(optionId(std.option.andThen[Resource, Resource](
+        std.option.andThen[Resource, Resource](
+        Option.Some[Resource](new Resource(6)),
+        (value : Resource) => somePlusOneResource(value)
+        ),
+        (value : Resource) => someTimesTwoResource(value)
+        )) == optionId(std.option.andThen[Resource, Resource](
+        Option.Some[Resource](new Resource(6)),
+        (value : Resource) => std.option.andThen[Resource, Resource](
+        somePlusOneResource(value),
+        (next : Resource) => someTimesTwoResource(next)
+        )
+    )))
+
+    var before : int = releases
+    val rejected : Option[Resource] = std.option.filter[Resource](
+        Option.Some[Resource](new Resource(1)),
+        (borrow value : Resource) => false
+    )
+    delete rejected
+    println(releases - before)
+
+    before = releases
+    val zipped : Option[OptionPair[Resource, Resource]] = std.option.zip[
+        Resource, Resource
+    ](
+        Option.Some[Resource](new Resource(2)),
+        Option.Some[Resource](new Resource(3))
+    )
+    delete zipped
+    println(releases - before)
+
+    before = releases
+    val missingZip : Option[OptionPair[Resource, Resource]] = std.option.zip[
+        Resource, Resource
+    ](
+        Option.None[Resource](),
+        Option.Some[Resource](new Resource(4))
+    )
+    delete missingZip
+    println(releases - before)
+
+    before = releases
+    val combined : Option[Resource] = std.option.map2[
+        Resource, Resource, Resource
+    ](
+        Option.Some[Resource](new Resource(5)),
+        Option.Some[Resource](new Resource(6)),
+        (left : Resource, right : Resource) => combineResources(
+        left, right
+        )
+    )
+    delete combined
+    println(releases - before)
+
+    before = releases
+    val inspected : Option[Resource] = std.option.inspect[Resource](
+        Option.Some[Resource](new Resource(7)),
+        (borrow value : Resource) => observeResource(value)
+    )
+    delete inspected
+    println(observations)
+    println(releases - before)
+
+    before = releases
+    val kept : Resource = std.option.unwrapOrElse[Resource](
+        Option.Some[Resource](new Resource(8)), trackedFallback(80)
+    )
+    delete kept
+    println(releases - before)
+
+    before = releases
+    val defaulted : Resource = std.option.unwrapOrElse[Resource](
+        Option.None[Resource](), trackedFallback(9)
+    )
+    delete defaulted
+    println(releases - before)
+
+    before = releases
+    val alternative : Option[Resource] = std.option.orElseWith[Resource](
+        Option.None[Resource](), trackedOptionFallback(10)
+    )
+    delete alternative
+    println(releases - before)
+    println(fallbackCalls)
+
+    println(resultId(std.result.map[Resource, Resource, Resource](
+        Result.Ok[Resource, Resource](new Resource(5)),
+        (value : Resource) => identityResource(value)
+        )) == 5)
+
+    val resultComposedLeft : int = resultId(std.result.map[
+        Resource, Resource, Resource
+        ](
+        std.result.map[Resource, Resource, Resource](
+        Result.Ok[Resource, Resource](new Resource(5)),
+        (value : Resource) => plusOneResource(value)
+        ),
+        (value : Resource) => timesTwoResource(value)
+    ))
+    val resultComposedRight : int = resultId(std.result.map[
+        Resource, Resource, Resource
+        ](
+        Result.Ok[Resource, Resource](new Resource(5)),
+        (value : Resource) => composedResource(value)
+    ))
+    println(resultComposedLeft == resultComposedRight)
+
+    println(resultId(std.result.andThen[Resource, Resource, Resource](
+        Result.Ok[Resource, Resource](new Resource(6)),
+        (value : Resource) => okIdentityResource(value)
+        )) == 6)
+    println(resultId(std.result.andThen[Resource, Resource, Resource](
+        Result.Ok[Resource, Resource](new Resource(6)),
+        (value : Resource) => okPlusOneResource(value)
+        )) == resultId(okPlusOneResource(new Resource(6))))
+    println(resultId(std.result.andThen[Resource, Resource, Resource](
+        std.result.andThen[Resource, Resource, Resource](
+        Result.Ok[Resource, Resource](new Resource(6)),
+        (value : Resource) => okPlusOneResource(value)
+        ),
+        (value : Resource) => okTimesTwoResource(value)
+        )) == resultId(std.result.andThen[Resource, Resource, Resource](
+        Result.Ok[Resource, Resource](new Resource(6)),
+        (value : Resource) => std.result.andThen[
+        Resource, Resource, Resource
+        ](
+        okPlusOneResource(value),
+        (next : Resource) => okTimesTwoResource(next)
+        )
+    )))
+
+    before = releases
+    val resultZip : Result[ResultPair[Resource, Resource], Resource] =
+    std.result.zip[Resource, Resource, Resource](
+        Result.Error[Resource, Resource](new Resource(11)),
+        Result.Ok[Resource, Resource](new Resource(12))
+    )
+    delete resultZip
+    println(releases - before)
+
+    before = releases
+    val resultCombined : Result[Resource, Resource] = std.result.map2[
+        Resource, Resource, Resource, Resource
+    ](
+        Result.Ok[Resource, Resource](new Resource(13)),
+        Result.Ok[Resource, Resource](new Resource(14)),
+        (left : Resource, right : Resource) => combineResources(
+        left, right
+        )
+    )
+    delete resultCombined
+    println(releases - before)
+
+    before = releases
+    val inspectedError : Result[Resource, Resource] =
+    std.result.inspectError[Resource, Resource](
+        Result.Error[Resource, Resource](new Resource(15)),
+        (borrow error : Resource) => observeResource(error)
+    )
+    delete inspectedError
+    println(observations)
+    println(releases - before)
+
+    before = releases
+    val recovered : Resource = std.result.unwrapOrElse[Resource, Resource](
+        Result.Error[Resource, Resource](new Resource(16)),
+        (error : Resource) => plusOneResource(error)
+    )
+    delete recovered
+    println(releases - before)
+
+    before = releases
+    val transposed : Option[Result[Resource, Resource]] =
+    std.result.transpose[Resource, Resource](
+        Result.Error[Option[Resource], Resource](new Resource(17))
+    )
+    delete transposed
+    println(releases - before)
+
+    before = releases
+    val converted : Result[Resource, Resource] = std.result.toResult[
+        Resource, Resource
+    ](
+        Option.Some[Resource](new Resource(18)), new Resource(19)
+    )
+    delete converted
+    println(releases - before)
+
+    before = releases
+    val flattened : Result[Resource, Resource] = std.result.flatten[
+        Resource, Resource
+    ](
+        Result.Ok[Result[Resource, Resource], Resource](
+        Result.Ok[Resource, Resource](new Resource(20))
+        )
+    )
+    delete flattened
+    println(releases - before)
+    return 0
+}

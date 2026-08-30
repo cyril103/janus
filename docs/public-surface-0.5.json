@@ -191,10 +191,10 @@
     {
       "name": "std.option",
       "source": "stdlib/std/option.janus",
-      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/option-result-combinators.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "ffee90feb3a968d34ba096eebad42b6b5b73fd8892bc335d2b00a7973669d095",
-      "symbols": ["Option", "Option.Some", "Option.None", "isSome", "isNone", "mapBorrowed", "map", "andThen", "orElse", "unwrapOr"]
+      "signature_digest": "71fa1ea7fb01096c6cc1d38a88c8ac0b7416b437c549b0329a20addab4e5a1b3",
+      "symbols": ["Option", "Option.Some", "Option.None", "OptionPair", "OptionPair.left", "OptionPair.right", "isSome", "isNone", "mapBorrowed", "map", "andThen", "flatten", "filter", "fold", "contains", "zip", "map2", "inspect", "orElse", "unwrapOr", "unwrapOrElse", "orElseWith"]
     },
     {
       "name": "std.ordering",
@@ -247,10 +247,10 @@
     {
       "name": "std.result",
       "source": "stdlib/std/result.janus",
-      "documentation": ["docs/language-guide.md", "docs/stability-contract.md"],
+      "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/option-result-combinators.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "b7286531da09c5bb87cde5900c02831d4f632e030bce856c4f9749743e4dfb65",
-      "symbols": ["Result", "Result.Ok", "Result.Error", "isOk", "isError", "mapBorrowed", "mapErrorBorrowed", "map", "mapError", "andThen", "orElse", "unwrapOr", "toOption", "fromOption"]
+      "signature_digest": "1afa63572e7df977144a74d30bda84fc97be77c7fd4530c92a97bee94f0b641a",
+      "symbols": ["Result", "Result.Ok", "Result.Error", "ResultPair", "ResultPair.left", "ResultPair.right", "isOk", "isError", "mapBorrowed", "mapErrorBorrowed", "map", "mapError", "andThen", "flatten", "fold", "zip", "map2", "inspect", "inspectError", "orElse", "unwrapOr", "unwrapOrElse", "toOption", "fromOption", "toResult", "transpose"]
     },
     {
       "name": "std.slice",

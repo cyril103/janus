@@ -23,6 +23,11 @@ Après chaque étape, régénérez `janus.lock`, lancez `janus fmt --check`, pui
 
 - Préférez les opérations sûres renvoyant `Option` ou `Result` pour les
   collections, chemins, fichiers, flux, processus et services système.
+- Les `match` servant uniquement à transformer ou combiner `Option`/`Result`
+  peuvent migrer vers `map2`, `fold`, `filter`, `flatten` ou `transpose`. Les
+  fallbacks coûteux doivent utiliser `unwrapOrElse`/`orElseWith`; `unwrapOr` et
+  `orElse` restent stricts et évaluent leur argument avant l'appel. `zip` et
+  `map2` sélectionnent la branche gauche en premier.
 - Les manifestes exigent `[package]` avec `name`, `version` et `entry`.
   Convertissez les dépendances en entrée `path`, `git` avec révision complète,
   ou registre avec contrainte de version.

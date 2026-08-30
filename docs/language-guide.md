@@ -528,7 +528,7 @@ absente et `Result[T, E]` pour une opération qui peut échouer. L'opérateur `?
 propage automatiquement une absence ou une erreur depuis une fonction
 compatible.
 
-Le module `std.option` fournit sept combinateurs génériques :
+Le module `std.option` fournit un noyau de combinateurs génériques :
 
 | Fonction | Effet |
 | --- | --- |
@@ -537,8 +537,17 @@ Le module `std.option` fournit sept combinateurs génériques :
 | `mapBorrowed[T, U](value, transform)` | transforme un emprunt du contenu sans consommer l'option |
 | `map[T, U](value, transform)` | transforme le contenu de `Some` |
 | `andThen[T, U](value, transform)` | chaîne une fonction qui retourne une `Option[U]` |
+| `flatten[T](value)` | supprime un niveau `Option[Option[T]]` |
+| `filter[T](value, predicate)` | conserve un contenu satisfaisant un prédicat emprunté |
+| `fold[T, U](value, fallback, transform)` | réduit les deux variantes vers `U` |
+| `contains[T](value, expected)` | compare par égalité dérivée sans transfert |
+| `zip[T, U](left, right)` | regroupe deux contenus dans `OptionPair[T, U]` |
+| `map2[T, U, V](left, right, combine)` | combine deux contenus sans paire intermédiaire |
+| `inspect[T](value, action)` | observe `Some` puis retransmet l'option |
 | `orElse[T](value, fallback)` | conserve `value` si présente, sinon retourne `fallback` |
 | `unwrapOr[T](value, fallback)` | extrait la valeur présente, sinon retourne `fallback` |
+| `unwrapOrElse[T](value, fallback)` | calcule paresseusement une valeur pour `None` |
+| `orElseWith[T](value, fallback)` | calcule paresseusement une option pour `None` |
 
 Pour un type `Copy`, ces fonctions s'utilisent directement :
 
@@ -567,13 +576,18 @@ reçoit `borrow T`, produit une valeur indépendante et ne peut pas s'échapper 
 l'appel grâce à `scoped`; l'option reste ensuite utilisable et propriétaire de
 son contenu.
 
-Les quatre autres fonctions sont consommantes. Une variable `Option[Resource]`
+Les opérations autres que les observations sont consommantes. Une variable `Option[Resource]`
 doit leur être passée avec `move`; le résultat possède alors la valeur
 transférée. `map` et `andThen` n'appellent leur closure que pour `Some`.
 `orElse` détruit la valeur de repli lorsque la première option est présente ;
 `unwrapOr` détruit de même le repli inutilisé. Pour `None`, le repli est
 transféré au résultat. Une closure reçue par `map` ou `andThen` est détruite
 après l'appel, y compris lorsque l'option est vide.
+
+`zip` et `map2` inspectent la gauche avant la droite. Les fallbacks de
+`unwrapOrElse` et `orElseWith` ne sont jamais appelés pour `Some`. La
+[matrice complète](design/option-result-combinators.md) documente ownership,
+paresse, coûts, lois et ordre de destruction.
 
 Les fonctions sont aussi accessibles avec leur nom qualifié, par exemple
 `std.option.map`, ce qui évite toute ambiguïté avec les combinateurs similaires
@@ -591,10 +605,19 @@ variantes :
 | `map[T, U, E](value, transform)` | transforme la valeur de `Ok` |
 | `mapError[T, E, F](value, transform)` | transforme l'erreur |
 | `andThen[T, U, E](value, transform)` | chaîne une opération qui peut échouer |
+| `flatten[T, E](value)` | supprime un niveau de résultat imbriqué homogène |
+| `fold[T, E, U](value, onOk, onError)` | réduit la branche active vers `U` |
+| `zip[T, U, E](left, right)` | regroupe deux succès dans `ResultPair[T, U]` |
+| `map2[T, U, E, V](left, right, combine)` | combine deux succès ou conserve la première erreur |
+| `inspect[T, E](value, action)` | observe `Ok` puis retransmet le résultat |
+| `inspectError[T, E](value, action)` | observe `Error` puis retransmet le résultat |
 | `orElse[T, E, F](value, transform)` | récupère une erreur avec une autre opération |
 | `unwrapOr[T, E](value, fallback)` | extrait la valeur ou retourne le repli |
+| `unwrapOrElse[T, E](value, fallback)` | calcule le repli uniquement pour `Error` |
 | `toOption[T, E](value)` | conserve `Ok` comme `Some` et élimine l'erreur |
 | `fromOption[T, E](value, error)` | convertit `Some` en `Ok` et `None` en `Error` |
+| `toResult[T, E](value, error)` | forme orientée `Option` équivalente à `fromOption` |
+| `transpose[T, E](value)` | distribue `Result[Option[T], E]` vers `Option[Result[T, E]]` |
 
 `isOk`, `isError`, `mapBorrowed` et `mapErrorBorrowed` observent une variable
 locale propriétaire sans la consommer. Les autres opérations sont consommantes : la closure n'est appelée

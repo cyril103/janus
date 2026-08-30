@@ -16,7 +16,30 @@ enum Option[T] {
     None
 }
 
+/// Paire propriétaire produite par [[zip]].
+///
+/// Les membres sont déplacés depuis les deux options, de gauche à droite.
+/// @param left Valeur de la première option.
+/// @param right Valeur de la seconde option.
+struct OptionPair[A, B](
+    /// Valeur provenant de la première option.
+    val left : A,
+    /// Valeur provenant de la seconde option.
+    val right : B
+) {}
+
+private def optionInvariant[T]() : T {
+    panic("Option ownership state invariant violated\n")
+}
+
 private class OptionFallback[T](private var value : Option[T]) {
+    borrow def hasValue() : bool {
+        return match value {
+            Some(item) => true,
+            None => false
+        }
+    }
+
     private def takeOption() : Option[T] {
         val previous : Option[T] = move value
         value = Option.None[T]()
@@ -33,13 +56,53 @@ private class OptionFallback[T](private var value : Option[T]) {
         val previous : Option[T] = this.takeOption()
         return match move previous {
             Some(item) => move item,
-            None => this.take()
+            None => optionInvariant[T]()
         }
     }
 
     destructor {
         delete value
     }
+}
+
+private class OptionFilterState[T](private var value : Option[T]) {
+    def keep(scoped predicate : (borrow T) => bool) : bool {
+        defer delete predicate
+        return match value {
+            Some(item) => predicate(item),
+            None => false
+        }
+    }
+
+    def take() : Option[T] {
+        val previous : Option[T] = move value
+        value = Option.None[T]()
+        return move previous
+    }
+
+    destructor {
+        delete value
+    }
+}
+
+private def observeSomeValue[T](
+    borrow value : T,
+    borrow action : (borrow T) => Unit
+) : bool {
+    action(value)
+    return true
+}
+
+private def observeSome[T](
+    borrow value : Option[T],
+    scoped action : (borrow T) => Unit
+) : Unit {
+    defer delete action
+    val observed : bool = match value {
+        Some(item) => observeSomeValue[T](item, action),
+        None => false
+    }
+    if observed { return }
 }
 
 /// Indique si l’option contient une valeur.
@@ -112,6 +175,207 @@ def andThen[T, U](
     return match move value {
         Some(item) => transform(move item),
         None => Option.None[U]()
+    }
+}
+
+/// Supprime un niveau d'imbrication d'une option consommée.
+///
+/// @example
+/// ```janus
+/// val flat : Option[int] = flatten[int](Option.Some[Option[int]](Option.Some[int](1)))
+/// ```
+/// @param value Option extérieure consommée.
+/// @return Option intérieure déplacée pour `Some`, sinon `None`.
+def flatten[T](value : Option[Option[T]]) : Option[T] {
+    return match move value {
+        Some(inner) => move inner,
+        None => Option.None[T]()
+    }
+}
+
+/// Conserve une valeur présente lorsqu'elle satisfait un prédicat.
+///
+/// Le prédicat observe la valeur avant son éventuel déplacement. Une valeur
+/// refusée est détruite avant le retour.
+/// @example
+/// ```janus
+/// val positive : Option[int] = filter[int](Option.Some[int](1), (borrow item : int) => item > 0)
+/// ```
+/// @param value Option consommée.
+/// @param predicate Fonction bornée appelée uniquement pour `Some`.
+/// @return L'option d'origine si le prédicat réussit, sinon `None`.
+def filter[T](
+    value : Option[T],
+    scoped predicate : (borrow T) => bool
+) : Option[T] {
+    val state : OptionFilterState[T] =
+    new OptionFilterState[T](move value)
+    defer delete state
+    if state.keep(move predicate) {
+        return state.take()
+    }
+    return Option.None[T]()
+}
+
+/// Réduit une option vers une valeur unique.
+///
+/// `fallback` est évalué avant l'appel. Il est retourné pour `None` et détruit
+/// avant le retour pour `Some`; `transform` n'est appelée que pour `Some`.
+/// @example
+/// ```janus
+/// val total : int = fold[int, int](Option.Some[int](2), 0, (item : int) => item + 1)
+/// ```
+/// @param value Option consommée.
+/// @param fallback Valeur utilisée pour `None`.
+/// @param transform Fonction bornée transformant le contenu de `Some`.
+/// @return Le résultat de `transform` ou `fallback`.
+def fold[T, U](
+    value : Option[T],
+    fallback : U,
+    scoped transform : (T) => U
+) : U {
+    defer delete transform
+    val state : OptionFallback[U] =
+    new OptionFallback[U](Option.Some[U](move fallback))
+    defer delete state
+    return match move value {
+        Some(item) => state.discardAndReturn[U](transform(move item)),
+        None => state.take()
+    }
+}
+
+/// Vérifie qu'une option contient une valeur égale à `expected`.
+///
+/// L'égalité dérivée de `T` est utilisée et les deux valeurs restent possédées
+/// par leurs appelants.
+/// @example
+/// ```janus
+/// val found : bool = contains[int](Option.Some[int](3), 3)
+/// ```
+/// @param value Option observée.
+/// @param expected Valeur observée à comparer.
+/// @return `true` pour un contenu égal, sinon `false`.
+def contains[T](borrow value : Option[T], borrow expected : T) : bool {
+    return match value {
+        Some(item) => __derivedEquals[T](item, expected),
+        None => false
+    }
+}
+
+/// Regroupe les contenus de deux options présentes.
+///
+/// `left` puis `right` sont évaluées avant l'appel. La branche gauche est
+/// inspectée avant la droite; dès qu'une absence est connue, toutes les valeurs
+/// déjà actives et la seconde option sont détruites exactement une fois.
+/// @example
+/// ```janus
+/// val pair : Option[OptionPair[int, int]] = zip[int, int](Option.Some[int](1), Option.Some[int](2))
+/// ```
+/// @param left Première option consommée.
+/// @param right Seconde option consommée.
+/// @return `Some(OptionPair)` si les deux valeurs sont présentes, sinon `None`.
+def zip[T, U](
+    left : Option[T],
+    right : Option[U]
+) : Option[OptionPair[T, U]] {
+    val leftState : OptionFallback[T] =
+    new OptionFallback[T](move left)
+    defer delete leftState
+    val rightState : OptionFallback[U] =
+    new OptionFallback[U](move right)
+    defer delete rightState
+    if leftState.hasValue() && rightState.hasValue() {
+        return Option.Some[OptionPair[T, U]](
+            new OptionPair[T, U](leftState.take(), rightState.take())
+        )
+    }
+    return Option.None[OptionPair[T, U]]()
+}
+
+/// Combine les contenus de deux options présentes.
+///
+/// L'ordre d'évaluation et de destruction est identique à [[zip]]. `combine`
+/// est appelée exactement une fois lorsque les deux options sont `Some`.
+/// @example
+/// ```janus
+/// val sum : Option[int] = map2[int, int, int](Option.Some[int](1), Option.Some[int](2), (a : int, b : int) => a + b)
+/// ```
+/// @param left Première option consommée.
+/// @param right Seconde option consommée.
+/// @param combine Fonction bornée recevant les valeurs gauche puis droite.
+/// @return `Some` du résultat combiné, sinon `None`.
+def map2[T, U, V](
+    left : Option[T],
+    right : Option[U],
+    scoped combine : (T, U) => V
+) : Option[V] {
+    defer delete combine
+    val leftState : OptionFallback[T] =
+    new OptionFallback[T](move left)
+    defer delete leftState
+    val rightState : OptionFallback[U] =
+    new OptionFallback[U](move right)
+    defer delete rightState
+    if leftState.hasValue() && rightState.hasValue() {
+        return Option.Some[V](combine(leftState.take(), rightState.take()))
+    }
+    return Option.None[V]()
+}
+
+/// Observe une valeur présente sans modifier le résultat de la chaîne.
+///
+/// @example
+/// ```janus
+/// val kept : Option[int] = inspect[int](Option.Some[int](1), (borrow item : int) => println(item))
+/// ```
+/// @param value Option consommée puis retournée.
+/// @param action Action bornée appelée uniquement pour `Some`.
+/// @return L'option d'origine, avec sa propriété transférée au résultat.
+def inspect[T](
+    value : Option[T],
+    scoped action : (borrow T) => Unit
+) : Option[T] {
+    observeSome[T](value, move action)
+    return move value
+}
+
+/// Extrait le contenu ou calcule paresseusement un remplacement.
+///
+/// @example
+/// ```janus
+/// val value : int = unwrapOrElse[int](Option.None[int](), () => 42)
+/// ```
+/// @param value Option consommée.
+/// @param fallback Fabrique bornée appelée uniquement pour `None`.
+/// @return Le contenu de `Some` ou le remplacement calculé.
+def unwrapOrElse[T](
+    value : Option[T],
+    scoped fallback : () => T
+) : T {
+    defer delete fallback
+    return match move value {
+        Some(item) => move item,
+        None => fallback()
+    }
+}
+
+/// Adopte paresseusement une option de remplacement.
+///
+/// @example
+/// ```janus
+/// val value : Option[int] = orElseWith[int](Option.None[int](), () => Option.Some[int](42))
+/// ```
+/// @param value Option consommée.
+/// @param fallback Fabrique bornée appelée uniquement pour `None`.
+/// @return L'option d'origine pour `Some`, sinon le remplacement calculé.
+def orElseWith[T](
+    value : Option[T],
+    scoped fallback : () => Option[T]
+) : Option[T] {
+    defer delete fallback
+    return match move value {
+        Some(item) => Option.Some[T](move item),
+        None => fallback()
     }
 }
 
@@ -191,6 +455,60 @@ extend[T] Option[T] {
         return andThen[T, U](move this, move transform)
     }
 
+    /// Conserve le contenu lorsqu'il satisfait un prédicat emprunté.
+    /// @param predicate Fonction bornée appelée uniquement pour `Some`.
+    /// @return Cette option si le prédicat réussit, sinon `None`.
+    consume def filter(
+        scoped predicate : (borrow T) => bool
+    ) : Option[T] {
+        return filter[T](move this, move predicate)
+    }
+
+    /// Réduit cette option vers une valeur unique.
+    /// @param fallback Valeur utilisée pour `None`.
+    /// @param transform Fonction bornée appelée uniquement pour `Some`.
+    /// @return Le résultat transformé ou `fallback`.
+    consume def fold[U](
+        fallback : U,
+        scoped transform : (T) => U
+    ) : U {
+        return fold[T, U](move this, move fallback, move transform)
+    }
+
+    /// Vérifie que le contenu est égal à `expected`.
+    /// @param expected Valeur observée à comparer.
+    /// @return `true` pour un contenu égal, sinon `false`.
+    borrow def contains(borrow expected : T) : bool {
+        return contains[T](this, expected)
+    }
+
+    /// Regroupe cette option avec une seconde option présente.
+    /// @param other Seconde option consommée après le receiver.
+    /// @return Une paire propriétaire si les deux options sont présentes.
+    consume def zip[U](
+        other : Option[U]
+    ) : Option[OptionPair[T, U]] {
+        return zip[T, U](move this, move other)
+    }
+
+    /// Combine cette option avec une seconde option présente.
+    /// @param other Seconde option consommée après le receiver.
+    /// @param combine Fonction bornée recevant les deux contenus dans l'ordre.
+    /// @return `Some` du résultat combiné, sinon `None`.
+    consume def map2[U, V](
+        other : Option[U],
+        scoped combine : (T, U) => V
+    ) : Option[V] {
+        return map2[T, U, V](move this, move other, move combine)
+    }
+
+    /// Observe le contenu sans interrompre une chaîne de transformations.
+    /// @param action Action bornée appelée uniquement pour `Some`.
+    /// @return Cette option consommée puis retransmise.
+    consume def inspect(scoped action : (borrow T) => Unit) : Option[T] {
+        return inspect[T](move this, move action)
+    }
+
     /// Consomme cette option et adopte une option de remplacement si vide.
     /// @param fallback Option de remplacement consommée.
     /// @return Cette option si présente, sinon `fallback`.
@@ -203,5 +521,30 @@ extend[T] Option[T] {
     /// @return Contenu présent, sinon `fallback`.
     consume def unwrapOr(fallback : T) : T {
         return unwrapOr[T](move this, move fallback)
+    }
+
+    /// Extrait le contenu ou calcule paresseusement un remplacement.
+    /// @param fallback Fabrique bornée appelée uniquement pour `None`.
+    /// @return Le contenu ou le remplacement calculé.
+    consume def unwrapOrElse(scoped fallback : () => T) : T {
+        return unwrapOrElse[T](move this, move fallback)
+    }
+
+    /// Calcule paresseusement une option de remplacement.
+    /// @param fallback Fabrique bornée appelée uniquement pour `None`.
+    /// @return Cette option pour `Some`, sinon le remplacement calculé.
+    consume def orElseWith(
+        scoped fallback : () => Option[T]
+    ) : Option[T] {
+        return orElseWith[T](move this, move fallback)
+    }
+}
+
+/// Méthodes disponibles uniquement pour une option imbriquée.
+extend[T] Option[Option[T]] {
+    /// Supprime un niveau d'imbrication.
+    /// @return L'option intérieure pour `Some`, sinon `None`.
+    consume def flatten() : Option[T] {
+        return flatten[T](move this)
     }
 }

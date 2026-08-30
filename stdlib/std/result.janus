@@ -18,6 +18,25 @@ enum Result[T, E] {
     Error(E)
 }
 
+/// Paire propriétaire produite par [[zip]].
+/// @param left Valeur du premier succès.
+/// @param right Valeur du second succès.
+struct ResultPair[A, B](
+    /// Valeur provenant du premier résultat.
+    val left : A,
+    /// Valeur provenant du second résultat.
+    val right : B
+) {}
+
+private def resultInvariant[T]() : T {
+    panic("Result ownership state invariant violated\n")
+}
+
+private def resultInvariantDiscard[T, U](value : U) : T {
+    delete value
+    panic("Result branch invariant violated\n")
+}
+
 private class ResultFallback[T](private var value : Option[T]) {
     private def takeOption() : Option[T] {
         val previous : Option[T] = move value
@@ -40,7 +59,50 @@ private class ResultFallback[T](private var value : Option[T]) {
         val previous : Option[T] = this.takeOption()
         return match move previous {
             Some(item) => move item,
-            None => this.take()
+            None => resultInvariant[T]()
+        }
+    }
+
+    destructor {
+        delete value
+    }
+}
+
+private class ResultState[T, E](
+    private var value : Option[Result[T, E]]
+) {
+    borrow def isOk() : bool {
+        return match value {
+            Some(result) => match result {
+                Ok(item) => true,
+                Error(error) => false
+            },
+            None => false
+        }
+    }
+
+    private def takeResult() : Result[T, E] {
+        val previous : Option[Result[T, E]] = move value
+        value = Option.None[Result[T, E]]()
+        return match move previous {
+            Some(result) => move result,
+            None => resultInvariant[Result[T, E]]()
+        }
+    }
+
+    def takeOk() : T {
+        val result : Result[T, E] = this.takeResult()
+        return match move result {
+            Ok(item) => move item,
+            Error(error) => resultInvariantDiscard[T, E](move error)
+        }
+    }
+
+    def takeError() : E {
+        val result : Result[T, E] = this.takeResult()
+        return match move result {
+            Ok(item) => resultInvariantDiscard[E, T](move item),
+            Error(error) => move error
         }
     }
 
@@ -52,6 +114,38 @@ private class ResultFallback[T](private var value : Option[T]) {
 private def discardAndNone[T, E](error : E) : Option[T] {
     delete error
     return Option.None[T]()
+}
+
+private def observeValue[T](
+    borrow value : T,
+    borrow action : (borrow T) => Unit
+) : bool {
+    action(value)
+    return true
+}
+
+private def observeOk[T, E](
+    borrow value : Result[T, E],
+    scoped action : (borrow T) => Unit
+) : Unit {
+    defer delete action
+    val observed : bool = match value {
+        Ok(item) => observeValue[T](item, action),
+        Error(error) => false
+    }
+    if observed { return }
+}
+
+private def observeError[T, E](
+    borrow value : Result[T, E],
+    scoped action : (borrow E) => Unit
+) : Unit {
+    defer delete action
+    val observed : bool = match value {
+        Ok(item) => false,
+        Error(error) => observeValue[E](error, action)
+    }
+    if observed { return }
 }
 
 /// Indique si le résultat contient une valeur de succès.
@@ -154,6 +248,166 @@ def andThen[T, U, E](
     }
 }
 
+/// Supprime un niveau d'imbrication d'un résultat consommé.
+/// @example
+/// ```janus
+/// val flat : Result[int, int] = flatten[int, int](Result.Ok[Result[int, int], int](Result.Ok[int, int](1)))
+/// ```
+/// @param value Résultat extérieur consommé.
+/// @return Résultat intérieur déplacé pour `Ok`, ou erreur extérieure déplacée.
+def flatten[T, E](value : Result[Result[T, E], E]) : Result[T, E] {
+    return match move value {
+        Ok(inner) => move inner,
+        Error(error) => Result.Error[T, E](move error)
+    }
+}
+
+/// Réduit les deux branches d'un résultat vers un même type.
+///
+/// Les callbacks sont évalués avant l'appel puis détruits avant le retour;
+/// seule la fonction correspondant à la branche active est appelée.
+/// @example
+/// ```janus
+/// val value : int = fold[int, int, int](Result.Ok[int, int](1), (item : int) => item, (error : int) => -error)
+/// ```
+/// @param value Résultat consommé.
+/// @param onOk Fonction bornée appelée pour `Ok`.
+/// @param onError Fonction bornée appelée pour `Error`.
+/// @return Projection de la branche active.
+def fold[T, E, U](
+    value : Result[T, E],
+    scoped onOk : (T) => U,
+    scoped onError : (E) => U
+) : U {
+    defer delete onOk
+    defer delete onError
+    return match move value {
+        Ok(item) => onOk(move item),
+        Error(error) => onError(move error)
+    }
+}
+
+/// Regroupe les succès de deux résultats.
+///
+/// `left` puis `right` sont évalués avant l'appel. La branche gauche est
+/// inspectée en premier; sa première erreur gagne et le résultat droit restant
+/// est alors détruit. Sinon la branche droite est inspectée.
+/// @example
+/// ```janus
+/// val pair : Result[ResultPair[int, int], int] = zip[int, int, int](Result.Ok[int, int](1), Result.Ok[int, int](2))
+/// ```
+/// @param left Premier résultat consommé.
+/// @param right Second résultat consommé.
+/// @return Paire des succès, ou première erreur dans l'ordre gauche-droite.
+def zip[T, U, E](
+    left : Result[T, E],
+    right : Result[U, E]
+) : Result[ResultPair[T, U], E] {
+    val leftState : ResultState[T, E] = new ResultState[T, E](
+        Option.Some[Result[T, E]](move left)
+    )
+    defer delete leftState
+    val rightState : ResultState[U, E] = new ResultState[U, E](
+        Option.Some[Result[U, E]](move right)
+    )
+    defer delete rightState
+    if !leftState.isOk() {
+        return Result.Error[ResultPair[T, U], E](leftState.takeError())
+    }
+    if !rightState.isOk() {
+        return Result.Error[ResultPair[T, U], E](rightState.takeError())
+    }
+    return Result.Ok[ResultPair[T, U], E](
+        new ResultPair[T, U](leftState.takeOk(), rightState.takeOk())
+    )
+}
+
+/// Combine les succès de deux résultats.
+///
+/// L'ordre d'évaluation et de sélection de l'erreur est identique à [[zip]].
+/// `combine` n'est appelée que lorsque les deux résultats sont `Ok`.
+/// @example
+/// ```janus
+/// val sum : Result[int, int] = map2[int, int, int, int](Result.Ok[int, int](1), Result.Ok[int, int](2), (a : int, b : int) => a + b)
+/// ```
+/// @param left Premier résultat consommé.
+/// @param right Second résultat consommé.
+/// @param combine Fonction bornée recevant les deux succès dans l'ordre.
+/// @return Succès combiné ou première erreur gauche-droite.
+def map2[T, U, E, V](
+    left : Result[T, E],
+    right : Result[U, E],
+    scoped combine : (T, U) => V
+) : Result[V, E] {
+    defer delete combine
+    val leftState : ResultState[T, E] = new ResultState[T, E](
+        Option.Some[Result[T, E]](move left)
+    )
+    defer delete leftState
+    val rightState : ResultState[U, E] = new ResultState[U, E](
+        Option.Some[Result[U, E]](move right)
+    )
+    defer delete rightState
+    if !leftState.isOk() {
+        return Result.Error[V, E](leftState.takeError())
+    }
+    if !rightState.isOk() {
+        return Result.Error[V, E](rightState.takeError())
+    }
+    return Result.Ok[V, E](combine(leftState.takeOk(), rightState.takeOk()))
+}
+
+/// Observe un succès sans modifier le résultat de la chaîne.
+/// @example
+/// ```janus
+/// val kept : Result[int, int] = inspect[int, int](Result.Ok[int, int](1), (borrow item : int) => println(item))
+/// ```
+/// @param value Résultat consommé puis retourné.
+/// @param action Action bornée appelée uniquement pour `Ok`.
+/// @return Le résultat d'origine avec sa propriété transférée.
+def inspect[T, E](
+    value : Result[T, E],
+    scoped action : (borrow T) => Unit
+) : Result[T, E] {
+    observeOk[T, E](value, move action)
+    return move value
+}
+
+/// Observe une erreur sans modifier le résultat de la chaîne.
+/// @example
+/// ```janus
+/// val kept : Result[int, int] = inspectError[int, int](Result.Error[int, int](1), (borrow error : int) => println(error))
+/// ```
+/// @param value Résultat consommé puis retourné.
+/// @param action Action bornée appelée uniquement pour `Error`.
+/// @return Le résultat d'origine avec sa propriété transférée.
+def inspectError[T, E](
+    value : Result[T, E],
+    scoped action : (borrow E) => Unit
+) : Result[T, E] {
+    observeError[T, E](value, move action)
+    return move value
+}
+
+/// Extrait le succès ou calcule un remplacement depuis l'erreur.
+/// @example
+/// ```janus
+/// val value : int = unwrapOrElse[int, int](Result.Error[int, int](2), (error : int) => error + 40)
+/// ```
+/// @param value Résultat consommé.
+/// @param fallback Fonction bornée appelée uniquement pour `Error`.
+/// @return Succès déplacé ou remplacement calculé.
+def unwrapOrElse[T, E](
+    value : Result[T, E],
+    scoped fallback : (E) => T
+) : T {
+    defer delete fallback
+    return match move value {
+        Ok(item) => move item,
+        Error(error) => fallback(move error)
+    }
+}
+
 /// Tente une récupération uniquement sur la branche d’erreur.
 ///
 /// @param value Résultat consommé.
@@ -210,6 +464,44 @@ def fromOption[T, E](value : Option[T], error : E) : Result[T, E] {
             Result.Ok[T, E](move item)
         ),
         None => Result.Error[T, E](state.take())
+    }
+}
+
+/// Convertit une option consommée en résultat.
+///
+/// Cette forme nommée depuis `Option` est définie dans `std.result` afin
+/// d'éviter un cycle de modules. Elle est équivalente à [[fromOption]].
+/// @example
+/// ```janus
+/// val value : Result[int, int] = toResult[int, int](Option.Some[int](1), 0)
+/// ```
+/// @param value Option consommée.
+/// @param error Erreur détruite pour `Some`, déplacée pour `None`.
+/// @return `Ok` avec le contenu, sinon `Error(error)`.
+def toResult[T, E](value : Option[T], error : E) : Result[T, E] {
+    return fromOption[T, E](move value, move error)
+}
+
+/// Distribue un résultat optionnel vers une option de résultat.
+/// @example
+/// ```janus
+/// val value : Option[Result[int, int]] = transpose[int, int](Result.Ok[Option[int], int](Option.Some[int](1)))
+/// ```
+/// @param value Résultat consommé.
+/// @return `Some(Ok)` pour `Ok(Some)`, `None` pour `Ok(None)`, ou `Some(Error)`.
+def transpose[T, E](
+    value : Result[Option[T], E]
+) : Option[Result[T, E]] {
+    return match move value {
+        Ok(option) => match move option {
+            Some(item) => Option.Some[Result[T, E]](
+                Result.Ok[T, E](move item)
+            ),
+            None => Option.None[Result[T, E]]()
+        },
+        Error(error) => Option.Some[Result[T, E]](
+            Result.Error[T, E](move error)
+        )
     }
 }
 
@@ -270,6 +562,55 @@ extend[T, E] Result[T, E] {
         return andThen[T, U, E](move this, move transform)
     }
 
+    /// Réduit la branche active vers un même type.
+    /// @param onOk Fonction bornée appelée pour `Ok`.
+    /// @param onError Fonction bornée appelée pour `Error`.
+    /// @return Projection de la branche active.
+    consume def fold[U](
+        scoped onOk : (T) => U,
+        scoped onError : (E) => U
+    ) : U {
+        return fold[T, E, U](move this, move onOk, move onError)
+    }
+
+    /// Regroupe ce succès avec celui d'un second résultat.
+    /// @param other Second résultat consommé après le receiver.
+    /// @return Paire des succès ou première erreur gauche-droite.
+    consume def zip[U](
+        other : Result[U, E]
+    ) : Result[ResultPair[T, U], E] {
+        return zip[T, U, E](move this, move other)
+    }
+
+    /// Combine ce succès avec celui d'un second résultat.
+    /// @param other Second résultat consommé après le receiver.
+    /// @param combine Fonction bornée recevant les succès dans l'ordre.
+    /// @return Succès combiné ou première erreur gauche-droite.
+    consume def map2[U, V](
+        other : Result[U, E],
+        scoped combine : (T, U) => V
+    ) : Result[V, E] {
+        return map2[T, U, E, V](move this, move other, move combine)
+    }
+
+    /// Observe le succès sans interrompre une chaîne.
+    /// @param action Action bornée appelée uniquement pour `Ok`.
+    /// @return Ce résultat consommé puis retransmis.
+    consume def inspect(
+        scoped action : (borrow T) => Unit
+    ) : Result[T, E] {
+        return inspect[T, E](move this, move action)
+    }
+
+    /// Observe l'erreur sans interrompre une chaîne.
+    /// @param action Action bornée appelée uniquement pour `Error`.
+    /// @return Ce résultat consommé puis retransmis.
+    consume def inspectError(
+        scoped action : (borrow E) => Unit
+    ) : Result[T, E] {
+        return inspectError[T, E](move this, move action)
+    }
+
     /// Consomme ce résultat et tente une récupération de l'erreur.
     /// @param transform Fonction bornée recevant l'erreur déplacée.
     /// @return Succès d'origine ou résultat de `transform`.
@@ -286,9 +627,34 @@ extend[T, E] Result[T, E] {
         return unwrapOr[T, E](move this, move fallback)
     }
 
+    /// Extrait le succès ou calcule un remplacement depuis l'erreur.
+    /// @param fallback Fonction bornée appelée uniquement pour `Error`.
+    /// @return Succès déplacé ou remplacement calculé.
+    consume def unwrapOrElse(scoped fallback : (E) => T) : T {
+        return unwrapOrElse[T, E](move this, move fallback)
+    }
+
     /// Convertit ce résultat consommé en option.
     /// @return `Some` pour `Ok`, sinon `None` après destruction de l'erreur.
     consume def toOption() : Option[T] {
         return toOption[T, E](move this)
+    }
+}
+
+/// Méthodes disponibles uniquement pour un résultat imbriqué homogène.
+extend[T, E] Result[Result[T, E], E] {
+    /// Supprime un niveau d'imbrication.
+    /// @return Résultat intérieur ou erreur extérieure.
+    consume def flatten() : Result[T, E] {
+        return flatten[T, E](move this)
+    }
+}
+
+/// Méthodes disponibles pour un résultat contenant une option.
+extend[T, E] Result[Option[T], E] {
+    /// Distribue ce résultat vers une option de résultat.
+    /// @return Option contenant le résultat distribué.
+    consume def transpose() : Option[Result[T, E]] {
+        return transpose[T, E](move this)
     }
 }

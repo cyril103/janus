@@ -6012,7 +6012,7 @@ val value : int = unwrapOr[int](move item, 0)
 <header class="module-heading"><span class="keyword">module</span> <h2>std.option</h2></header>
 <div class="module-summary"><p class="doc-summary">Modélise une valeur présente avec <a href="#std-option-option-some"><code>Option.Some</code></a> ou absente avec <a href="#std-option-option-none"><code>Option.None</code></a>.</p><div class="doc-details"><p>Les combinateurs consomment leur option et transfèrent la propriété de la branche conservée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val item : Option[int] = Option.Some[int](42)<br>
 val value : int = unwrapOr[int](move item, 0)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">17</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">38</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-enum" id="std-option-option" data-symbol data-search="std.option.Option enum enum Option[T] Représente soit une valeur propriétaire, soit son absence."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Option[T]</code></h3>
 <p class="doc-summary">Représente soit une valeur propriétaire, soit son absence.</p>
@@ -6030,6 +6030,40 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, Option[U]]</code></td><td>Fonction bornée recevant le contenu déplacé.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Résultat de `transform`, ou `None`.</p></section>
 <div class="qualified">std.option.Option.andThen</div></div><a class="permalink" href="#std-option-option-andthen" aria-label="Permanent link to std.option.Option.andThen">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-contains" data-symbol data-search="std.option.Option.contains method borrow def contains(borrow expected : T) : bool [extension] Vérifie que le contenu est égal à `expected`.
+@param expected Valeur observée à comparer.
+@return `true` pour un contenu égal, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>borrow def contains(borrow expected : T) : bool [extension]</code></h3>
+<p class="doc-summary">Vérifie que le contenu est égal à `expected`.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>expected</code></td><td><code>T</code></td><td>Valeur observée à comparer.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour un contenu égal, sinon `false`.</p></section>
+<div class="qualified">std.option.Option.contains</div></div><a class="permalink" href="#std-option-option-contains" aria-label="Permanent link to std.option.Option.contains">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-filter" data-symbol data-search="std.option.Option.filter method consume def filter(scoped predicate : Function[T, bool]) : Option[T] [extension] Conserve le contenu lorsqu&#39;il satisfait un prédicat emprunté.
+@param predicate Fonction bornée appelée uniquement pour `Some`.
+@return Cette option si le prédicat réussit, sinon `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def filter(scoped predicate : Function[T, bool]) : Option[T] [extension]</code></h3>
+<p class="doc-summary">Conserve le contenu lorsqu&#39;il satisfait un prédicat emprunté.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction bornée appelée uniquement pour `Some`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — Cette option si le prédicat réussit, sinon `None`.</p></section>
+<div class="qualified">std.option.Option.filter</div></div><a class="permalink" href="#std-option-option-filter" aria-label="Permanent link to std.option.Option.filter">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-flatten" data-symbol data-search="std.option.Option.flatten method consume def flatten() : Option[T] [extension] Supprime un niveau d&#39;imbrication.
+@return L&#39;option intérieure pour `Some`, sinon `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def flatten() : Option[T] [extension]</code></h3>
+<p class="doc-summary">Supprime un niveau d&#39;imbrication.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — L&#39;option intérieure pour `Some`, sinon `None`.</p></section>
+<div class="qualified">std.option.Option.flatten</div></div><a class="permalink" href="#std-option-option-flatten" aria-label="Permanent link to std.option.Option.flatten">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-fold" data-symbol data-search="std.option.Option.fold method consume def fold[U](fallback : U, scoped transform : Function[T, U]) : U [extension] Réduit cette option vers une valeur unique.
+@param fallback Valeur utilisée pour `None`.
+@param transform Fonction bornée appelée uniquement pour `Some`.
+@return Le résultat transformé ou `fallback`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def fold[U](fallback : U, scoped transform : Function[T, U]) : U [extension]</code></h3>
+<p class="doc-summary">Réduit cette option vers une valeur unique.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>fallback</code></td><td><code>U</code></td><td>Valeur utilisée pour `None`.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée appelée uniquement pour `Some`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Le résultat transformé ou `fallback`.</p></section>
+<div class="qualified">std.option.Option.fold</div></div><a class="permalink" href="#std-option-option-fold" aria-label="Permanent link to std.option.Option.fold">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-inspect" data-symbol data-search="std.option.Option.inspect method consume def inspect(scoped action : Function[T, Unit]) : Option[T] [extension] Observe le contenu sans interrompre une chaîne de transformations.
+@param action Action bornée appelée uniquement pour `Some`.
+@return Cette option consommée puis retransmise."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def inspect(scoped action : Function[T, Unit]) : Option[T] [extension]</code></h3>
+<p class="doc-summary">Observe le contenu sans interrompre une chaîne de transformations.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Action bornée appelée uniquement pour `Some`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — Cette option consommée puis retransmise.</p></section>
+<div class="qualified">std.option.Option.inspect</div></div><a class="permalink" href="#std-option-option-inspect" aria-label="Permanent link to std.option.Option.inspect">#</a></article>
 <article class="symbol-card kind-method child" id="std-option-option-isnone" data-symbol data-search="std.option.Option.isNone method borrow def isNone() : bool [extension] Indique si cette option est vide.
 @return `true` pour `None`, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>borrow def isNone() : bool [extension]</code></h3>
 <p class="doc-summary">Indique si cette option est vide.</p>
@@ -6047,6 +6081,14 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée recevant le contenu déplacé.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Option contenant le résultat transformé, ou `None`.</p></section>
 <div class="qualified">std.option.Option.map</div></div><a class="permalink" href="#std-option-option-map" aria-label="Permanent link to std.option.Option.map">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-map2" data-symbol data-search="std.option.Option.map2 method consume def map2[U, V](other : Option[U], scoped combine : Function[T, U, V]) : Option[V] [extension] Combine cette option avec une seconde option présente.
+@param other Seconde option consommée après le receiver.
+@param combine Fonction bornée recevant les deux contenus dans l&#39;ordre.
+@return `Some` du résultat combiné, sinon `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def map2[U, V](other : Option[U], scoped combine : Function[T, U, V]) : Option[V] [extension]</code></h3>
+<p class="doc-summary">Combine cette option avec une seconde option présente.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>other</code></td><td><code>Option[U]</code></td><td>Seconde option consommée après le receiver.</td></tr><tr><td><code>combine</code></td><td><code>Function[T, U, V]</code></td><td>Fonction bornée recevant les deux contenus dans l&#39;ordre.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[V]</code> — `Some` du résultat combiné, sinon `None`.</p></section>
+<div class="qualified">std.option.Option.map2</div></div><a class="permalink" href="#std-option-option-map2" aria-label="Permanent link to std.option.Option.map2">#</a></article>
 <article class="symbol-card kind-method child" id="std-option-option-mapborrowed" data-symbol data-search="std.option.Option.mapBorrowed method borrow def mapBorrowed[U](scoped transform : Function[T, U]) : Option[U] [extension] Transforme le contenu en l&#39;observant sans consommer l&#39;option.
 @param transform Fonction bornée recevant un emprunt du contenu.
 @return Option contenant le résultat transformé, ou `None`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>borrow def mapBorrowed[U](scoped transform : Function[T, U]) : Option[U] [extension]</code></h3>
@@ -6061,6 +6103,13 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>fallback</code></td><td><code>Option[T]</code></td><td>Option de remplacement consommée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — Cette option si présente, sinon `fallback`.</p></section>
 <div class="qualified">std.option.Option.orElse</div></div><a class="permalink" href="#std-option-option-orelse" aria-label="Permanent link to std.option.Option.orElse">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-orelsewith" data-symbol data-search="std.option.Option.orElseWith method consume def orElseWith(scoped fallback : Function[Option[T]]) : Option[T] [extension] Calcule paresseusement une option de remplacement.
+@param fallback Fabrique bornée appelée uniquement pour `None`.
+@return Cette option pour `Some`, sinon le remplacement calculé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def orElseWith(scoped fallback : Function[Option[T]]) : Option[T] [extension]</code></h3>
+<p class="doc-summary">Calcule paresseusement une option de remplacement.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>fallback</code></td><td><code>Function[Option[T]]</code></td><td>Fabrique bornée appelée uniquement pour `None`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — Cette option pour `Some`, sinon le remplacement calculé.</p></section>
+<div class="qualified">std.option.Option.orElseWith</div></div><a class="permalink" href="#std-option-option-orelsewith" aria-label="Permanent link to std.option.Option.orElseWith">#</a></article>
 <article class="symbol-card kind-method child" id="std-option-option-unwrapor" data-symbol data-search="std.option.Option.unwrapOr method consume def unwrapOr(fallback : T) : T [extension] Extrait le contenu ou adopte une valeur de remplacement.
 @param fallback Valeur de remplacement consommée.
 @return Contenu présent, sinon `fallback`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def unwrapOr(fallback : T) : T [extension]</code></h3>
@@ -6068,6 +6117,35 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>fallback</code></td><td><code>T</code></td><td>Valeur de remplacement consommée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Contenu présent, sinon `fallback`.</p></section>
 <div class="qualified">std.option.Option.unwrapOr</div></div><a class="permalink" href="#std-option-option-unwrapor" aria-label="Permanent link to std.option.Option.unwrapOr">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-unwraporelse" data-symbol data-search="std.option.Option.unwrapOrElse method consume def unwrapOrElse(scoped fallback : Function[T]) : T [extension] Extrait le contenu ou calcule paresseusement un remplacement.
+@param fallback Fabrique bornée appelée uniquement pour `None`.
+@return Le contenu ou le remplacement calculé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def unwrapOrElse(scoped fallback : Function[T]) : T [extension]</code></h3>
+<p class="doc-summary">Extrait le contenu ou calcule paresseusement un remplacement.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>fallback</code></td><td><code>Function[T]</code></td><td>Fabrique bornée appelée uniquement pour `None`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Le contenu ou le remplacement calculé.</p></section>
+<div class="qualified">std.option.Option.unwrapOrElse</div></div><a class="permalink" href="#std-option-option-unwraporelse" aria-label="Permanent link to std.option.Option.unwrapOrElse">#</a></article>
+<article class="symbol-card kind-method child" id="std-option-option-zip" data-symbol data-search="std.option.Option.zip method consume def zip[U](other : Option[U]) : Option[OptionPair[T, U]] [extension] Regroupe cette option avec une seconde option présente.
+@param other Seconde option consommée après le receiver.
+@return Une paire propriétaire si les deux options sont présentes."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>consume def zip[U](other : Option[U]) : Option[OptionPair[T, U]] [extension]</code></h3>
+<p class="doc-summary">Regroupe cette option avec une seconde option présente.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>other</code></td><td><code>Option[U]</code></td><td>Seconde option consommée après le receiver.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[OptionPair[T, U]]</code> — Une paire propriétaire si les deux options sont présentes.</p></section>
+<div class="qualified">std.option.Option.zip</div></div><a class="permalink" href="#std-option-option-zip" aria-label="Permanent link to std.option.Option.zip">#</a></article>
+<article class="symbol-card kind-struct" id="std-option-optionpair" data-symbol data-search="std.option.OptionPair struct struct OptionPair[A, B](val left : A, val right : B) Paire propriétaire produite par [[zip]].
+
+Les membres sont déplacés depuis les deux options, de gauche à droite.
+@param left Valeur de la première option.
+@param right Valeur de la seconde option."><span class="kind-icon" aria-hidden="true">s</span><div><span class="kind">struct</span><h3><code>struct OptionPair[A, B](val left : A, val right : B)</code></h3>
+<p class="doc-summary">Paire propriétaire produite par <code class="unresolved">zip</code>.</p>
+<div class="doc-details"><p>Les membres sont déplacés depuis les deux options, de gauche à droite.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>A</code></td><td>Valeur de la première option.</td></tr><tr><td><code>right</code></td><td><code>B</code></td><td>Valeur de la seconde option.</td></tr></tbody></table></section>
+<div class="qualified">std.option.OptionPair</div></div><a class="permalink" href="#std-option-optionpair" aria-label="Permanent link to std.option.OptionPair">#</a></article>
+<article class="symbol-card kind-field child" id="std-option-optionpair-left" data-symbol data-search="std.option.OptionPair.left field val left : A Valeur provenant de la première option."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.option.OptionPair</div><h3><code>val left : A</code></h3>
+<p class="doc-summary">Valeur provenant de la première option.</p>
+<div class="qualified">std.option.OptionPair.left</div></div><a class="permalink" href="#std-option-optionpair-left" aria-label="Permanent link to std.option.OptionPair.left">#</a></article>
+<article class="symbol-card kind-field child" id="std-option-optionpair-right" data-symbol data-search="std.option.OptionPair.right field val right : B Valeur provenant de la seconde option."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.option.OptionPair</div><h3><code>val right : B</code></h3>
+<p class="doc-summary">Valeur provenant de la seconde option.</p>
+<div class="qualified">std.option.OptionPair.right</div></div><a class="permalink" href="#std-option-optionpair-right" aria-label="Permanent link to std.option.OptionPair.right">#</a></article>
 <article class="symbol-card kind-function" id="std-option-andthen" data-symbol data-search="std.option.andThen function def andThen[T, U](value : Option[T], scoped transform : Function[T, Option[U]]) : Option[U] Enchaîne une opération optionnelle sur la branche présente.
 
 @param value Option consommée par l’opération.
@@ -6077,6 +6155,93 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée par l’opération.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, Option[U]]</code></td><td>Fonction propriétaire appelée une fois avec le contenu déplacé pour `Some`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Résultat de `transform` pour `Some`, ou `None` sans appeler `transform`.</p></section>
 <div class="qualified">std.option.andThen</div></div><a class="permalink" href="#std-option-andthen" aria-label="Permanent link to std.option.andThen">#</a></article>
+<article class="symbol-card kind-function" id="std-option-contains" data-symbol data-search="std.option.contains function def contains[T](borrow value : Option[T], borrow expected : T) : bool Vérifie qu&#39;une option contient une valeur égale à `expected`.
+
+L&#39;égalité dérivée de `T` est utilisée et les deux valeurs restent possédées
+par leurs appelants.
+@example
+```janus
+val found : bool = contains[int](Option.Some[int](3), 3)
+```
+@param value Option observée.
+@param expected Valeur observée à comparer.
+@return `true` pour un contenu égal, sinon `false`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def contains[T](borrow value : Option[T], borrow expected : T) : bool</code></h3>
+<p class="doc-summary">Vérifie qu&#39;une option contient une valeur égale à `expected`.</p>
+<div class="doc-details"><p>L&#39;égalité dérivée de `T` est utilisée et les deux valeurs restent possédées<br>
+par leurs appelants.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option observée.</td></tr><tr><td><code>expected</code></td><td><code>T</code></td><td>Valeur observée à comparer.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour un contenu égal, sinon `false`.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val found : bool = contains[int](Option.Some[int](3), 3)<br>
+</code></pre></section>
+<div class="qualified">std.option.contains</div></div><a class="permalink" href="#std-option-contains" aria-label="Permanent link to std.option.contains">#</a></article>
+<article class="symbol-card kind-function" id="std-option-filter" data-symbol data-search="std.option.filter function def filter[T](value : Option[T], scoped predicate : Function[T, bool]) : Option[T] Conserve une valeur présente lorsqu&#39;elle satisfait un prédicat.
+
+Le prédicat observe la valeur avant son éventuel déplacement. Une valeur
+refusée est détruite avant le retour.
+@example
+```janus
+val positive : Option[int] = filter[int](Option.Some[int](1), (borrow item : int) =&gt; item &gt; 0)
+```
+@param value Option consommée.
+@param predicate Fonction bornée appelée uniquement pour `Some`.
+@return L&#39;option d&#39;origine si le prédicat réussit, sinon `None`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def filter[T](value : Option[T], scoped predicate : Function[T, bool]) : Option[T]</code></h3>
+<p class="doc-summary">Conserve une valeur présente lorsqu&#39;elle satisfait un prédicat.</p>
+<div class="doc-details"><p>Le prédicat observe la valeur avant son éventuel déplacement. Une valeur<br>
+refusée est détruite avant le retour.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée.</td></tr><tr><td><code>predicate</code></td><td><code>Function[T, bool]</code></td><td>Fonction bornée appelée uniquement pour `Some`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — L&#39;option d&#39;origine si le prédicat réussit, sinon `None`.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val positive : Option[int] = filter[int](Option.Some[int](1), (borrow item : int) =&gt; item &gt; 0)<br>
+</code></pre></section>
+<div class="qualified">std.option.filter</div></div><a class="permalink" href="#std-option-filter" aria-label="Permanent link to std.option.filter">#</a></article>
+<article class="symbol-card kind-function" id="std-option-flatten" data-symbol data-search="std.option.flatten function def flatten[T](value : Option[Option[T]]) : Option[T] Supprime un niveau d&#39;imbrication d&#39;une option consommée.
+
+@example
+```janus
+val flat : Option[int] = flatten[int](Option.Some[Option[int]](Option.Some[int](1)))
+```
+@param value Option extérieure consommée.
+@return Option intérieure déplacée pour `Some`, sinon `None`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def flatten[T](value : Option[Option[T]]) : Option[T]</code></h3>
+<p class="doc-summary">Supprime un niveau d&#39;imbrication d&#39;une option consommée.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[Option[T]]</code></td><td>Option extérieure consommée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — Option intérieure déplacée pour `Some`, sinon `None`.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val flat : Option[int] = flatten[int](Option.Some[Option[int]](Option.Some[int](1)))<br>
+</code></pre></section>
+<div class="qualified">std.option.flatten</div></div><a class="permalink" href="#std-option-flatten" aria-label="Permanent link to std.option.flatten">#</a></article>
+<article class="symbol-card kind-function" id="std-option-fold" data-symbol data-search="std.option.fold function def fold[T, U](value : Option[T], fallback : U, scoped transform : Function[T, U]) : U Réduit une option vers une valeur unique.
+
+`fallback` est évalué avant l&#39;appel. Il est retourné pour `None` et détruit
+avant le retour pour `Some`; `transform` n&#39;est appelée que pour `Some`.
+@example
+```janus
+val total : int = fold[int, int](Option.Some[int](2), 0, (item : int) =&gt; item + 1)
+```
+@param value Option consommée.
+@param fallback Valeur utilisée pour `None`.
+@param transform Fonction bornée transformant le contenu de `Some`.
+@return Le résultat de `transform` ou `fallback`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fold[T, U](value : Option[T], fallback : U, scoped transform : Function[T, U]) : U</code></h3>
+<p class="doc-summary">Réduit une option vers une valeur unique.</p>
+<div class="doc-details"><p>`fallback` est évalué avant l&#39;appel. Il est retourné pour `None` et détruit<br>
+avant le retour pour `Some`; `transform` n&#39;est appelée que pour `Some`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée.</td></tr><tr><td><code>fallback</code></td><td><code>U</code></td><td>Valeur utilisée pour `None`.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée transformant le contenu de `Some`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Le résultat de `transform` ou `fallback`.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val total : int = fold[int, int](Option.Some[int](2), 0, (item : int) =&gt; item + 1)<br>
+</code></pre></section>
+<div class="qualified">std.option.fold</div></div><a class="permalink" href="#std-option-fold" aria-label="Permanent link to std.option.fold">#</a></article>
+<article class="symbol-card kind-function" id="std-option-inspect" data-symbol data-search="std.option.inspect function def inspect[T](value : Option[T], scoped action : Function[T, Unit]) : Option[T] Observe une valeur présente sans modifier le résultat de la chaîne.
+
+@example
+```janus
+val kept : Option[int] = inspect[int](Option.Some[int](1), (borrow item : int) =&gt; println(item))
+```
+@param value Option consommée puis retournée.
+@param action Action bornée appelée uniquement pour `Some`.
+@return L&#39;option d&#39;origine, avec sa propriété transférée au résultat."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def inspect[T](value : Option[T], scoped action : Function[T, Unit]) : Option[T]</code></h3>
+<p class="doc-summary">Observe une valeur présente sans modifier le résultat de la chaîne.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée puis retournée.</td></tr><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Action bornée appelée uniquement pour `Some`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — L&#39;option d&#39;origine, avec sa propriété transférée au résultat.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val kept : Option[int] = inspect[int](Option.Some[int](1), (borrow item : int) =&gt; println(item))<br>
+</code></pre></section>
+<div class="qualified">std.option.inspect</div></div><a class="permalink" href="#std-option-inspect" aria-label="Permanent link to std.option.inspect">#</a></article>
 <article class="symbol-card kind-function" id="std-option-isnone" data-symbol data-search="std.option.isNone function def isNone[T](borrow value : Option[T]) : bool Indique si l’option est vide.
 
 @param value Option inspectée sans déplacer son contenu.
@@ -6102,6 +6267,26 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée par l’opération.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction propriétaire appelée une fois avec la valeur déplacée pour `Some`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — `Some` du résultat de `transform`, ou `None` sans appeler `transform`.</p></section>
 <div class="qualified">std.option.map</div></div><a class="permalink" href="#std-option-map" aria-label="Permanent link to std.option.map">#</a></article>
+<article class="symbol-card kind-function" id="std-option-map2" data-symbol data-search="std.option.map2 function def map2[T, U, V](left : Option[T], right : Option[U], scoped combine : Function[T, U, V]) : Option[V] Combine les contenus de deux options présentes.
+
+L&#39;ordre d&#39;évaluation et de destruction est identique à [[zip]]. `combine`
+est appelée exactement une fois lorsque les deux options sont `Some`.
+@example
+```janus
+val sum : Option[int] = map2[int, int, int](Option.Some[int](1), Option.Some[int](2), (a : int, b : int) =&gt; a + b)
+```
+@param left Première option consommée.
+@param right Seconde option consommée.
+@param combine Fonction bornée recevant les valeurs gauche puis droite.
+@return `Some` du résultat combiné, sinon `None`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def map2[T, U, V](left : Option[T], right : Option[U], scoped combine : Function[T, U, V]) : Option[V]</code></h3>
+<p class="doc-summary">Combine les contenus de deux options présentes.</p>
+<div class="doc-details"><p>L&#39;ordre d&#39;évaluation et de destruction est identique à <code class="unresolved">zip</code>. `combine`<br>
+est appelée exactement une fois lorsque les deux options sont `Some`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>Option[T]</code></td><td>Première option consommée.</td></tr><tr><td><code>right</code></td><td><code>Option[U]</code></td><td>Seconde option consommée.</td></tr><tr><td><code>combine</code></td><td><code>Function[T, U, V]</code></td><td>Fonction bornée recevant les valeurs gauche puis droite.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[V]</code> — `Some` du résultat combiné, sinon `None`.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val sum : Option[int] = map2[int, int, int](Option.Some[int](1), Option.Some[int](2), (a : int, b : int) =&gt; a + b)<br>
+</code></pre></section>
+<div class="qualified">std.option.map2</div></div><a class="permalink" href="#std-option-map2" aria-label="Permanent link to std.option.map2">#</a></article>
 <article class="symbol-card kind-function" id="std-option-mapborrowed" data-symbol data-search="std.option.mapBorrowed function def mapBorrowed[T, U](borrow value : Option[T], scoped transform : Function[T, U]) : Option[U] Transforme une valeur présente en l&#39;observant sans consommer l&#39;option.
 
 La closure est appelée au plus une fois et détruite avant le retour. La
@@ -6126,6 +6311,21 @@ valeur contenue reste la propriété de `value`, y compris pour un type non<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option prioritaire, consommée.</td></tr><tr><td><code>fallback</code></td><td><code>Option[T]</code></td><td>Option consommée et détruite si `value` est `Some`, sinon retournée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `value` lorsqu’elle est présente, sinon `fallback`.</p></section>
 <div class="qualified">std.option.orElse</div></div><a class="permalink" href="#std-option-orelse" aria-label="Permanent link to std.option.orElse">#</a></article>
+<article class="symbol-card kind-function" id="std-option-orelsewith" data-symbol data-search="std.option.orElseWith function def orElseWith[T](value : Option[T], scoped fallback : Function[Option[T]]) : Option[T] Adopte paresseusement une option de remplacement.
+
+@example
+```janus
+val value : Option[int] = orElseWith[int](Option.None[int](), () =&gt; Option.Some[int](42))
+```
+@param value Option consommée.
+@param fallback Fabrique bornée appelée uniquement pour `None`.
+@return L&#39;option d&#39;origine pour `Some`, sinon le remplacement calculé."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def orElseWith[T](value : Option[T], scoped fallback : Function[Option[T]]) : Option[T]</code></h3>
+<p class="doc-summary">Adopte paresseusement une option de remplacement.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée.</td></tr><tr><td><code>fallback</code></td><td><code>Function[Option[T]]</code></td><td>Fabrique bornée appelée uniquement pour `None`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — L&#39;option d&#39;origine pour `Some`, sinon le remplacement calculé.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val value : Option[int] = orElseWith[int](Option.None[int](), () =&gt; Option.Some[int](42))<br>
+</code></pre></section>
+<div class="qualified">std.option.orElseWith</div></div><a class="permalink" href="#std-option-orelsewith" aria-label="Permanent link to std.option.orElseWith">#</a></article>
 <article class="symbol-card kind-function" id="std-option-unwrapor" data-symbol data-search="std.option.unwrapOr function def unwrapOr[T](value : Option[T], fallback : T) : T Extrait le contenu présent ou adopte une valeur de remplacement.
 
 @param value Option consommée.
@@ -6135,6 +6335,42 @@ valeur contenue reste la propriété de `value`, y compris pour un type non<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée.</td></tr><tr><td><code>fallback</code></td><td><code>T</code></td><td>Valeur consommée et détruite pour `Some`, retournée pour `None`.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Contenu déplacé de `Some`, sinon `fallback`.</p></section>
 <div class="qualified">std.option.unwrapOr</div></div><a class="permalink" href="#std-option-unwrapor" aria-label="Permanent link to std.option.unwrapOr">#</a></article>
+<article class="symbol-card kind-function" id="std-option-unwraporelse" data-symbol data-search="std.option.unwrapOrElse function def unwrapOrElse[T](value : Option[T], scoped fallback : Function[T]) : T Extrait le contenu ou calcule paresseusement un remplacement.
+
+@example
+```janus
+val value : int = unwrapOrElse[int](Option.None[int](), () =&gt; 42)
+```
+@param value Option consommée.
+@param fallback Fabrique bornée appelée uniquement pour `None`.
+@return Le contenu de `Some` ou le remplacement calculé."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def unwrapOrElse[T](value : Option[T], scoped fallback : Function[T]) : T</code></h3>
+<p class="doc-summary">Extrait le contenu ou calcule paresseusement un remplacement.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée.</td></tr><tr><td><code>fallback</code></td><td><code>Function[T]</code></td><td>Fabrique bornée appelée uniquement pour `None`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Le contenu de `Some` ou le remplacement calculé.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val value : int = unwrapOrElse[int](Option.None[int](), () =&gt; 42)<br>
+</code></pre></section>
+<div class="qualified">std.option.unwrapOrElse</div></div><a class="permalink" href="#std-option-unwraporelse" aria-label="Permanent link to std.option.unwrapOrElse">#</a></article>
+<article class="symbol-card kind-function" id="std-option-zip" data-symbol data-search="std.option.zip function def zip[T, U](left : Option[T], right : Option[U]) : Option[OptionPair[T, U]] Regroupe les contenus de deux options présentes.
+
+`left` puis `right` sont évaluées avant l&#39;appel. La branche gauche est
+inspectée avant la droite; dès qu&#39;une absence est connue, toutes les valeurs
+déjà actives et la seconde option sont détruites exactement une fois.
+@example
+```janus
+val pair : Option[OptionPair[int, int]] = zip[int, int](Option.Some[int](1), Option.Some[int](2))
+```
+@param left Première option consommée.
+@param right Seconde option consommée.
+@return `Some(OptionPair)` si les deux valeurs sont présentes, sinon `None`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def zip[T, U](left : Option[T], right : Option[U]) : Option[OptionPair[T, U]]</code></h3>
+<p class="doc-summary">Regroupe les contenus de deux options présentes.</p>
+<div class="doc-details"><p>`left` puis `right` sont évaluées avant l&#39;appel. La branche gauche est<br>
+inspectée avant la droite; dès qu&#39;une absence est connue, toutes les valeurs<br>
+déjà actives et la seconde option sont détruites exactement une fois.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>Option[T]</code></td><td>Première option consommée.</td></tr><tr><td><code>right</code></td><td><code>Option[U]</code></td><td>Seconde option consommée.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[OptionPair[T, U]]</code> — `Some(OptionPair)` si les deux valeurs sont présentes, sinon `None`.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val pair : Option[OptionPair[int, int]] = zip[int, int](Option.Some[int](1), Option.Some[int](2))<br>
+</code></pre></section>
+<div class="qualified">std.option.zip</div></div><a class="permalink" href="#std-option-zip" aria-label="Permanent link to std.option.zip">#</a></article>
 </div></section>
 <section class="module" id="module-std-ordering" data-module data-search="std.ordering Définit un contrat d&#39;ordre total réutilisable par les collections.">
 <header class="module-heading"><span class="keyword">module</span> <h2>std.ordering</h2></header>
@@ -6760,7 +6996,7 @@ val value : int = unwrapOr[int, string](move item, 0)
 <header class="module-heading"><span class="keyword">module</span> <h2>std.result</h2></header>
 <div class="module-summary"><p class="doc-summary">Modélise un succès <a href="#std-result-result-ok"><code>Result.Ok</code></a> ou une erreur <a href="#std-result-result-error"><code>Result.Error</code></a>.</p><div class="doc-details"><p>Les combinateurs consomment le résultat et transfèrent la propriété de la branche conservée.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val item : Result[int, string] = Result.Ok[int, string](42)<br>
 val value : int = unwrapOr[int, string](move item, 0)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">24</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">44</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-enum" id="std-result-result" data-symbol data-search="std.result.Result enum enum Result[T, E] Représente une valeur de succès ou une erreur, chacune propriétaire."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Result[T, E]</code></h3>
 <p class="doc-summary">Représente une valeur de succès ou une erreur, chacune propriétaire.</p>
@@ -6778,6 +7014,33 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, Result[U, E]]</code></td><td>Fonction bornée recevant le succès déplacé.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[U, E]</code> — Résultat de `transform`, ou l&#39;erreur d&#39;origine.</p></section>
 <div class="qualified">std.result.Result.andThen</div></div><a class="permalink" href="#std-result-result-andthen" aria-label="Permanent link to std.result.Result.andThen">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-flatten" data-symbol data-search="std.result.Result.flatten method consume def flatten() : Result[T, E] [extension] Supprime un niveau d&#39;imbrication.
+@return Résultat intérieur ou erreur extérieure."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def flatten() : Result[T, E] [extension]</code></h3>
+<p class="doc-summary">Supprime un niveau d&#39;imbrication.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — Résultat intérieur ou erreur extérieure.</p></section>
+<div class="qualified">std.result.Result.flatten</div></div><a class="permalink" href="#std-result-result-flatten" aria-label="Permanent link to std.result.Result.flatten">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-fold" data-symbol data-search="std.result.Result.fold method consume def fold[U](scoped onOk : Function[T, U], scoped onError : Function[E, U]) : U [extension] Réduit la branche active vers un même type.
+@param onOk Fonction bornée appelée pour `Ok`.
+@param onError Fonction bornée appelée pour `Error`.
+@return Projection de la branche active."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def fold[U](scoped onOk : Function[T, U], scoped onError : Function[E, U]) : U [extension]</code></h3>
+<p class="doc-summary">Réduit la branche active vers un même type.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>onOk</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée appelée pour `Ok`.</td></tr><tr><td><code>onError</code></td><td><code>Function[E, U]</code></td><td>Fonction bornée appelée pour `Error`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Projection de la branche active.</p></section>
+<div class="qualified">std.result.Result.fold</div></div><a class="permalink" href="#std-result-result-fold" aria-label="Permanent link to std.result.Result.fold">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-inspect" data-symbol data-search="std.result.Result.inspect method consume def inspect(scoped action : Function[T, Unit]) : Result[T, E] [extension] Observe le succès sans interrompre une chaîne.
+@param action Action bornée appelée uniquement pour `Ok`.
+@return Ce résultat consommé puis retransmis."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def inspect(scoped action : Function[T, Unit]) : Result[T, E] [extension]</code></h3>
+<p class="doc-summary">Observe le succès sans interrompre une chaîne.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Action bornée appelée uniquement pour `Ok`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — Ce résultat consommé puis retransmis.</p></section>
+<div class="qualified">std.result.Result.inspect</div></div><a class="permalink" href="#std-result-result-inspect" aria-label="Permanent link to std.result.Result.inspect">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-inspecterror" data-symbol data-search="std.result.Result.inspectError method consume def inspectError(scoped action : Function[E, Unit]) : Result[T, E] [extension] Observe l&#39;erreur sans interrompre une chaîne.
+@param action Action bornée appelée uniquement pour `Error`.
+@return Ce résultat consommé puis retransmis."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def inspectError(scoped action : Function[E, Unit]) : Result[T, E] [extension]</code></h3>
+<p class="doc-summary">Observe l&#39;erreur sans interrompre une chaîne.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[E, Unit]</code></td><td>Action bornée appelée uniquement pour `Error`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — Ce résultat consommé puis retransmis.</p></section>
+<div class="qualified">std.result.Result.inspectError</div></div><a class="permalink" href="#std-result-result-inspecterror" aria-label="Permanent link to std.result.Result.inspectError">#</a></article>
 <article class="symbol-card kind-method child" id="std-result-result-iserror" data-symbol data-search="std.result.Result.isError method borrow def isError() : bool [extension] Indique si ce résultat contient une erreur.
 @return `true` pour `Error`, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>borrow def isError() : bool [extension]</code></h3>
 <p class="doc-summary">Indique si ce résultat contient une erreur.</p>
@@ -6795,6 +7058,14 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée recevant le succès déplacé.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[U, E]</code> — Résultat contenant le succès transformé ou l&#39;erreur d&#39;origine.</p></section>
 <div class="qualified">std.result.Result.map</div></div><a class="permalink" href="#std-result-result-map" aria-label="Permanent link to std.result.Result.map">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-map2" data-symbol data-search="std.result.Result.map2 method consume def map2[U, V](other : Result[U, E], scoped combine : Function[T, U, V]) : Result[V, E] [extension] Combine ce succès avec celui d&#39;un second résultat.
+@param other Second résultat consommé après le receiver.
+@param combine Fonction bornée recevant les succès dans l&#39;ordre.
+@return Succès combiné ou première erreur gauche-droite."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def map2[U, V](other : Result[U, E], scoped combine : Function[T, U, V]) : Result[V, E] [extension]</code></h3>
+<p class="doc-summary">Combine ce succès avec celui d&#39;un second résultat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>other</code></td><td><code>Result[U, E]</code></td><td>Second résultat consommé après le receiver.</td></tr><tr><td><code>combine</code></td><td><code>Function[T, U, V]</code></td><td>Fonction bornée recevant les succès dans l&#39;ordre.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[V, E]</code> — Succès combiné ou première erreur gauche-droite.</p></section>
+<div class="qualified">std.result.Result.map2</div></div><a class="permalink" href="#std-result-result-map2" aria-label="Permanent link to std.result.Result.map2">#</a></article>
 <article class="symbol-card kind-method child" id="std-result-result-mapborrowed" data-symbol data-search="std.result.Result.mapBorrowed method borrow def mapBorrowed[U](scoped transform : Function[T, U]) : Option[U] [extension] Transforme le succès en l&#39;observant sans consommer le résultat.
 @param transform Fonction bornée recevant un emprunt du succès.
 @return Option contenant le résultat transformé pour `Ok`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>borrow def mapBorrowed[U](scoped transform : Function[T, U]) : Option[U] [extension]</code></h3>
@@ -6828,6 +7099,11 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <p class="doc-summary">Convertit ce résultat consommé en option.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` pour `Ok`, sinon `None` après destruction de l&#39;erreur.</p></section>
 <div class="qualified">std.result.Result.toOption</div></div><a class="permalink" href="#std-result-result-tooption" aria-label="Permanent link to std.result.Result.toOption">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-transpose" data-symbol data-search="std.result.Result.transpose method consume def transpose() : Option[Result[T, E]] [extension] Distribue ce résultat vers une option de résultat.
+@return Option contenant le résultat distribué."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def transpose() : Option[Result[T, E]] [extension]</code></h3>
+<p class="doc-summary">Distribue ce résultat vers une option de résultat.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[Result[T, E]]</code> — Option contenant le résultat distribué.</p></section>
+<div class="qualified">std.result.Result.transpose</div></div><a class="permalink" href="#std-result-result-transpose" aria-label="Permanent link to std.result.Result.transpose">#</a></article>
 <article class="symbol-card kind-method child" id="std-result-result-unwrapor" data-symbol data-search="std.result.Result.unwrapOr method consume def unwrapOr(fallback : T) : T [extension] Extrait le succès ou adopte une valeur de remplacement.
 @param fallback Valeur de remplacement consommée.
 @return Succès contenu, sinon `fallback`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def unwrapOr(fallback : T) : T [extension]</code></h3>
@@ -6835,6 +7111,32 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>fallback</code></td><td><code>T</code></td><td>Valeur de remplacement consommée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Succès contenu, sinon `fallback`.</p></section>
 <div class="qualified">std.result.Result.unwrapOr</div></div><a class="permalink" href="#std-result-result-unwrapor" aria-label="Permanent link to std.result.Result.unwrapOr">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-unwraporelse" data-symbol data-search="std.result.Result.unwrapOrElse method consume def unwrapOrElse(scoped fallback : Function[E, T]) : T [extension] Extrait le succès ou calcule un remplacement depuis l&#39;erreur.
+@param fallback Fonction bornée appelée uniquement pour `Error`.
+@return Succès déplacé ou remplacement calculé."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def unwrapOrElse(scoped fallback : Function[E, T]) : T [extension]</code></h3>
+<p class="doc-summary">Extrait le succès ou calcule un remplacement depuis l&#39;erreur.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>fallback</code></td><td><code>Function[E, T]</code></td><td>Fonction bornée appelée uniquement pour `Error`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Succès déplacé ou remplacement calculé.</p></section>
+<div class="qualified">std.result.Result.unwrapOrElse</div></div><a class="permalink" href="#std-result-result-unwraporelse" aria-label="Permanent link to std.result.Result.unwrapOrElse">#</a></article>
+<article class="symbol-card kind-method child" id="std-result-result-zip" data-symbol data-search="std.result.Result.zip method consume def zip[U](other : Result[U, E]) : Result[ResultPair[T, U], E] [extension] Regroupe ce succès avec celui d&#39;un second résultat.
+@param other Second résultat consommé après le receiver.
+@return Paire des succès ou première erreur gauche-droite."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.result.Result</div><h3><code>consume def zip[U](other : Result[U, E]) : Result[ResultPair[T, U], E] [extension]</code></h3>
+<p class="doc-summary">Regroupe ce succès avec celui d&#39;un second résultat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>other</code></td><td><code>Result[U, E]</code></td><td>Second résultat consommé après le receiver.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[ResultPair[T, U], E]</code> — Paire des succès ou première erreur gauche-droite.</p></section>
+<div class="qualified">std.result.Result.zip</div></div><a class="permalink" href="#std-result-result-zip" aria-label="Permanent link to std.result.Result.zip">#</a></article>
+<article class="symbol-card kind-struct" id="std-result-resultpair" data-symbol data-search="std.result.ResultPair struct struct ResultPair[A, B](val left : A, val right : B) Paire propriétaire produite par [[zip]].
+@param left Valeur du premier succès.
+@param right Valeur du second succès."><span class="kind-icon" aria-hidden="true">s</span><div><span class="kind">struct</span><h3><code>struct ResultPair[A, B](val left : A, val right : B)</code></h3>
+<p class="doc-summary">Paire propriétaire produite par <code class="unresolved">zip</code>.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>A</code></td><td>Valeur du premier succès.</td></tr><tr><td><code>right</code></td><td><code>B</code></td><td>Valeur du second succès.</td></tr></tbody></table></section>
+<div class="qualified">std.result.ResultPair</div></div><a class="permalink" href="#std-result-resultpair" aria-label="Permanent link to std.result.ResultPair">#</a></article>
+<article class="symbol-card kind-field child" id="std-result-resultpair-left" data-symbol data-search="std.result.ResultPair.left field val left : A Valeur provenant du premier résultat."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.result.ResultPair</div><h3><code>val left : A</code></h3>
+<p class="doc-summary">Valeur provenant du premier résultat.</p>
+<div class="qualified">std.result.ResultPair.left</div></div><a class="permalink" href="#std-result-resultpair-left" aria-label="Permanent link to std.result.ResultPair.left">#</a></article>
+<article class="symbol-card kind-field child" id="std-result-resultpair-right" data-symbol data-search="std.result.ResultPair.right field val right : B Valeur provenant du second résultat."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">field</span><div class="owner">Member of std.result.ResultPair</div><h3><code>val right : B</code></h3>
+<p class="doc-summary">Valeur provenant du second résultat.</p>
+<div class="qualified">std.result.ResultPair.right</div></div><a class="permalink" href="#std-result-resultpair-right" aria-label="Permanent link to std.result.ResultPair.right">#</a></article>
 <article class="symbol-card kind-function" id="std-result-andthen" data-symbol data-search="std.result.andThen function def andThen[T, U, E](value : Result[T, E], scoped transform : Function[T, Result[U, E]]) : Result[U, E] Enchaîne une opération susceptible d’échouer sur la branche de succès.
 
 @param value Résultat consommé.
@@ -6844,6 +7146,39 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, Result[U, E]]</code></td><td>Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[U, E]</code> — Résultat de `transform`, ou erreur d’origine déplacée sans appeler `transform`.</p></section>
 <div class="qualified">std.result.andThen</div></div><a class="permalink" href="#std-result-andthen" aria-label="Permanent link to std.result.andThen">#</a></article>
+<article class="symbol-card kind-function" id="std-result-flatten" data-symbol data-search="std.result.flatten function def flatten[T, E](value : Result[Result[T, E], E]) : Result[T, E] Supprime un niveau d&#39;imbrication d&#39;un résultat consommé.
+@example
+```janus
+val flat : Result[int, int] = flatten[int, int](Result.Ok[Result[int, int], int](Result.Ok[int, int](1)))
+```
+@param value Résultat extérieur consommé.
+@return Résultat intérieur déplacé pour `Ok`, ou erreur extérieure déplacée."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def flatten[T, E](value : Result[Result[T, E], E]) : Result[T, E]</code></h3>
+<p class="doc-summary">Supprime un niveau d&#39;imbrication d&#39;un résultat consommé.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[Result[T, E], E]</code></td><td>Résultat extérieur consommé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — Résultat intérieur déplacé pour `Ok`, ou erreur extérieure déplacée.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val flat : Result[int, int] = flatten[int, int](Result.Ok[Result[int, int], int](Result.Ok[int, int](1)))<br>
+</code></pre></section>
+<div class="qualified">std.result.flatten</div></div><a class="permalink" href="#std-result-flatten" aria-label="Permanent link to std.result.flatten">#</a></article>
+<article class="symbol-card kind-function" id="std-result-fold" data-symbol data-search="std.result.fold function def fold[T, E, U](value : Result[T, E], scoped onOk : Function[T, U], scoped onError : Function[E, U]) : U Réduit les deux branches d&#39;un résultat vers un même type.
+
+Les callbacks sont évalués avant l&#39;appel puis détruits avant le retour;
+seule la fonction correspondant à la branche active est appelée.
+@example
+```janus
+val value : int = fold[int, int, int](Result.Ok[int, int](1), (item : int) =&gt; item, (error : int) =&gt; -error)
+```
+@param value Résultat consommé.
+@param onOk Fonction bornée appelée pour `Ok`.
+@param onError Fonction bornée appelée pour `Error`.
+@return Projection de la branche active."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def fold[T, E, U](value : Result[T, E], scoped onOk : Function[T, U], scoped onError : Function[E, U]) : U</code></h3>
+<p class="doc-summary">Réduit les deux branches d&#39;un résultat vers un même type.</p>
+<div class="doc-details"><p>Les callbacks sont évalués avant l&#39;appel puis détruits avant le retour;<br>
+seule la fonction correspondant à la branche active est appelée.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr><tr><td><code>onOk</code></td><td><code>Function[T, U]</code></td><td>Fonction bornée appelée pour `Ok`.</td></tr><tr><td><code>onError</code></td><td><code>Function[E, U]</code></td><td>Fonction bornée appelée pour `Error`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Projection de la branche active.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val value : int = fold[int, int, int](Result.Ok[int, int](1), (item : int) =&gt; item, (error : int) =&gt; -error)<br>
+</code></pre></section>
+<div class="qualified">std.result.fold</div></div><a class="permalink" href="#std-result-fold" aria-label="Permanent link to std.result.fold">#</a></article>
 <article class="symbol-card kind-function" id="std-result-fromoption" data-symbol data-search="std.result.fromOption function def fromOption[T, E](value : Option[T], error : E) : Result[T, E] Convertit une option consommée en résultat à l’aide d’une erreur de remplacement.
 
 @param value Option consommée.
@@ -6853,6 +7188,34 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée.</td></tr><tr><td><code>error</code></td><td><code>E</code></td><td>Erreur consommée et détruite pour `Some`, déplacée dans `Error` pour `None`.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — `Ok` avec le contenu déplacé de `Some`, sinon `Error(error)`.</p></section>
 <div class="qualified">std.result.fromOption</div></div><a class="permalink" href="#std-result-fromoption" aria-label="Permanent link to std.result.fromOption">#</a></article>
+<article class="symbol-card kind-function" id="std-result-inspect" data-symbol data-search="std.result.inspect function def inspect[T, E](value : Result[T, E], scoped action : Function[T, Unit]) : Result[T, E] Observe un succès sans modifier le résultat de la chaîne.
+@example
+```janus
+val kept : Result[int, int] = inspect[int, int](Result.Ok[int, int](1), (borrow item : int) =&gt; println(item))
+```
+@param value Résultat consommé puis retourné.
+@param action Action bornée appelée uniquement pour `Ok`.
+@return Le résultat d&#39;origine avec sa propriété transférée."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def inspect[T, E](value : Result[T, E], scoped action : Function[T, Unit]) : Result[T, E]</code></h3>
+<p class="doc-summary">Observe un succès sans modifier le résultat de la chaîne.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé puis retourné.</td></tr><tr><td><code>action</code></td><td><code>Function[T, Unit]</code></td><td>Action bornée appelée uniquement pour `Ok`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — Le résultat d&#39;origine avec sa propriété transférée.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val kept : Result[int, int] = inspect[int, int](Result.Ok[int, int](1), (borrow item : int) =&gt; println(item))<br>
+</code></pre></section>
+<div class="qualified">std.result.inspect</div></div><a class="permalink" href="#std-result-inspect" aria-label="Permanent link to std.result.inspect">#</a></article>
+<article class="symbol-card kind-function" id="std-result-inspecterror" data-symbol data-search="std.result.inspectError function def inspectError[T, E](value : Result[T, E], scoped action : Function[E, Unit]) : Result[T, E] Observe une erreur sans modifier le résultat de la chaîne.
+@example
+```janus
+val kept : Result[int, int] = inspectError[int, int](Result.Error[int, int](1), (borrow error : int) =&gt; println(error))
+```
+@param value Résultat consommé puis retourné.
+@param action Action bornée appelée uniquement pour `Error`.
+@return Le résultat d&#39;origine avec sa propriété transférée."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def inspectError[T, E](value : Result[T, E], scoped action : Function[E, Unit]) : Result[T, E]</code></h3>
+<p class="doc-summary">Observe une erreur sans modifier le résultat de la chaîne.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé puis retourné.</td></tr><tr><td><code>action</code></td><td><code>Function[E, Unit]</code></td><td>Action bornée appelée uniquement pour `Error`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — Le résultat d&#39;origine avec sa propriété transférée.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val kept : Result[int, int] = inspectError[int, int](Result.Error[int, int](1), (borrow error : int) =&gt; println(error))<br>
+</code></pre></section>
+<div class="qualified">std.result.inspectError</div></div><a class="permalink" href="#std-result-inspecterror" aria-label="Permanent link to std.result.inspectError">#</a></article>
 <article class="symbol-card kind-function" id="std-result-iserror" data-symbol data-search="std.result.isError function def isError[T, E](borrow value : Result[T, E]) : bool Indique si le résultat contient une erreur.
 
 @param value Résultat inspecté sans déplacer sa branche.
@@ -6878,6 +7241,26 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr><tr><td><code>transform</code></td><td><code>Function[T, U]</code></td><td>Fonction propriétaire appelée avec la valeur déplacée pour `Ok`, puis détruite.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[U, E]</code> — `Ok` transformé, ou l’erreur d’origine déplacée sans appeler `transform`.</p></section>
 <div class="qualified">std.result.map</div></div><a class="permalink" href="#std-result-map" aria-label="Permanent link to std.result.map">#</a></article>
+<article class="symbol-card kind-function" id="std-result-map2" data-symbol data-search="std.result.map2 function def map2[T, U, E, V](left : Result[T, E], right : Result[U, E], scoped combine : Function[T, U, V]) : Result[V, E] Combine les succès de deux résultats.
+
+L&#39;ordre d&#39;évaluation et de sélection de l&#39;erreur est identique à [[zip]].
+`combine` n&#39;est appelée que lorsque les deux résultats sont `Ok`.
+@example
+```janus
+val sum : Result[int, int] = map2[int, int, int, int](Result.Ok[int, int](1), Result.Ok[int, int](2), (a : int, b : int) =&gt; a + b)
+```
+@param left Premier résultat consommé.
+@param right Second résultat consommé.
+@param combine Fonction bornée recevant les deux succès dans l&#39;ordre.
+@return Succès combiné ou première erreur gauche-droite."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def map2[T, U, E, V](left : Result[T, E], right : Result[U, E], scoped combine : Function[T, U, V]) : Result[V, E]</code></h3>
+<p class="doc-summary">Combine les succès de deux résultats.</p>
+<div class="doc-details"><p>L&#39;ordre d&#39;évaluation et de sélection de l&#39;erreur est identique à <code class="unresolved">zip</code>.<br>
+`combine` n&#39;est appelée que lorsque les deux résultats sont `Ok`.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>Result[T, E]</code></td><td>Premier résultat consommé.</td></tr><tr><td><code>right</code></td><td><code>Result[U, E]</code></td><td>Second résultat consommé.</td></tr><tr><td><code>combine</code></td><td><code>Function[T, U, V]</code></td><td>Fonction bornée recevant les deux succès dans l&#39;ordre.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[V, E]</code> — Succès combiné ou première erreur gauche-droite.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val sum : Result[int, int] = map2[int, int, int, int](Result.Ok[int, int](1), Result.Ok[int, int](2), (a : int, b : int) =&gt; a + b)<br>
+</code></pre></section>
+<div class="qualified">std.result.map2</div></div><a class="permalink" href="#std-result-map2" aria-label="Permanent link to std.result.map2">#</a></article>
 <article class="symbol-card kind-function" id="std-result-mapborrowed" data-symbol data-search="std.result.mapBorrowed function def mapBorrowed[T, U, E](borrow value : Result[T, E], scoped transform : Function[T, U]) : Option[U] Transforme un succès en l&#39;observant sans consommer le résultat.
 @param value Résultat observé; sa variante reste possédée par l&#39;appelant.
 @param transform Fonction bornée recevant un emprunt de la valeur `Ok`.
@@ -6920,6 +7303,38 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[T]</code> — `Some` avec la valeur déplacée pour `Ok`; `None` après destruction de l’erreur.</p></section>
 <div class="qualified">std.result.toOption</div></div><a class="permalink" href="#std-result-tooption" aria-label="Permanent link to std.result.toOption">#</a></article>
+<article class="symbol-card kind-function" id="std-result-toresult" data-symbol data-search="std.result.toResult function def toResult[T, E](value : Option[T], error : E) : Result[T, E] Convertit une option consommée en résultat.
+
+Cette forme nommée depuis `Option` est définie dans `std.result` afin
+d&#39;éviter un cycle de modules. Elle est équivalente à [[fromOption]].
+@example
+```janus
+val value : Result[int, int] = toResult[int, int](Option.Some[int](1), 0)
+```
+@param value Option consommée.
+@param error Erreur détruite pour `Some`, déplacée pour `None`.
+@return `Ok` avec le contenu, sinon `Error(error)`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def toResult[T, E](value : Option[T], error : E) : Result[T, E]</code></h3>
+<p class="doc-summary">Convertit une option consommée en résultat.</p>
+<div class="doc-details"><p>Cette forme nommée depuis `Option` est définie dans `std.result` afin<br>
+d&#39;éviter un cycle de modules. Elle est équivalente à <a href="#std-result-fromoption"><code>fromOption</code></a>.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option consommée.</td></tr><tr><td><code>error</code></td><td><code>E</code></td><td>Erreur détruite pour `Some`, déplacée pour `None`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — `Ok` avec le contenu, sinon `Error(error)`.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val value : Result[int, int] = toResult[int, int](Option.Some[int](1), 0)<br>
+</code></pre></section>
+<div class="qualified">std.result.toResult</div></div><a class="permalink" href="#std-result-toresult" aria-label="Permanent link to std.result.toResult">#</a></article>
+<article class="symbol-card kind-function" id="std-result-transpose" data-symbol data-search="std.result.transpose function def transpose[T, E](value : Result[Option[T], E]) : Option[Result[T, E]] Distribue un résultat optionnel vers une option de résultat.
+@example
+```janus
+val value : Option[Result[int, int]] = transpose[int, int](Result.Ok[Option[int], int](Option.Some[int](1)))
+```
+@param value Résultat consommé.
+@return `Some(Ok)` pour `Ok(Some)`, `None` pour `Ok(None)`, ou `Some(Error)`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def transpose[T, E](value : Result[Option[T], E]) : Option[Result[T, E]]</code></h3>
+<p class="doc-summary">Distribue un résultat optionnel vers une option de résultat.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[Option[T], E]</code></td><td>Résultat consommé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[Result[T, E]]</code> — `Some(Ok)` pour `Ok(Some)`, `None` pour `Ok(None)`, ou `Some(Error)`.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val value : Option[Result[int, int]] = transpose[int, int](Result.Ok[Option[int], int](Option.Some[int](1)))<br>
+</code></pre></section>
+<div class="qualified">std.result.transpose</div></div><a class="permalink" href="#std-result-transpose" aria-label="Permanent link to std.result.transpose">#</a></article>
 <article class="symbol-card kind-function" id="std-result-unwrapor" data-symbol data-search="std.result.unwrapOr function def unwrapOr[T, E](value : Result[T, E], fallback : T) : T Extrait la valeur de succès ou adopte une valeur de remplacement.
 
 @param value Résultat consommé; son erreur est détruite si elle existe.
@@ -6929,6 +7344,41 @@ val value : int = unwrapOr[int, string](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé; son erreur est détruite si elle existe.</td></tr><tr><td><code>fallback</code></td><td><code>T</code></td><td>Valeur consommée et détruite pour `Ok`, retournée pour `Error`.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>T</code> — Valeur déplacée de `Ok`, sinon `fallback`.</p></section>
 <div class="qualified">std.result.unwrapOr</div></div><a class="permalink" href="#std-result-unwrapor" aria-label="Permanent link to std.result.unwrapOr">#</a></article>
+<article class="symbol-card kind-function" id="std-result-unwraporelse" data-symbol data-search="std.result.unwrapOrElse function def unwrapOrElse[T, E](value : Result[T, E], scoped fallback : Function[E, T]) : T Extrait le succès ou calcule un remplacement depuis l&#39;erreur.
+@example
+```janus
+val value : int = unwrapOrElse[int, int](Result.Error[int, int](2), (error : int) =&gt; error + 40)
+```
+@param value Résultat consommé.
+@param fallback Fonction bornée appelée uniquement pour `Error`.
+@return Succès déplacé ou remplacement calculé."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def unwrapOrElse[T, E](value : Result[T, E], scoped fallback : Function[E, T]) : T</code></h3>
+<p class="doc-summary">Extrait le succès ou calcule un remplacement depuis l&#39;erreur.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Result[T, E]</code></td><td>Résultat consommé.</td></tr><tr><td><code>fallback</code></td><td><code>Function[E, T]</code></td><td>Fonction bornée appelée uniquement pour `Error`.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>T</code> — Succès déplacé ou remplacement calculé.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val value : int = unwrapOrElse[int, int](Result.Error[int, int](2), (error : int) =&gt; error + 40)<br>
+</code></pre></section>
+<div class="qualified">std.result.unwrapOrElse</div></div><a class="permalink" href="#std-result-unwraporelse" aria-label="Permanent link to std.result.unwrapOrElse">#</a></article>
+<article class="symbol-card kind-function" id="std-result-zip" data-symbol data-search="std.result.zip function def zip[T, U, E](left : Result[T, E], right : Result[U, E]) : Result[ResultPair[T, U], E] Regroupe les succès de deux résultats.
+
+`left` puis `right` sont évalués avant l&#39;appel. La branche gauche est
+inspectée en premier; sa première erreur gagne et le résultat droit restant
+est alors détruit. Sinon la branche droite est inspectée.
+@example
+```janus
+val pair : Result[ResultPair[int, int], int] = zip[int, int, int](Result.Ok[int, int](1), Result.Ok[int, int](2))
+```
+@param left Premier résultat consommé.
+@param right Second résultat consommé.
+@return Paire des succès, ou première erreur dans l&#39;ordre gauche-droite."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def zip[T, U, E](left : Result[T, E], right : Result[U, E]) : Result[ResultPair[T, U], E]</code></h3>
+<p class="doc-summary">Regroupe les succès de deux résultats.</p>
+<div class="doc-details"><p>`left` puis `right` sont évalués avant l&#39;appel. La branche gauche est<br>
+inspectée en premier; sa première erreur gagne et le résultat droit restant<br>
+est alors détruit. Sinon la branche droite est inspectée.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>Result[T, E]</code></td><td>Premier résultat consommé.</td></tr><tr><td><code>right</code></td><td><code>Result[U, E]</code></td><td>Second résultat consommé.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Result[ResultPair[T, U], E]</code> — Paire des succès, ou première erreur dans l&#39;ordre gauche-droite.</p></section>
+<section class="doc-section"><h4>Example</h4><pre class="example"><code>val pair : Result[ResultPair[int, int], int] = zip[int, int, int](Result.Ok[int, int](1), Result.Ok[int, int](2))<br>
+</code></pre></section>
+<div class="qualified">std.result.zip</div></div><a class="permalink" href="#std-result-zip" aria-label="Permanent link to std.result.zip">#</a></article>
 </div></section>
 <section class="module" id="module-std-slice" data-module data-search="std.slice Fournit des vues contiguës non propriétaires sur un tableau.
 
