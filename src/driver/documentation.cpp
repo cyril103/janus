@@ -3,6 +3,7 @@
 
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
+#include "janus/semantic/compilation_session.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -454,8 +455,9 @@ public_symbols(const std::vector<janus::ast::Program> &programs) {
     const std::string module = program.module_name.value_or("root");
     std::optional<janus::semantic::AnalysisResult> analysis;
     try {
-      analysis = janus::semantic::Analyzer{}.analyze(
-          program, {.require_entry_point = false, .target = {}});
+      analysis = janus::semantic::CompilationSession{
+                     {}, {.require_entry_point = false, .target = {}}}
+                     .analyze(program);
     } catch (const std::exception &) {
     }
     for (const janus::ast::GlobalDeclaration &global : program.globals) {

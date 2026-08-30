@@ -19,6 +19,7 @@
 #include "janus/driver/temporary_directory.hpp"
 #include "janus/frontend/module_loader.hpp"
 #include "janus/semantic/analyzer.hpp"
+#include "janus/semantic/compilation_session.hpp"
 
 #include <algorithm>
 #include <array>
@@ -984,25 +985,19 @@ compile(const std::filesystem::path &source, llvm::LLVMContext &context,
   std::vector<std::filesystem::path> search_paths{toolchain.stdlib};
   search_paths.insert(search_paths.end(), dependency_paths.begin(),
                       dependency_paths.end());
-  janus::frontend::ModuleLoader loader{std::move(search_paths)};
-  janus::frontend::ModuleLoadTimings load_timings;
-  const janus::ast::Program program =
-      loader.load(source, timings == nullptr ? nullptr : &load_timings);
+  janus::semantic::CompilationSession session{
+      std::move(search_paths),
+      janus::semantic::AnalysisOptions{.require_entry_point = false,
+                                       .target = target},
+      true};
+  janus::semantic::AnalyzedProgram compilation = session.analyze(source);
+  const janus::ast::Program &program = compilation.program;
   if (timings != nullptr) {
-    timings->loading = load_timings.loading;
-    timings->parsing = load_timings.parsing;
+    timings->loading = compilation.timings.loading;
+    timings->parsing = compilation.timings.parsing;
+    timings->analysis += compilation.timings.analysis;
   }
-  const auto analysis_start = timings == nullptr
-                                  ? CompilationTimings::Clock::time_point{}
-                                  : CompilationTimings::Clock::now();
-  janus::semantic::Analyzer analyzer;
-  const janus::semantic::AnalysisResult analysis = analyzer.analyze(
-      program,
-      janus::semantic::AnalysisOptions{
-          .require_entry_point = !program.module_name.has_value(),
-          .target = target});
-  if (timings != nullptr)
-    timings->analysis += std::chrono::steady_clock::now() - analysis_start;
+  const janus::semantic::AnalysisResult &analysis = compilation.analysis;
   const std::string source_name = source_name_override.empty()
                                       ? source.string()
                                       : std::string{source_name_override};

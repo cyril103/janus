@@ -10,6 +10,7 @@
 #include "janus/frontend/module_loader.hpp"
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
+#include "janus/semantic/compilation_session.hpp"
 
 #include <llvm/Support/JSON.h>
 #include <llvm/Support/raw_ostream.h>
@@ -1634,12 +1635,24 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
       std::vector<std::filesystem::path> search_paths = module_search_paths_;
       search_paths.insert(search_paths.end(), workspace_search_paths_.begin(),
                           workspace_search_paths_.end());
-      frontend::ModuleLoader loader{std::move(search_paths)};
+      semantic::CompilationSession session{
+          std::move(search_paths),
+          semantic::AnalysisOptions{.require_entry_point = false,
+                                    .target = {}}};
       for (const auto &[open_uri, open_source] : documents_)
         if (const auto open_path = file_uri_path(open_uri);
             open_path.has_value())
-          loader.set_source_override(*open_path, open_source);
-      program = loader.load(*path, source);
+          session.set_source_override(*open_path, open_source);
+      semantic::AnalyzedProgram compilation = session.analyze(*path, source);
+      const bool require_entry_point = requires_entry_point(
+          *path, compilation.program.module_name.has_value());
+      if (!require_entry_point)
+        return std::move(compilation.analysis.diagnostics);
+      return semantic::CompilationSession{
+                 {}, semantic::AnalysisOptions{.require_entry_point = true,
+                                                .target = {}}}
+          .analyze(compilation.program)
+          .diagnostics;
     } else {
       frontend::Parser parser{source};
       program = parser.parse_program();
@@ -1649,10 +1662,11 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
         document_path.has_value()
             ? requires_entry_point(*document_path, is_module)
             : !is_module;
-    return semantic::Analyzer{}
-        .analyze(program, semantic::AnalysisOptions{
-                              .require_entry_point = require_entry_point,
-                              .target = {}})
+    return semantic::CompilationSession{
+               {}, semantic::AnalysisOptions{
+                       .require_entry_point = require_entry_point,
+                       .target = {}}}
+        .analyze(program)
         .diagnostics;
   } catch (const CompileError &error) {
     return error.diagnostics();

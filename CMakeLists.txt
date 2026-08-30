@@ -188,6 +188,7 @@ target_compile_options(janus_constant
 
 add_library(janus_semantic
     src/semantic/analyzer.cpp
+    src/semantic/compilation_session.cpp
 )
 target_include_directories(janus_semantic
     PUBLIC
@@ -728,6 +729,17 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME frontend.module_loader COMMAND module_loader_test)
+    add_executable(compilation_session_test
+        tests/semantic/compilation_session_test.cpp
+    )
+    target_link_libraries(compilation_session_test PRIVATE janus_semantic)
+    target_compile_options(compilation_session_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME semantic.compilation_session COMMAND compilation_session_test)
     add_executable(compile_time_constant_test
         tests/language/compile_time_constant_test.cpp
     )

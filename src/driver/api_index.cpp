@@ -2,6 +2,7 @@
 
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
+#include "janus/semantic/compilation_session.hpp"
 
 #include "llvm/Support/JSON.h"
 
@@ -421,8 +422,9 @@ ApiIndex build_api_index(const std::vector<ast::Program> &programs,
     const std::string module = program.module_name.value_or("root");
     std::optional<semantic::AnalysisResult> analysis;
     try {
-      analysis = semantic::Analyzer{}.analyze(
-          program, {.require_entry_point = false, .target = {}});
+      analysis = semantic::CompilationSession{
+                     {}, {.require_entry_point = false, .target = {}}}
+                     .analyze(program);
     } catch (const std::exception &) {
     }
     for (const auto &global : program.globals) {
