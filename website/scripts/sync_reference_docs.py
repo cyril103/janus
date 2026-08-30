@@ -23,6 +23,7 @@ DOCUMENTS = (
     "doctests.md",
     "testing.md",
     "diagnostics.md",
+    "lsp-performance.md",
     "stdlib-reference.md",
     "graphics.md",
     "stability-contract.md",

@@ -2,14 +2,18 @@
 #include "janus/lsp/server.hpp"
 
 #include <cstdint>
+#include <condition_variable>
 #include <cstdio>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <thread>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -220,6 +224,26 @@ int main(int argc, char **argv) {
 
   janus::lsp::Server server{{stdlib_path(argv[0])},
                             {stdlib_api_index_path(argv[0])}};
+  std::mutex queue_mutex;
+  std::condition_variable queue_changed;
+  std::deque<std::string> queue;
+  bool input_complete = false;
+  std::thread worker{[&] {
+    while (true) {
+      std::string message;
+      {
+        std::unique_lock lock{queue_mutex};
+        queue_changed.wait(lock,
+                           [&] { return input_complete || !queue.empty(); });
+        if (queue.empty())
+          return;
+        message = std::move(queue.front());
+        queue.pop_front();
+      }
+      for (const std::string &reply : server.handle(message))
+        respond(reply);
+    }
+  }};
   while (std::cin) {
     std::size_t content_length = 0;
     std::string header;
@@ -233,10 +257,23 @@ int main(int argc, char **argv) {
       break;
     std::string message(content_length, '\0');
     std::cin.read(message.data(), static_cast<std::streamsize>(message.size()));
-    for (const std::string &reply : server.handle(message))
-      respond(reply);
+    if (message.find("\"$/cancelRequest\"") != std::string::npos) {
+      static_cast<void>(server.handle(message));
+    } else {
+      {
+        std::lock_guard lock{queue_mutex};
+        queue.push_back(message);
+      }
+      queue_changed.notify_one();
+    }
     if (message.find("\"method\":\"exit\"") != std::string::npos)
       break;
   }
+  {
+    std::lock_guard lock{queue_mutex};
+    input_complete = true;
+  }
+  queue_changed.notify_one();
+  worker.join();
   return 0;
 }

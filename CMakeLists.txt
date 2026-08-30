@@ -897,6 +897,17 @@ if(BUILD_TESTING)
             JANUS_STDLIB_API_INDEX="${PROJECT_SOURCE_DIR}/website/docs/reference/stdlib/api-index.json"
     )
     add_test(NAME lsp.server COMMAND lsp_server_test)
+    add_test(
+        NAME lsp.performance_smoke
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/benchmark_lsp.py"
+                --janus-lsp "$<TARGET_FILE:janus-lsp>"
+                --workspace "${PROJECT_SOURCE_DIR}/benchmarks/compilation/medium"
+                --document "${PROJECT_SOURCE_DIR}/benchmarks/compilation/medium/src/main.janus"
+                --snapshot "${PROJECT_SOURCE_DIR}/benchmarks/compilation/medium/src/main.janus"
+                --samples 2
+                --output "${PROJECT_BINARY_DIR}/lsp-performance-smoke.json"
+    )
     add_executable(lsp_workspace_index_test
         tests/lsp/workspace_index_test.cpp
     )

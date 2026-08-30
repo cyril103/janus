@@ -22,9 +22,9 @@
     },
     {
       "id": "lsp-performance",
-      "status": "pending",
+      "status": "in-progress",
       "blocks_1_0": true,
-      "proof": []
+      "proof": ["docs/lsp-performance.md", "scripts/benchmark_lsp.py"]
     },
     {
       "id": "stdlib-review",

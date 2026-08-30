@@ -49,6 +49,9 @@ renvoie le code `1` dès que cette analyse exhaustive contient un avertissement.
 La passe est rejouée avant un build, y compris lorsqu'un artefact incrémental
 est disponible, afin que le résultat ne dépende jamais d'un hit de cache.
 
+Le contrat de versionnement des diagnostics, l'annulation des requêtes et le
+benchmark p50/p95 sont décrits dans [Performance du LSP](lsp-performance.md).
+
 Les options `--emit llvm-ir` et `--emit object` arrêtent la compilation après
 la production de l'IR LLVM ou du fichier objet.
 

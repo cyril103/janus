@@ -22,6 +22,7 @@ EXPECTED_REFERENCE = {
     "api-documentation.md",
     "doctests.md",
     "diagnostics.md",
+    "lsp-performance.md",
     "stdlib-reference.md",
     "graphics.md",
     "stability-contract.md",
@@ -214,7 +215,7 @@ class SiteStructureTests(unittest.TestCase):
         expected_milestones = (
             "| `surface-inventory` | complète |",
             "| `semantic-core` | en cours |",
-            "| `lsp-performance` | à faire |",
+            "| `lsp-performance` | en cours |",
             "| `release-candidate` | à faire |",
         )
         for milestone in expected_milestones:

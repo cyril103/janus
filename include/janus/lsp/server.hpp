@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -66,6 +67,9 @@ public:
   }
 
 private:
+  [[nodiscard]] std::vector<std::string>
+  handle_impl(std::string_view message);
+  [[nodiscard]] bool consume_cancelled_request(std::string_view id);
   [[nodiscard]] std::vector<Diagnostic>
   analyze_document(std::string_view uri, std::string_view source) const;
   [[nodiscard]] std::string diagnostics(std::string_view uri,
@@ -91,6 +95,8 @@ private:
   std::vector<driver::ApiIndex> dependency_api_indexes_;
   std::unordered_set<std::string> workspace_uris_;
   std::unordered_set<std::string> dependency_uris_;
+  std::mutex cancellation_mutex_;
+  std::unordered_set<std::string> cancelled_requests_;
   WorkspaceIndexMetrics workspace_metrics_;
   bool inferred_type_hints_{true};
   bool shutdown_{};

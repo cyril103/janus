@@ -306,6 +306,16 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(invalid.front().find("\"code\":\"JANA0001\"") !=
                 std::string::npos);
   JANUS_REQUIRE(invalid.front().find("\"severity\":1") != std::string::npos);
+  JANUS_REQUIRE(invalid.front().find("\"version\":1") !=
+                std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"$/cancelRequest","params":{"id":990}})"));
+  const std::vector<std::string> cancelled = server.handle(
+      R"({"jsonrpc":"2.0","id":990,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///broken.janus"},"position":{"line":0,"character":4}}})");
+  JANUS_REQUIRE(cancelled.size() == 1);
+  JANUS_REQUIRE(cancelled.front().find("\"code\":-32800") !=
+                std::string::npos);
 
   const std::vector<std::string> tailrec_required = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tailrec-required.janus","text":"def loop(value : int) : int { if value == 0 { return 0 } return loop(value - 1) }\ndef main() : int { return loop(2) }"}}})");

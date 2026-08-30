@@ -72,15 +72,16 @@ llvm::json::Object position(std::uint32_t line, std::uint32_t column) {
 }
 
 std::string publish_diagnostics(std::string_view uri,
-                                llvm::json::Array diagnostics) {
+                                llvm::json::Array diagnostics,
+                                std::optional<std::int64_t> version = std::nullopt) {
+  llvm::json::Object params{{"uri", std::string{uri}},
+                            {"diagnostics", std::move(diagnostics)}};
+  if (version)
+    params.insert({"version", *version});
   return serialize(llvm::json::Object{
       {"jsonrpc", "2.0"},
       {"method", "textDocument/publishDiagnostics"},
-      {"params",
-       llvm::json::Object{
-           {"uri", std::string{uri}},
-           {"diagnostics", std::move(diagnostics)},
-       }},
+      {"params", std::move(params)},
   });
 }
 
@@ -1622,7 +1623,12 @@ std::string Server::diagnostics(std::string_view uri,
     items.emplace_back(std::move(item));
   }
 
-  return publish_diagnostics(uri, std::move(items));
+  const auto version = document_versions_.find(std::string{uri});
+  return publish_diagnostics(
+      uri, std::move(items),
+      version == document_versions_.end()
+          ? std::nullopt
+          : std::optional<std::int64_t>{version->second});
 }
 
 std::vector<Diagnostic>
@@ -1745,7 +1751,38 @@ llvm::json::Object workspace_edit(std::string_view uri,
 
 } // namespace
 
+bool Server::consume_cancelled_request(std::string_view id) {
+  std::lock_guard lock{cancellation_mutex_};
+  return cancelled_requests_.erase(std::string{id}) != 0;
+}
+
 std::vector<std::string> Server::handle(std::string_view message) {
+  llvm::Expected<llvm::json::Value> parsed = llvm::json::parse(message);
+  if (!parsed)
+    return {error_response(nullptr, -32700, "Parse error")};
+  llvm::json::Object *request = parsed->getAsObject();
+  if (request == nullptr)
+    return {error_response(nullptr, -32600, "Invalid Request")};
+  const std::optional<llvm::StringRef> method = request->getString("method");
+  if (method && *method == "$/cancelRequest") {
+    if (const llvm::json::Object *params = request->getObject("params"))
+      if (const llvm::json::Value *id = params->get("id")) {
+        std::lock_guard lock{cancellation_mutex_};
+        cancelled_requests_.insert(serialize(*id));
+      }
+    return {};
+  }
+  const llvm::json::Value *id = request->get("id");
+  const std::string id_key = id == nullptr ? std::string{} : serialize(*id);
+  if (!id_key.empty() && consume_cancelled_request(id_key))
+    return {error_response(*id, -32800, "Request cancelled")};
+  std::vector<std::string> result = handle_impl(message);
+  if (!id_key.empty() && consume_cancelled_request(id_key))
+    return {error_response(*id, -32800, "Request cancelled")};
+  return result;
+}
+
+std::vector<std::string> Server::handle_impl(std::string_view message) {
   llvm::Expected<llvm::json::Value> parsed = llvm::json::parse(message);
   if (!parsed)
     return {error_response(nullptr, -32700, "Parse error")};
