@@ -42,6 +42,9 @@ changelog.
 
 `J0000` identifie temporairement les anciens appels à `CompileError` qui ne
 sont pas encore migrés. Un nouveau diagnostic ne doit pas utiliser ce code.
+La CI compare ces chemins historiques à une baseline qui ne peut qu'être
+réduite. `janus explain <code>` fournit une explication hors ligne pour chaque
+code reconnu.
 
 ## Avertissements de sûreté sémantique
 

@@ -26,6 +26,12 @@
 | `janus doc --search <requête> --module <nom>` | filtrer la recherche par module |
 | `janus doc --search <requête> --kind <nature>` | filtrer la recherche par nature de symbole |
 | `janus doc --search <requête> --package <nom>` | filtrer la recherche par paquet |
+| `janus explain <code>` | expliquer un diagnostic stable et sa correction habituelle |
+
+`janus explain JANA0025`, par exemple, détaille pourquoi une opération invalide
+un propriétaire emprunté et propose de terminer l'emprunt avant l'opération.
+La commande fonctionne hors ligne et son catalogue est livré avec le
+compilateur.
 
 Pour compiler un fichier isolé :
 

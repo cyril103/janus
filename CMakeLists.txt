@@ -832,6 +832,16 @@ if(BUILD_TESTING)
     )
     add_test(NAME diagnostics.model COMMAND diagnostic_model_test)
     add_test(
+        NAME diagnostics.migration_budget
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/scripts/check_diagnostic_migration.py"
+                --root "${PROJECT_SOURCE_DIR}"
+    )
+    add_test(NAME cli.explain_diagnostic COMMAND janus explain JANA0025)
+    set_tests_properties(cli.explain_diagnostic
+        PROPERTIES PASS_REGULAR_EXPRESSION "borrow invalidated"
+    )
+    add_test(
         NAME diagnostics.invalid_corpus
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/tests/diagnostics/run_invalid_corpus.py"

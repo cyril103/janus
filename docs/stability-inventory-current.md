@@ -58,6 +58,7 @@ retrait requiert une note de migration.
 | `cli.remove` | `stable-candidate` | Cœur 1.0. |
 | `cli.search` | `experimental` | Dépend du registre. |
 | `cli.publish` | `experimental` | Dépend du registre. |
+| `cli.explain` | `stable-candidate` | Catalogue diagnostique hors ligne. |
 | `cli.clean` | `stable-candidate` | Cœur 1.0. |
 | `cli.check` | `stable-candidate` | Cœur 1.0. |
 | `cli.build` | `stable-candidate` | Cœur 1.0. |

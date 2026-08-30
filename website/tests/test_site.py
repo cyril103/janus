@@ -82,6 +82,7 @@ EXPECTED_COMMANDS = {
     "check",
     "clean",
     "doc",
+    "explain",
     "fmt",
     "init",
     "new",

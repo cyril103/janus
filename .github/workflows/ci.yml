@@ -426,6 +426,7 @@ jobs:
         run: |
           python3 scripts/check_stability_inventory.py
           python3 scripts/check_release_gates.py
+          python3 scripts/check_diagnostic_migration.py
 
       - name: Reject open critical issues
         shell: bash

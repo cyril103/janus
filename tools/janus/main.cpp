@@ -2,6 +2,7 @@
 #include "janus/backend/llvm/object_emitter.hpp"
 #include "janus/build_identity.hpp"
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/diagnostics/catalog.hpp"
 #include "janus/diagnostics/high_growth_loop_linter.hpp"
 #include "janus/diagnostics/renderer.hpp"
 #include "janus/driver/api_index.hpp"
@@ -237,6 +238,7 @@ void print_usage(std::ostream &output) {
          << "  janus remove <name>\n"
          << "  janus search <query> [--registry <url>]\n"
          << "  janus publish [--registry <url>]\n"
+         << "  janus explain <diagnostic-code>\n"
          << "  janus clean\n"
          << "  janus check [source.janus] "
             "[--all] [--deny-warnings] "
@@ -261,6 +263,22 @@ void print_usage(std::ostream &output) {
          << "  dependency options: --locked --offline\n"
          << "  janus --help\n"
          << "  janus --version\n";
+}
+
+int explain_diagnostic(int argc, char **argv) {
+  if (argc != 3)
+    throw std::runtime_error{"explain requires one diagnostic code"};
+  const auto code = janus::diagnostics::diagnostic_code_from_name(argv[2]);
+  if (!code)
+    throw std::runtime_error{"unknown diagnostic code '" +
+                             std::string{argv[2]} + "'"};
+  const janus::diagnostics::DiagnosticExplanation explanation =
+      janus::diagnostics::explain_diagnostic(*code);
+  std::cout << janus::diagnostic_code_name(explanation.code) << ": "
+            << explanation.title << "\n\n"
+            << explanation.explanation << "\n\nhelp: " << explanation.action
+            << '\n';
+  return 0;
 }
 
 void print_command_usage(std::ostream &output, std::string_view command) {
@@ -2481,6 +2499,8 @@ int main(int argc, char **argv) {
   janus::diagnostics::DiagnosticFormat diagnostic_format =
       janus::diagnostics::DiagnosticFormat::Human;
   try {
+    if (argc >= 2 && std::string_view{argv[1]} == "explain")
+      return explain_diagnostic(argc, argv);
     if (argc >= 2 && (std::string_view{argv[1]} == "new" ||
                       std::string_view{argv[1]} == "init"))
       return create_or_initialize(argc, argv);
