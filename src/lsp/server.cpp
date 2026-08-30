@@ -1679,7 +1679,7 @@ Server::analyze_document(std::string_view uri, std::string_view source) const {
   } catch (const std::exception &error) {
     return {Diagnostic{
         DiagnosticSeverity::Error,
-        DiagnosticCode::Unclassified,
+        DiagnosticCode::GeneralInternalFailure,
         error.what(),
         SourceLocation{},
         {},

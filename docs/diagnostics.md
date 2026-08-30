@@ -14,7 +14,9 @@ La sortie texte conserve la forme `fichier:ligne:colonne`, affiche le code des
 diagnostics migrés entre crochets, puis l'extrait de source et son repère. Une
 suggestion est uniquement affichée : Janus ne modifie jamais le fichier
 automatiquement. Le LSP publie directement la gravité, le code, le message et
-la position du même modèle, sans analyser la sortie destinée aux humains.
+la position du même modèle, sans analyser la sortie destinée aux humains. Tous
+les diagnostics, y compris les chemins historiques, affichent désormais leur
+code.
 
 ## Rendus CLI
 
@@ -34,17 +36,20 @@ changelog.
 
 | Préfixe | Producteur |
 |---|---|
+| `JGEN` | infrastructure commune et échecs internes |
 | `JLEX` | lexer |
 | `JPAR` | parser |
 | `JANA` | analyse sémantique |
 | `JMOD` | résolution de modules |
+| `JCON` | évaluation constante |
 | `JBCK` | backend |
+| `JDRV` | driver |
 
-`J0000` identifie temporairement les anciens appels à `CompileError` qui ne
-sont pas encore migrés. Un nouveau diagnostic ne doit pas utiliser ce code.
-La CI compare ces chemins historiques à une baseline qui ne peut qu'être
-réduite. `janus explain <code>` fournit une explication hors ligne pour chaque
-code reconnu.
+`J0000` n'est plus produit. Les anciens appels à `CompileError` reçoivent un
+code stable terminé par `0999`, propre à leur sous-système. La CI interdit le
+retour de `J0000` et compare le nombre de ces chemins historiques à une
+baseline qui ne peut qu'être réduite. `janus explain <code>` fournit une
+explication hors ligne pour chaque code reconnu.
 
 ## Avertissements de sûreté sémantique
 

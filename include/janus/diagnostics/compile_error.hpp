@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <source_location>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -24,9 +25,13 @@ enum class DiagnosticSeverity {
 };
 
 enum class DiagnosticCode {
-  Unclassified,
+  GeneralInternalFailure,
+  LexerLegacy,
   LexerUnexpectedCharacter,
+  ParserLegacy,
   ParserExpectedExpression,
+  ModuleLegacy,
+  AnalyzerLegacy,
   AnalyzerUnknownValue,
   AnalyzerPotentialMemoryLeak,
   AnalyzerOwningValueOverwritten,
@@ -60,19 +65,31 @@ enum class DiagnosticCode {
   AnalyzerNonTerminalTailrec,
   AnalyzerIncompatibleTailrec,
   AnalyzerDeprecatedUse,
+  AnalyzerHighGrowthLoop,
   ModuleNotFound,
+  ConstantLegacy,
+  BackendLegacy,
   BackendCyclicGlobalConstant,
+  DriverLegacy,
 };
 
 [[nodiscard]] constexpr std::string_view
 diagnostic_code_name(DiagnosticCode code) noexcept {
   switch (code) {
-  case DiagnosticCode::Unclassified:
-    return "J0000";
+  case DiagnosticCode::GeneralInternalFailure:
+    return "JGEN0001";
+  case DiagnosticCode::LexerLegacy:
+    return "JLEX0999";
   case DiagnosticCode::LexerUnexpectedCharacter:
     return "JLEX0001";
+  case DiagnosticCode::ParserLegacy:
+    return "JPAR0999";
   case DiagnosticCode::ParserExpectedExpression:
     return "JPAR0001";
+  case DiagnosticCode::ModuleLegacy:
+    return "JMOD0999";
+  case DiagnosticCode::AnalyzerLegacy:
+    return "JANA0999";
   case DiagnosticCode::AnalyzerUnknownValue:
     return "JANA0001";
   case DiagnosticCode::AnalyzerPotentialMemoryLeak:
@@ -139,12 +156,39 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0032";
   case DiagnosticCode::AnalyzerDeprecatedUse:
     return "JANA0033";
+  case DiagnosticCode::AnalyzerHighGrowthLoop:
+    return "JANA0034";
   case DiagnosticCode::ModuleNotFound:
     return "JMOD0001";
+  case DiagnosticCode::ConstantLegacy:
+    return "JCON0999";
+  case DiagnosticCode::BackendLegacy:
+    return "JBCK0999";
   case DiagnosticCode::BackendCyclicGlobalConstant:
     return "JBCK0001";
+  case DiagnosticCode::DriverLegacy:
+    return "JDRV0999";
   }
-  return "J0000";
+  return "JGEN0001";
+}
+
+[[nodiscard]] constexpr DiagnosticCode
+legacy_diagnostic_code(std::string_view file) noexcept {
+  if (file.find("/frontend/lexer.cpp") != std::string_view::npos)
+    return DiagnosticCode::LexerLegacy;
+  if (file.find("/frontend/parser.cpp") != std::string_view::npos)
+    return DiagnosticCode::ParserLegacy;
+  if (file.find("/frontend/module_loader.cpp") != std::string_view::npos)
+    return DiagnosticCode::ModuleLegacy;
+  if (file.find("/semantic/") != std::string_view::npos)
+    return DiagnosticCode::AnalyzerLegacy;
+  if (file.find("/constant/") != std::string_view::npos)
+    return DiagnosticCode::ConstantLegacy;
+  if (file.find("/backend/") != std::string_view::npos)
+    return DiagnosticCode::BackendLegacy;
+  if (file.find("/driver/") != std::string_view::npos)
+    return DiagnosticCode::DriverLegacy;
+  return DiagnosticCode::GeneralInternalFailure;
 }
 
 struct DiagnosticLocation {
@@ -179,7 +223,7 @@ struct Diagnostic {
         source_path{std::move(path)} {}
 
   DiagnosticSeverity severity{DiagnosticSeverity::Error};
-  DiagnosticCode code{DiagnosticCode::Unclassified};
+  DiagnosticCode code{DiagnosticCode::GeneralInternalFailure};
   std::string message;
   SourceLocation primary_location;
   std::vector<std::string> notes;
@@ -190,9 +234,11 @@ struct Diagnostic {
 
 class CompileError final : public std::runtime_error {
 public:
-  CompileError(SourceLocation location, std::string message)
+  CompileError(
+      SourceLocation location, std::string message,
+      const std::source_location origin = std::source_location::current())
       : CompileError{Diagnostic{DiagnosticSeverity::Error,
-                                DiagnosticCode::Unclassified,
+                                legacy_diagnostic_code(origin.file_name()),
                                 std::move(message),
                                 location,
                                 {},
@@ -219,7 +265,7 @@ public:
         diagnostics_{std::move(diagnostics)} {
     if (diagnostics_.empty())
       diagnostics_.push_back(Diagnostic{DiagnosticSeverity::Error,
-                                        DiagnosticCode::Unclassified,
+                                        DiagnosticCode::GeneralInternalFailure,
                                         "compilation failed",
                                         SourceLocation{},
                                         {},

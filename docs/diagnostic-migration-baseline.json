@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "legacy_compile_error_calls": 510,
-  "explicit_unclassified_diagnostics": 8
+  "j0000_production_references": 0
 }

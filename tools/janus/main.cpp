@@ -1028,7 +1028,7 @@ int check_sources(const Options &options, const Toolchain &toolchain,
              janus::diagnostics::find_high_growth_loop_warnings(program))
           batch.diagnostics.push_back(janus::Diagnostic{
               janus::DiagnosticSeverity::Warning,
-              janus::DiagnosticCode::Unclassified,
+              janus::DiagnosticCode::AnalyzerHighGrowthLoop,
               "high-growth loop pattern may cause integer overflow or "
               "excessive "
               "running time; add an explicit bound, use a safe numeric type, "
@@ -1044,7 +1044,7 @@ int check_sources(const Options &options, const Toolchain &toolchain,
     } catch (const std::exception &error) {
       batch.diagnostics.push_back(janus::Diagnostic{
           janus::DiagnosticSeverity::Error,
-          janus::DiagnosticCode::Unclassified,
+          janus::DiagnosticCode::GeneralInternalFailure,
           error.what(),
           janus::SourceLocation{},
           {},

@@ -12,13 +12,13 @@
       "id": "semantic-core",
       "status": "in-progress",
       "blocks_1_0": true,
-      "proof": []
+      "proof": ["include/janus/semantic/compilation_session.hpp", "tests/semantic/compilation_session_test.cpp"]
     },
     {
       "id": "diagnostics-zero-j0000",
-      "status": "in-progress",
+      "status": "complete",
       "blocks_1_0": true,
-      "proof": []
+      "proof": ["docs/diagnostic-migration-baseline.json", "scripts/check_diagnostic_migration.py"]
     },
     {
       "id": "lsp-performance",

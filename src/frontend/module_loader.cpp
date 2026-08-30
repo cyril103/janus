@@ -53,7 +53,7 @@ void require_module_name(const ast::Program &program,
     return;
   throw CompileError{Diagnostic{
       DiagnosticSeverity::Error,
-      DiagnosticCode::Unclassified,
+      DiagnosticCode::ModuleLegacy,
       "module file '" + path.string() + "' must declare 'module " +
           *expected_module + "'",
       SourceLocation{},
@@ -120,7 +120,7 @@ void reserve_import_name(std::unordered_map<std::string, std::string> &names,
   if (!inserted && existing->second != origin)
     throw CompileError{Diagnostic{
         DiagnosticSeverity::Error,
-        DiagnosticCode::Unclassified,
+        DiagnosticCode::ModuleLegacy,
         "import name '" + existing->first + "' is ambiguous between '" +
             existing->second + "' and '" + origin +
             "'; qualify or rename one import",
@@ -257,7 +257,7 @@ ModuleLoader::load_file(const std::filesystem::path &path,
                 ? " is private"
                 : " does not exist";
         throw CompileError{Diagnostic{DiagnosticSeverity::Error,
-                                      DiagnosticCode::Unclassified,
+                                      DiagnosticCode::ModuleLegacy,
                                       "symbol '" + import.module_name + "." +
                                           symbol.name + "'" + reason,
                                       symbol.location,

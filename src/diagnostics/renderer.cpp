@@ -160,8 +160,7 @@ std::string render_human(const std::filesystem::path &path,
     const janus::SourceLocation location = diagnostic.primary_location;
     output << path.string() << ':' << location.line << ':' << location.column
            << ": " << severity_name(diagnostic.severity) << ':';
-    if (diagnostic.code != janus::DiagnosticCode::Unclassified)
-      output << " [" << janus::diagnostic_code_name(diagnostic.code) << ']';
+    output << " [" << janus::diagnostic_code_name(diagnostic.code) << ']';
     output << ' ' << diagnostic.message << '\n';
 
     const std::string full_line = source_line(source, location.line);

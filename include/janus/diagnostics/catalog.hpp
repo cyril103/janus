@@ -16,9 +16,13 @@ struct DiagnosticExplanation {
 };
 
 inline constexpr std::array all_diagnostic_codes{
-    DiagnosticCode::Unclassified,
+    DiagnosticCode::GeneralInternalFailure,
+    DiagnosticCode::LexerLegacy,
     DiagnosticCode::LexerUnexpectedCharacter,
+    DiagnosticCode::ParserLegacy,
     DiagnosticCode::ParserExpectedExpression,
+    DiagnosticCode::ModuleLegacy,
+    DiagnosticCode::AnalyzerLegacy,
     DiagnosticCode::AnalyzerUnknownValue,
     DiagnosticCode::AnalyzerPotentialMemoryLeak,
     DiagnosticCode::AnalyzerOwningValueOverwritten,
@@ -52,8 +56,12 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::AnalyzerNonTerminalTailrec,
     DiagnosticCode::AnalyzerIncompatibleTailrec,
     DiagnosticCode::AnalyzerDeprecatedUse,
+    DiagnosticCode::AnalyzerHighGrowthLoop,
     DiagnosticCode::ModuleNotFound,
+    DiagnosticCode::ConstantLegacy,
+    DiagnosticCode::BackendLegacy,
     DiagnosticCode::BackendCyclicGlobalConstant,
+    DiagnosticCode::DriverLegacy,
 };
 
 [[nodiscard]] inline std::optional<DiagnosticCode>
@@ -67,10 +75,20 @@ diagnostic_code_from_name(std::string_view name) noexcept {
 [[nodiscard]] inline DiagnosticExplanation
 explain_diagnostic(DiagnosticCode code) noexcept {
   switch (code) {
-  case DiagnosticCode::Unclassified:
-    return {code, "unclassified compiler diagnostic",
-            "This diagnostic still comes from a legacy compiler path.",
-            "Report it with a minimal reproducer so it can receive a stable code."};
+  case DiagnosticCode::GeneralInternalFailure:
+    return {code, "internal compiler or tool failure",
+            "A tool operation failed outside a more specific compiler diagnostic.",
+            "Report the command and a minimal reproducer."};
+  case DiagnosticCode::LexerLegacy:
+  case DiagnosticCode::ParserLegacy:
+  case DiagnosticCode::ModuleLegacy:
+  case DiagnosticCode::AnalyzerLegacy:
+  case DiagnosticCode::ConstantLegacy:
+  case DiagnosticCode::BackendLegacy:
+  case DiagnosticCode::DriverLegacy:
+    return {code, "stable subsystem diagnostic",
+            "This error is classified by its producing compiler subsystem.",
+            "Read the primary message; report a reproducer if a more precise code would help."};
   case DiagnosticCode::LexerUnexpectedCharacter:
     return {code, "unexpected source character",
             "The lexer cannot form a Janus token at this position.",
@@ -118,6 +136,10 @@ explain_diagnostic(DiagnosticCode code) noexcept {
     return {code, "deprecated API use",
             "The referenced declaration is retained only for source migration.",
             "Use the replacement named in the diagnostic before the API is removed."};
+  case DiagnosticCode::AnalyzerHighGrowthLoop:
+    return {code, "high-growth loop",
+            "The loop update may overflow or consume excessive execution time.",
+            "Add an explicit bound, use a safe numeric type, or enforce a time budget."};
   case DiagnosticCode::ModuleNotFound:
     return {code, "module not found",
             "Module resolution exhausted the project, dependency and standard-library roots.",

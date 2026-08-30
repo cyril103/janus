@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prevent growth of legacy J0000-producing diagnostic paths."""
+"""Keep J0000 out of production and reduce subsystem-generic diagnostics."""
 
 from __future__ import annotations
 
@@ -15,6 +15,14 @@ def source_texts(root: Path) -> list[str]:
         path.read_text(encoding="utf-8")
         for path in sorted((root / "src").rglob("*.cpp"))
     ]
+
+
+def production_texts(root: Path) -> list[str]:
+    paths = []
+    for directory in ("include", "src", "tools"):
+        paths.extend((root / directory).rglob("*.cpp"))
+        paths.extend((root / directory).rglob("*.hpp"))
+    return [path.read_text(encoding="utf-8") for path in sorted(paths)]
 
 
 def main() -> int:
@@ -35,10 +43,9 @@ def main() -> int:
     )
     current = {
         "legacy_compile_error_calls": all_calls - classified_calls,
-        "explicit_unclassified_diagnostics": sum(
-            1
-            for text in texts
-            for _ in re.findall(r"DiagnosticCode::Unclassified", text)
+        "j0000_production_references": sum(
+            text.count("J0000") + text.count("DiagnosticCode::Unclassified")
+            for text in production_texts(root)
         ),
     }
     errors = []
@@ -50,8 +57,8 @@ def main() -> int:
         print(f"ERROR {error}", file=sys.stderr)
     print(
         "Migration diagnostics: "
-        f"{current['legacy_compile_error_calls']} appels historiques, "
-        f"{current['explicit_unclassified_diagnostics']} J0000 explicites"
+        f"{current['legacy_compile_error_calls']} appels à préciser, "
+        f"{current['j0000_production_references']} référence J0000 en production"
     )
     return 1 if errors else 0
 

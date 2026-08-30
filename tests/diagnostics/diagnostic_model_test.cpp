@@ -13,16 +13,33 @@ int main(int argc, char **argv) {
 
   using janus::DiagnosticCode;
 
+  static_assert(janus::legacy_diagnostic_code("src/frontend/parser.cpp") ==
+                DiagnosticCode::ParserLegacy);
+  static_assert(janus::legacy_diagnostic_code("src/semantic/analyzer.cpp") ==
+                DiagnosticCode::AnalyzerLegacy);
+  static_assert(janus::legacy_diagnostic_code("src/constant/evaluator.cpp") ==
+                DiagnosticCode::ConstantLegacy);
+  static_assert(janus::legacy_diagnostic_code("src/backend/llvm/ir_generator.cpp") ==
+                DiagnosticCode::BackendLegacy);
+
   constexpr std::array codes{
       DiagnosticCode::LexerUnexpectedCharacter,
+      DiagnosticCode::LexerLegacy,
       DiagnosticCode::ParserExpectedExpression,
+      DiagnosticCode::ParserLegacy,
       DiagnosticCode::AnalyzerUnknownValue,
+      DiagnosticCode::AnalyzerLegacy,
       DiagnosticCode::AnalyzerTailrecRequired,
       DiagnosticCode::AnalyzerInvalidTailrec,
       DiagnosticCode::AnalyzerNonTerminalTailrec,
       DiagnosticCode::AnalyzerIncompatibleTailrec,
       DiagnosticCode::ModuleNotFound,
+      DiagnosticCode::ModuleLegacy,
+      DiagnosticCode::ConstantLegacy,
       DiagnosticCode::BackendCyclicGlobalConstant,
+      DiagnosticCode::BackendLegacy,
+      DiagnosticCode::DriverLegacy,
+      DiagnosticCode::GeneralInternalFailure,
   };
   for (std::size_t left = 0; left < codes.size(); ++left) {
     JANUS_REQUIRE(janus::diagnostic_code_name(codes[left]) != "J0000");

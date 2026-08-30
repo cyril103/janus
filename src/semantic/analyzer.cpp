@@ -1806,7 +1806,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       chain += name;
     }
     return CompileError{Diagnostic{DiagnosticSeverity::Error,
-                                   DiagnosticCode::Unclassified,
+                                   DiagnosticCode::AnalyzerLegacy,
                                    std::move(message), location,
                                    chain.empty()
                                        ? std::vector<std::string>{}
@@ -2470,7 +2470,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           &evaluation_budget);
       if (!std::get<bool>(condition.data))
         throw CompileError{Diagnostic{DiagnosticSeverity::Error,
-                                      DiagnosticCode::Unclassified,
+                                      DiagnosticCode::AnalyzerLegacy,
                                       "static assertion failed" +
                                           (assertion.message.has_value()
                                                ? ": " + *assertion.message
@@ -2486,7 +2486,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         throw;
       throw CompileError{Diagnostic{
           DiagnosticSeverity::Error,
-          DiagnosticCode::Unclassified,
+          DiagnosticCode::AnalyzerLegacy,
           "static assertion condition is not a constant expression: " +
               std::string{error.what()},
           assertion.location,

@@ -29,7 +29,7 @@ Les priorités sont ordonnées ainsi :
 | --- | --- | --- |
 | `surface-inventory` | complète | Toutes les surfaces sont classées et la dérive est refusée en CI. |
 | `semantic-core` | en cours | CLI, documentation et LSP consomment une session et un index sémantique communs. |
-| `diagnostics-zero-j0000` | en cours | Aucun chemin utilisateur ne produit `J0000`. |
+| `diagnostics-zero-j0000` | terminé | Aucun chemin utilisateur ne produit `J0000`. |
 | `lsp-performance` | en cours | Budgets p50/p95 ratifiés, cancellation et absence de publication obsolète. |
 | `stdlib-review` | complète | Chaque module est promu, maintenu expérimental, extrait ou retiré. |
 | `ecosystem-validation` | en cours | Trois canaris aval et deux cycles réels du registre sont archivés. |
@@ -139,8 +139,8 @@ et emprunts stockés sont différés après cette première version.
   parallèles dans le serveur ;
 - séparer progressivement résolution des noms, typage, ownership et analyse de
   flux sans réécriture globale risquée ;
-- ajouter une gate interdisant tout nouveau diagnostic `J0000` ;
-- publier le compteur des diagnostics non classifiés et le réduire release
+- maintenir la gate qui interdit le retour de `J0000` ;
+- publier le compteur des diagnostics génériques `0999` et le réduire release
   après release ;
 - améliorer la récupération du parseur et la conservation de plusieurs erreurs
   sans cascades trompeuses.
@@ -148,8 +148,8 @@ et emprunts stockés sont différés après cette première version.
 ### Gate de sortie
 
 - CLI et LSP produisent les mêmes codes et positions sur un corpus partagé ;
-- aucun nouveau chemin utilisateur n'emploie `J0000` ;
-- le nombre de diagnostics non classifiés atteint zéro avant la première RC ;
+- aucun chemin utilisateur n'emploie `J0000` ;
+- le nombre de diagnostics génériques `0999` atteint zéro avant la première RC ;
 - les principales unités sémantiques ont des responsabilités et tests isolés,
   même si leur découpage physique continue après 1.0.
 

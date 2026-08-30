@@ -170,7 +170,7 @@ d'extension. La surface comprend notamment `flatten`, `filter`, `fold`,
 ordre d'évaluation et la destruction des branches inactives.
 
 ```janus
-// doctest: compile_fail=J0000 name=stdlib-std-option-requires-handling
+// doctest: compile_fail=JANA0999 name=stdlib-std-option-requires-handling
 import std.option
 def main() : int {
     val missing : Option[int] = Option.None[int]()
@@ -214,7 +214,7 @@ def main() : int {
 ```
 
 ```janus
-// doctest: compile_fail=J0000 name=stdlib-std-result-requires-handling
+// doctest: compile_fail=JANA0999 name=stdlib-std-result-requires-handling
 import std.result
 def main() : int {
     val failed : Result[int, int] = Result.Error[int, int](1)
@@ -484,7 +484,7 @@ def main() : int {
 ```
 
 ```janus
-// doctest: compile_fail=J0000 name=stdlib-std-system-requires-handling
+// doctest: compile_fail=JANA0999 name=stdlib-std-system-requires-handling
 import std.system
 def main() : int {
     return openSystemFile("missing.txt", SystemOpenMode.Read)
@@ -510,7 +510,7 @@ def main() : int {
 ```
 
 ```janus
-// doctest: compile_fail=J0000 name=stdlib-std-path-requires-handling
+// doctest: compile_fail=JANA0999 name=stdlib-std-path-requires-handling
 import std.path
 def main() : int { return normalizePath(".") }
 ```
@@ -526,7 +526,7 @@ def main() : int {
 ```
 
 ```janus
-// doctest: compile_fail=J0000 name=stdlib-std-fs-requires-handling
+// doctest: compile_fail=JANA0999 name=stdlib-std-fs-requires-handling
 import std.fs
 def main() : int { return readFile("missing.txt") }
 ```
@@ -546,7 +546,7 @@ def main() : int {
 ```
 
 ```janus
-// doctest: compile_fail=J0000 name=stdlib-std-io-requires-handling
+// doctest: compile_fail=JANA0999 name=stdlib-std-io-requires-handling
 import std.io
 def main() : int { return openInputStream("missing.txt") }
 ```
@@ -563,7 +563,7 @@ def main() : int {
 ```
 
 ```janus
-// doctest: compile_fail=J0000 name=stdlib-std-process-requires-handling
+// doctest: compile_fail=JANA0999 name=stdlib-std-process-requires-handling
 import std.process
 def main() : int { return environmentVariable("PATH") }
 ```
@@ -585,7 +585,7 @@ def main() : int {
 ```
 
 ```janus
-// doctest: compile_fail=J0000 name=stdlib-std-text-requires-handling
+// doctest: compile_fail=JANA0999 name=stdlib-std-text-requires-handling
 import std.text
 def main() : int { return parseInt("not-an-int") }
 ```
@@ -613,7 +613,7 @@ def main() : int {
 ```
 
 ```janus
-// doctest: compile_fail=J0000 name=stdlib-std-testing-requires-import
+// doctest: compile_fail=JANA0999 name=stdlib-std-testing-requires-import
 def main() : int {
     assertTrue(unknownCondition)
     return 0

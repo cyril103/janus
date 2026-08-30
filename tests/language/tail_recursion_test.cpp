@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -27,8 +28,8 @@ void expect(bool condition, std::string_view message) {
 
 void expect_rejected(std::string_view source, std::string_view message,
                      std::string_view reason,
-                     janus::DiagnosticCode expected_code =
-                         janus::DiagnosticCode::Unclassified) {
+                     std::optional<janus::DiagnosticCode> expected_code =
+                         std::nullopt) {
   try {
     janus::frontend::Parser parser{source};
     const janus::ast::Program program = parser.parse_program();
@@ -38,8 +39,8 @@ void expect_rejected(std::string_view source, std::string_view message,
   } catch (const janus::CompileError &error) {
     expect(std::string_view{error.what()}.find(reason) != std::string_view::npos,
            message);
-    if (expected_code != janus::DiagnosticCode::Unclassified)
-      expect(error.diagnostic().code == expected_code,
+    if (expected_code.has_value())
+      expect(error.diagnostic().code == *expected_code,
              std::string{message} + " reports the structured diagnostic code");
   }
 }

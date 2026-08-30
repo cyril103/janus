@@ -88,10 +88,8 @@ int main(int argc, char **argv) {
     std::cerr << diagnostic_path.string() << ':' << location.line << ':'
               << location.column
               << ": error: ";
-    if (error.diagnostic().code != janus::DiagnosticCode::Unclassified)
-      std::cerr << '['
-                << janus::diagnostic_code_name(error.diagnostic().code)
-                << "] ";
+    std::cerr << '[' << janus::diagnostic_code_name(error.diagnostic().code)
+              << "] ";
     std::cerr << error.what() << '\n';
     return 1;
   } catch (const std::exception &error) {
