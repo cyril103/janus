@@ -593,6 +593,12 @@ La première version du protocole exige deux variantes : l'une transporte
 exactement `Output`, l'autre exactement `Residual` (ou aucune charge utile pour
 `Residual = Unit`).
 
+Dans une spécialisation générique où le résidu devient `Unit`, le payload est
+effacé de la représentation. Son expression de construction est néanmoins
+évaluée une fois pour ses effets, et `?` propage seulement la variante vide sans
+tenter de lire une valeur `Unit`. Les résidus non identiques restent refusés avant
+la génération de code.
+
 Le module `std.option` fournit un noyau de combinateurs génériques :
 
 | Fonction | Effet |

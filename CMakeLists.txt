@@ -3365,6 +3365,19 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.try_operator COMMAND try_operator_test)
+    add_test(
+        NAME runtime.unit_residual_try
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/unit_residual_try.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/unit_residual_try_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/unit_residual_try.expected.txt"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
     add_executable(extension_method_test
         tests/language/extension_method_test.cpp
     )

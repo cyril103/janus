@@ -20,6 +20,13 @@ aucune valeur. Cette représentation rend la branche explicite tout en permettan
 au backend de conserver l'abaissement direct et sans allocation de `Option` et
 `Result`.
 
+Une variante générique telle que `Result.Error(E)` est donc abaissée comme une
+variante sans payload lorsqu'elle est spécialisée avec `E = Unit`. L'expression
+passée au constructeur est toujours évaluée exactement une fois afin de préserver
+ses effets, mais aucune valeur `Unit` n'est lue, stockée ou copiée. La propagation
+construit uniquement le tag résiduel du type de retour. La compatibilité demeure
+stricte : aucune conversion entre résidus distincts n'est implicite.
+
 ```janus
 enum Attempt[T, E] extends Try {
     type Output = T

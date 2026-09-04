@@ -725,11 +725,13 @@ private:
           &aggregate_type, matched->value, {}};
       const unsigned start =
           enum_case_payload_start(aggregate_type.name(), *enum_case);
-      for (std::size_t index = 0; index < matched->payload_types.size();
-           ++index)
-        shape.fields.emplace_back(start + index,
-                                  &resolve(matched->payload_types[index],
-                                           specialization.substitutions));
+      unsigned field = start;
+      for (const janus::ast::TypeReference &payload : matched->payload_types) {
+        const janus::Type &payload_type =
+            resolve(payload, specialization.substitutions);
+        if (payload_type.kind() != janus::TypeKind::Unit)
+          shape.fields.emplace_back(field++, &payload_type);
+      }
       return shape;
     };
     const janus::Type &type = resolve(global.declaration.declared_type, {});
@@ -1135,8 +1137,11 @@ private:
 
     std::vector<::llvm::Type *> fields{::llvm::Type::getInt32Ty(context_)};
     for (const janus::ast::EnumDeclaration::Case &enum_case : declaration.cases)
-      for (const janus::ast::TypeReference &payload : enum_case.payload_types)
-        fields.push_back(lower_type(resolve(payload, substitutions), context_));
+      for (const janus::ast::TypeReference &payload : enum_case.payload_types) {
+        const janus::Type &payload_type = resolve(payload, substitutions);
+        if (payload_type.kind() != janus::TypeKind::Unit)
+          fields.push_back(lower_type(payload_type, context_));
+      }
     llvm_type->setBody(fields);
     return type_iterator->second;
   }
@@ -1163,15 +1168,20 @@ private:
   }
 
   unsigned enum_case_payload_start(std::string_view enum_name,
-                                   std::string_view case_name) const {
+                                   std::string_view case_name) {
+    const EnumSpecialization &specialization =
+        enum_specializations_.at(std::string{enum_name});
     const janus::ast::EnumDeclaration &declaration =
-        *enum_specializations_.at(std::string{enum_name}).declaration;
+        *specialization.declaration;
     unsigned index = 1;
     for (const janus::ast::EnumDeclaration::Case &enum_case :
          declaration.cases) {
       if (enum_case.name == case_name)
         return index;
-      index += static_cast<unsigned>(enum_case.payload_types.size());
+      for (const janus::ast::TypeReference &payload : enum_case.payload_types)
+        if (resolve(payload, specialization.substitutions).kind() !=
+            janus::TypeKind::Unit)
+          ++index;
     }
     return index;
   }
@@ -1620,7 +1630,10 @@ private:
         case_owns = case_owns ||
                     owns_value(resolve(payload, specialization.substitutions));
       if (!case_owns) {
-        payload_index += static_cast<unsigned>(enum_case.payload_types.size());
+        for (const janus::ast::TypeReference &payload : enum_case.payload_types)
+          if (resolve(payload, specialization.substitutions).kind() !=
+              janus::TypeKind::Unit)
+            ++payload_index;
         continue;
       }
       auto *release = ::llvm::BasicBlock::Create(
@@ -1632,18 +1645,26 @@ private:
                                "aggregate.enum.is." + enum_case.name),
           release, next);
       builder.SetInsertPoint(release);
+      unsigned stored_payloads = 0;
+      for (const janus::ast::TypeReference &payload : enum_case.payload_types)
+        if (resolve(payload, specialization.substitutions).kind() !=
+            janus::TypeKind::Unit)
+          ++stored_payloads;
+      unsigned stored_index = stored_payloads;
       for (std::size_t index = enum_case.payload_types.size(); index-- > 0;) {
         const janus::Type &payload_type = resolve(
             enum_case.payload_types[index], specialization.substitutions);
+        if (payload_type.kind() != janus::TypeKind::Unit)
+          --stored_index;
         if (owns_value(payload_type))
           emit_owned_value_cleanup(
-              builder.CreateExtractValue(value, payload_index + index,
+              builder.CreateExtractValue(value, payload_index + stored_index,
                                          "aggregate.enum.payload"),
               payload_type, builder);
       }
       builder.CreateBr(done);
       builder.SetInsertPoint(next);
-      payload_index += static_cast<unsigned>(enum_case.payload_types.size());
+      payload_index += stored_payloads;
     }
     builder.CreateBr(done);
     builder.SetInsertPoint(done);
@@ -3853,6 +3874,8 @@ private:
       for (const auto &payload : enum_case.payload_types) {
         const janus::Type &payload_type =
             resolve(payload, specialization.substitutions);
+        if (payload_type.kind() == janus::TypeKind::Unit)
+          continue;
         equal = builder.CreateAnd(
             equal,
             emit_structural_equal(
@@ -3975,6 +3998,8 @@ private:
       for (const auto &payload : enum_case.payload_types) {
         const janus::Type &payload_type =
             resolve(payload, specialization.substitutions);
+        if (payload_type.kind() == janus::TypeKind::Unit)
+          continue;
         case_hash = emit_structural_hash(
             builder.CreateExtractValue(value, payload_index), payload_type,
             builder, case_hash);
@@ -4121,20 +4146,30 @@ private:
       builder.SetInsertPoint(case_block);
       emit_debug_text(specialization.declaration->name + "." + enum_case.name,
                       builder);
-      if (!enum_case.payload_types.empty())
+      const bool has_payload = std::any_of(
+          enum_case.payload_types.begin(), enum_case.payload_types.end(),
+          [&](const janus::ast::TypeReference &payload) {
+            return resolve(payload, specialization.substitutions).kind() !=
+                   janus::TypeKind::Unit;
+          });
+      if (has_payload)
         emit_debug_text("(", builder);
+      unsigned stored_index = 0;
       for (std::size_t index = 0; index < enum_case.payload_types.size();
            ++index) {
-        if (index != 0)
-          emit_debug_text(", ", builder);
         const janus::Type &payload_type = resolve(
             enum_case.payload_types[index], specialization.substitutions);
+        if (payload_type.kind() == janus::TypeKind::Unit)
+          continue;
+        if (stored_index != 0)
+          emit_debug_text(", ", builder);
         emit_debug_value(
-            builder.CreateExtractValue(value, payload_index + index),
+            builder.CreateExtractValue(value, payload_index + stored_index),
             payload_type, builder);
+        ++stored_index;
       }
-      payload_index += enum_case.payload_types.size();
-      if (!enum_case.payload_types.empty())
+      payload_index += stored_index;
+      if (has_payload)
         emit_debug_text(")", builder);
       builder.CreateBr(merge);
     }
@@ -5034,11 +5069,13 @@ private:
                 const janus::Type &payload_type =
                     resolve(enum_case->payload_types[index],
                             specialization.substitutions);
+                ::llvm::Value *payload = emit_expression(
+                    *node.arguments[index], payload_type, substitutions, locals,
+                    builder);
+                if (payload_type.kind() == janus::TypeKind::Unit)
+                  continue;
                 value = builder.CreateInsertValue(
-                    value,
-                    emit_expression(*node.arguments[index], payload_type,
-                                    substitutions, locals, builder),
-                    field++, "enum.payload");
+                    value, payload, field++, "enum.payload");
               }
               return value;
             }
@@ -5298,6 +5335,11 @@ private:
                   const janus::Type &payload_type =
                       resolve(enum_case->payload_types[index],
                               specialization.substitutions);
+                  if (payload_type.kind() == janus::TypeKind::Unit) {
+                    arm_locals.insert_or_assign(
+                        arm.bindings[index], Local{nullptr, &payload_type});
+                    continue;
+                  }
                   ::llvm::Value *payload = builder.CreateExtractValue(
                       scrutinee, field++, arm.bindings[index] + ".payload");
                   ::llvm::Value *storage = create_entry_alloca(
@@ -5359,6 +5401,19 @@ private:
                                PatternBindingMap &bindings) -> ::llvm::Value * {
               if (pattern.kind == janus::ast::MatchPattern::Kind::Wildcard)
                 return builder.getTrue();
+              if (type.kind() == janus::TypeKind::Unit) {
+                if (pattern.kind == janus::ast::MatchPattern::Kind::Alias) {
+                  static_cast<void>(emit_pattern(*pattern.nested, nullptr, type,
+                                                 bindings));
+                  bindings.insert_or_assign(
+                      pattern.name, PatternBinding{nullptr, &type});
+                } else if (pattern.kind ==
+                           janus::ast::MatchPattern::Kind::Name) {
+                  bindings.insert_or_assign(
+                      pattern.name, PatternBinding{nullptr, &type});
+                }
+                return builder.getTrue();
+              }
               if (pattern.kind == janus::ast::MatchPattern::Kind::Alias) {
                 ::llvm::Value *condition =
                     emit_pattern(*pattern.nested, value, type, bindings);
@@ -5412,8 +5467,10 @@ private:
                     const janus::Type &child_type =
                         resolve(enum_case->payload_types[index],
                                 nested_specialization.substitutions);
-                    ::llvm::Value *child = builder.CreateExtractValue(
-                        value, field++, "pattern.payload");
+                    ::llvm::Value *child = nullptr;
+                    if (child_type.kind() != janus::TypeKind::Unit)
+                      child = builder.CreateExtractValue(
+                          value, field++, "pattern.payload");
                     condition = builder.CreateAnd(
                         condition,
                         emit_pattern(pattern.children[index], child, child_type,
@@ -5474,6 +5531,11 @@ private:
               if (!alternative_bindings.empty()) {
                 for (const auto &[name, first_binding] :
                      alternative_bindings.front()) {
+                  if (first_binding.type->kind() == janus::TypeKind::Unit) {
+                    arm_locals.insert_or_assign(
+                        name, Local{nullptr, first_binding.type});
+                    continue;
+                  }
                   ::llvm::Value *selected = first_binding.value;
                   for (std::size_t index = 1;
                        index < alternative_bindings.size(); ++index)

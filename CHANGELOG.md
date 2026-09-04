@@ -7,6 +7,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- correction de la propagation `?` de `Result[T, Unit]` vers `Option[U]` : le
+  payload `Unit` est désormais effacé de l'ABI tout en conservant l'évaluation
+  de son expression, sans extraction invalide ni double nettoyage ;
 - normalisation systématique des retours de type associé après spécialisation,
   avant sélection ABI et matérialisation des appels imbriqués ; les appels
   directs couvrent désormais les scalaires, structs, enums et classes

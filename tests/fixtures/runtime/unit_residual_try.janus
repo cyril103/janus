@@ -1,0 +1,50 @@
+enum Option[T] { Some(T), None }
+enum Result[T, E] { Ok(T), Error(E) }
+
+var releases : int = 0
+
+class Resource(val id : int) {
+    destructor {
+        releases = releases + 1
+    }
+}
+
+def nothing() : Unit {}
+
+def pick(input : Result[int, Unit]) : Option[double] {
+    val n : int = input?
+    return Option.Some[double](double(n))
+}
+
+def pickOwned(input : Result[Resource, Unit]) : Option[Resource] {
+    val resource : Resource = (move input)?
+    return Option.Some[Resource](move resource)
+}
+
+def inspectUnitResidual(input : Result[int, Unit]) : int {
+    return match input {
+        Ok(value) => value,
+        Error(ignored) => 2
+    }
+}
+
+def main() : int {
+    val out : Option[double] =
+        pick(Result.Error[int, Unit](nothing()))
+    println(match out {
+        Some(n) => 1,
+        None => 0
+    })
+    println(inspectUnitResidual(Result.Error[int, Unit](nothing())))
+
+    val absent : Option[Resource] =
+        pickOwned(Result.Error[Resource, Unit](nothing()))
+    delete absent
+    println(releases)
+
+    val present : Option[Resource] =
+        pickOwned(Result.Ok[Resource, Unit](new Resource(7)))
+    delete present
+    println(releases)
+    return 0
+}

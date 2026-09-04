@@ -72,6 +72,14 @@ def concreteValue(input : ConcreteTry) : ConcreteTry {
     val value : int = input?
     return ConcreteTry.Passed(value)
 }
+def nothing() : Unit {}
+def compatibleUnitResidual(input : Result[int, Unit]) : Option[double] {
+    val value : int = input?
+    return Option.Some[double](double(value))
+}
+def constructUnitResidual() : Result[int, Unit] {
+    return Result.Error[int, Unit](nothing())
+}
 def propagate[P <: Try](value : P, scoped wrap : (P.Output) => P) : P {
     defer delete wrap
     val output : P.Output = value?
@@ -187,6 +195,23 @@ def main() : int {
   expect(ir.find("define %enum.ConcreteTry @concreteValue") !=
              std::string::npos,
          "equal concrete Output and Residual types keep distinct branches");
+  expect(ir.find("%enum.Result__int__Unit = type { i32, i32 }") !=
+             std::string::npos,
+         "Unit residual payloads have no field in the lowered enum");
+  const std::size_t unit_try = ir.find("@compatibleUnitResidual");
+  const std::size_t unit_try_end = ir.find("\n}", unit_try);
+  expect(unit_try != std::string::npos && unit_try_end != std::string::npos &&
+             ir.substr(unit_try, unit_try_end - unit_try)
+                     .find("try.residual") == std::string::npos,
+         "Unit propagation does not extract or materialize a residual");
+  const std::size_t unit_constructor = ir.find("@constructUnitResidual");
+  const std::size_t unit_constructor_end = ir.find("\n}", unit_constructor);
+  expect(unit_constructor != std::string::npos &&
+             unit_constructor_end != std::string::npos &&
+             ir.substr(unit_constructor,
+                       unit_constructor_end - unit_constructor)
+                     .find("call void @nothing()") != std::string::npos,
+         "erased Unit constructor arguments still execute exactly once");
   expect(ir.find("define internal %enum.Option__int @__janus_lambda_body_") !=
              std::string::npos,
          "Option propagation is lowered inside the lambda body function");
@@ -205,6 +230,12 @@ def main() : int {
           "val item : int = value? return Result.Ok[int, int](item) } "
           "def main() : int { return 0 }",
       "cannot propagate residual type 'string'");
+  expect_compile_error(
+      std::string{declarations} +
+          "def bad(value : Result[int, Unit]) : Result[int, int] { "
+          "val item : int = value? return Result.Ok[int, int](item) } "
+          "def main() : int { return 0 }",
+      "cannot propagate residual type 'Unit'");
   expect_compile_error(
       std::string{declarations} +
           "def main() : int { val value : int = 1? return value }",
