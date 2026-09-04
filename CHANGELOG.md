@@ -7,6 +7,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- propagation jusqu'au backend des substitutions canoniques des appels
+  génériques inférés imbriqués (fonctions, méthodes, closures et types
+  propriétaires), avec diagnostic structuré en cas d'incohérence au lieu d'un
+  crash natif pendant `build` ;
 - déroulement interprocédural portable des `panic` : les `defer` et
   destructeurs de chaque appelant Janus sont exécutés exactement une fois en
   ordre LIFO, y compris lorsqu'un destructeur panique pendant le nettoyage ;

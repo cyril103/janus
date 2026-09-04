@@ -411,13 +411,25 @@ private:
     return resolve(*reference, substitutions);
   }
 
-  const janus::Type &resolve(const janus::semantic::SemanticType &type) {
+  const janus::Type &
+  resolve(const janus::semantic::SemanticType &type,
+          const Substitutions &substitutions = {}) {
     if (type.is_concrete())
       return *type.concrete;
+    if (!type.is_class() && !type.is_enum() && !type.is_pointer() &&
+        !type.is_function()) {
+      if (const auto substitution = substitutions.find(type.parameter);
+          substitution != substitutions.end())
+        return *substitution->second;
+      throw janus::CompileError{
+          janus::DiagnosticCode::BackendLegacy, {},
+          "backend cannot lower unresolved analyzed type '" + type.parameter +
+              "'"};
+    }
     std::vector<const janus::Type *> arguments;
     arguments.reserve(type.type_arguments.size());
     for (const auto &argument : type.type_arguments)
-      arguments.push_back(&resolve(argument));
+      arguments.push_back(&resolve(argument, substitutions));
     if (type.is_function()) {
       if (arguments.empty())
         throw std::logic_error{
@@ -440,6 +452,39 @@ private:
     if (declaration == classes_.end())
       throw std::logic_error{"analyzed local type is not available to codegen"};
     return ensure_class(declaration->first, arguments);
+  }
+
+  std::vector<const janus::Type *> effective_type_arguments(
+      const std::vector<std::string> &parameters,
+      const std::vector<janus::ast::TypeReference> &explicit_arguments,
+      const janus::ast::Expression *expression,
+      const Substitutions &substitutions, janus::SourceLocation location,
+      std::string_view display_name) {
+    std::vector<const janus::Type *> arguments;
+    if (!explicit_arguments.empty()) {
+      arguments.reserve(explicit_arguments.size());
+      for (const janus::ast::TypeReference &argument : explicit_arguments)
+        arguments.push_back(&resolve(argument, substitutions));
+    } else if (!parameters.empty()) {
+      const auto inferred =
+          analysis_.inferred_generic_arguments.find(expression);
+      if (inferred == analysis_.inferred_generic_arguments.end())
+        throw janus::CompileError{
+            janus::DiagnosticCode::BackendLegacy, location,
+            "backend is missing inferred type arguments for '" +
+                std::string{display_name} + "'"};
+      arguments.reserve(inferred->second.size());
+      for (const janus::semantic::SemanticType &argument : inferred->second)
+        arguments.push_back(&resolve(argument, substitutions));
+    }
+    if (arguments.size() != parameters.size())
+      throw janus::CompileError{
+          janus::DiagnosticCode::BackendLegacy, location,
+          "backend received " + std::to_string(arguments.size()) +
+              " type argument(s) for '" + std::string{display_name} +
+              "', but semantic analysis requires " +
+              std::to_string(parameters.size())};
+    return arguments;
   }
 
   const Local *
@@ -3018,7 +3063,8 @@ private:
             const auto inferred =
                 analysis_.inferred_generic_arguments.find(&expression);
             std::vector<const janus::Type *> arguments;
-            arguments.push_back(&resolve(inferred->second.front()));
+            arguments.push_back(
+                &resolve(inferred->second.front(), substitutions));
             const auto declaration =
                 find_type_in_active_module(classes_, "Array");
             return ensure_class(declaration->first, arguments);
@@ -3051,7 +3097,9 @@ private:
                                              Local{nullptr, &type});
             }
             const janus::Type &return_type =
-                resolve(analysis_.inferred_generic_arguments.at(&expression).back());
+                resolve(analysis_.inferred_generic_arguments.at(&expression)
+                            .back(),
+                        substitutions);
             return ensure_function_type(parameters, return_type,
                                         std::move(ownerships));
           } else if constexpr (std::is_same_v<Node,
@@ -3109,11 +3157,13 @@ private:
             const auto &callee =
                 *find_in_active_module(functions_, node.callee)->second;
             Substitutions callee_substitutions;
-            for (std::size_t index = 0; index < node.type_arguments.size();
-                 ++index) {
+            const std::vector<const janus::Type *> type_arguments =
+                effective_type_arguments(
+                    callee.type_parameters, node.type_arguments, &expression,
+                    substitutions, node.location, node.callee);
+            for (std::size_t index = 0; index < type_arguments.size(); ++index) {
               callee_substitutions.emplace(
-                  callee.type_parameters[index],
-                  &resolve(node.type_arguments[index], substitutions));
+                  callee.type_parameters[index], type_arguments[index]);
             }
             return resolve(callee.return_type, callee_substitutions);
           } else if constexpr (std::is_same_v<Node,
@@ -3125,7 +3175,7 @@ private:
                   inferred != analysis_.inferred_generic_arguments.end())
                 for (const janus::semantic::SemanticType &argument :
                      inferred->second)
-                  type_arguments.push_back(&resolve(argument));
+                  type_arguments.push_back(&resolve(argument, substitutions));
             } else {
               for (const janus::ast::TypeReference &argument :
                    node.type_arguments)
@@ -3161,11 +3211,14 @@ private:
                   function != functions_.end()) {
                 const auto &callee = *function->second;
                 Substitutions callee_substitutions;
-                for (std::size_t index = 0; index < node.type_arguments.size();
+                const std::vector<const janus::Type *> type_arguments =
+                    effective_type_arguments(
+                        callee.type_parameters, node.type_arguments,
+                        &expression, substitutions, node.location, qualified);
+                for (std::size_t index = 0; index < type_arguments.size();
                      ++index)
                   callee_substitutions.emplace(
-                      callee.type_parameters[index],
-                      &resolve(node.type_arguments[index], substitutions));
+                      callee.type_parameters[index], type_arguments[index]);
                 return resolve(callee.return_type, callee_substitutions);
               }
             }
@@ -3184,7 +3237,8 @@ private:
                       inferred != analysis_.inferred_generic_arguments.end())
                     for (const janus::semantic::SemanticType &argument :
                          inferred->second)
-                      type_arguments.push_back(&resolve(argument));
+                      type_arguments.push_back(
+                          &resolve(argument, substitutions));
                 } else {
                   for (const janus::ast::TypeReference &argument :
                        node.type_arguments)
@@ -3202,12 +3256,14 @@ private:
                    extension->second.extension->type_parameters)
                 extension_substitutions.emplace(
                     parameter,
-                    &resolve(extension->second.type_arguments[type_index++]));
+                    &resolve(extension->second.type_arguments[type_index++],
+                             substitutions));
               for (const std::string &parameter :
                    extension->second.method->type_parameters)
                 extension_substitutions.emplace(
                     parameter,
-                    &resolve(extension->second.type_arguments[type_index++]));
+                    &resolve(extension->second.type_arguments[type_index++],
+                             substitutions));
               return resolve(extension->second.method->return_type,
                              extension_substitutions);
             }
@@ -3223,11 +3279,15 @@ private:
               if (method.name == node.method) {
                 Substitutions method_substitutions =
                     specialization.substitutions;
-                for (std::size_t index = 0; index < node.type_arguments.size();
+                const std::vector<const janus::Type *> type_arguments =
+                    effective_type_arguments(
+                        method.type_parameters, node.type_arguments,
+                        &expression, substitutions, node.location,
+                        std::string{object_type.name()} + "." + node.method);
+                for (std::size_t index = 0; index < type_arguments.size();
                      ++index)
                   method_substitutions.emplace(
-                      method.type_parameters[index],
-                      &resolve(node.type_arguments[index], substitutions));
+                      method.type_parameters[index], type_arguments[index]);
                 return resolve(method.return_type, method_substitutions);
               }
             }
@@ -3572,16 +3632,10 @@ private:
       std::string_view result_name, const Substitutions &substitutions,
       const std::unordered_map<std::string, Local> &locals,
       ::llvm::IRBuilder<> &builder) {
-    std::vector<const janus::Type *> type_arguments;
-    type_arguments.reserve(call_type_arguments.size());
-    for (const janus::ast::TypeReference &argument : call_type_arguments)
-      type_arguments.push_back(&resolve(argument, substitutions));
-    if (call_type_arguments.empty())
-      if (const auto inferred =
-              analysis_.inferred_generic_arguments.find(expression_key);
-          inferred != analysis_.inferred_generic_arguments.end())
-        for (const auto &argument : inferred->second)
-          type_arguments.push_back(&resolve(argument));
+    const std::vector<const janus::Type *> type_arguments =
+        effective_type_arguments(callee.type_parameters, call_type_arguments,
+                                 expression_key, substitutions,
+                                 callee.location, result_name);
     ::llvm::Function *target = emit_function(callee, type_arguments);
 
     Substitutions callee_substitutions;
@@ -4643,17 +4697,10 @@ private:
             }
             const janus::ast::FunctionDeclaration &callee =
                 *find_in_active_module(functions_, node.callee)->second;
-            std::vector<const janus::Type *> type_arguments;
-            type_arguments.reserve(node.type_arguments.size());
-            for (const janus::ast::TypeReference &argument :
-                 node.type_arguments)
-              type_arguments.push_back(&resolve(argument, substitutions));
-            if (node.type_arguments.empty())
-              if (const auto inferred =
-                      analysis_.inferred_generic_arguments.find(&expression);
-                  inferred != analysis_.inferred_generic_arguments.end())
-                for (const auto &argument : inferred->second)
-                  type_arguments.push_back(&resolve(argument));
+            const std::vector<const janus::Type *> type_arguments =
+                effective_type_arguments(
+                    callee.type_parameters, node.type_arguments, &expression,
+                    substitutions, node.location, node.callee);
             ::llvm::Function *target = emit_function(callee, type_arguments);
 
             Substitutions callee_substitutions;
@@ -4731,7 +4778,7 @@ private:
                   inferred != analysis_.inferred_generic_arguments.end())
                 for (const janus::semantic::SemanticType &argument :
                      inferred->second)
-                  type_arguments.push_back(&resolve(argument));
+                  type_arguments.push_back(&resolve(argument, substitutions));
             } else {
               for (const janus::ast::TypeReference &argument :
                    node.type_arguments)
@@ -4922,7 +4969,8 @@ private:
                     inferred != analysis_.inferred_generic_arguments.end())
                   for (const janus::semantic::SemanticType &argument :
                        inferred->second)
-                    type_arguments.push_back(&resolve(argument));
+                    type_arguments.push_back(
+                        &resolve(argument, substitutions));
               } else {
                 for (const janus::ast::TypeReference &argument :
                      node.type_arguments)
@@ -4971,7 +5019,7 @@ private:
               type_arguments.reserve(resolved.type_arguments.size());
               for (const janus::semantic::SemanticType &argument :
                    resolved.type_arguments)
-                type_arguments.push_back(&resolve(argument));
+                type_arguments.push_back(&resolve(argument, substitutions));
               ::llvm::Function *target = emit_function(
                   *resolved.method, type_arguments, nullptr, nullptr, {},
                   nullptr, resolved.extension, resolved.receiver_ownership);
@@ -5060,18 +5108,17 @@ private:
               if (candidate.name == node.method)
                 method = &candidate;
             }
-            std::vector<const janus::Type *> method_type_arguments;
-            method_type_arguments.reserve(node.type_arguments.size());
-            for (const janus::ast::TypeReference &argument :
-                 node.type_arguments)
-              method_type_arguments.push_back(
-                  &resolve(argument, substitutions));
-            if (node.type_arguments.empty())
-              if (const auto inferred =
-                      analysis_.inferred_generic_arguments.find(&expression);
-                  inferred != analysis_.inferred_generic_arguments.end())
-                for (const auto &argument : inferred->second)
-                  method_type_arguments.push_back(&resolve(argument));
+            if (method == nullptr)
+              throw janus::CompileError{
+                  janus::DiagnosticCode::BackendLegacy, node.location,
+                  "backend cannot find semantically validated method '" +
+                      std::string{object_type.name()} + "." + node.method +
+                      "'"};
+            const std::vector<const janus::Type *> method_type_arguments =
+                effective_type_arguments(
+                    method->type_parameters, node.type_arguments, &expression,
+                    substitutions, node.location,
+                    std::string{object_type.name()} + "." + node.method);
             ::llvm::Function *target = emit_function(
                 *method, method_type_arguments, &class_declaration,
                 &specialization.substitutions, object_type.name());

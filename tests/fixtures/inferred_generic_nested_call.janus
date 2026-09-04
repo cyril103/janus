@@ -1,0 +1,31 @@
+def identity[T](value : T) : T { return move value }
+
+def forward[T](value : T) : T {
+    return identity(identity(move value))
+}
+
+def apply[T](callback : (T) => T, value : T) : T {
+    return callback(move value)
+}
+
+struct Box[T](val value : T) derives Copy {}
+
+def unbox[T <: Copy](box : Box[T]) : T { return box.value }
+
+class Converter() {
+    def identity[T](value : T) : T { return move value }
+}
+
+def main() : int {
+    println(identity(identity(identity(71))))
+    println(identity[int](72))
+    val bound = identity(73)
+    println(bound)
+    println(apply((value : int) => value + 1, identity(73)))
+    println(unbox(identity(new Box[int](75))))
+    val converter : Converter = new Converter()
+    println(converter.identity(identity(76)))
+    delete converter
+    println(forward(77))
+    return 0
+}

@@ -46,10 +46,13 @@ class Converter[T]() {
     }
 }
 
+def accept(value : int) : int { return value }
+
 def main() : int {
     val converter : Converter[int] = new Converter[int]()
     val result : double = converter.identity[double](2.5)
     val inferred = converter.identity(42)
+    val nested = accept(converter.identity(43))
     delete converter
     return int(result) + inferred - 42
 }
@@ -80,6 +83,8 @@ def main() : int {
          "generic methods are monomorphized for class and method types");
   expect(ir.find("Converter__int__identity__int") != std::string::npos,
          "method arguments infer omitted generic method type arguments");
+  expect(ir.find("call i32 @accept(i32 %identity.result") != std::string::npos,
+         "an inferred generic method return is canonical inside another call");
 
   expect_compile_error(
       "class Box[T]() { def invalid[T](value : T) : T { return value } } "

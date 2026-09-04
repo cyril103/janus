@@ -335,9 +335,19 @@ def maximum(left : int, right : int) : int {
 }
 
 def identity[T](value : T) : T {
-    return value
+    return move value
 }
 ```
+
+Les arguments de type omis sont inférés avant la génération de code. Le type
+substitué d'un appel peut donc être utilisé directement par un appel englobant,
+à autant de niveaux que nécessaire : `println(identity(identity(71)))` est
+équivalent à la forme explicite `println(identity[int](identity[int](71)))` et
+à une version qui lie chaque résultat intermédiaire. La même règle s'applique
+aux méthodes génériques, aux closures et aux types génériques propriétaires.
+Une inférence incomplète est refusée pendant l'analyse ; si le contrat entre
+l'analyse et le backend est incohérent, la compilation s'arrête avec un
+diagnostic backend structuré au lieu de produire une IR invalide ou de planter.
 
 Lorsqu'une fonction ou une méthode ne fait que retourner une expression, son
 corps peut s'écrire avec `=>`. Cette forme est exactement équivalente à un

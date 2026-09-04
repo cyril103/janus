@@ -44,6 +44,10 @@ def identity[T](value : T) : T {
     return move value
 }
 
+def forward[T](value : T) : T {
+    return identity(identity(move value))
+}
+
 struct Box[T](val value : T) derives Copy {}
 class Resource() {}
 
@@ -55,25 +59,29 @@ def create[T](ignored : int) : Ptr[T] {
     return null[T]()
 }
 
+def accept(value : int) : int { return value }
+
 def main() : int {
     val integer : int = identity[int](5)
     val floating : double = identity[double](2.5)
     val message : string = identity[string]("Janus")
     val inferred = identity(6)
+    val nestedCall = accept(identity(identity(7)))
+    val forwarded = forward(8)
     val boxed : Box[int] = new Box[int](7)
-    val nested = unbox(boxed)
+    val nestedBox = unbox(boxed)
     val resource : Resource = new Resource()
     val moved = identity(move resource)
     delete moved
     val pointer : Ptr[int] = create(0)
     delete pointer
-    return integer + inferred + nested
+    return integer + inferred + nestedCall + nestedBox + forwarded
 }
 )";
 
   janus::frontend::Parser parser{source};
   const janus::ast::Program program = parser.parse_program();
-  expect(program.functions.size() == 4, "four functions are parsed");
+  expect(program.functions.size() == 6, "six functions are parsed");
   expect(program.functions.front().type_parameters.size() == 1,
          "identity declares one type parameter");
   expect(program.functions.front().type_parameters.front() == "T",
@@ -107,6 +115,10 @@ def main() : int {
          "main calls the int specialization");
   expect(ir.find("call i32 @identity__int(i32 6)") != std::string::npos,
          "call arguments fully constrain an omitted generic type argument");
+  expect(ir.find("call i32 @accept(i32 %identity.result") != std::string::npos,
+         "an inferred generic return is canonical inside another call");
+  expect(ir.find("define i32 @forward__int(i32") != std::string::npos,
+         "nested inference preserves an enclosing generic substitution");
   expect(ir.find("call i32 @unbox__int(") != std::string::npos,
          "nested generic argument types constrain omitted type arguments");
   expect(ir.find("call double @identity__double(double 2.500000e+00)") !=
