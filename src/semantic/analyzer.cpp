@@ -7513,6 +7513,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               const bool borrows_scrutinee =
                   scrutinee_identifier != nullptr &&
                   borrowed_values.contains(scrutinee_identifier->name);
+              const bool moves_scrutinee =
+                  std::holds_alternative<ast::MoveExpression>(
+                      node.scrutinee->value);
               const bool owning_match_aggregate =
                   scrutinee_type.is_enum() ||
                   (scrutinee_type.is_class() &&
@@ -7842,6 +7845,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
                 SymbolTable arm_symbols = *active_symbols;
                 std::vector<std::string> binding_names;
+                std::unordered_map<std::string, SourceLocation>
+                    binding_locations;
+                if (!arm.patterns.empty())
+                  ast::visit_match_pattern(
+                      arm.patterns.front(), [&](const auto &part) {
+                        if (part.kind == ast::MatchPattern::Kind::Name ||
+                            part.kind == ast::MatchPattern::Kind::Alias)
+                          binding_locations.emplace(part.name, part.location);
+                      });
                 for (auto &[name, type] : validated_bindings) {
                   binding_names.push_back(name);
                   arm_symbols.insert_or_assign(
@@ -7853,9 +7865,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 const auto arm_closure_transfer_protected =
                     closure_transfer_protected_values;
                 const auto arm_borrowed_values = borrowed_values;
+                const auto arm_shared_borrow_values = shared_borrow_values;
+                const auto arm_mutable_borrow_values = mutable_borrow_values;
+                const auto arm_borrow_sources = borrow_sources;
+                const auto arm_deferred_values = deferred_values;
                 for (const std::string &binding : binding_names) {
                   transfer_protected_values.erase(binding);
                   closure_transfer_protected_values.erase(binding);
+                  borrowed_values.erase(binding);
+                  shared_borrow_values.erase(binding);
+                  mutable_borrow_values.erase(binding);
+                  borrow_sources.erase(binding);
+                  for (auto &[borrower, sources] : borrow_sources) {
+                    static_cast<void>(borrower);
+                    sources.erase(binding);
+                  }
+                  deferred_values.erase(binding);
                 }
                 if (borrows_scrutinee)
                   for (const std::string &binding : binding_names)
@@ -7877,12 +7902,49 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "match guard must have type 'bool', got '" +
                             guard_type.name() + "'"};
                 }
+                std::unordered_map<std::string,
+                                   std::optional<SourceLocation>>
+                    previous_binding_declarations;
+                if (moves_scrutinee)
+                  for (const std::string &binding : binding_names) {
+                    const auto previous = local_declarations.find(binding);
+                    previous_binding_declarations.emplace(
+                        binding, previous == local_declarations.end()
+                                     ? std::nullopt
+                                     : std::optional{previous->second});
+                    const auto location = binding_locations.find(binding);
+                    local_declarations.insert_or_assign(
+                        binding, location == binding_locations.end()
+                                     ? arm.location
+                                     : location->second);
+                  }
                 const SemanticType arm_type = expression_type(*arm.expression);
+                if (moves_scrutinee) {
+                  for (const std::string &binding : binding_names) {
+                    const auto location = binding_locations.find(binding);
+                    warn_live_owner(
+                        binding, arm_symbols.at(binding),
+                        location == binding_locations.end()
+                            ? arm.location
+                            : location->second);
+                  }
+                  for (const auto &[binding, previous] :
+                       previous_binding_declarations) {
+                    if (previous.has_value())
+                      local_declarations.insert_or_assign(binding, *previous);
+                    else
+                      local_declarations.erase(binding);
+                  }
+                }
                 arm_symbol_states.push_back(arm_symbols);
                 transfer_protected_values = arm_transfer_protected;
                 closure_transfer_protected_values =
                     arm_closure_transfer_protected;
                 borrowed_values = arm_borrowed_values;
+                shared_borrow_values = arm_shared_borrow_values;
+                mutable_borrow_values = arm_mutable_borrow_values;
+                borrow_sources = arm_borrow_sources;
+                deferred_values = arm_deferred_values;
                 active_symbols = previous_symbols;
                 if (arm_type.is_concrete() &&
                     arm_type.concrete->kind() == TypeKind::Unit)

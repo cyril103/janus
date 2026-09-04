@@ -11,7 +11,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
   d'une affectation, d'un appel, d'un retour ou d'une construction d'agrégat,
   y compris à travers un paramètre générique ; le diagnostic `JANA0035`
   propose désormais la correction `move <nom>` et les transferts explicites
-  invalident la source.
+  invalident la source ;
+- suivi des payloads propriétaires extraits par `match move` dans chaque bras,
+  avec `JANA0002` lorsqu'un binding atteint la fin du bras sans transfert ni
+  destruction, y compris pour les motifs imbriqués et multi-payloads.
 
 ## [0.23.1] - 2026-08-30
 

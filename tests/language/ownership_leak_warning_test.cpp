@@ -57,6 +57,17 @@ bool warns_with_code(const janus::semantic::AnalysisResult &analysis,
                      });
 }
 
+std::size_t leak_warning_count(
+    const janus::semantic::AnalysisResult &analysis) {
+  return static_cast<std::size_t>(std::count_if(
+      analysis.diagnostics.begin(), analysis.diagnostics.end(),
+      [](const janus::Diagnostic &diagnostic) {
+        return diagnostic.severity == janus::DiagnosticSeverity::Warning &&
+               diagnostic.code ==
+                   janus::DiagnosticCode::AnalyzerPotentialMemoryLeak;
+      }));
+}
+
 } // namespace
 
 int main() {
@@ -119,6 +130,143 @@ def main() : int {
 )");
   expect(cleaned.diagnostics.empty(),
          "deleted, deferred, moved, and returned owners do not warn");
+
+  const auto abandoned_match_payload = analyze(R"(
+class Resource(val id : int) {}
+enum Slot { Occupied(Resource), Empty }
+def main() : int {
+    val slot : Slot = Slot.Occupied(new Resource(1))
+    return match move slot {
+        Occupied(resource) => 1,
+        Empty => 0
+    }
+}
+)");
+  expect(warns_about(abandoned_match_payload, "resource"),
+         "an owning payload abandoned by a match move arm warns");
+
+  const auto shadowed_match_payload = analyze(R"(
+class Resource() {}
+enum Slot { Occupied(Resource), Empty }
+def main() : int {
+    val resource : Resource = new Resource()
+    defer delete resource
+    val slot : Slot = Slot.Occupied(new Resource())
+    return match move slot {
+        Occupied(resource) => 1,
+        Empty => 0
+    }
+}
+)");
+  expect(warns_about(shadowed_match_payload, "resource"),
+         "an outer defer does not discharge a shadowing payload binding");
+
+  const auto consumed_match_payloads = analyze(R"(
+class Resource(val id : int) {
+    consume def finish() : int { val result = id delete this return result }
+}
+enum Slot { One(Resource), Pair(Resource, Resource), Empty }
+def disposeLater(resource : Resource) : int {
+    defer delete resource
+    return 0
+}
+def main() : int {
+    val first : Slot = Slot.One(new Resource(1))
+    val firstCode = match move first {
+        One(resource) => resource.finish(),
+        Pair(left, right) => left.finish() + right.finish(),
+        Empty => 0
+    }
+    val second : Slot = Slot.One(new Resource(2))
+    val secondCode = match move second {
+        One(resource) => disposeLater(move resource),
+        Pair(left, right) => left.finish() + right.finish(),
+        Empty => 0
+    }
+    return firstCode + secondCode
+}
+)");
+  expect(consumed_match_payloads.diagnostics.empty(),
+         "delete, defer delete, and transfer discharge match payloads");
+
+  const auto returned_match_payload = analyze(R"(
+class Resource() {}
+enum Slot { Occupied(Resource), Empty }
+def extract(slot : Slot) : Resource {
+    return match move slot {
+        Occupied(resource) => move resource,
+        Empty => new Resource()
+    }
+}
+def main() : int {
+    val resource : Resource = extract(Slot.Empty())
+    delete resource
+    return 0
+}
+)");
+  expect(returned_match_payload.diagnostics.empty(),
+         "returning a moved match payload discharges its obligation");
+
+  const auto guarded_match_payload = analyze(R"(
+class Resource() {
+    consume def finish() : int { delete this return 2 }
+}
+enum Slot { Occupied(Resource), Empty }
+def main() : int {
+    val slot : Slot = Slot.Occupied(new Resource())
+    return match move slot {
+        Occupied(resource) if true => 1,
+        Occupied(resource) => resource.finish(),
+        Empty => 0
+    }
+}
+)");
+  expect(leak_warning_count(guarded_match_payload) == 1 &&
+             warns_about(guarded_match_payload, "resource"),
+         "a guard creates an independent obligation only on its selected arm");
+
+  const auto early_exit_match_payload = analyze(R"(
+enum Option[T] { Some(T), None }
+class Resource() {
+    consume def finish() : int { delete this return 2 }
+}
+enum Slot { Occupied(Resource), Empty }
+def evaluate(input : Option[int], slot : Slot) : Option[int] {
+    val code : int = match move slot {
+        Occupied(resource) => input? + resource.finish(),
+        Empty => 0
+    }
+    return Option.Some[int](code)
+}
+def main() : int { return 0 }
+)");
+  expect(warns_with_code(
+             early_exit_match_payload,
+             janus::DiagnosticCode::AnalyzerUnprotectedEarlyExit),
+         "an early exit before payload consumption requires deferred cleanup");
+
+  const auto nested_match_payloads = analyze(R"(
+class Resource() {}
+enum Inner { Item(Resource), Empty }
+enum Outer { Wrapped(Inner), Pair(Resource, Resource), Empty }
+def main() : int {
+    val outer : Outer = Outer.Wrapped(Inner.Item(new Resource()))
+    return match move outer {
+        Wrapped(inner) => match move inner {
+            Item(resource) => 1,
+            Empty => 0
+        },
+        Pair(left, right) => 2,
+        Empty => 0
+    }
+}
+)");
+  expect(leak_warning_count(nested_match_payloads) == 3,
+         "nested arms and multiple payloads retain separate obligations");
+  expect(warns_about(nested_match_payloads, "resource") &&
+             warns_about(nested_match_payloads, "left") &&
+             warns_about(nested_match_payloads, "right"),
+         "each abandoned nested or sibling payload is identified");
 
   const auto conditional = analyze(R"(
 class Resource() {}

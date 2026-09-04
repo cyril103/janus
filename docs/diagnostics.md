@@ -83,6 +83,13 @@ doivent être corrigés en exprimant l'intention, pas masqués mécaniquement.
 | `JANA0022` | pointeur retourné par `extern` sans contrat | qualifier le retour `borrow` ou `owned` |
 | `JANA0033` | appel d'une API dépréciée | migrer vers le remplacement indiqué par `@deprecated use` |
 
+Un `match move` transfère aussi la propriété de chaque payload au binding du
+bras retenu. Un binding propriétaire doit donc être déplacé, retourné ou
+détruit (directement, par une méthode `consume`, ou par un helper qui utilise
+`delete`/`defer delete`) avant la fin du bras. Sinon, `JANA0002` est émis et
+`--deny-warnings` refuse le programme. Les bindings restent protégés pendant
+une garde : leur consommation n'est permise qu'après la réussite de celle-ci.
+
 ## Erreurs du système d'emprunts
 
 Les violations d'aliasing et de durée de vie utilisent des codes distincts des

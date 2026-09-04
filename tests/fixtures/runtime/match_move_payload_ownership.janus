@@ -1,0 +1,39 @@
+class Resource(val id : int) {
+    consume def finish() : int {
+        val result : int = id
+        delete this
+        return result
+    }
+
+    destructor {
+        println(id)
+    }
+}
+
+enum Slot {
+    Empty,
+    One(Resource),
+    Pair(Resource, Resource)
+}
+
+def finishPair(left : Resource, right : Resource) : int {
+    val result : int = left.id + right.id
+    delete left
+    defer delete right
+    return result
+}
+
+def score(slot : Slot) : int {
+    return match move slot {
+        Empty => 0,
+        One(value) => value.finish(),
+        Pair(left, right) => finishPair(move left, move right)
+    }
+}
+
+def main() : int {
+    println(score(Slot.Empty()))
+    println(score(Slot.One(new Resource(1))))
+    println(score(Slot.Pair(new Resource(2), new Resource(3))))
+    return 0
+}
