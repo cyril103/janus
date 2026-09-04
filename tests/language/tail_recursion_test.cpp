@@ -181,6 +181,71 @@ def main() : int {
              !aggregate_return_call->isTailCall(),
          "aggregate returns avoid unsupported target-level tail calls");
 
+  janus::ast::Program unit_program = expect_accepted(R"(
+tailrec def finish(remaining : int) : Unit {
+    if remaining == 0 { return }
+    return finish(remaining - 1)
+}
+def main() : int { finish(1000000) return 0 }
+)", "tailrec recursion returning Unit is accepted");
+  llvm::LLVMContext unit_context;
+  janus::backend::llvm::IrGenerator unit_generator{unit_context};
+  const std::unique_ptr<llvm::Module> unit_module =
+      unit_generator.generate(unit_program, "unit_tailrec");
+  expect(!llvm::verifyModule(*unit_module),
+         "tailrec Unit lowering remains valid LLVM IR");
+  const llvm::CallInst *unit_call =
+      find_call(*unit_module->getFunction("finish"), "finish");
+  expect(unit_call != nullptr && unit_call->isMustTailCall(),
+         "terminal Unit recursion is emitted as musttail");
+
+  expect_rejected(R"(
+struct Pair(val value : int) {}
+tailrec def build(value : int) : Pair {
+    if value == 0 { return Pair(0) }
+    return build(value - 1)
+}
+def main() : int { return 0 }
+)", "aggregate value returns reject an unverifiable tailrec contract",
+                  "musttail",
+                  janus::DiagnosticCode::AnalyzerIncompatibleTailrec);
+
+  janus::ast::Program generic_program = expect_accepted(R"(
+tailrec def genericDown[T <: Copy](seed : T, value : int) : int {
+    if value == 0 { return 0 }
+    return genericDown[T](seed, value - 1)
+}
+def main() : int { return genericDown[int](7, 100) }
+)", "a generic tailrec cycle with a provable scalar return is accepted");
+  llvm::LLVMContext generic_context;
+  janus::backend::llvm::IrGenerator generic_generator{generic_context};
+  const std::unique_ptr<llvm::Module> generic_module =
+      generic_generator.generate(generic_program, "generic_tailrec");
+  expect(!llvm::verifyModule(*generic_module),
+         "specialized generic tailrec lowering remains valid LLVM IR");
+  const llvm::CallInst *generic_call = find_call(
+      *generic_module->getFunction("genericDown__int"), "genericDown__int");
+  expect(generic_call != nullptr && generic_call->isMustTailCall(),
+         "a generic recursive edge is rechecked as musttail after specialization");
+
+  expect_rejected(R"(
+tailrec def genericReturn[T <: Copy](value : T) : T {
+    return genericReturn[T](value)
+}
+def main() : int { return genericReturn[int](1) }
+)", "an unprovable generic return ABI rejects tailrec", "musttail",
+                  janus::DiagnosticCode::AnalyzerIncompatibleTailrec);
+
+  expect_rejected(R"(
+class Resource() {}
+tailrec def leak(value : int) : int {
+    val resource : Resource = new Resource()
+    return leak(value - 1)
+}
+def main() : int { return 0 }
+)", "a live local owner rejects tailrec", "owning value",
+                  janus::DiagnosticCode::AnalyzerIncompatibleTailrec);
+
   expect_rejected(R"(
 def missing(value : int) : int {
     if value == 0 { return 0 }

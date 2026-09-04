@@ -482,6 +482,14 @@ non plus si un `defer` ou un nettoyage de possession doit encore être exécuté
 retour : chaque appel conserve alors son propre cadre de pile afin de respecter
 l'ordre observable des nettoyages.
 
+Le contrat couvre les retours `Unit`, qui sont émis avec `musttail` comme les
+retours scalaires et références de classe. Les retours de structs, enums,
+chaînes et types génériques dont l'ABI finale ne peut pas être prouvée sont
+actuellement refusés avec `JANA0032`. Le même diagnostic est produit si une
+valeur propriétaire locale reste vivante sur une arête récursive : elle doit
+être détruite ou transférée avant l'appel. Le backend vérifie en dernier recours
+que chaque arête du cycle acceptée par l'analyseur porte réellement `musttail`.
+
 ## Contrôle de flux
 
 ```janus

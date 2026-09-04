@@ -1,0 +1,11 @@
+tailrec def finish(remaining : int) : Unit {
+    if remaining == 0 {
+        return
+    }
+    return finish(remaining - 1)
+}
+
+def main() : int {
+    finish(1000000)
+    return 0
+}

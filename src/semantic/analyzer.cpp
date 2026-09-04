@@ -581,18 +581,24 @@ struct TailrecNode {
     std::size_t target{};
     bool terminal{};
     bool pending_defer{};
+    bool pending_owner{};
+    const ast::Expression *expression{};
     SourceLocation location;
   };
   std::vector<Edge> edges;
 };
 
-void validate_tailrec_contract(
+std::unordered_set<const ast::Expression *> validate_tailrec_contract(
     const ast::Program &program,
     const std::unordered_map<std::string, std::size_t> &class_arities,
+    const std::unordered_map<std::string, const ast::ClassDeclaration *>
+        &classes,
     const std::unordered_set<std::string> &scoped_type_aliases,
     const std::unordered_map<const ast::Expression *,
                              const ast::FunctionDeclaration *>
-        &resolved_calls) {
+        &resolved_calls,
+    const std::unordered_set<const ast::Expression *>
+        &returns_with_live_owners) {
   std::vector<TailrecNode> nodes;
   std::unordered_map<const ast::FunctionDeclaration *, std::size_t>
       declaration_nodes;
@@ -617,11 +623,13 @@ void validate_tailrec_contract(
     }
 
   const auto visit_node = [&](std::size_t source) {
-    std::function<void(const ast::Expression &, bool, bool)> visit_expression;
+    std::function<void(const ast::Expression &, bool, bool, bool)>
+        visit_expression;
     std::function<void(const std::vector<ast::Statement> &, bool)> visit_block;
     const auto add_resolved_edge = [&](const ast::Expression &expression,
                                        bool terminal,
                                        bool pending_defer,
+                                       bool pending_owner,
                                        SourceLocation location) {
       const auto resolved = resolved_calls.find(&expression);
       if (resolved == resolved_calls.end())
@@ -630,57 +638,76 @@ void validate_tailrec_contract(
       if (target != declaration_nodes.end())
         nodes[source].edges.push_back(
             TailrecNode::Edge{target->second, terminal, pending_defer,
-                              location});
+                              pending_owner, &expression, location});
     };
     visit_expression = [&](const ast::Expression &expression, bool terminal,
-                           bool pending_defer) {
+                           bool pending_defer, bool pending_owner) {
       std::visit(
           [&](const auto &node) {
             using T = std::decay_t<decltype(node)>;
             if constexpr (std::is_same_v<T, ast::CallExpression>) {
               for (const auto &argument : node.arguments)
-                visit_expression(*argument, false, pending_defer);
+                visit_expression(*argument, false, pending_defer,
+                                 pending_owner);
               add_resolved_edge(expression, terminal, pending_defer,
+                                pending_owner,
                                 node.location);
             } else if constexpr (std::is_same_v<T, ast::MethodCallExpression>) {
-              visit_expression(*node.object, false, pending_defer);
+              visit_expression(*node.object, false, pending_defer,
+                               pending_owner);
               for (const auto &argument : node.arguments)
-                visit_expression(*argument, false, pending_defer);
+                visit_expression(*argument, false, pending_defer,
+                                 pending_owner);
               add_resolved_edge(expression, terminal, pending_defer,
+                                pending_owner,
                                 node.location);
             } else if constexpr (std::is_same_v<T, ast::IfExpression>) {
-              visit_expression(*node.condition, false, pending_defer);
-              visit_expression(*node.then_expression, false, pending_defer);
-              visit_expression(*node.else_expression, false, pending_defer);
+              visit_expression(*node.condition, false, pending_defer,
+                               pending_owner);
+              visit_expression(*node.then_expression, false, pending_defer,
+                               pending_owner);
+              visit_expression(*node.else_expression, false, pending_defer,
+                               pending_owner);
             } else if constexpr (std::is_same_v<T, ast::MatchExpression>) {
-              visit_expression(*node.scrutinee, false, pending_defer);
+              visit_expression(*node.scrutinee, false, pending_defer,
+                               pending_owner);
               for (const auto &arm : node.arms) {
                 if (arm.guard)
-                  visit_expression(*arm.guard, false, pending_defer);
-                visit_expression(*arm.expression, false, pending_defer);
+                  visit_expression(*arm.guard, false, pending_defer,
+                                   pending_owner);
+                visit_expression(*arm.expression, false, pending_defer,
+                                 pending_owner);
               }
             } else if constexpr (std::is_same_v<T, ast::BinaryExpression>) {
-              visit_expression(*node.left, false, pending_defer);
-              visit_expression(*node.right, false, pending_defer);
+              visit_expression(*node.left, false, pending_defer,
+                               pending_owner);
+              visit_expression(*node.right, false, pending_defer,
+                               pending_owner);
             } else if constexpr (std::is_same_v<T, ast::UnaryExpression> ||
                                  std::is_same_v<T, ast::MoveExpression> ||
                                  std::is_same_v<T, ast::TryExpression>) {
-              visit_expression(*node.operand, false, pending_defer);
+              visit_expression(*node.operand, false, pending_defer,
+                               pending_owner);
             } else if constexpr (std::is_same_v<T, ast::ArrayLiteralExpression>) {
               for (const auto &element : node.elements)
-                visit_expression(*element, false, pending_defer);
+                visit_expression(*element, false, pending_defer,
+                                 pending_owner);
             } else if constexpr (std::is_same_v<T, ast::IndexExpression>) {
-              visit_expression(*node.container, false, pending_defer);
-              visit_expression(*node.index, false, pending_defer);
+              visit_expression(*node.container, false, pending_defer,
+                               pending_owner);
+              visit_expression(*node.index, false, pending_defer,
+                               pending_owner);
             } else if constexpr (std::is_same_v<T, ast::LambdaExpression>) {
               // A lambda is a distinct LLVM function boundary. Calls in its
               // body do not participate in the enclosing declaration's
               // recursion contract.
             } else if constexpr (std::is_same_v<T, ast::NewExpression>) {
               for (const auto &argument : node.arguments)
-                visit_expression(*argument, false, pending_defer);
+                visit_expression(*argument, false, pending_defer,
+                                 pending_owner);
             } else if constexpr (std::is_same_v<T, ast::MemberAccessExpression>) {
-              visit_expression(*node.object, false, pending_defer);
+              visit_expression(*node.object, false, pending_defer,
+                               pending_owner);
             }
           },
           expression.value);
@@ -694,35 +721,39 @@ void validate_tailrec_contract(
               using T = std::decay_t<decltype(node)>;
               if constexpr (std::is_same_v<T, ast::ReturnStatement>) {
                 if (node.expression)
-                  visit_expression(*node.expression, true, pending_defer);
+                  visit_expression(
+                      *node.expression, true, pending_defer,
+                      returns_with_live_owners.contains(&*node.expression));
               } else if constexpr (std::is_same_v<T, ast::ExpressionStatement> ||
                                    std::is_same_v<T, ast::DeleteStatement>) {
-                visit_expression(node.expression, false, pending_defer);
+                visit_expression(node.expression, false, pending_defer, false);
               } else if constexpr (std::is_same_v<T, ast::ValueDeclaration>) {
                 if (node.initializer)
-                  visit_expression(*node.initializer, false, pending_defer);
+                  visit_expression(*node.initializer, false, pending_defer,
+                                   false);
               } else if constexpr (std::is_same_v<T, ast::AssignmentStatement>) {
                 if (node.index_target) {
                   visit_expression(*node.index_target->container, false,
-                                   pending_defer);
+                                   pending_defer, false);
                   visit_expression(*node.index_target->index, false,
-                                   pending_defer);
+                                   pending_defer, false);
                 }
-                visit_expression(node.expression, false, pending_defer);
+                visit_expression(node.expression, false, pending_defer, false);
               } else if constexpr (std::is_same_v<T, ast::DeferStatement>) {
                 std::visit([&](const auto &action) {
-                  visit_expression(action.expression, false, pending_defer);
+                  visit_expression(action.expression, false, pending_defer,
+                                   false);
                 }, node.action);
                 pending_defer = true;
               } else if constexpr (std::is_same_v<T, std::shared_ptr<ast::IfStatement>>) {
-                visit_expression(node->condition, false, pending_defer);
+                visit_expression(node->condition, false, pending_defer, false);
                 visit_block(node->then_body, pending_defer);
                 visit_block(node->else_body, pending_defer);
               } else if constexpr (std::is_same_v<T, std::shared_ptr<ast::WhileStatement>>) {
-                visit_expression(node->condition, false, pending_defer);
+                visit_expression(node->condition, false, pending_defer, false);
                 visit_block(node->body, pending_defer);
               } else if constexpr (std::is_same_v<T, std::shared_ptr<ast::ForStatement>>) {
-                visit_expression(node->iterator, false, pending_defer);
+                visit_expression(node->iterator, false, pending_defer, false);
                 visit_block(node->body, pending_defer);
               }
             }, statement);
@@ -766,7 +797,12 @@ void validate_tailrec_contract(
         resolved_type(node, node.declaration->return_type);
     if (type.is_concrete())
       return type.concrete->kind() != TypeKind::String;
-    return type.is_pointer() || type.is_class();
+    if (type.is_pointer())
+      return true;
+    if (!type.is_class())
+      return false;
+    const auto declaration = classes.find(type.parameter);
+    return declaration != classes.end() && !declaration->second->is_value_type;
   };
 
   const auto reaches = [&](std::size_t start, std::size_t goal) {
@@ -808,7 +844,7 @@ void validate_tailrec_contract(
       }
       for (const auto &edge : nodes[member].edges)
         if (in_same_cycle(source, edge.target) &&
-            (!edge.terminal || edge.pending_defer ||
+            (!edge.terminal || edge.pending_defer || edge.pending_owner ||
              !signatures_compatible(nodes[member], nodes[edge.target]))) {
           guaranteed[source] = false;
           break;
@@ -859,6 +895,11 @@ void validate_tailrec_contract(
             throw CompileError{DiagnosticCode::AnalyzerNonTerminalTailrec,
                                edge.location,
                                "recursive call in tailrec cycle has pending defer cleanup"};
+          if (edge.pending_owner)
+            throw CompileError{
+                DiagnosticCode::AnalyzerIncompatibleTailrec, edge.location,
+                "recursive call in tailrec cycle has a live owning value "
+                "requiring cleanup"};
           if (!signatures_compatible(nodes[member], nodes[edge.target]))
             throw CompileError{DiagnosticCode::AnalyzerIncompatibleTailrec,
                                edge.location,
@@ -866,6 +907,16 @@ void validate_tailrec_contract(
         }
       }
   }
+
+  std::unordered_set<const ast::Expression *> required_edges;
+  for (std::size_t source = 0; source < nodes.size(); ++source) {
+    if (!nodes[source].declaration->is_tailrec)
+      continue;
+    for (const TailrecNode::Edge &edge : nodes[source].edges)
+      if (in_same_cycle(source, edge.target))
+        required_edges.insert(edge.expression);
+  }
+  return required_edges;
 }
 
 } // namespace
@@ -3228,6 +3279,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                        "program must declare an entry point 'main'"};
   }
 
+  std::unordered_set<const ast::Expression *> returns_with_live_owners;
   for (const FunctionContext &context : contexts) {
     const bool is_destructor = context.destructor != nullptr;
     const bool is_global_initializer = context.global != nullptr;
@@ -9540,6 +9592,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             block_symbols.at(identifier->name).may_be_initialized = false;
           }
         }
+        if (return_statement.expression.has_value()) {
+          const bool has_live_owner = std::any_of(
+              block_symbols.begin(), block_symbols.end(),
+              [&](const auto &entry) {
+                const auto &[name, symbol] = entry;
+                return symbol.may_be_initialized &&
+                       !borrowed_values.contains(name) &&
+                       potentially_owns_value(symbol.type);
+              });
+          if (has_live_owner)
+            returns_with_live_owners.insert(&*return_statement.expression);
+        }
         warn_all_live_owners(block_symbols);
         has_terminator = true;
       }
@@ -9646,8 +9710,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     result.functions.emplace(analysis_name, std::move(symbols));
   }
 
-  validate_tailrec_contract(program, class_arities, scoped_type_aliases,
-                            resolved_calls);
+  result.tailrec_edges = validate_tailrec_contract(
+      program, class_arities, classes, scoped_type_aliases, resolved_calls,
+      returns_with_live_owners);
   for (const auto &[expression, function] : resolved_calls)
     result.call_return_ownership.insert_or_assign(expression,
                                                   function->return_ownership);

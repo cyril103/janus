@@ -7,6 +7,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- garantie de bout en bout du contrat `tailrec` : émission de `musttail` pour
+  les retours `Unit`, refus `JANA0032` des retours agrégés/génériques non
+  prouvables et des arêtes avec propriétaire vivant, puis assertion backend de
+  chaque arête récursive attendue ;
 - refus des copies implicites de classes et autres valeurs non `Copy` lors
   d'une affectation, d'un appel, d'un retour ou d'une construction d'agrégat,
   y compris à travers un paramètre générique ; le diagnostic `JANA0035`

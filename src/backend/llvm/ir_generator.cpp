@@ -311,7 +311,7 @@ private:
     return entry_builder.CreateAlloca(type, nullptr, name);
   }
 
-  static void mark_tail_call_if_eligible(::llvm::Value *return_value,
+  static bool mark_tail_call_if_eligible(::llvm::Value *return_value,
                                          ::llvm::Function &caller,
                                          ::llvm::IRBuilder<> &builder) {
     auto *call = ::llvm::dyn_cast_or_null<::llvm::CallInst>(return_value);
@@ -321,13 +321,14 @@ private:
         call->getCallingConv() != caller.getCallingConv() ||
         call->getParent() != builder.GetInsertBlock() ||
         &builder.GetInsertBlock()->back() != call)
-      return;
+      return false;
 
     // `musttail` is a backend guarantee, including unoptimized builds: the
     // current frame is reused instead of growing the native stack.  Requiring
     // the call to still be the block's final instruction also deliberately
     // excludes returns with pending defer/ownership cleanup work.
     call->setTailCallKind(::llvm::CallInst::TCK_MustTail);
+    return true;
   }
 
   static std::string source_global_key(const std::optional<std::string> &module,
@@ -2357,16 +2358,24 @@ private:
             return_value =
                 emit_expression(*return_statement.expression, return_type,
                                 substitutions, block_locals, builder);
-          if (return_type.kind() == janus::TypeKind::Unit)
-            return_value = nullptr;
         }
         emit_active_cleanups(builder);
         if (owner == nullptr && function.name == "main")
           for (auto finalizer = global_finalizers_.rbegin();
                finalizer != global_finalizers_.rend(); ++finalizer)
             builder.CreateCall(*finalizer);
-        mark_tail_call_if_eligible(return_value, *llvm_function, builder);
-        if (return_value != nullptr)
+        const bool emitted_musttail = mark_tail_call_if_eligible(
+            return_value, *llvm_function, builder);
+        if (return_statement.expression.has_value() &&
+            analysis_.tailrec_edges.contains(&*return_statement.expression) &&
+            !emitted_musttail)
+          throw janus::CompileError{
+              janus::DiagnosticCode::AnalyzerIncompatibleTailrec,
+              return_statement.location,
+              "tailrec backend invariant failed: recursive edge could not "
+              "be emitted as musttail"};
+        if (return_type.kind() != janus::TypeKind::Unit &&
+            return_value != nullptr)
           builder.CreateRet(return_value);
         else
           builder.CreateRetVoid();

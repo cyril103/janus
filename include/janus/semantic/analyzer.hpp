@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -109,6 +110,9 @@ struct AnalysisResult {
   std::vector<InferredLambdaParameter> inferred_lambda_parameters;
   std::unordered_map<const ast::Expression *, ast::ReturnOwnership>
       call_return_ownership;
+  // Recursive call expressions whose source-level `tailrec` contract requires
+  // the LLVM backend to emit a musttail call after monomorphization.
+  std::unordered_set<const ast::Expression *> tailrec_edges;
   std::unordered_map<const ast::Expression *, ExtensionCall> extension_calls;
   std::unordered_map<const ast::TryExpression *, TryProtocol> try_protocols;
   std::unordered_map<const ast::IndexExpression *, IndexedCapabilities>

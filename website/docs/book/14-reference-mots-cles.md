@@ -29,7 +29,9 @@ entièrement terminal et compatible avec la garantie backend `musttail` doit
 porter `tailrec`. Une récursion ordinaire, un cycle mixte ou un cycle dont le
 retour ou le nettoyage empêche `musttail` reste légal sans annotation. Le
 compilateur rejette alors `tailrec`, comme il le rejette sur une déclaration non
-récursive. La grammaire canonique est :
+récursive. Les retours `Unit` sont garantis ; les retours agrégés ou génériques
+dont l'ABI finale n'est pas prouvable, ainsi que les chemins gardant un
+propriétaire vivant, sont refusés avec `JANA0032`. La grammaire canonique est :
 `[private] [const] tailrec def` au niveau module et
 `[private|internal] [borrow|consume] tailrec def` dans une classe. Les groupes
 entre crochets sont facultatifs et conservent cet ordre.
