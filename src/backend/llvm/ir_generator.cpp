@@ -296,6 +296,10 @@ private:
     const Substitutions *substitutions;
   };
 
+  struct TransientPanicCleanup {
+    std::vector<::llvm::Value *> frames;
+  };
+
   [[nodiscard]] bool
   is_dependency(const std::optional<std::string> &module) const {
     return module.has_value() &&
@@ -1421,7 +1425,32 @@ private:
         "janus_free", ::llvm::FunctionType::get(builder.getVoidTy(),
                                                 {builder.getPtrTy()}, false));
     if (type.kind() == janus::TypeKind::Class) {
-      builder.CreateCall(emit_destructor(std::string{type.name()}), {value});
+      const TransientPanicCleanup caller_cleanup =
+          emitting_panic_cleanup_ || emitting_inline_cleanup_
+              ? TransientPanicCleanup{}
+              : push_transient_panic_cleanup(builder);
+      auto *frame_type = ::llvm::StructType::get(
+          context_,
+          {builder.getPtrTy(), builder.getPtrTy(), builder.getPtrTy()});
+      ::llvm::Value *release_frame =
+          create_entry_alloca(builder, frame_type, "destructor.release.frame");
+      ::llvm::FunctionCallee push = module_->getOrInsertFunction(
+          "janus_push_panic_cleanup",
+          ::llvm::FunctionType::get(
+              builder.getVoidTy(),
+              {builder.getPtrTy(), builder.getPtrTy(), builder.getPtrTy()},
+              false));
+      ::llvm::FunctionCallee pop = module_->getOrInsertFunction(
+          "janus_pop_panic_cleanup",
+          ::llvm::FunctionType::get(builder.getVoidTy(), {builder.getPtrTy()},
+                                    false));
+      builder.CreateCall(push,
+                         {release_frame, free_function.getCallee(), value});
+      ::llvm::Function *destructor =
+          emit_destructor(std::string{type.name()});
+      builder.CreateCall(destructor, {value});
+      builder.CreateCall(pop, {release_frame});
+      pop_transient_panic_cleanup(caller_cleanup, builder);
       builder.CreateCall(free_function, {value});
       return;
     }
@@ -1537,16 +1566,36 @@ private:
 
   void emit_cleanups_from_depth(::llvm::IRBuilder<> &builder,
                                 std::size_t retained_depth) {
+    std::size_t completed = 0;
     for (std::size_t index = active_cleanup_scopes_.size();
          index > retained_depth; --index) {
       const CleanupScope &scope = active_cleanup_scopes_[index - 1];
-      for (auto action = scope.actions->rbegin();
-           action != scope.actions->rend(); ++action)
-        emit_cleanup_action(**action, *scope.substitutions, *scope.locals,
-                            builder);
-      for (auto value = scope.owned_values->rbegin();
-           value != scope.owned_values->rend(); ++value)
+      const auto *actions = scope.actions;
+      const auto *owned_values = scope.owned_values;
+      auto *locals = scope.locals;
+      const auto *substitutions = scope.substitutions;
+      for (auto action = actions->rbegin(); action != actions->rend();
+           ++action) {
+        const TransientPanicCleanup remaining = push_transient_panic_cleanup(
+            builder, retained_depth, completed + 1);
+        const bool previous_emitting_inline_cleanup = emitting_inline_cleanup_;
+        emitting_inline_cleanup_ = true;
+        emit_cleanup_action(**action, *substitutions, *locals, builder);
+        emitting_inline_cleanup_ = previous_emitting_inline_cleanup;
+        pop_transient_panic_cleanup(remaining, builder);
+        ++completed;
+      }
+      for (auto value = owned_values->rbegin(); value != owned_values->rend();
+           ++value) {
+        const TransientPanicCleanup remaining = push_transient_panic_cleanup(
+            builder, retained_depth, completed + 1);
+        const bool previous_emitting_inline_cleanup = emitting_inline_cleanup_;
+        emitting_inline_cleanup_ = true;
         emit_owned_value_cleanup(value->first, *value->second, builder);
+        emitting_inline_cleanup_ = previous_emitting_inline_cleanup;
+        pop_transient_panic_cleanup(remaining, builder);
+        ++completed;
+      }
     }
   }
 
@@ -1554,115 +1603,196 @@ private:
     emit_cleanups_from_depth(builder, 0);
   }
 
-  struct TransientPanicCleanup {
-    ::llvm::Value *frame{};
-  };
-
   TransientPanicCleanup
-  push_transient_panic_cleanup(::llvm::IRBuilder<> &builder) {
-    if (emitting_panic_cleanup_ || active_cleanup_scopes_.empty())
+  push_transient_panic_cleanup(::llvm::IRBuilder<> &builder,
+                               std::size_t retained_depth = 0,
+                               std::size_t skipped_units = 0) {
+    if (emitting_panic_cleanup_ || emitting_inline_cleanup_ ||
+        active_cleanup_scopes_.size() <= retained_depth)
       return {};
     bool has_cleanup = false;
-    for (const CleanupScope &scope : active_cleanup_scopes_)
+    for (std::size_t index = retained_depth;
+         index < active_cleanup_scopes_.size(); ++index) {
+      const CleanupScope &scope = active_cleanup_scopes_[index];
       has_cleanup = has_cleanup || !scope.actions->empty() ||
                     !scope.owned_values->empty();
+    }
     if (!has_cleanup)
       return {};
 
+    struct CleanupUnit {
+      std::size_t scope;
+      bool action;
+      std::size_t index;
+    };
+    std::vector<CleanupUnit> units;
+    for (std::size_t scope_index = active_cleanup_scopes_.size();
+         scope_index-- > retained_depth;) {
+      const CleanupScope &scope = active_cleanup_scopes_[scope_index];
+      for (std::size_t action_index = scope.actions->size();
+           action_index-- > 0;)
+        units.push_back({scope_index, true, action_index});
+      for (std::size_t value_index = scope.owned_values->size();
+           value_index-- > 0;)
+        units.push_back({scope_index, false, value_index});
+    }
+    if (skipped_units >= units.size())
+      return {};
+    units.erase(units.begin(), units.begin() + skipped_units);
+
     std::vector<::llvm::Type *> context_fields;
     for (const CleanupScope &scope : active_cleanup_scopes_) {
-      context_fields.insert(context_fields.end(), scope.locals->size(),
-                            builder.getPtrTy());
+      for (const auto &[name, local] : *scope.locals) {
+        static_cast<void>(name);
+        if (local.storage != nullptr)
+          context_fields.push_back(builder.getPtrTy());
+      }
       for (const auto &[value, type] : *scope.owned_values) {
         static_cast<void>(value);
         context_fields.push_back(lower_type(*type, context_));
       }
     }
-    const std::size_t index = panic_cleanup_index_++;
+    const std::size_t context_index = panic_cleanup_index_++;
     auto *context_type = ::llvm::StructType::create(context_, context_fields,
                                                     "panic.cleanup.context." +
-                                                        std::to_string(index));
+                                                        std::to_string(
+                                                            context_index));
     ::llvm::Value *context_storage =
         create_entry_alloca(builder, context_type, "panic.cleanup.context");
-
-    auto *cleanup_type = ::llvm::FunctionType::get(builder.getVoidTy(),
-                                                   {builder.getPtrTy()}, false);
-    auto *cleanup = ::llvm::Function::Create(
-        cleanup_type, ::llvm::Function::InternalLinkage,
-        "__janus_panic_cleanup_" + std::to_string(index), *module_);
-    ::llvm::IRBuilder<> cleanup_builder{
-        ::llvm::BasicBlock::Create(context_, "entry", cleanup)};
-    ::llvm::Argument *context = cleanup->getArg(0);
-    context->setName("context");
-
-    std::vector<std::unordered_map<std::string, Local>> cleanup_locals;
-    std::vector<std::vector<std::pair<::llvm::Value *, const janus::Type *>>>
-        cleanup_owned_values;
-    std::vector<CleanupScope> cleanup_scopes;
-    cleanup_locals.reserve(active_cleanup_scopes_.size());
-    cleanup_owned_values.reserve(active_cleanup_scopes_.size());
-    cleanup_scopes.reserve(active_cleanup_scopes_.size());
     unsigned field_index = 0;
     for (const CleanupScope &scope : active_cleanup_scopes_) {
-      cleanup_locals.emplace_back();
       for (const auto &[name, local] : *scope.locals) {
-        ::llvm::Value *field =
-            cleanup_builder.CreateStructGEP(context_type, context, field_index);
-        ::llvm::Value *storage = cleanup_builder.CreateLoad(
-            cleanup_builder.getPtrTy(), field, name + ".cleanup.storage");
-        cleanup_locals.back().emplace(
-            name, Local{storage, local.type, local.is_constant});
+        static_cast<void>(name);
+        if (local.storage == nullptr)
+          continue;
         builder.CreateStore(local.storage,
                             builder.CreateStructGEP(
                                 context_type, context_storage, field_index++));
       }
-      cleanup_owned_values.emplace_back();
       for (const auto &[value, type] : *scope.owned_values) {
-        ::llvm::Value *field =
-            cleanup_builder.CreateStructGEP(context_type, context, field_index);
-        cleanup_owned_values.back().push_back(
-            {cleanup_builder.CreateLoad(lower_type(*type, context_), field,
-                                        "owned.cleanup.value"),
-             type});
         builder.CreateStore(value, builder.CreateStructGEP(context_type,
                                                            context_storage,
                                                            field_index++));
       }
-      cleanup_scopes.push_back(
-          CleanupScope{scope.actions, &cleanup_owned_values.back(),
-                       &cleanup_locals.back(), scope.substitutions});
     }
-    auto saved_scopes = std::move(active_cleanup_scopes_);
-    active_cleanup_scopes_ = cleanup_scopes;
-    emitting_panic_cleanup_ = true;
-    emit_active_cleanups(cleanup_builder);
-    emitting_panic_cleanup_ = false;
-    active_cleanup_scopes_ = std::move(saved_scopes);
-    cleanup_builder.CreateRetVoid();
 
     auto *frame_type = ::llvm::StructType::get(
         context_, {builder.getPtrTy(), builder.getPtrTy(), builder.getPtrTy()});
-    ::llvm::Value *frame =
-        create_entry_alloca(builder, frame_type, "panic.cleanup.frame");
     ::llvm::FunctionCallee push = module_->getOrInsertFunction(
         "janus_push_panic_cleanup",
         ::llvm::FunctionType::get(
             builder.getVoidTy(),
             {builder.getPtrTy(), builder.getPtrTy(), builder.getPtrTy()},
             false));
-    builder.CreateCall(push, {frame, cleanup, context_storage});
-    return {frame};
+    auto *cleanup_type = ::llvm::FunctionType::get(builder.getVoidTy(),
+                                                   {builder.getPtrTy()}, false);
+    TransientPanicCleanup result;
+    result.frames.reserve(units.size());
+    for (auto unit = units.rbegin(); unit != units.rend(); ++unit) {
+      const std::size_t cleanup_index = panic_cleanup_index_++;
+      auto *cleanup = ::llvm::Function::Create(
+          cleanup_type, ::llvm::Function::InternalLinkage,
+          "__janus_panic_cleanup_" + std::to_string(cleanup_index), *module_);
+      ::llvm::IRBuilder<> cleanup_builder{
+          ::llvm::BasicBlock::Create(context_, "entry", cleanup)};
+      ::llvm::Argument *context = cleanup->getArg(0);
+      context->setName("context");
+
+      std::vector<std::unordered_map<std::string, Local>> cleanup_locals;
+      std::vector<std::vector<std::pair<::llvm::Value *, const janus::Type *>>>
+          cleanup_owned_values;
+      std::vector<CleanupScope> cleanup_scopes;
+      cleanup_locals.reserve(active_cleanup_scopes_.size());
+      cleanup_owned_values.reserve(active_cleanup_scopes_.size());
+      cleanup_scopes.reserve(active_cleanup_scopes_.size());
+      unsigned cleanup_field_index = 0;
+      for (const CleanupScope &scope : active_cleanup_scopes_) {
+        cleanup_locals.emplace_back();
+        for (const auto &[name, local] : *scope.locals) {
+          if (local.storage == nullptr) {
+            cleanup_locals.back().emplace(name, local);
+            continue;
+          }
+          ::llvm::Value *field = cleanup_builder.CreateStructGEP(
+              context_type, context, cleanup_field_index++);
+          ::llvm::Value *storage = cleanup_builder.CreateLoad(
+              cleanup_builder.getPtrTy(), field, name + ".cleanup.storage");
+          cleanup_locals.back().emplace(
+              name, Local{storage, local.type, local.is_constant});
+        }
+        cleanup_owned_values.emplace_back();
+        for (const auto &[value, type] : *scope.owned_values) {
+          static_cast<void>(value);
+          ::llvm::Value *field = cleanup_builder.CreateStructGEP(
+              context_type, context, cleanup_field_index++);
+          cleanup_owned_values.back().push_back(
+              {cleanup_builder.CreateLoad(lower_type(*type, context_), field,
+                                          "owned.cleanup.value"),
+               type});
+        }
+        cleanup_scopes.push_back(
+            CleanupScope{scope.actions, &cleanup_owned_values.back(),
+                         &cleanup_locals.back(), scope.substitutions});
+      }
+
+      auto saved_scopes = std::move(active_cleanup_scopes_);
+      active_cleanup_scopes_ = cleanup_scopes;
+      emitting_panic_cleanup_ = true;
+      const CleanupScope &scope = active_cleanup_scopes_[unit->scope];
+      if (unit->action)
+        emit_cleanup_action(*scope.actions->at(unit->index),
+                            *scope.substitutions, *scope.locals,
+                            cleanup_builder);
+      else {
+        const auto &[value, type] = scope.owned_values->at(unit->index);
+        emit_owned_value_cleanup(value, *type, cleanup_builder);
+      }
+      emitting_panic_cleanup_ = false;
+      active_cleanup_scopes_ = std::move(saved_scopes);
+      cleanup_builder.CreateRetVoid();
+
+      ::llvm::Value *frame =
+          create_entry_alloca(builder, frame_type, "panic.cleanup.frame");
+      builder.CreateCall(push, {frame, cleanup, context_storage});
+      result.frames.push_back(frame);
+    }
+    return result;
   }
 
   void pop_transient_panic_cleanup(const TransientPanicCleanup &cleanup,
                                    ::llvm::IRBuilder<> &builder) {
-    if (cleanup.frame == nullptr)
-      return;
     ::llvm::FunctionCallee pop = module_->getOrInsertFunction(
         "janus_pop_panic_cleanup",
         ::llvm::FunctionType::get(builder.getVoidTy(), {builder.getPtrTy()},
                                   false));
-    builder.CreateCall(pop, {cleanup.frame});
+    for (auto frame = cleanup.frames.rbegin(); frame != cleanup.frames.rend();
+         ++frame)
+      builder.CreateCall(pop, {*frame});
+  }
+
+  ::llvm::CallInst *
+  emit_protected_call(::llvm::FunctionCallee target,
+                      ::llvm::ArrayRef<::llvm::Value *> arguments,
+                      ::llvm::IRBuilder<> &builder,
+                      const ::llvm::Twine &name = "") {
+    const TransientPanicCleanup panic_cleanup =
+        push_transient_panic_cleanup(builder);
+    ::llvm::CallInst *call = builder.CreateCall(target, arguments, name);
+    pop_transient_panic_cleanup(panic_cleanup, builder);
+    return call;
+  }
+
+  ::llvm::CallInst *
+  emit_protected_indirect_call(::llvm::FunctionType *type,
+                               ::llvm::Value *target,
+                               ::llvm::ArrayRef<::llvm::Value *> arguments,
+                               ::llvm::IRBuilder<> &builder,
+                               const ::llvm::Twine &name = "") {
+    const TransientPanicCleanup panic_cleanup =
+        push_transient_panic_cleanup(builder);
+    ::llvm::CallInst *call = builder.CreateCall(type, target, arguments, name);
+    pop_transient_panic_cleanup(panic_cleanup, builder);
+    return call;
   }
 
   ::llvm::Function *emit_function(
@@ -1824,6 +1954,8 @@ private:
             : (extension != nullptr
                    ? extension->target_type.name + "." + function.name
                    : function.name);
+    const bool previous_emitting_panic_cleanup = emitting_panic_cleanup_;
+    emitting_panic_cleanup_ = false;
     auto previous_cleanup_scopes = std::move(active_cleanup_scopes_);
     active_cleanup_scopes_.clear();
 
@@ -2043,8 +2175,8 @@ private:
                 &source_specialization.substitutions, source_type.name());
             iterator_type = &resolve(iterator_method->return_type,
                                      source_specialization.substitutions);
-            iterator =
-                builder.CreateCall(iterator_function, {source}, "for.iterator");
+            iterator = emit_protected_call(iterator_function, {source}, builder,
+                                           "for.iterator");
           }
           const ClassSpecialization &iterator_specialization =
               class_specializations_.at(std::string{iterator_type->name()});
@@ -2089,8 +2221,8 @@ private:
               ::llvm::BasicBlock::Create(context_, "for.end", current_function);
           builder.CreateBr(condition_block);
           builder.SetInsertPoint(condition_block);
-          ::llvm::Value *next =
-              builder.CreateCall(next_function, {iterator}, "for.option");
+          ::llvm::Value *next = emit_protected_call(
+              next_function, {iterator}, builder, "for.option");
           ::llvm::Value *tag =
               builder.CreateExtractValue(next, 0, "for.option.tag");
           builder.CreateCondBr(
@@ -2221,8 +2353,9 @@ private:
               ::llvm::Function *get_target = emit_function(
                   *capabilities.read, {}, specialization.declaration,
                   &specialization.substitutions, object_type.name());
-              ::llvm::Value *left = builder.CreateCall(
-                  get_target, {object_value, index_value}, "index.old");
+              ::llvm::Value *left = emit_protected_call(
+                  get_target, {object_value, index_value}, builder,
+                  "index.old");
               const janus::ast::BinaryOperator operation =
                   *janus::ast::assignment_binary_operator(
                       assignment->operation);
@@ -2240,8 +2373,8 @@ private:
             ::llvm::Function *set_target = emit_function(
                 *capabilities.replace, {}, specialization.declaration,
                 &specialization.substitutions, object_type.name());
-            builder.CreateCall(set_target,
-                               {object_value, index_value, replacement});
+            emit_protected_call(
+                set_target, {object_value, index_value, replacement}, builder);
             continue;
           }
           const auto emit_assignment = [&](::llvm::Value *storage,
@@ -2382,9 +2515,7 @@ private:
         active_cleanup_scopes_.pop_back();
         return true;
       }
-      for (auto iterator = deferred_actions.rbegin();
-           iterator != deferred_actions.rend(); ++iterator)
-        emit_cleanup_action(**iterator, substitutions, block_locals, builder);
+      emit_cleanups_from_depth(builder, active_cleanup_scopes_.size() - 1);
       active_cleanup_scopes_.pop_back();
       return false;
     };
@@ -2396,6 +2527,7 @@ private:
     if (!emitted_return && return_type.kind() == janus::TypeKind::Unit)
       builder.CreateRetVoid();
     active_cleanup_scopes_ = std::move(previous_cleanup_scopes);
+    emitting_panic_cleanup_ = previous_emitting_panic_cleanup;
     active_function_ = previous_active_function;
     active_module_ = previous_active_module;
     return llvm_function;
@@ -3224,7 +3356,10 @@ private:
   ::llvm::CallInst *emit_panic_call(::llvm::Value *data, ::llvm::Value *length,
                                     janus::SourceLocation location,
                                     ::llvm::IRBuilder<> &builder) {
-    emit_active_cleanups(builder);
+    // Leave the frames installed: janus_panic_with_context drains them before
+    // global finalization.  Each action owns a frame so that a second panic
+    // raised by a destructor cannot skip the remaining actions in this scope.
+    static_cast<void>(push_transient_panic_cleanup(builder));
     ::llvm::Value *file =
         builder.CreateGlobalString(active_source_name(), "panic.file");
     ::llvm::Value *function =
@@ -3482,9 +3617,9 @@ private:
           substitutions, locals, builder));
     }
     return target->getReturnType()->isVoidTy()
-               ? builder.CreateCall(target, arguments)
-               : builder.CreateCall(target, arguments,
-                                    std::string{result_name} + ".result");
+               ? emit_protected_call(target, arguments, builder)
+               : emit_protected_call(target, arguments, builder,
+                                     std::string{result_name} + ".result");
   }
 
   ::llvm::Value *emit_aggregate_field(::llvm::Value *value,
@@ -4051,8 +4186,6 @@ private:
                   builder.CreateExtractValue(closure, 0, node.callee + ".code");
               ::llvm::Value *environment = builder.CreateExtractValue(
                   closure, 1, node.callee + ".environment");
-              const TransientPanicCleanup panic_cleanup =
-                  push_transient_panic_cleanup(builder);
               std::vector<::llvm::Value *> arguments{environment};
               for (std::size_t index = 0; index < node.arguments.size();
                    ++index) {
@@ -4111,10 +4244,11 @@ private:
                   callee_return_type, parameter_types, false);
               ::llvm::Value *result =
                   signature.return_type->kind() == janus::TypeKind::Unit
-                      ? builder.CreateCall(callee_type, code, arguments)
-                      : builder.CreateCall(callee_type, code, arguments,
-                                           node.callee + ".call");
-              pop_transient_panic_cleanup(panic_cleanup, builder);
+                      ? emit_protected_indirect_call(callee_type, code,
+                                                     arguments, builder)
+                      : emit_protected_indirect_call(
+                            callee_type, code, arguments, builder,
+                            node.callee + ".call");
               return result;
             }
             if (node.callee == "debug") {
@@ -4582,9 +4716,9 @@ private:
                   parameter_type, substitutions, locals, builder));
             }
             return target->getReturnType()->isVoidTy()
-                       ? builder.CreateCall(target, arguments)
-                       : builder.CreateCall(target, arguments,
-                                            node.callee + ".result");
+                       ? emit_protected_call(target, arguments, builder)
+                       : emit_protected_call(target, arguments, builder,
+                                             node.callee + ".result");
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::NewExpression>) {
             const auto class_iterator =
@@ -4873,9 +5007,9 @@ private:
                     parameter_type, substitutions, locals, builder));
               }
               return target->getReturnType()->isVoidTy()
-                         ? builder.CreateCall(target, arguments)
-                         : builder.CreateCall(target, arguments,
-                                              node.method + ".result");
+                         ? emit_protected_call(target, arguments, builder)
+                         : emit_protected_call(target, arguments, builder,
+                                               node.method + ".result");
             }
             ::llvm::Value *object_value = nullptr;
             if (identifier != nullptr) {
@@ -4957,9 +5091,9 @@ private:
                   parameter_type, substitutions, locals, builder));
             }
             return target->getReturnType()->isVoidTy()
-                       ? builder.CreateCall(target, arguments)
-                       : builder.CreateCall(target, arguments,
-                                            node.method + ".result");
+                       ? emit_protected_call(target, arguments, builder)
+                       : emit_protected_call(target, arguments, builder,
+                                             node.method + ".result");
           } else if constexpr (std::is_same_v<Node,
                                               janus::ast::IndexExpression>) {
             const janus::Type &object_type = expression_type(
@@ -4983,8 +5117,8 @@ private:
             ::llvm::Value *index = emit_expression(
                 *node.index, janus::Type::usize_type(), substitutions, locals,
                 builder);
-            return builder.CreateCall(target, {object_value, index},
-                                      "index.result");
+            return emit_protected_call(target, {object_value, index}, builder,
+                                       "index.result");
           } else if constexpr (std::is_same_v<Node, janus::ast::IfExpression>) {
             ::llvm::Value *condition =
                 emit_expression(*node.condition, janus::Type::bool_type(),
@@ -5652,6 +5786,7 @@ private:
   std::vector<CleanupScope> active_cleanup_scopes_;
   std::size_t panic_cleanup_index_{};
   bool emitting_panic_cleanup_{};
+  bool emitting_inline_cleanup_{};
   const janus::Type *active_return_type_{};
   std::optional<std::string> active_module_;
   std::string active_function_;

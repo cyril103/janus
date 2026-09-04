@@ -561,7 +561,10 @@ typedef struct JanusPanicCleanupFrame {
   void *context;
 } JanusPanicCleanupFrame;
 
-static JanusPanicCleanupFrame *janus_active_panic_cleanup;
+/* Cleanup frames point into the native stack and therefore never cross a
+ * thread boundary.  C11 TLS is available on every supported runtime toolchain
+ * (Clang/GCC on Unix and Clang/MSVC-compatible builds on Windows). */
+static _Thread_local JanusPanicCleanupFrame *janus_active_panic_cleanup;
 
 void janus_set_panic_cleanup(void (*cleanup)(void)) {
   janus_panic_cleanup = cleanup;

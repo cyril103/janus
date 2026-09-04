@@ -1,0 +1,28 @@
+class Resource(val id : int, val panics : bool) {
+    destructor {
+        println(id)
+        if panics {
+            panic("panic during normal destructor cleanup\n")
+        }
+    }
+}
+
+def inner() : Unit {
+    val first : Resource = new Resource(20, false)
+    defer delete first
+    val second : Resource = new Resource(21, true)
+    defer delete second
+}
+
+def outer() : Unit {
+    val first : Resource = new Resource(10, false)
+    defer delete first
+    val second : Resource = new Resource(11, false)
+    defer delete second
+    inner()
+}
+
+def main() : int {
+    outer()
+    return 0
+}

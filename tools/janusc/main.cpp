@@ -16,6 +16,8 @@
 
 int main(int argc, char **argv) {
   janus::semantic::AnalysisOptions analysis_options;
+  janus::backend::llvm::PanicTraceMode panic_trace =
+      janus::backend::llvm::PanicTraceMode::Full;
   analysis_options.target = {
       llvm::sys::getDefaultTargetTriple(),
       static_cast<std::uint32_t>(sizeof(void *) * 8)};
@@ -31,7 +33,21 @@ int main(int argc, char **argv) {
       return error == std::errc{} && end == value.data() + value.size();
     };
     bool valid = true;
-    if (argument == "--const-steps")
+    if (argument == "--panic-trace") {
+      if (++index == argc) {
+        valid = false;
+      } else {
+        const std::string_view value{argv[index]};
+        if (value == "full")
+          panic_trace = janus::backend::llvm::PanicTraceMode::Full;
+        else if (value == "short")
+          panic_trace = janus::backend::llvm::PanicTraceMode::Short;
+        else if (value == "off")
+          panic_trace = janus::backend::llvm::PanicTraceMode::Off;
+        else
+          valid = false;
+      }
+    } else if (argument == "--const-steps")
       valid = parse_budget(analysis_options.constant_step_budget);
     else if (argument == "--const-depth")
       valid = parse_budget(analysis_options.constant_recursion_budget);
@@ -49,7 +65,8 @@ int main(int argc, char **argv) {
     }
   }
   if (path.empty()) {
-    std::cerr << "usage: janusc [--const-steps N] [--const-depth N] "
+    std::cerr << "usage: janusc [--panic-trace full|short|off] "
+                 "[--const-steps N] [--const-depth N] "
                  "[--const-memory BYTES] [--const-value-size BYTES] "
                  "<source.janus>\n";
     return 2;
@@ -72,7 +89,7 @@ int main(int argc, char **argv) {
     janus::backend::llvm::IrGenerator generator{context,
                                                  analysis_options.target};
     std::unique_ptr<llvm::Module> module =
-        generator.generate(program, path.string());
+        generator.generate(program, path.string(), panic_trace);
 
     if (llvm::verifyModule(*module, &llvm::errs())) {
       std::cerr << "janusc: generated invalid LLVM IR\n";

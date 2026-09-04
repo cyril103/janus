@@ -840,7 +840,7 @@ delete point
 ```
 
 `defer` programme un nettoyage à la sortie de la portée, y compris lors d'un
-`return`, `break` ou `continue` :
+`return`, `break`, `continue` ou d'une `panic` propagée depuis un appel :
 
 ```janus
 val point : Point = new Point(1, 2)
@@ -848,7 +848,11 @@ defer delete point
 ```
 
 Les destructeurs exécutent le nettoyage propre à une classe avant la
-libération de sa mémoire.
+libération de sa mémoire. Lors d'une panique, les nettoyages de toutes les
+fonctions Janus traversées s'exécutent exactement une fois en ordre LIFO. Une
+seconde panique depuis un destructeur n'interrompt pas les nettoyages locaux
+restants. Le contrat ABI et les limites FFI/globales sont détaillés dans
+[le design du déroulement des paniques](design/panic-unwinding.md).
 
 ### Emprunts immuables
 

@@ -120,6 +120,32 @@ int main() {
   expect(ir.find("call i32 @c_add(i32 20, i32 22)") != std::string::npos,
          "Janus calls the emitted external declaration");
 
+  janus::frontend::Parser panic_cleanup_parser{
+      "class Resource() {} extern def foreign() : Unit "
+      "def main() : int { val resource : Resource = new Resource() "
+      "defer delete resource foreign() return 0 }"};
+  const janus::ast::Program panic_cleanup_program =
+      panic_cleanup_parser.parse_program();
+  static_cast<void>(analyzer.analyze(panic_cleanup_program));
+  llvm::LLVMContext panic_cleanup_context;
+  janus::backend::llvm::IrGenerator panic_cleanup_generator{
+      panic_cleanup_context};
+  const std::unique_ptr<llvm::Module> panic_cleanup_module =
+      panic_cleanup_generator.generate(panic_cleanup_program,
+                                       "extern_panic_cleanup");
+  std::string panic_cleanup_ir;
+  llvm::raw_string_ostream panic_cleanup_output{panic_cleanup_ir};
+  panic_cleanup_module->print(panic_cleanup_output, nullptr);
+  panic_cleanup_output.flush();
+  const std::size_t push =
+      panic_cleanup_ir.find("call void @janus_push_panic_cleanup");
+  const std::size_t call = panic_cleanup_ir.find("call void @foreign()", push);
+  const std::size_t pop =
+      panic_cleanup_ir.find("call void @janus_pop_panic_cleanup", call);
+  expect(push != std::string::npos && call != std::string::npos &&
+             pop != std::string::npos && push < call && call < pop,
+         "external calls preserve active Janus cleanups if the FFI panics");
+
   janus::frontend::Parser private_parser{
       "module native.bridge "
       "private extern(\"abs\") def absolute(value : int) : int "

@@ -7,6 +7,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- déroulement interprocédural portable des `panic` : les `defer` et
+  destructeurs de chaque appelant Janus sont exécutés exactement une fois en
+  ordre LIFO, y compris lorsqu'un destructeur panique pendant le nettoyage ;
+  couverture des appels directs, callbacks, méthodes, indexeurs, itérateurs et
+  FFI, avec validation ASan/LSan/UBSan des traces `full|short|off` ;
 - garantie de bout en bout du contrat `tailrec` : émission de `musttail` pour
   les retours `Unit`, refus `JANA0032` des retours agrégés/génériques non
   prouvables et des arêtes avec propriétaire vivant, puis assertion backend de
