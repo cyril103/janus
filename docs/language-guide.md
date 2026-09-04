@@ -1037,6 +1037,16 @@ def invoke(scoped callback : () => int) : int {
 }
 ```
 
+Le corps de la fonction est vérifié transitivement. La valeur `scoped`, ses
+alias déplacés et les closures qui la capturent ne peuvent pas être retournés,
+rangés dans un champ, une globale, un enum, un tableau ou un autre conteneur,
+ni transmis à un paramètre ordinaire. Ces échappements produisent
+`JANA0026`. La callback peut être invoquée, détruite localement, ou transférée
+avec `move` à un autre paramètre `scoped`; ce dernier relais est vérifié selon
+les mêmes règles, y compris dans les branches et les fonctions génériques. Les
+sorties par `panic` exécutent normalement les nettoyages différés et ne
+relâchent pas ce contrat.
+
 `std.option.map`, les combinateurs synchrones de `std.result`, `generateArray`,
 `Iterator.fold`, les callbacks de parcours et de tri d’`Array`, ainsi que
 `PriorityQueue.withFirst` déclarent ce contrat directement; l'analyseur ne

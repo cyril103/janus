@@ -105,7 +105,7 @@ private def firstError[E](errors : Array[E]) : E {
 
 private def mapErrors[E, F](
     errors : Array[E],
-    borrow transform : (E) => F
+    scoped borrow transform : (E) => F
 ) : Array[F] {
     val mapped : Array[F] = new Array[F](errors.size())
     for error in errors.intoIterator() {

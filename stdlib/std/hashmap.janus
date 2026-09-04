@@ -550,7 +550,7 @@ private borrow val hashing : H
     borrow storedKey : K,
     borrow query : K,
     borrow storedValue : V,
-    borrow action : (borrow K, borrow V) => Unit
+    scoped borrow action : (borrow K, borrow V) => Unit
     ) : bool {
         if hashing.equals(storedKey, query) {
             action(storedKey, storedValue)
@@ -563,7 +563,7 @@ private borrow val hashing : H
     borrow storedKey : K,
     borrow query : K,
     borrow storedValue : V,
-    borrow action : (borrow V) => Unit
+    scoped borrow action : (borrow V) => Unit
     ) : bool {
         if hashing.equals(storedKey, query) {
             action(storedValue)
@@ -744,7 +744,7 @@ private borrow val hashing : H
 
     private borrow def keepAt(
     index : usize,
-    borrow predicate : (borrow K, borrow V) => bool
+    scoped borrow predicate : (borrow K, borrow V) => bool
     ) : bool {
         borrow val slot : MapSlot[K, V] = slots.getBorrowed(index)
         return match slot {

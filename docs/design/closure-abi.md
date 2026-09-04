@@ -23,7 +23,11 @@ of the source-language compatibility contract.
 
 The semantic analyzer is conservative. A function parameter marked `scoped`
 cannot be external and promises that the callback is neither stored nor
-returned. Borrow-capturing lambdas are accepted only in such a bounded context.
+returned. The promise is checked in the receiver body and follows moved aliases
+and capturing closures. Returning or storing the value, or forwarding it to a
+non-`scoped` parameter, is rejected with `JANA0026`; forwarding to another
+verified `scoped` parameter remains valid. Borrow-capturing lambdas are accepted
+only in such a bounded context.
 The stack optimization currently applies to a lambda literal passed directly as
 that argument. Other expressions retain the owned representation.
 

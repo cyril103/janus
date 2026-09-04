@@ -357,7 +357,7 @@ private borrow val hashing : H
     private def observeEqual(
     borrow existing : T,
     borrow query : T,
-    borrow action : (borrow T) => Unit
+    scoped borrow action : (borrow T) => Unit
     ) : bool {
         if hashing.equals(existing, query) {
             action(existing)
@@ -481,7 +481,7 @@ private borrow val hashing : H
 
     private borrow def keepAt(
     index : usize,
-    borrow predicate : (borrow T) => bool
+    scoped borrow predicate : (borrow T) => bool
     ) : bool {
         borrow val slot : SetSlot[T] = slots.getBorrowed(index)
         return match slot {

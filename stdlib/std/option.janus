@@ -103,7 +103,7 @@ private class OptionFilterState[T](private var value : Option[T]) {
 
 private def observeSomeValue[T](
     borrow value : T,
-    borrow action : (borrow T) => Unit
+    scoped borrow action : (borrow T) => Unit
 ) : bool {
     action(value)
     return true

@@ -3972,6 +3972,64 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> mutable_borrow_values;
     std::unordered_map<std::string, std::unordered_set<std::string>>
         borrow_sources;
+    const auto is_scoped_tainted =
+        [&](std::string_view name, const auto &self,
+            std::unordered_set<std::string> &visited) -> bool {
+      if (name.starts_with("<scoped>"))
+        return true;
+      if (!visited.insert(std::string{name}).second)
+        return false;
+      const auto sources = borrow_sources.find(std::string{name});
+      return sources != borrow_sources.end() &&
+             std::any_of(sources->second.begin(), sources->second.end(),
+                         [&](const std::string &source) {
+                           return self(source, self, visited);
+                         });
+    };
+    const auto scoped_tainted_value = [&](std::string_view name) {
+      std::unordered_set<std::string> visited;
+      return is_scoped_tainted(name, is_scoped_tainted, visited);
+    };
+    const auto non_escaping_value =
+        [&](const ast::Expression &expression,
+            const auto &self) -> std::optional<std::string> {
+      if (const auto *identifier =
+              std::get_if<ast::IdentifierExpression>(&expression.value))
+        return scoped_tainted_value(identifier->name)
+                   ? std::optional<std::string>{identifier->name}
+                   : std::nullopt;
+      if (const auto *move =
+              std::get_if<ast::MoveExpression>(&expression.value))
+        return self(*move->operand, self);
+      if (const auto *member =
+              std::get_if<ast::MemberAccessExpression>(&expression.value))
+        return self(*member->object, self);
+      if (const auto *index =
+              std::get_if<ast::IndexExpression>(&expression.value))
+        return self(*index->container, self);
+      if (const auto *conditional =
+              std::get_if<ast::IfExpression>(&expression.value)) {
+        if (const auto source = self(*conditional->then_expression, self))
+          return source;
+        return self(*conditional->else_expression, self);
+      }
+      if (const auto *match =
+              std::get_if<ast::MatchExpression>(&expression.value))
+        for (const ast::MatchExpression::Arm &arm : match->arms)
+          if (const auto source = self(*arm.expression, self))
+            return source;
+      return std::nullopt;
+    };
+    const auto reject_non_escaping_value =
+        [&](const ast::Expression &expression, SourceLocation location,
+            std::string_view destination) {
+          if (const auto source =
+                  non_escaping_value(expression, non_escaping_value))
+            throw CompileError{
+                DiagnosticCode::AnalyzerBorrowEscape, location,
+                "scoped value '" + *source + "' cannot escape into " +
+                    std::string{destination}};
+        };
     const auto require_no_live_borrow =
         [&](std::string_view owner_name, SourceLocation location,
             std::string_view action = "released") {
@@ -4136,7 +4194,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           transfer_protected_values.insert(field.name);
         }
     if (!is_destructor) {
-      for (const ast::FunctionDeclaration::Parameter &parameter : parameters)
+      for (const ast::FunctionDeclaration::Parameter &parameter : parameters) {
+        if (parameter.is_scoped)
+          borrow_sources[parameter.name].insert("<scoped>" + parameter.name);
         if (parameter.ownership == ast::ParameterOwnership::Borrow ||
             parameter.ownership == ast::ParameterOwnership::BorrowMutable) {
           borrowed_values.insert(parameter.name);
@@ -4146,6 +4206,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             mutable_borrow_values.insert(parameter.name);
           transfer_protected_values.insert(parameter.name);
         }
+      }
       if (owner != nullptr && context.function->is_borrowing) {
         borrowed_values.insert("this");
         shared_borrow_values.insert("this");
@@ -5016,6 +5077,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             ownership != ast::ParameterOwnership::Borrow &&
             ownership != ast::ParameterOwnership::BorrowMutable &&
             !callee.parameters[index].is_scoped;
+        if (!callee.parameters[index].is_scoped)
+          reject_non_escaping_value(
+              *arguments[index], expression_location(*arguments[index]),
+              "non-scoped parameter '" + callee.parameters[index].name +
+                  "' of '" + std::string{display_name} + "'");
         validate_expression(*arguments[index], expected,
                             expression_location(*arguments[index]));
         apply_external_ownership_contract(callee, callee.parameters[index],
@@ -5355,6 +5421,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 element_type = expression_type(*node.elements.front());
               }
               for (const auto &element : node.elements) {
+                reject_non_escaping_value(
+                    *element, expression_location(*element),
+                    "an array literal");
                 if (aggregate_owns_value(element_type) &&
                     std::holds_alternative<ast::IdentifierExpression>(
                         element->value))
@@ -5362,9 +5431,21 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       DiagnosticCode::AnalyzerInvalidArrayLiteral,
                       expression_location(*element),
                       "owning array literal element requires an explicit move"};
+                const bool previous_contextual_lambda_may_escape =
+                    contextual_lambda_may_escape;
                 try {
+                  contextual_lambda_may_escape = element_type.is_function();
                   validate_expression(*element, element_type, node.location);
+                  contextual_lambda_may_escape =
+                      previous_contextual_lambda_may_escape;
                 } catch (const CompileError &error) {
+                  contextual_lambda_may_escape =
+                      previous_contextual_lambda_may_escape;
+                  if (error.diagnostic().code ==
+                      DiagnosticCode::AnalyzerBorrowEscape)
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerBorrowEscape,
+                        expression_location(*element), error.what()};
                   throw CompileError{
                       DiagnosticCode::AnalyzerInvalidArrayLiteral,
                       expression_location(*element), error.what()};
@@ -5628,7 +5709,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   // its generated callbacks are coupled to a sibling owning
                   // cleanup closure. Explicit aliases still use the general
                   // non-escaping closure rules below.
-                  const bool captures_borrow = borrowed_values.contains(capture);
+                  const bool captures_borrow =
+                      borrowed_values.contains(capture) ||
+                      scoped_tainted_value(capture);
                   if (!captures_borrow)
                     continue;
                   if (mutations.contains(capture) &&
@@ -5677,6 +5760,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               else
                 callable = visible_global(node.callee);
               if (callable != nullptr) {
+                if (active_lambda_captures != nullptr)
+                  active_lambda_captures->insert(node.callee);
                 if (!callable->is_initialized)
                   throw CompileError{node.location,
                                      "function value '" + node.callee +
@@ -5716,6 +5801,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                            ast::ParameterOwnership::Borrow ||
                        callable->type.function_parameter_ownership[index] ==
                            ast::ParameterOwnership::BorrowMutable);
+                  reject_non_escaping_value(
+                      *node.arguments[index],
+                      expression_location(*node.arguments[index]),
+                      "function-value argument");
                   validate_expression(
                       *node.arguments[index], signature[index],
                       expression_location(*node.arguments[index]));
@@ -6416,6 +6505,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         std::to_string(parameter_count + field_count) +
                         " argument(s), got " +
                         std::to_string(node.arguments.size())};
+              for (const auto &argument : node.arguments)
+                reject_non_escaping_value(
+                    *argument, expression_location(*argument),
+                    "an object of type '" + class_declaration.name + "'");
               const std::unordered_set<std::string> class_parameters{
                   class_declaration.type_parameters.begin(),
                   class_declaration.type_parameters.end()};
@@ -6989,13 +7082,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 for (std::size_t index = 0; index < node.arguments.size();
                      ++index) {
+                  reject_non_escaping_value(
+                      *node.arguments[index],
+                      expression_location(*node.arguments[index]),
+                      "enum case '" + *enum_name + "." + node.method + "'");
                   SemanticType expected =
                       resolve_type(enum_case->payload_types[index],
                                    enum_parameters, &class_arities);
+                  expected = substitute(std::move(expected), substitutions);
+                  const bool previous_contextual_lambda_may_escape =
+                      contextual_lambda_may_escape;
+                  contextual_lambda_may_escape = expected.is_function();
                   validate_expression(
-                      *node.arguments[index],
-                      substitute(std::move(expected), substitutions),
+                      *node.arguments[index], expected,
                       expression_location(*node.arguments[index]));
+                  contextual_lambda_may_escape =
+                      previous_contextual_lambda_may_escape;
                 }
                 return instance_type;
               }
@@ -7034,12 +7136,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     throw CompileError{node.location,
                                        "Ptr." + node.method +
                                            " expects an index and a value"};
+                  reject_non_escaping_value(
+                      *node.arguments[1],
+                      expression_location(*node.arguments[1]),
+                      "pointer storage");
                   validate_expression(*node.arguments[0],
                                       SemanticType{&Type::usize_type()},
                                       expression_location(*node.arguments[0]));
+                  const bool previous_contextual_lambda_may_escape =
+                      contextual_lambda_may_escape;
+                  contextual_lambda_may_escape =
+                      object_type.type_arguments.front().is_function();
                   validate_expression(*node.arguments[1],
                                       object_type.type_arguments.front(),
                                       expression_location(*node.arguments[1]));
+                  contextual_lambda_may_escape =
+                      previous_contextual_lambda_may_escape;
                   if (node.method == "store" &&
                       potentially_owns_value(
                           object_type.type_arguments.front()))
@@ -7528,6 +7640,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     method->parameters[index].ownership !=
                         ast::ParameterOwnership::BorrowMutable &&
                     !method->parameters[index].is_scoped;
+                if (!method->parameters[index].is_scoped)
+                  reject_non_escaping_value(
+                      *node.arguments[index],
+                      expression_location(*node.arguments[index]),
+                      "non-scoped parameter '" +
+                          method->parameters[index].name + "' of method '" +
+                          node.method + "'");
                 validate_expression(
                     *node.arguments[index], substituted_expected,
                     expression_location(*node.arguments[index]));
@@ -8465,6 +8584,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           static_cast<void>(binary_result_type(
               binary_operation, target_type, right_type, assignment.location));
         };
+    const auto validate_escaping_assignment =
+        [&](const ast::AssignmentStatement &assignment,
+            const SemanticType &target_type) {
+          const bool previous_contextual_lambda_may_escape =
+              contextual_lambda_may_escape;
+          contextual_lambda_may_escape = target_type.is_function();
+          validate_assignment_expression(assignment, target_type);
+          contextual_lambda_may_escape =
+              previous_contextual_lambda_may_escape;
+        };
 
     std::unordered_map<std::string, constant::Value> local_constants;
     validate_block = [&](const std::vector<ast::Statement> &statements,
@@ -9038,7 +9167,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   assignment->location,
                   "transferring an owned Array element requires an explicit "
                   "move"};
-            validate_assignment_expression(*assignment, element_type);
+            reject_non_escaping_value(assignment->expression,
+                                      assignment->location,
+                                      "an indexed container element");
+            validate_escaping_assignment(*assignment, element_type);
             result.indexed_capabilities.insert_or_assign(
                 &target, AnalysisResult::IndexedCapabilities{
                              element_type,
@@ -9093,15 +9225,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   assignment,
                   global_key(global->declaration->module_name,
                              global->declaration->declaration.name));
-              if (const auto *source = std::get_if<ast::IdentifierExpression>(
-                      &assignment->expression.value);
-                  source != nullptr && borrow_sources.contains(source->name))
-                throw CompileError{
-                    assignment->location,
-                    "value '" + source->name +
-                        "' contains a live borrow and cannot be stored in a "
-                        "global value"};
-              validate_assignment_expression(*assignment, global->symbol.type);
+              reject_non_escaping_value(assignment->expression,
+                                        assignment->location,
+                                        "a global value");
+              validate_escaping_assignment(*assignment, global->symbol.type);
               continue;
             }
             const auto object = block_symbols.find(assignment->object);
@@ -9152,16 +9279,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 substitute(resolve_type(*matched->declared_type,
                                         class_parameters, &class_arities),
                            substitutions);
-            if (const auto *source = std::get_if<ast::IdentifierExpression>(
-                    &assignment->expression.value);
-                source != nullptr && borrow_sources.contains(source->name))
-              throw CompileError{
-                  DiagnosticCode::AnalyzerBorrowEscape,
-                  assignment->location,
-                  "value '" + source->name +
-                      "' contains a live borrow and cannot be stored in field '" +
-                      assignment->name + "'"};
-            validate_assignment_expression(*assignment, field_type);
+            reject_non_escaping_value(
+                assignment->expression, assignment->location,
+                "field '" + assignment->name + "'");
+            validate_escaping_assignment(*assignment, field_type);
             if (potentially_owns_value(field_type))
               emit_warning(
                   DiagnosticCode::AnalyzerOwningFieldOverwritten,
@@ -9190,16 +9311,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{assignment->location,
                                  "global variable '" + assignment->name +
                                      "' is used before initialization"};
-            if (const auto *source = std::get_if<ast::IdentifierExpression>(
-                    &assignment->expression.value);
-                source != nullptr && borrow_sources.contains(source->name))
-              throw CompileError{
-                  DiagnosticCode::AnalyzerBorrowEscape,
-                  assignment->location,
-                  "value '" + source->name +
-                      "' contains a live borrow and cannot be stored in a "
-                      "global value"};
-            validate_assignment_expression(*assignment, global->type);
+            reject_non_escaping_value(assignment->expression,
+                                      assignment->location,
+                                      "a global value");
+            validate_escaping_assignment(*assignment, global->type);
             continue;
           }
           if (assignment->operation != ast::AssignmentOperator::Assign &&
@@ -9268,6 +9383,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               transfer_protected_values.contains(assignment->name);
           if (reinitializes_moved_loop_owner)
             transfer_protected_values.erase(assignment->name);
+          if (!std::holds_alternative<ast::MoveExpression>(
+                  assignment->expression.value))
+            if (const auto source = non_escaping_value(
+                    assignment->expression, non_escaping_value))
+              throw CompileError{
+                  DiagnosticCode::AnalyzerBorrowEscape,
+                  assignment->location,
+                  "scoped value '" + *source +
+                      "' cannot be copied; use an explicit move within the "
+                      "same scope"};
           validate_assignment_expression(*assignment, iterator->second.type);
           if (was_transfer_protected)
             transfer_protected_values.insert(assignment->name);
@@ -9609,6 +9734,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{return_statement.location,
                                "return requires a value of type '" +
                                    statement_return_type.name() + "'"};
+          reject_non_escaping_value(*return_statement.expression,
+                                    return_statement.location,
+                                    "a return value");
           const bool borrowed_return =
               active_lambda_return_type == nullptr && !is_destructor &&
               is_borrowed_return(context.function->return_ownership);

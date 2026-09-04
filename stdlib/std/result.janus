@@ -122,7 +122,7 @@ private def discardAndNone[T, E](error : E) : Option[T] {
 
 private def observeValue[T](
     borrow value : T,
-    borrow action : (borrow T) => Unit
+    scoped borrow action : (borrow T) => Unit
 ) : bool {
     action(value)
     return true

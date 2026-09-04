@@ -422,7 +422,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
 
     private borrow def keepAt(
     index : usize,
-    borrow predicate : (borrow T) => bool
+    scoped borrow predicate : (borrow T) => bool
     ) : bool {
         return predicate(data.load(index))
     }
@@ -664,7 +664,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
     private def insertionSortRange(
     first : usize,
     last : usize,
-    borrow less : (borrow T, borrow T) => bool
+    scoped borrow less : (borrow T, borrow T) => bool
     ) : Unit where T <: Copy {
         var index : usize = first + usize(1)
         while index < last {
@@ -688,7 +688,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
     first : usize,
     middle : usize,
     last : usize,
-    borrow less : (borrow T, borrow T) => bool
+    scoped borrow less : (borrow T, borrow T) => bool
     ) : Unit where T <: Copy {
         var left : usize = first
         var right : usize = middle

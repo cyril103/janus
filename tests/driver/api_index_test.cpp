@@ -85,6 +85,16 @@ private class HiddenOwner() { internal def hidden() : int { return 2 } }
              pure_index.symbols[0].signature.find("pure Function") !=
                  std::string::npos,
          "API signatures preserve pure declarations and callback types");
+  janus::frontend::Parser scoped_parser{
+      "module callbacks\ndef invoke(scoped action : () => int) : int { defer delete action return action() }\n"};
+  std::vector<janus::ast::Program> scoped_programs;
+  scoped_programs.push_back(scoped_parser.parse_program());
+  const auto scoped_index = janus::driver::build_api_index(
+      scoped_programs, {"fixture", "1.0.0"});
+  expect(scoped_index.symbols.size() == 1 &&
+             scoped_index.symbols[0].signature.find(
+                 "scoped action : Function[int]") != std::string::npos,
+         "API signatures expose the scoped callback contract");
 
   const auto by_name = janus::driver::search_api(index, {"write"});
   expect(by_name.size() >= 2 && by_name[0].symbol->simple_name == "write" &&

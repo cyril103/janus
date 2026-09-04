@@ -385,6 +385,25 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(extern_return_hover.front().find("data() : borrow Ptr[byte]") !=
                 std::string::npos);
 
+  const std::vector<std::string> scoped_escape_diagnostic = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///scoped-escape.janus","text":"def leak(scoped action : () => int) : () => int { return action }\ndef main() : int { return 0 }"}}})");
+  JANUS_REQUIRE(scoped_escape_diagnostic.size() == 1);
+  JANUS_REQUIRE(scoped_escape_diagnostic.front().find(
+                    "\"code\":\"JANA0026\"") != std::string::npos);
+
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///scoped-signature.janus","text":"def invoke(scoped action : () => int) : int { defer delete action return action() }\ndef main() : int { return invoke(() => 1) }"}}})"));
+  const std::vector<std::string> scoped_signature = server.handle(
+      R"({"jsonrpc":"2.0","id":551,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///scoped-signature.janus"},"position":{"line":1,"character":33}}})");
+  JANUS_REQUIRE(scoped_signature.size() == 1);
+  JANUS_REQUIRE(scoped_signature.front().find(
+                    "invoke(scoped action : Function[int]) : int") !=
+                std::string::npos);
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"file:///scoped-escape.janus"}}})"));
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"file:///scoped-signature.janus"}}})"));
+
   const std::vector<std::string> safe_correction_diagnostic = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///safe-correction.janus","text":"def main() : int { return @0 }"}}})");
   JANUS_REQUIRE(safe_correction_diagnostic.size() == 1);

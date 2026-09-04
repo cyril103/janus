@@ -1,0 +1,18 @@
+def invoke[T](scoped action : () => T) : T {
+    defer delete action
+    return action()
+}
+
+def forward[T](scoped action : () => T) : T {
+    if false {
+        delete action
+        panic("unreachable scoped branch")
+    }
+    return invoke[T](move action)
+}
+
+def main() : int {
+    val value : int = 42
+    println(forward[int](() => value))
+    return 0
+}

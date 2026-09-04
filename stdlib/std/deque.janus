@@ -330,7 +330,7 @@ class Deque[T](initialCapacity : usize) extends IntoIterable[T] {
 
     private borrow def observe(
     borrow value : T,
-    borrow action : (borrow T) => Unit
+    scoped borrow action : (borrow T) => Unit
     ) : bool {
         action(value)
         return true

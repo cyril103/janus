@@ -7,6 +7,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- vérification transitive du contrat non échappant des paramètres `scoped` :
+  retours, champs, globales, conteneurs, closures propriétaires et appels
+  non-`scoped` sont refusés avec `JANA0026`, tandis que l'invocation, la
+  destruction locale et les relais génériques `scoped` restent autorisés ;
 - propagation explicite de la provenance des retours empruntés de méthode :
   le résultat est désormais rattaché à `this` ou au paramètre effectivement
   retourné, y compris à travers branches, génériques, projections et relais ;

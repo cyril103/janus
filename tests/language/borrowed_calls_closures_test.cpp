@@ -54,7 +54,9 @@ std::string generate_ir(std::string_view source) {
 }
 
 void expect_compile_error(std::string_view source,
-                          std::string_view expected_message) {
+                          std::string_view expected_message,
+                          janus::DiagnosticCode expected_code =
+                              janus::DiagnosticCode::AnalyzerLegacy) {
   try {
     janus::frontend::Parser parser{source};
     janus::semantic::Analyzer analyzer;
@@ -69,6 +71,9 @@ void expect_compile_error(std::string_view source,
     }
     expect(error.diagnostic().code != janus::DiagnosticCode::AnalyzerLegacy,
            "borrowed call errors use structured diagnostic codes");
+    if (expected_code != janus::DiagnosticCode::AnalyzerLegacy)
+      expect(error.diagnostic().code == expected_code,
+             "borrowed call error uses the expected diagnostic code");
   }
 }
 
@@ -389,6 +394,106 @@ def main() : int { return test(4) }
   expect(scoped_ir.find("aggregate.lambda.owns.environment") !=
              std::string::npos,
          "closure cleanup consults the environment ownership bit");
+
+  expect_compile_error(R"(
+def leak(scoped action : () => int) : () => int {
+  return action
+}
+def main() : int { return 0 }
+)",
+                       "cannot escape into a return value",
+                       janus::DiagnosticCode::AnalyzerBorrowEscape);
+
+  expect_compile_error(R"(
+def leak(scoped action : () => int) : () => int {
+  val alias : () => int = move action
+  return move alias
+}
+def main() : int { return 0 }
+)",
+                       "scoped value 'alias'",
+                       janus::DiagnosticCode::AnalyzerBorrowEscape);
+
+  expect_compile_error(R"(
+def leak(scoped action : () => int) : () => int {
+  return if true { action } else { action }
+}
+def main() : int { return 0 }
+)",
+                       "cannot escape into a return value",
+                       janus::DiagnosticCode::AnalyzerBorrowEscape);
+
+  expect_compile_error(R"(
+class Holder(var callback : () => int) {}
+def store(scoped action : () => int) : Holder {
+  return new Holder(move action)
+}
+def main() : int { return 0 }
+)",
+                       "cannot escape into an object of type 'Holder'",
+                       janus::DiagnosticCode::AnalyzerBorrowEscape);
+
+  expect_compile_error(R"(
+class Holder(var callback : () => int) {}
+def store(scoped action : () => int) : int {
+  val holder : Holder = new Holder(() => 0)
+  holder.callback = () => action()
+  delete holder
+  delete action
+  return 0
+}
+def main() : int { return 0 }
+)",
+                       "closure captures borrowed value 'action'",
+                       janus::DiagnosticCode::AnalyzerBorrowEscape);
+
+  expect_compile_error(R"(
+enum CallbackBox { Some(() => int), None }
+def store(scoped action : () => int) : CallbackBox {
+  return CallbackBox.Some(() => action())
+}
+def main() : int { return 0 }
+)",
+                       "closure captures borrowed value 'action'",
+                       janus::DiagnosticCode::AnalyzerBorrowEscape);
+
+  expect_compile_error(R"(
+def retain(action : () => int) : int {
+  defer delete action
+  return action()
+}
+def forward(scoped action : () => int) : int {
+  return retain(move action)
+}
+def main() : int { return 0 }
+)",
+                       "non-scoped parameter 'action'",
+                       janus::DiagnosticCode::AnalyzerBorrowEscape);
+
+  expect_compile_error(R"(
+def leak(scoped action : () => int) : () => int {
+  return () => action()
+}
+def main() : int { return 0 }
+)",
+                       "closure captures borrowed value 'action'",
+                       janus::DiagnosticCode::AnalyzerBorrowEscape);
+
+  expect_valid(R"(
+def invoke[T](scoped action : () => T) : T {
+  defer delete action
+  return action()
+}
+def forward[T](scoped action : () => T) : T {
+  if false {
+    delete action
+    panic("unreachable")
+  }
+  return invoke[T](move action)
+}
+def main() : int { return forward[int](() => 42) }
+)",
+               true);
 
   const std::string escaping_ir = generate_ir(R"(
 def make(value : int) : () => int { return () => value }

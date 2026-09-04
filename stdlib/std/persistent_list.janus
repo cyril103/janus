@@ -18,7 +18,7 @@ private def persistentListInvariant[T](message : string) : T {
 private def persistentListSharedEquals[T](
     left : Shared[T],
     right : Shared[T],
-    borrow equals : (borrow T, borrow T) => bool
+    scoped borrow equals : (borrow T, borrow T) => bool
 ) : bool {
     val same : bool = equals(left.get(), right.get())
     delete right
@@ -40,7 +40,7 @@ private def persistentListTakeShared[T](
 private def persistentListOptionEquals[T](
     left : Option[Shared[T]],
     right : Option[Shared[T]],
-    borrow equals : (borrow T, borrow T) => bool
+    scoped borrow equals : (borrow T, borrow T) => bool
 ) : bool {
     val leftItem : Shared[T] = persistentListTakeShared[T](move left)
     val rightItem : Shared[T] = persistentListTakeShared[T](move right)
