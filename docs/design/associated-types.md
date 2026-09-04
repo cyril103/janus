@@ -46,7 +46,11 @@ réservées à une évolution ultérieure.
 Une projection reste symbolique pendant l'analyse d'une fonction générique.
 Lorsque son paramètre reçoit une classe concrète, elle est normalisée avec la
 définition de cette classe. La comparaison des signatures du trait et de la
-classe utilise le même type normalisé.
+classe utilise le même type normalisé. Après spécialisation, cette normalisation
+est également appliquée avant le choix de la représentation ABI, la
+matérialisation de la valeur et tout appel englobant. Une expression imbriquée
+et la même expression stockée dans une liaison explicitement typée ont donc la
+même représentation LLVM.
 
 Une classe doit définir tous les types associés de chaque trait implémenté. Une
 définition qui ne correspond à aucun de ces traits est rejetée, comme le sont
@@ -56,7 +60,9 @@ interdites par la règle de cohérence existante.
 La normalisation suit les références entre définitions associées et maintient
 un ensemble des projections en cours. Revoir une projection active produit un
 diagnostic de cycle immédiatement ; la recherche est donc bornée par le nombre
-de définitions de la classe.
+de définitions de la classe. Une projection sans fournisseur ou fournie par
+plusieurs contraintes est rejetée par le frontend comme respectivement non
+contrainte ou ambiguë.
 
 ## Compilation et outils
 

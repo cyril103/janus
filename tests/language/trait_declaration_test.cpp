@@ -55,7 +55,7 @@ trait Sized {
 trait Producer {
     /// Value yielded by this producer.
     type Item
-    def next() : Item
+    borrow def next() : Item
 }
 
 class Sequence[T](val value : T) extends Iterable[T], Sized {
@@ -78,7 +78,7 @@ class Sequence[T](val value : T) extends Iterable[T], Sized {
 
 class NumberProducer() extends Producer {
     type Item = int
-    def next() : int { return 42 }
+    borrow def next() : int { return 42 }
 }
 
 def visit[C <: Iterable[int] & Sized](sequence : C) : int {
@@ -87,13 +87,16 @@ def visit[C <: Iterable[int] & Sized](sequence : C) : int {
     return int(sequence.size())
 }
 
-def produce[P <: Producer](producer : P) : P.Item {
+def produce[P <: Producer](borrow producer : P) : P.Item {
     return producer.next()
 }
 
 def main() : int {
-    return visit[Sequence[int]](new Sequence[int](5)) +
-           produce[NumberProducer](new NumberProducer())
+    val producer : NumberProducer = new NumberProducer()
+    val bound : int = produce[NumberProducer](producer)
+    println(produce[NumberProducer](producer))
+    delete producer
+    return visit[Sequence[int]](new Sequence[int](5)) + bound
 }
 )";
   janus::frontend::Parser parser{source};
@@ -143,6 +146,12 @@ def main() : int {
          "a constrained call is statically dispatched to the concrete method");
   expect(ir.find("NumberProducer__next") != std::string::npos,
          "an associated return type is normalized for static dispatch");
+  expect(ir.find("%produce.result = call i32 @produce__NumberProducer") !=
+             std::string::npos,
+         "a nested associated return uses the concrete scalar ABI");
+  expect(ir.find("call void @janus_print_int(i32 %produce") !=
+             std::string::npos,
+         "a nested associated return is materialized as its concrete value");
 
   expect_compile_error("trait Duplicate[T, T] {} def main() : int { return 0 }",
                        "type parameter 'T' is already declared");

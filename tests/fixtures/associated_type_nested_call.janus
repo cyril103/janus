@@ -1,0 +1,92 @@
+trait Producer {
+    type Item
+    borrow def next() : Item
+}
+
+trait AliasProducer {
+    type Item
+    type Storage
+    borrow def next() : Item
+}
+
+struct Pair(val left : int, val right : int) derives Copy {}
+enum Choice { First = 10, Second = 11 }
+class Payload(val value : int) {}
+
+class Numbers(val value : int) extends Producer {
+    type Item = int
+    borrow def next() : int { return value }
+}
+
+class Pairs() extends Producer {
+    type Item = Pair
+    borrow def next() : Pair { return new Pair(3, 5) }
+}
+
+class Choices() extends Producer {
+    type Item = Choice
+    borrow def next() : Choice { return Choice.Second }
+}
+
+class Payloads() extends Producer {
+    type Item = Payload
+    borrow def next() : Payload { return new Payload(13) }
+}
+
+class AliasedNumbers() extends AliasProducer {
+    type Item = Storage
+    type Storage = int
+    borrow def next() : int { return 17 }
+}
+
+def produce[P <: Producer](borrow producer : P) : P.Item {
+    return producer.next()
+}
+def produceAlias[P <: AliasProducer](borrow producer : P) : P.Item {
+    return producer.next()
+}
+
+def pass(value : int) : int { return value }
+def forward[P <: Producer](borrow producer : P) : P.Item {
+    return produce[P](producer)
+}
+def pairSum(pair : Pair) : int { return pair.left + pair.right }
+def apply(value : int, callback : (int) => int) : int {
+    return callback(value)
+}
+def consumePayload(payload : Payload) : int {
+    val value : int = payload.value
+    delete payload
+    return value
+}
+
+class IntBox(val value : int) {}
+
+def main() : int {
+    val source : Numbers = new Numbers(7)
+    println(produce[Numbers](source))
+    println(pass(produce[Numbers](source)))
+    val box : IntBox = new IntBox(produce[Numbers](source))
+    println(box.value)
+    delete box
+    println(forward[Numbers](source))
+    println(apply(produce[Numbers](source), (value : int) => value + 1))
+    delete source
+
+    val pairs : Pairs = new Pairs()
+    println(pairSum(produce[Pairs](pairs)))
+    delete pairs
+
+    val choices : Choices = new Choices()
+    println(int(produce[Choices](choices)))
+    delete choices
+
+    val payloads : Payloads = new Payloads()
+    println(consumePayload(produce[Payloads](payloads)))
+    delete payloads
+
+    val aliased : AliasedNumbers = new AliasedNumbers()
+    println(produceAlias[AliasedNumbers](aliased))
+    delete aliased
+    return 0
+}

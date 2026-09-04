@@ -827,12 +827,21 @@ class IntProducer() extends Producer {
 def produce[P <: Producer](producer : P) : P.Item {
     return producer.next()
 }
+
+// La projection est normalisée de la même façon avec ou sans liaison locale.
+val producer : IntProducer = new IntProducer()
+println(produce[IntProducer](producer))
+delete producer
 ```
 
 La classe doit définir chaque type associé attendu. Les définitions manquantes,
-dupliquées, étrangères au trait ou cycliques sont rejetées. Les types associés
-génériques, leurs bornes et les égalités de projection dans `where` ne font pas
-partie de cette première version. Le contrat détaillé est fixé dans
+dupliquées, étrangères au trait ou cycliques sont rejetées. Une projection
+spécialisée est normalisée vers son type concret avant la sélection ABI, y
+compris lorsqu'un appel est directement imbriqué dans un argument, un
+constructeur, un retour ou un callback. Une projection qui reste ambiguë ou non
+contrainte est diagnostiquée pendant l'analyse et n'atteint pas le backend. Les
+types associés génériques, leurs bornes et les égalités de projection dans
+`where` ne font pas partie de cette première version. Le contrat détaillé est fixé dans
 [la RFC des types associés](design/associated-types.md).
 
 La classe reste utilisable avec un `T` propriétaire, tandis que l'appel de

@@ -1220,6 +1220,15 @@ if(BUILD_TESTING)
                 -P "${PROJECT_SOURCE_DIR}/tests/driver/run_inferred_generic_nested_call_cli.cmake"
     )
     add_test(
+        NAME cli.associated_type_nested_call
+        COMMAND "${CMAKE_COMMAND}"
+                -DJANUS=$<TARGET_FILE:janus>
+                -DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/associated_type_nested_call.janus
+                -DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/associated_type_nested_call.expected.txt
+                -DOUTPUT_DIR=${PROJECT_BINARY_DIR}/associated_type_nested_call_cli
+                -P "${PROJECT_SOURCE_DIR}/tests/driver/run_inferred_generic_nested_call_cli.cmake"
+    )
+    add_test(
         NAME cli.incremental_cache_concurrent_no_cache
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/tests/driver/run_incremental_cache_concurrent.py"
@@ -1496,6 +1505,20 @@ if(BUILD_TESTING)
             "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/inferred_generic_nested_call_runtime"
             "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/inferred_generic_nested_call.expected.txt"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
+        NAME runtime.associated_type_nested_call
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/associated_type_nested_call.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/associated_type_nested_call_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/associated_type_nested_call.expected.txt"
+            "-DENABLE_ADDRESS_SANITIZER=ON"
             "-DENABLE_UNDEFINED_SANITIZER=ON"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )

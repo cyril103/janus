@@ -7,6 +7,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- normalisation systématique des retours de type associé après spécialisation,
+  avant sélection ABI et matérialisation des appels imbriqués ; les appels
+  directs couvrent désormais les scalaires, structs, enums et classes
+  propriétaires comme leurs équivalents liés à une variable ;
 - propagation jusqu'au backend des substitutions canoniques des appels
   génériques inférés imbriqués (fonctions, méthodes, closures et types
   propriétaires), avec diagnostic structuré en cas d'incohérence au lieu d'un

@@ -454,6 +454,79 @@ private:
     return ensure_class(declaration->first, arguments);
   }
 
+  template <typename Declaration>
+  void add_associated_type_substitutions(
+      Substitutions &substitutions, std::string_view parameter,
+      const Declaration &declaration,
+      const Substitutions &specialization_substitutions) {
+    std::unordered_map<std::string,
+                       const janus::ast::AssociatedTypeDeclaration *>
+        associated_declarations;
+    for (const auto &associated : declaration.associated_types)
+      associated_declarations.emplace(associated.name, &associated);
+
+    Substitutions normalized = specialization_substitutions;
+    std::unordered_set<std::string> resolving;
+    std::function<const janus::Type &(const std::string &)> normalize;
+    normalize = [&](const std::string &name) -> const janus::Type & {
+      if (const auto ready = normalized.find(name); ready != normalized.end())
+        return *ready->second;
+      const auto found = associated_declarations.find(name);
+      if (found == associated_declarations.end() ||
+          !found->second->definition.has_value())
+        throw janus::CompileError{
+            janus::DiagnosticCode::BackendLegacy, declaration.location,
+            "backend cannot normalize associated type '" +
+                std::string{parameter} + "." + name + "'"};
+      if (!resolving.insert(name).second)
+        throw janus::CompileError{
+            janus::DiagnosticCode::BackendLegacy, found->second->location,
+            "backend encountered a cyclic associated type projection '" +
+                std::string{parameter} + "." + name + "'"};
+
+      const auto prepare_dependencies = [&](const auto &self,
+                                            const janus::ast::TypeReference &type)
+          -> void {
+        if (associated_declarations.contains(type.name))
+          normalized.insert_or_assign(type.name, &normalize(type.name));
+        for (const auto &argument : type.type_arguments)
+          self(self, argument);
+      };
+      prepare_dependencies(prepare_dependencies, *found->second->definition);
+      const janus::Type &type =
+          resolve(*found->second->definition, normalized);
+      resolving.erase(name);
+      normalized.insert_or_assign(name, &type);
+      return type;
+    };
+
+    for (const auto &[name, _] : associated_declarations)
+      substitutions.insert_or_assign(std::string{parameter} + "." + name,
+                                     &normalize(name));
+  }
+
+  void add_type_parameter_substitution(Substitutions &substitutions,
+                                       std::string_view parameter,
+                                       const janus::Type &argument) {
+    substitutions.insert_or_assign(std::string{parameter}, &argument);
+    if (argument.kind() == janus::TypeKind::Class ||
+        argument.kind() == janus::TypeKind::Struct) {
+      const auto specialization =
+          class_specializations_.find(std::string{argument.name()});
+      if (specialization != class_specializations_.end())
+        add_associated_type_substitutions(
+            substitutions, parameter, *specialization->second.declaration,
+            specialization->second.substitutions);
+    } else if (argument.kind() == janus::TypeKind::Enum) {
+      const auto specialization =
+          enum_specializations_.find(std::string{argument.name()});
+      if (specialization != enum_specializations_.end())
+        add_associated_type_substitutions(
+            substitutions, parameter, *specialization->second.declaration,
+            specialization->second.substitutions);
+    }
+  }
+
   std::vector<const janus::Type *> effective_type_arguments(
       const std::vector<std::string> &parameters,
       const std::vector<janus::ast::TypeReference> &explicit_arguments,
@@ -1890,34 +1963,12 @@ private:
     std::size_t type_argument_index = 0;
     if (extension != nullptr)
       for (const std::string &parameter : extension->type_parameters)
-        substitutions.emplace(parameter, type_arguments[type_argument_index++]);
+        add_type_parameter_substitution(
+            substitutions, parameter,
+            *type_arguments[type_argument_index++]);
     for (const std::string &parameter : function.type_parameters) {
       const janus::Type *argument = type_arguments[type_argument_index++];
-      substitutions.emplace(parameter, argument);
-      if (argument->kind() == janus::TypeKind::Class ||
-          argument->kind() == janus::TypeKind::Struct) {
-        const auto specialization =
-            class_specializations_.find(std::string{argument->name()});
-        if (specialization == class_specializations_.end())
-          continue;
-        for (const janus::ast::AssociatedTypeDeclaration &associated :
-             specialization->second.declaration->associated_types)
-          substitutions.insert_or_assign(
-              parameter + "." + associated.name,
-              &resolve(associated.definition,
-                       specialization->second.substitutions));
-      } else if (argument->kind() == janus::TypeKind::Enum) {
-        const auto specialization =
-            enum_specializations_.find(std::string{argument->name()});
-        if (specialization == enum_specializations_.end())
-          continue;
-        for (const janus::ast::AssociatedTypeDeclaration &associated :
-             specialization->second.declaration->associated_types)
-          substitutions.insert_or_assign(
-              parameter + "." + associated.name,
-              &resolve(associated.definition,
-                       specialization->second.substitutions));
-      }
+      add_type_parameter_substitution(substitutions, parameter, *argument);
     }
 
     const janus::Type &return_type =
@@ -3162,8 +3213,9 @@ private:
                     callee.type_parameters, node.type_arguments, &expression,
                     substitutions, node.location, node.callee);
             for (std::size_t index = 0; index < type_arguments.size(); ++index) {
-              callee_substitutions.emplace(
-                  callee.type_parameters[index], type_arguments[index]);
+              add_type_parameter_substitution(
+                  callee_substitutions, callee.type_parameters[index],
+                  *type_arguments[index]);
             }
             return resolve(callee.return_type, callee_substitutions);
           } else if constexpr (std::is_same_v<Node,
@@ -3217,8 +3269,9 @@ private:
                         &expression, substitutions, node.location, qualified);
                 for (std::size_t index = 0; index < type_arguments.size();
                      ++index)
-                  callee_substitutions.emplace(
-                      callee.type_parameters[index], type_arguments[index]);
+                  add_type_parameter_substitution(
+                      callee_substitutions, callee.type_parameters[index],
+                      *type_arguments[index]);
                 return resolve(callee.return_type, callee_substitutions);
               }
             }
@@ -3254,16 +3307,16 @@ private:
               std::size_t type_index = 0;
               for (const std::string &parameter :
                    extension->second.extension->type_parameters)
-                extension_substitutions.emplace(
-                    parameter,
-                    &resolve(extension->second.type_arguments[type_index++],
-                             substitutions));
+                add_type_parameter_substitution(
+                    extension_substitutions, parameter,
+                    resolve(extension->second.type_arguments[type_index++],
+                            substitutions));
               for (const std::string &parameter :
                    extension->second.method->type_parameters)
-                extension_substitutions.emplace(
-                    parameter,
-                    &resolve(extension->second.type_arguments[type_index++],
-                             substitutions));
+                add_type_parameter_substitution(
+                    extension_substitutions, parameter,
+                    resolve(extension->second.type_arguments[type_index++],
+                            substitutions));
               return resolve(extension->second.method->return_type,
                              extension_substitutions);
             }
@@ -3286,8 +3339,9 @@ private:
                         std::string{object_type.name()} + "." + node.method);
                 for (std::size_t index = 0; index < type_arguments.size();
                      ++index)
-                  method_substitutions.emplace(
-                      method.type_parameters[index], type_arguments[index]);
+                  add_type_parameter_substitution(
+                      method_substitutions, method.type_parameters[index],
+                      *type_arguments[index]);
                 return resolve(method.return_type, method_substitutions);
               }
             }
@@ -3640,8 +3694,9 @@ private:
 
     Substitutions callee_substitutions;
     for (std::size_t index = 0; index < type_arguments.size(); ++index)
-      callee_substitutions.emplace(callee.type_parameters[index],
-                                   type_arguments[index]);
+      add_type_parameter_substitution(callee_substitutions,
+                                      callee.type_parameters[index],
+                                      *type_arguments[index]);
     std::vector<::llvm::Value *> arguments;
     arguments.reserve(call_arguments.size());
     for (std::size_t index = 0; index < call_arguments.size(); ++index) {
@@ -4706,31 +4761,9 @@ private:
             Substitutions callee_substitutions;
             for (std::size_t index = 0; index < type_arguments.size();
                  ++index) {
-              callee_substitutions.emplace(callee.type_parameters[index],
-                                           type_arguments[index]);
-              const janus::Type *argument = type_arguments[index];
-              if (argument->kind() == janus::TypeKind::Enum) {
-                const auto specialization =
-                    enum_specializations_.find(std::string{argument->name()});
-                if (specialization != enum_specializations_.end())
-                  for (const auto &associated :
-                       specialization->second.declaration->associated_types)
-                    callee_substitutions.insert_or_assign(
-                        callee.type_parameters[index] + "." + associated.name,
-                        &resolve(associated.definition,
-                                 specialization->second.substitutions));
-              } else if (argument->kind() == janus::TypeKind::Class ||
-                         argument->kind() == janus::TypeKind::Struct) {
-                const auto specialization =
-                    class_specializations_.find(std::string{argument->name()});
-                if (specialization != class_specializations_.end())
-                  for (const auto &associated :
-                       specialization->second.declaration->associated_types)
-                    callee_substitutions.insert_or_assign(
-                        callee.type_parameters[index] + "." + associated.name,
-                        &resolve(associated.definition,
-                                 specialization->second.substitutions));
-              }
+              add_type_parameter_substitution(
+                  callee_substitutions, callee.type_parameters[index],
+                  *type_arguments[index]);
             }
             std::vector<::llvm::Value *> arguments;
             arguments.reserve(node.arguments.size());
@@ -5027,12 +5060,14 @@ private:
               std::size_t type_index = 0;
               for (const std::string &parameter :
                    resolved.extension->type_parameters)
-                extension_substitutions.emplace(parameter,
-                                                type_arguments[type_index++]);
+                add_type_parameter_substitution(
+                    extension_substitutions, parameter,
+                    *type_arguments[type_index++]);
               for (const std::string &parameter :
                    resolved.method->type_parameters)
-                extension_substitutions.emplace(parameter,
-                                                type_arguments[type_index++]);
+                add_type_parameter_substitution(
+                    extension_substitutions, parameter,
+                    *type_arguments[type_index++]);
               const janus::ast::FunctionDeclaration::Parameter receiver{
                   "this", resolved.extension->target_type, node.location,
                   resolved.receiver_ownership ==
@@ -5125,8 +5160,9 @@ private:
             Substitutions method_substitutions = specialization.substitutions;
             for (std::size_t index = 0; index < method_type_arguments.size();
                  ++index)
-              method_substitutions.emplace(method->type_parameters[index],
-                                           method_type_arguments[index]);
+              add_type_parameter_substitution(
+                  method_substitutions, method->type_parameters[index],
+                  *method_type_arguments[index]);
             std::vector<::llvm::Value *> arguments;
             arguments.push_back(object_value);
             for (std::size_t index = 0; index < node.arguments.size();
