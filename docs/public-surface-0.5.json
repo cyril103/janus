@@ -201,7 +201,7 @@
       "source": "stdlib/std/option.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/option-result-combinators.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "43471354e5b60c8e4eb7166c0a2c300118ddf19243c7da018e54b9c354e31ac7",
+      "signature_digest": "be89b57aa8b613793c39d9d8c09948606c50ca65d71735f79114ce4c4dbb2d0d",
       "symbols": ["Try", "Option", "Option.Some", "Option.None", "OptionPair", "OptionPair.left", "OptionPair.right", "isSome", "isNone", "mapBorrowed", "map", "andThen", "flatten", "filter", "fold", "contains", "zip", "map2", "inspect", "orElse", "unwrapOr", "unwrapOrElse", "orElseWith"]
     },
     {

@@ -7,6 +7,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- contrainte explicite de `Option.contains` à `Equality`, pour les formes libre
+  et extension ; les closures, pointeurs et types sans égalité dérivée sont
+  désormais rejetés au frontend au lieu de produire un `icmp` LLVM invalide ;
 - correction de la propagation `?` de `Result[T, Unit]` vers `Option[U]` : le
   payload `Unit` est désormais effacé de l'ABI tout en conservant l'évaluation
   de son expression, sans extraction invalide ni double nettoyage ;

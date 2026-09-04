@@ -1,0 +1,10 @@
+import std.option
+
+struct Plain(val value : int) {}
+
+def main() : int {
+    val first : Plain = new Plain(1)
+    val second : Plain = new Plain(1)
+    println(Option.Some[Plain](first).contains(second))
+    return 0
+}

@@ -2595,6 +2595,37 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
     add_test(
+        NAME runtime.option_contains_equality
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/option_contains_equality.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/option_contains_equality_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/option_contains_equality.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    foreach(option_contains_rejected_type closure pointer plain_type)
+        if(option_contains_rejected_type STREQUAL "closure")
+            set(option_contains_rejected_name "[(]int[)] => int")
+        elseif(option_contains_rejected_type STREQUAL "pointer")
+            set(option_contains_rejected_name "Ptr[[]int[]]")
+        else()
+            set(option_contains_rejected_name "Plain")
+        endif()
+        add_test(
+            NAME language.option_contains_rejects_${option_contains_rejected_type}
+            COMMAND
+                ${CMAKE_COMMAND}
+                "-DJANUSC=$<TARGET_FILE:janusc>"
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/option_contains_${option_contains_rejected_type}_error.janus"
+                "-DEXPECTED_ERROR=type '${option_contains_rejected_name}' does not satisfy constraint 'Equality' for type parameter 'T'"
+                "-DEXPECT_NO_OUTPUT=ON"
+                -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
+        )
+    endforeach()
+    add_test(
         NAME runtime.owned_option_combinators
         COMMAND
             ${CMAKE_COMMAND}

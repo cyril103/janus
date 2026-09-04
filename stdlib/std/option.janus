@@ -262,8 +262,9 @@ def fold[T, U](
 
 /// Vérifie qu'une option contient une valeur égale à `expected`.
 ///
-/// L'égalité dérivée de `T` est utilisée et les deux valeurs restent possédées
-/// par leurs appelants.
+/// Requiert `T <: Equality`. L'égalité dérivée de `T` est utilisée et les deux
+/// valeurs restent possédées par leurs appelants. Les closures, `Ptr` et types
+/// utilisateur sans `derives Equality` sont refusés avant la génération LLVM.
 /// @example
 /// ```janus
 /// val found : bool = contains[int](Option.Some[int](3), 3)
@@ -271,7 +272,10 @@ def fold[T, U](
 /// @param value Option observée.
 /// @param expected Valeur observée à comparer.
 /// @return `true` pour un contenu égal, sinon `false`.
-def contains[T](borrow value : Option[T], borrow expected : T) : bool {
+def contains[T <: Equality](
+    borrow value : Option[T],
+    borrow expected : T
+) : bool {
     return match value {
         Some(item) => __derivedEquals[T](item, expected),
         None => false
@@ -491,10 +495,11 @@ extend[T] Option[T] {
         return fold[T, U](move this, move fallback, move transform)
     }
 
-    /// Vérifie que le contenu est égal à `expected`.
+    /// Vérifie que le contenu est égal à `expected` avec `T <: Equality`.
+    /// Les types sans égalité dérivée sont refusés avant la génération LLVM.
     /// @param expected Valeur observée à comparer.
     /// @return `true` pour un contenu égal, sinon `false`.
-    borrow def contains(borrow expected : T) : bool {
+    borrow def contains(borrow expected : T) : bool where T <: Equality {
         return contains[T](this, expected)
     }
 

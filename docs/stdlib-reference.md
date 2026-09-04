@@ -169,6 +169,12 @@ d'extension. La surface comprend notamment `flatten`, `filter`, `fold`,
 [matrice ownership/paresse/coût](design/option-result-combinators.md) fixe leur
 ordre d'évaluation et la destruction des branches inactives.
 
+`contains[T]` et `Option[T].contains` exigent tous deux `T <: Equality`. Les
+types primitifs et les structs ou enums qui déclarent `derives Equality` sont
+acceptés. Une closure, un `Ptr` ou un type utilisateur sans cette dérivation est
+refusé au frontend par un diagnostic qui indique le type, la capacité
+`Equality` manquante et le paramètre `T`; aucun code LLVM n'est alors émis.
+
 ```janus
 // doctest: compile_fail=JANA0999 name=stdlib-std-option-requires-handling
 import std.option

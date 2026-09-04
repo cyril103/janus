@@ -1,0 +1,11 @@
+import std.option
+
+def main() : int {
+    val option : Option[(int) => int] =
+    Option.Some[(int) => int]((value : int) => value)
+    val expected : (int) => int = (value : int) => value + 1
+    println(option.contains(expected))
+    delete option
+    delete expected
+    return 0
+}

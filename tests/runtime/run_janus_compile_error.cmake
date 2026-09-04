@@ -6,7 +6,7 @@ endforeach()
 
 execute_process(
     COMMAND "${JANUSC}" "${SOURCE}"
-    OUTPUT_QUIET
+    OUTPUT_VARIABLE JANUSC_OUTPUT
     ERROR_VARIABLE JANUSC_ERROR
     RESULT_VARIABLE JANUSC_RESULT
 )
@@ -17,4 +17,8 @@ endif()
 if(NOT JANUSC_ERROR MATCHES "${EXPECTED_ERROR}")
     message(FATAL_ERROR
             "janusc did not report the expected diagnostic\nexpected pattern:\n${EXPECTED_ERROR}\nstderr:\n${JANUSC_ERROR}")
+endif()
+if(DEFINED EXPECT_NO_OUTPUT AND EXPECT_NO_OUTPUT AND NOT JANUSC_OUTPUT STREQUAL "")
+    message(FATAL_ERROR
+            "janusc emitted output after a frontend diagnostic:\n${JANUSC_OUTPUT}")
 endif()

@@ -1,0 +1,7 @@
+import std.option
+
+def main() : int {
+    val option : Option[Ptr[int]] = Option.Some[Ptr[int]](null[int]())
+    println(contains[Ptr[int]](option, null[int]()))
+    return 0
+}

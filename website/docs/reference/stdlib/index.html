@@ -6281,10 +6281,12 @@ val value : int = unwrapOr[int](move item, 0)<br>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>transform</code></td><td><code>Function[T, Option[U]]</code></td><td>Fonction bornée recevant le contenu déplacé.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Option[U]</code> — Résultat de `transform`, ou `None`.</p></section>
 <div class="qualified">std.option.Option.andThen</div></div><a class="permalink" href="#std-option-option-andthen" aria-label="Permanent link to std.option.Option.andThen">#</a></article>
-<article class="symbol-card kind-method child" id="std-option-option-contains" data-symbol data-search="std.option.Option.contains method borrow def contains(borrow expected : T) : bool [extension] Vérifie que le contenu est égal à `expected`.
+<article class="symbol-card kind-method child" id="std-option-option-contains" data-symbol data-search="std.option.Option.contains method borrow def contains(borrow expected : T) : bool [extension] Vérifie que le contenu est égal à `expected` avec `T &lt;: Equality`.
+Les types sans égalité dérivée sont refusés avant la génération LLVM.
 @param expected Valeur observée à comparer.
 @return `true` pour un contenu égal, sinon `false`."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.option.Option</div><h3><code>borrow def contains(borrow expected : T) : bool [extension]</code></h3>
-<p class="doc-summary">Vérifie que le contenu est égal à `expected`.</p>
+<p class="doc-summary">Vérifie que le contenu est égal à `expected` avec `T &lt;: Equality`.<br>
+Les types sans égalité dérivée sont refusés avant la génération LLVM.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>expected</code></td><td><code>T</code></td><td>Valeur observée à comparer.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour un contenu égal, sinon `false`.</p></section>
 <div class="qualified">std.option.Option.contains</div></div><a class="permalink" href="#std-option-option-contains" aria-label="Permanent link to std.option.Option.contains">#</a></article>
@@ -6424,8 +6426,9 @@ directement les enums à deux branches qui implémentent ce contrat.</p></div>
 <div class="qualified">std.option.andThen</div></div><a class="permalink" href="#std-option-andthen" aria-label="Permanent link to std.option.andThen">#</a></article>
 <article class="symbol-card kind-function" id="std-option-contains" data-symbol data-search="std.option.contains function def contains[T](borrow value : Option[T], borrow expected : T) : bool Vérifie qu&#39;une option contient une valeur égale à `expected`.
 
-L&#39;égalité dérivée de `T` est utilisée et les deux valeurs restent possédées
-par leurs appelants.
+Requiert `T &lt;: Equality`. L&#39;égalité dérivée de `T` est utilisée et les deux
+valeurs restent possédées par leurs appelants. Les closures, `Ptr` et types
+utilisateur sans `derives Equality` sont refusés avant la génération LLVM.
 @example
 ```janus
 val found : bool = contains[int](Option.Some[int](3), 3)
@@ -6434,8 +6437,9 @@ val found : bool = contains[int](Option.Some[int](3), 3)
 @param expected Valeur observée à comparer.
 @return `true` pour un contenu égal, sinon `false`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def contains[T](borrow value : Option[T], borrow expected : T) : bool</code></h3>
 <p class="doc-summary">Vérifie qu&#39;une option contient une valeur égale à `expected`.</p>
-<div class="doc-details"><p>L&#39;égalité dérivée de `T` est utilisée et les deux valeurs restent possédées<br>
-par leurs appelants.</p></div>
+<div class="doc-details"><p>Requiert `T &lt;: Equality`. L&#39;égalité dérivée de `T` est utilisée et les deux<br>
+valeurs restent possédées par leurs appelants. Les closures, `Ptr` et types<br>
+utilisateur sans `derives Equality` sont refusés avant la génération LLVM.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Option[T]</code></td><td>Option observée.</td></tr><tr><td><code>expected</code></td><td><code>T</code></td><td>Valeur observée à comparer.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` pour un contenu égal, sinon `false`.</p></section>
 <section class="doc-section"><h4>Example</h4><pre class="example"><code>val found : bool = contains[int](Option.Some[int](3), 3)<br>

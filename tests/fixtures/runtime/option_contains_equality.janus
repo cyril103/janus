@@ -1,0 +1,13 @@
+import std.option
+
+struct Token(val value : int) derives Equality {}
+
+def main() : int {
+    val first : Token = new Token(7)
+    val second : Token = new Token(7)
+    println(contains[int](Option.Some[int](3), 3))
+    println(Option.Some[int](3).contains(4))
+    println(contains[Token](Option.Some[Token](first), second))
+    println(Option.Some[Token](first).contains(second))
+    return 0
+}
