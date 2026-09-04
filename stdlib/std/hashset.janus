@@ -618,7 +618,7 @@ private borrow val hashing : H
     def result() : HashSet[T, H] {
         val completed : HashSet[T, H] = move values
         values = new HashSet[T, H](usize(8), hashing)
-        return completed
+        return move completed
     }
 
     destructor {

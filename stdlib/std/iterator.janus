@@ -384,9 +384,9 @@ private class ZipIteratorState[A, B](
         return match move rightValue {
             Some(value) =>
             Option.Some[ZipItem[A, B]](
-                new ZipItem[A, B](leftValue, move value)
+                new ZipItem[A, B](move leftValue, move value)
             ),
-            None => this.releaseUnpaired(leftValue)
+            None => this.releaseUnpaired(move leftValue)
         }
     }
 
@@ -796,11 +796,11 @@ class Iterator[T](
         initial : U,
         scoped combine : (U, T) => U
     ) : U {
-        var accumulator : U = initial
+        var accumulator : U = move initial
         for value in move this {
             accumulator = combine(move accumulator, move value)
         }
-        return accumulator
+        return move accumulator
     }
 
     /// Retourne la première valeur satisfaisant le prédicat.

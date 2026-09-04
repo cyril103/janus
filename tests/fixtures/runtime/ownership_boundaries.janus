@@ -1,0 +1,24 @@
+var releases : int = 0
+
+class Resource() {
+    destructor { releases = releases + 1 }
+}
+
+struct Packet(val resource : Resource) {}
+enum Slot { Occupied(Packet), Empty }
+
+def relay(resource : Resource) : Resource {
+    return move resource
+}
+
+def main() : int {
+    val first : Resource = new Resource()
+    var second : Resource
+    second = move first
+    val third : Resource = relay(move second)
+    val packet : Packet = new Packet(move third)
+    val slot : Slot = Slot.Occupied(move packet)
+    delete slot
+    println(releases)
+    return 0
+}

@@ -40,7 +40,7 @@ struct DerivedKey(val value : int)
 derives Copy, Equality, Hashing, Debug {}
 
 def fillSet(
-values : HashSet[int, CountingHashing],
+borrow var values : HashSet[int, CountingHashing],
 first : int,
 count : int
 ) : Unit {
@@ -52,7 +52,7 @@ count : int
 }
 
 def fillMap(
-values : HashMap[int, int, CountingHashing],
+borrow var values : HashMap[int, int, CountingHashing],
 first : int,
 count : int
 ) : Unit {

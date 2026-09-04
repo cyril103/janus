@@ -402,10 +402,10 @@ def build_grid() : Array[int] {
     grid.push(19)
     grid.push(67)
     grid.push(48)
-    return grid
+    return move grid
 }
 
-def product_at(grid : Array[int], row : usize, col : usize, row_step : int, col_step : int) : int {
+def product_at(borrow grid : Array[int], row : usize, col : usize, row_step : int, col_step : int) : int {
     val width : usize = usize(20)
     var product : int = 1
     var offset : int = 0

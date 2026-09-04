@@ -79,7 +79,7 @@ struct Point(val x : int) derives Copy {}
 class Box(val value : int) { def get() : int { return value } }
 class Resource(val value : int) {}
 enum Choice { Number(int), Empty }
-def identity[T](value : T) : T { return value }
+def identity[T](value : T) : T { return move value }
 def makePoint() : Point { return new Point(7) }
 def main() : int {
   val point = makePoint()

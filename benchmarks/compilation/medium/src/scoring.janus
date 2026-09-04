@@ -2,7 +2,7 @@ module scoring
 import model
 
 
-def weight(item : model.Item, multiplier : int) : int {
+def weight(borrow item : model.Item, multiplier : int) : int {
     return item.total(multiplier) - 287
 }
 

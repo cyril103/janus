@@ -34,7 +34,7 @@ class OwnedKeyHashing() extends Hashing[OwnedKey] {
 }
 
 def addSetValue(
-set : HashSet[Resource, CollidingHashing],
+borrow var set : HashSet[Resource, CollidingHashing],
 key : int
 ) : Unit {
     val value : Resource = new Resource(key)
@@ -42,7 +42,7 @@ key : int
 }
 
 def putMapValue(
-map : HashMap[Resource, Resource, CollidingHashing],
+borrow var map : HashMap[Resource, Resource, CollidingHashing],
 key : int
 ) : Unit {
     val storedKey : Resource = new Resource(key)
@@ -52,7 +52,7 @@ key : int
     delete previous
 }
 
-def exerciseSet(hashing : CollidingHashing) : Unit {
+def exerciseSet(borrow hashing : CollidingHashing) : Unit {
     val values : HashSet[Resource, CollidingHashing] =
     new HashSet[Resource, CollidingHashing](usize(1), hashing)
     defer delete values
@@ -75,7 +75,7 @@ def exerciseSet(hashing : CollidingHashing) : Unit {
     addSetValue(values, 8)
 }
 
-def exerciseMap(hashing : CollidingHashing) : Unit {
+def exerciseMap(borrow hashing : CollidingHashing) : Unit {
     val values : HashMap[Resource, Resource, CollidingHashing] =
     new HashMap[Resource, Resource, CollidingHashing](usize(1), hashing)
     defer delete values
@@ -105,7 +105,7 @@ def exerciseMap(hashing : CollidingHashing) : Unit {
     putMapValue(values, 8)
 }
 
-def exerciseBuilders(hashing : CollidingHashing) : Unit {
+def exerciseBuilders(borrow hashing : CollidingHashing) : Unit {
     val arrays : ArrayBuilder[Resource] =
     new ArrayBuilder[Resource](usize(1))
     defer delete arrays

@@ -1757,3 +1757,25 @@ Le module expérimental `std.graphics` permet de créer une fenêtre, dessiner d
 formes et du texte, et lire le clavier ou la souris. Son backend raylib 6 est
 chargé dynamiquement. Consultez le [guide du graphisme](graphics.md) pour
 l'installation et un premier programme.
+
+## Transferts propriétaires explicites
+
+Une classe et, plus généralement, toute valeur qui ne satisfait pas `Copy`
+ne peuvent avoir qu'un propriétaire. Leur passage dans une autre variable, un
+argument, un retour ou le champ d'un agrégat exige `move` :
+
+```janus
+def identity(document : Document) : Document {
+    return move document
+}
+
+val original : Document = new Document(1)
+val transferred : Document = identity(move original)
+delete transferred
+```
+
+Après chaque `move`, la source est invalidée. Une omission produit le
+diagnostic `JANA0035` et une suggestion `move <nom>`. La même règle s'applique
+aux paramètres génériques non contraints ; une contrainte `T <: Copy` conserve
+la copie implicite. Écrire `move` directement sur un type `Copy` concret reste
+une erreur.

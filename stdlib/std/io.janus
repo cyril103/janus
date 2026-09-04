@@ -872,8 +872,8 @@ result : Result[usize, SystemError]
 /// @param output Flux destination, alimenté mais non fermé ni flushé.
 /// @return `Ok(total)` avec le nombre d’octets acceptés, ou `Error(SystemError)` en cas d’allocation, lecture, écriture, incohérence ou débordement.
 def copyStream(
-input : InputStream,
-output : OutputStream
+borrow var input : InputStream,
+borrow var output : OutputStream
 ) : Result[usize, SystemError] {
     val scratch : Ptr[byte] = alloc[byte](usize(4096))
     defer free(scratch)

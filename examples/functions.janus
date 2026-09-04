@@ -1,5 +1,5 @@
-def apply[T](function : (T) => T, value : T) : T {
-    return function(value)
+def apply[T](borrow function : (T) => T, value : T) : T {
+    return function(move value)
 }
 
 def makeAdder(amount : int) : (int) => int {
@@ -7,7 +7,7 @@ def makeAdder(amount : int) : (int) => int {
 }
 
 def makeIdentity[T]() : (T) => T {
-    return (value : T) => value
+    return (value : T) => move value
 }
 
 def main() : int {

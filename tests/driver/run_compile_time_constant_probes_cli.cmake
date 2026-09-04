@@ -56,7 +56,7 @@ write_probe(float-rounding
 expect_success(float-rounding)
 
 write_probe(generic-wide
-  "const def identity[T](value : T) : T { return value }\nconst wide : long = identity[long](2147483648)\ndef main() : int { return int(wide) }\n")
+  "const def identity[T <: Copy](value : T) : T { return value }\nconst wide : long = identity[long](2147483648)\ndef main() : int { return int(wide) }\n")
 expect_success(generic-wide)
 
 write_probe(private_mod

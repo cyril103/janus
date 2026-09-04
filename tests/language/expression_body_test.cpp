@@ -73,7 +73,7 @@ def choice(value : int) : Choice => Choice.Number(value)
 def box(value : int) : Box => new Box(value)
 def transfer(value : Box) : Box => move value
 def pointer() : Ptr[int] => null[int]()
-def identity[T](value : T) : T => value
+def identity[T](value : T) : T => move value
 def callback() : (int) => int => (value : int) => value + 1
 def borrowed(borrow value : Box) : borrow Box => value
 def discard() : Unit => println("discard")

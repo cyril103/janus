@@ -42,7 +42,7 @@ int main() {
   constexpr std::string_view source = R"(
 class Converter[T]() {
     def identity[U](value : U) : U {
-        return value
+        return move value
     }
 }
 

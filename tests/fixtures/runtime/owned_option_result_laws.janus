@@ -18,13 +18,13 @@ def identityResource(value : Resource) : Resource {
 def plusOneResource(value : Resource) : Resource {
     val result : Resource = new Resource(value.id + 1)
     delete value
-    return result
+    return move result
 }
 
 def timesTwoResource(value : Resource) : Resource {
     val result : Resource = new Resource(value.id * 2)
     delete value
-    return result
+    return move result
 }
 
 def composedResource(value : Resource) : Resource {
@@ -77,7 +77,7 @@ def combineResources(left : Resource, right : Resource) : Resource {
     val result : Resource = new Resource(left.id + right.id)
     delete left
     delete right
-    return result
+    return move result
 }
 
 def observeResource(borrow value : Resource) : Unit {
@@ -101,41 +101,41 @@ def trackedOptionFallback(value : int) : () => Option[Resource] {
 def main() : int {
     println(optionId(std.option.map[Resource, Resource](
         Option.Some[Resource](new Resource(5)),
-        (value : Resource) => identityResource(value)
+        (value : Resource) => identityResource(move value)
         )) == 5)
 
     val optionComposedLeft : int = optionId(std.option.map[Resource, Resource](
         std.option.map[Resource, Resource](
         Option.Some[Resource](new Resource(5)),
-        (value : Resource) => plusOneResource(value)
+        (value : Resource) => plusOneResource(move value)
         ),
-        (value : Resource) => timesTwoResource(value)
+        (value : Resource) => timesTwoResource(move value)
     ))
     val optionComposedRight : int = optionId(std.option.map[Resource, Resource](
         Option.Some[Resource](new Resource(5)),
-        (value : Resource) => composedResource(value)
+        (value : Resource) => composedResource(move value)
     ))
     println(optionComposedLeft == optionComposedRight)
 
     println(optionId(std.option.andThen[Resource, Resource](
         Option.Some[Resource](new Resource(6)),
-        (value : Resource) => someIdentityResource(value)
+        (value : Resource) => someIdentityResource(move value)
         )) == 6)
     println(optionId(std.option.andThen[Resource, Resource](
         Option.Some[Resource](new Resource(6)),
-        (value : Resource) => somePlusOneResource(value)
+        (value : Resource) => somePlusOneResource(move value)
         )) == optionId(somePlusOneResource(new Resource(6))))
     println(optionId(std.option.andThen[Resource, Resource](
         std.option.andThen[Resource, Resource](
         Option.Some[Resource](new Resource(6)),
-        (value : Resource) => somePlusOneResource(value)
+        (value : Resource) => somePlusOneResource(move value)
         ),
-        (value : Resource) => someTimesTwoResource(value)
+        (value : Resource) => someTimesTwoResource(move value)
         )) == optionId(std.option.andThen[Resource, Resource](
         Option.Some[Resource](new Resource(6)),
         (value : Resource) => std.option.andThen[Resource, Resource](
-        somePlusOneResource(value),
-        (next : Resource) => someTimesTwoResource(next)
+        somePlusOneResource(move value),
+        (next : Resource) => someTimesTwoResource(move next)
         )
     )))
 
@@ -174,7 +174,7 @@ def main() : int {
         Option.Some[Resource](new Resource(5)),
         Option.Some[Resource](new Resource(6)),
         (left : Resource, right : Resource) => combineResources(
-        left, right
+        move left, move right
         )
     )
     delete combined
@@ -213,7 +213,7 @@ def main() : int {
 
     println(resultId(std.result.map[Resource, Resource, Resource](
         Result.Ok[Resource, Resource](new Resource(5)),
-        (value : Resource) => identityResource(value)
+        (value : Resource) => identityResource(move value)
         )) == 5)
 
     val resultComposedLeft : int = resultId(std.result.map[
@@ -221,39 +221,39 @@ def main() : int {
         ](
         std.result.map[Resource, Resource, Resource](
         Result.Ok[Resource, Resource](new Resource(5)),
-        (value : Resource) => plusOneResource(value)
+        (value : Resource) => plusOneResource(move value)
         ),
-        (value : Resource) => timesTwoResource(value)
+        (value : Resource) => timesTwoResource(move value)
     ))
     val resultComposedRight : int = resultId(std.result.map[
         Resource, Resource, Resource
         ](
         Result.Ok[Resource, Resource](new Resource(5)),
-        (value : Resource) => composedResource(value)
+        (value : Resource) => composedResource(move value)
     ))
     println(resultComposedLeft == resultComposedRight)
 
     println(resultId(std.result.andThen[Resource, Resource, Resource](
         Result.Ok[Resource, Resource](new Resource(6)),
-        (value : Resource) => okIdentityResource(value)
+        (value : Resource) => okIdentityResource(move value)
         )) == 6)
     println(resultId(std.result.andThen[Resource, Resource, Resource](
         Result.Ok[Resource, Resource](new Resource(6)),
-        (value : Resource) => okPlusOneResource(value)
+        (value : Resource) => okPlusOneResource(move value)
         )) == resultId(okPlusOneResource(new Resource(6))))
     println(resultId(std.result.andThen[Resource, Resource, Resource](
         std.result.andThen[Resource, Resource, Resource](
         Result.Ok[Resource, Resource](new Resource(6)),
-        (value : Resource) => okPlusOneResource(value)
+        (value : Resource) => okPlusOneResource(move value)
         ),
-        (value : Resource) => okTimesTwoResource(value)
+        (value : Resource) => okTimesTwoResource(move value)
         )) == resultId(std.result.andThen[Resource, Resource, Resource](
         Result.Ok[Resource, Resource](new Resource(6)),
         (value : Resource) => std.result.andThen[
         Resource, Resource, Resource
         ](
-        okPlusOneResource(value),
-        (next : Resource) => okTimesTwoResource(next)
+        okPlusOneResource(move value),
+        (next : Resource) => okTimesTwoResource(move next)
         )
     )))
 
@@ -273,7 +273,7 @@ def main() : int {
         Result.Ok[Resource, Resource](new Resource(13)),
         Result.Ok[Resource, Resource](new Resource(14)),
         (left : Resource, right : Resource) => combineResources(
-        left, right
+        move left, move right
         )
     )
     delete resultCombined
@@ -292,7 +292,7 @@ def main() : int {
     before = releases
     val recovered : Resource = std.result.unwrapOrElse[Resource, Resource](
         Result.Error[Resource, Resource](new Resource(16)),
-        (error : Resource) => plusOneResource(error)
+        (error : Resource) => plusOneResource(move error)
     )
     delete recovered
     println(releases - before)

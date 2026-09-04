@@ -174,7 +174,7 @@ import std.array as arrays
 def makeValues() : arrays.Array[int] {
     val values : arrays.Array[int] = new arrays.Array[int](usize(1))
     values.push(7)
-    return values
+    return move values
 }
 
 def abandonedRead() : int {

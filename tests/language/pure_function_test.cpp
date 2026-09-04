@@ -78,7 +78,7 @@ pure tailrec def odd(value : int) : bool {
 pure def apply(action : pure (int) => int, value : int) : int {
     return action(value)
 }
-pure def identity[T](value : T) : T { return value }
+pure def identity[T](value : T) : T { return move value }
 pure extern def nativeAbs(value : int) : int
 class Box(val value : int) {
     pure borrow def read() : int { return value }

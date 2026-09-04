@@ -542,5 +542,5 @@ def prime_factors(value : usize) : Array[usize] {
         factors.push(remaining)
     }
 
-    return factors
+    return move factors
 }

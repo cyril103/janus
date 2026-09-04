@@ -34,6 +34,26 @@ void expect_compile_error(std::string_view source,
   }
 }
 
+void expect_implicit_transfer_error(std::string_view source,
+                                    std::string_view replacement) {
+  try {
+    janus::frontend::Parser parser{source};
+    const janus::ast::Program program = parser.parse_program();
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(program));
+    expect(false, "implicit ownership transfer must fail");
+  } catch (const janus::CompileError &error) {
+    expect(error.diagnostic().code ==
+               janus::DiagnosticCode::AnalyzerImplicitOwnershipTransfer,
+           "implicit ownership transfer has a stable diagnostic code");
+    expect(error.diagnostic().suggestions.size() == 1,
+           "implicit ownership transfer suggests a source edit");
+    if (!error.diagnostic().suggestions.empty())
+      expect(error.diagnostic().suggestions.front().replacement == replacement,
+             "implicit ownership transfer suggests move <name>");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -69,6 +89,9 @@ def consumeBox(box : Box) : Unit {
 def transferBox(box : Box) : Box {
     return move box
 }
+def transferResource(resource : Resource) : Resource {
+    return move resource
+}
 def main() : int {
     val first : Box = new Box(new Resource())
     val second : Box = move first
@@ -83,6 +106,9 @@ def main() : int {
     val fourth : Box = new Box(new Resource())
     val fifth : Box = transferBox(move fourth)
     delete fifth
+    val sixth : Resource = new Resource()
+    val seventh : Resource = transferResource(move sixth)
+    delete seventh
     return 0
 }
 )";
@@ -116,6 +142,34 @@ def main() : int {
       "def main() : int { val first : Box = new Box(new Resource()) "
       "val second : Box = first delete first delete second return 0 }",
       "requires an explicit move");
+  expect_implicit_transfer_error(
+      "class Resource() {} def main() : int { "
+      "val first : Resource = new Resource() val second : Resource = first "
+      "delete second delete first return 0 }",
+      "move first");
+  expect_implicit_transfer_error(
+      "class Resource() {} def main() : int { "
+      "val source : Resource = new Resource() var destination : Resource "
+      "destination = source delete destination delete source return 0 }",
+      "move source");
+  expect_implicit_transfer_error(
+      "class Resource() {} def take(resource : Resource) : Unit { "
+      "delete resource } def main() : int { "
+      "val resource : Resource = new Resource() take(resource) return 0 }",
+      "move resource");
+  expect_implicit_transfer_error(
+      "class Resource() {} def identity(resource : Resource) : Resource { "
+      "return resource } def main() : int { return 0 }",
+      "move resource");
+  expect_implicit_transfer_error(
+      "class Resource() {} enum Slot { Occupied(Resource), Empty } "
+      "def main() : int { val resource : Resource = new Resource() "
+      "val slot : Slot = Slot.Occupied(resource) delete slot return 0 }",
+      "move resource");
+  expect_implicit_transfer_error(
+      "def identity[T](value : T) : T { return value } "
+      "def main() : int { return 0 }",
+      "move value");
   expect_compile_error(
       "class Resource() {} struct Box(val resource : Resource) {} "
       "enum Holder { Some(Box), None } def main() : int { "

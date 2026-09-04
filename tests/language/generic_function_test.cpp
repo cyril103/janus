@@ -41,13 +41,13 @@ void expect_compile_error(std::string_view source,
 int main() {
   constexpr std::string_view source = R"(
 def identity[T](value : T) : T {
-    return value
+    return move value
 }
 
 struct Box[T](val value : T) derives Copy {}
 class Resource() {}
 
-def unbox[T](value : Box[T]) : T {
+def unbox[T <: Copy](value : Box[T]) : T {
     return value.value
 }
 
@@ -117,7 +117,7 @@ def main() : int {
          "identity[string] is monomorphized with the string structure");
 
   janus::frontend::Parser warning_parser{
-      "def identity[T](value : T) : T { return value } "
+      "def identity[T](value : T) : T { return move value } "
       "def main() : int { val inferred = identity(int(2.5)) return inferred }"};
   const janus::semantic::AnalysisResult warning_analysis =
       analyzer.analyze(warning_parser.parse_program());
@@ -131,10 +131,10 @@ def main() : int {
   expect_compile_error("def choose[T](x : int) : int { return x } "
                        "def main() : int { return choose(1) }",
                        "is not constrained by call arguments");
-  expect_compile_error("def identity[T](x : T) : T { return x } "
+  expect_compile_error("def identity[T](x : T) : T { return move x } "
                        "def main() : int { return identity[bool](1) }",
                        "expression of type 'int'");
-  expect_compile_error("def identity[T](x : T) : T { return x } "
+  expect_compile_error("def identity[T](x : T) : T { return move x } "
                        "def main() : int { return identity[missing](1) }",
                        "unknown type 'missing'");
   expect_compile_error("def duplicate[T, T](x : T) : T { return x } "

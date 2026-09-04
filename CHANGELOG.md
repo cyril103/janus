@@ -5,6 +5,14 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Langage et sûreté mémoire
+
+- refus des copies implicites de classes et autres valeurs non `Copy` lors
+  d'une affectation, d'un appel, d'un retour ou d'une construction d'agrégat,
+  y compris à travers un paramètre générique ; le diagnostic `JANA0035`
+  propose désormais la correction `move <nom>` et les transferts explicites
+  invalident la source.
+
 ## [0.23.1] - 2026-08-30
 
 ### Correctifs

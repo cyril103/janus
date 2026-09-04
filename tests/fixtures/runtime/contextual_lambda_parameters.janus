@@ -4,10 +4,10 @@ enum Choice { Some(int), None }
 
 class Box[T](val value : T) {}
 
-def apply[T, U](value : T, callback : (T) => U) : U {
+def apply[T, U](borrow value : T, callback : (borrow T) => U) : U {
     val result : U = callback(value)
     delete callback
-    return result
+    return move result
 }
 
 def combine(callback : (int, int) => int) : int {
@@ -32,7 +32,7 @@ def main() : int {
         .filter(value => value > 40)
         .fold[int](0, (total, value) => total + value)
     val box : Box[int] = new Box[int](40)
-    val read : (Box[int]) => int = value => value.value
+    val read : (borrow Box[int]) => int = (borrow value) => value.value
     val mapped : int = apply(box, value => read(value) + 2)
     val selected : int = unwrap(
         value => match value { Some(number) => number, None => 0 },

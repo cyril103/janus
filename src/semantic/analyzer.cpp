@@ -3623,6 +3623,56 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const auto satisfies_copy = [&](const SemanticType &candidate) {
       return !potentially_owns_value(candidate);
     };
+    bool contextual_explicit_ownership_transfer = false;
+    const auto require_explicit_ownership_transfer =
+        [&](const ast::Expression &expression, const SemanticType &type,
+            SourceLocation location, std::string_view action,
+            bool borrowed_context = false) {
+          // Raw pointers are explicitly unmanaged and may intentionally be
+          // aliased. Every other non-Copy value has one language-level owner.
+          if (borrowed_context || contextual_explicit_ownership_transfer ||
+              type.is_pointer() || !potentially_owns_value(type))
+            return;
+          if (const auto *identifier =
+                  std::get_if<ast::IdentifierExpression>(&expression.value)) {
+            SourceLocation end = identifier->location;
+            end.offset += identifier->name.size();
+            end.column += static_cast<std::uint32_t>(identifier->name.size());
+            const bool owning_aggregate =
+                type.is_enum() ||
+                (type.is_class() && classes.at(type.parameter)->is_value_type);
+            const std::string message =
+                owning_aggregate
+                    ? std::string{action} + " owning aggregate '" +
+                          type.name() + "' requires an explicit move"
+                    : std::string{action} + " owning value '" +
+                          identifier->name + "' of type '" + type.name() +
+                          "' requires an explicit move";
+            throw CompileError{Diagnostic{
+                DiagnosticSeverity::Error,
+                DiagnosticCode::AnalyzerImplicitOwnershipTransfer,
+                message,
+                location,
+                {"a non-Copy value can have only one owner"},
+                {},
+                {DiagnosticSuggestion{"transfer ownership with `move`",
+                                      SourceRange{identifier->location, end},
+                                      "move " + identifier->name}}}};
+          }
+          if (std::holds_alternative<ast::MemberAccessExpression>(
+                  expression.value)) {
+            const bool owning_aggregate =
+                type.is_enum() ||
+                (type.is_class() && classes.at(type.parameter)->is_value_type);
+            throw CompileError{
+                DiagnosticCode::AnalyzerImplicitOwnershipTransfer, location,
+                owning_aggregate
+                    ? "an owning aggregate field cannot be transferred "
+                      "independently; move its enclosing aggregate"
+                    : "an owning field cannot be transferred independently; "
+                      "move its enclosing value"};
+          }
+        };
     const auto supports_derivation = [&](const SemanticType &candidate,
                                          ast::DerivationKind kind) -> bool {
       std::unordered_set<std::string> visiting;
@@ -4951,22 +5001,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                              location,
                              "borrowed value '" + identifier->name +
                                  "' cannot be passed to an owning parameter"};
-        if ((actual.is_enum() ||
-             (actual.is_class() &&
-              classes.at(actual.parameter)->is_value_type)) &&
-            aggregate_owns_value(actual)) {
-          if (std::holds_alternative<ast::IdentifierExpression>(
-                  expression.value) &&
-              !contextual_borrow_expression)
-            throw CompileError{location, "transferring owning aggregate '" +
-                                             actual.name() +
-                                             "' requires an explicit move"};
-          if (std::holds_alternative<ast::MemberAccessExpression>(
-                  expression.value))
-            throw CompileError{
-                location, "an owning aggregate field cannot be transferred "
-                          "independently; move its enclosing aggregate"};
-        }
+        require_explicit_ownership_transfer(
+            expression, actual, location, "transferring",
+            contextual_borrow_expression ||
+                contextual_borrow_pointer_expression);
         return;
       }
 
@@ -5028,24 +5066,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           contextual_expected_type = previous_contextual_expected_type;
           contextual_borrow_expression = previous_contextual_borrow_expression;
           if (same_type(actual, expected_return_type)) {
-            if (!borrowed_return &&
-                (actual.is_enum() ||
-                 (actual.is_class() &&
-                  classes.at(actual.parameter)->is_value_type)) &&
-                aggregate_owns_value(actual)) {
-              if (std::holds_alternative<ast::IdentifierExpression>(
-                      expression.value))
-                throw CompileError{return_statement.location,
-                                   "returning owning aggregate '" +
-                                       actual.name() +
-                                       "' requires an explicit move"};
-              if (std::holds_alternative<ast::MemberAccessExpression>(
-                      expression.value))
-                throw CompileError{
-                    return_statement.location,
-                    "an owning aggregate field cannot be returned "
-                    "independently; move its enclosing aggregate"};
-            }
+            require_explicit_ownership_transfer(expression, actual,
+                                                return_statement.location,
+                                                "returning", borrowed_return);
             return;
           }
 
@@ -5310,12 +5333,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                              effective_ownership ==
                                  ast::ParameterOwnership::BorrowMutable,
                              true});
-                  transfer_protected_values.insert(parameter.name);
-                  closure_transfer_protected_values.insert(parameter.name);
-                  if (effective_ownership ==
-                          ast::ParameterOwnership::Borrow ||
+                  if (effective_ownership == ast::ParameterOwnership::Borrow ||
                       effective_ownership ==
                           ast::ParameterOwnership::BorrowMutable) {
+                    transfer_protected_values.insert(parameter.name);
+                    closure_transfer_protected_values.insert(parameter.name);
                     borrowed_values.insert(parameter.name);
                     if (effective_ownership ==
                         ast::ParameterOwnership::BorrowMutable)
@@ -5774,8 +5796,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (active_type_substitutions != nullptr)
                   owner_type = substitute(std::move(owner_type),
                                           *active_type_substitutions);
+                const bool previous_explicit_transfer =
+                    contextual_explicit_ownership_transfer;
+                contextual_explicit_ownership_transfer = true;
                 validate_expression(*node.arguments[0], owner_type,
                                     expression_location(*node.arguments[0]));
+                contextual_explicit_ownership_transfer =
+                    previous_explicit_transfer;
                 require_no_live_borrow(owner_identifier->name, node.location,
                                        "transferred to a closure");
                 const SemanticType closure_type =
@@ -7502,10 +7529,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         " requires an explicit move"};
               const auto previous_transfer_protected =
                   transfer_protected_values;
-              for (const auto &[name, symbol] : *active_symbols) {
-                static_cast<void>(symbol);
-                transfer_protected_values.insert(name);
-              }
               if (node.arms.empty())
                 throw CompileError{node.location,
                                    "match requires at least one case"};
@@ -7535,6 +7558,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               bool true_handled = false;
               bool false_handled = false;
               std::optional<SemanticType> result_type;
+              std::vector<SymbolTable> arm_symbol_states;
+              arm_symbol_states.reserve(node.arms.size());
               for (const ast::MatchExpression::Arm &arm : node.arms) {
                 if (wildcard_handled)
                   throw CompileError{
@@ -7853,6 +7878,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                             guard_type.name() + "'"};
                 }
                 const SemanticType arm_type = expression_type(*arm.expression);
+                arm_symbol_states.push_back(arm_symbols);
                 transfer_protected_values = arm_transfer_protected;
                 closure_transfer_protected_values =
                     arm_closure_transfer_protected;
@@ -7895,6 +7921,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 throw CompileError{node.location,
                                    "non-exhaustive match for type '" +
                                        scrutinee_type.name() + "'"};
+              if (!arm_symbol_states.empty())
+                for (auto &[name, symbol] : *active_symbols) {
+                  symbol.is_initialized = std::all_of(
+                      arm_symbol_states.begin(), arm_symbol_states.end(),
+                      [&](const SymbolTable &state) {
+                        return state.at(name).is_initialized;
+                      });
+                  symbol.may_be_initialized = std::any_of(
+                      arm_symbol_states.begin(), arm_symbol_states.end(),
+                      [&](const SymbolTable &state) {
+                        return state.at(name).may_be_initialized;
+                      });
+                }
               transfer_protected_values = previous_transfer_protected;
               return *result_type;
             } else if constexpr (std::is_same_v<Node, ast::MoveExpression>) {

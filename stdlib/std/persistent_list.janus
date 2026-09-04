@@ -283,7 +283,7 @@ class PersistentList[T] internal(
         scoped combine : (U, borrow T) => U
     ) : U {
         defer delete combine
-        var accumulator : U = initial
+        var accumulator : U = move initial
         val values : Iterator[Shared[T]] = this.iterator()
         for value in move values {
             accumulator = combine(move accumulator, value.get())

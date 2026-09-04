@@ -13,7 +13,7 @@ def owned(value : int) : Box => new Box(value)
 def transfer(value : Box) : Box => move value
 def apply(callback : (int) => int, value : int) : int => callback(value)
 def callback() : (int) => int => (value : int) => value + 3
-def generic[T](value : T) : T => value
+def generic[T](value : T) : T => move value
 const def constant() : int => 7
 def unit() : Unit => println("unit")
 

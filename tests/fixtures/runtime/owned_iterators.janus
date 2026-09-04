@@ -27,7 +27,7 @@ class ResourceHashing() extends Hashing[Resource] {
 def transformed(value : Resource) : Resource {
     val result : Resource = new Resource(value.id + 10)
     delete value
-    return result
+    return move result
 }
 
 def releaseAndAdd(total : int, value : Resource) : int {
@@ -49,10 +49,10 @@ values : Array[Resource],
 value : Resource
 ) : Array[Resource] {
     values.push(move value)
-    return values
+    return move values
 }
 
-def addArrayValues(values : Array[Resource], count : int) : Unit {
+def addArrayValues(borrow var values : Array[Resource], count : int) : Unit {
     var id : int = 1
     while id <= count {
         val value : Resource = new Resource(id)
@@ -62,7 +62,7 @@ def addArrayValues(values : Array[Resource], count : int) : Unit {
 }
 
 def addSetValue(
-values : HashSet[Resource, ResourceHashing],
+borrow var values : HashSet[Resource, ResourceHashing],
 id : int
 ) : Unit {
     val value : Resource = new Resource(id)
@@ -70,7 +70,7 @@ id : int
 }
 
 def putMapValue(
-values : HashMap[Resource, Resource, ResourceHashing],
+borrow var values : HashMap[Resource, Resource, ResourceHashing],
 id : int
 ) : Unit {
     val key : Resource = new Resource(id)
@@ -88,7 +88,7 @@ def exercisePipeline() : Unit {
     val collected : Array[Resource] = collectArray[Resource](
     values.intoIterator()
     .filter(move predicate)
-    .map[Resource]((value : Resource) => transformed(value))
+    .map[Resource]((value : Resource) => transformed(move value))
     )
     delete collected
 }
@@ -144,7 +144,7 @@ def exerciseTry() : Option[int] {
     return Option.Some[int](0)
 }
 
-def exerciseSet(hashing : ResourceHashing) : Unit {
+def exerciseSet(borrow hashing : ResourceHashing) : Unit {
     val values : HashSet[Resource, ResourceHashing] =
     new HashSet[Resource, ResourceHashing](usize(4), hashing)
     addSetValue(values, 1)
@@ -156,7 +156,7 @@ def exerciseSet(hashing : ResourceHashing) : Unit {
     }
 }
 
-def exerciseMap(hashing : ResourceHashing) : Unit {
+def exerciseMap(borrow hashing : ResourceHashing) : Unit {
     val values : HashMap[Resource, Resource, ResourceHashing] =
     new HashMap[Resource, Resource, ResourceHashing](usize(4), hashing)
     putMapValue(values, 1)
@@ -180,7 +180,7 @@ def exerciseFold() : Unit {
     addArrayValues(values, 3)
     val total : int = values.intoIterator().fold[int](
     0,
-    (sum : int, value : Resource) => releaseAndAdd(sum, value)
+    (sum : int, value : Resource) => releaseAndAdd(sum, move value)
     )
     println(total)
 }
@@ -189,7 +189,7 @@ def exerciseFlatMap() : Unit {
     val values : Array[Resource] = new Array[Resource](usize(2))
     addArrayValues(values, 2)
     for value in values.intoIterator()
-    .flatMap[Resource]((item : Resource) => expand(item)) {
+    .flatMap[Resource]((item : Resource) => expand(move item)) {
         delete value
     }
 }
@@ -206,7 +206,7 @@ def exerciseZip() : Unit {
     }
 }
 
-def exerciseSetBuilder(hashing : ResourceHashing) : Unit {
+def exerciseSetBuilder(borrow hashing : ResourceHashing) : Unit {
     val values : Array[Resource] = new Array[Resource](usize(3))
     addArrayValues(values, 3)
     val builder : SetBuilder[Resource, ResourceHashing] =
@@ -240,7 +240,7 @@ def exerciseOwnedFold() : Unit {
     (
     result : Array[Resource],
     value : Resource
-    ) => accumulate(result, value)
+    ) => accumulate(move result, move value)
     )
     delete accumulated
 }

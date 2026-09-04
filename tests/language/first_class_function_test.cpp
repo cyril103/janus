@@ -30,10 +30,11 @@ void expect_compile_error(std::string_view source,
     const janus::ast::Program program = parser.parse_program();
     janus::semantic::Analyzer analyzer;
     static_cast<void>(analyzer.analyze(program));
-    expect(false, "invalid first-class function program must fail");
+    expect(false, std::string{"invalid first-class function program must fail: "} +
+                      std::string{expected_message});
   } catch (const janus::CompileError &error) {
-    const bool matches = std::string_view{error.what()}.find(expected_message) !=
-                         std::string_view::npos;
+    const bool matches = std::string_view{error.what()}.find(
+                             expected_message) != std::string_view::npos;
     if (!matches)
       std::cerr << "unexpected diagnostic: " << error.what() << '\n';
     expect(matches, "function value error contains the expected explanation");
@@ -86,14 +87,14 @@ class Calculator() {
         return callback(20, 22)
     }
     def apply[T](value : T, callback : (T) => int) : int {
-        return callback(value)
+        return callback(move value)
     }
     def mixed[T](callback : (T, T) => int) : int {
         return 0
     }
 }
 def apply[T, U](value : T, callback : (T) => U) : U {
-    return callback(value)
+    return callback(move value)
 }
 def mixed[T](callback : (T, T) => int) : int {
     return 0
@@ -115,13 +116,12 @@ def main() : int {
     val fromMixedMethod : int =
         calculator.mixed((left : int, right) => left + right)
     val chooser = chooseFactory()
-    val result : int = increment(unbox(boxed)) + add(fromFunction, fromMethod) +
+    val result : int = increment(unbox(move boxed)) + add(fromFunction, fromMethod) +
         constant() + chooser(Choice.First()) + fromGenericMethod +
         fromMixedFunction + fromMixedMethod - 126
     delete chooser
     delete calculator
     delete unbox
-    delete boxed
     delete constant
     delete add
     delete increment
@@ -203,7 +203,7 @@ def main() : int {
 )",
       "cannot be consumed/transferred from a loop, branch expression, or "
       "closure");
-  expect_compile_error(
+  expect_analyzes(
       R"(
 class Iterator[T]() {}
 def main() : int {
@@ -214,8 +214,7 @@ def main() : int {
     return 0
 }
 )",
-      "cannot be consumed/transferred from a loop, branch expression, or "
-      "closure");
+      "a lambda may consume its owning iterator parameter");
   expect_analyzes(
       R"(
 class Iterator[T]() {}
@@ -275,7 +274,7 @@ def main() : int {
 }
 )",
       "cannot be deleted from a loop, branch expression, or closure");
-  expect_compile_error(
+  expect_analyzes(
       R"(
 class Resource() {}
 class Owner(val ownedField : Resource) {}
@@ -285,7 +284,7 @@ def main() : int {
     return 0
 }
 )",
-      "cannot be deleted from a loop, branch expression, or closure");
+      "a lambda may consume a field of its owning parameter");
   expect_compile_error(
       R"(
 class BufferOwner(val pointer : Ptr[int]) {}
@@ -298,7 +297,7 @@ def main() : int {
 }
 )",
       "cannot be released from a loop, branch expression, or closure");
-  expect_compile_error(
+  expect_analyzes(
       R"(
 class BufferOwner(val pointer : Ptr[int]) {}
 def main() : int {
@@ -307,7 +306,7 @@ def main() : int {
     return 0
 }
 )",
-      "cannot be released from a loop, branch expression, or closure");
+      "a lambda may release storage held by its owning parameter");
   expect_compile_error(
       R"(
 class Iterator[T]() {}
@@ -322,7 +321,7 @@ def main() : int {
 )",
       "cannot be consumed/transferred from a loop, branch expression, or "
       "closure");
-  expect_compile_error(
+  expect_analyzes(
       R"(
 class Iterator[T]() {}
 class Owner(val iterator : Iterator[int]) {}
@@ -332,8 +331,7 @@ def main() : int {
     return 0
 }
 )",
-      "cannot be consumed/transferred from a loop, branch expression, or "
-      "closure");
+      "a lambda may consume an iterator field of its owning parameter");
 
   expect_compile_error(
       R"(
@@ -352,7 +350,7 @@ def main() : int {
 )",
       "cannot be consumed/transferred from a loop, branch expression, or "
       "closure");
-  expect_compile_error(
+  expect_analyzes(
       R"(
 class Resource(val marker : int) {
     def dispose() : Unit { delete this }
@@ -365,8 +363,7 @@ def main() : int {
     return 0
 }
 )",
-      "cannot be consumed/transferred from a loop, branch expression, or "
-      "closure");
+      "a lambda may transfer its owning parameter into a closure");
   expect_compile_error(
       "def main() : int { var data : Ptr[int] = alloc[int](usize(1)) "
       "val resize = () => { data = realloc[int](data, usize(2)) } "
@@ -400,10 +397,10 @@ class CallScope() {
     destructor {}
 }
 
-def apply[T](function : (T) => T, value : T) : T {
+def apply[T](borrow function : (T) => T, value : T) : T {
     val scope : CallScope = new CallScope()
     defer delete scope
-    return function(value)
+    return function(move value)
 }
 
 def makeAdder(amount : int) : (int) => int {
@@ -458,7 +455,7 @@ def makeCounter(start : int) : () => int {
 }
 
 def makeIdentity[T]() : (T) => T {
-    return (value : T) => value
+    return (value : T) => move value
 }
 
 class Resource(val marker : int) {
@@ -658,36 +655,38 @@ def main() : int {
       "val dispose = (value : Resource) => { delete value } "
       "val resource : Resource = new Resource() dispose(resource) "
       "delete resource delete dispose return 0 }",
-      "cannot be deleted from a loop, branch expression, or closure");
+      "requires an explicit move");
   expect_compile_error(
       "class Resource() {} def main() : int { "
       "val dispose = (value : Resource) => { defer delete value } "
       "val resource : Resource = new Resource() dispose(resource) "
       "delete resource delete dispose return 0 }",
-      "cannot be deleted from a loop, branch expression, or closure");
+      "requires an explicit move");
   expect_compile_error(
       "class Resource() {} def main() : int { "
-      "val take = (value : Resource) => { val owned = move value delete owned } "
+      "val take = (value : Resource) => { val owned = move value delete owned "
+      "} "
       "val resource : Resource = new Resource() take(resource) "
       "delete resource delete take return 0 }",
-      "cannot be moved from a loop, branch expression, or closure");
+      "requires an explicit move");
   expect_compile_error(
       "class Resource() { consume def finish() : Unit { delete this } } "
-      "def main() : int { val finish = (value : Resource) => { value.finish() } "
+      "def main() : int { val finish = (value : Resource) => { value.finish() "
+      "} "
       "val resource : Resource = new Resource() finish(resource) "
       "delete resource delete finish return 0 }",
-      "cannot be consumed from a loop, branch expression, or closure");
-  expect_compile_error(
+      "requires an explicit move");
+  expect_analyzes(
       "def main() : int { val release = (value : Ptr[int]) => { free(value) } "
       "val pointer : Ptr[int] = alloc[int](usize(1)) release(pointer) "
       "free(pointer) delete release return 0 }",
-      "cannot be released from a loop, branch expression, or closure");
+      "raw pointer aliases remain explicitly unmanaged");
   expect_compile_error(
       "class Resource() {} def main() : int { "
       "val value : Resource = new Resource() "
       "val dispose = (value : Resource) => { delete value } "
       "dispose(value) delete value delete dispose return 0 }",
-      "cannot be deleted from a loop, branch expression, or closure");
+      "requires an explicit move");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

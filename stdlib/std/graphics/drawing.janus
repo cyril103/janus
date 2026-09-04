@@ -509,7 +509,7 @@ def endDrawing() : Unit {
 ///
 /// L’appel exige un cadre ouvert et aucune autre caméra active; appariez-le à [[endCamera]].
 /// @param camera Transformation entre coordonnées monde et pixels écran.
-def beginCamera(camera : Camera2D) : Unit {
+def beginCamera(borrow camera : Camera2D) : Unit {
     janus_graphics_begin_camera(
     camera.offsetX,
     camera.offsetY,
@@ -530,7 +530,7 @@ def endCamera() : Unit {
 /// @param position Position dans l’espace écran.
 /// @param camera Transformation à inverser.
 /// @return Position monde, ou `(0, 0)` si le backend n’est pas chargé.
-def screenToWorld(position : Vector2, camera : Camera2D) : Vector2 {
+def screenToWorld(position : Vector2, borrow camera : Camera2D) : Vector2 {
     return vector2(
     janus_graphics_screen_to_world_x(
     position.x,
@@ -560,7 +560,7 @@ def screenToWorld(position : Vector2, camera : Camera2D) : Vector2 {
 /// @param position Position dans l’espace monde.
 /// @param camera Transformation à appliquer.
 /// @return Position en pixels écran, ou `(0, 0)` si le backend n’est pas chargé.
-def worldToScreen(position : Vector2, camera : Camera2D) : Vector2 {
+def worldToScreen(position : Vector2, borrow camera : Camera2D) : Vector2 {
     return vector2(
     janus_graphics_world_to_screen_x(
     position.x,

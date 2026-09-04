@@ -18,7 +18,7 @@ def combine2(left : Resource, right : Resource) : Resource {
     val combined : Resource = new Resource(left.id + right.id)
     delete right
     delete left
-    return combined
+    return move combined
 }
 
 def combine3(
@@ -31,12 +31,12 @@ def combine3(
     delete third
     delete second
     delete first
-    return combined
+    return move combined
 }
 
 def recordError(error : Resource) : Resource {
     errorOrder = errorOrder * 10 + error.id
-    return error
+    return move error
 }
 
 def main() : int {
@@ -44,9 +44,10 @@ def main() : int {
     std.validated.map2[Resource, Resource, Resource, Resource](
         std.validated.invalid[Resource, Resource](new Resource(1)),
         std.validated.invalid[Resource, Resource](new Resource(2)),
-        (left : Resource, right : Resource) => combine2(left, right)
+        (left : Resource, right : Resource) =>
+        combine2(move left, move right)
     ).mapError[Resource](
-        (error : Resource) => recordError(error)
+        (error : Resource) => recordError(move error)
     )
     println(combineCalls)
     println(errorOrder)
@@ -59,7 +60,7 @@ def main() : int {
         std.validated.valid[Resource, Resource](new Resource(4)),
         std.validated.valid[Resource, Resource](new Resource(5)),
         (first : Resource, second : Resource, third : Resource) =>
-        combine3(first, second, third)
+        combine3(move first, move second, move third)
     )
     println(combineCalls)
     delete successful
@@ -91,7 +92,7 @@ def main() : int {
         std.validated.invalid[Resource, Resource](new Resource(1)),
         std.validated.invalid[Resource, Resource](new Resource(2)),
         (first : Resource, second : Resource, third : Resource) =>
-        combine3(first, second, third)
+        combine3(move first, move second, move third)
         )
     )
     println(releases)

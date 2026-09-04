@@ -25,12 +25,12 @@ void expect(bool condition, std::string_view message) {
 int main() {
   constexpr std::string_view source = R"(
 class Counter(var value : int) {
-    def add(amount : int) : Counter {
+    def add(amount : int) : borrow var Counter {
         value = value + amount
         return this
     }
 
-    def self() : Counter {
+    def self() : borrow var Counter {
         return this
     }
 }

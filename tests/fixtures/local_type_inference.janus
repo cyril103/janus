@@ -2,7 +2,7 @@ class Box(val value : int) {
     def get() : int { return value }
 }
 
-def identity[T](value : T) : T { return value }
+def identity[T](value : T) : T { return move value }
 
 def main() : int {
     val box = new Box(40)

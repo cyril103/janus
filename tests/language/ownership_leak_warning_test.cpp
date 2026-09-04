@@ -105,7 +105,7 @@ class Resource() {}
 def dispose(resource : Resource) : Unit { delete resource }
 def make() : Resource {
     val returned : Resource = new Resource()
-    return returned
+    return move returned
 }
 def main() : int {
     val deferred : Resource = new Resource()

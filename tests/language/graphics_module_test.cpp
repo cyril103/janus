@@ -200,7 +200,7 @@ def main() : int {
     )
     texture.drawNPatch(patch, area, start, float(0.0), typedColor)
     val animation : SpriteAnimation = new SpriteAnimation(
-        texture,
+        move texture,
         16,
         16,
         4,
@@ -240,7 +240,6 @@ def main() : int {
     delete imageCopy
     delete image
     endCamera()
-    delete texture
     val sound : Sound = loadSound("effect.wav")
     sound.setVolume(float(0.5))
     sound.play()

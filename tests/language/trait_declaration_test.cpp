@@ -63,13 +63,13 @@ class Sequence[T](val value : T) extends Iterable[T], Sized {
         return new Iterator[T]()
     }
     def transform[U](item : T, scoped function : (T) => U) : U {
-        return function(item)
+        return function(move item)
     }
     borrow def observe() : borrow T where T <: Copy {
         return value
     }
     consume def finish() : T {
-        return value
+        return move value
     }
     def size() : usize {
         return usize(1)

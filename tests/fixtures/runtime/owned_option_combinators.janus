@@ -11,11 +11,11 @@ class Resource(val id : int) {
 def transform(value : Resource) : Resource {
     val result : Resource = new Resource(value.id + 10)
     delete value
-    return result
+    return move result
 }
 
 def continueWith(value : Resource) : Option[Resource] {
-    return Option.Some[Resource](transform(value))
+    return Option.Some[Resource](transform(move value))
 }
 
 def resourceId(borrow value : Resource) : int {
@@ -44,14 +44,14 @@ def main() : int {
 
     val mapped : Option[Resource] = map[Resource, Resource](
     Option.Some[Resource](new Resource(2)),
-    (value : Resource) => transform(value)
+    (value : Resource) => transform(move value)
     )
     delete mapped
     println(releases)
 
     val chained : Option[Resource] = andThen[Resource, Resource](
     Option.Some[Resource](new Resource(3)),
-    (value : Resource) => continueWith(value)
+    (value : Resource) => continueWith(move value)
     )
     delete chained
     println(releases)

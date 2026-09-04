@@ -92,7 +92,7 @@ class ArrayBuilder[T](
     def result() : Array[T] {
         val completed : Array[T] = move values
         values = new Array[T](usize(0))
-        return completed
+        return move completed
     }
 
     destructor {

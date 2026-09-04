@@ -24,12 +24,12 @@ def resources(count : int) : Array[Resource] {
         values.push(new Resource(id))
         id = id + 1
     }
-    return values
+    return move values
 }
 
 def requested(value : Resource) : Resource {
     requests = requests + 1
-    return value
+    return move value
 }
 
 def optionId(borrow value : Option[Resource]) : int {
@@ -50,7 +50,7 @@ def combine(left : Resource, right : Resource) : Resource {
     val combined : Resource = new Resource(left.id + right.id)
     delete right
     delete left
-    return combined
+    return move combined
 }
 
 def tryCombine(
@@ -61,7 +61,7 @@ def tryCombine(
         delete total
         return Result.Error[Resource, Resource](move value)
     }
-    return Result.Ok[Resource, Resource](combine(total, value))
+    return Result.Ok[Resource, Resource](combine(move total, move value))
 }
 
 def requestedResult(value : Resource) : Result[Resource, Resource] {
@@ -109,7 +109,7 @@ def main() : int {
     releases = 0
     requests = 0
     val lazy : Iterator[Resource] = resources(5).intoIterator()
-    .map[Resource]((value : Resource) => requested(value))
+    .map[Resource]((value : Resource) => requested(move value))
     .drop(usize(2))
     .take(usize(1))
     println(requests)
@@ -125,7 +125,7 @@ def main() : int {
     releases = 0
     requests = 0
     val found : Option[Resource] = resources(5).intoIterator()
-    .map[Resource]((value : Resource) => requested(value))
+    .map[Resource]((value : Resource) => requested(move value))
     .find((borrow value : Resource) => value.id == 2)
     println(optionId(found))
     println(requests)
@@ -136,7 +136,7 @@ def main() : int {
     releases = 0
     requests = 0
     println(resources(3).intoIterator()
-        .map[Resource]((value : Resource) => requested(value))
+        .map[Resource]((value : Resource) => requested(move value))
         .any((borrow value : Resource) => value.id == 2))
     println(requests)
     println(releases)
@@ -144,14 +144,15 @@ def main() : int {
     releases = 0
     requests = 0
     println(resources(3).intoIterator()
-        .map[Resource]((value : Resource) => requested(value))
+        .map[Resource]((value : Resource) => requested(move value))
         .all((borrow value : Resource) => value.id < 2))
     println(requests)
     println(releases)
 
     releases = 0
     val reduced : Option[Resource] = resources(3).intoIterator().reduce(
-        (left : Resource, right : Resource) => combine(left, right)
+        (left : Resource, right : Resource) =>
+        combine(move left, move right)
     )
     println(optionId(reduced))
     println(releases)
@@ -161,10 +162,11 @@ def main() : int {
     releases = 0
     requests = 0
     val folded : Result[Resource, Resource] = resources(3).intoIterator()
-    .map[Resource]((value : Resource) => requested(value))
+    .map[Resource]((value : Resource) => requested(move value))
     .tryFold[Resource, Resource](
         new Resource(10),
-        (total : Resource, value : Resource) => tryCombine(total, value)
+        (total : Resource, value : Resource) =>
+        tryCombine(move total, move value)
     )
     println(resultErrorId(folded))
     println(requests)
@@ -177,7 +179,7 @@ def main() : int {
     val collectedResult : Result[Array[Resource], Resource] =
     collectResult[Resource, Resource](
         resources(4).intoIterator().map[Result[Resource, Resource]](
-        (value : Resource) => requestedResult(value)
+        (value : Resource) => requestedResult(move value)
         )
     )
     println(requests)
@@ -190,7 +192,7 @@ def main() : int {
     val collectedOption : Option[Array[Resource]] =
     collectOption[Resource](
         resources(4).intoIterator().map[Option[Resource]](
-        (value : Resource) => requestedOption(value)
+        (value : Resource) => requestedOption(move value)
         )
     )
     println(requests)
@@ -200,7 +202,7 @@ def main() : int {
     releases = 0
     requests = 0
     println(resources(3).intoIterator().filterMap[Resource](
-        (value : Resource) => keepOdd(value)
+        (value : Resource) => keepOdd(move value)
         ).count())
     println(requests)
     println(releases)
@@ -210,7 +212,7 @@ def main() : int {
     println(resources(3).intoIterator().scan[ScanState, int](
         new ScanState(0),
         (borrow var state : ScanState, value : Resource) =>
-        scanResource(state, value)
+        scanResource(state, move value)
         ).count())
     println(releases)
     println(stateReleases)

@@ -545,7 +545,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
             result.push(transform(data.load(index)))
             index = index + usize(1)
         }
-        return result
+        return move result
     }
 
     /// Copie dans un nouveau tableau les éléments acceptés par le prédicat.
@@ -567,7 +567,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
             }
             index = index + usize(1)
         }
-        return result
+        return move result
     }
 
     /// Recherche le premier élément qui satisfait le prédicat.
@@ -602,13 +602,13 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
     scoped combine : (U, borrow T) => U
     ) : U {
         defer delete combine
-        var accumulator : U = initial
+        var accumulator : U = move initial
         var index : usize = usize(0)
         while index < length {
             accumulator = combine(move accumulator, data.load(index))
             index = index + usize(1)
         }
-        return accumulator
+        return move accumulator
     }
 
     /// Indique si au moins un élément satisfait le prédicat.
@@ -684,7 +684,7 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
     }
 
     private def mergeRange(
-    buffer : Array[T],
+    borrow var buffer : Array[T],
     first : usize,
     middle : usize,
     last : usize,

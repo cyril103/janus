@@ -482,9 +482,9 @@ class ChildProcess internal(private var nativeProcess : isize) {
 /// @param workingDirectory Répertoire de travail, ou chaîne vide pour hériter du parent.
 /// @return `Ok(ChildProcess)` après lancement, ou `Error(SystemError)` si l’enfant ne peut pas démarrer.
 def spawnProcess(
-executable : string,
-arguments : Array[string],
-workingDirectory : string
+borrow executable : string,
+borrow arguments : Array[string],
+borrow workingDirectory : string
 ) : Result[ChildProcess, SystemError] {
     val count : usize = arguments.size()
     val argumentData : Ptr[Ptr[byte]] =
@@ -534,9 +534,9 @@ workingDirectory : string
 /// @param captureStderr Active la collecte de la sortie d’erreur dans [[ProcessResult]].
 /// @return `Ok(ProcessResult)` même si l’enfant termine avec un code non nul, ou `Error(SystemError)` si l’allocation ou le lancement échoue.
 def runProcess(
-executable : string,
-arguments : Array[string],
-workingDirectory : string,
+borrow executable : string,
+borrow arguments : Array[string],
+borrow workingDirectory : string,
 captureStdout : bool,
 captureStderr : bool
 ) : Result[ProcessResult, SystemError] {

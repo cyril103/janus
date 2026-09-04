@@ -11,7 +11,7 @@ class ComparisonCounter(private var count : int) {
     }
 }
 
-def insertionSort(values : Array[int], counter : ComparisonCounter) : Unit {
+def insertionSort(borrow var values : Array[int], borrow var counter : ComparisonCounter) : Unit {
     var index : usize = usize(1)
     while index < values.size() {
         val candidate : int = values.get(index)

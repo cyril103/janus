@@ -22,7 +22,7 @@ file(WRITE "${PROJECT}/src/lib/lifecycle.janus"
 file(WRITE "${PROJECT}/src/lib/box.janus"
      "module lib.box\n\nclass Box(val value : int) { def get() : int { return value } }\n")
 file(WRITE "${PROJECT}/src/lib/generic.janus"
-     "module lib.generic\n\nprivate def unrelated_generic_helper() : int { return 1 }\ndef identity[T](value : T) : T { return value }\n")
+     "module lib.generic\n\nprivate def unrelated_generic_helper() : int { return 1 }\ndef identity[T](value : T) : T { return move value }\n")
 file(WRITE "${PROJECT}/src/lib/answer.janus"
      "module lib.answer\nprivate val base : int = 1\nprivate def helper() : int { val transform : (int) => int = (value : int) => value + base\nreturn transform(6) }\ndef answer() : int { return helper() }\n")
 
@@ -137,7 +137,7 @@ file(WRITE "${PROJECT}/src/lib/constant.janus"
 file(WRITE "${PROJECT}/src/lib/lifecycle.janus"
      "module lib.lifecycle\nprivate def lifecycle_seed() : int { return 4 }\nprivate val lifecycle_offset : int = lifecycle_seed()\ndef lifecycle_value() : int { return lifecycle_offset }\n")
 file(WRITE "${PROJECT}/src/lib/generic.janus"
-     "module lib.generic\n\nprivate def unrelated_generic_helper() : int { return 2 }\ndef identity[T](value : T) : T { return value }\n")
+     "module lib.generic\n\nprivate def unrelated_generic_helper() : int { return 2 }\ndef identity[T](value : T) : T { return move value }\n")
 run_traced_build("private dependency change" "reused")
 execute_process(COMMAND "${PROJECT}/target/debug/cached" RESULT_VARIABLE PRIVATE_RESULT)
 if(NOT PRIVATE_RESULT EQUAL 15)

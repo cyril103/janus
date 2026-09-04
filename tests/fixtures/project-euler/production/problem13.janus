@@ -5002,7 +5002,7 @@ def build_digits() : Array[int] {
     values.push(6)
     values.push(9)
     values.push(0)
-    return values
+    return move values
 }
 
 def solve() : double {

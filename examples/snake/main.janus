@@ -23,7 +23,7 @@ def movementDelay(score : int) : usize {
 
 struct Cell(val x : int, val y : int) {}
 
-def contains(snake : Array[Cell], x : int, y : int) : bool {
+def contains(borrow snake : Array[Cell], x : int, y : int) : bool {
     var index : usize = 0
     while index < snake.size() {
         val part : Cell = snake.get(index)
@@ -35,7 +35,7 @@ def contains(snake : Array[Cell], x : int, y : int) : bool {
     return false
 }
 
-def placeFood(snake : Array[Cell], random : Random) : Cell {
+def placeFood(borrow snake : Array[Cell], borrow var random : Random) : Cell {
     var x : int = 0
     var y : int = 0
     var occupied : bool = true
@@ -95,14 +95,14 @@ def drawDigit(digit : int, x : int, y : int, color : Color) : Unit {
     }
 }
 
-def drawScore(score : int, text : TextBuilder) : Unit {
+def drawScore(score : int, borrow var text : TextBuilder) : Unit {
     text.clear()
     text.append("SCORE ")
     text.appendInt(score)
     drawText(text.view(), 40, 30, 22, rgb(115, 231, 155))
 }
 
-def drawSnake(snake : Array[Cell]) : Unit {
+def drawSnake(borrow snake : Array[Cell]) : Unit {
     var index : usize = snake.size()
     while index > usize(0) {
         index = index - usize(1)
@@ -123,7 +123,7 @@ def drawSnake(snake : Array[Cell]) : Unit {
     }
 }
 
-def drawGame(food : Cell, score : int, scoreText : TextBuilder) : Unit {
+def drawGame(food : Cell, score : int, borrow var scoreText : TextBuilder) : Unit {
     clearBackground(rgb(12, 17, 27))
 
     drawScore(score, scoreText)
@@ -193,7 +193,7 @@ def drawStatus(paused : bool, gameOver : bool) : Unit {
     }
 }
 
-def resetSnake(snake : Array[Cell]) : Unit {
+def resetSnake(borrow var snake : Array[Cell]) : Unit {
     snake.clear()
     snake.push(new Cell(15, 10))
     snake.push(new Cell(14, 10))

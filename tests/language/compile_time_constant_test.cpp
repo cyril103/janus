@@ -411,24 +411,28 @@ def main() : int { return selected }
   expect_compile_error(
       "const text : string = \"123456789\"\ndef main() : int { return 0 }",
       "constant value size budget exceeded (8 bytes)",
-      {.require_entry_point = true, .constant_value_size_budget = 8,
+      {.require_entry_point = true,
+       .constant_value_size_budget = 8,
        .target = {}});
   expect_compile_error(
       "const first : string = \"1234\"\nconst second : string = \"5678\"\n"
       "def main() : int { return 0 }",
       "constant evaluation memory budget exceeded (20 bytes)",
-      {.require_entry_point = true, .constant_memory_budget = 20,
+      {.require_entry_point = true,
+       .constant_memory_budget = 20,
        .target = {}});
   expect_compile_error(
       "def main() : int {\n"
       "    const text : string = \"arbitrarily large local constant\"\n"
       "    return 0\n}",
       "constant evaluation memory budget exceeded (1 bytes)",
-      {.require_entry_point = true, .constant_memory_budget = 1,
-       .constant_value_size_budget = 1, .target = {}});
+      {.require_entry_point = true,
+       .constant_memory_budget = 1,
+       .constant_value_size_budget = 1,
+       .target = {}});
 
   janus::frontend::Parser generic_parser{R"(
-const def identity[T](value : T) : T { return value }
+const def identity[T <: Copy](value : T) : T { return value }
 struct Pair(val left : int, val right : int) derives Copy {}
 enum Flag derives Copy { On, Off }
 const integer : int = identity[int](42)
@@ -442,7 +446,7 @@ def main() : int { return identity[int](integer) }
   const janus::ast::Program generic_program = generic_parser.parse_program();
   static_cast<void>(analyzer.analyze(generic_program));
   janus::frontend::Parser generic_wide_parser{
-      "const def identity[T](value : T) : T { return value }\n"
+      "const def identity[T <: Copy](value : T) : T { return value }\n"
       "const wide : long = identity[long](2147483648)\n"
       "def main() : int { return int(wide) }"};
   static_cast<void>(analyzer.analyze(generic_wide_parser.parse_program()));

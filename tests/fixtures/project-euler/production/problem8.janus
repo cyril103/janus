@@ -1002,7 +1002,7 @@ def build_digits() : Array[int] {
     digits.push(4)
     digits.push(5)
     digits.push(0)
-    return digits
+    return move digits
 }
 
 def solve() : double {

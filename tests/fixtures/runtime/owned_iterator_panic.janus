@@ -28,7 +28,8 @@ def main() : int {
     val folded : Result[Resource, Resource] = values.intoIterator()
     .tryFold[Resource, Resource](
         new Resource(10),
-        (total : Resource, value : Resource) => explode(total, value)
+        (total : Resource, value : Resource) =>
+        explode(move total, move value)
     )
     delete folded
     return 0

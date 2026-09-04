@@ -56,12 +56,12 @@ void expect_exact_compile_error(std::string_view source,
 int main() {
   constexpr std::string_view source = R"(
 class Box[T](var value : T) {
-    def get() : T {
+    borrow def get() : borrow T {
         return value
     }
     def set(next : T) : T {
-        value = next
-        return value
+        value = move next
+        return move value
     }
     destructor {
     }
@@ -75,14 +75,13 @@ def main() : int {
     val integers = new Box(41)
     val result : int = argumentDriven.get() + contextDriven.set(42)
     val text = new Box("Janus")
-    val message = text.get()
-    val nested = new Box(integers)
-    val inner = nested.get()
+    text.get()
+    val nested = new Box(move integers)
+    nested.get()
     val empty : Empty[int] = new Empty()
     delete empty
     delete nested
     delete text
-    delete integers
     delete contextDriven
     delete argumentDriven
     return result - 84

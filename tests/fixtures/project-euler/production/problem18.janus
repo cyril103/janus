@@ -122,7 +122,7 @@ def build_triangle() : Array[int] {
     values.push(60)
     values.push(4)
     values.push(23)
-    return values
+    return move values
 }
 
 def index_for(row : usize, col : usize) : usize {

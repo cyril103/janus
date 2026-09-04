@@ -1468,10 +1468,10 @@ Chaque appel effectif doit être apparié à [[endBlend]]; les modes peuvent êt
 <div class="doc-details"><p>Chaque appel effectif doit être apparié à <a href="#std-graphics-drawing-endblend"><code>endBlend</code></a>; les modes peuvent être imbriqués.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>mode</code></td><td><code>BlendMode</code></td><td>Mode alpha ou additif à activer.</td></tr></tbody></table></section>
 <div class="qualified">std.graphics.drawing.beginBlend</div></div><a class="permalink" href="#std-graphics-drawing-beginblend" aria-label="Permanent link to std.graphics.drawing.beginBlend">#</a></article>
-<article class="symbol-card kind-function" id="std-graphics-drawing-begincamera" data-symbol data-search="std.graphics.drawing.beginCamera function def beginCamera(camera : Camera2D) : Unit Active la transformation 2D pour les dessins suivants du cadre courant.
+<article class="symbol-card kind-function" id="std-graphics-drawing-begincamera" data-symbol data-search="std.graphics.drawing.beginCamera function def beginCamera(borrow camera : Camera2D) : Unit Active la transformation 2D pour les dessins suivants du cadre courant.
 
 L’appel exige un cadre ouvert et aucune autre caméra active; appariez-le à [[endCamera]].
-@param camera Transformation entre coordonnées monde et pixels écran."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def beginCamera(camera : Camera2D) : Unit</code></h3>
+@param camera Transformation entre coordonnées monde et pixels écran."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def beginCamera(borrow camera : Camera2D) : Unit</code></h3>
 <p class="doc-summary">Active la transformation 2D pour les dessins suivants du cadre courant.</p>
 <div class="doc-details"><p>L’appel exige un cadre ouvert et aucune autre caméra active; appariez-le à <a href="#std-graphics-drawing-endcamera"><code>endCamera</code></a>.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>camera</code></td><td><code>Camera2D</code></td><td>Transformation entre coordonnées monde et pixels écran.</td></tr></tbody></table></section>
@@ -2097,11 +2097,11 @@ Le premier appel mesure depuis l’initialisation du module.
 <p class="doc-summary">Lit la hauteur courante de la zone de rendu.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>int</code> — Hauteur en pixels, ou `0` si le backend n’est pas chargé.</p></section>
 <div class="qualified">std.graphics.drawing.screenHeight</div></div><a class="permalink" href="#std-graphics-drawing-screenheight" aria-label="Permanent link to std.graphics.drawing.screenHeight">#</a></article>
-<article class="symbol-card kind-function" id="std-graphics-drawing-screentoworld" data-symbol data-search="std.graphics.drawing.screenToWorld function def screenToWorld(position : Vector2, camera : Camera2D) : Vector2 Convertit une position en pixels écran vers l’espace monde d’une caméra.
+<article class="symbol-card kind-function" id="std-graphics-drawing-screentoworld" data-symbol data-search="std.graphics.drawing.screenToWorld function def screenToWorld(position : Vector2, borrow camera : Camera2D) : Vector2 Convertit une position en pixels écran vers l’espace monde d’une caméra.
 
 @param position Position dans l’espace écran.
 @param camera Transformation à inverser.
-@return Position monde, ou `(0, 0)` si le backend n’est pas chargé."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def screenToWorld(position : Vector2, camera : Camera2D) : Vector2</code></h3>
+@return Position monde, ou `(0, 0)` si le backend n’est pas chargé."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def screenToWorld(position : Vector2, borrow camera : Camera2D) : Vector2</code></h3>
 <p class="doc-summary">Convertit une position en pixels écran vers l’espace monde d’une caméra.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>position</code></td><td><code>Vector2</code></td><td>Position dans l’espace écran.</td></tr><tr><td><code>camera</code></td><td><code>Camera2D</code></td><td>Transformation à inverser.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Vector2</code> — Position monde, ou `(0, 0)` si le backend n’est pas chargé.</p></section>
@@ -2214,11 +2214,11 @@ Une fenêtre redimensionnable peut aussi être agrandie par le gestionnaire de f
 <p class="doc-summary">Indique si la boucle de rendu doit se terminer.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>bool</code> — `true` si aucune fenêtre n’est initialisée ou si sa fermeture a été demandée; sinon `false`.</p></section>
 <div class="qualified">std.graphics.drawing.windowShouldClose</div></div><a class="permalink" href="#std-graphics-drawing-windowshouldclose" aria-label="Permanent link to std.graphics.drawing.windowShouldClose">#</a></article>
-<article class="symbol-card kind-function" id="std-graphics-drawing-worldtoscreen" data-symbol data-search="std.graphics.drawing.worldToScreen function def worldToScreen(position : Vector2, camera : Camera2D) : Vector2 Convertit une position monde en pixels écran selon une caméra.
+<article class="symbol-card kind-function" id="std-graphics-drawing-worldtoscreen" data-symbol data-search="std.graphics.drawing.worldToScreen function def worldToScreen(position : Vector2, borrow camera : Camera2D) : Vector2 Convertit une position monde en pixels écran selon une caméra.
 
 @param position Position dans l’espace monde.
 @param camera Transformation à appliquer.
-@return Position en pixels écran, ou `(0, 0)` si le backend n’est pas chargé."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def worldToScreen(position : Vector2, camera : Camera2D) : Vector2</code></h3>
+@return Position en pixels écran, ou `(0, 0)` si le backend n’est pas chargé."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def worldToScreen(position : Vector2, borrow camera : Camera2D) : Vector2</code></h3>
 <p class="doc-summary">Convertit une position monde en pixels écran selon une caméra.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>position</code></td><td><code>Vector2</code></td><td>Position dans l’espace monde.</td></tr><tr><td><code>camera</code></td><td><code>Camera2D</code></td><td>Transformation à appliquer.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Vector2</code> — Position en pixels écran, ou `(0, 0)` si le backend n’est pas chargé.</p></section>
@@ -5019,13 +5019,13 @@ La première erreur rencontrée est renvoyée ; le handle est invalidé même en
 <article class="symbol-card kind-variant child" id="std-io-textdecodeerror-invalidutf8" data-symbol data-search="std.io.TextDecodeError.InvalidUtf8 variant InvalidUtf8 Le tampon contient au moins une séquence qui n’est pas un encodage UTF-8 valide."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.io.TextDecodeError</div><h3><code>InvalidUtf8</code></h3>
 <p class="doc-summary">Le tampon contient au moins une séquence qui n’est pas un encodage UTF-8 valide.</p>
 <div class="qualified">std.io.TextDecodeError.InvalidUtf8</div></div><a class="permalink" href="#std-io-textdecodeerror-invalidutf8" aria-label="Permanent link to std.io.TextDecodeError.InvalidUtf8">#</a></article>
-<article class="symbol-card kind-function" id="std-io-copystream" data-symbol data-search="std.io.copyStream function def copyStream(input : InputStream, output : OutputStream) : Result[usize, SystemError] Copie un flux d’entrée vers un flux de sortie jusqu’à la fin observée.
+<article class="symbol-card kind-function" id="std-io-copystream" data-symbol data-search="std.io.copyStream function def copyStream(borrow var input : InputStream, borrow var output : OutputStream) : Result[usize, SystemError] Copie un flux d’entrée vers un flux de sortie jusqu’à la fin observée.
 
 La fonction utilise un tampon temporaire de 4096 octets et laisse la sortie
 tamponnée : elle n’appelle pas [[OutputStream.flush]].
 @param input Flux source, consommé depuis sa position courante mais non fermé.
 @param output Flux destination, alimenté mais non fermé ni flushé.
-@return `Ok(total)` avec le nombre d’octets acceptés, ou `Error(SystemError)` en cas d’allocation, lecture, écriture, incohérence ou débordement."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def copyStream(input : InputStream, output : OutputStream) : Result[usize, SystemError]</code></h3>
+@return `Ok(total)` avec le nombre d’octets acceptés, ou `Error(SystemError)` en cas d’allocation, lecture, écriture, incohérence ou débordement."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def copyStream(borrow var input : InputStream, borrow var output : OutputStream) : Result[usize, SystemError]</code></h3>
 <p class="doc-summary">Copie un flux d’entrée vers un flux de sortie jusqu’à la fin observée.</p>
 <div class="doc-details"><p>La fonction utilise un tampon temporaire de 4096 octets et laisse la sortie<br>
 tamponnée : elle n’appelle pas <a href="#std-io-outputstream-flush"><code>OutputStream.flush</code></a>.</p></div>
@@ -7277,25 +7277,25 @@ invalides à la destruction. Les données sont brutes et ne sont pas validées U
 <p class="doc-summary">Retourne le nombre d’arguments du processus courant, nom du programme compris selon le runtime.</p>
 <section class="doc-section"><h4>Returns</h4><p><code>usize</code> — Nombre d’indices acceptés par <a href="#std-process-programargument"><code>programArgument</code></a>.</p></section>
 <div class="qualified">std.process.programArgumentCount</div></div><a class="permalink" href="#std-process-programargumentcount" aria-label="Permanent link to std.process.programArgumentCount">#</a></article>
-<article class="symbol-card kind-function" id="std-process-runprocess" data-symbol data-search="std.process.runProcess function def runProcess(executable : string, arguments : Array[string], workingDirectory : string, captureStdout : bool, captureStderr : bool) : Result[ProcessResult, SystemError] Lance un processus, attend sa terminaison et restitue son résultat propriétaire.
+<article class="symbol-card kind-function" id="std-process-runprocess" data-symbol data-search="std.process.runProcess function def runProcess(borrow executable : string, borrow arguments : Array[string], borrow workingDirectory : string, captureStdout : bool, captureStderr : bool) : Result[ProcessResult, SystemError] Lance un processus, attend sa terminaison et restitue son résultat propriétaire.
 @param executable Chemin ou nom de l’exécutable interprété par la plateforme.
 @param arguments Arguments transmis à l’enfant, sans ajout implicite documenté du nom de l’exécutable.
 @param workingDirectory Répertoire de travail demandé ; le sens d’une chaîne vide dépend de l’implémentation native.
 @param captureStdout Active la collecte de la sortie standard dans [[ProcessResult]].
 @param captureStderr Active la collecte de la sortie d’erreur dans [[ProcessResult]].
-@return `Ok(ProcessResult)` même si l’enfant termine avec un code non nul, ou `Error(SystemError)` si l’allocation ou le lancement échoue."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def runProcess(executable : string, arguments : Array[string], workingDirectory : string, captureStdout : bool, captureStderr : bool) : Result[ProcessResult, SystemError]</code></h3>
+@return `Ok(ProcessResult)` même si l’enfant termine avec un code non nul, ou `Error(SystemError)` si l’allocation ou le lancement échoue."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def runProcess(borrow executable : string, borrow arguments : Array[string], borrow workingDirectory : string, captureStdout : bool, captureStderr : bool) : Result[ProcessResult, SystemError]</code></h3>
 <p class="doc-summary">Lance un processus, attend sa terminaison et restitue son résultat propriétaire.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>executable</code></td><td><code>string</code></td><td>Chemin ou nom de l’exécutable interprété par la plateforme.</td></tr><tr><td><code>arguments</code></td><td><code>Array[string]</code></td><td>Arguments transmis à l’enfant, sans ajout implicite documenté du nom de l’exécutable.</td></tr><tr><td><code>workingDirectory</code></td><td><code>string</code></td><td>Répertoire de travail demandé ; le sens d’une chaîne vide dépend de l’implémentation native.</td></tr><tr><td><code>captureStdout</code></td><td><code>bool</code></td><td>Active la collecte de la sortie standard dans <a href="#std-process-processresult"><code>ProcessResult</code></a>.</td></tr><tr><td><code>captureStderr</code></td><td><code>bool</code></td><td>Active la collecte de la sortie d’erreur dans <a href="#std-process-processresult"><code>ProcessResult</code></a>.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[ProcessResult, SystemError]</code> — `Ok(ProcessResult)` même si l’enfant termine avec un code non nul, ou `Error(SystemError)` si l’allocation ou le lancement échoue.</p></section>
 <div class="qualified">std.process.runProcess</div></div><a class="permalink" href="#std-process-runprocess" aria-label="Permanent link to std.process.runProcess">#</a></article>
-<article class="symbol-card kind-function" id="std-process-spawnprocess" data-symbol data-search="std.process.spawnProcess function def spawnProcess(executable : string, arguments : Array[string], workingDirectory : string) : Result[ChildProcess, SystemError] Lance un processus interactif sans attendre sa terminaison.
+<article class="symbol-card kind-function" id="std-process-spawnprocess" data-symbol data-search="std.process.spawnProcess function def spawnProcess(borrow executable : string, borrow arguments : Array[string], borrow workingDirectory : string) : Result[ChildProcess, SystemError] Lance un processus interactif sans attendre sa terminaison.
 
 L’entrée et la sortie standard sont reliées à un [[ChildProcess]]. La sortie
 d’erreur reste héritée du parent afin qu’elle ne puisse pas bloquer l’enfant.
 @param executable Chemin ou nom de l’exécutable interprété par la plateforme.
 @param arguments Arguments transmis séparément à l’enfant.
 @param workingDirectory Répertoire de travail, ou chaîne vide pour hériter du parent.
-@return `Ok(ChildProcess)` après lancement, ou `Error(SystemError)` si l’enfant ne peut pas démarrer."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def spawnProcess(executable : string, arguments : Array[string], workingDirectory : string) : Result[ChildProcess, SystemError]</code></h3>
+@return `Ok(ChildProcess)` après lancement, ou `Error(SystemError)` si l’enfant ne peut pas démarrer."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def spawnProcess(borrow executable : string, borrow arguments : Array[string], borrow workingDirectory : string) : Result[ChildProcess, SystemError]</code></h3>
 <p class="doc-summary">Lance un processus interactif sans attendre sa terminaison.</p>
 <div class="doc-details"><p>L’entrée et la sortie standard sont reliées à un <a href="#std-process-childprocess"><code>ChildProcess</code></a>. La sortie<br>
 d’erreur reste héritée du parent afin qu’elle ne puisse pas bloquer l’enfant.</p></div>

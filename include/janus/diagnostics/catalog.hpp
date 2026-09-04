@@ -57,6 +57,7 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::AnalyzerIncompatibleTailrec,
     DiagnosticCode::AnalyzerDeprecatedUse,
     DiagnosticCode::AnalyzerHighGrowthLoop,
+    DiagnosticCode::AnalyzerImplicitOwnershipTransfer,
     DiagnosticCode::ModuleNotFound,
     DiagnosticCode::ConstantLegacy,
     DiagnosticCode::BackendLegacy,
@@ -140,6 +141,12 @@ explain_diagnostic(DiagnosticCode code) noexcept {
     return {code, "high-growth loop",
             "The loop update may overflow or consume excessive execution time.",
             "Add an explicit bound, use a safe numeric type, or enforce a time budget."};
+  case DiagnosticCode::AnalyzerImplicitOwnershipTransfer:
+    return {code, "implicit ownership transfer",
+            "A non-Copy value cannot cross an owning value boundary by "
+            "implicit copy.",
+            "Use `move value` to transfer ownership, or borrow the value "
+            "explicitly."};
   case DiagnosticCode::ModuleNotFound:
     return {code, "module not found",
             "Module resolution exhausted the project, dependency and standard-library roots.",

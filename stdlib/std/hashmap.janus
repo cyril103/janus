@@ -34,7 +34,7 @@ val key : K,
 val value : V
 ) {
     internal consume def insertInto[H <: Hashing[K]](
-    destination : HashMap[K, V, H]
+    borrow var destination : HashMap[K, V, H]
     ) : Unit {
         val previous : Option[V] =
         destination.put(move key, move value)
@@ -904,7 +904,7 @@ private borrow val hashing : H
     def result() : HashMap[K, V, H] {
         val completed : HashMap[K, V, H] = move values
         values = new HashMap[K, V, H](usize(8), hashing)
-        return completed
+        return move completed
     }
 
     destructor {

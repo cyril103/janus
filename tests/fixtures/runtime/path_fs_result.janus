@@ -180,8 +180,8 @@ result : Result[DirectoryIterator, SystemError]
 }
 
 def useFile(
-root : Path,
-nested : Path,
+borrow root : Path,
+borrow nested : Path,
 file : Path
 ) : int {
     println(boolResult(
@@ -208,8 +208,8 @@ file : Path
 }
 
 def useFileResult(
-root : Path,
-nested : Path,
+borrow root : Path,
+borrow nested : Path,
 result : Result[Path, SystemError]
 ) : int {
     return match move result {
@@ -219,7 +219,7 @@ result : Result[Path, SystemError]
 }
 
 def useNested(
-root : Path,
+borrow root : Path,
 nested : Path
 ) : int {
     println(boolResult(
@@ -235,7 +235,7 @@ nested : Path
 }
 
 def useNestedResult(
-root : Path,
+borrow root : Path,
 result : Result[Path, SystemError]
 ) : int {
     return match move result {

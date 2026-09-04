@@ -319,7 +319,7 @@ result : Result[InputStream, SystemError]
 }
 
 def usePaths(
-root : Path,
+borrow root : Path,
 source : Path,
 destination : Path
 ) : int {
@@ -352,14 +352,14 @@ destination : Path
 }
 
 def destinationResult(
-root : Path,
+borrow root : Path,
 source : Path,
 result : Result[Path, SystemError]
 ) : int {
     return match move result {
         Ok(destination) => usePaths(
         root,
-        source,
+        move source,
         move destination
         ),
         Error(error) => 1
@@ -367,13 +367,13 @@ result : Result[Path, SystemError]
 }
 
 def sourceResult(
-root : Path,
+borrow root : Path,
 result : Result[Path, SystemError]
 ) : int {
     return match move result {
         Ok(source) => destinationResult(
         root,
-        source,
+        move source,
         joinPath(root.view(), "copie.txt")
         ),
         Error(error) => 1

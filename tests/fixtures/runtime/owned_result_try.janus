@@ -11,7 +11,7 @@ class Resource(val id : int) {
 def transform(value : Resource) : Resource {
     val result : Resource = new Resource(value.id + 10)
     delete value
-    return result
+    return move result
 }
 
 def mapBeforeTry(
@@ -22,7 +22,7 @@ input : Result[Resource, Resource]
     val mapped : Result[Resource, Resource] =
     std.result.map[Resource, Resource, Resource](
     move input,
-    (value : Resource) => transform(value)
+    (value : Resource) => transform(move value)
     )
     val item : Resource = (move mapped)?
     defer delete item
@@ -37,7 +37,7 @@ input : Result[Resource, Resource]
     val item : Resource = (move input)?
     return std.result.map[Resource, Resource, Resource](
     Result.Ok[Resource, Resource](move item),
-    (value : Resource) => transform(value)
+    (value : Resource) => transform(move value)
     )
 }
 

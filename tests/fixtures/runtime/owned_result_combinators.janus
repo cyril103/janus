@@ -12,15 +12,15 @@ class Resource(val id : int) {
 def transform(value : Resource) : Resource {
     val result : Resource = new Resource(value.id + 10)
     delete value
-    return result
+    return move result
 }
 
 def continueWith(value : Resource) : Result[Resource, Resource] {
-    return Result.Ok[Resource, Resource](transform(value))
+    return Result.Ok[Resource, Resource](transform(move value))
 }
 
 def recover(error : Resource) : Result[Resource, Resource] {
-    return Result.Ok[Resource, Resource](transform(error))
+    return Result.Ok[Resource, Resource](transform(move error))
 }
 
 def resourceId(borrow value : Resource) : int {
@@ -63,7 +63,7 @@ def main() : int {
     val mapped : Result[Resource, Resource] =
     std.result.map[Resource, Resource, Resource](
     Result.Ok[Resource, Resource](new Resource(2)),
-    (value : Resource) => transform(value)
+    (value : Resource) => transform(move value)
     )
     delete mapped
     println(releases)
@@ -71,7 +71,7 @@ def main() : int {
     val mappedError : Result[Resource, Resource] =
     std.result.mapError[Resource, Resource, Resource](
     Result.Error[Resource, Resource](new Resource(3)),
-    (value : Resource) => transform(value)
+    (value : Resource) => transform(move value)
     )
     delete mappedError
     println(releases)
@@ -79,7 +79,7 @@ def main() : int {
     val chained : Result[Resource, Resource] =
     std.result.andThen[Resource, Resource, Resource](
     Result.Ok[Resource, Resource](new Resource(4)),
-    (value : Resource) => continueWith(value)
+    (value : Resource) => continueWith(move value)
     )
     delete chained
     println(releases)
@@ -87,7 +87,7 @@ def main() : int {
     val recovered : Result[Resource, Resource] =
     std.result.orElse[Resource, Resource, Resource](
     Result.Error[Resource, Resource](new Resource(5)),
-    (value : Resource) => recover(value)
+    (value : Resource) => recover(move value)
     )
     delete recovered
     println(releases)

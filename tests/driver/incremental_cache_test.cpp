@@ -293,24 +293,26 @@ void test_public_interface_excludes_private_implementation() {
 
   const std::string generic_before =
       "module library\n"
-      "def identity[T](value : T) : T { return value }\n";
+      "def identity[T](value : T) : T { return move value }\n";
   const std::string generic_change =
       "module library\n"
-      "def identity[T](value : T) : T { val copy : T = value return copy }\n";
+      "def identity[T](value : T) : T { val copy : T = move value return move "
+      "copy }\n";
   require(janus::driver::public_interface_fingerprint(generic_before) !=
               janus::driver::public_interface_fingerprint(generic_change),
           "generic implementation was absent from the compilation interface");
   const std::string generic_private_before =
       "module library\n"
       "private def helper() : int { return 1 }\n"
-      "def identity[T](value : T) : T { return value }\n";
+      "def identity[T](value : T) : T { return move value }\n";
   const std::string generic_private_after =
       "module library\n"
       "private def helper() : int { return 2 }\n"
-      "def identity[T](value : T) : T { return value }\n";
-  require(janus::driver::public_interface_fingerprint(generic_private_before) ==
-              janus::driver::public_interface_fingerprint(generic_private_after),
-          "unrelated private change invalidated a module with a public generic");
+      "def identity[T](value : T) : T { return move value }\n";
+  require(
+      janus::driver::public_interface_fingerprint(generic_private_before) ==
+          janus::driver::public_interface_fingerprint(generic_private_after),
+      "unrelated private change invalidated a module with a public generic");
 }
 
 void test_store_is_atomic_concurrent_and_validated() {

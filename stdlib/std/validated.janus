@@ -305,7 +305,7 @@ def zip[A, B, E](
         move left,
         move right,
         (leftItem : A, rightItem : B) => new ValidatedPair[A, B](
-        leftItem, rightItem
+        move leftItem, move rightItem
         )
     )
 }

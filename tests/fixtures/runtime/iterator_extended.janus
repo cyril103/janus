@@ -14,14 +14,14 @@ def numbers() : Array[int] {
     values.push(3)
     values.push(4)
     values.push(5)
-    return values
+    return move values
 }
 
 def pair(first : int, second : int) : Array[int] {
     val values : Array[int] = new Array[int](usize(2))
     values.push(first)
     values.push(second)
-    return values
+    return move values
 }
 
 def optionalOdd(value : int) : Option[int] {

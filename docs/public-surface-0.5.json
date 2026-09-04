@@ -89,7 +89,7 @@
       "source": "stdlib/std/graphics/drawing.janus",
       "documentation": ["docs/graphics.md"],
       "status": "experimental",
-      "signature_digest": "4f943e4dd5d97c3d4aa646aeeada500ca86e052ff1dd65e73634f5b432505dc5",
+      "signature_digest": "6605fddd8bc9b9f8bc4bf1afd95cb9cd76d3792537f7afbacfcaff9178c9d3de",
       "symbols": ["Camera2D", "Camera2D.offsetX", "Camera2D.offsetY", "Camera2D.targetX", "Camera2D.targetY", "Camera2D.rotation", "Camera2D.zoom", "graphicsAvailable", "graphicsLastError", "initWindow", "windowShouldClose", "closeWindow", "isWindowFullscreen", "isWindowHidden", "isWindowMinimized", "isWindowMaximized", "isWindowFocused", "isWindowResized", "toggleFullscreen", "maximizeWindow", "minimizeWindow", "restoreWindow", "setWindowTitle", "setWindowPosition", "setWindowSize", "setWindowResizable", "setWindowOpacity", "screenWidth", "screenHeight", "setTargetFps", "beginBlend", "endBlend", "beginScissor", "endScissor", "frameTime", "elapsedTime", "beginDrawing", "endDrawing", "beginCamera", "endCamera", "screenToWorld", "worldToScreen", "clearBackground", "clearColor", "drawPixel", "drawPixelAt", "drawLine", "drawLineBetween", "drawCircle", "drawCircleAt", "drawRectangle", "drawRectangleArea", "drawText", "drawTextAt", "drawLineEx", "drawLineBezier", "drawLineDashed", "drawCircleGradient", "drawCircleSector", "drawCircleSectorLines", "drawCircleLines", "drawEllipse", "drawEllipseLines", "drawRing", "drawRingLines", "drawRectanglePro", "drawRectangleGradientVertical", "drawRectangleGradientHorizontal", "drawRectangleGradient", "drawRectangleLines", "drawRectangleRounded", "drawRectangleRoundedLines", "drawTriangle", "drawTriangleLines", "drawPolygon", "drawPolygonLines", "drawLineStrip", "drawTriangleFan", "drawTriangleStrip", "drawSplineLinear", "drawSplineBasis", "drawSplineCatmullRom", "drawSplineBezierQuadratic", "drawSplineBezierCubic", "drawSplineSegmentLinear", "drawSplineSegmentBasis", "drawSplineSegmentCatmullRom", "drawSplineSegmentBezierQuadratic", "drawSplineSegmentBezierCubic", "splinePointLinear", "splinePointBasis", "splinePointCatmullRom", "splinePointBezierQuadratic", "splinePointBezierCubic", "collisionRectangles", "collisionCircles", "collisionCircleRectangle", "collisionCircleLine", "collisionPointRectangle", "collisionPointCircle", "collisionPointTriangle", "collisionPointLine", "collisionPointPolygon", "collisionLines", "collisionLinesPoint", "collisionRectangle"]
     },
     {
@@ -169,7 +169,7 @@
       "source": "stdlib/std/io.janus",
       "documentation": ["docs/language-guide.md", "docs/design/io-streams.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "825169cb85c6d762fc22637eebfb0be812b1e03a32af2911fa2777b164878611",
+      "signature_digest": "cbf5fdb095557c4df8727aac0e19d417ea04dc0cc65c082bffc7488181c299e0",
       "symbols": ["TextDecodeError", "TextDecodeError.InvalidUtf8", "ByteBuffer", "ByteBuffer.data", "ByteBuffer.size", "ByteBuffer.capacity", "ByteBuffer.isEmpty", "ByteBuffer.withView", "ByteBuffer.clear", "ByteBuffer.tryReserve", "ByteBuffer.append", "ByteBuffer.appendByte", "ByteBuffer.appendText", "ByteBuffer.isUtf8", "ByteBuffer.asText", "InputStream", "InputStream.isOpen", "InputStream.isEof", "InputStream.read", "InputStream.readLine", "InputStream.close", "OutputStream", "OutputStream.isOpen", "OutputStream.write", "OutputStream.writeText", "OutputStream.flush", "OutputStream.close", "openInputStreamBuffered", "openInputStream", "openOutputStreamBuffered", "openOutputStream", "standardInput", "standardOutput", "standardError", "copyStream"]
     },
     {
@@ -249,7 +249,7 @@
       "source": "stdlib/std/process.janus",
       "documentation": ["docs/language-guide.md", "docs/design/process-runtime.md", "docs/stability-contract.md"],
       "status": "stable-proposed",
-      "signature_digest": "f6e9028657a68dbc5139f97e20e65c1fdf6f82d6ece15baea0b1b1c41ddbd119",
+      "signature_digest": "9a4eadc8192aae70f3c5a2de34fc271613e15c01ba9008c8628c8b25a82dec3b",
       "symbols": ["programArgumentCount", "programArgument", "EnvironmentValue", "EnvironmentValue.view", "EnvironmentValue.size", "WorkingDirectory", "WorkingDirectory.view", "environmentVariable", "currentWorkingDirectory", "ProcessResult", "ProcessResult.exitCode", "ProcessResult.stdoutData", "ProcessResult.stdoutSize", "ProcessResult.withStdoutView", "ProcessResult.stderrData", "ProcessResult.stderrSize", "ProcessResult.withStderrView", "ChildProcess", "ChildProcess.terminate", "ChildProcess.tryWait", "ChildProcess.tryWrite", "ChildProcess.write", "ChildProcess.writeText", "ChildProcess.read", "ChildProcess.tryRead", "ChildProcess.closeInput", "spawnProcess", "runProcess"]
     },
     {

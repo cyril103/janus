@@ -75,7 +75,7 @@ def concreteValue(input : ConcreteTry) : ConcreteTry {
 def propagate[P <: Try](value : P, scoped wrap : (P.Output) => P) : P {
     defer delete wrap
     val output : P.Output = value?
-    return wrap(output)
+    return wrap(move output)
 }
 def lambdaBoundary() : int {
     val transform : (Option[int]) => Option[int] = input => {

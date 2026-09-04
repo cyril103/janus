@@ -56,13 +56,13 @@ class Array[T](initialCapacity : usize) {
         if index >= length {
             panic("Array index out of bounds\n")
         }
-        data.store(index, value)
+        data.store(index, move value)
     }
     def push(value : T) : usize {
         if length == allocated {
             this.resize(allocated * usize(2))
         }
-        data.store(length, value)
+        data.store(length, move value)
         length = length + usize(1)
         return length
     }

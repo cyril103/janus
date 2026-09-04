@@ -13,7 +13,7 @@ struct Point(val x : int, val y : int) derives Copy, Equality, Debug {
 
 
 class Item(val quantity : int, val price : int) {
-    def total(multiplier : int) : int {
+    borrow def total(multiplier : int) : int {
         return quantity * price * multiplier
     }
 }

@@ -14,7 +14,7 @@ class ComparisonCounter(private var count : int) {
     }
 }
 
-def isSorted(values : Array[int]) : bool {
+def isSorted(borrow values : Array[int]) : bool {
     var index : usize = usize(1)
     while index < values.size() {
         if values.get(index) < values.get(index - usize(1)) {
@@ -25,7 +25,7 @@ def isSorted(values : Array[int]) : bool {
     return true
 }
 
-def isStableByKey(entries : Array[Entry]) : bool {
+def isStableByKey(borrow entries : Array[Entry]) : bool {
     var index : usize = usize(1)
     while index < entries.size() {
         val previous : Entry = entries.get(index - usize(1))
