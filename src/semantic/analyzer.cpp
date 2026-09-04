@@ -3279,6 +3279,149 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                        "program must declare an entry point 'main'"};
   }
 
+  struct BorrowReturnProvenance {
+    enum class Kind { Receiver, Parameter } kind;
+    std::size_t parameter{};
+    bool operator==(const BorrowReturnProvenance &) const = default;
+  };
+  std::unordered_map<const ast::FunctionDeclaration *, BorrowReturnProvenance>
+      borrow_return_provenance;
+  std::unordered_map<std::string, const ast::FunctionDeclaration *>
+      unique_borrow_methods;
+  std::unordered_set<std::string> ambiguous_borrow_methods;
+  for (const FunctionContext &context : contexts) {
+    if (context.function == nullptr ||
+        (context.owner == nullptr && context.extension == nullptr) ||
+        !is_borrowed_return(context.function->return_ownership))
+      continue;
+    if (!unique_borrow_methods
+             .emplace(context.function->name, context.function)
+             .second)
+      ambiguous_borrow_methods.insert(context.function->name);
+  }
+  const auto direct_provenance =
+      [&](const FunctionContext &context, const ast::Expression &expression,
+          const auto &self) -> std::optional<BorrowReturnProvenance> {
+    if (const auto *identifier =
+            std::get_if<ast::IdentifierExpression>(&expression.value)) {
+      if (context.owner != nullptr || context.extension != nullptr) {
+        bool receiver_source = identifier->name == "this";
+        if (context.owner != nullptr) {
+          const auto is_field = [&](const ast::ValueDeclaration &field) {
+            return field.name == identifier->name;
+          };
+          receiver_source =
+              receiver_source ||
+              std::any_of(context.owner->constructor_fields.begin(),
+                          context.owner->constructor_fields.end(), is_field) ||
+              std::any_of(context.owner->fields.begin(),
+                          context.owner->fields.end(), is_field);
+        }
+        if (receiver_source)
+          return BorrowReturnProvenance{
+              BorrowReturnProvenance::Kind::Receiver, 0};
+      }
+      for (std::size_t index = 0;
+           index < context.function->parameters.size(); ++index)
+        if (context.function->parameters[index].name == identifier->name)
+          return BorrowReturnProvenance{
+              BorrowReturnProvenance::Kind::Parameter, index};
+      return std::nullopt;
+    }
+    if (const auto *member =
+            std::get_if<ast::MemberAccessExpression>(&expression.value))
+      return self(context, *member->object, self);
+    if (const auto *index =
+            std::get_if<ast::IndexExpression>(&expression.value))
+      return self(context, *index->container, self);
+    if (const auto *method =
+            std::get_if<ast::MethodCallExpression>(&expression.value)) {
+      if (ambiguous_borrow_methods.contains(method->method))
+        return std::nullopt;
+      const auto declaration = unique_borrow_methods.find(method->method);
+      if (declaration == unique_borrow_methods.end())
+        return std::nullopt;
+      const auto provenance =
+          borrow_return_provenance.find(declaration->second);
+      if (provenance == borrow_return_provenance.end())
+        return std::nullopt;
+      if (provenance->second.kind == BorrowReturnProvenance::Kind::Receiver)
+        return self(context, *method->object, self);
+      if (provenance->second.parameter >= method->arguments.size())
+        return std::nullopt;
+      return self(context,
+                  *method->arguments[provenance->second.parameter], self);
+    }
+    if (const auto *conditional =
+            std::get_if<ast::IfExpression>(&expression.value)) {
+      const auto then_source =
+          self(context, *conditional->then_expression, self);
+      const auto else_source =
+          self(context, *conditional->else_expression, self);
+      return then_source == else_source ? then_source : std::nullopt;
+    }
+    if (const auto *match =
+            std::get_if<ast::MatchExpression>(&expression.value)) {
+      std::optional<BorrowReturnProvenance> common;
+      for (const ast::MatchExpression::Arm &arm : match->arms) {
+        const auto source = self(context, *arm.expression, self);
+        if (!source || (common && common != source))
+          return std::nullopt;
+        common = source;
+      }
+      return common;
+    }
+    return std::nullopt;
+  };
+  const auto collect_provenance =
+      [&](const FunctionContext &context, const std::vector<ast::Statement> &body,
+          const auto &self,
+          std::optional<BorrowReturnProvenance> &common) -> void {
+    for (const ast::Statement &statement : body) {
+      if (const auto *returned = std::get_if<ast::ReturnStatement>(&statement)) {
+        if (!returned->expression)
+          continue;
+        const auto source = direct_provenance(
+            context, *returned->expression, direct_provenance);
+        if (!source)
+          continue;
+        if (common && common != source)
+          throw CompileError{
+              DiagnosticCode::AnalyzerBorrowEscape, returned->location,
+              "borrowed return has incompatible provenance sources"};
+        common = source;
+      } else if (const auto *branch =
+                     std::get_if<std::shared_ptr<ast::IfStatement>>(&statement)) {
+        self(context, (*branch)->then_body, self, common);
+        self(context, (*branch)->else_body, self, common);
+      } else if (const auto *loop =
+                     std::get_if<std::shared_ptr<ast::WhileStatement>>(
+                         &statement)) {
+        self(context, (*loop)->body, self, common);
+      } else if (const auto *loop =
+                     std::get_if<std::shared_ptr<ast::ForStatement>>(
+                         &statement)) {
+        self(context, (*loop)->body, self, common);
+      }
+    }
+  };
+  bool discovered_provenance = true;
+  while (discovered_provenance) {
+    discovered_provenance = false;
+    for (const FunctionContext &context : contexts) {
+      if (context.function == nullptr || context.function->is_external ||
+          !is_borrowed_return(context.function->return_ownership) ||
+          borrow_return_provenance.contains(context.function))
+        continue;
+      std::optional<BorrowReturnProvenance> source;
+      collect_provenance(context, context.function->body, collect_provenance,
+                         source);
+      if (source) {
+        borrow_return_provenance.emplace(context.function, *source);
+        discovered_provenance = true;
+      }
+    }
+  }
   std::unordered_set<const ast::Expression *> returns_with_live_owners;
   for (const FunctionContext &context : contexts) {
     const bool is_destructor = context.destructor != nullptr;
@@ -3500,6 +3643,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         context.function->return_ownership == ast::ReturnOwnership::Owned &&
         !context.function->is_external)
       throw CompileError{
+          DiagnosticCode::AnalyzerInvalidBorrowSource,
           context.function->return_type.location,
           "owned return qualifiers are only supported on external functions"};
     if (!is_destructor &&
@@ -3507,6 +3651,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             ast::ReturnOwnership::Unspecified &&
         context.function->is_external && !return_type.is_pointer())
       throw CompileError{
+          DiagnosticCode::AnalyzerInvalidBorrowSource,
           context.function->return_type.location,
           "borrow and owned external returns require a Ptr[T] type"};
     if (!is_destructor && !context.function->is_external &&
@@ -3529,6 +3674,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           context.function->return_ownership == ast::ReturnOwnership::Borrow &&
           !context.function->is_borrowing)
         throw CompileError{
+            DiagnosticCode::AnalyzerInvalidBorrowSource,
             context.function->return_type.location,
             "a method returning a borrow must be declared 'borrow def'"};
       if ((owner != nullptr || extension != nullptr) &&
@@ -3542,6 +3688,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             "def'"};
       if (owner == nullptr && borrowed_parameters != 1)
         throw CompileError{
+            DiagnosticCode::AnalyzerBorrowEscape,
             context.function->return_type.location,
             "a function returning a borrow requires exactly one borrowed "
             "parameter as its lifetime source"};
@@ -4433,10 +4580,20 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       if (resolved == resolved_calls.end() ||
           !is_borrowed_return(resolved->second->return_ownership))
         return std::nullopt;
+      const auto provenance = borrow_return_provenance.find(resolved->second);
       if (const auto *method =
               std::get_if<ast::MethodCallExpression>(&expression.value)) {
+        const ast::Expression *source_expression = method->object.get();
+        if (provenance != borrow_return_provenance.end() &&
+            provenance->second.kind ==
+                BorrowReturnProvenance::Kind::Parameter) {
+          if (provenance->second.parameter >= method->arguments.size())
+            return std::nullopt;
+          source_expression =
+              method->arguments[provenance->second.parameter].get();
+        }
         const ast::IdentifierExpression *root = lexical_root_identifier(
-            *method->object, lexical_root_identifier);
+            *source_expression, lexical_root_identifier);
         if (root != nullptr)
           return root->name;
         return std::nullopt;
@@ -4444,6 +4601,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto *call = std::get_if<ast::CallExpression>(&expression.value);
       if (call == nullptr)
         return std::nullopt;
+      if (provenance != borrow_return_provenance.end()) {
+        if (provenance->second.kind !=
+                BorrowReturnProvenance::Kind::Parameter ||
+            provenance->second.parameter >= call->arguments.size())
+          return std::nullopt;
+        const ast::IdentifierExpression *root = lexical_root_identifier(
+            *call->arguments[provenance->second.parameter],
+            lexical_root_identifier);
+        return root == nullptr ? std::nullopt
+                               : std::optional<std::string>{root->name};
+      }
       for (std::size_t index = 0;
            index < resolved->second->parameters.size(); ++index) {
         const ast::ParameterOwnership ownership =
@@ -9450,16 +9618,43 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                return_statement.location,
                                "a borrowed return cannot move its source"};
           if (borrowed_return) {
-            const ast::IdentifierExpression *source = lexical_root_identifier(
-                *return_statement.expression, lexical_root_identifier);
+            const std::optional<std::string> call_source =
+                borrowed_return_source(*return_statement.expression);
+            const ast::IdentifierExpression *lexical_source =
+                lexical_root_identifier(*return_statement.expression,
+                                        lexical_root_identifier);
+            const auto declared_provenance =
+                borrow_return_provenance.find(context.function);
+            std::optional<std::string> declared_source;
+            if (declared_provenance != borrow_return_provenance.end() &&
+                (std::holds_alternative<ast::CallExpression>(
+                     return_statement.expression->value) ||
+                 std::holds_alternative<ast::MethodCallExpression>(
+                     return_statement.expression->value))) {
+              if (declared_provenance->second.kind ==
+                  BorrowReturnProvenance::Kind::Receiver)
+                declared_source = "this";
+              else if (declared_provenance->second.parameter <
+                       parameters.size())
+                declared_source = parameters[declared_provenance->second.parameter]
+                                      .name;
+            }
+            const std::optional<std::string> source_name =
+                call_source
+                    ? call_source
+                    : (declared_source
+                           ? declared_source
+                    : (lexical_source == nullptr
+                           ? std::nullopt
+                           : std::optional<std::string>{lexical_source->name}));
             const bool owner_mutable_source =
                 context.function->return_ownership ==
                     ast::ReturnOwnership::BorrowMutable &&
-                owner != nullptr && source != nullptr &&
-                (source->name == "this" ||
-                 owner_field_names.contains(source->name));
-            if ((source == nullptr ||
-                 (!borrowed_values.contains(source->name) &&
+                owner != nullptr && source_name &&
+                (*source_name == "this" ||
+                 owner_field_names.contains(*source_name));
+            if ((!source_name ||
+                 (!borrowed_values.contains(*source_name) &&
                   !owner_mutable_source)) &&
                 !is_owner_anchored_external_borrow(
                     *return_statement.expression))
@@ -9471,12 +9666,58 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             if (context.function->return_ownership ==
                     ast::ReturnOwnership::BorrowMutable &&
                 !owner_mutable_source &&
-                !mutable_borrow_values.contains(source->name))
+                (!source_name ||
+                 !mutable_borrow_values.contains(*source_name)))
               throw CompileError{
                   DiagnosticCode::AnalyzerInvalidBorrowSource,
                   return_statement.location,
                   "mutable borrowed return must originate from 'this' or "
                   "from a 'borrow var' parameter"};
+
+            if (source_name) {
+              const auto provenance_of =
+                  [&](std::string_view name, const auto &self,
+                      std::unordered_set<std::string> &visited)
+                  -> std::optional<BorrowReturnProvenance> {
+                if (!visited.insert(std::string{name}).second)
+                  return std::nullopt;
+                if ((owner != nullptr || extension != nullptr) &&
+                    (name == "this" ||
+                     owner_field_names.contains(std::string{name})))
+                  return BorrowReturnProvenance{
+                      BorrowReturnProvenance::Kind::Receiver, 0};
+                for (std::size_t index = 0; index < parameters.size(); ++index)
+                  if (parameters[index].name == name)
+                    return BorrowReturnProvenance{
+                        BorrowReturnProvenance::Kind::Parameter, index};
+                const auto aliases = borrow_sources.find(std::string{name});
+                if (aliases == borrow_sources.end())
+                  return std::nullopt;
+                std::optional<BorrowReturnProvenance> common;
+                for (const std::string &alias : aliases->second) {
+                  const auto candidate = self(alias, self, visited);
+                  if (!candidate || (common && common != candidate))
+                    return std::nullopt;
+                  common = candidate;
+                }
+                return common;
+              };
+              std::unordered_set<std::string> visited;
+              const auto actual =
+                  provenance_of(*source_name, provenance_of, visited);
+              if (actual) {
+                const auto known =
+                    borrow_return_provenance.find(context.function);
+                if (known != borrow_return_provenance.end() &&
+                    known->second != *actual)
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerBorrowEscape,
+                      return_statement.location,
+                      "borrowed return has incompatible provenance sources"};
+                borrow_return_provenance.insert_or_assign(context.function,
+                                                           *actual);
+              }
+            }
           }
           if (!borrowed_return)
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(

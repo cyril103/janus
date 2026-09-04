@@ -372,6 +372,17 @@ avoir le type `Unit`. Une déclaration ou plusieurs instructions exigent
 toujours `{ ... }`. Les flèches des closures et des branches de `match`
 conservent leur sens propre, déterminé par leur contexte.
 
+La provenance d'un retour emprunté fait partie du contrat analysé de la
+fonction ou de la méthode. Elle désigne soit `this`, soit un paramètre emprunté
+précis : dans `borrow def select(borrow other : T) : borrow T`, un résultat
+issu de `other` verrouille `other`, pas le receveur. Cette identité est
+conservée à travers les méthodes et fonctions relais, les spécialisations
+génériques et les projections de membre. Tous les chemins de retour doivent
+désigner la même source ; des branches qui retournent tantôt `this`, tantôt un
+paramètre sont refusées avec `JANA0026`. Invalider la source effective pendant
+que le résultat vit produit `JANA0025`, dont le diagnostic nomme la source et
+l'emprunteur.
+
 Les fonctions sont des valeurs de première classe. Une closure peut capturer
 les valeurs qui l'entourent :
 

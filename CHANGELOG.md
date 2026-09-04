@@ -7,6 +7,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- propagation explicite de la provenance des retours empruntés de méthode :
+  le résultat est désormais rattaché à `this` ou au paramètre effectivement
+  retourné, y compris à travers branches, génériques, projections et relais ;
+  les sources incompatibles sont refusées et les diagnostics `JANA0025`/
+  `JANA0026` identifient la relation fautive ;
 - contrainte explicite de `Option.contains` à `Equality`, pour les formes libre
   et extension ; les closures, pointeurs et types sans égalité dérivée sont
   désormais rejetés au frontend au lieu de produire un `icmp` LLVM invalide ;

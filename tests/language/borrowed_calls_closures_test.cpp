@@ -59,11 +59,14 @@ void expect_compile_error(std::string_view source,
     janus::frontend::Parser parser{source};
     janus::semantic::Analyzer analyzer;
     static_cast<void>(analyzer.analyze(parser.parse_program()));
-    expect(false, "escaping borrowed closure must be rejected");
+    expect(false, expected_message);
   } catch (const janus::CompileError &error) {
-    expect(std::string_view{error.what()}.find(expected_message) !=
-               std::string_view::npos,
-           expected_message);
+    if (std::string_view{error.what()}.find(expected_message) ==
+        std::string_view::npos) {
+      std::cerr << "FAILED: expected " << expected_message << ", got "
+                << error.what() << '\n';
+      ++failures;
+    }
     expect(error.diagnostic().code != janus::DiagnosticCode::AnalyzerLegacy,
            "borrowed call errors use structured diagnostic codes");
   }
@@ -72,6 +75,131 @@ void expect_compile_error(std::string_view source,
 } // namespace
 
 int main() {
+  expect_compile_error(R"(
+class Box(var value : int) {
+  borrow def read() : int { return value }
+}
+class Selector(val marker : int) {
+  borrow def select(borrow other : Box) : borrow Box { return other }
+}
+def main() : int {
+  val selector : Selector = new Selector(0)
+  defer delete selector
+  val victimShared : Box = new Box(123)
+  borrow val dangling : Box = selector.select(victimShared)
+  delete victimShared
+  return dangling.read()
+}
+)",
+                       "owning value 'victimShared' cannot be released while "
+                       "borrowed by 'dangling'");
+
+  expect_valid(R"(
+class Box(var value : int) {
+  borrow def read() : int { return value }
+}
+class Selector(val marker : int) {
+  borrow def select(borrow other : Box) : borrow Box { return other }
+}
+def main() : int {
+  val victim : Box = new Box(123)
+  var result : int = 0
+  if true {
+    val selector : Selector = new Selector(0)
+    borrow val view : Box = selector.select(victim)
+    delete selector
+    result = view.read()
+  }
+  delete victim
+  return result
+}
+)");
+
+  expect_compile_error(R"(
+class Box(var value : int) {}
+class Selector(val marker : int) {
+  def select(borrow var other : Box) : borrow var Box { return other }
+}
+def main() : int {
+  val selector : Selector = new Selector(0)
+  defer delete selector
+  val victimMutable : Box = new Box(123)
+  borrow var dangling : Box = selector.select(victimMutable)
+  delete victimMutable
+  return 0
+}
+)",
+                       "owning value 'victimMutable' cannot be released while "
+                       "borrowed by 'dangling'");
+
+  expect_compile_error(R"(
+class Box(var value : int) {}
+class Selector(val marker : int) {
+  borrow def select(flag : bool, borrow other : Box) : borrow Box {
+    if flag { return this }
+    return other
+  }
+}
+def main() : int { return 0 }
+)",
+                       "borrowed return has incompatible provenance sources");
+
+  expect_compile_error(R"(
+class Box(var value : int) {}
+class Selector(val marker : int) {
+  borrow def select[T](borrow other : T) : borrow T { return other }
+  borrow def relay(borrow other : Box) : borrow Box {
+    return this.select[Box](other)
+  }
+}
+def main() : int {
+  val selector : Selector = new Selector(0)
+  defer delete selector
+  val victimRelay : Box = new Box(123)
+  borrow val dangling : Box = selector.relay(victimRelay)
+  delete victimRelay
+  return 0
+}
+)",
+                       "owning value 'victimRelay' cannot be released while "
+                       "borrowed by 'dangling'");
+
+  expect_compile_error(R"(
+class Box(var value : int) {}
+class Selector(val marker : int) {
+  borrow def valueOf(borrow other : Box) : borrow int {
+    return other.value
+  }
+}
+def main() : int {
+  val selector : Selector = new Selector(0)
+  defer delete selector
+  val victimProjection : Box = new Box(123)
+  borrow val dangling : int = selector.valueOf(victimProjection)
+  delete victimProjection
+  return dangling
+}
+)",
+                       "owning value 'victimProjection' cannot be released while "
+                       "borrowed by 'dangling'");
+
+  expect_compile_error(R"(
+class Box(var value : int) {}
+class Selector(val marker : int) {
+  borrow def selfOrIgnore(borrow other : Box) : borrow Selector { return this }
+}
+def main() : int {
+  val selector : Selector = new Selector(0)
+  val other : Box = new Box(123)
+  defer delete other
+  borrow val view : Selector = selector.selfOrIgnore(other)
+  delete selector
+  return view.marker
+}
+)",
+                       "owning value 'selector' cannot be released while "
+                       "borrowed by 'view'");
+
   expect_valid(R"(
 class Box(val value : int) {
   borrow def identity() : borrow Box { return this }

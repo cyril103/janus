@@ -1,0 +1,28 @@
+class Box(var value : int) {
+    borrow def read() : int { return value }
+    def write(next : int) : Unit { value = next }
+}
+
+class Selector(val marker : int) {
+    borrow def shared(borrow other : Box) : borrow Box { return other }
+    def mutable(borrow var other : Box) : borrow var Box { return other }
+}
+
+def main() : int {
+    val victim : Box = new Box(123)
+    if true {
+        val selector : Selector = new Selector(0)
+        borrow val view : Box = selector.shared(victim)
+        delete selector
+        println(view.read())
+    }
+    if true {
+        val selector : Selector = new Selector(0)
+        borrow var view : Box = selector.mutable(victim)
+        delete selector
+        view.write(7)
+    }
+    println(victim.read())
+    delete victim
+    return 0
+}
