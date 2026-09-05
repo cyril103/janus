@@ -7,6 +7,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- validation des effets différés dans leur ordre LIFO réel : une destruction,
+  mutation, consommation ou move différé qui précéderait l'utilisation d'un
+  emprunt est désormais refusé avec `JANA0025`, y compris à travers les portées
+  imbriquées et les closures locales capturantes ; l'ordre sûr est couvert à
+  l'exécution sous ASan/UBSan ;
 - suivi transitif des sources d'emprunt capturées par les closures, à travers
   les champs empruntés, déplacements, enums génériques et bindings imbriqués de
   `match` ; les destructions prématurées sont refusées avec `JANA0025`, les

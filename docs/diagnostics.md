@@ -98,7 +98,7 @@ avertissements. Ces erreurs empêchent la compilation :
 | Code | Violation | Réponse habituelle |
 |---|---|---|
 | `JANA0024` | emprunts partagé et mutable incompatibles | raccourcir une portée ou séquencer les emprunts |
-| `JANA0025` | mutation, déplacement, destruction ou réallocation d'un propriétaire emprunté | terminer ou détruire la vue avant l'invalidation |
+| `JANA0025` | mutation, déplacement, destruction ou réallocation d'un propriétaire emprunté, y compris par un `defer` exécuté trop tôt en LIFO | terminer la vue ou enregistrer l'invalidation avant l'observation différée |
 | `JANA0026` | emprunt qui s'échappe par retour, stockage ou closure | conserver l'usage dans la portée de sa source |
 | `JANA0027` | opération interdite à travers un emprunt | employer `borrow def` ou demander un emprunt mutable |
 | `JANA0028` | source impropre à la création d'un emprunt | lier d'abord une valeur locale propriétaire vivante |

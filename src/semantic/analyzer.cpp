@@ -156,10 +156,16 @@ janus::semantic::SemanticType resolve_type(
       throw janus::CompileError{
           reference.location,
           "function parameter ownership count does not match its signature"};
-    return janus::semantic::SemanticType{
-        nullptr, "Function", false, std::move(signature), false, false, true,
-        std::move(ownerships), reference.function_return_ownership,
-        reference.is_pure_function};
+    return janus::semantic::SemanticType{nullptr,
+                                         "Function",
+                                         false,
+                                         std::move(signature),
+                                         false,
+                                         false,
+                                         true,
+                                         std::move(ownerships),
+                                         reference.function_return_ownership,
+                                         reference.is_pure_function};
   }
   if (type_parameters.contains(reference.name)) {
     if (!reference.type_arguments.empty())
@@ -173,9 +179,8 @@ janus::semantic::SemanticType resolve_type(
       type_parameters.contains(reference.name.substr(0, separator))) {
     if (!reference.type_arguments.empty())
       throw janus::CompileError{
-          reference.location,
-          "associated type projection '" + reference.name +
-              "' does not accept type arguments"};
+          reference.location, "associated type projection '" + reference.name +
+                                  "' does not accept type arguments"};
     return janus::semantic::SemanticType{nullptr, reference.name};
   }
   if (reference.name == "Ptr") {
@@ -550,8 +555,7 @@ std::string SemanticType::name() const {
     result += ") => ";
     if (function_return_ownership == ast::ReturnOwnership::Borrow)
       result += "borrow ";
-    else if (function_return_ownership ==
-             ast::ReturnOwnership::BorrowMutable)
+    else if (function_return_ownership == ast::ReturnOwnership::BorrowMutable)
       result += "borrow var ";
     result += type_arguments.back().name();
     return result;
@@ -595,8 +599,7 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
         &classes,
     const std::unordered_set<std::string> &scoped_type_aliases,
     const std::unordered_map<const ast::Expression *,
-                             const ast::FunctionDeclaration *>
-        &resolved_calls,
+                             const ast::FunctionDeclaration *> &resolved_calls,
     const std::unordered_set<const ast::Expression *>
         &returns_with_live_owners) {
   std::vector<TailrecNode> nodes;
@@ -606,7 +609,10 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
     const std::string module = function.module_name.value_or("");
     declaration_nodes.emplace(&function, nodes.size());
     nodes.push_back(TailrecNode{
-        &function, function.name, {}, module,
+        &function,
+        function.name,
+        {},
+        module,
         {function.type_parameters.begin(), function.type_parameters.end()},
         {}});
   }
@@ -618,28 +624,30 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
           type.type_parameters.begin(), type.type_parameters.end()};
       type_parameters.insert(method.type_parameters.begin(),
                              method.type_parameters.end());
-      nodes.push_back(TailrecNode{&method, method.name, type.name, module,
-                                  std::move(type_parameters), {}});
+      nodes.push_back(TailrecNode{&method,
+                                  method.name,
+                                  type.name,
+                                  module,
+                                  std::move(type_parameters),
+                                  {}});
     }
 
   const auto visit_node = [&](std::size_t source) {
     std::function<void(const ast::Expression &, bool, bool, bool)>
         visit_expression;
     std::function<void(const std::vector<ast::Statement> &, bool)> visit_block;
-    const auto add_resolved_edge = [&](const ast::Expression &expression,
-                                       bool terminal,
-                                       bool pending_defer,
-                                       bool pending_owner,
-                                       SourceLocation location) {
-      const auto resolved = resolved_calls.find(&expression);
-      if (resolved == resolved_calls.end())
-        return;
-      const auto target = declaration_nodes.find(resolved->second);
-      if (target != declaration_nodes.end())
-        nodes[source].edges.push_back(
-            TailrecNode::Edge{target->second, terminal, pending_defer,
-                              pending_owner, &expression, location});
-    };
+    const auto add_resolved_edge =
+        [&](const ast::Expression &expression, bool terminal,
+            bool pending_defer, bool pending_owner, SourceLocation location) {
+          const auto resolved = resolved_calls.find(&expression);
+          if (resolved == resolved_calls.end())
+            return;
+          const auto target = declaration_nodes.find(resolved->second);
+          if (target != declaration_nodes.end())
+            nodes[source].edges.push_back(
+                TailrecNode::Edge{target->second, terminal, pending_defer,
+                                  pending_owner, &expression, location});
+        };
     visit_expression = [&](const ast::Expression &expression, bool terminal,
                            bool pending_defer, bool pending_owner) {
       std::visit(
@@ -650,8 +658,7 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
                 visit_expression(*argument, false, pending_defer,
                                  pending_owner);
               add_resolved_edge(expression, terminal, pending_defer,
-                                pending_owner,
-                                node.location);
+                                pending_owner, node.location);
             } else if constexpr (std::is_same_v<T, ast::MethodCallExpression>) {
               visit_expression(*node.object, false, pending_defer,
                                pending_owner);
@@ -659,8 +666,7 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
                 visit_expression(*argument, false, pending_defer,
                                  pending_owner);
               add_resolved_edge(expression, terminal, pending_defer,
-                                pending_owner,
-                                node.location);
+                                pending_owner, node.location);
             } else if constexpr (std::is_same_v<T, ast::IfExpression>) {
               visit_expression(*node.condition, false, pending_defer,
                                pending_owner);
@@ -679,8 +685,7 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
                                  pending_owner);
               }
             } else if constexpr (std::is_same_v<T, ast::BinaryExpression>) {
-              visit_expression(*node.left, false, pending_defer,
-                               pending_owner);
+              visit_expression(*node.left, false, pending_defer, pending_owner);
               visit_expression(*node.right, false, pending_defer,
                                pending_owner);
             } else if constexpr (std::is_same_v<T, ast::UnaryExpression> ||
@@ -688,10 +693,10 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
                                  std::is_same_v<T, ast::TryExpression>) {
               visit_expression(*node.operand, false, pending_defer,
                                pending_owner);
-            } else if constexpr (std::is_same_v<T, ast::ArrayLiteralExpression>) {
+            } else if constexpr (std::is_same_v<T,
+                                                ast::ArrayLiteralExpression>) {
               for (const auto &element : node.elements)
-                visit_expression(*element, false, pending_defer,
-                                 pending_owner);
+                visit_expression(*element, false, pending_defer, pending_owner);
             } else if constexpr (std::is_same_v<T, ast::IndexExpression>) {
               visit_expression(*node.container, false, pending_defer,
                                pending_owner);
@@ -705,7 +710,8 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
               for (const auto &argument : node.arguments)
                 visit_expression(*argument, false, pending_defer,
                                  pending_owner);
-            } else if constexpr (std::is_same_v<T, ast::MemberAccessExpression>) {
+            } else if constexpr (std::is_same_v<T,
+                                                ast::MemberAccessExpression>) {
               visit_expression(*node.object, false, pending_defer,
                                pending_owner);
             }
@@ -724,14 +730,16 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
                   visit_expression(
                       *node.expression, true, pending_defer,
                       returns_with_live_owners.contains(&*node.expression));
-              } else if constexpr (std::is_same_v<T, ast::ExpressionStatement> ||
+              } else if constexpr (std::is_same_v<T,
+                                                  ast::ExpressionStatement> ||
                                    std::is_same_v<T, ast::DeleteStatement>) {
                 visit_expression(node.expression, false, pending_defer, false);
               } else if constexpr (std::is_same_v<T, ast::ValueDeclaration>) {
                 if (node.initializer)
                   visit_expression(*node.initializer, false, pending_defer,
                                    false);
-              } else if constexpr (std::is_same_v<T, ast::AssignmentStatement>) {
+              } else if constexpr (std::is_same_v<T,
+                                                  ast::AssignmentStatement>) {
                 if (node.index_target) {
                   visit_expression(*node.index_target->container, false,
                                    pending_defer, false);
@@ -740,23 +748,30 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
                 }
                 visit_expression(node.expression, false, pending_defer, false);
               } else if constexpr (std::is_same_v<T, ast::DeferStatement>) {
-                std::visit([&](const auto &action) {
-                  visit_expression(action.expression, false, pending_defer,
-                                   false);
-                }, node.action);
+                std::visit(
+                    [&](const auto &action) {
+                      visit_expression(action.expression, false, pending_defer,
+                                       false);
+                    },
+                    node.action);
                 pending_defer = true;
-              } else if constexpr (std::is_same_v<T, std::shared_ptr<ast::IfStatement>>) {
+              } else if constexpr (std::is_same_v<
+                                       T, std::shared_ptr<ast::IfStatement>>) {
                 visit_expression(node->condition, false, pending_defer, false);
                 visit_block(node->then_body, pending_defer);
                 visit_block(node->else_body, pending_defer);
-              } else if constexpr (std::is_same_v<T, std::shared_ptr<ast::WhileStatement>>) {
+              } else if constexpr (std::is_same_v<
+                                       T,
+                                       std::shared_ptr<ast::WhileStatement>>) {
                 visit_expression(node->condition, false, pending_defer, false);
                 visit_block(node->body, pending_defer);
-              } else if constexpr (std::is_same_v<T, std::shared_ptr<ast::ForStatement>>) {
+              } else if constexpr (std::is_same_v<
+                                       T, std::shared_ptr<ast::ForStatement>>) {
                 visit_expression(node->iterator, false, pending_defer, false);
                 visit_block(node->body, pending_defer);
               }
-            }, statement);
+            },
+            statement);
     };
     visit_block(nodes[source].declaration->body, false);
   };
@@ -765,22 +780,21 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
 
   const auto resolved_type = [&](const TailrecNode &node,
                                  const ast::TypeReference &type) {
-    return resolve_type(type, node.type_parameters,
-                        &class_arities,
+    return resolve_type(type, node.type_parameters, &class_arities,
                         node.module.empty()
                             ? std::optional<std::string>{}
                             : std::optional<std::string>{node.module},
                         &scoped_type_aliases);
   };
   const auto signatures_compatible = [&](const TailrecNode &left,
-                                          const TailrecNode &right) {
+                                         const TailrecNode &right) {
     if (left.owner.empty() != right.owner.empty() ||
         left.owner != right.owner ||
         left.declaration->parameters.size() !=
             right.declaration->parameters.size())
       return false;
-    for (std::size_t index = 0;
-         index < left.declaration->parameters.size(); ++index) {
+    for (std::size_t index = 0; index < left.declaration->parameters.size();
+         ++index) {
       const auto &left_parameter = left.declaration->parameters[index];
       const auto &right_parameter = right.declaration->parameters[index];
       if (left_parameter.ownership != right_parameter.ownership ||
@@ -879,22 +893,24 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
         if (nodes[member].owner.empty() && nodes[member].name == "main")
           throw CompileError{DiagnosticCode::AnalyzerIncompatibleTailrec,
                              nodes[member].declaration->location,
-                             "top-level main finalization is incompatible with backend musttail"};
+                             "top-level main finalization is incompatible with "
+                             "backend musttail"};
         if (!return_compatible(nodes[member]))
           throw CompileError{DiagnosticCode::AnalyzerIncompatibleTailrec,
                              nodes[member].declaration->location,
-                             "tailrec cycle has a return type incompatible with backend musttail"};
+                             "tailrec cycle has a return type incompatible "
+                             "with backend musttail"};
         for (const auto &edge : nodes[member].edges) {
           if (!in_same_cycle(source, edge.target))
             continue;
           if (!edge.terminal)
-            throw CompileError{DiagnosticCode::AnalyzerNonTerminalTailrec,
-                               edge.location,
-                               "recursive call in tailrec cycle is not in terminal position"};
+            throw CompileError{
+                DiagnosticCode::AnalyzerNonTerminalTailrec, edge.location,
+                "recursive call in tailrec cycle is not in terminal position"};
           if (edge.pending_defer)
-            throw CompileError{DiagnosticCode::AnalyzerNonTerminalTailrec,
-                               edge.location,
-                               "recursive call in tailrec cycle has pending defer cleanup"};
+            throw CompileError{
+                DiagnosticCode::AnalyzerNonTerminalTailrec, edge.location,
+                "recursive call in tailrec cycle has pending defer cleanup"};
           if (edge.pending_owner)
             throw CompileError{
                 DiagnosticCode::AnalyzerIncompatibleTailrec, edge.location,
@@ -903,7 +919,8 @@ std::unordered_set<const ast::Expression *> validate_tailrec_contract(
           if (!signatures_compatible(nodes[member], nodes[edge.target]))
             throw CompileError{DiagnosticCode::AnalyzerIncompatibleTailrec,
                                edge.location,
-                               "tailrec cycle has signatures incompatible with backend musttail"};
+                               "tailrec cycle has signatures incompatible with "
+                               "backend musttail"};
         }
       }
   }
@@ -930,8 +947,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   std::unordered_map<std::string, const ast::ClassDeclaration *> classes;
   std::unordered_map<std::string, const ast::EnumDeclaration *> enums;
   std::unordered_map<std::string, const ast::TraitDeclaration *> traits;
-  std::unordered_map<const ast::Expression *,
-                     const ast::FunctionDeclaration *>
+  std::unordered_map<const ast::Expression *, const ast::FunctionDeclaration *>
       resolved_calls;
   std::unordered_map<std::string, std::size_t> class_arities;
   std::unordered_map<std::string, std::size_t> type_name_counts;
@@ -1794,12 +1810,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     return function.is_pure || function.is_constant;
   };
   const auto is_pure_builtin = [](std::string_view name) {
-    static constexpr std::array<std::string_view, 22> names{
-        "int",   "uint",  "long",           "ulong",          "float",
-        "double", "byte",  "ubyte",          "short",          "ushort",
-        "char",  "bool",  "isize",          "usize",          "saturatingCast",
-        "truncatingCast", "checkedCast",      "numericCast",    "abs",
-        "panic",          "__derivedHash",    "__derivedEquals"};
+    static constexpr std::array<std::string_view, 22> names{"int",
+                                                            "uint",
+                                                            "long",
+                                                            "ulong",
+                                                            "float",
+                                                            "double",
+                                                            "byte",
+                                                            "ubyte",
+                                                            "short",
+                                                            "ushort",
+                                                            "char",
+                                                            "bool",
+                                                            "isize",
+                                                            "usize",
+                                                            "saturatingCast",
+                                                            "truncatingCast",
+                                                            "checkedCast",
+                                                            "numericCast",
+                                                            "abs",
+                                                            "panic",
+                                                            "__derivedHash",
+                                                            "__derivedEquals"};
     return std::find(names.begin(), names.end(), name) != names.end();
   };
   const auto find_effect_function =
@@ -1856,14 +1888,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         chain += " -> ";
       chain += name;
     }
-    return CompileError{Diagnostic{DiagnosticSeverity::Error,
-                                   DiagnosticCode::AnalyzerLegacy,
-                                   std::move(message), location,
-                                   chain.empty()
-                                       ? std::vector<std::string>{}
-                                       : std::vector<std::string>{
-                                             "pure call chain: " + chain},
-                                   {}, {}}};
+    return CompileError{Diagnostic{
+        DiagnosticSeverity::Error,
+        DiagnosticCode::AnalyzerLegacy,
+        std::move(message),
+        location,
+        chain.empty() ? std::vector<std::string>{}
+                      : std::vector<std::string>{"pure call chain: " + chain},
+        {},
+        {}}};
   };
   std::function<void(const ast::FunctionDeclaration &)> validate_pure_effects;
   validate_pure_effects = [&](const ast::FunctionDeclaration &function) {
@@ -1898,9 +1931,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                              "' cannot accept a mutable borrow parameter");
     }
     if (function.is_consuming)
-      throw pure_error(function.location,
-                       "pure method '" + function.name +
-                           "' cannot consume its receiver");
+      throw pure_error(function.location, "pure method '" + function.name +
+                                              "' cannot consume its receiver");
     if (function.is_external) {
       state = EffectState::Complete;
       return;
@@ -1974,7 +2006,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   return;
                 throw pure_error(node.location,
                                  "pure def '" + function.name +
-                                     "' cannot invoke callback '" + node.callee +
+                                     "' cannot invoke callback '" +
+                                     node.callee +
                                      "' without a pure function contract");
               }
               const ast::FunctionDeclaration *callee =
@@ -2056,17 +2089,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         } else if (const auto *assignment =
                        std::get_if<ast::AssignmentStatement>(&statement)) {
           check_expression(assignment->expression, scope, arguments);
-          std::string target = assignment->object.empty()
-                                   ? assignment->name
-                                   : assignment->object;
+          std::string target = assignment->object.empty() ? assignment->name
+                                                          : assignment->object;
           if (assignment->index_target) {
             check_expression(*assignment->index_target->container, scope,
                              arguments);
             check_expression(*assignment->index_target->index, scope,
                              arguments);
-            if (const auto *identifier =
-                    std::get_if<ast::IdentifierExpression>(
-                        &assignment->index_target->container->value))
+            if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                    &assignment->index_target->container->value))
               target = identifier->name;
             else
               target.clear();
@@ -2792,9 +2823,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     for (const ast::AssociatedTypeDeclaration &associated :
          class_declaration.associated_types) {
       if (!associated.definition.has_value())
-        throw CompileError{associated.location,
-                           "associated type '" + associated.name +
-                               "' requires a definition"};
+        throw CompileError{associated.location, "associated type '" +
+                                                    associated.name +
+                                                    "' requires a definition"};
       if (!class_associated_types.emplace(associated.name, &associated).second)
         throw CompileError{associated.location,
                            "associated type '" + associated.name +
@@ -2818,9 +2849,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         throw CompileError{declaration->second->location,
                            "cyclic associated type definition involving '" +
                                class_declaration.name + "." + name + "'"};
-      SemanticType resolved = resolve_type(*declaration->second->definition,
-                                           associated_parameters,
-                                           &class_arities);
+      SemanticType resolved =
+          resolve_type(*declaration->second->definition, associated_parameters,
+                       &class_arities);
       const auto normalize_nested = [&](const auto &self,
                                         SemanticType value) -> SemanticType {
         if (!value.is_concrete() && !value.is_class() && !value.is_enum() &&
@@ -2929,8 +2960,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           throw CompileError{class_declaration.location,
                              "class '" + class_declaration.name +
                                  "' does not define associated type '" +
-                                 trait_declaration.name + "." + associated.name +
-                                 "'"};
+                                 trait_declaration.name + "." +
+                                 associated.name + "'"};
         trait_substitutions.emplace(
             associated.name, normalized_associated_types.at(associated.name));
       }
@@ -3074,8 +3105,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               ast::ParameterOwnership::Unspecified &&
           !method.parameters.front().is_scoped;
       if (canonical_method_shape && method.name == "get" &&
-          method.parameters.size() == 1 &&
-          usize_index && method.return_type.name == element_parameter &&
+          method.parameters.size() == 1 && usize_index &&
+          method.return_type.name == element_parameter &&
           method.return_type.type_arguments.empty() && method.is_borrowing &&
           method.type_constraints.size() == 1 &&
           method.type_constraints.front().parameter == element_parameter &&
@@ -3084,8 +3115,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           !method.is_consuming)
         canonical_indexed_read = &method;
       if (canonical_method_shape && method.name == "set" &&
-          method.parameters.size() == 2 &&
-          usize_index && method.parameters[1].type.name == element_parameter &&
+          method.parameters.size() == 2 && usize_index &&
+          method.parameters[1].type.name == element_parameter &&
           method.parameters[1].type.type_arguments.empty() &&
           method.parameters[1].ownership ==
               ast::ParameterOwnership::Unspecified &&
@@ -3294,8 +3325,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         (context.owner == nullptr && context.extension == nullptr) ||
         !is_borrowed_return(context.function->return_ownership))
       continue;
-    if (!unique_borrow_methods
-             .emplace(context.function->name, context.function)
+    if (!unique_borrow_methods.emplace(context.function->name, context.function)
              .second)
       ambiguous_borrow_methods.insert(context.function->name);
   }
@@ -3318,14 +3348,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           context.owner->fields.end(), is_field);
         }
         if (receiver_source)
-          return BorrowReturnProvenance{
-              BorrowReturnProvenance::Kind::Receiver, 0};
+          return BorrowReturnProvenance{BorrowReturnProvenance::Kind::Receiver,
+                                        0};
       }
-      for (std::size_t index = 0;
-           index < context.function->parameters.size(); ++index)
+      for (std::size_t index = 0; index < context.function->parameters.size();
+           ++index)
         if (context.function->parameters[index].name == identifier->name)
-          return BorrowReturnProvenance{
-              BorrowReturnProvenance::Kind::Parameter, index};
+          return BorrowReturnProvenance{BorrowReturnProvenance::Kind::Parameter,
+                                        index};
       return std::nullopt;
     }
     if (const auto *member =
@@ -3349,8 +3379,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         return self(context, *method->object, self);
       if (provenance->second.parameter >= method->arguments.size())
         return std::nullopt;
-      return self(context,
-                  *method->arguments[provenance->second.parameter], self);
+      return self(context, *method->arguments[provenance->second.parameter],
+                  self);
     }
     if (const auto *conditional =
             std::get_if<ast::IfExpression>(&expression.value)) {
@@ -3374,15 +3404,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     return std::nullopt;
   };
   const auto collect_provenance =
-      [&](const FunctionContext &context, const std::vector<ast::Statement> &body,
-          const auto &self,
+      [&](const FunctionContext &context,
+          const std::vector<ast::Statement> &body, const auto &self,
           std::optional<BorrowReturnProvenance> &common) -> void {
     for (const ast::Statement &statement : body) {
-      if (const auto *returned = std::get_if<ast::ReturnStatement>(&statement)) {
+      if (const auto *returned =
+              std::get_if<ast::ReturnStatement>(&statement)) {
         if (!returned->expression)
           continue;
-        const auto source = direct_provenance(
-            context, *returned->expression, direct_provenance);
+        const auto source = direct_provenance(context, *returned->expression,
+                                              direct_provenance);
         if (!source)
           continue;
         if (common && common != source)
@@ -3391,7 +3422,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               "borrowed return has incompatible provenance sources"};
         common = source;
       } else if (const auto *branch =
-                     std::get_if<std::shared_ptr<ast::IfStatement>>(&statement)) {
+                     std::get_if<std::shared_ptr<ast::IfStatement>>(
+                         &statement)) {
         self(context, (*branch)->then_body, self, common);
         self(context, (*branch)->else_body, self, common);
       } else if (const auto *loop =
@@ -3486,55 +3518,52 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     if (!is_destructor)
       validate_constraints(context.function->type_constraints, type_parameters);
 
-    const auto projection_provider_count =
-        [&](std::string_view base, std::string_view member) {
-          const auto constraints_contain =
-              [&](const std::vector<ast::TypeConstraint> &constraints) {
-                return static_cast<std::size_t>(std::count_if(
-                    constraints.begin(), constraints.end(),
-                    [&](const ast::TypeConstraint &constraint) -> bool {
-                      if (constraint.parameter != base)
-                        return false;
-                      const auto trait = traits.find(constraint.trait.name);
-                      return trait != traits.end() &&
-                             std::any_of(
-                                 trait->second->associated_types.begin(),
-                                 trait->second->associated_types.end(),
-                                 [&](const ast::AssociatedTypeDeclaration &item) {
-                                   return item.name == member;
-                                 });
-                    }));
-              };
-          return (!is_destructor
-                      ? constraints_contain(
-                            context.function->type_constraints)
-                      : 0) +
-                 (owner != nullptr
-                      ? constraints_contain(owner->type_constraints)
-                      : 0);
-        };
+    const auto projection_provider_count = [&](std::string_view base,
+                                               std::string_view member) {
+      const auto constraints_contain =
+          [&](const std::vector<ast::TypeConstraint> &constraints) {
+            return static_cast<std::size_t>(std::count_if(
+                constraints.begin(), constraints.end(),
+                [&](const ast::TypeConstraint &constraint) -> bool {
+                  if (constraint.parameter != base)
+                    return false;
+                  const auto trait = traits.find(constraint.trait.name);
+                  return trait != traits.end() &&
+                         std::any_of(
+                             trait->second->associated_types.begin(),
+                             trait->second->associated_types.end(),
+                             [&](const ast::AssociatedTypeDeclaration &item) {
+                               return item.name == member;
+                             });
+                }));
+          };
+      return (!is_destructor
+                  ? constraints_contain(context.function->type_constraints)
+                  : 0) +
+             (owner != nullptr ? constraints_contain(owner->type_constraints)
+                               : 0);
+    };
     const auto validate_projections =
         [&](const auto &self, const ast::TypeReference &reference) -> void {
-          const std::size_t separator = reference.name.find('.');
-          if (separator != std::string::npos &&
-              type_parameters.contains(reference.name.substr(0, separator))) {
-            const std::size_t providers = projection_provider_count(
-                reference.name.substr(0, separator),
-                reference.name.substr(separator + 1));
-            if (providers == 0)
-              throw CompileError{reference.location,
-                                 "associated type projection '" +
-                                     reference.name +
-                                     "' is not provided by a trait constraint"};
-            if (providers > 1)
-              throw CompileError{
-                  reference.location,
-                  "associated type projection '" + reference.name +
-                      "' is ambiguous between multiple trait constraints"};
-          }
-          for (const ast::TypeReference &argument : reference.type_arguments)
-            self(self, argument);
-        };
+      const std::size_t separator = reference.name.find('.');
+      if (separator != std::string::npos &&
+          type_parameters.contains(reference.name.substr(0, separator))) {
+        const std::size_t providers =
+            projection_provider_count(reference.name.substr(0, separator),
+                                      reference.name.substr(separator + 1));
+        if (providers == 0)
+          throw CompileError{reference.location,
+                             "associated type projection '" + reference.name +
+                                 "' is not provided by a trait constraint"};
+        if (providers > 1)
+          throw CompileError{
+              reference.location,
+              "associated type projection '" + reference.name +
+                  "' is ambiguous between multiple trait constraints"};
+      }
+      for (const ast::TypeReference &argument : reference.type_arguments)
+        self(self, argument);
+    };
     if (!is_destructor) {
       validate_projections(validate_projections, context.function->return_type);
       for (const ast::FunctionDeclaration::Parameter &parameter : parameters)
@@ -3974,6 +4003,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         borrow_sources;
     std::unordered_map<std::string, std::unordered_set<std::string>>
         pattern_borrow_sources;
+    struct DeferredEffect {
+      SourceLocation location;
+      std::unordered_set<std::string> reads;
+      std::unordered_map<std::string, std::string> invalidations;
+    };
+    std::vector<DeferredEffect> deferred_effects;
+    std::unordered_set<std::string> *active_deferred_reads = nullptr;
+    std::unordered_map<std::string, std::string>
+        *active_deferred_invalidations = nullptr;
     const auto is_scoped_tainted =
         [&](std::string_view name, const auto &self,
             std::unordered_set<std::string> &visited) -> bool {
@@ -4027,55 +4065,60 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             std::string_view destination) {
           if (const auto source =
                   non_escaping_value(expression, non_escaping_value))
-            throw CompileError{
-                DiagnosticCode::AnalyzerBorrowEscape, location,
-                "scoped value '" + *source + "' cannot escape into " +
-                    std::string{destination}};
+            throw CompileError{DiagnosticCode::AnalyzerBorrowEscape, location,
+                               "scoped value '" + *source +
+                                   "' cannot escape into " +
+                                   std::string{destination}};
         };
-    const auto require_no_live_borrow =
-        [&](std::string_view owner_name, SourceLocation location,
-            std::string_view action = "released") {
-          const auto depends_on =
-              [&](const auto &self, std::string_view candidate,
-                  std::string_view owner,
-                  std::unordered_set<std::string> &visited) -> bool {
-            if (candidate == owner)
-              return true;
-            if (!visited.insert(std::string{candidate}).second)
-              return false;
-            const auto sources = borrow_sources.find(std::string{candidate});
-            if (sources == borrow_sources.end())
-              return false;
-            return std::any_of(sources->second.begin(), sources->second.end(),
-                               [&](const std::string &source) {
-                                 return self(self, source, owner, visited);
-                               });
-          };
-          for (const auto &[borrower, sources] : borrow_sources) {
-            const auto symbol = active_symbols->find(borrower);
-            if (symbol == active_symbols->end() ||
-                !symbol->second.may_be_initialized)
-              continue;
-            std::unordered_set<std::string> visited;
-            const bool borrows_owner = std::any_of(
-                sources.begin(), sources.end(), [&](const std::string &source) {
-                  return depends_on(depends_on, source, owner_name, visited);
-                });
-            if (!borrows_owner)
-              continue;
-            throw CompileError{Diagnostic{
-                DiagnosticSeverity::Error,
-                DiagnosticCode::AnalyzerBorrowInvalidation,
-                "owning value '" + std::string{owner_name} +
-                    "' cannot be " + std::string{action} +
-                    " while borrowed by '" + borrower + "'",
-                location,
-                {"end the scope of '" + borrower +
-                 "' or destroy it before this operation"},
-                {},
-                {}}};
-          }
-        };
+    const auto require_no_live_borrow = [&](std::string_view owner_name,
+                                            SourceLocation location,
+                                            std::string_view action =
+                                                "released") {
+      if (active_deferred_invalidations != nullptr) {
+        active_deferred_invalidations->insert_or_assign(std::string{owner_name},
+                                                        std::string{action});
+        return;
+      }
+      const auto depends_on =
+          [&](const auto &self, std::string_view candidate,
+              std::string_view owner,
+              std::unordered_set<std::string> &visited) -> bool {
+        if (candidate == owner)
+          return true;
+        if (!visited.insert(std::string{candidate}).second)
+          return false;
+        const auto sources = borrow_sources.find(std::string{candidate});
+        if (sources == borrow_sources.end())
+          return false;
+        return std::any_of(sources->second.begin(), sources->second.end(),
+                           [&](const std::string &source) {
+                             return self(self, source, owner, visited);
+                           });
+      };
+      for (const auto &[borrower, sources] : borrow_sources) {
+        const auto symbol = active_symbols->find(borrower);
+        if (symbol == active_symbols->end() ||
+            !symbol->second.may_be_initialized)
+          continue;
+        std::unordered_set<std::string> visited;
+        const bool borrows_owner = std::any_of(
+            sources.begin(), sources.end(), [&](const std::string &source) {
+              return depends_on(depends_on, source, owner_name, visited);
+            });
+        if (!borrows_owner)
+          continue;
+        throw CompileError{Diagnostic{
+            DiagnosticSeverity::Error,
+            DiagnosticCode::AnalyzerBorrowInvalidation,
+            "owning value '" + std::string{owner_name} + "' cannot be " +
+                std::string{action} + " while borrowed by '" + borrower + "'",
+            location,
+            {"end the scope of '" + borrower +
+             "' or destroy it before this operation"},
+            {},
+            {}}};
+      }
+    };
     const auto live_borrower_of =
         [&](std::string_view owner_name,
             bool include_shared) -> std::optional<std::string> {
@@ -4526,8 +4569,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           active_type_substitutions;
       auto *const active_lambda_captures_before = active_lambda_captures;
       auto *const active_lambda_mutations_before = active_lambda_mutations;
-      auto *const active_lambda_return_type_before =
-          active_lambda_return_type;
+      auto *const active_lambda_return_type_before = active_lambda_return_type;
       const auto *const active_lambda_outer_declarations_before =
           active_lambda_outer_declarations;
       const std::optional<std::optional<SemanticType>>
@@ -4550,8 +4592,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           lambda_mutable_borrow_captures;
       const auto lambda_locations_before = local_lambda_locations;
       const auto borrowed_values_before = borrowed_values;
-      const auto transfer_protected_values_before =
-          transfer_protected_values;
+      const auto transfer_protected_values_before = transfer_protected_values;
       const auto closure_transfer_protected_values_before =
           closure_transfer_protected_values;
       const auto shared_borrow_values_before = shared_borrow_values;
@@ -4681,8 +4722,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         return root == nullptr ? std::nullopt
                                : std::optional<std::string>{root->name};
       }
-      for (std::size_t index = 0;
-           index < resolved->second->parameters.size(); ++index) {
+      for (std::size_t index = 0; index < resolved->second->parameters.size();
+           ++index) {
         const ast::ParameterOwnership ownership =
             resolved->second->parameters[index].ownership;
         if (ownership != ast::ParameterOwnership::Borrow &&
@@ -4756,8 +4797,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             return;
           }
 
-          require_consumption_transfer_allowed(
-              argument, expression_location(argument));
+          require_consumption_transfer_allowed(argument,
+                                               expression_location(argument));
           if (is_borrowed_pointer_expression(argument)) {
             const auto *call =
                 std::get_if<ast::CallExpression>(&argument.value);
@@ -4891,16 +4932,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
              ++index) {
           const SemanticType pattern = resolve_type(
               callee.parameters[index].type, callee_parameters, &class_arities);
-          if (const auto *lambda = std::get_if<ast::LambdaExpression>(
-                  &arguments[index]->value);
+          if (const auto *lambda =
+                  std::get_if<ast::LambdaExpression>(&arguments[index]->value);
               lambda != nullptr &&
-              std::any_of(lambda->parameters.begin(), lambda->parameters.end(),
-                          [](const ast::LambdaExpression::Parameter &parameter) {
-                            return !parameter.type.has_value();
-                          })) {
+              std::any_of(
+                  lambda->parameters.begin(), lambda->parameters.end(),
+                  [](const ast::LambdaExpression::Parameter &parameter) {
+                    return !parameter.type.has_value();
+                  })) {
             if (pattern.is_function() &&
-                pattern.type_arguments.size() ==
-                    lambda->parameters.size() + 1)
+                pattern.type_arguments.size() == lambda->parameters.size() + 1)
               for (std::size_t parameter_index = 0;
                    parameter_index < lambda->parameters.size();
                    ++parameter_index) {
@@ -4961,7 +5002,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           SemanticType normalized = associated_type;
           normalized = substitute(std::move(normalized), type_arguments);
           substitutions.insert_or_assign(parameter + "." + associated_name,
-                                          std::move(normalized));
+                                         std::move(normalized));
         }
       }
       for (const ast::TypeConstraint &constraint : callee.type_constraints) {
@@ -5139,10 +5180,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const bool is_shift = operation == ast::BinaryOperator::ShiftLeft ||
                             operation == ast::BinaryOperator::ShiftRight;
       if (is_shift) {
-        if (!left_type.is_concrete() ||
-            !left_type.concrete->is_integer())
-          throw CompileError{
-              location, "shift operators require an integer left operand"};
+        if (!left_type.is_concrete() || !left_type.concrete->is_integer())
+          throw CompileError{location,
+                             "shift operators require an integer left operand"};
         if (!right_type.is_concrete() ||
             right_type.concrete->kind() != TypeKind::USize)
           throw CompileError{location, "shift count must have type usize"};
@@ -5211,8 +5251,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (!is_concrete && !left_type.is_pointer() && !left_type.is_enum() &&
             !left_type.is_class() &&
             !supports_derivation(left_type, ast::DerivationKind::Equality))
-          throw CompileError{
-              location, "equality operators require primitive operands"};
+          throw CompileError{location,
+                             "equality operators require primitive operands"};
         if (left_type.is_class() &&
             !supports_derivation(left_type, ast::DerivationKind::Equality))
           throw CompileError{location, "type '" + left_type.name() +
@@ -5220,11 +5260,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (left_type.is_enum()) {
           const ast::EnumDeclaration &declaration =
               *enums.at(left_type.parameter);
-          const bool has_payload = std::any_of(
-              declaration.cases.begin(), declaration.cases.end(),
-              [](const ast::EnumDeclaration::Case &enum_case) {
-                return !enum_case.payload_types.empty();
-              });
+          const bool has_payload =
+              std::any_of(declaration.cases.begin(), declaration.cases.end(),
+                          [](const ast::EnumDeclaration::Case &enum_case) {
+                            return !enum_case.payload_types.empty();
+                          });
           if (has_payload &&
               !supports_derivation(left_type, ast::DerivationKind::Equality))
             throw CompileError{location, "enum '" + left_type.name() +
@@ -5281,10 +5321,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             !std::holds_alternative<ast::LambdaExpression>(expression.value) &&
             !std::holds_alternative<ast::IdentifierExpression>(
                 expression.value))
-          throw CompileError{
-              DiagnosticCode::AnalyzerInvalidBorrowSource, location,
-              "borrowing an owning value of type '" + actual.name() +
-                  "' requires a local value"};
+          throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowSource,
+                             location,
+                             "borrowing an owning value of type '" +
+                                 actual.name() + "' requires a local value"};
         if (const auto *identifier =
                 std::get_if<ast::IdentifierExpression>(&expression.value);
             identifier != nullptr &&
@@ -5318,14 +5358,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 std::nullopt) {
           const ast::Expression &expression = *return_statement.expression;
           if (expected_return_type.is_concrete() &&
-              accepts_contextual_integer_literal(*expected_return_type.concrete)) {
+              accepts_contextual_integer_literal(
+                  *expected_return_type.concrete)) {
             if (integer_literal_value(expression)) {
-              if (integer_literal_fits(expression, *expected_return_type.concrete))
+              if (integer_literal_fits(expression,
+                                       *expected_return_type.concrete))
                 return;
-              throw CompileError{
-                  expression_location(expression),
-                  "integer literal is outside the " +
-                      integer_range_description(*expected_return_type.concrete)};
+              throw CompileError{expression_location(expression),
+                                 "integer literal is outside the " +
+                                     integer_range_description(
+                                         *expected_return_type.concrete)};
             }
           }
 
@@ -5366,11 +5408,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             return;
           }
 
-          throw CompileError{
-              return_statement.location,
-                  "cannot return expression of type '" + actual.name() +
-                  "' from function '" + function_name + "'; expected '" +
-                  expected_return_type.name() + "', received '" + actual.name() + "'"};
+          throw CompileError{return_statement.location,
+                             "cannot return expression of type '" +
+                                 actual.name() + "' from function '" +
+                                 function_name + "'; expected '" +
+                                 expected_return_type.name() + "', received '" +
+                                 actual.name() + "'"};
         };
 
     expression_type = [&](const ast::Expression &expression) -> SemanticType {
@@ -5429,9 +5472,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 element_type = expression_type(*node.elements.front());
               }
               for (const auto &element : node.elements) {
-                reject_non_escaping_value(
-                    *element, expression_location(*element),
-                    "an array literal");
+                reject_non_escaping_value(*element,
+                                          expression_location(*element),
+                                          "an array literal");
                 if (aggregate_owns_value(element_type) &&
                     std::holds_alternative<ast::IdentifierExpression>(
                         element->value))
@@ -5451,9 +5494,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       previous_contextual_lambda_may_escape;
                   if (error.diagnostic().code ==
                       DiagnosticCode::AnalyzerBorrowEscape)
-                    throw CompileError{
-                        DiagnosticCode::AnalyzerBorrowEscape,
-                        expression_location(*element), error.what()};
+                    throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
+                                       expression_location(*element),
+                                       error.what()};
                   throw CompileError{
                       DiagnosticCode::AnalyzerInvalidArrayLiteral,
                       expression_location(*element), error.what()};
@@ -5467,17 +5510,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   nullptr, array_class->first, true, {element_type}};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::IdentifierExpression>) {
+              if (active_deferred_reads != nullptr)
+                active_deferred_reads->insert(node.name);
               const auto iterator = active_symbols->find(node.name);
               if (iterator == active_symbols->end()) {
                 if (const Symbol *global = visible_global(node.name)) {
                   if ((inside_pure_context || inside_pure_lambda) &&
                       global->is_mutable)
-                    throw CompileError{
-                        node.location,
-                        std::string{inside_pure_lambda ? "pure lambda"
+                    throw CompileError{node.location,
+                                       std::string{inside_pure_lambda
+                                                       ? "pure lambda"
                                                        : "pure function"} +
-                            " cannot observe mutable global '" + node.name +
-                            "'"};
+                                           " cannot observe mutable global '" +
+                                           node.name + "'"};
                   return global->type;
                 }
                 throw CompileError{DiagnosticCode::AnalyzerUnknownValue,
@@ -5603,9 +5648,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   const ast::ParameterOwnership expected_ownership =
                       contextual_expected_type != nullptr &&
                               contextual_expected_type->is_function() &&
-                              parameter_index < contextual_expected_type
-                                                    ->function_parameter_ownership
-                                                    .size()
+                              parameter_index <
+                                  contextual_expected_type
+                                      ->function_parameter_ownership.size()
                           ? contextual_expected_type
                                 ->function_parameter_ownership[parameter_index]
                           : ast::ParameterOwnership::Unspecified;
@@ -5623,9 +5668,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           ast::ParameterOwnership::Unspecified &&
                       contextual_expected_type != nullptr &&
                       contextual_expected_type->is_function() &&
-                      parameter_index < contextual_expected_type
-                                            ->function_parameter_ownership
-                                            .size())
+                      parameter_index <
+                          contextual_expected_type->function_parameter_ownership
+                              .size())
                     effective_ownership =
                         contextual_expected_type
                             ->function_parameter_ownership[parameter_index];
@@ -5673,7 +5718,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 inside_pure_lambda = lambda_is_pure;
                 loop_depth = 0;
                 if (const auto *body =
-                        std::get_if<std::unique_ptr<ast::Expression>>(&node.body)) {
+                        std::get_if<std::unique_ptr<ast::Expression>>(
+                            &node.body)) {
                   signature.push_back(expression_type(**body));
                 } else {
                   std::optional<SemanticType> inferred_return;
@@ -5688,10 +5734,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       validate_block(block.statements, lambda_symbols);
                   if (!inferred_return.has_value())
                     inferred_return = SemanticType{&Type::unit_type()};
-                  else if (!terminates &&
-                           !(inferred_return->is_concrete() &&
-                             inferred_return->concrete->kind() ==
-                                 TypeKind::Unit))
+                  else if (!terminates && !(inferred_return->is_concrete() &&
+                                            inferred_return->concrete->kind() ==
+                                                TypeKind::Unit))
                     throw CompileError{
                         block.location,
                         "lambda block must return a value of inferred type '" +
@@ -5714,10 +5759,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 std::unordered_set<std::string> captured_borrow_sources;
                 bool captures_mutable_borrow = false;
                 for (const std::string &capture : captures) {
-                  // Borrow-carrying iterator state is a legacy ownership pattern:
-                  // its generated callbacks are coupled to a sibling owning
-                  // cleanup closure. Explicit aliases still use the general
-                  // non-escaping closure rules below.
+                  // Borrow-carrying iterator state is a legacy ownership
+                  // pattern: its generated callbacks are coupled to a sibling
+                  // owning cleanup closure. Explicit aliases still use the
+                  // general non-escaping closure rules below.
                   const bool captures_borrow =
                       borrowed_values.contains(capture) ||
                       borrow_sources.contains(capture) ||
@@ -5748,10 +5793,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   if (mutations.contains(capture) &&
                       borrowed_values.contains(capture) &&
                       !mutable_borrow_values.contains(capture))
-                    throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
-                                       node.location,
-                                       "closure cannot mutate shared borrow '" +
-                                           capture + "'"};
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                        node.location,
+                        "closure cannot mutate shared borrow '" + capture +
+                            "'"};
                   if (contextual_lambda_may_escape &&
                       (borrowed_values.contains(capture) ||
                        scoped_tainted_value(capture)))
@@ -5776,13 +5822,17 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (captures_mutable_borrow)
                   lambda_mutable_borrow_captures.insert(node.location.offset);
                 result.inferred_generic_arguments.insert_or_assign(&expression,
-                                                                    signature);
-                SemanticType lambda_type{
-                    nullptr, "Function", false, std::move(signature),
-                    false,   false,      true,
-                    std::move(lambda_ownerships),
-                    ast::ReturnOwnership::Unspecified,
-                    lambda_is_pure};
+                                                                   signature);
+                SemanticType lambda_type{nullptr,
+                                         "Function",
+                                         false,
+                                         std::move(signature),
+                                         false,
+                                         false,
+                                         true,
+                                         std::move(lambda_ownerships),
+                                         ast::ReturnOwnership::Unspecified,
+                                         lambda_is_pure};
                 restore_lambda_state();
                 return lambda_type;
               } catch (...) {
@@ -5790,6 +5840,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 throw;
               }
             } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              if (active_deferred_reads != nullptr)
+                active_deferred_reads->insert(node.callee);
               const Symbol *callable = nullptr;
               if (const auto local = active_symbols->find(node.callee);
                   local != active_symbols->end())
@@ -5805,13 +5857,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          "' is used before initialization"};
                 if (!callable->type.is_function())
                   throw CompileError{node.location, "value '" + node.callee +
-                                      "' is not callable"};
+                                                        "' is not callable"};
                 if ((inside_pure_context || inside_pure_lambda) &&
                     !callable->type.pure_function)
-                  throw CompileError{
-                      node.location,
-                      "pure lambda cannot invoke callback '" + node.callee +
-                          "' without a pure function contract"};
+                  throw CompileError{node.location,
+                                     "pure lambda cannot invoke callback '" +
+                                         node.callee +
+                                         "' without a pure function contract"};
                 if (!node.type_arguments.empty())
                   throw CompileError{
                       node.location,
@@ -5833,7 +5885,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       contextual_borrow_expression;
                   contextual_lambda_may_escape = signature[index].is_function();
                   contextual_borrow_expression =
-                      index < callable->type.function_parameter_ownership.size() &&
+                      index <
+                          callable->type.function_parameter_ownership.size() &&
                       (callable->type.function_parameter_ownership[index] ==
                            ast::ParameterOwnership::Borrow ||
                        callable->type.function_parameter_ownership[index] ==
@@ -5854,9 +5907,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               }
               if (node.callee == "print" || node.callee == "println") {
                 if (inside_pure_context || inside_pure_lambda)
-                  throw CompileError{node.location,
-                                     "pure lambda cannot perform I/O through '" +
-                                         node.callee + "'"};
+                  throw CompileError{
+                      node.location,
+                      "pure lambda cannot perform I/O through '" + node.callee +
+                          "'"};
                 if (!node.type_arguments.empty() || node.arguments.size() != 1)
                   throw CompileError{node.location,
                                      node.callee +
@@ -6494,13 +6548,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                        "' is not imported in this module"};
               if (const auto replacement =
                       deprecated_replacement(callee.documentation))
-                emit_warning(
-                    DiagnosticCode::AnalyzerDeprecatedUse, node.location,
-                    "function '" + node.callee + "' is deprecated",
-                    replacement->empty()
-                        ? std::vector<std::string>{}
-                        : std::vector<std::string>{"use '" + *replacement +
-                                                   "' instead"});
+                emit_warning(DiagnosticCode::AnalyzerDeprecatedUse,
+                             node.location,
+                             "function '" + node.callee + "' is deprecated",
+                             replacement->empty()
+                                 ? std::vector<std::string>{}
+                                 : std::vector<std::string>{
+                                       "use '" + *replacement + "' instead"});
               return declared_call_type(callee, node.type_arguments,
                                         node.arguments, node.location,
                                         node.callee, &expression);
@@ -6737,17 +6791,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               &argument.value)) {
                     if (field.is_mutable) {
                       if (shared_borrow_values.contains(source->name))
-                        throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
-                                           expression_location(argument),
-                                           "shared borrow '" + source->name +
-                                               "' cannot be borrowed mutably"};
+                        throw CompileError{
+                            DiagnosticCode::AnalyzerBorrowConflict,
+                            expression_location(argument),
+                            "shared borrow '" + source->name +
+                                "' cannot be borrowed mutably"};
                       if (const auto borrower =
                               live_borrower_of(source->name, true))
-                        throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
-                                           expression_location(argument),
-                                           "value '" + source->name +
-                                               "' is already borrowed by '" +
-                                               *borrower + "'"};
+                        throw CompileError{
+                            DiagnosticCode::AnalyzerBorrowConflict,
+                            expression_location(argument),
+                            "value '" + source->name +
+                                "' is already borrowed by '" + *borrower + "'"};
                     } else if (mutable_borrow_values.contains(source->name)) {
                       throw CompileError{
                           DiagnosticCode::AnalyzerBorrowConflict,
@@ -6961,16 +7016,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     throw CompileError{node.location,
                                        "function '" + qualified +
                                            "' is not imported in this module"};
-                  if (const auto replacement =
-                          deprecated_replacement(
-                              function->second->documentation))
+                  if (const auto replacement = deprecated_replacement(
+                          function->second->documentation))
                     emit_warning(
                         DiagnosticCode::AnalyzerDeprecatedUse, node.location,
                         "function '" + qualified + "' is deprecated",
                         replacement->empty()
                             ? std::vector<std::string>{}
-                            : std::vector<std::string>{
-                                  "use '" + *replacement + "' instead"});
+                            : std::vector<std::string>{"use '" + *replacement +
+                                                       "' instead"});
                   return declared_call_type(
                       *function->second, node.type_arguments, node.arguments,
                       node.location, qualified, &expression);
@@ -7165,10 +7219,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               &node.object->value);
                       identifier != nullptr &&
                       shared_borrow_values.contains(identifier->name))
-                    throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
-                                       node.location,
-                                       "cannot mutate through shared borrow '" +
-                                           identifier->name + "'"};
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                        node.location,
+                        "cannot mutate through shared borrow '" +
+                            identifier->name + "'"};
                   if (node.arguments.size() != 2)
                     throw CompileError{node.location,
                                        "Ptr." + node.method +
@@ -7272,7 +7327,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   substitutions.emplace(
                       associated.name,
                       SemanticType{nullptr, object_type.parameter + "." +
-                                               associated.name});
+                                                associated.name});
                 }
               }
               if (method == nullptr &&
@@ -7350,20 +7405,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "'"};
               if (const auto replacement =
                       deprecated_replacement(method->documentation))
-                emit_warning(
-                    DiagnosticCode::AnalyzerDeprecatedUse, node.location,
-                    "method '" + node.method + "' is deprecated",
-                    replacement->empty()
-                        ? std::vector<std::string>{}
-                        : std::vector<std::string>{"use '" + *replacement +
-                                                   "' instead"});
+                emit_warning(DiagnosticCode::AnalyzerDeprecatedUse,
+                             node.location,
+                             "method '" + node.method + "' is deprecated",
+                             replacement->empty()
+                                 ? std::vector<std::string>{}
+                                 : std::vector<std::string>{
+                                       "use '" + *replacement + "' instead"});
               if ((inside_pure_context || inside_pure_lambda) &&
-                  !method->is_pure &&
-                  !method->is_constant)
-                throw CompileError{
-                    node.location,
-                    "pure lambda cannot call method '" + node.method +
-                        "' without a pure contract"};
+                  !method->is_pure && !method->is_constant)
+                throw CompileError{node.location,
+                                   "pure lambda cannot call method '" +
+                                       node.method +
+                                       "' without a pure contract"};
               const bool infer_method_type_arguments =
                   node.type_arguments.empty() &&
                   !method->type_parameters.empty();
@@ -7471,15 +7525,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       resolve_type(method->parameters[index].type,
                                    method_parameters, &class_arities);
                   pattern = substitute(std::move(pattern), substitutions);
-                  if (const auto *lambda =
-                          std::get_if<ast::LambdaExpression>(
-                              &node.arguments[index]->value);
+                  if (const auto *lambda = std::get_if<ast::LambdaExpression>(
+                          &node.arguments[index]->value);
                       lambda != nullptr &&
-                      std::any_of(
-                          lambda->parameters.begin(), lambda->parameters.end(),
-                          [](const ast::LambdaExpression::Parameter &parameter) {
-                            return !parameter.type.has_value();
-                          })) {
+                      std::any_of(lambda->parameters.begin(),
+                                  lambda->parameters.end(),
+                                  [](const ast::LambdaExpression::Parameter
+                                         &parameter) {
+                                    return !parameter.type.has_value();
+                                  })) {
                     if (pattern.is_function() &&
                         pattern.type_arguments.size() ==
                             lambda->parameters.size() + 1)
@@ -7494,13 +7548,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                             *parameter.type, *active_type_parameters,
                             &class_arities);
                         if (active_type_substitutions != nullptr)
-                          explicit_type = substitute(
-                              std::move(explicit_type),
-                              *active_type_substitutions);
-                        infer_from_type(
-                            infer_from_type,
-                            pattern.type_arguments[parameter_index],
-                            explicit_type);
+                          explicit_type =
+                              substitute(std::move(explicit_type),
+                                         *active_type_substitutions);
+                        infer_from_type(infer_from_type,
+                                        pattern.type_arguments[parameter_index],
+                                        explicit_type);
                       }
                     continue;
                   }
@@ -7710,10 +7763,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         std::get_if<ast::IdentifierExpression>(
                             &node.object->value)) {
                   if (borrowed_values.contains(identifier->name))
-                    throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
-                                       node.location,
-                                       "borrowed value '" + identifier->name +
-                                           "' cannot call a consuming method"};
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                        node.location,
+                        "borrowed value '" + identifier->name +
+                            "' cannot call a consuming method"};
                   if (deferred_values.contains(identifier->name))
                     throw CompileError{
                         node.location,
@@ -7790,13 +7844,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                              method_parameters, &class_arities),
                                 substitutions);
             } else if constexpr (std::is_same_v<Node, ast::IndexExpression>) {
-              const SemanticType container_type = expression_type(*node.container);
+              const SemanticType container_type =
+                  expression_type(*node.container);
               const auto has_temporary_owner_root =
                   [&](const ast::Expression &candidate,
                       const auto &self) -> bool {
                 if (std::holds_alternative<ast::NewExpression>(candidate.value))
                   return true;
-                if (std::holds_alternative<ast::CallExpression>(candidate.value) ||
+                if (std::holds_alternative<ast::CallExpression>(
+                        candidate.value) ||
                     std::holds_alternative<ast::MethodCallExpression>(
                         candidate.value)) {
                   const auto resolved = resolved_calls.find(&candidate);
@@ -7828,28 +7884,30 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   classes.find(container_type.parameter)->second !=
                       canonical_indexed_array ||
                   container_type.type_arguments.size() != 1)
-                throw CompileError{
-                    node.location, "type '" + container_type.name() +
+                throw CompileError{node.location,
+                                   "type '" + container_type.name() +
                                        "' does not provide canonical indexed "
                                        "read capability"};
               validate_expression(*node.index,
                                   SemanticType{&Type::usize_type()},
                                   node.location);
-              const SemanticType element_type = container_type.type_arguments.front();
+              const SemanticType element_type =
+                  container_type.type_arguments.front();
               if (!satisfies_copy(element_type))
                 throw CompileError{
-                    node.location, "indexed Array read requires element type '" +
-                                       element_type.name() +
-                                       "' to satisfy Copy; help: use withValue "
-                                       "or getBorrowed for explicit borrowing"};
-              if (const auto *identifier =
-                      lexical_root_identifier(*node.container,
-                                              lexical_root_identifier))
-                if (const auto borrower = live_borrower_of(identifier->name, false))
-                  throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
-                                     node.location, "value '" + identifier->name +
-                                                        "' is mutably borrowed by '" +
-                                                        *borrower + "'"};
+                    node.location,
+                    "indexed Array read requires element type '" +
+                        element_type.name() +
+                        "' to satisfy Copy; help: use withValue "
+                        "or getBorrowed for explicit borrowing"};
+              if (const auto *identifier = lexical_root_identifier(
+                      *node.container, lexical_root_identifier))
+                if (const auto borrower =
+                        live_borrower_of(identifier->name, false))
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerBorrowConflict, node.location,
+                      "value '" + identifier->name +
+                          "' is mutably borrowed by '" + *borrower + "'"};
               result.indexed_capabilities.insert_or_assign(
                   &node, AnalysisResult::IndexedCapabilities{
                              element_type, canonical_indexed_read, nullptr});
@@ -8275,8 +8333,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       std::get_if<ast::IdentifierExpression>(
                           &move->operand->value);
                 if (moved_scrutinee_identifier != nullptr &&
-                    borrow_sources.contains(
-                        moved_scrutinee_identifier->name))
+                    borrow_sources.contains(moved_scrutinee_identifier->name))
                   for (const std::string &binding : binding_names)
                     pattern_borrow_sources[binding].insert(
                         moved_scrutinee_identifier->name);
@@ -8297,8 +8354,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         "match guard must have type 'bool', got '" +
                             guard_type.name() + "'"};
                 }
-                std::unordered_map<std::string,
-                                   std::optional<SourceLocation>>
+                std::unordered_map<std::string, std::optional<SourceLocation>>
                     previous_binding_declarations;
                 if (moves_scrutinee)
                   for (const std::string &binding : binding_names) {
@@ -8317,11 +8373,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 if (moves_scrutinee) {
                   for (const std::string &binding : binding_names) {
                     const auto location = binding_locations.find(binding);
-                    warn_live_owner(
-                        binding, arm_symbols.at(binding),
-                        location == binding_locations.end()
-                            ? arm.location
-                            : location->second);
+                    warn_live_owner(binding, arm_symbols.at(binding),
+                                    location == binding_locations.end()
+                                        ? arm.location
+                                        : location->second);
                   }
                   for (const auto &[binding, previous] :
                        previous_binding_declarations) {
@@ -8464,11 +8519,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       "operator '?' inside a lambda requires a block body with "
                       "a contextual function return type"};
                 if (!active_lambda_return_type->has_value())
-                  throw CompileError{
-                      node.location,
-                      "operator '?' inside a lambda block requires a contextual "
-                      "function return type; annotate the lambda binding or pass "
-                      "it to a typed callback parameter"};
+                  throw CompileError{node.location,
+                                     "operator '?' inside a lambda block "
+                                     "requires a contextual "
+                                     "function return type; annotate the "
+                                     "lambda binding or pass "
+                                     "it to a typed callback parameter"};
                 propagation_return_type = &**active_lambda_return_type;
               }
               const SemanticType operand_type = expression_type(*node.operand);
@@ -8678,6 +8734,80 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto *call = std::get_if<ast::CallExpression>(&value.value);
       return call != nullptr && call->callee == "null";
     };
+    const auto deferred_read_depends_on =
+        [&](std::string_view read, std::string_view owner, const auto &self,
+            std::unordered_set<std::string> &visited) -> bool {
+      if (read == owner)
+        return true;
+      if (!visited.insert(std::string{read}).second)
+        return false;
+      const auto depends_through = [&](const auto &graph) {
+        const auto sources = graph.find(std::string{read});
+        return sources != graph.end() &&
+               std::any_of(sources->second.begin(), sources->second.end(),
+                           [&](const std::string &source) {
+                             return self(source, owner, self, visited);
+                           });
+      };
+      if (depends_through(borrow_sources) ||
+          depends_through(pattern_borrow_sources))
+        return true;
+      const auto lambda = local_lambda_locations.find(std::string{read});
+      if (lambda == local_lambda_locations.end())
+        return false;
+      const auto sources = lambda_borrow_sources.find(lambda->second);
+      return sources != lambda_borrow_sources.end() &&
+             std::any_of(sources->second.begin(), sources->second.end(),
+                         [&](const std::string &source) {
+                           return self(source, owner, self, visited);
+                         });
+    };
+    const auto validate_deferred_effect = [&](const DeferredEffect &effect) {
+      const auto reject_conflict = [&](std::string_view owner,
+                                       std::string_view action,
+                                       std::string_view read,
+                                       SourceLocation later_location) {
+        throw CompileError{Diagnostic{
+            DiagnosticSeverity::Error,
+            DiagnosticCode::AnalyzerBorrowInvalidation,
+            "deferred action would invalidate owning value '" +
+                std::string{owner} + "' before deferred use of borrow '" +
+                std::string{read} + "'",
+            effect.location,
+            {"defer actions execute in LIFO order: this " +
+                 std::string{action} +
+                 " action runs before the earlier deferred use",
+             "register the invalidating defer before the defer that uses the "
+             "borrow"},
+            {DiagnosticLocation{later_location,
+                                "this earlier defer executes after the "
+                                "invalidating action"}},
+            {}}};
+      };
+      for (const auto &[owner, action] : effect.invalidations) {
+        for (const std::string &read : effect.reads) {
+          if (read == owner)
+            continue;
+          std::unordered_set<std::string> visited;
+          if (deferred_read_depends_on(read, owner, deferred_read_depends_on,
+                                       visited))
+            reject_conflict(owner, action, read, effect.location);
+        }
+        for (const DeferredEffect &earlier : deferred_effects)
+          for (const std::string &read : earlier.reads) {
+            // An ordinary mutation preserves the owner itself. A later direct
+            // access therefore remains valid; only aliases into the previous
+            // state are invalidated. Destruction, moves and reallocations do
+            // invalidate direct deferred uses as well.
+            if (action == "mutated" && read == owner)
+              continue;
+            std::unordered_set<std::string> visited;
+            if (deferred_read_depends_on(read, owner, deferred_read_depends_on,
+                                         visited))
+              reject_conflict(owner, action, read, earlier.location);
+          }
+      }
+    };
     const auto validate_assignment_expression =
         [&](const ast::AssignmentStatement &assignment,
             const SemanticType &target_type) {
@@ -8694,11 +8824,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           SemanticType right_type;
           if (is_shift) {
             right_type = SemanticType{&Type::usize_type()};
-            static_cast<void>(binary_result_type(
-                binary_operation, target_type, right_type,
-                assignment.location));
-            validate_expression(assignment.expression,
-                                right_type, assignment.location);
+            static_cast<void>(binary_result_type(binary_operation, target_type,
+                                                 right_type,
+                                                 assignment.location));
+            validate_expression(assignment.expression, right_type,
+                                assignment.location);
             return;
           } else {
             right_type = expression_type(assignment.expression);
@@ -8713,8 +8843,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               contextual_lambda_may_escape;
           contextual_lambda_may_escape = target_type.is_function();
           validate_assignment_expression(assignment, target_type);
-          contextual_lambda_may_escape =
-              previous_contextual_lambda_may_escape;
+          contextual_lambda_may_escape = previous_contextual_lambda_may_escape;
         };
 
     std::unordered_map<std::string, constant::Value> local_constants;
@@ -8723,6 +8852,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       SymbolTable *previous_symbols = active_symbols;
       const auto previous_local_constants = local_constants;
       const auto previous_deferred_values = deferred_values;
+      const std::size_t previous_deferred_effect_count =
+          deferred_effects.size();
       std::vector<std::pair<std::string, SourceLocation>> scope_declarations;
       active_symbols = &block_symbols;
       bool has_terminator = false;
@@ -8823,8 +8954,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                          active_trait_constraints.find(source_type.parameter);
                      constraint != active_trait_constraints.end()) {
             for (const TraitInstance &active : constraint->second)
-              if (((!moves_source &&
-                    active.declaration->name == "Iterable") ||
+              if (((!moves_source && active.declaration->name == "Iterable") ||
                    (moves_source &&
                     active.declaration->name == "IntoIterable")) &&
                   active.type_arguments.size() == 1) {
@@ -8925,17 +9055,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowSource,
                                declaration->location,
                                "a borrowed local cannot move its initializer"};
-          if (!declaration->is_borrowed &&
-              declaration->initializer.has_value())
+          if (!declaration->is_borrowed && declaration->initializer.has_value())
             if (const auto *source = std::get_if<ast::IdentifierExpression>(
                     &declaration->initializer->value);
                 source != nullptr && borrow_sources.contains(source->name))
               throw CompileError{
-                  DiagnosticCode::AnalyzerBorrowEscape,
-                  declaration->location,
+                  DiagnosticCode::AnalyzerBorrowEscape, declaration->location,
                   "value '" + source->name +
                       "' contains a live borrow and cannot be copied into '" +
-                      declaration->name + "'; use an explicit move within the "
+                      declaration->name +
+                      "'; use an explicit move within the "
                       "same scope"};
           if (declaration->initializer.has_value() &&
               declaration->declared_type.has_value()) {
@@ -8951,11 +9080,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (declaration->initializer.has_value())
             returned_borrow_source =
                 borrowed_return_source(*declaration->initializer);
-          if (returned_borrow_source.has_value() &&
-              !declaration->is_borrowed)
+          if (returned_borrow_source.has_value() && !declaration->is_borrowed)
             throw CompileError{
-                DiagnosticCode::AnalyzerBorrowEscape,
-                declaration->location,
+                DiagnosticCode::AnalyzerBorrowEscape, declaration->location,
                 "borrowed call result must be bound with 'borrow val'"};
           if (returned_borrow_source.has_value() && declaration->is_borrowed &&
               declaration->is_mutable &&
@@ -8965,8 +9092,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 DiagnosticCode::AnalyzerInvalidBorrowSource,
                 declaration->location,
                 "mutable borrowed local requires a 'borrow var' return"};
-          if (declaration->is_borrowed &&
-              !declared_type.is_pointer() &&
+          if (declaration->is_borrowed && !declared_type.is_pointer() &&
               declaration->initializer.has_value() &&
               !std::holds_alternative<ast::IdentifierExpression>(
                   declaration->initializer->value) &&
@@ -9024,8 +9150,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (declaration->initializer.has_value() &&
               is_null_pointer_expression(*declaration->initializer))
             block_symbols.at(declaration->name).may_be_initialized = false;
-          if (declaration->is_borrowed ||
-              returned_borrow_source.has_value() ||
+          if (declaration->is_borrowed || returned_borrow_source.has_value() ||
               (declaration->initializer.has_value() &&
                is_borrowed_pointer_expression(*declaration->initializer)))
             borrowed_values.insert(declaration->name);
@@ -9041,54 +9166,50 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 returned_borrow_source.has_value()) {
               if (declaration->is_mutable) {
                 if (shared_borrow_values.contains(*returned_borrow_source))
-                  throw CompileError{
-                      DiagnosticCode::AnalyzerBorrowConflict,
-                      declaration->location,
-                      "shared borrow '" + *returned_borrow_source +
-                          "' cannot be borrowed mutably"};
+                  throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                     declaration->location,
+                                     "shared borrow '" +
+                                         *returned_borrow_source +
+                                         "' cannot be borrowed mutably"};
                 if (const auto borrower =
                         live_borrower_of(*returned_borrow_source, true))
-                  throw CompileError{
-                      DiagnosticCode::AnalyzerBorrowConflict,
-                      declaration->location,
-                      "value '" + *returned_borrow_source +
-                          "' is already borrowed by '" + *borrower + "'"};
+                  throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                     declaration->location,
+                                     "value '" + *returned_borrow_source +
+                                         "' is already borrowed by '" +
+                                         *borrower + "'"};
               } else if (const auto borrower =
                              live_borrower_of(*returned_borrow_source, false)) {
-                throw CompileError{
-                    DiagnosticCode::AnalyzerBorrowConflict,
-                    declaration->location,
-                    "value '" + *returned_borrow_source +
-                        "' is already mutably borrowed by '" + *borrower +
-                        "'"};
+                throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                   declaration->location,
+                                   "value '" + *returned_borrow_source +
+                                       "' is already mutably borrowed by '" +
+                                       *borrower + "'"};
               }
-              borrow_sources[declaration->name].insert(
-                  *returned_borrow_source);
+              borrow_sources[declaration->name].insert(*returned_borrow_source);
             }
             if (declaration->is_borrowed)
               if (const auto *source = std::get_if<ast::IdentifierExpression>(
                       &initializer.value)) {
                 if (declaration->is_mutable) {
                   if (shared_borrow_values.contains(source->name))
-                    throw CompileError{
-                        DiagnosticCode::AnalyzerBorrowConflict,
-                        declaration->location,
-                        "shared borrow '" + source->name +
-                            "' cannot be borrowed mutably"};
+                    throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                       declaration->location,
+                                       "shared borrow '" + source->name +
+                                           "' cannot be borrowed mutably"};
                   if (const auto borrower =
                           live_borrower_of(source->name, true))
-                    throw CompileError{
-                        DiagnosticCode::AnalyzerBorrowConflict,
-                        declaration->location,
-                        "value '" + source->name +
-                            "' is already borrowed by '" + *borrower + "'"};
+                    throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                       declaration->location,
+                                       "value '" + source->name +
+                                           "' is already borrowed by '" +
+                                           *borrower + "'"};
                 } else {
                   if (mutable_borrow_values.contains(source->name))
-                    throw CompileError{
-                        DiagnosticCode::AnalyzerBorrowConflict,
-                        declaration->location,
-                        "mutable borrow '" + source->name +
-                            "' cannot be borrowed concurrently"};
+                    throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
+                                       declaration->location,
+                                       "mutable borrow '" + source->name +
+                                           "' cannot be borrowed concurrently"};
                   if (const auto borrower =
                           live_borrower_of(source->name, false))
                     throw CompileError{
@@ -9174,8 +9295,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                       expression_borrow_sources,
                                       captured_sources);
             if (!captured_sources.empty()) {
-              borrow_sources[declaration->name].insert(
-                  captured_sources.begin(), captured_sources.end());
+              borrow_sources[declaration->name].insert(captured_sources.begin(),
+                                                       captured_sources.end());
               if (declared_type.is_function())
                 shared_borrow_values.insert(declaration->name);
             }
@@ -9206,15 +9327,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   return ast::ReturnOwnership::BorrowMutable;
               }
               if (const auto *identifier =
-                      std::get_if<ast::IdentifierExpression>(&candidate.value)) {
+                      std::get_if<ast::IdentifierExpression>(
+                          &candidate.value)) {
                 if (shared_borrow_values.contains(identifier->name))
                   return ast::ReturnOwnership::Borrow;
                 if (mutable_borrow_values.contains(identifier->name))
                   return ast::ReturnOwnership::BorrowMutable;
                 return std::nullopt;
               }
-              if (const auto *member =
-                      std::get_if<ast::MemberAccessExpression>(&candidate.value))
+              if (const auto *member = std::get_if<ast::MemberAccessExpression>(
+                      &candidate.value))
                 return self(*member->object, self);
               return std::nullopt;
             };
@@ -9222,15 +9344,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                              borrowed_container_ownership) ==
                 ast::ReturnOwnership::Borrow)
               throw CompileError{
-                  DiagnosticCode::AnalyzerInvalidBorrowAccess,
-                  target.location,
+                  DiagnosticCode::AnalyzerInvalidBorrowAccess, target.location,
                   "cannot mutate through a shared borrowed indexed container"};
             const auto has_temporary_owner_root =
                 [&](const ast::Expression &candidate,
                     const auto &self) -> bool {
               if (std::holds_alternative<ast::NewExpression>(candidate.value))
                 return true;
-              if (std::holds_alternative<ast::CallExpression>(candidate.value) ||
+              if (std::holds_alternative<ast::CallExpression>(
+                      candidate.value) ||
                   std::holds_alternative<ast::MethodCallExpression>(
                       candidate.value)) {
                 const auto resolved = resolved_calls.find(&candidate);
@@ -9240,9 +9362,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         resolved->second->return_ownership !=
                             ast::ReturnOwnership::BorrowMutable);
               }
-              if (const auto *member =
-                      std::get_if<ast::MemberAccessExpression>(
-                          &candidate.value))
+              if (const auto *member = std::get_if<ast::MemberAccessExpression>(
+                      &candidate.value))
                 return self(*member->object, self);
               return false;
             };
@@ -9270,9 +9391,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             validate_expression(*target.index,
                                 SemanticType{&Type::usize_type()},
                                 target.location);
-            if (const auto *identifier =
-                    lexical_root_identifier(*target.container,
-                                            lexical_root_identifier)) {
+            if (const auto *identifier = lexical_root_identifier(
+                    *target.container, lexical_root_identifier)) {
               if (shared_borrow_values.contains(identifier->name))
                 throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
                                    target.location,
@@ -9285,8 +9405,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 container_type.type_arguments.front();
             if (assignment->operation != ast::AssignmentOperator::Assign &&
                 canonical_indexed_read == nullptr)
-              throw CompileError{target.location,
-                                 "canonical indexed replacement capability is missing"};
+              throw CompileError{
+                  target.location,
+                  "canonical indexed replacement capability is missing"};
             if (assignment->operation != ast::AssignmentOperator::Assign &&
                 !satisfies_copy(element_type))
               throw CompileError{
@@ -9308,12 +9429,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                       "an indexed container element");
             validate_escaping_assignment(*assignment, element_type);
             result.indexed_capabilities.insert_or_assign(
-                &target, AnalysisResult::IndexedCapabilities{
-                             element_type,
-                             assignment->operation == ast::AssignmentOperator::Assign
-                                 ? nullptr
-                                 : canonical_indexed_read,
-                             canonical_indexed_replace});
+                &target,
+                AnalysisResult::IndexedCapabilities{
+                    element_type,
+                    assignment->operation == ast::AssignmentOperator::Assign
+                        ? nullptr
+                        : canonical_indexed_read,
+                    canonical_indexed_replace});
             continue;
           }
           if (!assignment->object.empty()) {
@@ -9362,8 +9484,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   global_key(global->declaration->module_name,
                              global->declaration->declaration.name));
               reject_non_escaping_value(assignment->expression,
-                                        assignment->location,
-                                        "a global value");
+                                        assignment->location, "a global value");
               validate_escaping_assignment(*assignment, global->symbol.type);
               continue;
             }
@@ -9415,9 +9536,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 substitute(resolve_type(*matched->declared_type,
                                         class_parameters, &class_arities),
                            substitutions);
-            reject_non_escaping_value(
-                assignment->expression, assignment->location,
-                "field '" + assignment->name + "'");
+            reject_non_escaping_value(assignment->expression,
+                                      assignment->location,
+                                      "field '" + assignment->name + "'");
             validate_escaping_assignment(*assignment, field_type);
             if (potentially_owns_value(field_type))
               emit_warning(
@@ -9448,8 +9569,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  "global variable '" + assignment->name +
                                      "' is used before initialization"};
             reject_non_escaping_value(assignment->expression,
-                                      assignment->location,
-                                      "a global value");
+                                      assignment->location, "a global value");
             validate_escaping_assignment(*assignment, global->type);
             continue;
           }
@@ -9464,8 +9584,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               !mutable_borrow_values.contains(assignment->name) &&
               iterator->second.may_be_initialized)
             throw CompileError{
-                DiagnosticCode::AnalyzerBorrowEscape,
-                assignment->location,
+                DiagnosticCode::AnalyzerBorrowEscape, assignment->location,
                 "value '" + assignment->name +
                     "' contains a live borrow and cannot be overwritten"};
           require_no_live_borrow(assignment->name, assignment->location,
@@ -9482,11 +9601,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               (iterator->second.type.is_pointer() ||
                (iterator->second.type.is_class() &&
                 !classes.at(iterator->second.type.parameter)->is_value_type)))
-            throw CompileError{
-                DiagnosticCode::AnalyzerInvalidBorrowAccess,
-                assignment->location,
-                "cannot reassign mutable borrow '" + assignment->name +
-                    "'; mutate the referenced value instead"};
+            throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                               assignment->location,
+                               "cannot reassign mutable borrow '" +
+                                   assignment->name +
+                                   "'; mutate the referenced value instead"};
           const bool may_overwrite_owner =
               report_local_warnings && iterator->second.may_be_initialized &&
               potentially_owns_value(iterator->second.type);
@@ -9521,11 +9640,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             transfer_protected_values.erase(assignment->name);
           if (!std::holds_alternative<ast::MoveExpression>(
                   assignment->expression.value))
-            if (const auto source = non_escaping_value(
-                    assignment->expression, non_escaping_value))
+            if (const auto source = non_escaping_value(assignment->expression,
+                                                       non_escaping_value))
               throw CompileError{
-                  DiagnosticCode::AnalyzerBorrowEscape,
-                  assignment->location,
+                  DiagnosticCode::AnalyzerBorrowEscape, assignment->location,
                   "scoped value '" + *source +
                       "' cannot be copied; use an explicit move within the "
                       "same scope"};
@@ -9624,8 +9742,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                       expression_borrow_sources,
                                       captured_sources);
             if (!captured_sources.empty()) {
-              borrow_sources[assignment->name].insert(
-                  captured_sources.begin(), captured_sources.end());
+              borrow_sources[assignment->name].insert(captured_sources.begin(),
+                                                      captured_sources.end());
               if (iterator->second.type.is_function())
                 shared_borrow_values.insert(assignment->name);
             }
@@ -9654,10 +9772,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   &deletion->expression.value);
               identifier != nullptr &&
               borrowed_values.contains(identifier->name))
-            throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
-                               deletion->location, "borrowed value '" +
-                                                       identifier->name +
-                                                       "' cannot be deleted"};
+            throw CompileError{
+                DiagnosticCode::AnalyzerInvalidBorrowAccess, deletion->location,
+                "borrowed value '" + identifier->name + "' cannot be deleted"};
           require_closure_delete_allowed(deletion->expression,
                                          deletion->location);
           if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
@@ -9695,6 +9812,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
         if (const auto *deferred =
                 std::get_if<ast::DeferStatement>(&statement)) {
+          DeferredEffect effect{deferred->location, {}, {}};
           SymbolTable deferred_symbols = block_symbols;
           SymbolTable *previous_deferred_symbols = active_symbols;
           active_symbols = &deferred_symbols;
@@ -9732,13 +9850,26 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               throw CompileError{
                   deletion->location,
                   "deferred delete requires an object or a function value"};
+            effect.invalidations.insert_or_assign(identifier->name, "destroy");
             deferred_values.insert(identifier->name);
           } else {
             const auto &action =
                 std::get<ast::ExpressionStatement>(deferred->action);
             const bool previous_inside_defer = inside_defer;
             inside_defer = true;
-            static_cast<void>(expression_type(action.expression));
+            active_deferred_reads = &effect.reads;
+            active_deferred_invalidations = &effect.invalidations;
+            try {
+              static_cast<void>(expression_type(action.expression));
+            } catch (...) {
+              active_deferred_reads = nullptr;
+              active_deferred_invalidations = nullptr;
+              inside_defer = previous_inside_defer;
+              active_symbols = previous_deferred_symbols;
+              throw;
+            }
+            active_deferred_reads = nullptr;
+            active_deferred_invalidations = nullptr;
             inside_defer = previous_inside_defer;
             for (const auto &[name, symbol] : block_symbols) {
               const auto deferred_symbol = deferred_symbols.find(name);
@@ -9754,6 +9885,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               }
             }
           }
+          validate_deferred_effect(effect);
+          deferred_effects.push_back(std::move(effect));
           active_symbols = previous_deferred_symbols;
           continue;
         }
@@ -9852,10 +9985,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         SemanticType statement_return_type = return_type;
         std::optional<SemanticType> inferred_actual;
         if (active_lambda_return_type != nullptr) {
-          const SemanticType actual = return_statement.expression.has_value()
-                                          ? expression_type(
-                                                *return_statement.expression)
-                                          : SemanticType{&Type::unit_type()};
+          const SemanticType actual =
+              return_statement.expression.has_value()
+                  ? expression_type(*return_statement.expression)
+                  : SemanticType{&Type::unit_type()};
           inferred_actual = actual;
           if (!active_lambda_return_type->has_value())
             active_lambda_return_type->emplace(actual);
@@ -9870,10 +10003,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (statement_return_type.is_concrete() &&
             statement_return_type.concrete->kind() == TypeKind::Unit) {
           if (return_statement.expression.has_value()) {
-            const SemanticType actual = inferred_actual.has_value()
-                                            ? *inferred_actual
-                                            : expression_type(
-                                                  *return_statement.expression);
+            const SemanticType actual =
+                inferred_actual.has_value()
+                    ? *inferred_actual
+                    : expression_type(*return_statement.expression);
             if (!actual.is_concrete() ||
                 actual.concrete->kind() != TypeKind::Unit)
               throw CompileError{return_statement.location,
@@ -9914,26 +10047,25 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 declared_source = "this";
               else if (declared_provenance->second.parameter <
                        parameters.size())
-                declared_source = parameters[declared_provenance->second.parameter]
-                                      .name;
+                declared_source =
+                    parameters[declared_provenance->second.parameter].name;
             }
             const std::optional<std::string> source_name =
                 call_source
                     ? call_source
-                    : (declared_source
-                           ? declared_source
-                    : (lexical_source == nullptr
-                           ? std::nullopt
-                           : std::optional<std::string>{lexical_source->name}));
+                    : (declared_source ? declared_source
+                                       : (lexical_source == nullptr
+                                              ? std::nullopt
+                                              : std::optional<std::string>{
+                                                    lexical_source->name}));
             const bool owner_mutable_source =
                 context.function->return_ownership ==
                     ast::ReturnOwnership::BorrowMutable &&
                 owner != nullptr && source_name &&
                 (*source_name == "this" ||
                  owner_field_names.contains(*source_name));
-            if ((!source_name ||
-                 (!borrowed_values.contains(*source_name) &&
-                  !owner_mutable_source)) &&
+            if ((!source_name || (!borrowed_values.contains(*source_name) &&
+                                  !owner_mutable_source)) &&
                 !is_owner_anchored_external_borrow(
                     *return_statement.expression))
               throw CompileError{
@@ -9944,8 +10076,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             if (context.function->return_ownership ==
                     ast::ReturnOwnership::BorrowMutable &&
                 !owner_mutable_source &&
-                (!source_name ||
-                 !mutable_borrow_values.contains(*source_name)))
+                (!source_name || !mutable_borrow_values.contains(*source_name)))
               throw CompileError{
                   DiagnosticCode::AnalyzerInvalidBorrowSource,
                   return_statement.location,
@@ -9993,70 +10124,71 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       return_statement.location,
                       "borrowed return has incompatible provenance sources"};
                 borrow_return_provenance.insert_or_assign(context.function,
-                                                           *actual);
+                                                          *actual);
               }
             }
           }
           if (!borrowed_return)
-          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
-                  &return_statement.expression->value);
-              identifier != nullptr &&
-              deferred_values.contains(identifier->name))
-            throw CompileError{return_statement.location,
-                               "owning value '" + identifier->name +
-                                   "' is scheduled for deferred cleanup"};
+            if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                    &return_statement.expression->value);
+                identifier != nullptr &&
+                deferred_values.contains(identifier->name))
+              throw CompileError{return_statement.location,
+                                 "owning value '" + identifier->name +
+                                     "' is scheduled for deferred cleanup"};
           if (!borrowed_return)
-          if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
-                  &return_statement.expression->value);
-              identifier != nullptr &&
-              borrowed_values.contains(identifier->name) &&
-              potentially_owns_value(statement_return_type))
-            throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
-                               return_statement.location,
-                               "borrowed value '" + identifier->name +
-                                   "' cannot escape by return"};
+            if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
+                    &return_statement.expression->value);
+                identifier != nullptr &&
+                borrowed_values.contains(identifier->name) &&
+                potentially_owns_value(statement_return_type))
+              throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
+                                 return_statement.location,
+                                 "borrowed value '" + identifier->name +
+                                     "' cannot escape by return"};
           const ast::IdentifierExpression *returned_identifier =
               std::get_if<ast::IdentifierExpression>(
                   &return_statement.expression->value);
           if (const auto *move = std::get_if<ast::MoveExpression>(
                   &return_statement.expression->value))
-            returned_identifier = std::get_if<ast::IdentifierExpression>(
-                &move->operand->value);
+            returned_identifier =
+                std::get_if<ast::IdentifierExpression>(&move->operand->value);
           if (!borrowed_return && returned_identifier != nullptr &&
               borrow_sources.contains(returned_identifier->name))
             throw CompileError{
-                DiagnosticCode::AnalyzerBorrowEscape,
-                return_statement.location,
+                DiagnosticCode::AnalyzerBorrowEscape, return_statement.location,
                 "value '" + returned_identifier->name +
                     "' contains a live borrow and cannot escape by return"};
           if (!borrowed_return)
-          if (const auto *construction = std::get_if<ast::NewExpression>(
-                  &return_statement.expression->value)) {
-            const auto class_iterator = find_in_context(
-                classes, context_module, construction->class_name);
-            if (class_iterator != classes.end()) {
-              const ast::ClassDeclaration &class_declaration =
-                  *class_iterator->second;
-              const std::size_t parameter_count =
-                  class_declaration.constructor_parameters.size();
-              for (std::size_t index = 0;
-                   index < class_declaration.constructor_fields.size(); ++index) {
-                const ast::ValueDeclaration &field =
-                    class_declaration.constructor_fields[index];
-                if (!field.is_borrowed)
-                  continue;
-                const ast::Expression &argument =
-                    *construction->arguments[parameter_count + index];
-                if (std::holds_alternative<ast::IdentifierExpression>(
-                        argument.value))
-                  throw CompileError{
-                      DiagnosticCode::AnalyzerBorrowEscape,
-                      return_statement.location,
-                      "temporary value of type '" + class_declaration.name +
-                          "' contains a live borrow and cannot escape by return"};
+            if (const auto *construction = std::get_if<ast::NewExpression>(
+                    &return_statement.expression->value)) {
+              const auto class_iterator = find_in_context(
+                  classes, context_module, construction->class_name);
+              if (class_iterator != classes.end()) {
+                const ast::ClassDeclaration &class_declaration =
+                    *class_iterator->second;
+                const std::size_t parameter_count =
+                    class_declaration.constructor_parameters.size();
+                for (std::size_t index = 0;
+                     index < class_declaration.constructor_fields.size();
+                     ++index) {
+                  const ast::ValueDeclaration &field =
+                      class_declaration.constructor_fields[index];
+                  if (!field.is_borrowed)
+                    continue;
+                  const ast::Expression &argument =
+                      *construction->arguments[parameter_count + index];
+                  if (std::holds_alternative<ast::IdentifierExpression>(
+                          argument.value))
+                    throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
+                                       return_statement.location,
+                                       "temporary value of type '" +
+                                           class_declaration.name +
+                                           "' contains a live borrow and "
+                                           "cannot escape by return"};
+                }
               }
             }
-          }
           validate_return_expression(return_statement, statement_return_type,
                                      inferred_actual);
           if (!borrowed_return && returned_identifier == nullptr) {
@@ -10065,12 +10197,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                       expression_borrow_sources,
                                       escaping_sources);
             if (!escaping_sources.empty())
-              throw CompileError{
-                  DiagnosticCode::AnalyzerBorrowEscape,
-                  return_statement.location,
-                  "closure captures borrowed value '" +
-                      *escaping_sources.begin() +
-                      "' and cannot escape by return"};
+              throw CompileError{DiagnosticCode::AnalyzerBorrowEscape,
+                                 return_statement.location,
+                                 "closure captures borrowed value '" +
+                                     *escaping_sources.begin() +
+                                     "' and cannot escape by return"};
           }
           std::optional<std::size_t> returned_lambda_location;
           if (const auto *lambda = std::get_if<ast::LambdaExpression>(
@@ -10125,14 +10256,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           }
         }
         if (return_statement.expression.has_value()) {
-          const bool has_live_owner = std::any_of(
-              block_symbols.begin(), block_symbols.end(),
-              [&](const auto &entry) {
-                const auto &[name, symbol] = entry;
-                return symbol.may_be_initialized &&
-                       !borrowed_values.contains(name) &&
-                       potentially_owns_value(symbol.type);
-              });
+          const bool has_live_owner =
+              std::any_of(block_symbols.begin(), block_symbols.end(),
+                          [&](const auto &entry) {
+                            const auto &[name, symbol] = entry;
+                            return symbol.may_be_initialized &&
+                                   !borrowed_values.contains(name) &&
+                                   potentially_owns_value(symbol.type);
+                          });
           if (has_live_owner)
             returns_with_live_owners.insert(&*return_statement.expression);
         }
@@ -10186,6 +10317,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       active_symbols = previous_symbols;
       local_constants = previous_local_constants;
       deferred_values = previous_deferred_values;
+      deferred_effects.resize(previous_deferred_effect_count);
       return has_terminator;
     };
 

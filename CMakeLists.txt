@@ -1418,6 +1418,19 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME language.borrow_invalidation COMMAND borrow_invalidation_test)
+    add_test(
+        NAME runtime.defer_borrow_lifo
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/defer_borrow_lifo.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/defer_borrow_lifo_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/defer_borrow_lifo.expected.txt"
+            "-DENABLE_UNDEFINED_SANITIZER=ON"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
 
     add_executable(borrowed_calls_closures_test
         tests/language/borrowed_calls_closures_test.cpp

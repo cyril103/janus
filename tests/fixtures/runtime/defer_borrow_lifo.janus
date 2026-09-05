@@ -1,0 +1,13 @@
+class Resource(val value : int) {}
+
+def observe(borrow resource : Resource) : Unit {
+    println(resource.value)
+}
+
+def main() : int {
+    val resource : Resource = new Resource(424242)
+    defer delete resource
+    borrow val view : Resource = resource
+    defer observe(view)
+    return 0
+}

@@ -30,11 +30,10 @@ void expect_valid(std::string_view source) {
   }
 }
 
-void expect_compile_error(std::string_view source,
-                          std::string_view expected_message,
-                          std::optional<janus::DiagnosticCode> expected_code =
-                              std::nullopt,
-                          std::string_view expected_note = {}) {
+void expect_compile_error(
+    std::string_view source, std::string_view expected_message,
+    std::optional<janus::DiagnosticCode> expected_code = std::nullopt,
+    std::string_view expected_note = {}) {
   try {
     janus::frontend::Parser parser{source};
     janus::semantic::Analyzer analyzer;
@@ -201,6 +200,169 @@ def main() : int {
 }
 )",
       "contains a live borrow and cannot be copied into 'copy'");
+
+  expect_compile_error(
+      R"(
+class Resource(val value : int) {}
+def observe(borrow resource : Resource) : Unit { println(resource.value) }
+def main() : int {
+  val resource : Resource = new Resource(424242)
+  borrow val view : Resource = resource
+  defer observe(view)
+  defer delete resource
+  return 0
+}
+)",
+      "invalidate owning value 'resource' before deferred use of borrow 'view'",
+      janus::DiagnosticCode::AnalyzerBorrowInvalidation,
+      "defer actions execute in LIFO order");
+
+  expect_valid(R"(
+class Resource(val value : int) {}
+def observe(borrow resource : Resource) : Unit { println(resource.value) }
+def main() : int {
+  val resource : Resource = new Resource(424242)
+  defer delete resource
+  borrow val view : Resource = resource
+  defer observe(view)
+  return 0
+}
+)");
+
+  expect_valid(R"(
+class Resource(var value : int) {
+  def update(next : int) : Unit { value = next }
+}
+def main() : int {
+  val resource : Resource = new Resource(1)
+  defer delete resource
+  defer resource.update(2)
+  defer resource.update(3)
+  return 0
+}
+)");
+
+  expect_valid(R"(
+enum Option[T] { Some(T), None }
+class Resource(val value : int) {}
+def observe(borrow resource : Resource) : Unit { println(resource.value) }
+def exits(input : Option[int]) : Option[int] {
+  var first : bool = true
+  while first {
+    first = false
+    val breakResource : Resource = new Resource(1)
+    defer delete breakResource
+    borrow val breakView : Resource = breakResource
+    defer observe(breakView)
+    break
+  }
+  var second : bool = true
+  while second {
+    second = false
+    val continueResource : Resource = new Resource(2)
+    defer delete continueResource
+    borrow val continueView : Resource = continueResource
+    defer observe(continueView)
+    continue
+  }
+  val tryResource : Resource = new Resource(3)
+  defer delete tryResource
+  borrow val tryView : Resource = tryResource
+  defer observe(tryView)
+  val value : int = input?
+  return Option.Some[int](value)
+}
+def panicExit() : int {
+  val resource : Resource = new Resource(4)
+  defer delete resource
+  borrow val view : Resource = resource
+  defer observe(view)
+  panic("stop")
+}
+def main() : int {
+  val result : Option[int] = exits(Option.Some[int](5))
+  return match result { Some(value) => value, None => panicExit() }
+}
+)");
+
+  expect_compile_error(
+      R"(
+class Resource(var value : int) {
+  def update(next : int) : Unit { value = next }
+}
+def observe(borrow resource : Resource) : Unit { println(resource.value) }
+def main() : int {
+  val resource : Resource = new Resource(1)
+  defer delete resource
+  borrow val view : Resource = resource
+  defer observe(view)
+  defer resource.update(2)
+  return 0
+}
+)",
+      "invalidate owning value 'resource' before deferred use of borrow 'view'",
+      janus::DiagnosticCode::AnalyzerBorrowInvalidation);
+
+  expect_valid(R"(
+class Resource(var value : int) {
+  def update(next : int) : Unit { value = next }
+}
+def observe(borrow resource : Resource) : Unit { println(resource.value) }
+def main() : int {
+  val resource : Resource = new Resource(1)
+  defer delete resource
+  defer resource.update(2)
+  borrow val view : Resource = resource
+  defer observe(view)
+  return 0
+}
+)");
+
+  expect_compile_error(
+      R"(
+class Resource(val value : int) {}
+def observe(borrow resource : Resource) : Unit { println(resource.value) }
+def main() : int {
+  val resource : Resource = new Resource(1)
+  borrow val view : Resource = resource
+  defer observe(view)
+  if true {
+    defer delete resource
+    return 0
+  }
+  return 1
+}
+)",
+      "invalidate owning value 'resource' before deferred use of borrow 'view'",
+      janus::DiagnosticCode::AnalyzerBorrowInvalidation);
+
+  expect_compile_error(
+      R"(
+class Resource(val value : int) {}
+def main() : int {
+  val resource : Resource = new Resource(1)
+  borrow val view : Resource = resource
+  val callback : () => Unit = () => { println(view.value) }
+  defer callback()
+  defer delete resource
+  return 0
+}
+)",
+      "invalidate owning value 'resource' before deferred use of borrow "
+      "'callback'",
+      janus::DiagnosticCode::AnalyzerBorrowInvalidation);
+
+  expect_valid(R"(
+class Resource(val value : int) {}
+def main() : int {
+  val resource : Resource = new Resource(1)
+  defer delete resource
+  borrow val view : Resource = resource
+  val callback : () => Unit = () => { println(view.value) }
+  defer callback()
+  return 0
+}
+)");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

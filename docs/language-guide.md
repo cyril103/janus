@@ -890,6 +890,24 @@ seconde panique depuis un destructeur n'interrompt pas les nettoyages locaux
 restants. Le contrat ABI et les limites FFI/globales sont détaillés dans
 [le design du déroulement des paniques](design/panic-unwinding.md).
 
+Cet ordre LIFO fait partie de l'analyse des emprunts. Une action différée qui
+lit un emprunt doit être enregistrée après le nettoyage de sa source, afin de
+s'exécuter avant lui :
+
+```janus
+val resource : Resource = new Resource(424242)
+defer delete resource
+borrow val view : Resource = resource
+defer println(view.value)
+```
+
+Inverser les deux `defer` est refusé avec `JANA0025` : `delete resource`
+s'exécuterait avant `println(view.value)`. Le même contrôle s'applique aux mutations,
+aux moves et consommations, aux closures qui capturent un emprunt, aux portées
+imbriquées et à toute sortie (`return`, `break`, `continue`, `?` ou panique).
+L'analyse reste conservative pour les callbacks dont les effets ou captures ne
+peuvent pas être établis localement.
+
 ### Emprunts immuables
 
 `borrow val` crée un alias temporaire en lecture seule sans copier la valeur et
