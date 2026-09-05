@@ -969,6 +969,15 @@ if ready {
 // `cursor` est de nouveau accessible ici.
 ```
 
+Une méthode mutante — `def` sur un type valeur ou `borrow var def` dans une
+extension — exige cette capacité sur son receveur au site d'appel. Une liaison
+propriétaire `var` et un alias `borrow var` conviennent. Une liaison `val` ou
+un alias `borrow val` sont refusés avec `JANA0027`; déclarez le propriétaire
+avec `var` ou demandez explicitement un accès `borrow var`. La règle est
+propagée à travers les champs et les spécialisations génériques. Les conflits
+avec un autre emprunt restent signalés par `JANA0024`/`JANA0025` selon que
+l'accès crée un emprunt concurrent ou invalide un emprunt déjà vivant.
+
 Une fonction peut transférer cet accès exclusif sans transférer la propriété
 avec un retour `: borrow var T`. Une fonction libre exige alors exactement un
 paramètre `borrow var` comme source. Une méthode qui retourne un tel emprunt est

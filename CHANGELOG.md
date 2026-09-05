@@ -7,6 +7,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- validation de la capacité effective des receveurs mutables : une méthode
+  mutante de type valeur ou une extension `borrow var def` accepte un
+  propriétaire `var` ou un alias `borrow var`, mais refuse désormais les
+  liaisons `val` et les alias partagés avec `JANA0027`, y compris à travers
+  champs et génériques ;
 - conservation transitive du verrou des collections parcourues par un
   `Iterator` observant : destruction, mutation et réallocation de la source
   sont refusées avec `JANA0025`, y compris après les adaptateurs paresseux, et

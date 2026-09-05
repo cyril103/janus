@@ -22,7 +22,9 @@ void expect(bool condition, std::string_view message) {
 }
 
 void expect_compile_error(std::string_view source,
-                          std::string_view expected_message) {
+                          std::string_view expected_message,
+                          janus::DiagnosticCode expected_code =
+                              janus::DiagnosticCode::AnalyzerLegacy) {
   try {
     janus::frontend::Parser parser{source};
     const janus::ast::Program program = parser.parse_program();
@@ -35,6 +37,9 @@ void expect_compile_error(std::string_view source,
            expected_message);
     expect(error.diagnostic().code != janus::DiagnosticCode::AnalyzerLegacy,
            "mutable borrow errors use structured diagnostic codes");
+    if (expected_code != janus::DiagnosticCode::AnalyzerLegacy)
+      expect(error.diagnostic().code == expected_code,
+             "mutable borrow error uses the expected diagnostic code");
   }
 }
 
@@ -78,7 +83,7 @@ def identity(borrow var counter : Counter) : borrow var Counter {
   return counter
 }
 def main() : int {
-  val counter : Counter = new Counter(1)
+  var counter : Counter = new Counter(1)
   if true {
     borrow var editable : Counter = counter
     editable.add(2)
@@ -133,6 +138,104 @@ def main() : int {
     ++failures;
   }
 
+  expect_compile_error(
+      R"(
+struct Counter(var value : int) {
+  def add(amount : int) : Unit { value += amount }
+}
+def main() : int {
+  val counter : Counter = new Counter(1)
+  counter.add(1)
+  return 0
+}
+)",
+      "immutable receiver 'counter' cannot call mutable method",
+      janus::DiagnosticCode::AnalyzerInvalidBorrowAccess);
+
+  expect_compile_error(R"(
+struct Counter(var value : int) {}
+extend Counter {
+  borrow var def add(amount : int) : Unit { this.value += amount }
+}
+def main() : int {
+  val counter : Counter = new Counter(1)
+  counter.add(1)
+  return 0
+}
+)",
+                       "declare the owner with `var`",
+                       janus::DiagnosticCode::AnalyzerInvalidBorrowAccess);
+
+  expect_compile_error(R"(
+struct Counter(var value : int) {}
+extend Counter {
+  borrow var def add(amount : int) : Unit { this.value += amount }
+}
+def touch(borrow counter : Counter) : Unit { counter.add(1) }
+def main() : int { return 0 }
+)",
+                       "requires `borrow var` access",
+                       janus::DiagnosticCode::AnalyzerInvalidBorrowAccess);
+
+  expect_compile_error(R"(
+struct Counter(var value : int) {}
+extend Counter {
+  borrow var def add(amount : int) : Unit { this.value += amount }
+}
+def main() : int {
+  var counter : Counter = new Counter(1)
+  borrow val first : Counter = counter
+  borrow val second : Counter = first
+  second.add(1)
+  return 0
+}
+)",
+                       "shared borrow 'second' can only call a borrow method",
+                       janus::DiagnosticCode::AnalyzerInvalidBorrowAccess);
+
+  expect_compile_error(R"(
+struct Counter(var value : int) {}
+extend Counter {
+  borrow var def add(amount : int) : Unit { this.value += amount }
+}
+struct Holder[T](var item : T) {}
+def main() : int {
+  val holder : Holder[Counter] = new Holder[Counter](new Counter(1))
+  holder.item.add(1)
+  return 0
+}
+)",
+                       "immutable receiver 'holder' cannot call mutable method",
+                       janus::DiagnosticCode::AnalyzerInvalidBorrowAccess);
+
+  try {
+    janus::frontend::Parser parser{R"(
+struct Counter(var value : int) {}
+extend Counter {
+  borrow var def add(amount : int) : Unit { this.value += amount }
+}
+class Holder[T](var item : T) {}
+def main() : int {
+  var counter : Counter = new Counter(1)
+  counter.add(1)
+  if true {
+    borrow var editable : Counter = counter
+    editable.add(1)
+  }
+  var holder : Holder[Counter] = new Holder[Counter](new Counter(2))
+  holder.item.add(1)
+  return counter.value + holder.item.value
+}
+)"};
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(parser.parse_program()));
+  } catch (const std::exception &error) {
+    std::cerr
+        << "FAILED: mutable owner and borrow var receivers were rejected: "
+        << error.what() << '\n';
+    ++failures;
+  }
+
   expect_compile_error(R"(
 class Counter(var value : int) {}
 def main() : int {
@@ -141,7 +244,8 @@ def main() : int {
   borrow var editable : Counter = counter
   return shared.value
 }
-)", "already borrowed");
+)",
+                       "already borrowed");
 
   expect_compile_error(R"(
 class Counter(var value : int) {}

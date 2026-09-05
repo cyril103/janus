@@ -115,9 +115,11 @@ explain_diagnostic(DiagnosticCode code) noexcept {
             "The borrowed value could outlive the storage from which it was created.",
             "Keep its use inside the owner's lexical scope and do not store or return it."};
   case DiagnosticCode::AnalyzerInvalidBorrowAccess:
-    return {code, "operation forbidden through this borrow",
-            "The requested operation requires ownership or an exclusive mutable borrow.",
-            "Use a borrow-compatible method or request `borrow var` access."};
+    return {code, "operation forbidden through this receiver",
+            "The requested operation requires a mutable owner or an exclusive "
+            "mutable borrow.",
+            "Declare the owner with `var`, use a borrow-compatible method, or "
+            "request `borrow var` access."};
   case DiagnosticCode::AnalyzerInvalidBorrowSource:
     return {code, "invalid borrow source",
             "A borrow requires stable storage whose lifetime covers the complete use.",

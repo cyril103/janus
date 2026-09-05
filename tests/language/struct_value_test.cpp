@@ -46,7 +46,7 @@ struct Point(var x : int, var y : int) {
         y = y + dy
     }
 
-    def sum() : int {
+    borrow def sum() : int {
         return x + y
     }
 }

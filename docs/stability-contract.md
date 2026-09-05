@@ -172,8 +172,11 @@ propriété. Un paramètre `borrow` observe de la même façon une valeur pendan
 l'appel, et `borrow def` déclare une méthode d'observation. `borrow var` et un
 paramètre `borrow var` accordent temporairement un accès
 mutable exclusif au même stockage ; aucun autre emprunt ni accès au propriétaire
-ne peut être actif pendant leur portée lexicale. Les champs de
-constructeur de classe peuvent utiliser `borrow val` ou `borrow var` pour
+ne peut être actif pendant leur portée lexicale. Une méthode mutante d'un type
+valeur ou une extension `borrow var def` exige un propriétaire lié par `var` ou
+un alias `borrow var`; une liaison `val` et un alias `borrow val` ne fournissent
+pas cette capacité et sont refusés avec `JANA0027`. Les champs de constructeur
+de classe peuvent utiliser `borrow val` ou `borrow var` pour
 conserver respectivement une référence partagée ou mutable non détruite avec
 l'instance; ce contrat est interdit aux structs. `Slice[T]` et
 `MutableSlice[T]` appliquent ce contrat aux plages contiguës d'un `Array[T]`

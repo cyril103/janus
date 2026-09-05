@@ -1284,9 +1284,9 @@ int main(int argc, char **argv) {
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" +
       indexed_method_module_uri +
       "\",\"text\":\"module indexed_method_b\\n\\n"
-      "struct Box() { def combine(left : int, right : int) : int { return "
+      "struct Box() { borrow def combine(left : int, right : int) : int { return "
       "left + right } }\\n"
-      "struct LiveBox() { def combine(left : int, right : int) : int { "
+      "struct LiveBox() { borrow def combine(left : int, right : int) : int { "
       "return left + right } }\\n\"}}}"));
   const std::vector<std::string> inferred_import_change = source_server.handle(
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"" +

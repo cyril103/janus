@@ -3660,8 +3660,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       if (!symbols
                .emplace(parameter.name,
                         Symbol{parameter_type,
-                               parameter.ownership ==
-                                   ast::ParameterOwnership::BorrowMutable,
+                               parameter.ownership !=
+                                   ast::ParameterOwnership::Borrow,
                                true})
                .second) {
         throw CompileError{parameter.location, "value '" + parameter.name +
@@ -3999,6 +3999,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> borrowed_values;
     std::unordered_set<std::string> shared_borrow_values;
     std::unordered_set<std::string> mutable_borrow_values;
+    std::unordered_map<const ast::Expression *, SemanticType>
+        inferred_expression_types;
     std::unordered_map<std::string, std::unordered_set<std::string>>
         borrow_sources;
     std::unordered_map<std::string, std::unordered_set<std::string>>
@@ -4551,6 +4553,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  substitute(*symbolic_residual, substitutions)};
     };
     std::function<SemanticType(const ast::Expression &)> expression_type;
+    enum class ReceiverCapability { Immutable, Shared, Mutable };
+    std::function<ReceiverCapability(const ast::Expression &)>
+        receiver_capability;
     std::function<bool(const std::vector<ast::Statement> &, SymbolTable &)>
         validate_block;
     std::optional<SemanticType> *active_lambda_return_type = nullptr;
@@ -4601,6 +4606,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       const auto pattern_borrow_sources_before = pattern_borrow_sources;
       const auto inferred_calls_before = result.inferred_generic_arguments;
       const auto extension_calls_before = result.extension_calls;
+      const auto inferred_expression_types_before = inferred_expression_types;
       const std::size_t inferred_lambda_parameters_before =
           result.inferred_lambda_parameters.size();
       const auto resolved_calls_before = resolved_calls;
@@ -4650,6 +4656,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         pattern_borrow_sources = pattern_borrow_sources_before;
         result.inferred_generic_arguments = inferred_calls_before;
         result.extension_calls = extension_calls_before;
+        inferred_expression_types = inferred_expression_types_before;
         result.inferred_lambda_parameters.resize(
             inferred_lambda_parameters_before);
         resolved_calls = resolved_calls_before;
@@ -5416,8 +5423,70 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  actual.name() + "'"};
         };
 
+    receiver_capability = [&](const ast::Expression &expression) {
+      if (const auto *identifier =
+              std::get_if<ast::IdentifierExpression>(&expression.value)) {
+        if (shared_borrow_values.contains(identifier->name))
+          return ReceiverCapability::Shared;
+        if (mutable_borrow_values.contains(identifier->name))
+          return ReceiverCapability::Mutable;
+        if (identifier->name == "this" && owner != nullptr &&
+            context.function != nullptr && !context.function->is_borrowing)
+          return ReceiverCapability::Mutable;
+        if (const auto local = active_symbols->find(identifier->name);
+            local != active_symbols->end())
+          return local->second.is_mutable ? ReceiverCapability::Mutable
+                                          : ReceiverCapability::Immutable;
+        if (const Symbol *global = visible_global(identifier->name))
+          return global->is_mutable ? ReceiverCapability::Mutable
+                                    : ReceiverCapability::Immutable;
+        return ReceiverCapability::Immutable;
+      }
+      if (const auto *member =
+              std::get_if<ast::MemberAccessExpression>(&expression.value)) {
+        const ReceiverCapability owner_capability =
+            receiver_capability(*member->object);
+        if (owner_capability != ReceiverCapability::Mutable)
+          return owner_capability;
+        const auto object_type =
+            inferred_expression_types.find(member->object.get());
+        if (object_type == inferred_expression_types.end() ||
+            !object_type->second.is_class())
+          return ReceiverCapability::Immutable;
+        const auto declaration_entry =
+            classes.find(object_type->second.parameter);
+        if (declaration_entry == classes.end() ||
+            declaration_entry->second == nullptr)
+          return ReceiverCapability::Immutable;
+        const ast::ClassDeclaration &declaration = *declaration_entry->second;
+        const auto mutable_field = [&](const ast::ValueDeclaration &field) {
+          return field.name == member->member && field.is_mutable;
+        };
+        return std::any_of(declaration.constructor_fields.begin(),
+                           declaration.constructor_fields.end(),
+                           mutable_field) ||
+                       std::any_of(declaration.fields.begin(),
+                                   declaration.fields.end(), mutable_field)
+                   ? ReceiverCapability::Mutable
+                   : ReceiverCapability::Immutable;
+      }
+      if (std::holds_alternative<ast::NewExpression>(expression.value) ||
+          std::holds_alternative<ast::MoveExpression>(expression.value))
+        return ReceiverCapability::Mutable;
+      if (std::holds_alternative<ast::CallExpression>(expression.value) ||
+          std::holds_alternative<ast::MethodCallExpression>(expression.value)) {
+        const auto resolved = resolved_calls.find(&expression);
+        if (resolved == resolved_calls.end() || resolved->second == nullptr)
+          return ReceiverCapability::Mutable;
+        if (resolved->second->return_ownership == ast::ReturnOwnership::Borrow)
+          return ReceiverCapability::Shared;
+        return ReceiverCapability::Mutable;
+      }
+      return ReceiverCapability::Immutable;
+    };
+
     expression_type = [&](const ast::Expression &expression) -> SemanticType {
-      return std::visit(
+      SemanticType inferred = std::visit(
           [&](const auto &node) -> SemanticType {
             using Node = std::decay_t<decltype(node)>;
             if constexpr (std::is_same_v<Node, ast::IntegerLiteralExpression>) {
@@ -5684,8 +5753,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   lambda_symbols.insert_or_assign(
                       parameter.name,
                       Symbol{parameter_type,
-                             effective_ownership ==
-                                 ast::ParameterOwnership::BorrowMutable,
+                             effective_ownership !=
+                                 ast::ParameterOwnership::Borrow,
                              true});
                   if (effective_ownership == ast::ParameterOwnership::Borrow ||
                       effective_ownership ==
@@ -7374,16 +7443,44 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "type '" + object_type.name() +
                                        "' has no method '" + node.method + "'"};
               }
-              if (const auto *identifier =
-                      std::get_if<ast::IdentifierExpression>(
-                          &node.object->value);
-                  identifier != nullptr &&
-                  shared_borrow_values.contains(identifier->name) &&
-                  !method->is_borrowing)
-                throw CompileError{DiagnosticCode::AnalyzerInvalidBorrowAccess,
-                                   node.location,
-                                   "shared borrow '" + identifier->name +
-                                       "' can only call a borrow method"};
+              const ReceiverCapability capability =
+                  receiver_capability(*node.object);
+              const bool mutable_extension_receiver =
+                  extension_declaration != nullptr &&
+                  extension_receiver_ownership ==
+                      ast::ParameterOwnership::BorrowMutable;
+              const bool shared_native_receiver =
+                  extension_declaration == nullptr && !method->is_borrowing &&
+                  capability == ReceiverCapability::Shared;
+              const bool immutable_value_receiver =
+                  extension_declaration == nullptr &&
+                  class_declaration != nullptr &&
+                  class_declaration->is_value_type && !method->is_borrowing &&
+                  !method->is_consuming &&
+                  capability == ReceiverCapability::Immutable;
+              if ((mutable_extension_receiver &&
+                   capability != ReceiverCapability::Mutable) ||
+                  shared_native_receiver || immutable_value_receiver) {
+                const auto *identifier = lexical_root_identifier(
+                    *node.object, lexical_root_identifier);
+                const std::string receiver_name =
+                    identifier == nullptr ? "receiver" : identifier->name;
+                if (capability == ReceiverCapability::Shared)
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                      node.location,
+                      "shared borrow '" + receiver_name +
+                          "' can only call a borrow method; mutable method '" +
+                          node.method + "' requires `borrow var` access"};
+                if (capability == ReceiverCapability::Immutable)
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                      node.location,
+                      "immutable receiver '" + receiver_name +
+                          "' cannot call mutable method '" + node.method +
+                          "'; declare the owner with `var` or request `borrow "
+                          "var` access"};
+              }
               if (!method->is_borrowing)
                 if (const auto *identifier =
                         std::get_if<ast::IdentifierExpression>(
@@ -8647,6 +8744,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             }
           },
           expression.value);
+      inferred_expression_types.insert_or_assign(&expression, inferred);
+      return inferred;
     };
 
     const auto expression_borrow_sources =
