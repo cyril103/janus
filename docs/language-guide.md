@@ -804,6 +804,14 @@ clé `private` réserve un champ ou une méthode à sa classe. `internal` autori
 les autres déclarations du même module à y accéder, tout en interdisant son
 utilisation depuis les modules importateurs.
 
+Une implémentation de trait ne peut pas réduire la visibilité effective de son
+contrat. Si le trait et la classe sont publics, la méthode d'implémentation doit
+donc être publique : une méthode `internal` est refusée, car un importateur
+pourrait sinon l'appeler indirectement depuis une fonction générique contrainte
+par le trait. Une implémentation `internal` reste permise lorsque le trait ou le
+type est `private`, puisque le contrat effectif ne sort alors pas du module.
+Une méthode `private`, limitée à sa classe, ne peut jamais implémenter un trait.
+
 Un constructeur peut être réservé à son espace de noms racine avec `internal`
 placé avant ses paramètres. Le type reste public, mais seul un module partageant
 la même racine qualifiée peut l'instancier. La stdlib utilise cette forme pour

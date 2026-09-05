@@ -7,6 +7,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- refus des méthodes `internal` comme implémentations d'un contrat de trait
+  effectivement public ; les contrats dont le trait ou le type est privé
+  restent implémentables au niveau module, et l'index API/LSP n'expose pas la
+  méthode restreinte ;
 - comparaison canonique complète des méthodes qui implémentent un trait :
   ownership des paramètres et du retour, `scoped`, receveur, pureté et
   contraintes `where` doivent désormais être identiques, indépendamment de

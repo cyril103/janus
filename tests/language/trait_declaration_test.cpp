@@ -189,6 +189,43 @@ def main() : int {
                        "private def name() : string { return \"hidden\" } } "
                        "def main() : int { return 0 }",
                        "private method 'name' cannot implement");
+  expect_compile_error(
+      "trait Named { borrow def name() : string } "
+      "class Secret(val text : string) extends Named { "
+      "internal borrow def name() : string { return text } } "
+      "def main() : int { return 0 }",
+      "internal method 'name' cannot implement externally visible trait "
+      "method 'Named.name' for public class 'Secret'");
+  expect_compile_success(
+      "private trait Named { borrow def name() : string } "
+      "class ModuleVisible(val text : string) extends Named { "
+      "internal borrow def name() : string { return text } } "
+      "def reveal[T <: Named](borrow value : T) : string { "
+      "return value.name() } "
+      "def main() : int { return 0 }",
+      "an internal method may implement a module-private trait contract");
+  expect_compile_success(
+      "trait Named { borrow def name() : string } "
+      "private class ModuleType(val text : string) extends Named { "
+      "internal borrow def name() : string { return text } } "
+      "def reveal[T <: Named](borrow value : T) : string { "
+      "return value.name() } "
+      "def main() : int { return 0 }",
+      "an internal method may implement a contract on a module-private type");
+  expect_compile_success(
+      "private trait Named { borrow def name() : string } "
+      "private class ModuleType(val text : string) extends Named { "
+      "internal borrow def name() : string { return text } } "
+      "def reveal[T <: Named](borrow value : T) : string { "
+      "return value.name() } "
+      "def main() : int { return 0 }",
+      "module-private traits and types may use internal implementations");
+  expect_compile_error(
+      "private trait Named { def name() : string } "
+      "private class Hidden() extends Named { "
+      "private def name() : string { return \"hidden\" } } "
+      "def main() : int { return 0 }",
+      "private method 'name' cannot implement trait method 'Named.name'");
   expect_compile_error("trait Named { def name() : string } "
                        "def visit[T <: Named](value : T) : int { return 1 } "
                        "def main() : int { return visit[int](1) }",

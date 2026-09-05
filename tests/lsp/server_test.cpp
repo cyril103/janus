@@ -309,6 +309,14 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(invalid.front().find("\"version\":1") !=
                 std::string::npos);
 
+  const std::vector<std::string> trait_visibility = server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///trait-visibility.janus","text":"trait Named { borrow def name() : string }\nclass Secret(val text : string) extends Named { internal borrow def name() : string { return text } }"}}})");
+  JANUS_REQUIRE(trait_visibility.size() == 1);
+  JANUS_REQUIRE(trait_visibility.front().find(
+                    "internal method 'name' cannot implement externally "
+                    "visible trait method 'Named.name'") !=
+                std::string::npos);
+
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"$/cancelRequest","params":{"id":990}})"));
   const std::vector<std::string> cancelled = server.handle(

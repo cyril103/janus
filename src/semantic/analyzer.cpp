@@ -2982,9 +2982,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (implementation->is_private)
           throw CompileError{implementation->location,
                              "private method '" + implementation->name +
-                                 "' cannot implement public trait method '" +
+                                 "' cannot implement trait method '" +
                                  trait_declaration.name + "." + required.name +
                                  "'"};
+        const bool contract_is_externally_visible =
+            !trait_declaration.is_private && !class_declaration.is_private;
+        if (implementation->is_internal && contract_is_externally_visible)
+          throw CompileError{
+              implementation->location,
+              "internal method '" + implementation->name +
+                  "' cannot implement externally visible trait method '" +
+                  trait_declaration.name + "." + required.name +
+                  "' for public class '" + class_declaration.name + "'"};
         if (implementation->type_parameters.size() !=
                 required.type_parameters.size() ||
             implementation->parameters.size() != required.parameters.size())

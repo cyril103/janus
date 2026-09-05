@@ -38,13 +38,24 @@ def write(value : int, path : string) : bool { return true }
 def oldWrite(path : string) : bool { return true }
 private def secret() : int { return 1 }
 private class HiddenOwner() { internal def hidden() : int { return 2 } }
+trait Named { borrow def name() : string }
+class InvalidNamed(val text : string) extends Named {
+    internal borrow def name() : string { return text }
+}
 )"};
   std::vector<janus::ast::Program> programs;
   programs.push_back(parser.parse_program());
   const auto index = janus::driver::build_api_index(
       programs, {"fixture", "1.0.0"});
   expect(index.format_version == 1, "the index format is versioned");
-  expect(index.symbols.size() == 3, "only public symbols are indexed");
+  expect(index.symbols.size() == 7, "only public symbols are indexed");
+  expect(std::none_of(index.symbols.begin(), index.symbols.end(),
+                      [](const janus::driver::ApiSymbol &symbol) {
+                        return symbol.qualified_name ==
+                               "sample.InvalidNamed.name";
+                      }),
+         "an internal trait implementation is never published in the API "
+         "index");
   janus::frontend::Parser constant_parser{
       "module sample\nconst answer : int = 6 * 7\n"};
   std::vector<janus::ast::Program> constant_programs;

@@ -137,6 +137,35 @@ int main() {
   static_cast<void>(import_analyzer.analyze(contract_alias_program));
   expect(true, "trait contracts normalize renamed imported types and bounds");
 
+  write_source(import_root / "contract" / "visibility.janus",
+               "module contract.visibility\n"
+               "trait Named { borrow def name() : string }\n"
+               "class Secret(val text : string) extends Named {\n"
+               "  internal borrow def name() : string { return text }\n"
+               "}\n"
+               "def constrained[T <: Named](borrow value : T) : string {\n"
+               "  return value.name()\n"
+               "}\n");
+  write_source(import_root / "trait_visibility_client.janus",
+               "import contract.visibility\n"
+               "def expose(borrow value : Secret) : string {\n"
+               "  val direct : string = value.name()\n"
+               "  return constrained[Secret](value)\n"
+               "}\n");
+  bool public_trait_internal_implementation_rejected = false;
+  try {
+    static_cast<void>(import_analyzer.analyze(
+        import_loader.load(import_root / "trait_visibility_client.janus")));
+  } catch (const janus::CompileError &error) {
+    public_trait_internal_implementation_rejected =
+        std::string_view{error.what()}.find(
+            "internal method 'name' cannot implement externally visible "
+            "trait method 'Named.name'") != std::string_view::npos;
+  }
+  expect(public_trait_internal_implementation_rejected,
+         "an imported public contract cannot expose its internal "
+         "implementation through direct or constrained calls");
+
   std::filesystem::create_directories(import_root / "secure");
   write_source(import_root / "secure" / "native.janus",
                "module secure.native\n"
