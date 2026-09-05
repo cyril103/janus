@@ -1,0 +1,17 @@
+import std.array
+import std.iterator
+
+def main() : int {
+    val afterDestroy : Array[int] = new Array[int](usize(1))
+    val destroyed : Iterator[int] = afterDestroy.iterator()
+    delete destroyed
+    afterDestroy.push(1)
+    delete afterDestroy
+
+    val afterConsumption : Array[int] = new Array[int](usize(1))
+    val consumed : Iterator[int] = afterConsumption.iterator()
+    println(consumed.count())
+    afterConsumption.push(2)
+    delete afterConsumption
+    return 0
+}

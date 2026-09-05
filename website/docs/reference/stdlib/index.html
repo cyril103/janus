@@ -228,12 +228,16 @@ puis libère le tableau source.</p></div>
 
 Cette méthode ne consomme pas le tableau et chaque valeur produite est une
 copie; elle n’est disponible que lorsque `T` satisfait `Copy`. Le tableau
-doit rester vivant pendant le parcours.
+doit rester vivant et ne peut pas être muté pendant le parcours. Ce
+verrou suit les adaptateurs de l&#39;itérateur et disparaît lorsque celui-ci
+est détruit ou entièrement consommé.
 @return Un nouvel [[Iterator]] positionné avant l’indice zéro."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.array.Array</div><h3><code>borrow def iterator() : Iterator[T]</code></h3>
 <p class="doc-summary">Crée un parcours observant les éléments dans l’ordre des indices.</p>
 <div class="doc-details"><p>Cette méthode ne consomme pas le tableau et chaque valeur produite est une<br>
 copie; elle n’est disponible que lorsque `T` satisfait `Copy`. Le tableau<br>
-doit rester vivant pendant le parcours.</p></div>
+doit rester vivant et ne peut pas être muté pendant le parcours. Ce<br>
+verrou suit les adaptateurs de l&#39;itérateur et disparaît lorsque celui-ci<br>
+est détruit ou entièrement consommé.</p></div>
 <section class="doc-section"><h4>Returns</h4><p><code>Iterator[T]</code> — Un nouvel <a href="#std-iterator-iterator"><code>Iterator</code></a> positionné avant l’indice zéro.</p></section>
 <div class="qualified">std.array.Array.iterator</div></div><a class="permalink" href="#std-array-array-iterator" aria-label="Permanent link to std.array.Array.iterator">#</a></article>
 <article class="symbol-card kind-method child" id="std-array-array-map" data-symbol data-search="std.array.Array.map method borrow def map[U](scoped transform : Function[T, U]) : Array[U] Construit un tableau en transformant chaque élément dans l’ordre.

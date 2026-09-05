@@ -7,6 +7,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- conservation transitive du verrou des collections parcourues par un
+  `Iterator` observant : destruction, mutation et réallocation de la source
+  sont refusées avec `JANA0025`, y compris après les adaptateurs paresseux, et
+  le verrou est libéré par destruction ou consommation de l'itérateur ;
 - validation des effets différés dans leur ordre LIFO réel : une destruction,
   mutation, consommation ou move différé qui précéderait l'utilisation d'un
   emprunt est désormais refusé avec `JANA0025`, y compris à travers les portées

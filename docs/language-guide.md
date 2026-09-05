@@ -1686,6 +1686,13 @@ dans un champ de constructeur immutable, par exemple
 classe et sa source doit donc vivre plus longtemps. Les structs ne peuvent pas
 contenir de champ emprunté.
 
+Les itérateurs observants de la bibliothèque standard conservent ce verrou
+même si l'emprunt est encapsulé dans leur état privé. Tant que l'`Iterator`
+reste vivant, détruire ou muter sa collection source (par exemple avec
+`Array.push`) est refusé avec `JANA0025`. Le verrou suit les adaptateurs
+paresseux tels que `map`, `filter`, `take`, `chain` et `zip`; il est libéré
+lorsque l'itérateur est détruit ou consommé complètement.
+
 Le code de conteneur bas niveau dispose de contrats explicites supplémentaires :
 la méthode Ptr.initialize écrit un emplacement neuf, et Ptr.overwrite remplace un
 emplacement dont l'ancienne propriété a déjà été extraite,

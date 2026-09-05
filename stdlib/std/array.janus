@@ -126,7 +126,9 @@ class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
     ///
     /// Cette méthode ne consomme pas le tableau et chaque valeur produite est une
     /// copie; elle n’est disponible que lorsque `T` satisfait `Copy`. Le tableau
-    /// doit rester vivant pendant le parcours.
+    /// doit rester vivant et ne peut pas être muté pendant le parcours. Ce
+    /// verrou suit les adaptateurs de l'itérateur et disparaît lorsque celui-ci
+    /// est détruit ou entièrement consommé.
     /// @return Un nouvel [[Iterator]] positionné avant l’indice zéro.
     borrow def iterator() : Iterator[T] where T <: Copy {
         val state : ArrayIteratorState[T] =

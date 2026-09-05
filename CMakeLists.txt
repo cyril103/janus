@@ -844,6 +844,11 @@ if(BUILD_TESTING)
         PROPERTIES PASS_REGULAR_EXPRESSION "borrow invalidated"
     )
     add_test(
+        NAME cli.iterator_hidden_borrow_release
+        COMMAND janus check
+                "${PROJECT_SOURCE_DIR}/tests/fixtures/iterator_hidden_borrow_release.janus"
+    )
+    add_test(
         NAME diagnostics.invalid_corpus
         COMMAND "${Python3_EXECUTABLE}"
                 "${PROJECT_SOURCE_DIR}/tests/diagnostics/run_invalid_corpus.py"

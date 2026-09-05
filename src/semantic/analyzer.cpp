@@ -8708,9 +8708,63 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               std::get_if<ast::MethodCallExpression>(&candidate.value)) {
         const auto enum_name = qualified_expression_name(*call->object);
         if (enum_name.has_value() &&
-            find_in_context(enums, context_module, *enum_name) != enums.end())
+            find_in_context(enums, context_module, *enum_name) != enums.end()) {
           for (const auto &argument : call->arguments)
             self(*argument, self, sources);
+          return;
+        }
+
+        const auto resolved = resolved_calls.find(&candidate);
+        if (resolved == resolved_calls.end() ||
+            resolved->second->return_type.name != "Iterator")
+          return;
+
+        // An observing collection iterator hides its source borrow behind an
+        // owning state and two closures. Iterator adapters then hide that
+        // state one level deeper. Preserve the source relation at the call
+        // boundary so moves of the returned Iterator transfer the lock just
+        // like moves of an explicitly borrowed aggregate.
+        if (resolved->second->is_borrowing) {
+          if (const auto *root = lexical_root_identifier(
+                  *call->object, lexical_root_identifier))
+            sources.insert(root->name);
+        }
+        self(*call->object, self, sources);
+
+        for (std::size_t index = 0; index < call->arguments.size(); ++index) {
+          const ast::Expression &argument = *call->arguments[index];
+          if (index < resolved->second->parameters.size()) {
+            const ast::ParameterOwnership ownership =
+                resolved->second->parameters[index].ownership;
+            if (ownership == ast::ParameterOwnership::Borrow ||
+                ownership == ast::ParameterOwnership::BorrowMutable)
+              if (const auto *root = lexical_root_identifier(
+                      argument, lexical_root_identifier))
+                sources.insert(root->name);
+          }
+          self(argument, self, sources);
+        }
+        return;
+      }
+      if (const auto *call =
+              std::get_if<ast::CallExpression>(&candidate.value)) {
+        const auto resolved = resolved_calls.find(&candidate);
+        if (resolved == resolved_calls.end() ||
+            resolved->second->return_type.name != "Iterator")
+          return;
+        for (std::size_t index = 0; index < call->arguments.size(); ++index) {
+          const ast::Expression &argument = *call->arguments[index];
+          if (index < resolved->second->parameters.size()) {
+            const ast::ParameterOwnership ownership =
+                resolved->second->parameters[index].ownership;
+            if (ownership == ast::ParameterOwnership::Borrow ||
+                ownership == ast::ParameterOwnership::BorrowMutable)
+              if (const auto *root = lexical_root_identifier(
+                      argument, lexical_root_identifier))
+                sources.insert(root->name);
+          }
+          self(argument, self, sources);
+        }
       }
     };
 
