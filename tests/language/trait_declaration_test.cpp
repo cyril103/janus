@@ -35,6 +35,19 @@ void expect_compile_error(std::string_view source,
   }
 }
 
+void expect_compile_success(std::string_view source,
+                            std::string_view expectation) {
+  try {
+    janus::frontend::Parser parser{source};
+    const janus::ast::Program program = parser.parse_program();
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(program));
+  } catch (const janus::CompileError &error) {
+    std::cerr << "FAILED: " << expectation << ": " << error.what() << '\n';
+    ++failures;
+  }
+}
+
 } // namespace
 
 int main() {
@@ -188,6 +201,58 @@ def main() : int {
       "class File() extends Resource { def close() : Unit {} } "
       "def main() : int { return 0 }",
       "ownership contract incompatible");
+  expect_compile_error(
+      "trait Contract { def relay[T](action : () => T) : borrow T } "
+      "class Wrong() extends Contract { "
+      "def relay[U](action : () => U) : U { return action() } } "
+      "def main() : int { return 0 }",
+      "return ownership differs");
+  expect_compile_error(
+      "trait Contract { def run(scoped action : () => int) : int } "
+      "class Wrong() extends Contract { "
+      "def run(action : () => int) : int { return action() } } "
+      "def main() : int { return 0 }",
+      "scoped contract of parameter 1 differs");
+  expect_compile_error(
+      "trait Contract { def inspect(borrow value : int) : int } "
+      "class Wrong() extends Contract { "
+      "def inspect(value : int) : int { return value } } "
+      "def main() : int { return 0 }",
+      "ownership of parameter 1 differs");
+  expect_compile_error(
+      "trait Contract { pure def value() : int } "
+      "class Wrong() extends Contract { def value() : int { return 1 } } "
+      "def main() : int { return 0 }",
+      "purity contract differs");
+  expect_compile_error(
+      "trait Contract { def copy[T](value : T) : T where T <: Copy } "
+      "class Wrong() extends Contract { "
+      "def copy[U](value : U) : U { return move value } } "
+      "def main() : int { return 0 }",
+      "generic where constraints differ");
+  expect_compile_error(
+      "trait Contract { def copy[T](value : T) : T } "
+      "class Wrong() extends Contract { "
+      "def copy[U](value : U) : U where U <: Copy { return move value } } "
+      "def main() : int { return 0 }",
+      "generic where constraints differ");
+  expect_compile_error(
+      "trait Contract { def copy[T](value : T) : T where T <: Copy } "
+      "class Wrong() extends Contract { "
+      "def copy[U](value : U) : U where U <: Equality { return move value } } "
+      "def main() : int { return 0 }",
+      "generic where constraints differ");
+  expect_compile_success(
+      "trait Contract { "
+      "def apply[T](scoped action : () => T) : T "
+      "where T <: Copy & Equality } "
+      "class Exact() extends Contract { "
+      "def apply[U](scoped action : () => U) : U "
+      "where U <: Equality & Copy { return action() } } "
+      "def call[C <: Contract](contract : C) : int { "
+      "return contract.apply[int](() => 42) } "
+      "def main() : int { return call[Exact](new Exact()) }",
+      "equivalent reordered constraints form a valid callable contract");
   expect_compile_error(
       "trait Producer { type Item def next() : Item } "
       "class Missing() extends Producer { def next() : int { return 1 } } "

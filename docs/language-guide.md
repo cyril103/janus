@@ -861,6 +861,15 @@ types associés génériques, leurs bornes et les égalités de projection dans
 `where` ne font pas partie de cette première version. Le contrat détaillé est fixé dans
 [la RFC des types associés](design/associated-types.md).
 
+Une méthode qui implémente un trait doit reprendre exactement son contrat après
+normalisation des paramètres génériques, des types associés et des noms
+importés. Cette identité couvre les types et l'ownership des paramètres et du
+retour, `scoped`, le receveur (`borrow` ou `consume`), la pureté et les
+contraintes génériques propres à la méthode. L'ordre des contraintes `where`
+n'est pas significatif, mais en ajouter, en retirer ou en remplacer une rend la
+signature incompatible. Aucune variance ni aucun renforcement implicite n'est
+actuellement autorisé. Le diagnostic précise le champ contractuel qui diffère.
+
 La classe reste utilisable avec un `T` propriétaire, tandis que l'appel de
 `peekCopy` est disponible seulement lorsque `T` satisfait `Copy`. Plusieurs
 contraintes se combinent avec `&` et plusieurs paramètres avec `,`.

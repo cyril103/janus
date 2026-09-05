@@ -2994,14 +2994,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  "' has a signature incompatible with trait '" +
                                  trait_declaration.name + "'"};
         if (implementation->is_consuming != required.is_consuming ||
-            implementation->is_borrowing != required.is_borrowing ||
-            (implementation->is_pure || implementation->is_constant) !=
-                (required.is_pure || required.is_constant))
+            implementation->is_borrowing != required.is_borrowing)
           throw CompileError{
               implementation->location,
               "method '" + class_declaration.name + "." + implementation->name +
                   "' has an ownership contract incompatible with trait '" +
-                  trait_declaration.name + "'"};
+                  trait_declaration.name + "': receiver ownership differs"};
+        if ((implementation->is_pure || implementation->is_constant) !=
+            (required.is_pure || required.is_constant))
+          throw CompileError{
+              implementation->location,
+              "method '" + class_declaration.name + "." + implementation->name +
+                  "' has a signature incompatible with trait '" +
+                  trait_declaration.name + "': purity contract differs"};
 
         std::unordered_set<std::string> trait_method_parameters{
             trait_declaration.type_parameters.begin(),
@@ -3036,22 +3041,145 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               resolve_type(reference, class_method_parameters, &class_arities),
               class_method_canonical);
         };
-        bool compatible =
-            same_type(required_type(required.return_type),
-                      implemented_type(implementation->return_type));
-        for (std::size_t index = 0;
-             compatible && index < required.parameters.size(); ++index)
-          compatible = required.parameters[index].ownership ==
-                           implementation->parameters[index].ownership &&
-                       same_type(required_type(required.parameters[index].type),
-                                 implemented_type(
-                                     implementation->parameters[index].type));
-        if (!compatible)
+        const auto canonical_type = [&](auto &&self,
+                                        SemanticType type) -> SemanticType {
+          for (SemanticType &argument : type.type_arguments)
+            argument = self(self, std::move(argument));
+          if (type.is_class()) {
+            if (const auto declaration = classes.find(type.parameter);
+                declaration != classes.end())
+              type.parameter = global_key(declaration->second->module_name,
+                                          declaration->second->name);
+          } else if (type.is_enum()) {
+            if (const auto declaration = enums.find(type.parameter);
+                declaration != enums.end())
+              type.parameter = global_key(declaration->second->module_name,
+                                          declaration->second->name);
+          }
+          return type;
+        };
+        const auto canonical_required_type =
+            [&](const ast::TypeReference &reference) {
+              return canonical_type(canonical_type, required_type(reference));
+            };
+        const auto canonical_implemented_type =
+            [&](const ast::TypeReference &reference) {
+              return canonical_type(canonical_type,
+                                    implemented_type(reference));
+            };
+        const std::string method_name = "method '" + class_declaration.name +
+                                        "." + implementation->name + "'";
+        const auto incompatible_signature = [&](std::string detail) {
           throw CompileError{implementation->location,
-                             "method '" + class_declaration.name + "." +
-                                 implementation->name +
-                                 "' has a signature incompatible with trait '" +
-                                 trait_declaration.name + "'"};
+                             method_name +
+                                 " has a signature incompatible with trait '" +
+                                 trait_declaration.name + "': " + detail};
+        };
+        if (implementation->return_ownership != required.return_ownership)
+          incompatible_signature("return ownership differs");
+        if (!same_type(canonical_required_type(required.return_type),
+                       canonical_implemented_type(implementation->return_type)))
+          incompatible_signature("return type differs");
+        for (std::size_t index = 0; index < required.parameters.size();
+             ++index) {
+          if (required.parameters[index].ownership !=
+              implementation->parameters[index].ownership)
+            incompatible_signature("ownership of parameter " +
+                                   std::to_string(index + 1) + " differs");
+          if (required.parameters[index].is_scoped !=
+              implementation->parameters[index].is_scoped)
+            incompatible_signature("scoped contract of parameter " +
+                                   std::to_string(index + 1) + " differs");
+          if (!same_type(
+                  canonical_required_type(required.parameters[index].type),
+                  canonical_implemented_type(
+                      implementation->parameters[index].type)))
+            incompatible_signature("type of parameter " +
+                                   std::to_string(index + 1) + " differs");
+        }
+
+        struct CanonicalConstraint {
+          SemanticType parameter;
+          const ast::TraitDeclaration *trait{};
+          std::optional<ast::DerivationKind> derivation;
+          std::vector<SemanticType> arguments;
+        };
+        const auto canonical_constraints =
+            [&](const std::vector<ast::TypeConstraint> &constraints,
+                const std::unordered_set<std::string> &type_parameters,
+                const auto &canonical_reference,
+                const auto &canonical_semantic) {
+              std::vector<CanonicalConstraint> result;
+              result.reserve(constraints.size());
+              for (const ast::TypeConstraint &constraint : constraints) {
+                const ast::TypeReference parameter{constraint.parameter,
+                                                   constraint.location};
+                CanonicalConstraint canonical{
+                    canonical_reference(parameter),
+                    nullptr,
+                    derivation_constraint(constraint.trait.name),
+                    {}};
+                if (!canonical.derivation.has_value()) {
+                  const TraitInstance instance =
+                      resolve_trait(constraint.trait, type_parameters);
+                  canonical.trait = instance.declaration;
+                  canonical.arguments.reserve(instance.type_arguments.size());
+                  for (SemanticType argument : instance.type_arguments)
+                    canonical.arguments.push_back(
+                        canonical_semantic(std::move(argument)));
+                }
+                result.push_back(std::move(canonical));
+              }
+              return result;
+            };
+        const auto required_semantic = [&](SemanticType type) {
+          return canonical_type(
+              canonical_type,
+              substitute(substitute(std::move(type), trait_substitutions),
+                         trait_method_canonical));
+        };
+        const auto implemented_semantic = [&](SemanticType type) {
+          return canonical_type(
+              canonical_type,
+              substitute(std::move(type), class_method_canonical));
+        };
+        const std::vector<CanonicalConstraint> required_constraints =
+            canonical_constraints(required.type_constraints,
+                                  trait_method_parameters,
+                                  canonical_required_type, required_semantic);
+        const std::vector<CanonicalConstraint> implemented_constraints =
+            canonical_constraints(
+                implementation->type_constraints, class_method_parameters,
+                canonical_implemented_type, implemented_semantic);
+        const auto same_constraint = [&](const CanonicalConstraint &left,
+                                         const CanonicalConstraint &right) {
+          return same_type(left.parameter, right.parameter) &&
+                 left.trait == right.trait &&
+                 left.derivation == right.derivation &&
+                 left.arguments.size() == right.arguments.size() &&
+                 std::equal(left.arguments.begin(), left.arguments.end(),
+                            right.arguments.begin(), same_type);
+        };
+        bool same_constraints =
+            required_constraints.size() == implemented_constraints.size();
+        std::vector<bool> matched_constraints(implemented_constraints.size());
+        for (const CanonicalConstraint &constraint : required_constraints) {
+          std::optional<std::size_t> matching_index;
+          for (std::size_t index = 0; index < implemented_constraints.size();
+               ++index)
+            if (!matched_constraints[index] &&
+                same_constraint(constraint, implemented_constraints[index])) {
+              matching_index = index;
+              break;
+            }
+          if (!matching_index.has_value()) {
+            same_constraints = false;
+            break;
+          }
+          matched_constraints[*matching_index] = true;
+        }
+        if (!same_constraints)
+          incompatible_signature("generic where constraints differ");
       }
     }
     for (const auto &[name, associated] : class_associated_types) {

@@ -7,6 +7,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- comparaison canonique complète des méthodes qui implémentent un trait :
+  ownership des paramètres et du retour, `scoped`, receveur, pureté et
+  contraintes `where` doivent désormais être identiques, indépendamment de
+  l'ordre des contraintes et des alias importés ; les diagnostics nomment le
+  champ divergent ;
 - validation de la capacité effective des receveurs mutables : une méthode
   mutante de type valeur ou une extension `borrow var def` accepte un
   propriétaire `var` ou un alias `borrow var`, mais refuse désormais les

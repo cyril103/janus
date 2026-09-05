@@ -114,6 +114,29 @@ int main() {
   }
   expect(true, "qualified and renamed function imports resolve canonically");
 
+  std::filesystem::create_directories(import_root / "contract");
+  write_source(import_root / "contract" / "api.janus",
+               "module contract.api\n"
+               "trait Requirement {}\n"
+               "class Payload() {}\n"
+               "trait Contract {\n"
+               "  def inspect[T](value : T, payload : Payload) : Payload "
+               "where T <: Requirement\n"
+               "}\n");
+  write_source(import_root / "contract_aliases.janus",
+               "import contract.api.{Requirement as R, Payload as P, "
+               "Contract as C}\n"
+               "class Implementation() extends C {\n"
+               "  def inspect[U](value : U, payload : P) : P where U <: R {\n"
+               "    return move payload\n"
+               "  }\n"
+               "}\n"
+               "def main() : int { return 0 }\n");
+  const janus::ast::Program contract_alias_program =
+      import_loader.load(import_root / "contract_aliases.janus");
+  static_cast<void>(import_analyzer.analyze(contract_alias_program));
+  expect(true, "trait contracts normalize renamed imported types and bounds");
+
   std::filesystem::create_directories(import_root / "secure");
   write_source(import_root / "secure" / "native.janus",
                "module secure.native\n"
