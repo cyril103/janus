@@ -1436,6 +1436,18 @@ if(BUILD_TESTING)
     add_test(NAME language.borrowed_calls_closures
         COMMAND borrowed_calls_closures_test)
     add_test(
+        NAME runtime.transitive_borrowed_closure
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/transitive_borrowed_closure.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/transitive_borrowed_closure_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/transitive_borrowed_closure.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+    add_test(
         NAME runtime.scoped_transitive
         COMMAND
             ${CMAKE_COMMAND}

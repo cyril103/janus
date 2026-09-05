@@ -7,6 +7,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- suivi transitif des sources d'emprunt capturées par les closures, à travers
+  les champs empruntés, déplacements, enums génériques et bindings imbriqués de
+  `match` ; les destructions prématurées sont refusées avec `JANA0025`, les
+  payloads ne peuvent plus s'échapper par closure (`JANA0026`) et détruire la
+  closure libère correctement le porteur ;
 - vérification transitive du contrat non échappant des paramètres `scoped` :
   retours, champs, globales, conteneurs, closures propriétaires et appels
   non-`scoped` sont refusés avec `JANA0026`, tandis que l'invocation, la

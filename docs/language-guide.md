@@ -1054,6 +1054,17 @@ dépend plus de leurs noms pour borner les captures. Une closure conservée dans
 une variable est transférée explicitement avec `move`; une lambda écrite dans
 l’appel est transférée directement.
 
+La provenance d'une capture est transitive. Capturer un objet qui contient un
+champ `borrow val` ou `borrow var` maintient en vie cet objet et sa source
+racine jusqu'à la destruction de la closure. La même règle s'applique lorsque
+le porteur a été déplacé dans un `Option`, un `Result` ou un autre enum, puis
+extrait par un motif, y compris dans des motifs imbriqués. Détruire ou muter un
+porteur encore référencé produit `JANA0025`. Une closure formée dans un bras de
+`match` sur un payload emprunté ne peut pas sortir de la fonction : le binding
+reste borné à son bras et l'échappement produit `JANA0026`. Détruire la closure
+met fin à cette dépendance ; le porteur puis sa source peuvent alors être
+détruits dans cet ordre.
+
 Les structures et enums qui contiennent une ressource deviennent eux-mêmes
 propriétaires. Leur transfert doit employer `move`, et `delete` détruit
 récursivement leur contenu :

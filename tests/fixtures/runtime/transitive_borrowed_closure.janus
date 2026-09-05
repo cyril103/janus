@@ -1,0 +1,19 @@
+class Resource(val value : int) {
+    destructor { println(100) }
+}
+
+class View(private borrow val source : Resource) {
+    borrow def read() : int { return source.value }
+    destructor { println(200) }
+}
+
+def main() : int {
+    val resource : Resource = new Resource(42)
+    val view : View = new View(resource)
+    val reader : () => int = () => view.read()
+    println(reader())
+    delete reader
+    delete view
+    delete resource
+    return 0
+}

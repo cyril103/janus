@@ -293,6 +293,158 @@ def main() : int {
 )",
                true);
 
+  expect_compile_error(R"(
+class Resource(val value : int) {}
+class View(private borrow val source : Resource) {
+  borrow def read() : int { return source.value }
+}
+def main() : int {
+  val resource : Resource = new Resource(424242)
+  val view : View = new View(resource)
+  val reader : () => int = () => view.read()
+  delete view
+  println(reader())
+  delete reader
+  delete resource
+  return 0
+}
+)",
+                       "owning value 'view' cannot be released while borrowed "
+                       "by 'reader'",
+                       janus::DiagnosticCode::AnalyzerBorrowInvalidation);
+
+  expect_compile_error(R"(
+class Resource(val value : int) {}
+class View(private borrow val source : Resource) {
+  borrow def read() : int { return source.value }
+}
+enum MaybeView { Some(View), None }
+def leak(borrow slot : MaybeView) : () => int {
+  return match slot {
+    Some(view) => () => view.read(),
+    None => () => 0
+  }
+}
+def main() : int { return 0 }
+)",
+                       "closure captures borrowed value",
+                       janus::DiagnosticCode::AnalyzerBorrowEscape);
+
+  expect_compile_error(R"(
+class Resource(val value : int) {}
+class View[T](private borrow val source : Resource, val marker : T) {
+  borrow def read() : int { return source.value }
+}
+enum Option[T] { Some(T), None }
+enum Result[T, E] { Ok(T), Err(E) }
+def leak(borrow nested : Result[Option[View[int]], int]) : () => int {
+  return match nested {
+    Ok(option) => match option {
+      Some(view) => () => view.read(),
+      None => () => 0
+    },
+    Err(code) => () => 0
+  }
+}
+def main() : int { return 0 }
+)",
+                       "closure captures borrowed value",
+                       janus::DiagnosticCode::AnalyzerBorrowEscape);
+
+  expect_compile_error(R"(
+class Resource(val value : int) {}
+class View(private borrow val source : Resource) {
+  borrow def read() : int { return source.value }
+}
+enum Option[T] { Some(T), None }
+def main() : int {
+  val resource : Resource = new Resource(7)
+  val view : View = new View(resource)
+  val option : Option[View] = Option.Some[View](move view)
+  var reader : () => int = () => 0
+  if true {
+    borrow val observed : Option[View] = option
+    reader = match observed {
+      Some(payload) => () => payload.read(),
+      None => () => 0
+    }
+  }
+  delete option
+  println(reader())
+  delete reader
+  delete resource
+  return 0
+}
+)",
+                       "owning value 'option' cannot be released while "
+                       "borrowed by 'reader'",
+                       janus::DiagnosticCode::AnalyzerBorrowInvalidation);
+
+  expect_valid(R"(
+class Resource(val value : int) {}
+class View(private borrow val source : Resource) {
+  borrow def read() : int { return source.value }
+}
+enum Option[T] { Some(T), None }
+def main() : int {
+  val resource : Resource = new Resource(7)
+  val view : View = new View(resource)
+  val option : Option[View] = Option.Some[View](move view)
+  var reader : () => int = () => 0
+  if true {
+    borrow val observed : Option[View] = option
+    reader = match observed {
+      Some(payload) => () => payload.read(),
+      None => () => 0
+    }
+  }
+  println(reader())
+  delete reader
+  delete option
+  delete resource
+  return 0
+}
+)",
+               true);
+
+  expect_compile_error(R"(
+class Resource(var value : int) {}
+class MutableView(private borrow var source : Resource) {
+  def write() : Unit { source.value = 9 }
+}
+def main() : int {
+  val resource : Resource = new Resource(1)
+  val view : MutableView = new MutableView(resource)
+  val writer : () => Unit = () => view.write()
+  delete view
+  writer()
+  delete writer
+  delete resource
+  return 0
+}
+)",
+                       "owning value 'view' cannot be released while borrowed "
+                       "by 'writer'",
+                       janus::DiagnosticCode::AnalyzerBorrowInvalidation);
+
+  expect_valid(R"(
+class Resource(val value : int) {}
+class View(private borrow val source : Resource) {
+  borrow def read() : int { return source.value }
+}
+def main() : int {
+  val resource : Resource = new Resource(424242)
+  val view : View = new View(resource)
+  val reader : () => int = () => view.read()
+  println(reader())
+  delete reader
+  delete view
+  delete resource
+  return 0
+}
+)",
+               true);
+
   expect_valid(R"(
 extern def nativeView(handle : isize) : borrow Ptr[byte]
 class NativeOwner(private val handle : isize) {
