@@ -76,6 +76,14 @@ utilise le versionnage sémantique à partir de sa première version publique.
   avec `JANA0002` lorsqu'un binding atteint la fin du bras sans transfert ni
   destruction, y compris pour les motifs imbriqués et multi-payloads.
 
+### Bibliothèque standard
+
+- `Validated.Invalid` transporte désormais un `ValidatedErrors` dont le
+  constructeur est interne et dont l'API publique garantit au moins une
+  erreur ; ajout de `invalidFromArray` pour migrer sûrement les constructions
+  depuis un tableau, et suppression du chemin de panique de `toResult` lié à
+  un `Invalid` vide.
+
 ## [0.23.1] - 2026-08-30
 
 ### Correctifs

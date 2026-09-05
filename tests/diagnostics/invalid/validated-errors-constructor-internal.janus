@@ -1,0 +1,10 @@
+import std.array
+import std.validated
+
+def main() : int {
+    val errors : Array[string] = new Array[string](usize(0))
+    val wrapped : ValidatedErrors[string] =
+        new ValidatedErrors[string](move errors)
+    delete wrapped
+    return 0
+}

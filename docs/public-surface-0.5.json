@@ -321,8 +321,8 @@
       "source": "stdlib/std/validated.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/validated.md"],
       "status": "experimental",
-      "signature_digest": "7f1ed72cc2d04415429ad794234b79e7bfbbf20fbef64efe6fe039fa338b1318",
-      "symbols": ["Validated", "Validated.Valid", "Validated.Invalid", "ValidatedPair", "ValidatedPair.left", "ValidatedPair.right", "valid", "invalid", "isValid", "isInvalid", "map", "mapError", "map2", "map3", "zip", "errorsBorrowed", "intoErrors", "fromResult", "toResult", "collectValidated"]
+      "signature_digest": "09446d86125d250d0b0397f6b13e5d1b4a5acdb1a72f40689d4813fede371e4c",
+      "symbols": ["Validated", "Validated.Valid", "Validated.Invalid", "ValidatedErrors", "ValidatedErrors.inspect", "ValidatedErrors.intoArray", "ValidatedPair", "ValidatedPair.left", "ValidatedPair.right", "valid", "invalid", "invalidFromArray", "isValid", "isInvalid", "map", "mapError", "map2", "map3", "zip", "errorsBorrowed", "intoErrors", "fromResult", "toResult", "collectValidated"]
     },
     {
       "name": "std.wall_time",

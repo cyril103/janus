@@ -41,14 +41,14 @@ def formErrorCount(
 ) : usize {
     return match move value {
         Valid(form) => discardForm(form),
-        Invalid(errors) => consumeErrors(move errors)
+        Invalid(errors) => consumeErrors(errors.intoArray())
     }
 }
 
 def configErrorCount(value : Validated[Config, string]) : usize {
     return match move value {
         Valid(config) => discardConfig(move config),
-        Invalid(errors) => consumeErrors(move errors)
+        Invalid(errors) => consumeErrors(errors.intoArray())
     }
 }
 
@@ -57,7 +57,7 @@ def collectionErrorCount(
 ) : usize {
     return match move value {
         Valid(items) => consumeItems(move items),
-        Invalid(errors) => consumeErrors(move errors)
+        Invalid(errors) => consumeErrors(errors.intoArray())
     }
 }
 

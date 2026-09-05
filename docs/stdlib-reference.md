@@ -300,7 +300,7 @@ def main() : int {
         )
     return match move checked {
         Valid(value) => 1,
-        Invalid(errors) => countErrors(move errors) - 2
+        Invalid(errors) => countErrors(errors.intoArray()) - 2
     }
 }
 ```

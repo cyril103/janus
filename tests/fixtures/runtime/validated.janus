@@ -32,14 +32,14 @@ def printErrors(errors : Array[string]) : usize {
 def printValidation(value : Validated[int, string]) : usize {
     return match move value {
         Valid(item) => printItem(item),
-        Invalid(errors) => printErrors(move errors)
+        Invalid(errors) => printErrors(errors.intoArray())
     }
 }
 
 def printCollected(value : Validated[Array[int], string]) : usize {
     return match move value {
         Valid(items) => items.size(),
-        Invalid(errors) => printErrors(move errors)
+        Invalid(errors) => printErrors(errors.intoArray())
     }
 }
 
@@ -48,7 +48,7 @@ def printPair(
 ) : usize {
     return match move value {
         Valid(pair) => printItem(pair.left + pair.right),
-        Invalid(errors) => printErrors(move errors)
+        Invalid(errors) => printErrors(errors.intoArray())
     }
 }
 
@@ -71,6 +71,15 @@ def errorCount(borrow errors : Array[string]) : usize {
 def ownedErrorCount(value : Option[Array[string]]) : usize {
     return match move value {
         Some(errors) => printErrors(move errors),
+        None => usize(0)
+    }
+}
+
+def printOptionalValidation(
+    value : Option[Validated[int, string]]
+) : usize {
+    return match move value {
+        Some(validation) => printValidation(move validation),
         None => usize(0)
     }
 }
@@ -129,19 +138,15 @@ def main() : int {
     ))
 
     val emptyErrors : Array[string] = new Array[string](usize(0))
-    val emptyInvalid : Validated[int, string] =
-    Validated.Invalid[int, string](move emptyErrors)
-    val preservedEmpty : Validated[int, string] =
-    std.validated.map2[int, int, string, int](
-        move emptyInvalid,
-        std.validated.valid[int, string](9),
-        (left : int, right : int) => sum2(left, right)
-    )
-    println(preservedEmpty.isInvalid())
-    println(preservedEmpty.errorsBorrowed[usize](
-        (borrow errors : Array[string]) => errorCount(errors)
-        ).unwrapOr(usize(1)))
-    delete preservedEmpty
+    println(printOptionalValidation(
+        std.validated.invalidFromArray[int, string](move emptyErrors)
+    ))
+    val migratedErrors : Array[string] = new Array[string](usize(2))
+    migratedErrors.push("migrated-first")
+    migratedErrors.push("migrated-rest")
+    println(printOptionalValidation(
+        std.validated.invalidFromArray[int, string](move migratedErrors)
+    ))
     println(combineCalls)
     println(ownedErrorCount(std.validated.intoErrors[int, string](
         std.validated.invalid[int, string]("owned")

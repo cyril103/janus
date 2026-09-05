@@ -1,0 +1,23 @@
+import std.validated
+
+class Resource(val id : int) {
+    destructor {
+        println(id)
+    }
+}
+
+def fail(error : Resource) : Resource {
+    defer delete error
+    panic("validated error mapping failure\n")
+}
+
+def main() : int {
+    val value : Validated[int, Resource] =
+        std.validated.map2[int, int, Resource, int](
+            std.validated.invalid[int, Resource](new Resource(1)),
+            std.validated.invalid[int, Resource](new Resource(2)),
+            (left : int, right : int) => left + right
+        ).mapError[Resource]((error : Resource) => fail(move error))
+    delete value
+    return 0
+}

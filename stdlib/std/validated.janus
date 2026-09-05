@@ -18,12 +18,51 @@ import std.iterator
 import std.option
 import std.result
 
+/// Conteneur non vide des erreurs d'une validation.
+///
+/// Le constructeur est réservé à la stdlib afin que toute valeur publique de ce
+/// type contienne au moins une erreur. Utilisez [[invalid]] pour une erreur ou
+/// [[invalidFromArray]] pour convertir un tableau de façon sûre.
+/// @param errors Tableau non vide validé par la fabrique du module.
+class ValidatedErrors[E] internal(errors : Array[E]) {
+    private var values : Option[Array[E]] =
+        Option.Some[Array[E]](move errors)
+
+    /// Observe le tableau non vide sans le transférer.
+    /// @param action Callback bornée recevant toutes les erreurs dans l'ordre.
+    /// @return Résultat indépendant produit par la callback.
+    borrow def inspect[U](
+        scoped borrow action : (borrow Array[E]) => U
+    ) : U {
+        return match values {
+            Some(items) => action(items),
+            None => validatedInvariant[U]()
+        }
+    }
+
+    /// Transfère les erreurs dans un tableau ordinaire.
+    /// @return Tableau non vide dans l'ordre d'accumulation.
+    consume def intoArray() : Array[E] {
+        val previous : Option[Array[E]] = move values
+        values = Option.None[Array[E]]()
+        delete this
+        return match move previous {
+            Some(items) => move items,
+            None => validatedInvariant[Array[E]]()
+        }
+    }
+
+    destructor {
+        delete values
+    }
+}
+
 /// Représente une valeur validée ou toutes les erreurs indépendantes connues.
 enum Validated[T, E] {
     /// Contient une valeur valide propriétaire.
     Valid(T),
-    /// Contient les erreurs propriétaires dans leur ordre d'accumulation.
-    Invalid(Array[E])
+    /// Contient au moins une erreur propriétaire, dans l'ordre d'accumulation.
+    Invalid(ValidatedErrors[E])
 }
 
 /// Paire propriétaire produite par [[zip]].
@@ -69,7 +108,7 @@ private class ValidatedState[T, E](
         val validation : Validated[T, E] = this.takeValidated()
         return match move validation {
             Valid(item) => move item,
-            Invalid(errors) => validatedInvariantDiscard[T, Array[E]](
+            Invalid(errors) => validatedInvariantDiscard[T, ValidatedErrors[E]](
                 move errors
             )
         }
@@ -79,7 +118,7 @@ private class ValidatedState[T, E](
         val validation : Validated[T, E] = this.takeValidated()
         return match move validation {
             Valid(item) => validatedInvariantDiscard[Array[E], T](move item),
-            Invalid(errors) => move errors
+            Invalid(errors) => errors.intoArray()
         }
     }
 
@@ -101,6 +140,14 @@ private def firstError[E](errors : Array[E]) : E {
     val first : E = errors.remove(usize(0))
     delete errors
     return move first
+}
+
+private def nonEmptyErrors[E](errors : Array[E]) : ValidatedErrors[E] {
+    if errors.isEmpty() {
+        delete errors
+        return validatedInvariant[ValidatedErrors[E]]()
+    }
+    return new ValidatedErrors[E](move errors)
 }
 
 private def mapErrors[E, F](
@@ -138,7 +185,26 @@ def valid[T, E](value : T) : Validated[T, E] {
 def invalid[T, E](error : E) : Validated[T, E] {
     val errors : Array[E] = new Array[E](usize(1))
     errors.push(move error)
-    return Validated.Invalid[T, E](move errors)
+    return Validated.Invalid[T, E](nonEmptyErrors[E](move errors))
+}
+
+/// Convertit un tableau d'erreurs en validation sans permettre un état vide.
+///
+/// Cette fonction est la migration sûre depuis l'ancien constructeur
+/// `Validated.Invalid(move errors)`. Un tableau vide est détruit et produit
+/// `None`; un tableau non vide est transféré sans copier ses éléments.
+/// @param errors Tableau propriétaire à convertir.
+/// @return Validation invalide dans `Some`, ou `None` si le tableau est vide.
+def invalidFromArray[T, E](
+    errors : Array[E]
+) : Option[Validated[T, E]] {
+    if errors.isEmpty() {
+        delete errors
+        return Option.None[Validated[T, E]]()
+    }
+    return Option.Some[Validated[T, E]](
+        Validated.Invalid[T, E](new ValidatedErrors[E](move errors))
+    )
 }
 
 /// Indique si une validation contient une valeur valide.
@@ -184,9 +250,9 @@ def mapError[T, E, F](
     defer delete transform
     return match move value {
         Valid(item) => Validated.Valid[T, F](move item),
-        Invalid(errors) => Validated.Invalid[T, F](
-            mapErrors[E, F](move errors, transform)
-        )
+        Invalid(errors) => Validated.Invalid[T, F](nonEmptyErrors[F](
+            mapErrors[E, F](errors.intoArray(), transform)
+        ))
     }
 }
 
@@ -231,7 +297,7 @@ def map2[A, B, E, U](
             leftState.takeValue(), rightState.takeValue()
         ))
     }
-    return Validated.Invalid[U, E](move errors)
+    return Validated.Invalid[U, E](nonEmptyErrors[E](move errors))
 }
 
 /// Combine trois validations et accumule toutes leurs erreurs.
@@ -290,7 +356,7 @@ def map3[A, B, C, E, U](
             thirdState.takeValue()
         ))
     }
-    return Validated.Invalid[U, E](move errors)
+    return Validated.Invalid[U, E](nonEmptyErrors[E](move errors))
 }
 
 /// Regroupe deux valeurs valides dans une paire propriétaire.
@@ -321,7 +387,7 @@ def errorsBorrowed[T, E, U](
     defer delete action
     return match value {
         Valid(item) => Option.None[U](),
-        Invalid(errors) => Option.Some[U](action(errors))
+        Invalid(errors) => Option.Some[U](errors.inspect[U](action))
     }
 }
 
@@ -331,7 +397,7 @@ def errorsBorrowed[T, E, U](
 def intoErrors[T, E](value : Validated[T, E]) : Option[Array[E]] {
     return match move value {
         Valid(item) => discardAndNoErrors[T, E](move item),
-        Invalid(errors) => Option.Some[Array[E]](move errors)
+        Invalid(errors) => Option.Some[Array[E]](errors.intoArray())
     }
 }
 
@@ -348,14 +414,14 @@ def fromResult[T, E](value : Result[T, E]) : Validated[T, E] {
 /// Convertit une validation en résultat en conservant la première erreur.
 ///
 /// Pour `Invalid`, seule l'erreur d'indice zéro est transférée dans `Error`;
-/// toutes les erreurs suivantes sont détruites. Un tableau vide viole
-/// l'invariant du type et déclenche `panic`.
+/// toutes les erreurs suivantes sont détruites. Le payload non vide rend
+/// impossible le précédent chemin de panique depuis l'API publique sûre.
 /// @param value Validation consommée.
 /// @return Succès d'origine ou première erreur accumulée.
 def toResult[T, E](value : Validated[T, E]) : Result[T, E] {
     return match move value {
         Valid(item) => Result.Ok[T, E](move item),
-        Invalid(errors) => Result.Error[T, E](firstError[E](move errors))
+        Invalid(errors) => Result.Error[T, E](firstError[E](errors.intoArray()))
     }
 }
 
@@ -391,7 +457,7 @@ def collectValidated[T, E](
         return Validated.Valid[Array[T], E](move values)
     }
     delete values
-    return Validated.Invalid[Array[T], E](move errors)
+    return Validated.Invalid[Array[T], E](nonEmptyErrors[E](move errors))
 }
 
 /// Surface de méthodes statiques pour composer les validations avec `.`.

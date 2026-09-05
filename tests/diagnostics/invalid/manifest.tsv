@@ -19,3 +19,5 @@ tailrec-required.janus	JANA0029	must be annotated tailrec
 tailrec-invalid.janus	JANA0030	does not participate in recursion
 tailrec-non-terminal.janus	JANA0031	not in terminal position
 tailrec-main-incompatible.janus	JANA0032	entry ABI
+validated-invalid-array-migration.janus	JANA0999	type 'ValidatedErrors[string]' is required
+validated-errors-constructor-internal.janus	JANA0999	constructor 'ValidatedErrors' is internal to namespace 'std'

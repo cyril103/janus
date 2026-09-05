@@ -279,7 +279,7 @@ def assertInvalidWhere[T, E](
     defer delete predicate
     val accepted : bool = match value {
         Valid(item) => false,
-        Invalid(errors) => predicate(errors)
+        Invalid(errors) => errors.inspect[bool](predicate)
     }
     if !accepted {
         panic("assertInvalidWhere failed: expected matching Invalid\n")

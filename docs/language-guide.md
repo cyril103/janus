@@ -747,11 +747,14 @@ avant de transférer l'erreur à l'appelant. Les conversions `toOption` et
 `fromOption` transfèrent uniquement la variante active.
 
 Le module `std.validated` complète `Result` pour les contrôles indépendants.
-`Validated[T, E]` contient `Valid(T)` ou `Invalid(Array[E])`. Ses opérations
-`map2`, `map3`, `zip` et `collectValidated` accumulent toutes les erreurs de
-gauche à droite et n'appellent leur constructeur que si toutes les entrées sont
-valides. Elles consomment leurs entrées et transfèrent ou détruisent chaque
-valeur propriétaire exactement une fois.
+`Validated[T, E]` contient `Valid(T)` ou
+`Invalid(ValidatedErrors[E])`. Le constructeur de `ValidatedErrors` est
+`internal` : les applications utilisent `invalid(error)`, ou
+`invalidFromArray(errors)` qui renvoie `None` pour un tableau vide. Ses
+opérations `map2`, `map3`, `zip` et `collectValidated` accumulent toutes les
+erreurs de gauche à droite et n'appellent leur constructeur que si toutes les
+entrées sont valides. Elles consomment leurs entrées et transfèrent ou
+détruisent chaque valeur propriétaire exactement une fois.
 
 ```janus
 val checked : Validated[int, string] =
@@ -766,7 +769,10 @@ val checked : Validated[int, string] =
 `Validated` n'a pas d'`andThen` : une validation dépendante ne peut pas
 accumuler les erreurs d'une étape qui n'a pas été exécutée. Utilisez
 `andThen` de `std.result` pour ce flux court-circuité. `fromResult` ne perd aucune
-information ; `toResult` conserve la première erreur et détruit les suivantes.
+information ; `toResult` conserve la première erreur et détruit les suivantes,
+sans cas vide constructible par l'API publique. Après une déstructuration
+`Invalid(errors)`, la méthode `ValidatedErrors.intoArray` récupère le tableau
+non vide.
 Le [contrat complet](design/validated.md) précise l'ordre, l'allocation et les
 cas formulaire, configuration et itérateur.
 

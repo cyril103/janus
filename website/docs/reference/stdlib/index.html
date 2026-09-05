@@ -8675,13 +8675,13 @@ n&#39;expose volontairement aucun `andThen`, car une étape dépendante ne peut 
 produire d&#39;erreur lorsqu&#39;une étape précédente l&#39;empêche de s&#39;exécuter.</p></div></div><section class="module-example doc-section"><h3>Usage example</h3><pre class="example"><code>val name : Validated[int, string] = valid[int, string](20)<br>
 val age : Validated[int, string] = invalid[int, string](&quot;age required&quot;)<br>
 val form : Validated[ValidatedPair[int, int], string] = zip[int, int, string](name, age)<br>
-</code></pre></section><h3 class="member-heading">Public members <span class="member-count">30</span></h3>
+</code></pre></section><h3 class="member-heading">Public members <span class="member-count">34</span></h3>
 <div class="symbol-list">
 <article class="symbol-card kind-enum" id="std-validated-validated" data-symbol data-search="std.validated.Validated enum enum Validated[T, E] Représente une valeur validée ou toutes les erreurs indépendantes connues."><span class="kind-icon" aria-hidden="true">e</span><div><span class="kind">enum</span><h3><code>enum Validated[T, E]</code></h3>
 <p class="doc-summary">Représente une valeur validée ou toutes les erreurs indépendantes connues.</p>
 <div class="qualified">std.validated.Validated</div></div><a class="permalink" href="#std-validated-validated" aria-label="Permanent link to std.validated.Validated">#</a></article>
-<article class="symbol-card kind-variant child" id="std-validated-validated-invalid" data-symbol data-search="std.validated.Validated.Invalid variant Invalid(Array[E]) Contient les erreurs propriétaires dans leur ordre d&#39;accumulation."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.validated.Validated</div><h3><code>Invalid(Array[E])</code></h3>
-<p class="doc-summary">Contient les erreurs propriétaires dans leur ordre d&#39;accumulation.</p>
+<article class="symbol-card kind-variant child" id="std-validated-validated-invalid" data-symbol data-search="std.validated.Validated.Invalid variant Invalid(ValidatedErrors[E]) Contient au moins une erreur propriétaire, dans l&#39;ordre d&#39;accumulation."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.validated.Validated</div><h3><code>Invalid(ValidatedErrors[E])</code></h3>
+<p class="doc-summary">Contient au moins une erreur propriétaire, dans l&#39;ordre d&#39;accumulation.</p>
 <div class="qualified">std.validated.Validated.Invalid</div></div><a class="permalink" href="#std-validated-validated-invalid" aria-label="Permanent link to std.validated.Validated.Invalid">#</a></article>
 <article class="symbol-card kind-variant child" id="std-validated-validated-valid" data-symbol data-search="std.validated.Validated.Valid variant Valid(T) Contient une valeur valide propriétaire."><span class="kind-icon" aria-hidden="true">v</span><div><span class="kind">variant</span><div class="owner">Member of std.validated.Validated</div><h3><code>Valid(T)</code></h3>
 <p class="doc-summary">Contient une valeur valide propriétaire.</p>
@@ -8751,6 +8751,30 @@ val form : Validated[ValidatedPair[int, int], string] = zip[int, int, string](na
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>other</code></td><td><code>Validated[U, E]</code></td><td>Validation droite consommée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Validated[ValidatedPair[T, U], E]</code> — Paire valide ou toutes les erreurs gauche-droite.</p></section>
 <div class="qualified">std.validated.Validated.zip</div></div><a class="permalink" href="#std-validated-validated-zip" aria-label="Permanent link to std.validated.Validated.zip">#</a></article>
+<article class="symbol-card kind-class" id="std-validated-validatederrors" data-symbol data-search="std.validated.ValidatedErrors class class ValidatedErrors[E] internal(errors : Array[E]) Conteneur non vide des erreurs d&#39;une validation.
+
+Le constructeur est réservé à la stdlib afin que toute valeur publique de ce
+type contienne au moins une erreur. Utilisez [[invalid]] pour une erreur ou
+[[invalidFromArray]] pour convertir un tableau de façon sûre.
+@param errors Tableau non vide validé par la fabrique du module."><span class="kind-icon" aria-hidden="true">c</span><div><span class="kind">class</span><h3><code>class ValidatedErrors[E] internal(errors : Array[E])</code></h3>
+<p class="doc-summary">Conteneur non vide des erreurs d&#39;une validation.</p>
+<div class="doc-details"><p>Le constructeur est réservé à la stdlib afin que toute valeur publique de ce<br>
+type contienne au moins une erreur. Utilisez <a href="#std-validated-invalid"><code>invalid</code></a> pour une erreur ou<br>
+<a href="#std-validated-invalidfromarray"><code>invalidFromArray</code></a> pour convertir un tableau de façon sûre.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>errors</code></td><td><code>Array[E]</code></td><td>Tableau non vide validé par la fabrique du module.</td></tr></tbody></table></section>
+<div class="qualified">std.validated.ValidatedErrors</div></div><a class="permalink" href="#std-validated-validatederrors" aria-label="Permanent link to std.validated.ValidatedErrors">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validatederrors-inspect" data-symbol data-search="std.validated.ValidatedErrors.inspect method borrow def inspect[U](scoped borrow action : Function[Array[E], U]) : U Observe le tableau non vide sans le transférer.
+@param action Callback bornée recevant toutes les erreurs dans l&#39;ordre.
+@return Résultat indépendant produit par la callback."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.ValidatedErrors</div><h3><code>borrow def inspect[U](scoped borrow action : Function[Array[E], U]) : U</code></h3>
+<p class="doc-summary">Observe le tableau non vide sans le transférer.</p>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>action</code></td><td><code>Function[Array[E], U]</code></td><td>Callback bornée recevant toutes les erreurs dans l&#39;ordre.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>U</code> — Résultat indépendant produit par la callback.</p></section>
+<div class="qualified">std.validated.ValidatedErrors.inspect</div></div><a class="permalink" href="#std-validated-validatederrors-inspect" aria-label="Permanent link to std.validated.ValidatedErrors.inspect">#</a></article>
+<article class="symbol-card kind-method child" id="std-validated-validatederrors-intoarray" data-symbol data-search="std.validated.ValidatedErrors.intoArray method consume def intoArray() : Array[E] Transfère les erreurs dans un tableau ordinaire.
+@return Tableau non vide dans l&#39;ordre d&#39;accumulation."><span class="kind-icon" aria-hidden="true">m</span><div><span class="kind">method</span><div class="owner">Member of std.validated.ValidatedErrors</div><h3><code>consume def intoArray() : Array[E]</code></h3>
+<p class="doc-summary">Transfère les erreurs dans un tableau ordinaire.</p>
+<section class="doc-section"><h4>Returns</h4><p><code>Array[E]</code> — Tableau non vide dans l&#39;ordre d&#39;accumulation.</p></section>
+<div class="qualified">std.validated.ValidatedErrors.intoArray</div></div><a class="permalink" href="#std-validated-validatederrors-intoarray" aria-label="Permanent link to std.validated.ValidatedErrors.intoArray">#</a></article>
 <article class="symbol-card kind-struct" id="std-validated-validatedpair" data-symbol data-search="std.validated.ValidatedPair struct struct ValidatedPair[A, B](val left : A, val right : B) Paire propriétaire produite par [[zip]]."><span class="kind-icon" aria-hidden="true">s</span><div><span class="kind">struct</span><h3><code>struct ValidatedPair[A, B](val left : A, val right : B)</code></h3>
 <p class="doc-summary">Paire propriétaire produite par <code class="unresolved">zip</code>.</p>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>left</code></td><td><code>A</code></td><td>Valeur de la validation gauche.</td></tr><tr><td><code>right</code></td><td><code>B</code></td><td>Valeur de la validation droite.</td></tr></tbody></table></section>
@@ -8815,6 +8839,20 @@ d&#39;échec après avoir détruit `error`.</p></div>
 <section class="doc-section"><h4>Example</h4><pre class="example"><code>val value : Validated[int, string] = invalid[int, string](&quot;required&quot;)<br>
 </code></pre></section>
 <div class="qualified">std.validated.invalid</div></div><a class="permalink" href="#std-validated-invalid" aria-label="Permanent link to std.validated.invalid">#</a></article>
+<article class="symbol-card kind-function" id="std-validated-invalidfromarray" data-symbol data-search="std.validated.invalidFromArray function def invalidFromArray[T, E](errors : Array[E]) : Option[Validated[T, E]] Convertit un tableau d&#39;erreurs en validation sans permettre un état vide.
+
+Cette fonction est la migration sûre depuis l&#39;ancien constructeur
+`Validated.Invalid(move errors)`. Un tableau vide est détruit et produit
+`None`; un tableau non vide est transféré sans copier ses éléments.
+@param errors Tableau propriétaire à convertir.
+@return Validation invalide dans `Some`, ou `None` si le tableau est vide."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def invalidFromArray[T, E](errors : Array[E]) : Option[Validated[T, E]]</code></h3>
+<p class="doc-summary">Convertit un tableau d&#39;erreurs en validation sans permettre un état vide.</p>
+<div class="doc-details"><p>Cette fonction est la migration sûre depuis l&#39;ancien constructeur<br>
+`Validated.Invalid(move errors)`. Un tableau vide est détruit et produit<br>
+`None`; un tableau non vide est transféré sans copier ses éléments.</p></div>
+<section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>errors</code></td><td><code>Array[E]</code></td><td>Tableau propriétaire à convertir.</td></tr></tbody></table></section>
+<section class="doc-section"><h4>Returns</h4><p><code>Option[Validated[T, E]]</code> — Validation invalide dans `Some`, ou `None` si le tableau est vide.</p></section>
+<div class="qualified">std.validated.invalidFromArray</div></div><a class="permalink" href="#std-validated-invalidfromarray" aria-label="Permanent link to std.validated.invalidFromArray">#</a></article>
 <article class="symbol-card kind-function" id="std-validated-isinvalid" data-symbol data-search="std.validated.isInvalid function def isInvalid[T, E](borrow value : Validated[T, E]) : bool Indique si une validation contient des erreurs.
 @param value Validation observée sans transfert.
 @return `true` pour `Invalid`, sinon `false`."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def isInvalid[T, E](borrow value : Validated[T, E]) : bool</code></h3>
@@ -8877,14 +8915,14 @@ appelée que lorsque les trois branches sont `Valid`.</p></div>
 <article class="symbol-card kind-function" id="std-validated-toresult" data-symbol data-search="std.validated.toResult function def toResult[T, E](value : Validated[T, E]) : Result[T, E] Convertit une validation en résultat en conservant la première erreur.
 
 Pour `Invalid`, seule l&#39;erreur d&#39;indice zéro est transférée dans `Error`;
-toutes les erreurs suivantes sont détruites. Un tableau vide viole
-l&#39;invariant du type et déclenche `panic`.
+toutes les erreurs suivantes sont détruites. Le payload non vide rend
+impossible le précédent chemin de panique depuis l&#39;API publique sûre.
 @param value Validation consommée.
 @return Succès d&#39;origine ou première erreur accumulée."><span class="kind-icon" aria-hidden="true">f</span><div><span class="kind">function</span><h3><code>def toResult[T, E](value : Validated[T, E]) : Result[T, E]</code></h3>
 <p class="doc-summary">Convertit une validation en résultat en conservant la première erreur.</p>
 <div class="doc-details"><p>Pour `Invalid`, seule l&#39;erreur d&#39;indice zéro est transférée dans `Error`;<br>
-toutes les erreurs suivantes sont détruites. Un tableau vide viole<br>
-l&#39;invariant du type et déclenche `panic`.</p></div>
+toutes les erreurs suivantes sont détruites. Le payload non vide rend<br>
+impossible le précédent chemin de panique depuis l&#39;API publique sûre.</p></div>
 <section class="doc-section"><h4>Parameters</h4><table class="parameters"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>value</code></td><td><code>Validated[T, E]</code></td><td>Validation consommée.</td></tr></tbody></table></section>
 <section class="doc-section"><h4>Returns</h4><p><code>Result[T, E]</code> — Succès d&#39;origine ou première erreur accumulée.</p></section>
 <div class="qualified">std.validated.toResult</div></div><a class="permalink" href="#std-validated-toresult" aria-label="Permanent link to std.validated.toResult">#</a></article>

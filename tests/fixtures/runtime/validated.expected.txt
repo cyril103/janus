@@ -11,8 +11,10 @@ middle
 last
 first
 result-error
-true
 0
+migrated-first
+migrated-rest
+2
 1
 owned
 1
