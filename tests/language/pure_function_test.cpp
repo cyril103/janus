@@ -194,8 +194,122 @@ enum Maybe { None }
 class Box() { borrow def None() : int { return 1 } }
 pure def inspect(borrow Maybe : Box) : int { return Maybe.None() }
 def main() : int { return 0 }
-)", "without a pure contract",
+)",
+               "without a pure contract",
                "a local shadowing an enum name is not a pure constructor");
+
+  expect_error(R"(
+class Noisy() { destructor { println("hidden effect") } }
+pure def supposedlyPure() : int {
+    val local : Noisy = new Noisy()
+    delete local
+    return 1
+}
+def main() : int { return 0 }
+)",
+               "cannot call impure function 'println'",
+               "pure functions include explicit destructor effects",
+               "supposedlyPure -> Noisy.destructor");
+
+  expect_valid(R"(
+class Quiet() { destructor {} }
+pure def releaseQuietly() : int {
+    val local : Quiet = new Quiet()
+    delete local
+    return 1
+}
+def main() : int { return releaseQuietly() }
+)",
+               "effect-free destructors remain available to pure functions");
+
+  expect_error(R"(
+var observed : int = 0
+class Mutating() { destructor { observed = 1 } }
+pure def release() : int {
+    val local : Mutating = new Mutating()
+    defer delete local
+    return 0
+}
+def main() : int { return 0 }
+)",
+               "cannot mutate state visible to its caller",
+               "deferred cleanup includes mutable global effects",
+               "release -> Mutating.destructor");
+
+  expect_error(R"(
+def record() : Unit {}
+class Calling() { destructor { record() } }
+class Outer(val nested : Calling) { destructor { delete nested } }
+pure def release() : int {
+    val local : Outer = new Outer(new Calling())
+    delete local
+    return 0
+}
+def main() : int { return 0 }
+)",
+               "cannot call impure function 'record'",
+               "nested field destructors propagate transitively",
+               "release -> Outer.destructor -> Calling.destructor");
+
+  expect_error(R"(
+class Decoy() { pure borrow def flush() : Unit {} }
+class Calling() {
+    borrow def flush() : Unit { println("hidden") }
+    destructor { this.flush() }
+}
+pure def release() : int {
+    val local : Calling = new Calling()
+    delete local
+    return 0
+}
+def main() : int { return 0 }
+)",
+               "cannot call method 'flush' without a pure contract",
+               "destructor method effects use the receiver's resolved type",
+               "release -> Calling.destructor");
+
+  expect_error(R"(
+def record() : Unit {}
+class Calling() { destructor { record() } }
+class Holder[T](val value : T) { destructor { delete value } }
+pure def release() : int {
+    val local = new Holder(new Calling())
+    delete local
+    return 0
+}
+def main() : int { return 0 }
+)",
+               "cannot call impure function 'record'",
+               "generic destructor effects survive specialization",
+               "release -> Holder.destructor -> Calling.destructor");
+
+  expect_error(R"(
+def record() : Unit {}
+class Calling() { destructor { record() } }
+enum Wrapped[T] { Some(T), None }
+struct Pair[T](val value : T) {}
+pure def release() : int {
+    val wrapped : Wrapped[Pair[Calling]] =
+        Wrapped.Some[Pair[Calling]](new Pair[Calling](new Calling()))
+    delete wrapped
+    return 0
+}
+def main() : int { return 0 }
+)",
+               "cannot call impure function 'record'",
+               "aggregate cleanup traverses enum and struct payloads",
+               "release -> Calling.destructor");
+
+  expect_error(R"(
+pure def releaseUnknown[T](value : T) : int {
+    val local : T = move value
+    delete local
+    return 0
+}
+def main() : int { return 0 }
+)",
+               "cannot prove that cleanup of generic type 'T' is pure",
+               "unresolved generic cleanup is rejected before specialization");
 
   return failures == 0 ? 0 : 1;
 }

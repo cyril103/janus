@@ -395,10 +395,13 @@ val isLarge : (int) => bool =
 `pure def` ajoute un contrat runtime vérifié transitivement : pas de globale
 mutable, d'I/O, d'heure, d'aléatoire, de FFI ou de méthode non marquée pure, ni
 de mutation visible par l'appelant. Les allocations locales et `panic` sont
-autorisés. `const def` implique ce noyau mais conserve les restrictions plus
-fortes de l'évaluation à la compilation. Un callback appelable depuis ce
-contexte s'écrit `pure (T) => U`. Le contrat complet, y compris les règles des
-méthodes et de la FFI, est défini dans
+autorisés. Détruire une valeur locale reste autorisé seulement si son
+destructeur et les cleanups imbriqués respectent eux aussi ce contrat, y compris
+via `defer`, les agrégats et les spécialisations génériques. `const def`
+implique ce noyau mais conserve les restrictions plus fortes de l'évaluation à
+la compilation. Un callback appelable depuis ce contexte s'écrit
+`pure (T) => U`. Le contrat complet, y compris les règles des méthodes et de la
+FFI, est défini dans
 [Contrat `pure def`](design/pure-functions.md).
 
 Les effets d'emprunt font partie du type d'une fonction. Ils s'écrivent sur

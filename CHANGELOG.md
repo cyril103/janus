@@ -15,6 +15,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- inclusion des destructeurs dans le graphe d'effets de `pure def` : les
+  suppressions explicites et différées suivent désormais les cleanups
+  transitifs des classes, structs, enums et spécialisations génériques, avec
+  une chaîne diagnostique jusqu'au destructeur impur ;
 - prise en charge des emprunts directs de champs nommés, partagés ou mutables :
   la provenance conserve désormais la racine et le chemin de projection à
   travers les alias et retours empruntés, deux champs frères peuvent être

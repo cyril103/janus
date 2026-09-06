@@ -37,10 +37,18 @@ contrat de pureté annoncé par le trait.
 
 Une fonction pure peut effectuer des calculs déterministes, lire ses arguments
 et les globales immuables, créer et modifier ses seules liaisons locales,
-allouer avec `new`, détruire une valeur locale, appeler une autre fonction pure
-ou `const def`, et instancier des fonctions génériques. Les cycles récursifs
-purs sont analysés comme un graphe : un nœud `Visiting` ferme le cycle et
-garantit la terminaison de l'analyse.
+allouer avec `new`, détruire une valeur locale dont le cleanup est lui-même
+pur, appeler une autre fonction pure ou `const def`, et instancier des
+fonctions génériques. Les cycles récursifs purs sont analysés comme un graphe :
+un nœud `Visiting` ferme le cycle et garantit la terminaison de l'analyse.
+
+La destruction fait partie du graphe d'effets. `delete`, `defer delete` et les
+cleanups déclenchés lors d'une sortie normale, d'un retour anticipé ou d'un
+`panic` ajoutent une arête vers `Type.destructor`. Le vérificateur descend aussi
+dans les champs de structs et les payloads d'enums, après substitution des
+arguments génériques. Un destructeur vide ou limité à des cleanups purs est
+donc utilisable ; un destructeur qui effectue une I/O, touche une globale
+mutable ou appelle une opération impure fait rejeter la `pure def`.
 
 L'allocation fraîche est admise. L'identité d'adresse n'est pas une observation
 préservée par le contrat : la comparaison structurelle explicite reste une
@@ -63,7 +71,8 @@ Le compilateur rejette, directement ou à travers une chaîne d'appels :
 - l'appel d'une fonction ou méthode sans contrat `pure`/`const` ;
 - l'appel d'un callback dont le type n'est pas `pure Function` ;
 - une FFI non annotée `pure`, donc notamment les I/O, l'heure et l'aléatoire ;
-- la destruction d'une valeur qui n'est pas locale à l'appel.
+- la destruction d'une valeur qui n'est pas locale à l'appel, ou dont le
+  destructeur/cleanup transitif produit un effet interdit.
 
 `borrow def` est un contrat de propriété, pas un contrat d'effets : une méthode
 empruntée doit porter séparément `pure` avant de pouvoir être appelée. Lire un
@@ -88,9 +97,10 @@ compilation. Une `pure def` peut appeler une `const def`, jamais l'inverse.
 ## Diagnostics, modules et optimisation
 
 Le vérificateur mémorise trois états (`Unvisited`, `Visiting`, `Complete`) par
-déclaration et joint au diagnostic la chaîne d'appels pure qui mène au premier
-effet interdit. Les annotations de fonctions et de types sont incluses dans le
-contrat public et le cache incrémental.
+déclaration et par spécialisation de destructeur. Il joint au diagnostic la
+chaîne d'appels et de destructeurs qui mène au premier effet interdit. Les
+annotations de fonctions et de types sont incluses dans le contrat public et
+le cache incrémental.
 
 Cette première version n'active volontairement ni mémoïsation, ni élimination
 d'appels, ni évaluation constante d'une `pure def`. Ces optimisations exigeront

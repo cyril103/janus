@@ -1785,6 +1785,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   enum class EffectState { Unvisited, Visiting, Complete };
   std::unordered_map<const ast::FunctionDeclaration *, EffectState>
       pure_effect_states;
+  std::unordered_map<std::string, EffectState> destructor_effect_states;
   std::vector<const ast::FunctionDeclaration *> all_effect_functions;
   std::unordered_map<const ast::FunctionDeclaration *,
                      std::unordered_set<std::string>>
@@ -1901,8 +1902,50 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         {}}};
   };
   std::function<void(const ast::FunctionDeclaration &)> validate_pure_effects;
-  validate_pure_effects = [&](const ast::FunctionDeclaration &function) {
-    EffectState &state = pure_effect_states[&function];
+  using EffectSubstitutions =
+      std::unordered_map<std::string, ast::TypeReference>;
+  std::function<void(const ast::ClassDeclaration &,
+                     const std::vector<ast::TypeReference> &)>
+      validate_pure_destructor;
+  std::function<void(const ast::TypeReference &, SourceLocation)>
+      validate_destroyed_type;
+  std::function<ast::TypeReference(const ast::TypeReference &,
+                                   const EffectSubstitutions &)>
+      substitute_effect_type;
+  std::function<std::string(const ast::TypeReference &)> effect_type_key;
+  std::function<void(const ast::FunctionDeclaration &,
+                     const std::vector<ast::Statement> &,
+                     const ast::ClassDeclaration *, const EffectSubstitutions *,
+                     EffectState &)>
+      validate_effect_body;
+  substitute_effect_type = [&](const ast::TypeReference &type,
+                               const EffectSubstitutions &substitutions) {
+    if (const auto found = substitutions.find(type.name);
+        found != substitutions.end())
+      return found->second;
+    ast::TypeReference result = type;
+    for (ast::TypeReference &argument : result.type_arguments)
+      argument = substitute_effect_type(argument, substitutions);
+    return result;
+  };
+  effect_type_key = [&](const ast::TypeReference &type) {
+    std::string key = type.name;
+    if (!type.type_arguments.empty()) {
+      key += "[";
+      for (std::size_t index = 0; index < type.type_arguments.size(); ++index) {
+        if (index != 0)
+          key += ",";
+        key += effect_type_key(type.type_arguments[index]);
+      }
+      key += "]";
+    }
+    return key;
+  };
+  validate_effect_body = [&](const ast::FunctionDeclaration &function,
+                             const std::vector<ast::Statement> &body,
+                             const ast::ClassDeclaration *destructor_owner,
+                             const EffectSubstitutions *type_substitutions,
+                             EffectState &state) {
     if (state == EffectState::Complete || state == EffectState::Visiting)
       return;
     state = EffectState::Visiting;
@@ -1914,25 +1957,63 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
 
     std::unordered_set<std::string> parameters;
     std::unordered_set<std::string> locals;
+    std::unordered_map<std::string, ast::TypeReference> local_types;
     const auto fields = pure_method_fields.find(&function);
-    const bool is_method = fields != pure_method_fields.end();
-    const std::unordered_set<std::string> member_values =
-        is_method ? fields->second : std::unordered_set<std::string>{};
+    const bool is_destructor = destructor_owner != nullptr;
+    const bool is_method = is_destructor || fields != pure_method_fields.end();
+    std::unordered_set<std::string> member_values =
+        is_method && !is_destructor ? fields->second
+                                    : std::unordered_set<std::string>{};
+    if (is_destructor) {
+      for (const ast::ValueDeclaration &field :
+           destructor_owner->constructor_fields)
+        member_values.insert(field.name);
+      for (const ast::ValueDeclaration &field : destructor_owner->fields)
+        member_values.insert(field.name);
+    }
     locals.insert(member_values.begin(), member_values.end());
+    if (is_destructor) {
+      const auto add_field_type = [&](const ast::ValueDeclaration &field) {
+        if (field.declared_type)
+          local_types.insert_or_assign(
+              field.name, type_substitutions == nullptr
+                              ? *field.declared_type
+                              : substitute_effect_type(*field.declared_type,
+                                                       *type_substitutions));
+      };
+      for (const ast::ValueDeclaration &field :
+           destructor_owner->constructor_fields)
+        add_field_type(field);
+      for (const ast::ValueDeclaration &field : destructor_owner->fields)
+        add_field_type(field);
+    }
     if (is_method) {
       locals.insert("this");
       parameters.insert("this");
+      if (is_destructor) {
+        std::vector<ast::TypeReference> type_arguments;
+        for (const std::string &parameter : destructor_owner->type_parameters)
+          if (type_substitutions != nullptr)
+            if (const auto found = type_substitutions->find(parameter);
+                found != type_substitutions->end())
+              type_arguments.push_back(found->second);
+        local_types.insert_or_assign(
+            "this", ast::TypeReference{destructor_owner->name,
+                                       destructor_owner->location,
+                                       std::move(type_arguments)});
+      }
     }
     for (const ast::FunctionDeclaration::Parameter &parameter :
          function.parameters) {
       parameters.insert(parameter.name);
       locals.insert(parameter.name);
+      local_types.insert_or_assign(parameter.name, parameter.type);
       if (parameter.ownership == ast::ParameterOwnership::BorrowMutable)
         throw pure_error(parameter.location,
                          "pure def '" + function.name +
                              "' cannot accept a mutable borrow parameter");
     }
-    if (function.is_consuming)
+    if (function.is_consuming && !is_destructor)
       throw pure_error(function.location, "pure method '" + function.name +
                                               "' cannot consume its receiver");
     if (function.is_external) {
@@ -1944,10 +2025,149 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                        const std::unordered_set<std::string> &,
                        const std::unordered_set<std::string> &)>
         check_expression;
+    std::function<std::optional<ast::TypeReference>(const ast::Expression &)>
+        infer_effect_type;
     std::function<void(const std::vector<ast::Statement> &,
                        std::unordered_set<std::string>,
                        std::unordered_set<std::string>)>
         check_statements;
+    infer_effect_type = [&](const ast::Expression &expression)
+        -> std::optional<ast::TypeReference> {
+      if (const auto *identifier =
+              std::get_if<ast::IdentifierExpression>(&expression.value)) {
+        if (const auto found = local_types.find(identifier->name);
+            found != local_types.end())
+          return found->second;
+      } else if (const auto *move =
+                     std::get_if<ast::MoveExpression>(&expression.value)) {
+        return infer_effect_type(*move->operand);
+      } else if (const auto *construction =
+                     std::get_if<ast::NewExpression>(&expression.value)) {
+        std::vector<ast::TypeReference> type_arguments =
+            construction->type_arguments;
+        const auto declaration = find_in_context(classes, program.module_name,
+                                                 construction->class_name);
+        if (type_arguments.empty() && declaration != classes.end() &&
+            !declaration->second->type_parameters.empty()) {
+          EffectSubstitutions inferred;
+          const auto infer_argument = [&](const ast::TypeReference &parameter,
+                                          std::size_t index) {
+            if (index >= construction->arguments.size() ||
+                std::find(declaration->second->type_parameters.begin(),
+                          declaration->second->type_parameters.end(),
+                          parameter.name) ==
+                    declaration->second->type_parameters.end())
+              return;
+            if (const auto argument =
+                    infer_effect_type(*construction->arguments[index]))
+              inferred.insert_or_assign(parameter.name, *argument);
+          };
+          std::size_t index = 0;
+          for (const ast::FunctionDeclaration::Parameter &parameter :
+               declaration->second->constructor_parameters)
+            infer_argument(parameter.type, index++);
+          for (const ast::ValueDeclaration &field :
+               declaration->second->constructor_fields) {
+            if (field.declared_type)
+              infer_argument(*field.declared_type, index);
+            ++index;
+          }
+          if (inferred.size() == declaration->second->type_parameters.size())
+            for (const std::string &parameter :
+                 declaration->second->type_parameters)
+              type_arguments.push_back(inferred.at(parameter));
+        }
+        return ast::TypeReference{construction->class_name,
+                                  construction->location,
+                                  std::move(type_arguments)};
+      } else if (const auto *call =
+                     std::get_if<ast::CallExpression>(&expression.value)) {
+        if (const ast::FunctionDeclaration *callee =
+                find_effect_function(call->callee)) {
+          EffectSubstitutions substitutions;
+          for (std::size_t index = 0; index < callee->type_parameters.size() &&
+                                      index < call->type_arguments.size();
+               ++index)
+            substitutions.insert_or_assign(callee->type_parameters[index],
+                                           call->type_arguments[index]);
+          return substitute_effect_type(callee->return_type, substitutions);
+        }
+      } else if (const auto *member = std::get_if<ast::MemberAccessExpression>(
+                     &expression.value)) {
+        const auto object_type = infer_effect_type(*member->object);
+        if (!object_type)
+          return std::nullopt;
+        const auto owner =
+            find_in_context(classes, program.module_name, object_type->name);
+        if (owner == classes.end())
+          return std::nullopt;
+        EffectSubstitutions substitutions;
+        for (std::size_t index = 0;
+             index < owner->second->type_parameters.size() &&
+             index < object_type->type_arguments.size();
+             ++index)
+          substitutions.insert_or_assign(owner->second->type_parameters[index],
+                                         object_type->type_arguments[index]);
+        const auto find_field =
+            [&](const auto &fields) -> std::optional<ast::TypeReference> {
+          const auto field =
+              std::find_if(fields.begin(), fields.end(),
+                           [&](const ast::ValueDeclaration &item) {
+                             return item.name == member->member;
+                           });
+          if (field == fields.end() || !field->declared_type)
+            return std::nullopt;
+          return substitute_effect_type(*field->declared_type, substitutions);
+        };
+        if (auto field = find_field(owner->second->constructor_fields))
+          return field;
+        return find_field(owner->second->fields);
+      } else if (const auto *call = std::get_if<ast::MethodCallExpression>(
+                     &expression.value)) {
+        if (const auto *identifier =
+                std::get_if<ast::IdentifierExpression>(&call->object->value);
+            identifier != nullptr && !local_types.contains(identifier->name)) {
+          const auto enum_declaration =
+              find_in_context(enums, program.module_name, identifier->name);
+          if (enum_declaration != enums.end() &&
+              std::any_of(enum_declaration->second->cases.begin(),
+                          enum_declaration->second->cases.end(),
+                          [&](const ast::EnumDeclaration::Case &enum_case) {
+                            return enum_case.name == call->method;
+                          }))
+            return ast::TypeReference{identifier->name, call->location,
+                                      call->type_arguments};
+        }
+        const auto object_type = infer_effect_type(*call->object);
+        if (!object_type)
+          return std::nullopt;
+        const auto owner =
+            find_in_context(classes, program.module_name, object_type->name);
+        if (owner == classes.end())
+          return std::nullopt;
+        const auto method = std::find_if(
+            owner->second->methods.begin(), owner->second->methods.end(),
+            [&](const ast::FunctionDeclaration &candidate) {
+              return candidate.name == call->method;
+            });
+        if (method == owner->second->methods.end())
+          return std::nullopt;
+        EffectSubstitutions substitutions;
+        for (std::size_t index = 0;
+             index < owner->second->type_parameters.size() &&
+             index < object_type->type_arguments.size();
+             ++index)
+          substitutions.insert_or_assign(owner->second->type_parameters[index],
+                                         object_type->type_arguments[index]);
+        for (std::size_t index = 0; index < method->type_parameters.size() &&
+                                    index < call->type_arguments.size();
+             ++index)
+          substitutions.insert_or_assign(method->type_parameters[index],
+                                         call->type_arguments[index]);
+        return substitute_effect_type(method->return_type, substitutions);
+      }
+      return std::nullopt;
+    };
     check_expression = [&](const ast::Expression &expression,
                            const std::unordered_set<std::string> &scope,
                            const std::unordered_set<std::string> &arguments) {
@@ -2027,6 +2247,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 check_expression(*argument, scope, arguments);
               if (is_enum_constructor_call(node, scope))
                 return;
+              if (const auto object_type = infer_effect_type(*node.object)) {
+                const auto owner = find_in_context(classes, program.module_name,
+                                                   object_type->name);
+                if (owner != classes.end()) {
+                  const auto resolved = std::find_if(
+                      owner->second->methods.begin(),
+                      owner->second->methods.end(),
+                      [&](const ast::FunctionDeclaration &candidate) {
+                        return candidate.name == node.method;
+                      });
+                  if (resolved != owner->second->methods.end()) {
+                    if (!function_is_pure(*resolved))
+                      throw pure_error(node.location,
+                                       "pure def '" + function.name +
+                                           "' cannot call method '" +
+                                           node.method +
+                                           "' without a pure contract");
+                    validate_pure_effects(*resolved);
+                    return;
+                  }
+                }
+              }
               const auto method = std::find_if(
                   all_effect_functions.begin(), all_effect_functions.end(),
                   [&](const ast::FunctionDeclaration *candidate) {
@@ -2087,6 +2329,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 std::get_if<ast::ValueDeclaration>(&statement)) {
           if (declaration->initializer)
             check_expression(*declaration->initializer, scope, arguments);
+          if (declaration->declared_type)
+            local_types.insert_or_assign(declaration->name,
+                                         *declaration->declared_type);
+          else if (declaration->initializer)
+            if (const auto inferred =
+                    infer_effect_type(*declaration->initializer))
+              local_types.insert_or_assign(declaration->name, *inferred);
           scope.insert(declaration->name);
         } else if (const auto *assignment =
                        std::get_if<ast::AssignmentStatement>(&statement)) {
@@ -2104,10 +2353,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             else
               target.clear();
           }
-          if ((assignment->object.empty() &&
+          if ((!is_destructor && assignment->object.empty() &&
                member_values.contains(assignment->name)) ||
               target.empty() || !scope.contains(target) ||
-              arguments.contains(target))
+              (arguments.contains(target) &&
+               !(is_destructor && target == "this")))
             throw pure_error(assignment->location,
                              "pure def '" + function.name +
                                  "' cannot mutate state visible to its caller");
@@ -2121,6 +2371,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             throw pure_error(deleted->location,
                              "pure def '" + function.name +
                                  "' can only delete local values");
+          if (const auto type = local_types.find(identifier->name);
+              type != local_types.end())
+            validate_destroyed_type(type->second, deleted->location);
         } else if (const auto *returned =
                        std::get_if<ast::ReturnStatement>(&statement)) {
           if (returned->expression)
@@ -2145,6 +2398,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                          "' can only defer deletion of local "
                                          "values");
                   check_expression(action.expression, scope, arguments);
+                  if (const auto type = local_types.find(identifier->name);
+                      type != local_types.end())
+                    validate_destroyed_type(type->second, action.location);
                 } else {
                   check_expression(action.expression, scope, arguments);
                 }
@@ -2171,8 +2427,84 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         }
       }
     };
-    check_statements(function.body, std::move(locals), std::move(parameters));
+    check_statements(body, std::move(locals), std::move(parameters));
     state = EffectState::Complete;
+  };
+  validate_pure_effects = [&](const ast::FunctionDeclaration &function) {
+    validate_effect_body(function, function.body, nullptr, nullptr,
+                         pure_effect_states[&function]);
+  };
+  validate_pure_destructor =
+      [&](const ast::ClassDeclaration &declaration,
+          const std::vector<ast::TypeReference> &type_arguments) {
+        if (!declaration.destructor)
+          return;
+        ast::FunctionDeclaration descriptor;
+        descriptor.name = declaration.name + ".destructor";
+        descriptor.location = declaration.destructor->location;
+        descriptor.module_name = declaration.module_name;
+        EffectSubstitutions substitutions;
+        std::string specialization =
+            global_key(declaration.module_name, declaration.name);
+        for (std::size_t index = 0;
+             index < declaration.type_parameters.size() &&
+             index < type_arguments.size();
+             ++index) {
+          substitutions.insert_or_assign(declaration.type_parameters[index],
+                                         type_arguments[index]);
+          specialization += "[" + effect_type_key(type_arguments[index]) + "]";
+        }
+        validate_effect_body(descriptor, declaration.destructor->body,
+                             &declaration, &substitutions,
+                             destructor_effect_states[specialization]);
+      };
+  validate_destroyed_type = [&](const ast::TypeReference &type,
+                                SourceLocation location) {
+    const auto class_declaration =
+        find_in_context(classes, program.module_name, type.name);
+    if (class_declaration != classes.end()) {
+      validate_pure_destructor(*class_declaration->second, type.type_arguments);
+      if (class_declaration->second->is_value_type) {
+        EffectSubstitutions substitutions;
+        for (std::size_t index = 0;
+             index < class_declaration->second->type_parameters.size() &&
+             index < type.type_arguments.size();
+             ++index)
+          substitutions.insert_or_assign(
+              class_declaration->second->type_parameters[index],
+              type.type_arguments[index]);
+        for (const ast::ValueDeclaration &field :
+             class_declaration->second->constructor_fields)
+          if (field.declared_type)
+            validate_destroyed_type(
+                substitute_effect_type(*field.declared_type, substitutions),
+                location);
+      }
+      return;
+    }
+    const auto enum_declaration =
+        find_in_context(enums, program.module_name, type.name);
+    if (enum_declaration != enums.end()) {
+      EffectSubstitutions substitutions;
+      for (std::size_t index = 0;
+           index < enum_declaration->second->type_parameters.size() &&
+           index < type.type_arguments.size();
+           ++index)
+        substitutions.insert_or_assign(
+            enum_declaration->second->type_parameters[index],
+            type.type_arguments[index]);
+      for (const ast::EnumDeclaration::Case &enum_case :
+           enum_declaration->second->cases)
+        for (const ast::TypeReference &payload : enum_case.payload_types)
+          validate_destroyed_type(
+              substitute_effect_type(payload, substitutions), location);
+      return;
+    }
+    if (type.name == "Function" || builtin_type(type.name) != nullptr)
+      return;
+    throw pure_error(location,
+                     "pure def cannot prove that cleanup of generic type '" +
+                         type.name + "' is pure");
   };
   for (const ast::FunctionDeclaration *function : all_effect_functions)
     if (function->is_pure)
