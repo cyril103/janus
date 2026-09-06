@@ -3849,6 +3849,20 @@ if(BUILD_TESTING)
     )
     add_test(NAME language.struct_value COMMAND struct_value_test)
 
+    add_test(
+        NAME runtime.struct_method_receiver
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/struct_method_receiver.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/struct_method_receiver_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/struct_method_receiver.expected.txt"
+            -DENABLE_UNDEFINED_SANITIZER=ON
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+
     add_executable(derivation_semantics_test
         tests/language/derivation_semantics_test.cpp
     )

@@ -2107,10 +2107,18 @@ private:
       ::llvm::Argument &this_argument = *argument_iterator++;
       this_argument.setName("this");
       const janus::Type &owner_type = class_types_.at(std::string{owner_key});
-      ::llvm::Value *this_storage =
-          create_entry_alloca(builder, builder.getPtrTy(), "this.addr");
-      builder.CreateStore(&this_argument, this_storage);
-      locals.emplace("this", Local{this_storage, &owner_type});
+      if (owner_type.kind() == janus::TypeKind::Struct) {
+        // Native struct methods receive the address of the caller's inline
+        // value.  That address is already the storage represented by `this`;
+        // wrapping it in a pointer alloca makes an explicit `this.field`
+        // access interpret the pointer bytes as the struct value.
+        locals.emplace("this", Local{&this_argument, &owner_type});
+      } else {
+        ::llvm::Value *this_storage =
+            create_entry_alloca(builder, builder.getPtrTy(), "this.addr");
+        builder.CreateStore(&this_argument, this_storage);
+        locals.emplace("this", Local{this_storage, &owner_type});
+      }
 
       unsigned field_index = 0;
       for (const janus::ast::ValueDeclaration &field :

@@ -1197,6 +1197,12 @@ Le [design des dérivations structurelles](https://github.com/cyril103/janus/blo
 définit l'éligibilité champ par champ, les génériques, la visibilité, les
 diagnostics et les interdictions liées aux valeurs propriétaires.
 
+Les structs peuvent déclarer des méthodes dans leur corps. Leur receveur
+implicite `this` désigne le stockage en ligne de la valeur : `borrow def`
+l'observe, tandis qu'une méthode sans `borrow` peut modifier ses champs si le
+receveur est mutable. Les appels ne changent pas la représentation par valeur
+d'un struct et n'allouent pas de copie sur le tas.
+
 ### Méthodes d'extension statiques
 
 Un bloc `extend` ajoute des méthodes résolues statiquement à une classe, un

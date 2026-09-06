@@ -15,6 +15,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- correction de l'ABI des méthodes natives de struct : le receveur implicite
+  `this` référence désormais directement le stockage en ligne transmis par
+  l'appelant, y compris pour les lectures et mutations explicites de champs et
+  les spécialisations génériques ; la régression est couverte à l'exécution
+  sous ASan/UBSan avec plusieurs valeurs sentinelles ;
 - inclusion des destructeurs dans le graphe d'effets de `pure def` : les
   suppressions explicites et différées suivent désormais les cleanups
   transitifs des classes, structs, enums et spécialisations génériques, avec

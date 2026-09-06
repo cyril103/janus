@@ -1,0 +1,24 @@
+struct Measure[T](var value : T) {
+    borrow def read() : T where T <: Copy {
+        return this.value
+    }
+
+    def replace(next : T) : T where T <: Copy {
+        val previous : T = this.value
+        this.value = next
+        return previous
+    }
+}
+
+def main() : int {
+    var first : Measure[int] = new Measure(7)
+    println(first.read())
+    println(first.replace(-19))
+    println(first.read())
+
+    var second : Measure[int] = new Measure(1431655765)
+    println(second.read())
+    println(second.replace(-1431655766))
+    println(second.read())
+    return 0
+}

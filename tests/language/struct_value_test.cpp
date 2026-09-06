@@ -47,7 +47,7 @@ struct Point(var x : int, var y : int) {
     }
 
     borrow def sum() : int {
-        return x + y
+        return this.x + this.y
     }
 }
 
@@ -85,6 +85,12 @@ def main() : int {
   expect(ir.find("define %struct.Point @copyPoint(%struct.Point %point)") !=
              std::string::npos,
          "struct parameters and returns are passed by value");
+  expect(ir.find("define i32 @Point__sum(ptr %this)") != std::string::npos,
+         "native struct methods receive an address to the inline value");
+  expect(ir.find("%this.addr = alloca ptr") == std::string::npos,
+         "native struct methods do not add a second level of indirection");
+  expect(ir.find("ptr %this, i32 0, i32 0") != std::string::npos,
+         "explicit this.field access projects from the ABI receiver");
   expect(ir.find("call ptr @janus_alloc") == std::string::npos,
          "constructing a struct does not allocate");
 
