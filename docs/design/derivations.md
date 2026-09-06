@@ -108,6 +108,23 @@ Point { x: 1, y: 2 }
 Status.Ready(42)
 ```
 
+Les chaînes, qu'elles soient passées directement à `debug` ou imbriquées dans
+un agrégat dérivé, sont entourées de guillemets doubles. `"`, `\`, LF, CR,
+tabulation et NUL sont écrits respectivement `\"`, `\\`, `\n`, `\r`, `\t` et
+`\0`. Les autres contrôles C0 et DEL utilisent `\xNN`, avec deux chiffres
+hexadécimaux majuscules. Les octets UTF-8 imprimables sont conservés tels
+quels. Ainsi, `debug("A\"B\nC:\\scores")` produit exactement une ligne :
+
+```text
+"A\"B\nC:\\scores"
+```
+
+Ce format est destiné aux diagnostics et peut évoluer ; ce n'est pas un
+format de sérialisation. Une chaîne Janus valide contient de l'UTF-8 valide,
+mais `Debug` n'ajoute aucune normalisation Unicode et ne rééchappe pas les
+caractères Unicode hors C0/DEL. `print` et `println` continuent d'écrire le
+contenu brut des chaînes.
+
 Les noms privés des champs peuvent apparaître dans cette représentation de
 diagnostic, mais leur valeur n'est pas rendue accessible au programme.
 Comme pour `Equality`, les cycles structurels de classes sont refusés.

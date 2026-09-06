@@ -91,6 +91,14 @@ Pour une collection hachée, instanciez `DerivedHashing[UserId]` depuis `std.has
 
 `debug(value)` écrit une représentation déterministe destinée au diagnostic, par exemple `Point { x: 20, y: 22 }`. `print` et `println` restent réservés aux types primitifs imprimables et ne changent pas de comportement.
 
+Les chaînes affichées par `debug` sont toujours entre guillemets. Les
+guillemets, barres inverses, fins de ligne, tabulations, NUL et autres
+contrôles C0/DEL sont échappés, y compris dans un agrégat dérivé. Par exemple,
+`debug("A\"B\nété")` écrit `"A\"B\nété"` sur une seule ligne. L'UTF-8
+imprimable reste inchangé. Cette représentation est faite pour les
+diagnostics, pas pour la sérialisation ; `print` et `println` écrivent toujours
+le contenu brut.
+
 ## Enums, classes et génériques
 
 ```janus

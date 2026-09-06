@@ -1,0 +1,33 @@
+import std.text
+
+struct DebugStruct(val text : string) derives Debug {}
+
+class DebugClass(val text : string) derives Debug {}
+
+enum DebugEnum derives Debug {
+    Text(string)
+}
+
+def main() : int {
+    val controls : TextBuilder = new TextBuilder()
+    defer delete controls
+    var codepoint : int = 0
+    while codepoint < 32 {
+        controls.appendChar(char(codepoint))
+        codepoint = codepoint + 1
+    }
+    controls.appendChar(char(127))
+    controls.append("\"\\café")
+
+    debug(controls.view())
+    debug(new DebugStruct("A\"B\nC:\\scores\té"))
+    val boxed : DebugClass = new DebugClass("A\"B\nC:\\scores\té")
+    defer delete boxed
+    debug(boxed)
+    debug(DebugEnum.Text("A\"B\nC:\\scores\té"))
+
+    print("A\"B")
+    print("\n")
+    println("C:\\scores")
+    return 0
+}

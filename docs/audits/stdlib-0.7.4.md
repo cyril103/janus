@@ -16,7 +16,7 @@ La source de vérité de la surface reste [`docs/public-surface-0.5.json`](../pu
 - **41 modules**, **15211 lignes** et **1205 symboles publics** inventoriés ;
 - **1274 blocs `///` publics pour 1205 symboles** (couverture source du lot #115 : 100 %) ;
 - **248 sites d'allocation**, **561 marqueurs de nettoyage**, **493/70/62** occurrences `move`/`consume`/destructeur ;
-- **36/41 modules** importés directement par au moins une fixture ou un test, soit **265 couples module-fichier de test** ;
+- **36/41 modules** importés directement par au moins une fixture ou un test, soit **266 couples module-fichier de test** ;
 - **12 motifs textuels intermodules** principaux consignés ci-dessous.
 
 Ces métriques sont des indicateurs de risque et non des objectifs d'optimisation isolés. Un marqueur de nettoyage peut apparaître dans un nom d'API ; les tests sanitizers restent l'autorité sur les fuites et doubles destructions.
@@ -82,7 +82,7 @@ Les colonnes « Propriété M/C/D » comptent `move`, méthodes `consume` et des
 | `std.shared` | `experimental` | `conservation` | [#299](https://github.com/cyril103/janus/issues/299) | 7 | 122 | 7 | 1/0/1 | 0/0/3 | 4 | 7 | — | 5 | `docs/design/shared-immutable.md` |
 | `std.slice` | `experimental` | `conservation` | [#264](https://github.com/cyril103/janus/issues/264) | 16 | 224 | 18 | 1/0/0 | 0/6/7 | 4 | 2 | `std.array`, `std.index`, `std.iterator`, `std.option` | 5 | `docs/language-guide.md`, `docs/stdlib-reference.md`, `docs/stability-contract.md` |
 | `std.system` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 28 | 244 | 28 | 0/0/1 | 5/0/0 | 3 | 7 | `std.result` | 2 | `docs/language-guide.md`, `docs/design/system-runtime.md`, `docs/stability-contract.md` |
-| `std.text` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 42 | 447 | 42 | 0/0/1 | 14/0/5 | 3 | 17 | `std.result` | 2 | `docs/text.md`, `docs/stability-contract.md` |
+| `std.text` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 42 | 447 | 42 | 0/0/1 | 14/0/5 | 3 | 17 | `std.result` | 3 | `docs/text.md`, `docs/stability-contract.md` |
 | `std.testing` | `experimental` | `conservation` | [#147](https://github.com/cyril103/janus/issues/147) | 22 | 319 | 22 | 2/0/1 | 9/3/19 | 1 | 12 | `std.bytes`, `std.fs`, `std.option`, `std.path`, `std.result`, `std.system`, `std.validated` | 6 | `docs/testing.md`, `docs/tooling.md` |
 | `std.time` | `stable-proposed` | `conservation` | [#113 / R074-4](https://github.com/cyril103/janus/issues/113) | 13 | 119 | 13 | 0/0/0 | 0/0/2 | 5 | 0 | — | 3 | `docs/language-guide.md`, `docs/stability-contract.md` |
 | `std.validated` | `experimental` | `conservation` | [#111 / R074-2](https://github.com/cyril103/janus/issues/111) | 24 | 542 | 35 | 64/8/2 | 3/10/2 | 15 | 36 | `std.array`, `std.iterator`, `std.option`, `std.result` | 6 | `docs/language-guide.md`, `docs/stdlib-reference.md`, `docs/design/validated.md` |
@@ -142,7 +142,7 @@ Un module sans import direct n'est pas nécessairement non testé (il peut être
 | `std.shared` | `tests/fixtures/runtime/persistent_list.janus`, `tests/fixtures/runtime/shared.janus`, `tests/fixtures/runtime/shared_deep_destruction.janus`, `tests/fixtures/runtime/shared_mutation_error.janus`, `tests/fixtures/runtime/shared_panic_cleanup.janus` |
 | `std.slice` | `tests/fixtures/runtime/borrow_panic_cleanup.janus`, `tests/fixtures/runtime/mutable_borrow.janus`, `tests/fixtures/runtime/owned_iterators.janus`, `tests/fixtures/runtime/slice_out_of_bounds.janus`, `tests/fixtures/runtime/slices.janus` |
 | `std.system` | `tests/fixtures/runtime/processes.janus`, `tests/fixtures/runtime/system_result.janus` |
-| `std.text` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/text_api.janus` |
+| `std.text` | `tests/compatibility/stdlib.janus`, `tests/fixtures/runtime/debug_string_escaping.janus`, `tests/fixtures/runtime/text_api.janus` |
 | `std.testing` | `tests/fixtures/runtime/assert_bytes_size_failure.janus`, `tests/fixtures/runtime/assert_bytes_value_failure.janus`, `tests/fixtures/runtime/assert_fail_failure.janus`, `tests/fixtures/runtime/assert_where_failure.janus`, `tests/fixtures/runtime/nested_byte_views.janus`, `tests/fixtures/runtime/testing_assertions.janus` |
 | `std.time` | `tests/fixtures/runtime/duration_overflow.janus`, `tests/fixtures/runtime/stdlib_pure_contracts.janus`, `tests/fixtures/runtime/time_random.janus` |
 | `std.validated` | `tests/diagnostics/invalid/validated-errors-constructor-internal.janus`, `tests/diagnostics/invalid/validated-invalid-array-migration.janus`, `tests/fixtures/runtime/owned_validated.janus`, `tests/fixtures/runtime/testing_assertions.janus`, `tests/fixtures/runtime/validated.janus`, `tests/fixtures/runtime/validated_panic_cleanup.janus` |

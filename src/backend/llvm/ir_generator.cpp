@@ -4086,15 +4086,13 @@ private:
   void emit_debug_value(::llvm::Value *value, const janus::Type &type,
                         ::llvm::IRBuilder<> &builder) {
     if (type.kind() == janus::TypeKind::String) {
-      emit_debug_text("\"", builder);
       ::llvm::FunctionCallee function = module_->getOrInsertFunction(
-          "janus_write_stdout",
+          "janus_debug_string",
           ::llvm::FunctionType::get(builder.getVoidTy(),
                                     {builder.getPtrTy(), builder.getInt64Ty()},
                                     false));
       builder.CreateCall(function, {builder.CreateExtractValue(value, 0),
                                     builder.CreateExtractValue(value, 1)});
-      emit_debug_text("\"", builder);
       return;
     }
     if (type.kind() != janus::TypeKind::Struct &&

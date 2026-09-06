@@ -74,6 +74,65 @@ void janus_write_stdout(const char *data, uint64_t size) {
   (void)fwrite(data, 1, (size_t)size, stdout);
 }
 
+void janus_debug_string(const char *data, uint64_t size) {
+  static const char hex_digits[] = "0123456789ABCDEF";
+  janus_write_stdout("\"", 1);
+  uint64_t span_start = 0;
+  for (uint64_t index = 0; index < size; ++index) {
+    const unsigned char byte = (unsigned char)data[index];
+    const char *escape = NULL;
+    uint64_t escape_size = 0;
+    switch (byte) {
+    case '\0':
+      escape = "\\0";
+      escape_size = 2;
+      break;
+    case '\t':
+      escape = "\\t";
+      escape_size = 2;
+      break;
+    case '\n':
+      escape = "\\n";
+      escape_size = 2;
+      break;
+    case '\r':
+      escape = "\\r";
+      escape_size = 2;
+      break;
+    case '"':
+      escape = "\\\"";
+      escape_size = 2;
+      break;
+    case '\\':
+      escape = "\\\\";
+      escape_size = 2;
+      break;
+    default:
+      break;
+    }
+
+    char control_escape[4];
+    if (escape == NULL && (byte < 0x20 || byte == 0x7f)) {
+      control_escape[0] = '\\';
+      control_escape[1] = 'x';
+      control_escape[2] = hex_digits[byte >> 4];
+      control_escape[3] = hex_digits[byte & 0x0f];
+      escape = control_escape;
+      escape_size = sizeof(control_escape);
+    }
+    if (escape == NULL)
+      continue;
+
+    if (index != span_start)
+      janus_write_stdout(data + span_start, index - span_start);
+    janus_write_stdout(escape, escape_size);
+    span_start = index + 1;
+  }
+  if (span_start != size)
+    janus_write_stdout(data + span_start, size - span_start);
+  janus_write_stdout("\"", 1);
+}
+
 void janus_print_int(int32_t value) { (void)fprintf(stdout, "%" PRId32, value); }
 
 void janus_print_uint(uint32_t value) {

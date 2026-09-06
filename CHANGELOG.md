@@ -15,6 +15,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- échappement déterministe et mono-ligne des chaînes affichées par `debug` :
+  guillemets, barres inverses, LF, CR, tabulations, NUL et contrôles C0/DEL
+  sont désormais non ambigus, y compris dans les structs, classes et enums
+  dérivés, tandis que l'UTF-8 imprimable et `print`/`println` restent inchangés ;
 - validation exhaustive des projections de types associés au point
   d'utilisation : les annotations locales, champs, lambdas et arguments
   génériques exigent désormais une preuve de trait unique issue des bornes en
