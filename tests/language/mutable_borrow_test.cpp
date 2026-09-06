@@ -138,6 +138,59 @@ def main() : int {
     ++failures;
   }
 
+  try {
+    janus::frontend::Parser parser{R"(
+class Cell[T](var value : T) {}
+class Pair[T](var left : Cell[T], var right : Cell[T]) {}
+def leftValue[T](borrow var pair : Pair[T]) : borrow var T {
+  return pair.left.value
+}
+def main() : int {
+  var pair : Pair[int] = new Pair[int](new Cell[int](1), new Cell[int](2))
+  borrow var left : int = leftValue[int](pair)
+  borrow var right : int = pair.right.value
+  left = 3
+  right = 4
+  return left + right
+}
+)"};
+    const janus::ast::Program program = parser.parse_program();
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(program));
+    llvm::LLVMContext context;
+    janus::backend::llvm::IrGenerator generator{context};
+    expect(generator.generate(program, "projected_mutable_borrow") != nullptr,
+           "nested generic field places generate LLVM IR");
+  } catch (const std::exception &error) {
+    std::cerr << "FAILED: disjoint projected mutable borrows were rejected: "
+              << error.what() << '\n';
+    ++failures;
+  }
+
+  expect_compile_error(R"(
+class Pair(var left : int, var right : int) {}
+def main() : int {
+  var pair : Pair = new Pair(1, 2)
+  borrow var first : int = pair.left
+  borrow val second : int = pair.left
+  return first + second
+}
+)",
+                       "mutably borrowed",
+                       janus::DiagnosticCode::AnalyzerBorrowConflict);
+
+  expect_compile_error(R"(
+class Pair(var left : int, var right : int) {}
+def main() : int {
+  var pair : Pair = new Pair(1, 2)
+  borrow var left : int = pair.left
+  borrow val whole : Pair = pair
+  return left
+}
+)",
+                       "mutably borrowed",
+                       janus::DiagnosticCode::AnalyzerBorrowConflict);
+
   expect_compile_error(
       R"(
 struct Counter(var value : int) {

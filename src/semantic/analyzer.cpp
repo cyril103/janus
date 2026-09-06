@@ -3431,6 +3431,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
   struct BorrowReturnProvenance {
     enum class Kind { Receiver, Parameter } kind;
     std::size_t parameter{};
+    std::vector<std::string> projections;
     bool operator==(const BorrowReturnProvenance &) const = default;
   };
   std::unordered_map<const ast::FunctionDeclaration *, BorrowReturnProvenance>
@@ -3467,18 +3468,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         }
         if (receiver_source)
           return BorrowReturnProvenance{BorrowReturnProvenance::Kind::Receiver,
-                                        0};
+                                        0, {}};
       }
       for (std::size_t index = 0; index < context.function->parameters.size();
            ++index)
         if (context.function->parameters[index].name == identifier->name)
           return BorrowReturnProvenance{BorrowReturnProvenance::Kind::Parameter,
-                                        index};
+                                        index, {}};
       return std::nullopt;
     }
     if (const auto *member =
-            std::get_if<ast::MemberAccessExpression>(&expression.value))
-      return self(context, *member->object, self);
+            std::get_if<ast::MemberAccessExpression>(&expression.value)) {
+      auto source = self(context, *member->object, self);
+      if (source)
+        source->projections.push_back(member->member);
+      return source;
+    }
     if (const auto *index =
             std::get_if<ast::IndexExpression>(&expression.value))
       return self(context, *index->container, self);
@@ -3493,12 +3498,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           borrow_return_provenance.find(declaration->second);
       if (provenance == borrow_return_provenance.end())
         return std::nullopt;
+      std::optional<BorrowReturnProvenance> source;
       if (provenance->second.kind == BorrowReturnProvenance::Kind::Receiver)
-        return self(context, *method->object, self);
-      if (provenance->second.parameter >= method->arguments.size())
+        source = self(context, *method->object, self);
+      else if (provenance->second.parameter >= method->arguments.size())
         return std::nullopt;
-      return self(context, *method->arguments[provenance->second.parameter],
-                  self);
+      else
+        source = self(context,
+                      *method->arguments[provenance->second.parameter], self);
+      if (source)
+        source->projections.insert(source->projections.end(),
+                                   provenance->second.projections.begin(),
+                                   provenance->second.projections.end());
+      return source;
     }
     if (const auto *conditional =
             std::get_if<ast::IfExpression>(&expression.value)) {
@@ -4123,6 +4135,57 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         borrow_sources;
     std::unordered_map<std::string, std::unordered_set<std::string>>
         pattern_borrow_sources;
+    std::size_t projection_object_depth = 0;
+    const auto place_root = [](std::string_view place) {
+      const std::size_t separator = place.find('.');
+      return std::string{place.substr(0, separator)};
+    };
+    const auto places_overlap = [](std::string_view left,
+                                   std::string_view right) {
+      const auto is_prefix = [](std::string_view prefix,
+                                std::string_view value) {
+        return value == prefix ||
+               (value.size() > prefix.size() &&
+                value.starts_with(prefix) && value[prefix.size()] == '.');
+      };
+      return is_prefix(left, right) || is_prefix(right, left);
+    };
+    const auto lexical_place =
+        [](const ast::Expression &expression,
+           const auto &self) -> std::optional<std::string> {
+      if (const auto *identifier =
+              std::get_if<ast::IdentifierExpression>(&expression.value))
+        return identifier->name;
+      if (const auto *member =
+              std::get_if<ast::MemberAccessExpression>(&expression.value)) {
+        auto parent = self(*member->object, self);
+        if (parent)
+          *parent += "." + member->member;
+        return parent;
+      }
+      if (const auto *method =
+              std::get_if<ast::MethodCallExpression>(&expression.value))
+        return self(*method->object, self);
+      if (const auto *index =
+              std::get_if<ast::IndexExpression>(&expression.value))
+        return self(*index->container, self);
+      return std::nullopt;
+    };
+    const auto static_field_place =
+        [](const ast::Expression &expression,
+           const auto &self) -> std::optional<std::string> {
+      if (const auto *identifier =
+              std::get_if<ast::IdentifierExpression>(&expression.value))
+        return identifier->name;
+      if (const auto *member =
+              std::get_if<ast::MemberAccessExpression>(&expression.value)) {
+        auto parent = self(*member->object, self);
+        if (parent)
+          *parent += "." + member->member;
+        return parent;
+      }
+      return std::nullopt;
+    };
     struct DeferredEffect {
       SourceLocation location;
       std::unordered_set<std::string> reads;
@@ -4203,16 +4266,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           [&](const auto &self, std::string_view candidate,
               std::string_view owner,
               std::unordered_set<std::string> &visited) -> bool {
-        if (candidate == owner)
+        if (places_overlap(candidate, owner))
           return true;
         if (!visited.insert(std::string{candidate}).second)
           return false;
-        const auto sources = borrow_sources.find(std::string{candidate});
+        const std::string root = place_root(candidate);
+        const auto sources = borrow_sources.find(root);
         if (sources == borrow_sources.end())
           return false;
+        const std::string suffix = std::string{candidate.substr(root.size())};
         return std::any_of(sources->second.begin(), sources->second.end(),
                            [&](const std::string &source) {
-                             return self(self, source, owner, visited);
+                             return self(self, source + suffix, owner, visited);
                            });
       };
       for (const auto &[borrower, sources] : borrow_sources) {
@@ -4246,16 +4311,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           [&](const auto &self, std::string_view candidate,
               std::string_view owner,
               std::unordered_set<std::string> &visited) -> bool {
-        if (candidate == owner)
+        if (places_overlap(candidate, owner))
           return true;
         if (!visited.insert(std::string{candidate}).second)
           return false;
-        const auto sources = borrow_sources.find(std::string{candidate});
+        const std::string root = place_root(candidate);
+        const auto sources = borrow_sources.find(root);
         if (sources == borrow_sources.end())
           return false;
+        const std::string suffix = std::string{candidate.substr(root.size())};
         return std::any_of(sources->second.begin(), sources->second.end(),
                            [&](const std::string &source) {
-                             return self(self, source, owner, visited);
+                             return self(self, source + suffix, owner, visited);
                            });
       };
       for (const auto &[borrower, sources] : borrow_sources) {
@@ -4899,11 +4966,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           source_expression =
               method->arguments[provenance->second.parameter].get();
         }
-        const ast::IdentifierExpression *root = lexical_root_identifier(
-            *source_expression, lexical_root_identifier);
-        if (root != nullptr)
-          return root->name;
-        return std::nullopt;
+        auto place = lexical_place(*source_expression, lexical_place);
+        if (place && provenance != borrow_return_provenance.end())
+          for (const std::string &projection :
+               provenance->second.projections)
+            *place += "." + projection;
+        return place;
       }
       const auto *call = std::get_if<ast::CallExpression>(&expression.value);
       if (call == nullptr)
@@ -4913,11 +4981,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 BorrowReturnProvenance::Kind::Parameter ||
             provenance->second.parameter >= call->arguments.size())
           return std::nullopt;
-        const ast::IdentifierExpression *root = lexical_root_identifier(
-            *call->arguments[provenance->second.parameter],
-            lexical_root_identifier);
-        return root == nullptr ? std::nullopt
-                               : std::optional<std::string>{root->name};
+        auto place = lexical_place(
+            *call->arguments[provenance->second.parameter], lexical_place);
+        if (place)
+          for (const std::string &projection :
+               provenance->second.projections)
+            *place += "." + projection;
+        return place;
       }
       for (std::size_t index = 0; index < resolved->second->parameters.size();
            ++index) {
@@ -4926,10 +4996,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         if (ownership != ast::ParameterOwnership::Borrow &&
             ownership != ast::ParameterOwnership::BorrowMutable)
           continue;
-        const ast::IdentifierExpression *root = lexical_root_identifier(
-            *call->arguments[index], lexical_root_identifier);
-        if (root != nullptr)
-          return root->name;
+        if (auto place =
+                lexical_place(*call->arguments[index], lexical_place))
+          return place;
       }
       return std::nullopt;
     };
@@ -5793,7 +5862,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                    "variable '" + node.name +
                                        "' is used before initialization"};
               }
-              if (!mutable_borrow_values.contains(node.name))
+              if (projection_object_depth == 0 &&
+                  !mutable_borrow_values.contains(node.name))
                 if (const auto borrower = live_borrower_of(node.name, false))
                   throw CompileError{
                       DiagnosticCode::AnalyzerBorrowConflict, node.location,
@@ -7197,7 +7267,24 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                       global->declaration->declaration.name));
                 return global->symbol.type;
               }
-              const SemanticType object_type = expression_type(*node.object);
+              ++projection_object_depth;
+              SemanticType object_type;
+              try {
+                object_type = expression_type(*node.object);
+              } catch (...) {
+                --projection_object_depth;
+                throw;
+              }
+              --projection_object_depth;
+              if (projection_object_depth == 0 &&
+                  !contextual_borrow_expression)
+                if (const auto place = lexical_place(expression, lexical_place))
+                  if (const auto borrower = live_borrower_of(*place, false))
+                    throw CompileError{
+                        DiagnosticCode::AnalyzerBorrowConflict, node.location,
+                        "place '" + *place +
+                            "' cannot be accessed while mutably borrowed by '" +
+                            *borrower + "'"};
               if (!object_type.is_class())
                 throw CompileError{node.location,
                                    "member access requires an object"};
@@ -9386,6 +9473,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               (!declaration->initializer.has_value() ||
                (!std::holds_alternative<ast::IdentifierExpression>(
                     declaration->initializer->value) &&
+                !std::holds_alternative<ast::MemberAccessExpression>(
+                    declaration->initializer->value) &&
                 !std::holds_alternative<ast::CallExpression>(
                     declaration->initializer->value) &&
                 !std::holds_alternative<ast::MethodCallExpression>(
@@ -9441,6 +9530,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (declaration->is_borrowed && !declared_type.is_pointer() &&
               declaration->initializer.has_value() &&
               !std::holds_alternative<ast::IdentifierExpression>(
+                  declaration->initializer->value) &&
+              !std::holds_alternative<ast::MemberAccessExpression>(
                   declaration->initializer->value) &&
               !returned_borrow_source.has_value() &&
               !is_borrowed_pointer_expression(*declaration->initializer))
@@ -9511,7 +9602,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             if (declaration->is_borrowed &&
                 returned_borrow_source.has_value()) {
               if (declaration->is_mutable) {
-                if (shared_borrow_values.contains(*returned_borrow_source))
+                if (shared_borrow_values.contains(
+                        place_root(*returned_borrow_source)))
                   throw CompileError{DiagnosticCode::AnalyzerBorrowConflict,
                                      declaration->location,
                                      "shared borrow '" +
@@ -9567,6 +9659,55 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 }
                 borrow_sources[declaration->name].insert(source->name);
               }
+
+            if (declaration->is_borrowed &&
+                std::holds_alternative<ast::MemberAccessExpression>(
+                    initializer.value)) {
+              const auto source_place =
+                  static_field_place(initializer, static_field_place);
+              if (!source_place)
+                throw CompileError{
+                    DiagnosticCode::AnalyzerInvalidBorrowSource,
+                    declaration->location,
+                    "borrowed field projection requires a local root"};
+              const std::string source_root = place_root(*source_place);
+              if (!active_symbols->contains(source_root))
+                throw CompileError{
+                    DiagnosticCode::AnalyzerInvalidBorrowSource,
+                    declaration->location,
+                    "borrowed field projection requires a local root"};
+              if (declaration->is_mutable) {
+                if (shared_borrow_values.contains(source_root))
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerBorrowConflict,
+                      declaration->location,
+                      "shared borrow '" + source_root +
+                          "' cannot be borrowed mutably"};
+                if (receiver_capability(initializer) !=
+                    ReceiverCapability::Mutable)
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerInvalidBorrowAccess,
+                      declaration->location,
+                      "field place '" + *source_place +
+                          "' does not provide mutable access"};
+                if (const auto borrower =
+                        live_borrower_of(*source_place, true))
+                  throw CompileError{
+                      DiagnosticCode::AnalyzerBorrowConflict,
+                      declaration->location,
+                      "place '" + *source_place +
+                          "' is already borrowed by '" + *borrower + "'"};
+              } else if (const auto borrower =
+                             live_borrower_of(*source_place, false)) {
+                throw CompileError{
+                    DiagnosticCode::AnalyzerBorrowConflict,
+                    declaration->location,
+                    "place '" + *source_place +
+                        "' is already mutably borrowed by '" + *borrower +
+                        "'"};
+              }
+              borrow_sources[declaration->name].insert(*source_place);
+            }
 
             if (const auto *construction =
                     std::get_if<ast::NewExpression>(&initializer.value)) {
@@ -9799,8 +9940,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  assignment->location,
                                  "cannot mutate through shared borrow '" +
                                      assignment->object + "'"};
-            require_no_live_borrow(assignment->object, assignment->location,
-                                   "mutated");
+            require_no_live_borrow(assignment->object + "." + assignment->name,
+                                   assignment->location, "mutated");
             if (!block_symbols.contains(assignment->object) &&
                 global_modules.contains(assignment->object)) {
               const ResolvedGlobal *global =
@@ -10386,9 +10527,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           if (borrowed_return) {
             const std::optional<std::string> call_source =
                 borrowed_return_source(*return_statement.expression);
-            const ast::IdentifierExpression *lexical_source =
-                lexical_root_identifier(*return_statement.expression,
-                                        lexical_root_identifier);
+            const std::optional<std::string> lexical_source = lexical_place(
+                *return_statement.expression, lexical_place);
             const auto declared_provenance =
                 borrow_return_provenance.find(context.function);
             std::optional<std::string> declared_source;
@@ -10408,18 +10548,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             const std::optional<std::string> source_name =
                 call_source
                     ? call_source
-                    : (declared_source ? declared_source
-                                       : (lexical_source == nullptr
-                                              ? std::nullopt
-                                              : std::optional<std::string>{
-                                                    lexical_source->name}));
+                    : (declared_source ? declared_source : lexical_source);
             const bool owner_mutable_source =
                 context.function->return_ownership ==
                     ast::ReturnOwnership::BorrowMutable &&
                 owner != nullptr && source_name &&
-                (*source_name == "this" ||
-                 owner_field_names.contains(*source_name));
-            if ((!source_name || (!borrowed_values.contains(*source_name) &&
+                (place_root(*source_name) == "this" ||
+                 owner_field_names.contains(place_root(*source_name)));
+            if ((!source_name ||
+                 (!borrowed_values.contains(place_root(*source_name)) &&
                                   !owner_mutable_source)) &&
                 !is_owner_anchored_external_borrow(
                     *return_statement.expression))
@@ -10431,7 +10568,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             if (context.function->return_ownership ==
                     ast::ReturnOwnership::BorrowMutable &&
                 !owner_mutable_source &&
-                (!source_name || !mutable_borrow_values.contains(*source_name)))
+                (!source_name || !mutable_borrow_values.contains(
+                                     place_root(*source_name))))
               throw CompileError{
                   DiagnosticCode::AnalyzerInvalidBorrowSource,
                   return_statement.location,
@@ -10443,23 +10581,49 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   [&](std::string_view name, const auto &self,
                       std::unordered_set<std::string> &visited)
                   -> std::optional<BorrowReturnProvenance> {
+                const std::string root = place_root(name);
                 if (!visited.insert(std::string{name}).second)
                   return std::nullopt;
                 if ((owner != nullptr || extension != nullptr) &&
-                    (name == "this" ||
-                     owner_field_names.contains(std::string{name})))
-                  return BorrowReturnProvenance{
-                      BorrowReturnProvenance::Kind::Receiver, 0};
+                    (root == "this" || owner_field_names.contains(root))) {
+                  BorrowReturnProvenance result{
+                      BorrowReturnProvenance::Kind::Receiver, 0, {}};
+                  std::string_view suffix = name.substr(root.size());
+                  while (!suffix.empty()) {
+                    suffix.remove_prefix(1);
+                    const std::size_t separator = suffix.find('.');
+                    result.projections.emplace_back(
+                        suffix.substr(0, separator));
+                    if (separator == std::string_view::npos)
+                      break;
+                    suffix.remove_prefix(separator);
+                  }
+                  return result;
+                }
                 for (std::size_t index = 0; index < parameters.size(); ++index)
-                  if (parameters[index].name == name)
-                    return BorrowReturnProvenance{
-                        BorrowReturnProvenance::Kind::Parameter, index};
-                const auto aliases = borrow_sources.find(std::string{name});
+                  if (parameters[index].name == root) {
+                    BorrowReturnProvenance result{
+                        BorrowReturnProvenance::Kind::Parameter, index, {}};
+                    std::string_view suffix = name.substr(root.size());
+                    while (!suffix.empty()) {
+                      suffix.remove_prefix(1);
+                      const std::size_t separator = suffix.find('.');
+                      result.projections.emplace_back(
+                          suffix.substr(0, separator));
+                      if (separator == std::string_view::npos)
+                        break;
+                      suffix.remove_prefix(separator);
+                    }
+                    return result;
+                  }
+                const auto aliases = borrow_sources.find(root);
                 if (aliases == borrow_sources.end())
                   return std::nullopt;
+                const std::string suffix =
+                    std::string{name.substr(root.size())};
                 std::optional<BorrowReturnProvenance> common;
                 for (const std::string &alias : aliases->second) {
-                  const auto candidate = self(alias, self, visited);
+                  const auto candidate = self(alias + suffix, self, visited);
                   if (!candidate || (common && common != candidate))
                     return std::nullopt;
                   common = candidate;

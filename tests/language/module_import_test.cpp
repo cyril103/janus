@@ -91,13 +91,19 @@ int main() {
                "def answer() : int { return 42 }\n"
                "private def hidden() : int { return 0 }\n"
                "struct Box[T](val value : T) {}\n"
+               "struct ProjectedBox[T](var value : T) {}\n"
                "enum Status { Ready }\n");
   write_source(import_root / "qualified.janus",
                "import sample.api as api\n"
                "def main() : int { return api.answer() }\n");
   write_source(import_root / "selective.janus",
-               "import sample.api.{answer as selected}\n"
-               "def main() : int { return selected() }\n");
+               "import sample.api.{answer as selected, ProjectedBox}\n"
+               "def main() : int {\n"
+               "  var box : ProjectedBox[int] = new ProjectedBox[int](1)\n"
+               "  borrow var value : int = box.value\n"
+               "  value = 2\n"
+               "  return selected() + value\n"
+               "}\n");
   janus::frontend::ModuleLoader import_loader;
   const janus::ast::Program aliased_import_program =
       import_loader.load(import_root / "qualified.janus");
@@ -112,7 +118,8 @@ int main() {
     static_cast<void>(
         alias_generator.generate(selective_program, "selective_import"));
   }
-  expect(true, "qualified and renamed function imports resolve canonically");
+  expect(true, "qualified functions and projected borrows of imported generic "
+               "types resolve canonically");
 
   std::filesystem::create_directories(import_root / "contract");
   write_source(import_root / "contract" / "api.janus",

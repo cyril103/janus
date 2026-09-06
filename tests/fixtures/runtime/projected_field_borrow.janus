@@ -1,0 +1,16 @@
+struct Cell[T](var value : T) {}
+struct Pair[T](var left : Cell[T], var right : Cell[T]) {}
+
+def main() : int {
+    var pair : Pair[int] = new Pair[int](new Cell[int](1), new Cell[int](2))
+    var total : int = 0
+    if true {
+        borrow var left : int = pair.left.value
+        borrow var right : int = pair.right.value
+        left = 3
+        right = 4
+        total = left + right
+    }
+    println(total)
+    return 0
+}

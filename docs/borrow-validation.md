@@ -7,6 +7,7 @@ Cette matrice est le gate de non-régression associé à l'issue #265.
 |---|---|
 | emprunts partagés, méthodes `borrow def`, branches et boucles | `language.immutable_borrow` |
 | exclusivité mutable, réemprunts et champs `borrow var` | `language.mutable_borrow` |
+| places de champs, overlap, projections génériques et imports | `language.immutable_borrow`, `language.mutable_borrow`, `language.module_import` |
 | destruction, mutation, réallocation, stockage et retours | `language.borrow_invalidation` |
 | appels imbriqués et closures bornées ou échappantes | `language.borrowed_calls_closures` |
 | conteneurs contigus partagés et mutables | `runtime.slices`, `runtime.slice_out_of_bounds` |

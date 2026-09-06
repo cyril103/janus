@@ -29,7 +29,7 @@ USIZE_LITERAL = re.compile(r"\busize\(\s*[0-9][0-9_]*\s*\)")
 CONSTRUCTOR_EXCEPTIONS = {
     ("README.md", "new Factory[int](", 112, 2): "pédagogique explicite",
     ("docs/archive/migration-0.5-to-0.6.md", "new Array[Resource](", 31, 35): "historique",
-    ("docs/language-guide.md", "new Factory[int](", 1268, 16): "pédagogique explicite",
+    ("docs/language-guide.md", "new Factory[int](", 1287, 16): "pédagogique explicite",
     ("website/docs/book/07-generiques-closures.md", "new Pair[string, int](", 37, 5): "pédagogique explicite",
     ("examples/generic_classes.janus", "new Box[int](", 17, 31): "pédagogique explicite",
     ("examples/generic_classes.janus", "new Box[string](", 22, 30): "pédagogique explicite",
@@ -77,7 +77,7 @@ CAST_EXCEPTIONS: dict[tuple[str, str, int, int], str] = {
     ("examples/snake/main.janus", "usize(0)", 328, 35): "nécessaire (opérande binaire usize)",
     ("examples/snake/main.janus", "usize(1)", 329, 60): "nécessaire (opérande binaire usize)",
     ("examples/snake/main.janus", "usize(1)", 330, 41): "nécessaire (opérande binaire usize)",
-    ("docs/language-guide.md", "usize(1)", 1627, 43): "nécessaire (opérande binaire usize)",
+    ("docs/language-guide.md", "usize(1)", 1646, 43): "nécessaire (opérande binaire usize)",
     ("docs/stdlib-reference.md", "usize(2)", 37, 41): "nécessaire (opérande binaire usize)",
     ("docs/stdlib-reference.md", "usize(8)", 355, 44): "nécessaire (opérande binaire usize)",
     ("docs/stdlib-reference.md", "usize(5)", 500, 55): "nécessaire (opérande binaire usize)",

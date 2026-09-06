@@ -62,6 +62,18 @@ void expect_compile_error(std::string_view source,
 
 int main() {
   expect_valid(R"(
+class Pair(var left : int, var right : int) {}
+def main() : int {
+  var pair : Pair = new Pair(2, 3)
+  borrow val left : int = pair.left
+  borrow val anotherLeft : int = pair.left
+  borrow val right : int = pair.right
+  return left + anotherLeft + right
+}
+)",
+               true);
+
+  expect_valid(R"(
 class Box(var value : int) {
   borrow def read() : int { return value }
   def write(next : int) : Unit { value = next }

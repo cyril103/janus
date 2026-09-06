@@ -15,6 +15,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- prise en charge des emprunts directs de champs nommés, partagés ou mutables :
+  la provenance conserve désormais la racine et le chemin de projection à
+  travers les alias et retours empruntés, deux champs frères peuvent être
+  empruntés séparément, tandis que les conflits sur un même champ, un ancêtre
+  ou la racine restent refusés ;
 - remplacement de l'indexation spéciale de `std.array.Array` par les contrats
   canoniques publics `std.index.Index[Key]` et `IndexMut[Key]`, avec type
   associé `Output` ; `Array`, `Slice`, `MutableSlice`, les types utilisateur et

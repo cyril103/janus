@@ -1022,8 +1022,27 @@ en `borrow val` pour une simple observation. Un retour partagé ne peut jamais
 Un seul emprunt mutable peut viser une valeur à la fois. Aucun emprunt partagé,
 accès direct au propriétaire, déplacement ou destruction ne peut lui être
 concurrent. Les modifications sont visibles par le propriétaire parce que
-l'alias utilise le même stockage. Les projections de champs seront ajoutées
-séparément.
+l'alias utilise le même stockage. Une place peut être un identifiant local ou
+une suite de champs nommés statiquement :
+
+```janus
+class Pair(var left : int, var right : int) {}
+
+var pair : Pair = new Pair(1, 2)
+borrow var left : int = pair.left
+borrow var right : int = pair.right
+left = 3
+right = 4
+```
+
+Deux chemins de champs frères, comme `pair.left` et `pair.right`, sont
+disjoints et peuvent donc être empruntés simultanément. En revanche, la racine
+`pair`, un chemin ancêtre et le même champ se chevauchent : tout emprunt ou
+accès incompatible est refusé avec `JANA0024` ou `JANA0025`. Cette provenance
+complète est conservée à travers les projections imbriquées, les types
+génériques, les alias et les appels qui retournent un emprunt. Les indices
+dynamiques et les unions ne sont pas considérés comme des places disjointes ;
+ils restent traités conservativement par leurs API d'emprunt explicites.
 
 Un emprunt actif interdit aussi les invalidations indirectes : appel d'une
 méthode mutante ou consommatrice sur le propriétaire, passage à un paramètre

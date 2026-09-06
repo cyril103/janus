@@ -2384,16 +2384,14 @@ private:
                 Local{emit_static_initializer(value, type), &type, true});
             continue;
           }
-          const auto *borrowed_source =
-              declaration->initializer.has_value()
-                  ? std::get_if<janus::ast::IdentifierExpression>(
-                        &declaration->initializer->value)
+          ::llvm::Value *borrowed_storage =
+              declaration->is_borrowed && declaration->initializer.has_value()
+                  ? emit_borrow_storage(*declaration->initializer, type,
+                                        substitutions, block_locals, builder)
                   : nullptr;
-          if (declaration->is_borrowed && borrowed_source != nullptr) {
-            const Local &source =
-                resolve_storage(borrowed_source->name, block_locals);
+          if (borrowed_storage != nullptr) {
             block_locals.emplace(declaration->name,
-                                 Local{source.storage, &type});
+                                 Local{borrowed_storage, &type});
             continue;
           }
           const auto resolved_initializer =
@@ -3670,6 +3668,26 @@ private:
     if (const auto *identifier =
             std::get_if<janus::ast::IdentifierExpression>(&expression.value))
       return resolve_storage(identifier->name, locals).storage;
+    if (const auto *member =
+            std::get_if<janus::ast::MemberAccessExpression>(
+                &expression.value)) {
+      const janus::Type &object_type =
+          expression_type(*member->object, substitutions, locals);
+      ::llvm::Value *object_storage = emit_borrow_storage(
+          *member->object, object_type, substitutions, locals, builder);
+      if (object_storage == nullptr)
+        return nullptr;
+      ::llvm::Value *object_pointer = object_storage;
+      if (object_type.kind() != janus::TypeKind::Struct)
+        object_pointer = builder.CreateLoad(builder.getPtrTy(), object_storage,
+                                            member->member + ".borrow.object");
+      const auto [field_index, field_type] =
+          find_field(object_type.name(), member->member);
+      static_cast<void>(field_type);
+      return builder.CreateStructGEP(
+          llvm_class_types_.at(std::string{object_type.name()}), object_pointer,
+          field_index, member->member + ".borrow.place");
+    }
     const auto *load =
         std::get_if<janus::ast::MethodCallExpression>(&expression.value);
     if (load == nullptr || load->method != "load" ||
