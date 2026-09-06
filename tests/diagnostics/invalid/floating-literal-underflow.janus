@@ -1,0 +1,4 @@
+def main() : int {
+    val tiny : float = 1e-46f
+    return 0
+}

@@ -1,0 +1,7 @@
+def main() : int {
+    val tinyFloat : float = 1.40129846e-45f
+    val tinyDouble : double = 4.9406564584124654e-324
+    println(tinyFloat)
+    println(tinyDouble)
+    return 0
+}

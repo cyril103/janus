@@ -53,6 +53,15 @@ virgule est un `double` (sauf contexte constant flottant déjà typé). Le suffi
 fait partie du littéral : `1.0ff` et `1.0foo` sont rejetés comme littéraux
 `float` invalides.
 
+Les valeurs sous-normales finies sont conservées, jusqu'à la plus petite valeur
+IEEE 754 représentable (`1.40129846e-45f` pour `float` et
+`4.9406564584124654e-324` pour `double`). La conversion est indépendante de la
+locale : le séparateur décimal reste toujours `.`. Une valeur qui s'arrondit à
+zéro est refusée avec `JPAR0002`; une valeur qui dépasserait la borne finie est
+refusée avec `JPAR0003`. Les plateformes prises en charge doivent donc fournir
+une conversion décimale correctement arrondie pour leurs types IEEE 754 ; Janus
+l'effectue dans une locale C dédiée sans modifier la locale du processus.
+
 Les globales constantes utilisant `saturatingCast` ou `truncatingCast` sont
 repliées par le compilateur. Leur algorithme est le même que celui du backend
 runtime : il n'utilise ni cast C hors plage ni comportement indéfini de l'hôte.

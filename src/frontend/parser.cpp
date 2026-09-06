@@ -1,3 +1,14 @@
+#if !defined(_WIN32)
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+#if defined(__APPLE__)
+#if !defined(_DARWIN_C_SOURCE)
+#define _DARWIN_C_SOURCE
+#endif
+#endif
+#endif
+
 #include "janus/frontend/parser.hpp"
 
 #include "janus/diagnostics/compile_error.hpp"
@@ -9,8 +20,13 @@
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
+#include <locale.h>
+#if defined(__APPLE__)
+#include <xlocale.h>
+#endif
 #include <string>
 #include <system_error>
+#include <type_traits>
 #include <unordered_set>
 
 namespace {
@@ -188,6 +204,44 @@ std::optional<std::uint64_t> parse_integer_literal(std::string_view spelling) {
   if (result.ec != std::errc{} || result.ptr != digits.data() + digits.size())
     return std::nullopt;
   return value;
+}
+
+enum class FloatingLiteralError { None, Invalid, Underflow, Overflow };
+
+template <typename Floating>
+FloatingLiteralError parse_floating_literal(std::string_view spelling,
+                                            Floating &value) {
+  const std::string text{spelling};
+  char *end = nullptr;
+  errno = 0;
+#if defined(_WIN32)
+  _locale_t locale = _create_locale(LC_NUMERIC, "C");
+  if (locale == nullptr)
+    return FloatingLiteralError::Invalid;
+  if constexpr (std::is_same_v<Floating, float>)
+    value = _strtof_l(text.c_str(), &end, locale);
+  else
+    value = _strtod_l(text.c_str(), &end, locale);
+  const int conversion_errno = errno;
+  _free_locale(locale);
+#else
+  locale_t locale = newlocale(LC_NUMERIC_MASK, "C", (locale_t)0);
+  if (locale == (locale_t)0)
+    return FloatingLiteralError::Invalid;
+  if constexpr (std::is_same_v<Floating, float>)
+    value = strtof_l(text.c_str(), &end, locale);
+  else
+    value = strtod_l(text.c_str(), &end, locale);
+  const int conversion_errno = errno;
+  freelocale(locale);
+#endif
+  if (end != text.c_str() + text.size())
+    return FloatingLiteralError::Invalid;
+  if (!std::isfinite(value))
+    return FloatingLiteralError::Overflow;
+  if (value == static_cast<Floating>(0) && conversion_errno == ERANGE)
+    return FloatingLiteralError::Underflow;
+  return FloatingLiteralError::None;
 }
 
 } // namespace
@@ -2090,16 +2144,26 @@ ast::Expression Parser::parse_primary() {
     const std::string text{
         is_float ? literal.lexeme.substr(0, literal.lexeme.size() - 1)
                  : literal.lexeme};
-    char *end = nullptr;
-    errno = 0;
-    const double value =
-        is_float ? static_cast<double>(std::strtof(text.c_str(), &end))
-                 : std::strtod(text.c_str(), &end);
-    if (errno == ERANGE || end != text.c_str() + text.size() ||
-        !std::isfinite(value)) {
-      throw CompileError{literal.location, is_float ? "invalid float literal"
-                                                    : "invalid double literal"};
+    double value{};
+    FloatingLiteralError error{};
+    if (is_float) {
+      float float_value{};
+      error = parse_floating_literal(text, float_value);
+      value = static_cast<double>(float_value);
+    } else {
+      error = parse_floating_literal(text, value);
     }
+    const std::string type_name = is_float ? "float" : "double";
+    if (error == FloatingLiteralError::Underflow)
+      throw CompileError{DiagnosticCode::ParserFloatingLiteralUnderflow,
+                         literal.location,
+                         type_name + " literal underflows to zero"};
+    if (error == FloatingLiteralError::Overflow)
+      throw CompileError{DiagnosticCode::ParserFloatingLiteralOverflow,
+                         literal.location,
+                         type_name + " literal overflows to infinity"};
+    if (error == FloatingLiteralError::Invalid)
+      throw CompileError{literal.location, "invalid " + type_name + " literal"};
     return ast::DoubleLiteralExpression{value, is_float, literal.location};
   }
 

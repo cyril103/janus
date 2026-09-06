@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import pathlib
 import re
 import subprocess
@@ -45,6 +46,39 @@ def main() -> int:
             failures.append(f"{filename}: missing code {code}")
         if message not in output:
             failures.append(f"{filename}: missing message fragment {message!r}")
+        if code in {"JPAR0002", "JPAR0003"}:
+            structured = subprocess.run(
+                [
+                    str(args.janus),
+                    "check",
+                    str(source),
+                    "--diagnostic-format",
+                    "json",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            try:
+                payload = json.loads(structured.stderr)
+                diagnostics = payload["diagnostics"]
+            except (json.JSONDecodeError, KeyError, TypeError) as error:
+                failures.append(f"{filename}: invalid JSON diagnostic: {error}")
+            else:
+                if structured.returncode != 1:
+                    failures.append(
+                        f"{filename}: JSON expected status 1, got "
+                        f"{structured.returncode}"
+                    )
+                if len(diagnostics) != 1 or diagnostics[0].get("code") != code:
+                    failures.append(
+                        f"{filename}: JSON missing diagnostic code {code}"
+                    )
+                elif message not in diagnostics[0].get("message", ""):
+                    failures.append(
+                        f"{filename}: JSON missing message fragment {message!r}"
+                    )
 
     if failures:
         print("\n".join(failures), file=sys.stderr)

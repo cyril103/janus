@@ -1,0 +1,4 @@
+def main() : int {
+    val huge : double = 1e309
+    return 0
+}

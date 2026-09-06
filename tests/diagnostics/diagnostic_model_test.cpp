@@ -26,6 +26,8 @@ int main(int argc, char **argv) {
       DiagnosticCode::LexerUnexpectedCharacter,
       DiagnosticCode::LexerLegacy,
       DiagnosticCode::ParserExpectedExpression,
+      DiagnosticCode::ParserFloatingLiteralUnderflow,
+      DiagnosticCode::ParserFloatingLiteralOverflow,
       DiagnosticCode::ParserLegacy,
       DiagnosticCode::AnalyzerUnknownValue,
       DiagnosticCode::AnalyzerLegacy,

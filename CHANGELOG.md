@@ -21,6 +21,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- acceptation des littéraux `float` et `double` sous-normaux finis, y compris
+  leurs plus petites valeurs IEEE 754 positives et négatives ; la conversion
+  est désormais indépendante de la locale, tandis que l'arrondi à zéro
+  (`JPAR0002`) et le dépassement vers l'infini (`JPAR0003`) ont des diagnostics
+  distincts et structurés ;
 - échappement déterministe et mono-ligne des chaînes affichées par `debug` :
   guillemets, barres inverses, LF, CR, tabulations, NUL et contrôles C0/DEL
   sont désormais non ambigus, y compris dans les structs, classes et enums

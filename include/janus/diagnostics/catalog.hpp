@@ -21,6 +21,8 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::LexerUnexpectedCharacter,
     DiagnosticCode::ParserLegacy,
     DiagnosticCode::ParserExpectedExpression,
+    DiagnosticCode::ParserFloatingLiteralUnderflow,
+    DiagnosticCode::ParserFloatingLiteralOverflow,
     DiagnosticCode::ModuleLegacy,
     DiagnosticCode::AnalyzerLegacy,
     DiagnosticCode::AnalyzerUnknownValue,
@@ -98,6 +100,14 @@ explain_diagnostic(DiagnosticCode code) noexcept {
     return {code, "expression expected",
             "The parser reached a position where an expression is required.",
             "Complete the expression and check delimiters immediately before it."};
+  case DiagnosticCode::ParserFloatingLiteralUnderflow:
+    return {code, "floating-point literal underflow",
+            "The literal rounds to zero in its declared floating-point type.",
+            "Use a representable magnitude or a wider floating-point type."};
+  case DiagnosticCode::ParserFloatingLiteralOverflow:
+    return {code, "floating-point literal overflow",
+            "The literal rounds to infinity in its declared floating-point type.",
+            "Use a representable magnitude or a wider floating-point type."};
   case DiagnosticCode::AnalyzerUnknownValue:
     return {code, "unknown value",
             "Name resolution found no visible declaration for this value.",
