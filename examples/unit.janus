@@ -1,18 +1,20 @@
-class Counter(var value : int) {
-    def set(next : int) : Unit {
-        value = next
-    }
+enum Option[T] { Some(T), None }
+struct Marker(val value : Unit) {}
+
+def identity[T](value : T) : T {
+    return move value
 }
 
-def observe(value : int) : Unit {
-    return
+def consumeUnit(value : Unit) : Unit {
+    return value
 }
 
 def main() : int {
-    val counter : Counter = new Counter(0)
-    defer delete counter
-    observe(42)
-    counter.set(42)
-    val result : int = counter.value
-    return result
+    val marker : Marker = new Marker(unit)
+    val result : Option[Unit] = Option.Some[Unit](marker.value)
+    val callback : (Unit) => Unit =
+        (value : Unit) => consumeUnit(identity[Unit](value))
+    callback(match result { Some(value) => value, None => unit })
+    delete callback
+    return 0
 }

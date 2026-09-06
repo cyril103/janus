@@ -805,6 +805,8 @@ inferred_literal_type(const std::vector<janus::frontend::Token> &items,
   case TokenKind::True:
   case TokenKind::False:
     return "bool";
+  case TokenKind::UnitValue:
+    return "Unit";
   case TokenKind::New:
     if (initializer + 1 < items.size() &&
         items[initializer + 1].kind == TokenKind::Identifier)
@@ -817,7 +819,7 @@ inferred_literal_type(const std::vector<janus::frontend::Token> &items,
 
 bool semantic_keyword(janus::frontend::TokenKind kind) {
   using janus::frontend::TokenKind;
-  return kind >= TokenKind::Module && kind <= TokenKind::False &&
+  return kind >= TokenKind::Module && kind <= TokenKind::UnitValue &&
          kind != TokenKind::Identifier && kind != TokenKind::IntegerLiteral &&
          kind != TokenKind::DoubleLiteral &&
          kind != TokenKind::CharacterLiteral &&
@@ -2882,7 +2884,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
     const auto is_builtin_type = [](std::string_view name) {
       return name == "bool" || name == "byte" || name == "char" ||
              name == "double" || name == "int" || name == "string" ||
-             name == "unit" || name == "usize";
+             name == "Unit" || name == "usize";
     };
     for (std::size_t index = 0; index < document_tokens.size(); ++index) {
       const frontend::Token &token = document_tokens[index];
@@ -4208,7 +4210,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                        : std::optional<std::string>{symbol.required_import});
         }
         for (const std::string_view type : {"int", "double", "byte", "char",
-                                            "bool", "string", "unit", "usize"})
+                                            "bool", "string", "Unit", "usize"})
           add_item(std::string{type}, "built-in type", 7);
         for (const std::string_view keyword :
              {"const", "pure",         "staticAssert", "val",    "var",    "tailrec",
@@ -4216,7 +4218,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
               "enum",  "new",          "move",   "borrow", "consume",
               "owned", "derives",      "delete", "defer",  "if",
               "else",  "match",        "for",    "while",  "return",
-              "true",  "false"})
+              "true",  "false",        "unit"})
           add_item(std::string{keyword}, "Janus keyword", 14);
       }
       return {response(request_id(*request),

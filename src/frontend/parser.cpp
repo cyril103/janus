@@ -2186,6 +2186,11 @@ ast::Expression Parser::parse_primary() {
     return ast::BooleanLiteralExpression{value, literal.location};
   }
 
+  if (current_.kind == TokenKind::UnitValue) {
+    const Token literal = expect(TokenKind::UnitValue);
+    return ast::IdentifierExpression{"unit", literal.location};
+  }
+
   throw CompileError{
       DiagnosticCode::ParserExpectedExpression, current_.location,
       "expected expression, found " + std::string{token_name(current_.kind)}};
@@ -2200,7 +2205,8 @@ ast::MatchPattern Parser::parse_match_pattern() {
                              current_.kind == TokenKind::CharacterLiteral ||
                              current_.kind == TokenKind::Minus ||
                              current_.kind == TokenKind::True ||
-                             current_.kind == TokenKind::False;
+                             current_.kind == TokenKind::False ||
+                             current_.kind == TokenKind::UnitValue;
   ast::MatchPattern pattern;
   pattern.location = token.location;
   if (literal_start) {

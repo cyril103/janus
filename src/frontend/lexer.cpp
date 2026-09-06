@@ -132,6 +132,8 @@ Token Lexer::next() {
       kind = TokenKind::True;
     } else if (lexeme == "false") {
       kind = TokenKind::False;
+    } else if (lexeme == "unit") {
+      kind = TokenKind::UnitValue;
     }
     return Token{kind, lexeme, start};
   }

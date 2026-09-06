@@ -775,6 +775,8 @@ Value evaluate_binary(const janus::ast::BinaryExpression &binary,
       default:
         break;
       }
+    } else if (left.type->kind() == TypeKind::Unit) {
+      result = binary.operation == BinaryOperator::Equal;
     } else if (left.type->kind() == TypeKind::Bool) {
       const bool lhs = std::get<bool>(left.data);
       const bool rhs = std::get<bool>(right.data);
@@ -992,6 +994,8 @@ Value evaluate_impl(const janus::ast::Expression &expression,
               "Array[T] requires runtime-owned storage"};
         } else if constexpr (std::is_same_v<Node,
                                             janus::ast::IdentifierExpression>) {
+          if (node.name == "unit")
+            return Value{&Type::unit_type(), false};
           if (auto value = resolve(std::nullopt, node.name, node.location))
             return *value;
           throw janus::CompileError{
@@ -1276,6 +1280,10 @@ std::string canonical_serialize(const Value &value) {
   std::ostringstream output;
   output.imbue(std::locale::classic());
   output << value.type->name() << ':';
+  if (value.type->kind() == TypeKind::Unit) {
+    output << "unit";
+    return output.str();
+  }
   if (const auto *integer = std::get_if<std::uint64_t>(&value.data)) {
     output << "u64:" << std::hex << std::setfill('0') << std::setw(16)
            << *integer;

@@ -78,7 +78,7 @@ def callback() : (int) => int => (value : int) => value + 1
 def borrowed(borrow value : Box) : borrow Box => value
 def discard() : Unit => println("discard")
 def unitExpression() : Unit { return }
-def unit() : Unit => unitExpression()
+def unitResult() : Unit => unitExpression()
 const def twice(value : int) : int => value * 2
 tailrec def countdown(value : int) : int => countdown(value - 1)
 def choose(value : Choice) : int => match value { Number(number) => number, Empty => 0 }
@@ -110,6 +110,58 @@ def main() : int => square(twice(3))
          "backend lowers an expression body through return IR");
   expect(ir.find("countdown") != std::string::npos,
          "tailrec expression bodies reach backend lowering");
+
+  constexpr std::string_view unit_values = R"(
+enum Option[T] { Some(T), None }
+enum Result[T, E] { Ok(T), Error(E) }
+struct Marker(val value : Unit) {}
+staticAssert(unit == unit)
+def identity[T](value : T) : T { return move value }
+def consumeUnit(value : Unit) : Unit { return value }
+def choose(flag : bool) : Unit {
+    return if flag { unit } else { consumeUnit(unit) }
+}
+def callback(value : Unit) : Unit { return value }
+def main() : int {
+    val value : Unit = unit
+    const constantValue : Unit = unit
+    val marker : Marker = new Marker(value)
+    val option : Option[Unit] = Option.Some[Unit](marker.value)
+    val outcome : Result[int, Unit] = Result.Error[int, Unit](unit)
+    val apply : (Unit) => Unit = (argument : Unit) => callback(argument)
+    apply(match option { Some(payload) => payload, None => choose(false) })
+    apply(match outcome { Ok(_) => unit, Error(reason) => reason })
+    delete apply
+    consumeUnit(identity[Unit](value))
+    consumeUnit(constantValue)
+    return 0
+}
+)";
+  janus::frontend::Parser unit_parser{unit_values};
+  const janus::ast::Program unit_program = unit_parser.parse_program();
+  static_cast<void>(analyzer.analyze(unit_program));
+  llvm::LLVMContext unit_context;
+  janus::backend::llvm::IrGenerator unit_generator{unit_context};
+  const auto unit_module =
+      unit_generator.generate(unit_program, "unit_values");
+  std::string unit_ir;
+  llvm::raw_string_ostream unit_output{unit_ir};
+  unit_module->print(unit_output, nullptr);
+  unit_output.flush();
+  expect(unit_ir.find("define void") != std::string::npos,
+         "Unit returns preserve the void ABI");
+  expect(unit_ir.find("identity__Unit") != std::string::npos,
+         "Unit can specialize generic functions");
+  const std::size_t identity_start = unit_ir.find("define void @identity__Unit");
+  const std::size_t identity_end =
+      identity_start == std::string::npos
+          ? std::string::npos
+          : unit_ir.find("}\n", identity_start);
+  expect(identity_start != std::string::npos &&
+             identity_end != std::string::npos &&
+             unit_ir.substr(identity_start, identity_end - identity_start)
+                     .find("alloca") == std::string::npos,
+         "a Unit generic parameter requires no stack storage");
 
   janus::frontend::Parser const_parser{R"(
 const def answer() : int => 6 * 7

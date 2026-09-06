@@ -24,6 +24,18 @@ test("TextMate recognizes every supported floating spelling as one scope", () =>
     assert.equal(spelling.match(new RegExp(numeric.match))?.[0], spelling);
 });
 
+test("TextMate distinguishes the Unit type from the unit value", () => {
+  const primitive = grammar.patterns.find(
+    (pattern) => pattern.name === "support.type.primitive.janus",
+  );
+  const constant = grammar.patterns.find(
+    (pattern) => pattern.name === "constant.language.janus",
+  );
+  assert.match("Unit", new RegExp(`^(?:${primitive.match})$`));
+  assert.doesNotMatch("unit", new RegExp(`^(?:${primitive.match})$`));
+  assert.match("unit", new RegExp(`^(?:${constant.match})$`));
+});
+
 test("TextMate does not accept incomplete exponents as complete literals", () => {
   for (const spelling of ["1e", "1e+"])
     assert.doesNotMatch(spelling, regexp);

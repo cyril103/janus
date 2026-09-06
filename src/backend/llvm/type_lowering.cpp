@@ -31,7 +31,9 @@ namespace janus::backend::llvm {
     return ::llvm::StructType::get(::llvm::PointerType::getUnqual(context),
                                    ::llvm::Type::getInt64Ty(context));
   case TypeKind::Unit:
-    return ::llvm::Type::getVoidTy(context);
+    // An empty struct is a first-class, zero-sized value. Returns are still
+    // lowered to `void` separately at function ABI boundaries.
+    return ::llvm::StructType::get(context);
   case TypeKind::USize:
   case TypeKind::ISize:
     return ::llvm::IntegerType::get(context, type.bit_width());

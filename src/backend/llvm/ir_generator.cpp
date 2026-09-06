@@ -790,6 +790,8 @@ private:
   ::llvm::Constant *emit_static_initializer(const janus::constant::Value &value,
                                             const janus::Type &type) {
     ::llvm::Type *llvm_type = lower_type(type, context_);
+    if (type.kind() == janus::TypeKind::Unit)
+      return ::llvm::ConstantAggregateZero::get(llvm_type);
     if (type.is_integer())
       return ::llvm::ConstantInt::get(
           llvm_type, std::get<std::uint64_t>(value.data), type.is_signed());
@@ -2037,7 +2039,9 @@ private:
     }
 
     ::llvm::Type *llvm_return_type =
-        function.return_ownership ==
+        return_type.kind() == janus::TypeKind::Unit
+            ? ::llvm::Type::getVoidTy(context_)
+            : function.return_ownership ==
                 janus::ast::ReturnOwnership::BorrowMutable
             ? ::llvm::PointerType::getUnqual(context_)
             : lower_type(return_type, context_);
@@ -2175,6 +2179,10 @@ private:
       const auto &parameter = function.parameters[parameter_index++];
       const janus::Type &type = resolve(parameter.type, substitutions);
       argument.setName(parameter.name);
+      if (type.kind() == janus::TypeKind::Unit) {
+        locals.emplace(parameter.name, Local{nullptr, &type});
+        continue;
+      }
       if (parameter.ownership ==
               janus::ast::ParameterOwnership::BorrowMutable ||
           (parameter.ownership == janus::ast::ParameterOwnership::Borrow &&
@@ -2982,7 +2990,9 @@ private:
                                     : lower_type(*parameter, context_));
     }
     ::llvm::Type *lambda_return_type =
-        signature.return_ownership ==
+        signature.return_type->kind() == janus::TypeKind::Unit
+            ? builder.getVoidTy()
+            : signature.return_ownership ==
                 janus::ast::ReturnOwnership::BorrowMutable
             ? builder.getPtrTy()
             : lower_type(*signature.return_type, context_);
@@ -3014,6 +3024,11 @@ private:
       ::llvm::Argument &parameter = *argument++;
       parameter.setName(lambda.parameters[index].name);
       const janus::Type *parameter_type = signature.parameters[index];
+      if (parameter_type->kind() == janus::TypeKind::Unit) {
+        lambda_locals.emplace(lambda.parameters[index].name,
+                              Local{nullptr, parameter_type});
+        continue;
+      }
       const janus::ast::ParameterOwnership ownership =
           signature.parameter_ownership[index];
       const bool indirect_borrow =
@@ -3175,6 +3190,8 @@ private:
             return ensure_class(declaration->first, arguments);
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
+            if (node.name == "unit")
+              return janus::Type::unit_type();
             std::string key = source_global_key(active_module_, node.name);
             if (!global_by_key_.contains(key)) {
               if (const auto exported = public_global_keys_.find(node.name);
@@ -3862,6 +3879,11 @@ private:
                                        ::llvm::Value *right,
                                        const janus::Type &type,
                                        ::llvm::IRBuilder<> &builder) {
+    if (type.kind() == janus::TypeKind::Unit) {
+      static_cast<void>(left);
+      static_cast<void>(right);
+      return builder.getTrue();
+    }
     if (type.kind() == janus::TypeKind::String)
       return emit_string_equal(left, right, builder);
     if (type.is_floating_point())
@@ -3980,6 +4002,10 @@ private:
                                       ::llvm::Value *seed = nullptr) {
     ::llvm::Value *hash =
         seed != nullptr ? seed : builder.getInt64(nominal_hash(type.name()));
+    if (type.kind() == janus::TypeKind::Unit) {
+      static_cast<void>(value);
+      return hash;
+    }
     if (type.kind() == janus::TypeKind::String) {
       ::llvm::Value *data =
           builder.CreateExtractValue(value, 0, "hash.string.data");
@@ -4085,6 +4111,11 @@ private:
 
   void emit_debug_value(::llvm::Value *value, const janus::Type &type,
                         ::llvm::IRBuilder<> &builder) {
+    if (type.kind() == janus::TypeKind::Unit) {
+      static_cast<void>(value);
+      emit_debug_text("unit", builder);
+      return;
+    }
     if (type.kind() == janus::TypeKind::String) {
       ::llvm::FunctionCallee function = module_->getOrInsertFunction(
           "janus_debug_string",
@@ -4233,7 +4264,7 @@ private:
                   const Substitutions &substitutions,
                   const std::unordered_map<std::string, Local> &locals,
                   ::llvm::IRBuilder<> &builder) {
-    return std::visit(
+    ::llvm::Value *value = std::visit(
         [&](const auto &node) -> ::llvm::Value * {
           using Node = std::decay_t<decltype(node)>;
           ::llvm::Type *llvm_type = lower_type(expected_type, context_);
@@ -4342,6 +4373,8 @@ private:
             return object;
           } else if constexpr (std::is_same_v<
                                    Node, janus::ast::IdentifierExpression>) {
+            if (node.name == "unit")
+              return ::llvm::UndefValue::get(llvm_type);
             if (const auto local = locals.find(node.name);
                 local != locals.end() && local->second.is_constant)
               return local->second.storage;
@@ -4431,7 +4464,9 @@ private:
                                     : lower_type(*parameter, context_));
               }
               ::llvm::Type *callee_return_type =
-                  signature.return_ownership ==
+                  signature.return_type->kind() == janus::TypeKind::Unit
+                      ? builder.getVoidTy()
+                      : signature.return_ownership ==
                           janus::ast::ReturnOwnership::BorrowMutable
                       ? builder.getPtrTy()
                       : lower_type(*signature.return_type, context_);
@@ -5824,6 +5859,12 @@ private:
             }
             ::llvm::Value *right = emit_expression(
                 *node.right, operand_type, substitutions, locals, builder);
+            if (operand_type.kind() == janus::TypeKind::Unit &&
+                (node.operation == janus::ast::BinaryOperator::Equal ||
+                 node.operation == janus::ast::BinaryOperator::NotEqual))
+              return node.operation == janus::ast::BinaryOperator::Equal
+                         ? builder.getTrue()
+                         : builder.getFalse();
             const bool derived_aggregate_equality =
                 (operand_type.kind() == janus::TypeKind::Struct ||
                  operand_type.kind() == janus::TypeKind::Class) ||
@@ -5954,6 +5995,11 @@ private:
           }
         },
         expression.value);
+    // Calls returning `void` still denote Unit. Keep their side effects and
+    // materialize the unique stateless token for enclosing value expressions.
+    if (expected_type.kind() == janus::TypeKind::Unit)
+      return ::llvm::UndefValue::get(lower_type(expected_type, context_));
+    return value;
   }
 
   ::llvm::LLVMContext &context_;

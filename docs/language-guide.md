@@ -222,7 +222,20 @@ Types primitifs :
 | `string` | chaîne UTF-8 immuable |
 | `usize` | taille ou adresse non signée |
 | `isize` | taille ou différence d'adresses signée |
-| `Unit` | fonction qui ne retourne aucune valeur |
+| `Unit` | type unité, habité uniquement par la valeur `unit` |
+
+`Unit` est un type de valeur composable : il peut être utilisé pour les
+locales, paramètres, champs, payloads d'enum, callbacks et spécialisations
+génériques. `if` et `match` peuvent également produire `Unit`. Sa valeur
+canonique s'écrit `unit`; elle n'alloue rien, ne contient aucun état et ne
+demande aucune destruction. Deux valeurs `Unit` sont donc toujours égales et
+`debug(unit)` affiche `unit`.
+
+À la frontière ABI C, un retour `Unit` reste abaissé en `void`. Cette convention
+est stable et permet aux fonctions externes existantes de conserver leur ABI.
+Les globales `Unit` et `Ptr[Unit]` restent refusées : une globale unité
+n'apporterait aucun état observable, et l'arithmétique d'un pointeur vers un
+type de taille nulle n'a pas de contrat utile.
 
 Les entiers ont une taille fixe et portable :
 

@@ -25,11 +25,11 @@
     },
     {
       "name": "support.type.primitive.janus",
-      "match": "\\b(int|double|byte|char|bool|string|unit|usize)\\b"
+      "match": "\\b(int|double|byte|char|bool|string|Unit|usize)\\b"
     },
     {
       "name": "constant.language.janus",
-      "match": "\\b(true|false)\\b"
+      "match": "\\b(true|false|unit)\\b"
     },
     {
       "name": "keyword.operator.assignment.compound.janus",

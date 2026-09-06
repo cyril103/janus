@@ -155,7 +155,7 @@ def main() : int {
       "val wrong : bool = 1\ndef main() : int { return 0 }",
       "constant expression of type 'int' cannot initialize type 'bool'");
   expect_compile_error(
-      "val unit : Unit = println(\"x\")\ndef main() : int { return 0 }",
+      "val unitValue : Unit = println(\"x\")\ndef main() : int { return 0 }",
       "Unit cannot be used as a global value type");
   expect_compile_error(
       "val answer : int = 1\nval answer : int = 2\n"

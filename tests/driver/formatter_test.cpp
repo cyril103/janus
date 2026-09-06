@@ -28,6 +28,15 @@ int main() {
     std::cerr << "formatting is not idempotent\n";
     return 1;
   }
+  const std::string unit_source =
+      "def identity(value : Unit) : Unit {\nval result : Unit = unit\nreturn result\n}\n";
+  const std::string formatted_unit =
+      "def identity(value : Unit) : Unit {\n    val result : Unit = unit\n    return result\n}\n";
+  if (janus::driver::format_source(unit_source) != formatted_unit ||
+      janus::driver::format_source(formatted_unit) != formatted_unit) {
+    std::cerr << "Unit value formatting is not preserving and idempotent\n";
+    return 1;
+  }
   const std::string expression_body_comment =
       "def f() : int\n"
       "// commentaire\n"

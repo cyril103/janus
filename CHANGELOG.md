@@ -21,6 +21,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- `Unit` devient un type unité composable et stockable, avec `unit` comme valeur
+  canonique : paramètres, champs, payloads, callbacks, génériques et expressions
+  `if`/`match` sont acceptés sans allocation ni destruction, tandis que les
+  retours conservent l'ABI C `void` ; formatter, LSP et coloration TextMate
+  reconnaissent la nouvelle expression ;
 - acceptation des littéraux `float` et `double` sous-normaux finis, y compris
   leurs plus petites valeurs IEEE 754 positives et négatives ; la conversion
   est désormais indépendante de la locale, tandis que l'arrondi à zéro

@@ -93,13 +93,6 @@ def main() : int {
   expect_compile_error("def main() : int { return }",
                        "return requires a value");
   expect_compile_error(
-      "def action() : Unit {} def main() : int { val x : Unit = action() "
-      "return 0 }",
-      "Unit cannot be used as a value type");
-  expect_compile_error(
-      "def action(value : Unit) : Unit {} def main() : int { return 0 }",
-      "Unit cannot be used as a parameter type");
-  expect_compile_error(
       "def main() : int { val value : int = 1 value return value }",
       "only function and method calls");
 

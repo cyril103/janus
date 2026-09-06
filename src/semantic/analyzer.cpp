@@ -142,13 +142,6 @@ janus::semantic::SemanticType resolve_type(
     for (const janus::ast::TypeReference &argument : reference.type_arguments)
       signature.push_back(resolve_type(argument, type_parameters, class_arities,
                                        context_module, scoped_type_aliases));
-    for (std::size_t index = 0; index + 1 < signature.size(); ++index) {
-      if (signature[index].is_concrete() &&
-          signature[index].concrete->kind() == janus::TypeKind::Unit)
-        throw janus::CompileError{
-            reference.location,
-            "Unit cannot be used as a function parameter type"};
-    }
     std::vector<janus::ast::ParameterOwnership> ownerships =
         reference.function_parameter_ownership;
     if (ownerships.empty())
@@ -1654,6 +1647,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       type.concrete = &Type::isize_type(options.target.pointer_width);
     else if (declaration.declared_type->name == "usize")
       type.concrete = &Type::usize_type(options.target.pointer_width);
+    // Global Unit storage is intentionally not part of the value-position
+    // model: it would add no state and static initialization has no observer.
     if (type.is_concrete() && type.concrete->kind() == TypeKind::Unit)
       throw CompileError{declaration.location,
                          "Unit cannot be used as a global value type"};
@@ -3111,11 +3106,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         validate_associated_projection(validate_associated_projection,
                                        parameter.type, method_parameters,
                                        constraint_scopes);
-        const SemanticType type =
-            resolve_type(parameter.type, method_parameters, &class_arities);
-        if (type.is_concrete() && type.concrete->kind() == TypeKind::Unit)
-          throw CompileError{parameter.location,
-                             "Unit cannot be used as a parameter type"};
+        static_cast<void>(
+            resolve_type(parameter.type, method_parameters, &class_arities));
       }
       static_cast<void>(
           resolve_type(method.return_type, method_parameters, &class_arities));
@@ -3140,12 +3132,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         validate_associated_projection(validate_associated_projection,
                                        payload_type, parameters,
                                        constraint_scopes);
-        const SemanticType resolved =
-            resolve_type(payload_type, parameters, &class_arities);
-        if (resolved.is_concrete() &&
-            resolved.concrete->kind() == TypeKind::Unit)
-          throw CompileError{payload_type.location,
-                             "Unit cannot be stored in an enum variant"};
+        static_cast<void>(
+            resolve_type(payload_type, parameters, &class_arities));
       }
     }
     std::unordered_map<std::string, SemanticType> associated_types;
@@ -3306,12 +3294,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       validate_associated_projection(validate_associated_projection,
                                      parameter.type, parameters,
                                      constraint_scopes);
-      const SemanticType parameter_type =
-          resolve_type(parameter.type, parameters, &class_arities);
-      if (parameter_type.is_concrete() &&
-          parameter_type.concrete->kind() == TypeKind::Unit)
-        throw CompileError{parameter.location,
-                           "Unit cannot be used as a parameter type"};
+      static_cast<void>(
+          resolve_type(parameter.type, parameters, &class_arities));
     }
     for (const ast::ValueDeclaration &field :
          class_declaration.constructor_fields) {
@@ -3322,23 +3306,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       validate_associated_projection(validate_associated_projection,
                                      *field.declared_type, parameters,
                                      constraint_scopes);
-      const SemanticType field_type =
-          resolve_type(*field.declared_type, parameters, &class_arities);
-      if (field_type.is_concrete() &&
-          field_type.concrete->kind() == TypeKind::Unit)
-        throw CompileError{field.location,
-                           "Unit cannot be used as a field type"};
+      static_cast<void>(
+          resolve_type(*field.declared_type, parameters, &class_arities));
     }
     for (const ast::ValueDeclaration &field : class_declaration.fields) {
       validate_associated_projection(validate_associated_projection,
                                      *field.declared_type, parameters,
                                      constraint_scopes);
-      const SemanticType field_type =
-          resolve_type(*field.declared_type, parameters, &class_arities);
-      if (field_type.is_concrete() &&
-          field_type.concrete->kind() == TypeKind::Unit)
-        throw CompileError{field.location,
-                           "Unit cannot be used as a field type"};
+      static_cast<void>(
+          resolve_type(*field.declared_type, parameters, &class_arities));
     }
 
     std::unordered_set<std::string> implemented_trait_names;
@@ -4304,10 +4280,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         throw CompileError{
             parameter.location,
             "borrow and consume external parameters require a Ptr[T] type"};
-      if (parameter_type.is_concrete() &&
-          parameter_type.concrete->kind() == TypeKind::Unit)
-        throw CompileError{parameter.location,
-                           "Unit cannot be used as a parameter type"};
       if (!symbols
                .emplace(parameter.name,
                         Symbol{parameter_type,
@@ -6359,6 +6331,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   nullptr, array_class->first, true, {element_type}};
             } else if constexpr (std::is_same_v<Node,
                                                 ast::IdentifierExpression>) {
+              if (node.name == "unit")
+                return SemanticType{&Type::unit_type(), {}};
               if (active_deferred_reads != nullptr)
                 active_deferred_reads->insert(node.name);
               const auto iterator = active_symbols->find(node.name);
@@ -6488,11 +6462,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       active_type_substitutions != nullptr)
                     parameter_type = substitute(std::move(parameter_type),
                                                 *active_type_substitutions);
-                  if (parameter_type.is_concrete() &&
-                      parameter_type.concrete->kind() == TypeKind::Unit)
-                    throw CompileError{
-                        parameter.location,
-                        "Unit cannot be used as a lambda parameter type"};
                   ast::ParameterOwnership effective_ownership =
                       parameter.ownership;
                   const ast::ParameterOwnership expected_ownership =
@@ -8830,11 +8799,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     node.location,
                     "if expression branches must have the same type, got '" +
                         then_type.name() + "' and '" + else_type.name() + "'"};
-              if (then_type.is_concrete() &&
-                  then_type.concrete->kind() == TypeKind::Unit)
-                throw CompileError{
-                    node.location,
-                    "if expressions cannot produce a Unit value"};
               return then_type;
             } else if constexpr (std::is_same_v<Node, ast::MatchExpression>) {
               const SemanticType scrutinee_type =
@@ -9295,11 +9259,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 pattern_borrow_sources = arm_pattern_borrow_sources;
                 deferred_values = arm_deferred_values;
                 active_symbols = previous_symbols;
-                if (arm_type.is_concrete() &&
-                    arm_type.concrete->kind() == TypeKind::Unit)
-                  throw CompileError{
-                      arm.location,
-                      "match expressions cannot produce a Unit value"};
                 if (!result_type.has_value()) {
                   result_type = arm_type;
                 } else if (!same_type(*result_type, arm_type)) {
@@ -9982,10 +9941,6 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                       error.what()};
             }
           }
-          if (declared_type.is_concrete() &&
-              declared_type.concrete->kind() == TypeKind::Unit)
-            throw CompileError{declaration->location,
-                               "Unit cannot be used as a value type"};
           if (block_symbols.contains(declaration->name))
             throw CompileError{declaration->location,
                                "value '" + declaration->name +
