@@ -31,6 +31,7 @@ struct IndexedSymbol {
   std::string name;
   std::string detail;
   SourceLocation location;
+  std::size_t source_length{};
   std::size_t scope_start{};
   std::size_t scope_end{};
   std::size_t scope_depth{};

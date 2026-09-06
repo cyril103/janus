@@ -450,13 +450,13 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
     advance();
     do {
       const Token parameter = expect(TokenKind::Identifier);
-      type_parameters.emplace_back(parameter.lexeme);
+      type_parameters.emplace_back(parameter.identifier());
       if (current_.kind == TokenKind::Less) {
         advance();
         static_cast<void>(expect(TokenKind::Colon));
         do {
           type_constraints.push_back(ast::TypeConstraint{
-              std::string{parameter.lexeme}, parse_type(), parameter.location});
+              std::string{parameter.identifier()}, parse_type(), parameter.location});
           if (current_.kind != TokenKind::Ampersand)
             break;
           advance();
@@ -480,7 +480,7 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
         throw CompileError{current_.location,
                            "a trait associated type cannot have a definition"};
       associated_types.push_back(ast::AssociatedTypeDeclaration{
-          std::string{associated_name.lexeme}, std::nullopt, keyword.location,
+          std::string{associated_name.identifier()}, std::nullopt, keyword.location,
           std::move(documentation)});
       if (current_.kind == TokenKind::Semicolon)
         advance();
@@ -493,7 +493,7 @@ ast::TraitDeclaration Parser::parse_trait_declaration() {
       advance();
   }
   static_cast<void>(expect(TokenKind::RightBrace));
-  ast::TraitDeclaration declaration{std::string{name.lexeme},
+  ast::TraitDeclaration declaration{std::string{name.identifier()},
                                     std::move(type_parameters),
                                     std::move(methods),
                                     trait_token.location,
@@ -522,13 +522,13 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
     advance();
     do {
       const Token parameter = expect(TokenKind::Identifier);
-      type_parameters.emplace_back(parameter.lexeme);
+      type_parameters.emplace_back(parameter.identifier());
       if (current_.kind == TokenKind::Less) {
         advance();
         static_cast<void>(expect(TokenKind::Colon));
         do {
           type_constraints.push_back(ast::TypeConstraint{
-              std::string{parameter.lexeme}, parse_type(), parameter.location});
+              std::string{parameter.identifier()}, parse_type(), parameter.location});
           if (current_.kind != TokenKind::Ampersand)
             break;
           advance();
@@ -559,7 +559,7 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
       const Token parameter = expect(TokenKind::Identifier);
       static_cast<void>(expect(TokenKind::Colon));
       parameters.push_back(ast::FunctionDeclaration::Parameter{
-          std::string{parameter.lexeme}, parse_type(), parameter.location,
+          std::string{parameter.identifier()}, parse_type(), parameter.location,
           parameter_is_mutably_borrowed
               ? ast::ParameterOwnership::BorrowMutable
               : (parameter_is_borrowed ? ast::ParameterOwnership::Borrow
@@ -590,7 +590,7 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
       static_cast<void>(expect(TokenKind::Colon));
       do {
         type_constraints.push_back(ast::TypeConstraint{
-            std::string{parameter.lexeme}, parse_type(), parameter.location});
+            std::string{parameter.identifier()}, parse_type(), parameter.location});
         if (current_.kind != TokenKind::Ampersand)
           break;
         advance();
@@ -600,7 +600,7 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
       advance();
     } while (true);
   }
-  ast::FunctionDeclaration declaration{std::string{name.lexeme},
+  ast::FunctionDeclaration declaration{std::string{name.identifier()},
                                        std::move(type_parameters),
                                        std::move(parameters),
                                        std::move(return_type),
@@ -635,7 +635,7 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
   if (current_.kind == TokenKind::LeftBracket) {
     advance();
     do {
-      type_parameters.emplace_back(expect(TokenKind::Identifier).lexeme);
+      type_parameters.emplace_back(expect(TokenKind::Identifier).identifier());
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -668,7 +668,7 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
     const Token associated_name = expect(TokenKind::Identifier);
     static_cast<void>(expect(TokenKind::Equal));
     associated_types.push_back(ast::AssociatedTypeDeclaration{
-        std::string{associated_name.lexeme}, parse_type(), keyword.location,
+        std::string{associated_name.identifier()}, parse_type(), keyword.location,
         std::move(documentation)});
     if (current_.kind == TokenKind::Comma ||
         current_.kind == TokenKind::Semicolon)
@@ -726,7 +726,7 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
                        : static_cast<std::int64_t>(magnitude);
     }
     cases.push_back(ast::EnumDeclaration::Case{
-        std::string{case_name.lexeme}, static_cast<std::int32_t>(value),
+        std::string{case_name.identifier()}, static_cast<std::int32_t>(value),
         std::move(payload_types), case_name.location,
         std::move(documentation)});
 
@@ -749,9 +749,9 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
   static_cast<void>(expect(TokenKind::RightBrace));
   if (cases.empty())
     throw CompileError{enum_token.location,
-                       "enum '" + std::string{name.lexeme} +
+                       "enum '" + std::string{name.identifier()} +
                            "' must declare at least one case"};
-  ast::EnumDeclaration declaration{std::string{name.lexeme},
+  ast::EnumDeclaration declaration{std::string{name.identifier()},
                                    std::move(type_parameters),
                                    std::move(implemented_traits),
                                    std::move(cases),
@@ -765,18 +765,18 @@ ast::EnumDeclaration Parser::parse_enum_declaration() {
 }
 
 std::string Parser::parse_qualified_name() {
-  std::string name{expect(TokenKind::Identifier).lexeme};
+  std::string name{expect(TokenKind::Identifier).identifier()};
   while (current_.kind == TokenKind::Dot) {
     advance();
     name += '.';
-    name += expect(TokenKind::Identifier).lexeme;
+    name += expect(TokenKind::Identifier).identifier();
   }
   return name;
 }
 
 ast::ImportDeclaration Parser::parse_import_declaration() {
   const Token import_token = expect(TokenKind::Import);
-  std::string module{expect(TokenKind::Identifier).lexeme};
+  std::string module{expect(TokenKind::Identifier).identifier()};
   std::vector<ast::ImportDeclaration::Symbol> symbols;
 
   while (current_.kind == TokenKind::Dot) {
@@ -791,10 +791,10 @@ ast::ImportDeclaration Parser::parse_import_declaration() {
         std::optional<std::string> alias;
         if (current_.kind == TokenKind::As) {
           advance();
-          alias = std::string{expect(TokenKind::Identifier).lexeme};
+          alias = std::string{expect(TokenKind::Identifier).identifier()};
         }
         symbols.push_back(ast::ImportDeclaration::Symbol{
-            std::string{name.lexeme}, std::move(alias), name.location});
+            std::string{name.identifier()}, std::move(alias), name.location});
         if (current_.kind != TokenKind::Comma)
           break;
         advance();
@@ -803,7 +803,7 @@ ast::ImportDeclaration Parser::parse_import_declaration() {
       break;
     }
     module += '.';
-    module += expect(TokenKind::Identifier).lexeme;
+    module += expect(TokenKind::Identifier).identifier();
   }
 
   std::optional<std::string> alias;
@@ -812,7 +812,7 @@ ast::ImportDeclaration Parser::parse_import_declaration() {
       throw CompileError{current_.location,
                          "a selective import cannot also alias its module"};
     advance();
-    alias = std::string{expect(TokenKind::Identifier).lexeme};
+    alias = std::string{expect(TokenKind::Identifier).identifier()};
   }
   return ast::ImportDeclaration{std::move(module),
                                 std::move(alias),
@@ -850,23 +850,23 @@ std::vector<ast::Derivation> Parser::parse_derivations() {
   do {
     const Token name = expect(TokenKind::Identifier);
     std::optional<ast::DerivationKind> kind;
-    if (name.lexeme == "Copy")
+    if (name.identifier() == "Copy")
       kind = ast::DerivationKind::Copy;
-    else if (name.lexeme == "Equality")
+    else if (name.identifier() == "Equality")
       kind = ast::DerivationKind::Equality;
-    else if (name.lexeme == "Hashing")
+    else if (name.identifier() == "Hashing")
       kind = ast::DerivationKind::Hashing;
-    else if (name.lexeme == "Debug")
+    else if (name.identifier() == "Debug")
       kind = ast::DerivationKind::Debug;
     else
       throw CompileError{name.location,
-                         "unknown derivation '" + std::string{name.lexeme} +
+                         "unknown derivation '" + std::string{name.identifier()} +
                              "'; expected Copy, Equality, Hashing or Debug"};
 
     for (const ast::Derivation &derivation : derivations)
       if (derivation.kind == *kind)
         throw CompileError{name.location, "derivation '" +
-                                              std::string{name.lexeme} +
+                                              std::string{name.identifier()} +
                                               "' is requested more than once"};
     derivations.push_back(ast::Derivation{*kind, name.location});
 
@@ -889,13 +889,13 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
     advance();
     do {
       const Token parameter = expect(TokenKind::Identifier);
-      type_parameters.emplace_back(parameter.lexeme);
+      type_parameters.emplace_back(parameter.identifier());
       if (current_.kind == TokenKind::Less) {
         advance();
         static_cast<void>(expect(TokenKind::Colon));
         do {
           type_constraints.push_back(ast::TypeConstraint{
-              std::string{parameter.lexeme}, parse_type(), parameter.location});
+              std::string{parameter.identifier()}, parse_type(), parameter.location});
           if (current_.kind != TokenKind::Ampersand)
             break;
           advance();
@@ -946,7 +946,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
         const Token field = expect(TokenKind::Identifier);
         static_cast<void>(expect(TokenKind::Colon));
         ast::ValueDeclaration declaration{
-            std::string{field.lexeme}, parse_type(), is_mutable, std::nullopt,
+            std::string{field.identifier()}, parse_type(), is_mutable, std::nullopt,
             keyword.location,          false,        false,      {}};
         declaration.is_private = is_private;
         declaration.is_internal = is_internal;
@@ -966,7 +966,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
         const Token parameter = expect(TokenKind::Identifier);
         static_cast<void>(expect(TokenKind::Colon));
         constructor_parameters.push_back(ast::FunctionDeclaration::Parameter{
-            std::string{parameter.lexeme}, parse_type(), parameter.location});
+            std::string{parameter.identifier()}, parse_type(), parameter.location});
       }
       if (current_.kind != TokenKind::Comma)
         break;
@@ -1018,7 +1018,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       const Token associated_name = expect(TokenKind::Identifier);
       static_cast<void>(expect(TokenKind::Equal));
       associated_types.push_back(ast::AssociatedTypeDeclaration{
-          std::string{associated_name.lexeme}, parse_type(), keyword.location,
+          std::string{associated_name.identifier()}, parse_type(), keyword.location,
           std::move(documentation)});
     } else if (current_.kind == TokenKind::Val || current_.kind == TokenKind::Var) {
       if (is_pure || is_borrowing || is_consuming)
@@ -1059,7 +1059,7 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
       advance();
   }
   static_cast<void>(expect(TokenKind::RightBrace));
-  ast::ClassDeclaration declaration{std::string{name.lexeme},
+  ast::ClassDeclaration declaration{std::string{name.identifier()},
                                     std::move(type_parameters),
                                     std::move(implemented_traits),
                                     std::move(constructor_parameters),
@@ -1092,12 +1092,12 @@ ast::ExtensionDeclaration Parser::parse_extension_declaration() {
     do {
       const Token parameter = expect(TokenKind::Identifier);
       if (std::find(type_parameters.begin(), type_parameters.end(),
-                    parameter.lexeme) != type_parameters.end())
+                    parameter.identifier()) != type_parameters.end())
         throw CompileError{parameter.location,
                            "extension type parameter '" +
-                               std::string{parameter.lexeme} +
+                               std::string{parameter.identifier()} +
                                "' is already declared"};
-      type_parameters.emplace_back(parameter.lexeme);
+      type_parameters.emplace_back(parameter.identifier());
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -1211,13 +1211,13 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
     advance();
     do {
       const Token parameter = expect(TokenKind::Identifier);
-      type_parameters.emplace_back(parameter.lexeme);
+      type_parameters.emplace_back(parameter.identifier());
       if (current_.kind == TokenKind::Less) {
         advance();
         static_cast<void>(expect(TokenKind::Colon));
         do {
           type_constraints.push_back(ast::TypeConstraint{
-              std::string{parameter.lexeme}, parse_type(), parameter.location});
+              std::string{parameter.identifier()}, parse_type(), parameter.location});
           if (current_.kind != TokenKind::Ampersand)
             break;
           advance();
@@ -1272,7 +1272,7 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
       static_cast<void>(expect(TokenKind::Colon));
       ast::TypeReference parameter_type = parse_type();
       parameters.push_back(ast::FunctionDeclaration::Parameter{
-          std::string{parameter_name.lexeme}, std::move(parameter_type),
+          std::string{parameter_name.identifier()}, std::move(parameter_type),
           parameter_name.location, ownership, is_scoped});
       if (current_.kind != TokenKind::Comma) {
         break;
@@ -1313,7 +1313,7 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
       static_cast<void>(expect(TokenKind::Colon));
       do {
         type_constraints.push_back(ast::TypeConstraint{
-            std::string{parameter.lexeme}, parse_type(), parameter.location});
+            std::string{parameter.identifier()}, parse_type(), parameter.location});
         if (current_.kind != TokenKind::Ampersand)
           break;
         advance();
@@ -1346,7 +1346,7 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
     }
   }
 
-  ast::FunctionDeclaration declaration{std::string{name.lexeme},
+  ast::FunctionDeclaration declaration{std::string{name.identifier()},
                                        std::move(type_parameters),
                                        std::move(parameters),
                                        std::move(return_type),
@@ -1444,14 +1444,14 @@ Parser::parse_variable_declaration(bool is_constant,
     initializer.emplace(parse_expression());
   } else if (!declared_type.has_value()) {
     throw CompileError{declaration.location,
-                       "inferred local '" + std::string{identifier.lexeme} +
+                       "inferred local '" + std::string{identifier.identifier()} +
                            "' requires an initializer; help: add an explicit "
                            "type annotation"};
   } else if (is_borrowed || !is_mutable) {
     static_cast<void>(expect(TokenKind::Equal));
   }
 
-  ast::ValueDeclaration result{std::string{identifier.lexeme},
+  ast::ValueDeclaration result{std::string{identifier.identifier()},
                                std::move(declared_type),
                                is_mutable,
                                std::move(initializer),
@@ -1597,7 +1597,7 @@ std::shared_ptr<ast::ForStatement> Parser::parse_for_statement() {
   static_cast<void>(expect(TokenKind::In));
   ast::Expression iterator = parse_expression();
   return std::make_shared<ast::ForStatement>(
-      ast::ForStatement{std::string{binding.lexeme}, std::move(iterator),
+      ast::ForStatement{std::string{binding.identifier()}, std::move(iterator),
                         parse_block(), for_token.location});
 }
 
@@ -1865,7 +1865,7 @@ ast::Expression Parser::parse_primary() {
       static_cast<void>(expect(TokenKind::Arrow));
       std::vector<ast::LambdaExpression::Parameter> parameters;
       parameters.push_back(ast::LambdaExpression::Parameter{
-          std::string{name.lexeme}, std::nullopt, name.location,
+          std::string{name.identifier()}, std::nullopt, name.location,
           ast::ParameterOwnership::Unspecified});
       if (current_.kind == TokenKind::LeftBrace) {
         const SourceLocation block_location = current_.location;
@@ -1961,7 +1961,7 @@ ast::Expression Parser::parse_primary() {
           // arm; it does not start a bare-parameter lambda.
           const Token identifier = expect(TokenKind::Identifier);
           guard = std::make_unique<ast::Expression>(
-              ast::IdentifierExpression{std::string{identifier.lexeme},
+              ast::IdentifierExpression{std::string{identifier.identifier()},
                                         identifier.location});
         } else {
           guard = std::make_unique<ast::Expression>(parse_expression());
@@ -2023,7 +2023,7 @@ ast::Expression Parser::parse_primary() {
             type = parse_type();
           }
           parameters.push_back(ast::LambdaExpression::Parameter{
-              std::string{name.lexeme}, std::move(type), name.location,
+              std::string{name.identifier()}, std::move(type), name.location,
               ownership});
           if (current_.kind != TokenKind::Comma)
             break;
@@ -2111,7 +2111,7 @@ ast::Expression Parser::parse_primary() {
         } while (true);
       }
       static_cast<void>(expect(TokenKind::RightParen));
-      return ast::CallExpression{std::string{identifier.lexeme},
+      return ast::CallExpression{std::string{identifier.identifier()},
                                  std::move(type_arguments),
                                  std::move(arguments), identifier.location};
     }
@@ -2120,7 +2120,7 @@ ast::Expression Parser::parse_primary() {
       throw CompileError{current_.location,
                          "expected '(' after generic type arguments"};
     }
-    return ast::IdentifierExpression{std::string{identifier.lexeme},
+    return ast::IdentifierExpression{std::string{identifier.identifier()},
                                      identifier.location};
   }
 
@@ -2214,7 +2214,7 @@ ast::MatchPattern Parser::parse_match_pattern() {
     pattern.literal = std::make_unique<ast::Expression>(parse_additive());
   } else {
     const Token name = expect(TokenKind::Identifier);
-    pattern.name = std::string{name.lexeme};
+    pattern.name = std::string{name.identifier()};
     if (pattern.name == "_") {
       pattern.kind = ast::MatchPattern::Kind::Wildcard;
     } else if (current_.kind == TokenKind::LeftParen) {
@@ -2277,7 +2277,7 @@ ast::MatchPattern Parser::parse_match_pattern() {
     const Token alias = expect(TokenKind::Identifier);
     ast::MatchPattern aliased;
     aliased.kind = ast::MatchPattern::Kind::Alias;
-    aliased.name = std::string{alias.lexeme};
+    aliased.name = std::string{alias.identifier()};
     aliased.location = alias.location;
     aliased.nested = std::make_unique<ast::MatchPattern>(std::move(pattern));
     return aliased;
@@ -2336,11 +2336,11 @@ ast::TypeReference Parser::parse_type() {
     throw CompileError{current_.location,
                        "'pure' can only qualify a function type"};
   const Token type_name = expect(TokenKind::Identifier);
-  std::string qualified_type_name{type_name.lexeme};
+  std::string qualified_type_name{type_name.identifier()};
   while (current_.kind == TokenKind::Dot) {
     advance();
     const Token component = expect(TokenKind::Identifier);
-    qualified_type_name += "." + std::string{component.lexeme};
+    qualified_type_name += "." + std::string{component.identifier()};
   }
   std::vector<ast::TypeReference> type_arguments;
   if (current_.kind == TokenKind::LeftBracket) {
@@ -2407,7 +2407,7 @@ ast::Expression Parser::parse_postfix(ast::Expression expression) {
       }
       static_cast<void>(expect(TokenKind::RightParen));
       expression = ast::MethodCallExpression{
-          std::move(object), std::string{member.lexeme},
+          std::move(object), std::string{member.identifier()},
           std::move(type_arguments), std::move(arguments), member.location};
       continue;
     }
@@ -2415,7 +2415,7 @@ ast::Expression Parser::parse_postfix(ast::Expression expression) {
       throw CompileError{current_.location,
                          "expected '(' after method type arguments"};
     expression = ast::MemberAccessExpression{
-        std::move(object), std::string{member.lexeme}, member.location};
+        std::move(object), std::string{member.identifier()}, member.location};
   }
   return expression;
 }

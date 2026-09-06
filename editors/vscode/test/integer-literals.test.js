@@ -137,3 +137,14 @@ test("TextMate recognizes contextual lambda parameter forms", () => {
     3,
   );
 });
+
+test("TextMate includes Unicode identifiers without consuming punctuation", () => {
+  const identifier = grammar.patterns.find(
+    (pattern) => pattern.name === "variable.other.identifier.janus",
+  );
+  assert.ok(identifier);
+  assert.match(identifier.match, /\\p\{L\}/);
+  assert.match(identifier.match, /\\p\{M\}/);
+  assert.match(identifier.match, /\\p\{N\}/);
+  assert.doesNotMatch(identifier.match, /\\p\{C\}/);
+});

@@ -1,0 +1,13 @@
+struct Boîte(val contenu : int) derives Copy {
+    borrow def résultat() : int {
+        return contenu
+    }
+}
+
+def main() : int {
+    val prénom : string = "Ada"
+    val Δ : int = 3
+    val boîte : Boîte = new Boîte(Δ)
+    println(prénom)
+    return boîte.résultat()
+}

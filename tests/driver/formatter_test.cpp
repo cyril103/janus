@@ -28,6 +28,15 @@ int main() {
     std::cerr << "formatting is not idempotent\n";
     return 1;
   }
+  const std::string unicode_source =
+      "def résultat() : int {\nval café : int = 1\nreturn café\n}\n";
+  const std::string formatted_unicode =
+      "def résultat() : int {\n    val café : int = 1\n    return café\n}\n";
+  if (janus::driver::format_source(unicode_source) != formatted_unicode ||
+      janus::driver::format_source(formatted_unicode) != formatted_unicode) {
+    std::cerr << "Unicode identifier spelling was not preserved\n";
+    return 1;
+  }
   const std::string unit_source =
       "def identity(value : Unit) : Unit {\nval result : Unit = unit\nreturn result\n}\n";
   const std::string formatted_unit =

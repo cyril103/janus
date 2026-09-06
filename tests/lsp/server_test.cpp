@@ -297,6 +297,24 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(initialized.front().find("\"codeActionProvider\"") !=
                 std::string::npos);
 
+  static_cast<void>(server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///unicode-identifiers.janus","text":"def résultat() : int { val café : int = 1 return café }\n"}}})"));
+  const std::string unicode_definition = server.handle(
+      R"({"jsonrpc":"2.0","id":140,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///unicode-identifiers.janus"},"position":{"line":0,"character":51}}})")
+                                             .front();
+  JANUS_REQUIRE(unicode_definition.find(
+                    "\"start\":{\"character\":27,\"line\":0}") !=
+                std::string::npos);
+  JANUS_REQUIRE(unicode_definition.find(
+                    "\"end\":{\"character\":32,\"line\":0}") !=
+                std::string::npos);
+  const std::string unicode_rename = server.handle(
+      R"({"jsonrpc":"2.0","id":141,"method":"textDocument/rename","params":{"textDocument":{"uri":"file:///unicode-identifiers.janus"},"position":{"line":0,"character":51},"newName":"réponse"}})")
+                                         .front();
+  JANUS_REQUIRE(unicode_rename.find("\"error\"") == std::string::npos);
+  JANUS_REQUIRE(unicode_rename.find("\"newText\":\"réponse\"") !=
+                std::string::npos);
+
   const std::vector<std::string> invalid = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///broken.janus","version":1,"text":"def main() : int { return nope }"}}})");
   JANUS_REQUIRE(invalid.size() == 1);

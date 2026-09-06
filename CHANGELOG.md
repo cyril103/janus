@@ -21,6 +21,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- prise en charge déterministe des identifiants Unicode UTF-8 pour les valeurs,
+  types, modules et membres selon `XID_Start`/`XID_Continue` Unicode 16.0, avec
+  identité NFC partagée par la résolution, le mangling, le LSP et l'index API ;
+  UTF-8 invalide et contrôles invisibles sont diagnostiqués, les collisions
+  canoniques sont rejetées et le formatter conserve l'orthographe source ;
 - `Unit` devient un type unité composable et stockable, avec `unit` comme valeur
   canonique : paramètres, champs, payloads, callbacks, génériques et expressions
   `if`/`match` sont acceptés sans allocation ni destruction, tandis que les

@@ -148,6 +148,7 @@ add_library(janus_frontend
     src/frontend/lexer.cpp
     src/frontend/module_loader.cpp
     src/frontend/parser.cpp
+    src/frontend/unicode_identifier.cpp
 )
 target_include_directories(janus_frontend
     PUBLIC
@@ -720,6 +721,17 @@ if(BUILD_TESTING)
         NAME parser.top_level_declaration
         COMMAND parser_top_level_declaration_test
     )
+    add_executable(unicode_identifier_test
+        tests/frontend/unicode_identifier_test.cpp
+    )
+    target_link_libraries(unicode_identifier_test PRIVATE janus_semantic)
+    target_compile_options(unicode_identifier_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME frontend.unicode_identifiers COMMAND unicode_identifier_test)
     add_executable(module_loader_test
         tests/frontend/module_loader_test.cpp
     )

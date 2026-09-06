@@ -1,8 +1,10 @@
 #include "janus/frontend/lexer.hpp"
 
 #include "janus/diagnostics/compile_error.hpp"
+#include "janus/frontend/unicode_identifier.hpp"
 
 #include <cctype>
+#include <stdexcept>
 #include <string>
 
 namespace janus::frontend {
@@ -17,9 +19,41 @@ bool is_digit_for_base(char character, unsigned base) {
   return base == 16 && character >= 'A' && character <= 'F';
 }
 
+bool is_ascii_alpha(char character) noexcept {
+  return (character >= 'a' && character <= 'z') ||
+         (character >= 'A' && character <= 'Z');
+}
+
+bool is_ascii_digit(char character) noexcept {
+  return character >= '0' && character <= '9';
+}
+
+bool is_ascii_alnum(char character) noexcept {
+  return is_ascii_alpha(character) || is_ascii_digit(character);
+}
+
 } // namespace
 
-Lexer::Lexer(std::string_view source) noexcept : source_{source} {}
+Lexer::Lexer(std::string_view source) : source_{source} {
+  std::size_t offset = 0;
+  std::uint32_t line = 1;
+  std::uint32_t column = 1;
+  while (offset < source.size()) {
+    try {
+      const unicode::DecodedScalar scalar = unicode::decode(source, offset);
+      if (scalar.value == U'\n') {
+        ++line;
+        column = 1;
+      } else {
+        ++column;
+      }
+      offset += scalar.length;
+    } catch (const std::invalid_argument &error) {
+      throw CompileError{SourceLocation{offset, line, column},
+                         std::string{"invalid UTF-8 source: "} + error.what()};
+    }
+  }
+}
 
 Token Lexer::next() {
   skip_whitespace();
@@ -45,13 +79,18 @@ Token Lexer::next() {
                  start};
   }
 
-  if (std::isalpha(static_cast<unsigned char>(character)) != 0 ||
-      character == '_') {
-    do {
-      advance();
-    } while (!at_end() &&
-             (std::isalnum(static_cast<unsigned char>(current())) != 0 ||
-              current() == '_'));
+  const unicode::DecodedScalar first = unicode::decode(source_, position_);
+  if (character == '_' || unicode::is_xid_start(first.value)) {
+    advance(first.length);
+    while (!at_end()) {
+      const unicode::DecodedScalar scalar = unicode::decode(source_, position_);
+      if (current() != '_' && !unicode::is_xid_continue(scalar.value))
+        break;
+      if (unicode::is_disallowed_identifier_control(scalar.value))
+        throw CompileError{location(),
+                           "Unicode control is not allowed in an identifier"};
+      advance(scalar.length);
+    }
 
     const std::string_view lexeme =
         source_.substr(start_position, position_ - start_position);
@@ -135,10 +174,13 @@ Token Lexer::next() {
     } else if (lexeme == "unit") {
       kind = TokenKind::UnitValue;
     }
-    return Token{kind, lexeme, start};
+    return Token{kind, lexeme, start,
+                 kind == TokenKind::Identifier
+                     ? unicode::normalize_nfc(lexeme)
+                     : std::string{}};
   }
 
-  if (std::isdigit(static_cast<unsigned char>(character)) != 0) {
+  if (is_ascii_digit(character)) {
     if (character == '0' && position_ + 1 < source_.size() &&
         (source_[position_ + 1] == 'x' || source_[position_ + 1] == 'X' ||
          source_[position_ + 1] == 'b' || source_[position_ + 1] == 'B')) {
@@ -150,7 +192,7 @@ Token Lexer::next() {
       advance();
       const std::size_t digits_start = position_;
       while (!at_end() &&
-             (std::isalnum(static_cast<unsigned char>(current())) != 0 ||
+             (is_ascii_alnum(current()) ||
               current() == '_'))
         advance();
       const std::string_view lexeme =
@@ -178,12 +220,12 @@ Token Lexer::next() {
     do {
       advance();
     } while (!at_end() &&
-             (std::isdigit(static_cast<unsigned char>(current())) != 0 ||
+             (is_ascii_digit(current()) ||
               current() == '_'));
 
     if (position_ > start_position && source_[position_ - 1] == '_') {
       while (!at_end() &&
-             (std::isalnum(static_cast<unsigned char>(current())) != 0 ||
+             (is_ascii_alnum(current()) ||
               current() == '_'))
         advance();
       throw CompileError{start,
@@ -199,11 +241,11 @@ Token Lexer::next() {
 
     TokenKind kind = TokenKind::IntegerLiteral;
     if (!at_end() && current() == '.' && position_ + 1 < source_.size() &&
-        std::isdigit(static_cast<unsigned char>(source_[position_ + 1])) != 0) {
+        is_ascii_digit(source_[position_ + 1])) {
       kind = TokenKind::DoubleLiteral;
       advance();
       while (!at_end() &&
-             std::isdigit(static_cast<unsigned char>(current())) != 0) {
+             is_ascii_digit(current())) {
         advance();
       }
     }
@@ -215,7 +257,7 @@ Token Lexer::next() {
         advance();
       const std::size_t digits_start = position_;
       while (!at_end() &&
-             std::isdigit(static_cast<unsigned char>(current())) != 0)
+             is_ascii_digit(current()))
         advance();
       if (position_ != digits_start)
         kind = TokenKind::DoubleLiteral;
@@ -227,7 +269,7 @@ Token Lexer::next() {
       kind = TokenKind::FloatLiteral;
       advance();
       while (!at_end() &&
-             (std::isalnum(static_cast<unsigned char>(current())) != 0 ||
+             (is_ascii_alnum(current()) ||
               current() == '_'))
         advance();
     }
@@ -349,6 +391,28 @@ Token Lexer::next() {
     }
   }
 
+  if (first.length > 1 ||
+      unicode::is_disallowed_identifier_control(first.value)) {
+    const std::string spelling{source_.substr(start_position, first.length)};
+    advance(first.length);
+    if (unicode::is_disallowed_identifier_control(first.value))
+      throw CompileError{start,
+                         "Unicode control is not allowed in source identifiers"};
+    SourceLocation end = start;
+    end.offset += first.length;
+    ++end.column;
+    throw CompileError{
+        Diagnostic{DiagnosticSeverity::Error,
+                   DiagnosticCode::LexerUnexpectedCharacter,
+                   "unexpected character '" + spelling +
+                       "' in identifier position",
+                   start,
+                   {},
+                   {},
+                   {DiagnosticSuggestion{"remove the unexpected character",
+                                         SourceRange{start, end}, ""}}}};
+  }
+
   advance();
   switch (character) {
   case '(':
@@ -441,6 +505,19 @@ void Lexer::advance() noexcept {
     ++column_;
   }
   ++position_;
+}
+
+void Lexer::advance(std::size_t bytes) noexcept {
+  if (bytes == 0 || at_end())
+    return;
+
+  if (source_[position_] == '\n') {
+    ++line_;
+    column_ = 1;
+  } else {
+    ++column_;
+  }
+  position_ += bytes;
 }
 
 void Lexer::skip_whitespace() noexcept {

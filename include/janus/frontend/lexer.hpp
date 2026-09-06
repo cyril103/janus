@@ -10,7 +10,7 @@ namespace janus::frontend {
 
 class Lexer final {
 public:
-  explicit Lexer(std::string_view source) noexcept;
+  explicit Lexer(std::string_view source);
 
   [[nodiscard]] Token next();
 
@@ -19,6 +19,7 @@ private:
   [[nodiscard]] char current() const noexcept;
   [[nodiscard]] SourceLocation location() const noexcept;
   void advance() noexcept;
+  void advance(std::size_t bytes) noexcept;
   void skip_whitespace() noexcept;
 
   std::string_view source_;

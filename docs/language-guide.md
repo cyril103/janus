@@ -10,6 +10,34 @@
 Janus est fortement typé : chaque variable, paramètre et retour possède un
 type connu à la compilation. Les conversions entre types sont explicites.
 
+## Identifiants Unicode
+
+Les noms de valeurs, fonctions, types, modules et membres sont des identifiants
+Unicode UTF-8. `_` est accepté au début ou dans le nom ; les autres caractères
+suivent `XID_Start` puis `XID_Continue` d'Unicode 16.0. Cette règle est figée
+dans le compilateur et ne dépend pas de `LC_CTYPE` ni de la locale du système.
+
+```janus
+module démonstration
+
+class Boîte(val contenu : int) {
+    def résultat() : int { return contenu }
+}
+```
+
+L'identité est normalisée en NFC. Ainsi, `café` et `café` (où le second nom
+emploie un accent combinatoire) désignent le même symbole et deux déclarations
+de ces formes produisent un diagnostic de doublon. Le formatter conserve les
+octets écrits dans le fichier ; le compilateur, le mangling, le LSP et l'index
+d'API emploient l'identité NFC.
+
+Le source entier doit être un UTF-8 valide. Les contrôles C0/C1, les marques de
+direction bidi et `U+200C`/`U+200D` ne sont jamais acceptés dans un identifiant.
+Les caractères visuellement confondables ne sont pas fusionnés : par exemple
+le `a` latin et le `а` cyrillique restent deux noms différents. Une revue est
+donc recommandée pour le code utilisant plusieurs écritures ; la coloration ne
+constitue pas un contrôle de sécurité.
+
 ## Point d'entrée
 
 Un programme exécutable possède une fonction `main` sans paramètre :

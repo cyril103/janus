@@ -76,6 +76,16 @@ class InvalidNamed(val text : string) extends Named {
          "visibility is explicit");
   expect(index.symbols[0].documentation_link.starts_with("#"),
          "a stable documentation link is exposed");
+  janus::frontend::Parser unicode_parser{
+      "module données\ndef résultat(prénom : int) : int { return prénom }\n"};
+  std::vector<janus::ast::Program> unicode_programs;
+  unicode_programs.push_back(unicode_parser.parse_program());
+  const auto unicode_index = janus::driver::build_api_index(
+      unicode_programs, {"fixture", "1.0.0"});
+  expect(unicode_index.symbols.size() == 1 &&
+             unicode_index.symbols[0].qualified_name == "données.résultat" &&
+             unicode_index.symbols[0].parameters.front().name == "prénom",
+         "API index publishes NFC Unicode identities");
   janus::frontend::Parser tailrec_parser{
       "module recursion\ntailrec def loop(value : int) : int { return loop(value) }\n"};
   std::vector<janus::ast::Program> tailrec_programs;

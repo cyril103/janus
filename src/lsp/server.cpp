@@ -91,8 +91,8 @@ using DocumentSymbol = janus::lsp::IndexedSymbol;
 
 std::vector<janus::frontend::Token> tokens(std::string_view source) {
   std::vector<janus::frontend::Token> result;
-  janus::frontend::Lexer lexer{source};
   try {
+    janus::frontend::Lexer lexer{source};
     while (true) {
       const janus::frontend::Token token = lexer.next();
       result.push_back(token);
@@ -111,11 +111,11 @@ qualified_type_name(const std::vector<janus::frontend::Token> &document_tokens,
   if (start >= document_tokens.size() ||
       document_tokens[start].kind != TokenKind::Identifier)
     return {};
-  std::string result{document_tokens[start].lexeme};
+  std::string result{document_tokens[start].identifier()};
   while (start + 2 < document_tokens.size() &&
          document_tokens[start + 1].kind == TokenKind::Dot &&
          document_tokens[start + 2].kind == TokenKind::Identifier) {
-    result += "." + std::string{document_tokens[start + 2].lexeme};
+    result += "." + std::string{document_tokens[start + 2].identifier()};
     start += 2;
   }
   if (start + 1 < document_tokens.size() &&
@@ -129,7 +129,7 @@ qualified_type_name(const std::vector<janus::frontend::Token> &document_tokens,
       if (kind == TokenKind::Comma)
         result += ", ";
       else
-        result += document_tokens[index].lexeme;
+        result += document_tokens[index].identifier();
       if (kind == TokenKind::RightBracket && --depth == 0)
         break;
     }
@@ -357,7 +357,7 @@ std::vector<DocumentSymbol> symbols(
     if (const auto inferred =
             analyzed_lambda_parameters.find(name.location.offset);
         inferred != analyzed_lambda_parameters.end()) {
-      detail = "parameter " + std::string{name.lexeme} + " : " +
+      detail = "parameter " + std::string{name.identifier()} + " : " +
                inferred->second;
       is_parameter = true;
       symbol_kind = janus::lsp::IndexedSymbolKind::Parameter;
@@ -368,7 +368,7 @@ std::vector<DocumentSymbol> symbols(
       detail = token.kind == TokenKind::Const
                    ? "const "
                    : (token.kind == TokenKind::Val ? "val " : "var ");
-      detail += std::string{name.lexeme};
+      detail += std::string{name.identifier()};
       if (index + 3 < document_tokens.size() &&
           document_tokens[index + 2].kind == TokenKind::Colon &&
           document_tokens[index + 3].kind == TokenKind::Identifier)
@@ -388,22 +388,23 @@ std::vector<DocumentSymbol> symbols(
           detail += constant->second;
     } else if (token.kind == TokenKind::Def) {
       symbol_kind = janus::lsp::IndexedSymbolKind::Function;
-      const auto signature = function_details.find(std::string{name.lexeme});
+      const auto signature =
+          function_details.find(std::string{name.identifier()});
       detail = signature == function_details.end()
-                   ? "def " + std::string{name.lexeme}
+                   ? "def " + std::string{name.identifier()}
                    : signature->second;
     } else if (token.kind == TokenKind::Class ||
                token.kind == TokenKind::Struct) {
       symbol_kind = token.kind == TokenKind::Class
                         ? janus::lsp::IndexedSymbolKind::Class
                         : janus::lsp::IndexedSymbolKind::Struct;
-      detail = "class " + std::string{name.lexeme};
+      detail = "class " + std::string{name.identifier()};
     } else if (token.kind == TokenKind::Trait) {
       symbol_kind = janus::lsp::IndexedSymbolKind::Trait;
-      detail = "trait " + std::string{name.lexeme};
+      detail = "trait " + std::string{name.identifier()};
     } else if (token.kind == TokenKind::Enum) {
       symbol_kind = janus::lsp::IndexedSymbolKind::Enum;
-      detail = "enum " + std::string{name.lexeme};
+      detail = "enum " + std::string{name.identifier()};
     } else if ((token.kind == TokenKind::LeftParen ||
                 token.kind == TokenKind::Comma) &&
                index + 2 < document_tokens.size() &&
@@ -416,7 +417,7 @@ std::vector<DocumentSymbol> symbols(
         --previous;
       if (document_tokens[previous].kind != TokenKind::Def)
         continue;
-      detail = "parameter " + std::string{name.lexeme};
+      detail = "parameter " + std::string{name.identifier()};
       if (index + 3 < document_tokens.size() &&
           document_tokens[index + 3].kind == TokenKind::Identifier)
         detail += " : " + qualified_type_name(document_tokens, index + 3);
@@ -460,13 +461,14 @@ std::vector<DocumentSymbol> symbols(
     const bool symbol_top_level = is_top_level && !is_parameter;
     const std::string identity =
         symbol_top_level
-            ? std::string{uri} + "#" + std::string{name.lexeme} + ":" +
+            ? std::string{uri} + "#" + std::string{name.identifier()} + ":" +
                   detail.substr(0, detail.find(' '))
             : std::string{uri} + "#" + std::to_string(name.location.offset) +
-                  ":" + std::string{name.lexeme};
+                  ":" + std::string{name.identifier()};
     result.push_back(DocumentSymbol{
-        identity, std::string{name.lexeme}, std::move(detail), name.location,
-        scope_start, scope_end, scope_depth, is_global, symbol_top_level,
+        identity, std::string{name.identifier()}, std::move(detail),
+        name.location, name.lexeme.size(), scope_start, scope_end, scope_depth,
+        is_global, symbol_top_level,
         is_private, symbol_top_level ? module_name : std::nullopt,
         symbol_kind});
   }
@@ -487,17 +489,17 @@ located_identifier(const std::vector<janus::frontend::Token> &document_tokens,
   std::optional<std::string> qualifier;
   if (index >= 2 && document_tokens[index - 1].kind == TokenKind::Dot &&
       document_tokens[index - 2].kind == TokenKind::Identifier) {
-    qualifier = std::string{document_tokens[index - 2].lexeme};
+    qualifier = std::string{document_tokens[index - 2].identifier()};
     std::size_t qualifier_index = index - 2;
     while (qualifier_index >= 2 &&
            document_tokens[qualifier_index - 1].kind == TokenKind::Dot &&
            document_tokens[qualifier_index - 2].kind == TokenKind::Identifier) {
-      *qualifier = std::string{document_tokens[qualifier_index - 2].lexeme} +
+      *qualifier = std::string{document_tokens[qualifier_index - 2].identifier()} +
                    "." + *qualifier;
       qualifier_index -= 2;
     }
   }
-  return LocatedIdentifier{std::string{token.lexeme}, token.location,
+  return LocatedIdentifier{std::string{token.identifier()}, token.location,
                            std::move(qualifier)};
 }
 
@@ -601,14 +603,20 @@ llvm::json::Object range(std::string_view source,
   };
 }
 
-bool valid_identifier(std::string_view name) {
+std::optional<std::string> canonical_identifier(std::string_view name) {
   if (name.empty())
-    return false;
+    return std::nullopt;
   janus::frontend::Lexer lexer{name};
   const janus::frontend::Token token = lexer.next();
-  return token.kind == janus::frontend::TokenKind::Identifier &&
-         token.lexeme.size() == name.size() &&
-         lexer.next().kind == janus::frontend::TokenKind::End;
+  if (token.kind != janus::frontend::TokenKind::Identifier ||
+      token.lexeme.size() != name.size() ||
+      lexer.next().kind != janus::frontend::TokenKind::End)
+    return std::nullopt;
+  return std::string{token.identifier()};
+}
+
+bool valid_identifier(std::string_view name) {
+  return canonical_identifier(name).has_value();
 }
 
 std::string type_reference(const janus::ast::TypeReference &type) {
@@ -810,7 +818,7 @@ inferred_literal_type(const std::vector<janus::frontend::Token> &items,
   case TokenKind::New:
     if (initializer + 1 < items.size() &&
         items[initializer + 1].kind == TokenKind::Identifier)
-      return std::string{items[initializer + 1].lexeme};
+      return std::string{items[initializer + 1].identifier()};
     return std::nullopt;
   default:
     return std::nullopt;
@@ -2231,7 +2239,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                {"uri", match.uri},
                {"range",
                 range(index_cache_.at(match.uri).source, match.symbol.location,
-                      match.symbol.name.size())},
+                      match.symbol.source_length)},
            }},
       });
     }
@@ -2349,7 +2357,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
             {"kind", kind},
             {"range", expression_bound == expression_bounds.end()
                           ? range(*document_source, symbol.location,
-                                  symbol.name.size())
+                                  symbol.source_length)
                           : llvm::json::Object{
                                 {"start", position_at_offset(
                                               *document_source,
@@ -2358,7 +2366,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                                             *document_source,
                                             expression_bound->end)}}},
             {"selectionRange", range(*document_source, symbol.location,
-                                     symbol.name.size())},
+                                     symbol.source_length)},
         });
       }
     }
@@ -2544,7 +2552,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
         for (const frontend::Token &token : tokens(source))
           if (token.kind == frontend::TokenKind::Identifier &&
               token.location.offset == diagnostic.primary_location.offset) {
-            unknown_name = std::string{token.lexeme};
+            unknown_name = std::string{token.identifier()};
             break;
           }
         std::unordered_map<std::string, std::string> origins;
@@ -2732,7 +2740,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
         namespace_offsets.insert_or_assign(
             document_tokens[component].location.offset, is_module ? 1 : 0);
         if (is_import)
-          import_path.emplace_back(document_tokens[component].lexeme);
+          import_path.emplace_back(document_tokens[component].identifier());
         if (component + 2 >= document_tokens.size() ||
             document_tokens[component + 1].kind != frontend::TokenKind::Dot)
           break;
@@ -2858,13 +2866,13 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
     };
     const auto matches_import = [&](std::size_t index, bool exact) {
       const std::size_t start = chain_start(index);
-      if (resolved_kind(document_tokens[start].lexeme,
+      if (resolved_kind(document_tokens[start].identifier(),
                         document_tokens[start].location.offset)
               .has_value())
         return false;
       std::vector<std::string_view> components;
       for (std::size_t component = start; component <= index; component += 2)
-        components.push_back(document_tokens[component].lexeme);
+        components.push_back(document_tokens[component].identifier());
       for (const std::vector<std::string> &path : imported_paths) {
         if ((exact && path.size() != components.size()) ||
             (!exact && path.size() < components.size()))
@@ -2914,14 +2922,15 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                    declaration != declaration_kinds.end()) {
           type = declaration->second.first;
           modifiers = declaration->second.second;
-        } else if (is_builtin_type(token.lexeme)) {
+        } else if (is_builtin_type(token.identifier())) {
           type = 1;
         } else if (is_type_position(index)) {
           if (index + 1 < document_tokens.size() &&
               document_tokens[index + 1].kind == frontend::TokenKind::Dot) {
             type = matches_import(index, false) ? 0 : 1;
           } else {
-            const auto known_type = type_kinds.find(std::string{token.lexeme});
+            const auto known_type =
+                type_kinds.find(std::string{token.identifier()});
             type = known_type == type_kinds.end() ? 1 : known_type->second;
           }
         } else if (index + 1 < document_tokens.size() &&
@@ -2932,10 +2941,10 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
             module_function = matches_import(index - 2, true);
           type = previous == frontend::TokenKind::Dot
                      ? (module_function ? 5 : 6)
-                     : resolved_kind(token.lexeme, token.location.offset)
+                     : resolved_kind(token.identifier(), token.location.offset)
                            .value_or(5);
         } else if (const std::optional<std::int64_t> known =
-                       resolved_kind(token.lexeme, token.location.offset)) {
+                       resolved_kind(token.identifier(), token.location.offset)) {
           type = *known;
         } else if (index + 1 < document_tokens.size() &&
                    document_tokens[index + 1].kind ==
@@ -3076,7 +3085,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
             origin_start == std::string::npos || origin_start <= value_start)
           continue;
         const std::size_t hint_offset =
-            symbol.location.offset + symbol.name.size();
+            symbol.location.offset + symbol.source_length;
         if (hint_offset < *range_start || hint_offset >= *range_end)
           continue;
         hints.emplace_back(llvm::json::Object{
@@ -3534,7 +3543,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                       locations.emplace_back(llvm::json::Object{
                           {"uri", indexed.uri},
                           {"range", range(indexed.index->source,
-                                          symbol.location, symbol.name.size())},
+                                          symbol.location, symbol.source_length)},
                       });
                       break;
                     }
@@ -3568,6 +3577,8 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
       if (!target.has_value())
         return {error_response(request_id(*request), -32602,
                                "No symbol can be renamed here")};
+      const std::string canonical_new_name =
+          *canonical_identifier(*requested_name);
       const IndexedDocument &active_document = semantic_index.documents.front();
       bool explicit_local_alias = false;
       for (const ast::ImportDeclaration &import : active_document.imports)
@@ -3577,7 +3588,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
       if (explicit_local_alias) {
         const std::string new_name = requested_name->str();
         for (const DocumentSymbol &symbol : active_document.index->symbols)
-          if (symbol.name == new_name)
+          if (symbol.name == canonical_new_name)
             return {error_response(request_id(*request), -32602,
                                    "Rename would collide with a local symbol")};
         llvm::json::Array alias_edits;
@@ -3587,7 +3598,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
              ++token_index) {
           const frontend::Token &token = document_tokens[token_index];
           if (token.kind != frontend::TokenKind::Identifier ||
-              token.lexeme != identifier->name)
+              token.identifier() != identifier->name)
             continue;
           const bool declaration =
               token_index != 0 &&
@@ -3610,7 +3621,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                 {"changes", llvm::json::Object{{active_document.uri,
                                                 std::move(alias_edits)}}}})};
       }
-      if (target->second.name == *requested_name)
+      if (target->second.name == canonical_new_name)
         return {
             response(request_id(*request),
                      llvm::json::Object{{"changes", llvm::json::Object{}}})};
@@ -3631,7 +3642,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
              ++token_index) {
           const frontend::Token &token = document_tokens[token_index];
           if (token.kind != frontend::TokenKind::Identifier ||
-              token.lexeme != target->second.name)
+              token.identifier() != target->second.name)
             continue;
           LocatedIdentifier occurrence_identifier =
               located_identifier(document_tokens, token_index);
@@ -3649,8 +3660,9 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
              occurrence.document->index->symbols) {
           const bool renamed_target = candidate.id == target->second.id;
           const std::string_view effective_name =
-              renamed_target ? std::string_view{new_name} : candidate.name;
-          if (effective_name != new_name ||
+              renamed_target ? std::string_view{canonical_new_name}
+                             : candidate.name;
+          if (effective_name != canonical_new_name ||
               candidate.location.offset > occurrence.token.location.offset ||
               (occurrence.token.location.offset < candidate.scope_start &&
                occurrence.token.location.offset != candidate.location.offset) ||
@@ -3686,8 +3698,10 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                candidate_document.index->symbols) {
             const bool renamed_target = candidate.id == target->second.id;
             const std::string_view effective_name =
-                renamed_target ? std::string_view{new_name} : candidate.name;
-            if (!candidate.is_top_level || effective_name != new_name ||
+                renamed_target ? std::string_view{canonical_new_name}
+                               : candidate.name;
+            if (!candidate.is_top_level ||
+                effective_name != canonical_new_name ||
                 (candidate.is_private &&
                  candidate_document.uri != occurrence.document->uri))
               continue;
@@ -3773,7 +3787,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
               llvm::json::Object{
                   {"uri", located->first},
                   {"range", range(index_cache_.at(located->first).source,
-                                  symbol.location, symbol.name.size())},
+                                  symbol.location, symbol.source_length)},
               })};
         }
       }
@@ -3796,7 +3810,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                token_index < document_tokens.size(); ++token_index) {
             const frontend::Token &token = document_tokens[token_index];
             if (token.kind == frontend::TokenKind::Identifier &&
-                token.lexeme == identifier->name) {
+                token.identifier() == identifier->name) {
               const auto bound = bind_symbol(
                   indexed, located_identifier(document_tokens, token_index));
               if (!target.has_value() || !bound.has_value() ||

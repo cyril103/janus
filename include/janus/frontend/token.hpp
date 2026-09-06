@@ -2,6 +2,7 @@
 
 #include "janus/diagnostics/compile_error.hpp"
 
+#include <string>
 #include <string_view>
 
 namespace janus::frontend {
@@ -104,6 +105,11 @@ struct Token {
   TokenKind kind;
   std::string_view lexeme;
   SourceLocation location;
+  std::string canonical_identifier{};
+
+  [[nodiscard]] std::string_view identifier() const noexcept {
+    return canonical_identifier.empty() ? lexeme : canonical_identifier;
+  }
 };
 
 [[nodiscard]] constexpr std::string_view token_name(TokenKind kind) noexcept {

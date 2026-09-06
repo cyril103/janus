@@ -1,2 +1,7 @@
 Janus
 Copyright 2026 Janus contributors
+
+The generated Unicode identifier and normalization tables are derived from
+Unicode Data Files, Copyright © 1991-Present Unicode, Inc., distributed under
+the Unicode License v3 (SPDX: Unicode-3.0):
+https://www.unicode.org/license.txt
