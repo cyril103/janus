@@ -15,6 +15,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- remplacement de l'indexation spéciale de `std.array.Array` par les contrats
+  canoniques publics `std.index.Index[Key]` et `IndexMut[Key]`, avec type
+  associé `Output` ; `Array`, `Slice`, `MutableSlice`, les types utilisateur et
+  les paramètres génériques contraints partagent désormais la même résolution
+  sémantique, sans changer l'ABI de `get`/`set` ni l'ordre d'évaluation ;
 - refus des méthodes `internal` comme implémentations d'un contrat de trait
   effectivement public ; les contrats dont le trait ou le type est privé
   restent implémentables au niveau module, et l'index API/LSP n'expose pas la

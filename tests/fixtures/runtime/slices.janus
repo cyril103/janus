@@ -20,8 +20,8 @@ def main() : int {
         val middle : Slice[int] =
         new Slice[int](values, usize(1), usize(2))
         println(middle.size())
-        println(middle.get(usize(0)))
-        println(middle.get(usize(1)))
+        println(middle[usize(0)])
+        println(middle[usize(1)])
         println(sumSlice(middle))
         delete middle
     }
@@ -29,10 +29,11 @@ def main() : int {
     if true {
         val editable : MutableSlice[int] =
         new MutableSlice[int](values, usize(1), usize(2))
-        editable.set(usize(0), 25)
-        editable.set(usize(1), 35)
-        println(editable.get(usize(0)))
-        println(editable.get(usize(1)))
+        editable[usize(0)] = 25
+        editable[usize(1)] = 35
+        editable[usize(1)] += 1
+        println(editable[usize(0)])
+        println(editable[usize(1)] - 1)
         delete editable
     }
 

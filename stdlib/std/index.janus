@@ -1,0 +1,31 @@
+/// Définit les capacités canoniques utilisées par la syntaxe d'indexation.
+module std.index
+
+/// Contrat de lecture par indice.
+///
+/// `I` est le type accepté entre crochets et `Output` le type de l'élément.
+/// La syntaxe `container[key]` appelle exactement une fois [[Index.get]].
+trait Index[I] {
+    /// Type produit par une lecture indexée.
+    type Output
+
+    /// Lit l'élément désigné par `key`.
+    /// @param key Indice propre au conteneur.
+    /// @return Copie de l'élément désigné.
+    borrow def get(key : I) : Output where Output <: Copy
+}
+
+/// Contrat de remplacement par indice.
+///
+/// La syntaxe `container[key] = value` appelle [[IndexMut.set]]. Une
+/// affectation composée combine [[Index.get]] et [[IndexMut.set]] en évaluant
+/// le conteneur et l'indice une seule fois, de gauche à droite.
+trait IndexMut[I] {
+    /// Type accepté par un remplacement indexé.
+    type Output
+
+    /// Remplace l'élément désigné par `key`.
+    /// @param key Indice propre au conteneur.
+    /// @param value Nouvelle valeur dont la propriété est transférée.
+    def set(key : I, value : Output) : Unit
+}

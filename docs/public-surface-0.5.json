@@ -16,7 +16,7 @@
       "source": "stdlib/std/array.janus",
       "documentation": ["docs/language-guide.md"],
       "status": "stable-proposed",
-      "signature_digest": "ef21d2857669ae801a248d69c63e29a8a1ba209543c7ddb7ceafed4157f1f697",
+      "signature_digest": "f9f24262917f1f7ddbcbb3fce7ce9cff1e0079f4548f5dbd92c490e621ef995d",
       "symbols": ["Array", "Array.size", "Array.capacity", "Array.isEmpty", "Array.iterator", "Array.intoIterator", "Array.get", "Array.getBorrowed", "Array.getMutable", "Array.getOption", "Array.set", "Array.replace", "Array.swap", "Array.push", "Array.pop", "Array.popOption", "Array.tryPop", "Array.remove", "Array.reserve", "Array.tryReserve", "Array.clear", "Array.retain", "Array.extend", "Array.drain", "Array.withValue", "Array.withMutable", "Array.withValues", "Array.foreach", "Array.map", "Array.filter", "Array.find", "Array.fold", "Array.any", "Array.all", "Array.count", "Array.sortWith", "Array.sortBy", "filledArray", "generateArray"]
     },
     {
@@ -173,6 +173,14 @@
       "symbols": ["TextDecodeError", "TextDecodeError.InvalidUtf8", "ByteBuffer", "ByteBuffer.data", "ByteBuffer.size", "ByteBuffer.capacity", "ByteBuffer.isEmpty", "ByteBuffer.withView", "ByteBuffer.clear", "ByteBuffer.tryReserve", "ByteBuffer.append", "ByteBuffer.appendByte", "ByteBuffer.appendText", "ByteBuffer.isUtf8", "ByteBuffer.asText", "InputStream", "InputStream.isOpen", "InputStream.isEof", "InputStream.read", "InputStream.readLine", "InputStream.close", "OutputStream", "OutputStream.isOpen", "OutputStream.write", "OutputStream.writeText", "OutputStream.flush", "OutputStream.close", "openInputStreamBuffered", "openInputStream", "openOutputStreamBuffered", "openOutputStream", "standardInput", "standardOutput", "standardError", "copyStream"]
     },
     {
+      "name": "std.index",
+      "source": "stdlib/std/index.janus",
+      "documentation": ["docs/stdlib-reference.md", "website/docs/book/06-collections-iterateurs.md"],
+      "status": "experimental",
+      "signature_digest": "c20ede32878f5cfdc828ba91523d1c46c1ba2dbe17970b7730aeb27d49762f94",
+      "symbols": ["Index", "Index.get", "IndexMut", "IndexMut.set"]
+    },
+    {
       "name": "std.iterator",
       "source": "stdlib/std/iterator.janus",
       "documentation": ["docs/language-guide.md", "docs/design/iterator-pipelines.md", "docs/stability-contract.md"],
@@ -281,7 +289,7 @@
       "source": "stdlib/std/slice.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/stability-contract.md"],
       "status": "experimental",
-      "signature_digest": "ae5a1eb763b67e9b1cfd342e4fb8defd8088171d2c41470ff548ac203e4b7ca5",
+      "signature_digest": "9b844eeb5e4f4386b2ec621778572e56f9bd29579df7f1da72115df0a3fde0e6",
       "symbols": ["Slice", "Slice.size", "Slice.isEmpty", "Slice.get", "Slice.getBorrowed", "Slice.getOption", "Slice.iterator", "MutableSlice", "MutableSlice.size", "MutableSlice.isEmpty", "MutableSlice.get", "MutableSlice.getBorrowed", "MutableSlice.getMutable", "MutableSlice.getOption", "MutableSlice.set", "MutableSlice.iterator"]
     },
     {

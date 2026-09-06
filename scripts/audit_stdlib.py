@@ -93,6 +93,9 @@ OWNER_MODULES = {
     "#300": {
         "std.persistent_list",
     },
+    "#336": {
+        "std.index",
+    },
 }
 IMPORT_RE = re.compile(r"^\s*import\s+([\w.]+)", re.MULTILINE)
 DOCUMENTATION_BLOCK_RE = re.compile(

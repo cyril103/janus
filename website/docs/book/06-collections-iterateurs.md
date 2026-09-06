@@ -66,9 +66,12 @@ defer delete empty
 
 ## Indexation sûre
 
-Une lecture `values[index]` copie l'élément et exige donc `Copy`. Une
-affectation remplace l'élément comme `set`; une ressource nommée exige `move`.
-Le conteneur puis l'index sont évalués chacun une fois, dans cet ordre.
+Une lecture `values[index]` utilise le contrat `std.index.Index[Key]`, copie
+l'élément `Output` et exige donc `Copy`. Une affectation utilise
+`std.index.IndexMut[Key]` et remplace l'élément comme `set`; une ressource
+nommée exige `move`. Une affectation composée exige les deux contrats avec des
+types `Key` et `Output` identiques. Le conteneur puis l'index sont évalués
+chacun une fois, de gauche à droite, y compris pour une affectation composée.
 
 ```janus
 // doctest: doctest name=array-indexing
@@ -84,6 +87,24 @@ def main() : int {
 
 Pour un élément non `Copy`, utilisez `withValue` ou `getBorrowed` : les
 crochets n'introduisent jamais d'emprunt implicite.
+
+Un type utilisateur participe à la même syntaxe en implémentant les contrats.
+Les noms courts `Index`/`IndexMut` ne sont jamais suffisants par eux-mêmes : le
+compilateur résout l'identité canonique de `std.index`, même derrière un alias.
+
+```janus
+import std.index
+
+class Cell[T](var value : T) extends Index[int], IndexMut[int] {
+    type Output = T
+    borrow def get(key : int) : T where T <: Copy { return value }
+    def set(key : int, replacement : T) : Unit { value = move replacement }
+}
+```
+
+`Array` et `Slice` utilisent `usize`; `MutableSlice` fournit aussi
+`IndexMut[usize]`. Les contrôles de bornes restent définis par `get` et `set` :
+leurs diagnostics et leur comportement de `panic` sont donc ceux du conteneur.
 
 Une constante globale ne peut pas employer cette syntaxe (`JANA0023`), car le
 tableau possède un stockage dynamique construit à l'exécution.

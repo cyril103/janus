@@ -76,6 +76,7 @@ struct AnalysisResult {
     SemanticType residual_type;
   };
   struct IndexedCapabilities {
+    SemanticType index_type;
     SemanticType element_type;
     const ast::FunctionDeclaration *read{};
     const ast::FunctionDeclaration *replace{};

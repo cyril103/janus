@@ -7,6 +7,7 @@
 /// invalideraient son emprunt.
 module std.slice
 import std.array
+import std.index
 import std.option
 import std.iterator
 
@@ -65,7 +66,9 @@ class Slice[T](
 private borrow val source : Array[T],
 private val start : usize,
 private val count : usize
-) extends Iterable[T] {
+) extends Iterable[T], Index[usize] {
+    /// Type des éléments observés par l'indexation.
+    type Output = T
     private val checkedCount : usize =
     checkedSliceLength(source.size(), start, count)
 
@@ -137,7 +140,9 @@ class MutableSlice[T](
 private borrow var source : Array[T],
 private val start : usize,
 private val count : usize
-) extends Iterable[T] {
+) extends Iterable[T], Index[usize], IndexMut[usize] {
+    /// Type des éléments lus et remplacés par l'indexation.
+    type Output = T
     private val checkedCount : usize =
     checkedSliceLength(source.size(), start, count)
 

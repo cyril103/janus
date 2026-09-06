@@ -103,6 +103,27 @@ def main() : int {
 }
 ```
 
+### `std.index`
+
+```janus
+// doctest: doctest name=stdlib-std-index
+import std.index
+
+class Cell[T](var value : T) extends Index[int], IndexMut[int] {
+    type Output = T
+    borrow def get(key : int) : T where T <: Copy { return value }
+    def set(key : int, replacement : T) : Unit { value = move replacement }
+}
+
+def main() : int {
+    val cell : Cell[int] = new Cell(20)
+    cell[0] += 22
+    val result : int = cell[0]
+    delete cell
+    return result - 42
+}
+```
+
 ### `std.iterator`
 
 Les adaptateurs `drop`, `chain`, `filterMap`, `takeWhile`, `skipWhile` et
@@ -142,7 +163,7 @@ def main() : int {
     val values : Array[int] = new Array(1)
     values.push(7)
     val view : Slice[int] = new Slice(values, 0, 1)
-    val result : int = view.get(0)
+    val result : int = view[0]
     delete view
     delete values
     return result - 7

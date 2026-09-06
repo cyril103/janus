@@ -1,4 +1,5 @@
 import std.array as arrays
+import std.index as indexing
 
 var containerCalls : int = 0
 var indexCalls : int = 0
@@ -14,6 +15,28 @@ class IntArrayHolder(val items : arrays.Array[int]) {
     destructor {
         delete items
     }
+}
+
+class Grid[T](var value : T) extends indexing.Index[int], indexing.IndexMut[int] {
+    type Output = T
+
+    borrow def get(index : int) : T where T <: Copy {
+        if index != 0 {
+            panic("Grid index out of bounds\n")
+        }
+        return value
+    }
+
+    def set(index : int, replacement : T) : Unit {
+        if index != 0 {
+            panic("Grid index out of bounds\n")
+        }
+        value = move replacement
+    }
+}
+
+def readGrid[C <: indexing.Index[int]](borrow grid : C) : C.Output {
+    return grid[0]
 }
 
 def container(borrow var values : arrays.Array[int]) : borrow var arrays.Array[int] {
@@ -52,6 +75,14 @@ def main() : int {
     println(values[usize(0)])
     println(containerCalls)
     println(indexCalls)
+
+    val grid : Grid[int] = new Grid[int](5)
+    println(grid[0])
+    grid[0] = 6
+    grid[0] += 7
+    println(grid[0])
+    println(readGrid[Grid[int]](grid))
+    delete grid
 
     val nested : arrays.Array[int] = new arrays.Array[int](usize(1))
     nested.push(7)

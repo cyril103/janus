@@ -2451,15 +2451,36 @@ private:
                     janus::ast::ReturnOwnership::BorrowMutable)
               object_value = builder.CreateLoad(builder.getPtrTy(), object_value,
                                                 "index.mutable.object");
-            ::llvm::Value *index_value = emit_expression(
-                *place.index, janus::Type::usize_type(), substitutions,
-                block_locals, builder);
             const auto &capabilities =
                 analysis_.indexed_capabilities.at(&place);
+            const janus::Type &index_type =
+                resolve(capabilities.index_type, substitutions);
+            ::llvm::Value *index_value = emit_expression(
+                *place.index, index_type, substitutions, block_locals,
+                builder);
             const janus::Type &element_type =
-                resolve(capabilities.element_type);
+                resolve(capabilities.element_type, substitutions);
             const ClassSpecialization &specialization =
                 class_specializations_.at(std::string{object_type.name()});
+            const auto indexed_method = [&](const auto *capability) {
+              if (std::any_of(
+                      specialization.declaration->methods.begin(),
+                      specialization.declaration->methods.end(),
+                      [&](const janus::ast::FunctionDeclaration &candidate) {
+                        return &candidate == capability;
+                      }))
+                return capability;
+              const auto implementation = std::find_if(
+                  specialization.declaration->methods.begin(),
+                  specialization.declaration->methods.end(),
+                  [&](const janus::ast::FunctionDeclaration &candidate) {
+                    return candidate.name == capability->name;
+                  });
+              if (implementation == specialization.declaration->methods.end())
+                throw std::logic_error{
+                    "indexed protocol implementation is unavailable"};
+              return &*implementation;
+            };
             ::llvm::Value *replacement = nullptr;
             if (assignment->operation ==
                 janus::ast::AssignmentOperator::Assign) {
@@ -2468,7 +2489,8 @@ private:
                   block_locals, builder);
             } else {
               ::llvm::Function *get_target = emit_function(
-                  *capabilities.read, {}, specialization.declaration,
+                  *indexed_method(capabilities.read), {},
+                  specialization.declaration,
                   &specialization.substitutions, object_type.name());
               ::llvm::Value *left = emit_protected_call(
                   get_target, {object_value, index_value}, builder,
@@ -2488,7 +2510,8 @@ private:
                   builder);
             }
             ::llvm::Function *set_target = emit_function(
-                *capabilities.replace, {}, specialization.declaration,
+                *indexed_method(capabilities.replace), {},
+                specialization.declaration,
                 &specialization.substitutions, object_type.name());
             emit_protected_call(
                 set_target, {object_value, index_value, replacement}, builder);
@@ -5231,12 +5254,32 @@ private:
                 class_specializations_.at(std::string{object_type.name()});
             const auto &capabilities =
                 analysis_.indexed_capabilities.at(&node);
+            const janus::ast::FunctionDeclaration *implementation =
+                capabilities.read;
+            if (std::none_of(
+                    specialization.declaration->methods.begin(),
+                    specialization.declaration->methods.end(),
+                    [&](const janus::ast::FunctionDeclaration &candidate) {
+                      return &candidate == implementation;
+                    })) {
+              const auto resolved = std::find_if(
+                  specialization.declaration->methods.begin(),
+                  specialization.declaration->methods.end(),
+                  [&](const janus::ast::FunctionDeclaration &candidate) {
+                    return candidate.name == capabilities.read->name;
+                  });
+              if (resolved == specialization.declaration->methods.end())
+                throw std::logic_error{
+                    "indexed protocol implementation is unavailable"};
+              implementation = &*resolved;
+            }
             ::llvm::Function *target = emit_function(
-                *capabilities.read, {}, specialization.declaration,
+                *implementation, {}, specialization.declaration,
                 &specialization.substitutions, object_type.name());
+            const janus::Type &index_type =
+                resolve(capabilities.index_type, substitutions);
             ::llvm::Value *index = emit_expression(
-                *node.index, janus::Type::usize_type(), substitutions, locals,
-                builder);
+                *node.index, index_type, substitutions, locals, builder);
             return emit_protected_call(target, {object_value, index}, builder,
                                        "index.result");
           } else if constexpr (std::is_same_v<Node, janus::ast::IfExpression>) {

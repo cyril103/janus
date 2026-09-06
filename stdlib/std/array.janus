@@ -12,6 +12,7 @@
 /// val doubled : Array[int] = values.map[int]((value : int) => value * 2)
 /// ```
 module std.array
+import std.index
 import std.option
 import std.iterator
 import std.ordering
@@ -76,7 +77,10 @@ private def checkedArrayCapacity[T](count : usize) : usize {
 /// observants exigent `T <: Copy`, tandis que [[Array.intoIterator]] consomme le
 /// tableau et peut transférer des valeurs non copiables.
 /// @param initialCapacity Nombre initial d’emplacements réservés.
-class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T] {
+class Array[T](initialCapacity : usize) extends Iterable[T], IntoIterable[T],
+Index[usize], IndexMut[usize] {
+    /// Type des éléments lus et remplacés par l'indexation.
+    type Output = T
     private var data : Ptr[T] = alloc[T](initialCapacity)
     private var length : usize = usize(0)
     private var allocated : usize = initialCapacity

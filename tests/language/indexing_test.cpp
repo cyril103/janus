@@ -5,6 +5,8 @@
 #include "janus/semantic/analyzer.hpp"
 
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -140,11 +142,50 @@ def main() : int {
              compound_capability.replace == replace_capability.replace,
          "analysis records exact read and replacement capabilities by use");
 
+  const auto grid = std::find_if(
+      loaded.classes.begin(), loaded.classes.end(),
+      [](const janus::ast::ClassDeclaration &candidate) {
+        return candidate.name == "Grid" && !candidate.module_name.has_value();
+      });
+  const auto grid_get = std::find_if(
+      grid->methods.begin(), grid->methods.end(),
+      [](const janus::ast::FunctionDeclaration &candidate) {
+        return candidate.name == "get";
+      });
+  const auto grid_set = std::find_if(
+      grid->methods.begin(), grid->methods.end(),
+      [](const janus::ast::FunctionDeclaration &candidate) {
+        return candidate.name == "set";
+      });
+  expect(std::any_of(
+             analysis.indexed_capabilities.begin(),
+             analysis.indexed_capabilities.end(), [&](const auto &entry) {
+               return entry.second.read == &*grid_get &&
+                      entry.second.index_type.is_concrete() &&
+                      entry.second.index_type.concrete->kind() ==
+                          janus::TypeKind::Int;
+             }),
+         "a user Index implementation supplies its exact method and key type");
+  expect(std::any_of(
+             analysis.indexed_capabilities.begin(),
+             analysis.indexed_capabilities.end(), [&](const auto &entry) {
+               return entry.second.replace == &*grid_set;
+             }),
+         "a user IndexMut implementation supplies its exact replacement");
+
   llvm::LLVMContext context;
   janus::backend::llvm::IrGenerator generator{context};
-  static_cast<void>(generator.generate(loaded, "indexing_capabilities"));
-  expect(true,
-         "backend consumes the canonical Array capabilities through an alias");
+  const std::unique_ptr<llvm::Module> indexed_module =
+      generator.generate(loaded, "indexing_capabilities");
+  std::string indexed_ir;
+  llvm::raw_string_ostream indexed_output{indexed_ir};
+  indexed_module->print(indexed_output, nullptr);
+  indexed_output.flush();
+  expect(indexed_ir.find("call i32 @Grid__int__get") != std::string::npos &&
+             indexed_ir.find("call void @Grid__int__set") !=
+                 std::string::npos,
+         "protocol indexing lowers to direct user-method calls without "
+         "dispatch overhead");
 
   const std::filesystem::path lambda_entry =
       std::filesystem::temp_directory_path() / "janus-indexing-lambda.janus";
@@ -201,6 +242,38 @@ def main() : int {
              janus::DiagnosticCode::AnalyzerBorrowedTemporaryOwner,
              "indexed replacement"),
          "indexed replacements diagnose an abandoned temporary owner");
+
+  const std::filesystem::path homonym_entry =
+      std::filesystem::temp_directory_path() /
+      "janus-indexing-trait-homonym.janus";
+  const janus::ast::Program homonym_program = loader.load(homonym_entry, R"(
+import std.index as canonical
+
+trait Index[Key] {
+    type Output
+    borrow def get(key : Key) : Output where Output <: Copy
+}
+
+class Pretender[T](val value : T) extends Index[int] {
+    type Output = T
+    borrow def get(key : int) : T where T <: Copy { return value }
+}
+
+def main() : int {
+    val value : Pretender[int] = new Pretender[int](42)
+    defer delete value
+    return value[0]
+}
+)");
+  try {
+    static_cast<void>(janus::semantic::Analyzer{}.analyze(homonym_program));
+    expect(false, "a short-name Index homonym is not a canonical capability");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find(
+               "does not provide canonical indexed read capability") !=
+               std::string_view::npos,
+           "a short-name Index homonym is rejected by semantic identity");
+  }
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

@@ -706,7 +706,7 @@ int main(int argc, char **argv) {
   const std::vector<std::string> indexed_diagnostics = server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///indexed-diagnostics.janus","text":"import std.array\nclass Resource() {}\ndef main() : int { val values : Array[Resource] = new Array[Resource](usize(1)) val observed : Resource = values[usize(0)] return 0 }"}}})");
   JANUS_REQUIRE(indexed_diagnostics.front().find(
-                    "indexed Array read requires element type") !=
+                    "indexed read requires element type") !=
                 std::string::npos);
   JANUS_REQUIRE(indexed_diagnostics.front().find("satisfy Copy") !=
                 std::string::npos);

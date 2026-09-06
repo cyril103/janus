@@ -96,6 +96,7 @@ retrait requiert une note de migration.
 | `std.hashmap` | `stable-candidate` | Cœur collections. |
 | `std.hashset` | `stable-candidate` | Cœur collections. |
 | `std.io` | `stable-candidate` | Cœur système. |
+| `std.index` | `experimental` | Protocole extensible d'indexation sûre. |
 | `std.iterator` | `stable-candidate` | Cœur collections. |
 | `std.math` | `stable-candidate` | Cœur numérique. |
 | `std.numeric` | `stable-candidate` | Conversions explicites auditées. |

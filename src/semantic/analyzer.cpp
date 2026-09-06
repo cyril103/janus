@@ -11,6 +11,7 @@
 #include <functional>
 #include <limits>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -2625,10 +2626,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const std::unordered_set<std::string> class_parameters{
         type_parameters.begin(), type_parameters.end()};
     for (const ast::TypeReference &implemented : implemented_traits) {
-      if (implemented.name != requirement.declaration->name)
-        continue;
       const TraitInstance instance =
           resolve_trait(implemented, class_parameters);
+      if (instance.declaration != requirement.declaration)
+        continue;
       if (instance.type_arguments.size() != requirement.type_arguments.size())
         continue;
       bool matches = true;
@@ -3212,59 +3213,38 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     }
   }
 
-  const ast::ClassDeclaration *canonical_indexed_array = nullptr;
+  const ast::TraitDeclaration *canonical_index_trait = nullptr;
+  const ast::TraitDeclaration *canonical_index_mut_trait = nullptr;
   const ast::FunctionDeclaration *canonical_indexed_read = nullptr;
   const ast::FunctionDeclaration *canonical_indexed_replace = nullptr;
-  if (const auto canonical_array = classes.find("std.array.Array");
-      canonical_array != classes.end() &&
-      canonical_array->second->module_name ==
-          std::optional<std::string>{"std.array"} &&
-      canonical_array->second->name == "Array" &&
-      canonical_array->second->type_parameters.size() == 1) {
-    canonical_indexed_array = canonical_array->second;
-    const std::string &element_parameter =
-        canonical_indexed_array->type_parameters.front();
-    for (const ast::FunctionDeclaration &method :
-         canonical_indexed_array->methods) {
-      const bool canonical_method_shape =
-          method.type_parameters.empty() && !method.is_private &&
-          !method.is_internal && !method.is_external && !method.is_variadic &&
-          !method.is_constant && !method.is_tailrec &&
-          !method.expression_body_arrow.has_value() &&
-          method.return_ownership == ast::ReturnOwnership::Unspecified &&
-          method.return_type.function_parameter_ownership.empty() &&
-          method.return_type.function_return_ownership ==
-              ast::ReturnOwnership::Unspecified;
-      const bool usize_index =
-          !method.parameters.empty() &&
-          method.parameters.front().type.name == "usize" &&
-          method.parameters.front().type.type_arguments.empty() &&
-          method.parameters.front().ownership ==
-              ast::ParameterOwnership::Unspecified &&
-          !method.parameters.front().is_scoped;
-      if (canonical_method_shape && method.name == "get" &&
-          method.parameters.size() == 1 && usize_index &&
-          method.return_type.name == element_parameter &&
-          method.return_type.type_arguments.empty() && method.is_borrowing &&
-          method.type_constraints.size() == 1 &&
-          method.type_constraints.front().parameter == element_parameter &&
-          method.type_constraints.front().trait.name == "Copy" &&
-          method.type_constraints.front().trait.type_arguments.empty() &&
-          !method.is_consuming)
-        canonical_indexed_read = &method;
-      if (canonical_method_shape && method.name == "set" &&
-          method.parameters.size() == 2 && usize_index &&
-          method.parameters[1].type.name == element_parameter &&
-          method.parameters[1].type.type_arguments.empty() &&
-          method.parameters[1].ownership ==
-              ast::ParameterOwnership::Unspecified &&
-          !method.parameters[1].is_scoped &&
-          method.return_type.name == "Unit" &&
-          method.return_type.type_arguments.empty() && !method.is_borrowing &&
-          !method.is_consuming && method.type_constraints.empty())
-        canonical_indexed_replace = &method;
-    }
-  }
+  const auto canonical_index_protocol = [&](std::string_view name,
+                                            std::string_view method_name) {
+    const auto found = traits.find("std.index." + std::string{name});
+    if (found == traits.end() ||
+        found->second->module_name != std::optional<std::string>{"std.index"} ||
+        found->second->name != name ||
+        found->second->type_parameters.size() != 1 ||
+        std::none_of(found->second->associated_types.begin(),
+                     found->second->associated_types.end(),
+                     [](const ast::AssociatedTypeDeclaration &associated) {
+                       return associated.name == "Output";
+                     }))
+      return std::pair<const ast::TraitDeclaration *,
+                       const ast::FunctionDeclaration *>{nullptr, nullptr};
+    const auto method = std::find_if(
+        found->second->methods.begin(), found->second->methods.end(),
+        [&](const ast::FunctionDeclaration &candidate) {
+          return candidate.name == method_name;
+        });
+    return std::pair<const ast::TraitDeclaration *,
+                     const ast::FunctionDeclaration *>{
+        found->second,
+        method == found->second->methods.end() ? nullptr : &*method};
+  };
+  std::tie(canonical_index_trait, canonical_indexed_read) =
+      canonical_index_protocol("Index", "get");
+  std::tie(canonical_index_mut_trait, canonical_indexed_replace) =
+      canonical_index_protocol("IndexMut", "set");
 
   struct FunctionContext {
     const ast::FunctionDeclaration *function;
@@ -4555,6 +4535,74 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 candidate.receiver_ownerships[index], substitutions});
       }
       return candidates;
+    };
+    struct ResolvedIndexCapability {
+      SemanticType index_type;
+      SemanticType output_type;
+      const ast::FunctionDeclaration *method;
+    };
+    const auto resolve_index_capability =
+        [&](const SemanticType &type,
+            const ast::TraitDeclaration *protocol,
+            const ast::FunctionDeclaration *protocol_method)
+        -> std::optional<ResolvedIndexCapability> {
+      if (protocol == nullptr || protocol_method == nullptr)
+        return std::nullopt;
+      if (!type.is_class()) {
+        if (type.is_concrete() || type.is_enum() || type.is_pointer() ||
+            type.is_function())
+          return std::nullopt;
+        const auto constraints = active_trait_constraints.find(type.parameter);
+        if (constraints == active_trait_constraints.end())
+          return std::nullopt;
+        const auto implemented = std::find_if(
+            constraints->second.begin(), constraints->second.end(),
+            [&](const TraitInstance &instance) {
+              return instance.declaration == protocol &&
+                     instance.type_arguments.size() == 1;
+            });
+        if (implemented == constraints->second.end())
+          return std::nullopt;
+        return ResolvedIndexCapability{
+            implemented->type_arguments.front(),
+            SemanticType{nullptr, type.parameter + ".Output"},
+            protocol_method};
+      }
+
+      const auto class_entry = classes.find(type.parameter);
+      if (class_entry == classes.end())
+        return std::nullopt;
+      const ast::ClassDeclaration &declaration = *class_entry->second;
+      const std::unordered_set<std::string> parameters{
+          declaration.type_parameters.begin(),
+          declaration.type_parameters.end()};
+      std::unordered_map<std::string, SemanticType> substitutions;
+      for (std::size_t index = 0; index < declaration.type_parameters.size();
+           ++index)
+        substitutions.emplace(declaration.type_parameters[index],
+                              type.type_arguments[index]);
+      for (const ast::TypeReference &implemented :
+           declaration.implemented_traits) {
+        const TraitInstance instance = resolve_trait(implemented, parameters);
+        if (instance.declaration != protocol ||
+            instance.type_arguments.size() != 1)
+          continue;
+        const auto output =
+            class_associated_normalizations.at(&declaration).find("Output");
+        if (output == class_associated_normalizations.at(&declaration).end())
+          return std::nullopt;
+        const auto method = std::find_if(
+            declaration.methods.begin(), declaration.methods.end(),
+            [&](const ast::FunctionDeclaration &candidate) {
+              return candidate.name == protocol_method->name;
+            });
+        if (method == declaration.methods.end())
+          return std::nullopt;
+        return ResolvedIndexCapability{
+            substitute(instance.type_arguments.front(), substitutions),
+            substitute(output->second, substitutions), &*method};
+      }
+      return std::nullopt;
     };
     struct ResolvedTryProtocol {
       const ast::EnumDeclaration *declaration;
@@ -8116,26 +8164,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                     "indexed read borrows a temporary owner of type '" +
                         container_type.name() + "' that is then abandoned",
                     {"bind the temporary to a local and schedule cleanup"});
-              if (!container_type.is_class() ||
-                  canonical_indexed_array == nullptr ||
-                  canonical_indexed_read == nullptr ||
-                  classes.find(container_type.parameter) == classes.end() ||
-                  classes.find(container_type.parameter)->second !=
-                      canonical_indexed_array ||
-                  container_type.type_arguments.size() != 1)
-                throw CompileError{node.location,
+              const auto read_capability = resolve_index_capability(
+                  container_type, canonical_index_trait,
+                  canonical_indexed_read);
+              if (!read_capability.has_value())
+                throw CompileError{DiagnosticCode::AnalyzerLegacy,
+                                   node.location,
                                    "type '" + container_type.name() +
                                        "' does not provide canonical indexed "
                                        "read capability"};
-              validate_expression(*node.index,
-                                  SemanticType{&Type::usize_type()},
+              validate_expression(*node.index, read_capability->index_type,
                                   node.location);
-              const SemanticType element_type =
-                  container_type.type_arguments.front();
-              if (!satisfies_copy(element_type))
+              const SemanticType element_type = read_capability->output_type;
+              const bool symbolic_protocol_output =
+                  !element_type.is_concrete() && !element_type.is_class() &&
+                  !element_type.is_enum() && !element_type.is_pointer() &&
+                  !element_type.is_function() &&
+                  element_type.parameter.ends_with(".Output");
+              if (!satisfies_copy(element_type) &&
+                  !symbolic_protocol_output)
                 throw CompileError{
                     node.location,
-                    "indexed Array read requires element type '" +
+                    "indexed read requires element type '" +
                         element_type.name() +
                         "' to satisfy Copy; help: use withValue "
                         "or getBorrowed for explicit borrowing"};
@@ -8149,7 +8199,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                           "' is mutably borrowed by '" + *borrower + "'"};
               result.indexed_capabilities.insert_or_assign(
                   &node, AnalysisResult::IndexedCapabilities{
-                             element_type, canonical_indexed_read, nullptr});
+                             read_capability->index_type, element_type,
+                             read_capability->method, nullptr});
               return element_type;
             } else if constexpr (std::is_same_v<Node, ast::IfExpression>) {
               validate_expression(*node.condition,
@@ -9671,20 +9722,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   "indexed replacement borrows a temporary owner of type '" +
                       container_type.name() + "' that is then abandoned",
                   {"bind the temporary to a local and schedule cleanup"});
-            if (!container_type.is_class() ||
-                canonical_indexed_array == nullptr ||
-                canonical_indexed_replace == nullptr ||
-                classes.find(container_type.parameter) == classes.end() ||
-                classes.find(container_type.parameter)->second !=
-                    canonical_indexed_array ||
-                container_type.type_arguments.size() != 1)
+            const auto replace_capability = resolve_index_capability(
+                container_type, canonical_index_mut_trait,
+                canonical_indexed_replace);
+            if (!replace_capability.has_value())
               throw CompileError{
-                  target.location,
+                  DiagnosticCode::AnalyzerLegacy, target.location,
                   "type '" + container_type.name() +
                       "' does not provide canonical indexed replacement "
                       "capability"};
-            validate_expression(*target.index,
-                                SemanticType{&Type::usize_type()},
+            validate_expression(*target.index, replace_capability->index_type,
                                 target.location);
             if (const auto *identifier = lexical_root_identifier(
                     *target.container, lexical_root_identifier)) {
@@ -9696,15 +9743,28 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               require_no_live_borrow(identifier->name, target.location,
                                      "mutated");
             }
-            const SemanticType element_type =
-                container_type.type_arguments.front();
+            const SemanticType element_type = replace_capability->output_type;
+            std::optional<ResolvedIndexCapability> read_capability;
+            if (assignment->operation != ast::AssignmentOperator::Assign) {
+              read_capability = resolve_index_capability(
+                  container_type, canonical_index_trait,
+                  canonical_indexed_read);
+              if (!read_capability.has_value() ||
+                  !same_type(read_capability->index_type,
+                             replace_capability->index_type) ||
+                  !same_type(read_capability->output_type, element_type))
+                throw CompileError{
+                    DiagnosticCode::AnalyzerLegacy, target.location,
+                    "compound indexed assignment requires compatible Index "
+                    "and IndexMut capabilities"};
+            }
+            const bool symbolic_protocol_output =
+                !element_type.is_concrete() && !element_type.is_class() &&
+                !element_type.is_enum() && !element_type.is_pointer() &&
+                !element_type.is_function() &&
+                element_type.parameter.ends_with(".Output");
             if (assignment->operation != ast::AssignmentOperator::Assign &&
-                canonical_indexed_read == nullptr)
-              throw CompileError{
-                  target.location,
-                  "canonical indexed replacement capability is missing"};
-            if (assignment->operation != ast::AssignmentOperator::Assign &&
-                !satisfies_copy(element_type))
+                !satisfies_copy(element_type) && !symbolic_protocol_output)
               throw CompileError{
                   target.location,
                   "compound indexed assignment requires element type '" +
@@ -9717,7 +9777,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                      assignment->expression.value)))
               throw CompileError{
                   assignment->location,
-                  "transferring an owned Array element requires an explicit "
+                  "transferring an owned indexed element requires an explicit "
                   "move"};
             reject_non_escaping_value(assignment->expression,
                                       assignment->location,
@@ -9726,11 +9786,11 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             result.indexed_capabilities.insert_or_assign(
                 &target,
                 AnalysisResult::IndexedCapabilities{
-                    element_type,
+                    replace_capability->index_type, element_type,
                     assignment->operation == ast::AssignmentOperator::Assign
                         ? nullptr
-                        : canonical_indexed_read,
-                    canonical_indexed_replace});
+                        : read_capability->method,
+                    replace_capability->method});
             continue;
           }
           if (!assignment->object.empty()) {

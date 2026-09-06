@@ -19,21 +19,21 @@ les sources canoniques est vérifiée séparément par les tests du site et de l
 | `docs/archive/migration-0.5-to-0.6.md` | 31:35 | constructeur | `new Array[Resource](` | pédagogique explicite | historique |
 | `docs/archive/migration-0.5-to-0.6.md` | 31:55 | cast littéral | `usize(2)` | pédagogique explicite | historique |
 | `docs/archive/migration-0.5-to-0.6.md` | 39:23 | cast littéral | `usize(0)` | pédagogique explicite | historique |
-| `docs/audits/stdlib-0.7.4.md` | 154:20 | cast littéral | `usize(1)` | test de couverture | donnée d’audit historique |
-| `docs/audits/stdlib-0.7.4.md` | 156:24 | cast littéral | `usize(0)` | test de couverture | donnée d’audit historique |
+| `docs/audits/stdlib-0.7.4.md` | 156:20 | cast littéral | `usize(1)` | test de couverture | donnée d’audit historique |
+| `docs/audits/stdlib-0.7.4.md` | 158:24 | cast littéral | `usize(0)` | test de couverture | donnée d’audit historique |
 | `docs/design/container-ownership.md` | 90:21 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/design/container-ownership.md` | 175:21 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/design/container-ownership.md` | 176:45 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/design/container-ownership.md` | 189:19 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/design/lexical-borrowing.md` | 491:41 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
-| `docs/language-guide.md` | 1248:16 | constructeur | `new Factory[int](` | pédagogique explicite | pédagogique explicite |
-| `docs/language-guide.md` | 1607:43 | cast littéral | `usize(1)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/language-guide.md` | 1268:16 | constructeur | `new Factory[int](` | pédagogique explicite | pédagogique explicite |
+| `docs/language-guide.md` | 1627:43 | cast littéral | `usize(1)` | test de couverture | nécessaire (opérande binaire usize) |
 | `docs/stdlib-reference.md` | 37:41 | cast littéral | `usize(2)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 334:44 | cast littéral | `usize(8)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 479:55 | cast littéral | `usize(5)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 506:49 | cast littéral | `usize(2)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 634:45 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
-| `docs/stdlib-reference.md` | 646:32 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 355:44 | cast littéral | `usize(8)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 500:55 | cast littéral | `usize(5)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 527:49 | cast littéral | `usize(2)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 655:45 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
+| `docs/stdlib-reference.md` | 667:32 | cast littéral | `usize(6)` | test de couverture | nécessaire (opérande binaire usize) |
 | `examples/array.janus` | 29:41 | cast littéral | `usize(10)` | test de couverture | nécessaire (opérande binaire usize) |
 | `examples/casts.janus` | 11:38 | cast littéral | `usize(1)` | pédagogique explicite | pédagogique (casts) |
 | `examples/casts.janus` | 12:16 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (casts) |
@@ -66,9 +66,9 @@ les sources canoniques est vérifiée séparément par les tests du site et de l
 | `stdlib/std/process.janus` | 8:16 | constructeur | `new Array[string](` | pédagogique explicite | pédagogique (inférence impossible) |
 | `stdlib/std/random.janus` | 8:44 | cast littéral | `usize(1)` | test de couverture | nécessaire (opérande binaire usize) |
 | `website/docs/book/02-valeurs-types.md` | 122:33 | cast littéral | `usize(1)` | pédagogique explicite | pédagogique (arithmétique usize) |
-| `website/docs/book/06-collections-iterateurs.md` | 106:28 | cast littéral | `usize(5)` | test de couverture | nécessaire (opérande binaire usize) |
-| `website/docs/book/06-collections-iterateurs.md` | 113:32 | cast littéral | `usize(1)` | test de couverture | nécessaire (opérande binaire usize) |
-| `website/docs/book/06-collections-iterateurs.md` | 113:60 | cast littéral | `usize(3)` | test de couverture | nécessaire (opérande binaire usize) |
+| `website/docs/book/06-collections-iterateurs.md` | 127:28 | cast littéral | `usize(5)` | test de couverture | nécessaire (opérande binaire usize) |
+| `website/docs/book/06-collections-iterateurs.md` | 134:32 | cast littéral | `usize(1)` | test de couverture | nécessaire (opérande binaire usize) |
+| `website/docs/book/06-collections-iterateurs.md` | 134:60 | cast littéral | `usize(3)` | test de couverture | nécessaire (opérande binaire usize) |
 | `website/docs/book/07-generiques-closures.md` | 37:5 | constructeur | `new Pair[string, int](` | pédagogique explicite | pédagogique explicite |
 | `website/docs/book/09-propriete-avancee.md` | 54:39 | cast littéral | `usize(16)` | pédagogique explicite | pédagogique (API pointeur) |
 | `website/docs/book/10-modules-visibilite-ffi.md` | 121:34 | cast littéral | `usize(4)` | pédagogique explicite | pédagogique (FFI) |
