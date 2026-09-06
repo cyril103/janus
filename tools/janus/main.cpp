@@ -2398,7 +2398,7 @@ int main(int argc, char **argv) {
     std::cout << janus::build::json() << '\n';
     return 0;
   }
-  if (argc == 3 && janus::cli::is_execution_command(argv[1]) &&
+  if (argc == 3 && janus::cli::has_command_help(argv[1]) &&
       std::string_view{argv[2]} == "--help") {
     janus::cli::print_command_usage(std::cout, argv[1]);
     return 0;

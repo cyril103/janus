@@ -60,7 +60,11 @@ int explain_diagnostic(int argc, char **argv) {
 
 void print_command_usage(std::ostream &output, std::string_view command) {
   output << "usage: janus " << command;
-  if (command == "check")
+  if (command == "new")
+    output << " <directory> [--name <name>]\n";
+  else if (command == "init")
+    output << " [directory] [--name <name>]\n";
+  else if (command == "check")
     output << " [source.janus] [--locked] [--offline] [--all] "
               "[--deny-warnings] [--warn-high-growth-loops] "
               "[--diagnostic-format human|json]\n";
@@ -90,9 +94,10 @@ void print_command_usage(std::ostream &output, std::string_view command) {
     output << " [source.janus] [--check]\n";
 }
 
-bool is_execution_command(std::string_view command) {
-  return command == "check" || command == "build" || command == "run" ||
-         command == "test" || command == "doc" || command == "clean";
+bool has_command_help(std::string_view command) {
+  return command == "new" || command == "init" || command == "check" ||
+         command == "build" || command == "run" || command == "test" ||
+         command == "doc" || command == "clean";
 }
 
 } // namespace janus::cli

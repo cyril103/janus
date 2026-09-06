@@ -5,6 +5,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Outils en ligne de commande
+
+- `janus new --help` et `janus init --help` affichent désormais leur aide
+  ciblée sur la sortie standard avec un statut nul, sans résoudre de chemin ni
+  créer ou modifier de fichier, depuis ou hors d'un projet.
+
 ### Outils éditeur
 
 - alignement de la visibilité LSP des extensions `private` sur l'identité

@@ -46,6 +46,12 @@ set(DOC_USAGE
 set(CLEAN_USAGE
 "usage: janus clean
 ")
+set(NEW_USAGE
+"usage: janus new <directory> [--name <name>]
+")
+set(INIT_USAGE
+"usage: janus init [directory] [--name <name>]
+")
 
 function(assert_result NAME EXPECTED_STATUS EXPECTED_OUT EXPECTED_ERR)
     execute_process(
@@ -73,12 +79,73 @@ endfunction()
 
 # Help is successful, is written only to stdout, and must not require a project.
 assert_result("top-level help" 0 "${TOP_LEVEL_USAGE}" "" --help)
+assert_result("new help" 0 "${NEW_USAGE}" "" new --help)
+assert_result("init help" 0 "${INIT_USAGE}" "" init --help)
 assert_result("check help" 0 "${CHECK_USAGE}" "" check --help)
 assert_result("build help" 0 "${BUILD_USAGE}" "" build --help)
 assert_result("run help" 0 "${RUN_USAGE}" "" run --help)
 assert_result("test help" 0 "${TEST_USAGE}" "" test --help)
 assert_result("doc help" 0 "${DOC_USAGE}" "" doc --help)
 assert_result("clean help" 0 "${CLEAN_USAGE}" "" clean --help)
+
+function(snapshot_tree ROOT OUTPUT_VARIABLE)
+    file(GLOB_RECURSE ENTRIES
+         LIST_DIRECTORIES true
+         RELATIVE "${ROOT}"
+         "${ROOT}/*")
+    list(SORT ENTRIES)
+    set(SNAPSHOT "")
+    foreach(ENTRY IN LISTS ENTRIES)
+        if(IS_DIRECTORY "${ROOT}/${ENTRY}")
+            string(APPEND SNAPSHOT "directory:${ENTRY}\n")
+        else()
+            file(SHA256 "${ROOT}/${ENTRY}" DIGEST)
+            string(APPEND SNAPSHOT "file:${ENTRY}:${DIGEST}\n")
+        endif()
+    endforeach()
+    set(${OUTPUT_VARIABLE} "${SNAPSHOT}" PARENT_SCOPE)
+endfunction()
+
+function(assert_project_help_non_mutating NAME COMMAND WORKING_DIRECTORY EXPECTED_OUT)
+    snapshot_tree("${WORKING_DIRECTORY}" BEFORE)
+    execute_process(
+        COMMAND "${JANUS}" "${COMMAND}" --help
+        WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+        RESULT_VARIABLE STATUS
+        OUTPUT_VARIABLE OUT
+        ERROR_VARIABLE ERR
+    )
+    string(REPLACE "\r\n" "\n" OUT "${OUT}")
+    string(REPLACE "\r\n" "\n" ERR "${ERR}")
+    snapshot_tree("${WORKING_DIRECTORY}" AFTER)
+    if(NOT STATUS EQUAL 0 OR NOT OUT STREQUAL EXPECTED_OUT OR NOT ERR STREQUAL "")
+        message(FATAL_ERROR
+            "${NAME}: invalid help result\nstatus=${STATUS}\nstdout=[${OUT}]\nstderr=[${ERR}]")
+    endif()
+    if(NOT BEFORE STREQUAL AFTER)
+        message(FATAL_ERROR
+            "${NAME}: help mutated the filesystem\nbefore=[${BEFORE}]\nafter=[${AFTER}]")
+    endif()
+endfunction()
+
+# Project creation help stays consultative both outside and inside a project.
+file(WRITE "${TEST_ROOT}/project/janus.toml"
+     "[package]\nname = \"contract\"\nversion = \"0.1.0\"\nentry = \"src/main.janus\"\n")
+file(WRITE "${TEST_ROOT}/project/src/main.janus"
+     "def main() : int { return 0 }\n")
+foreach(COMMAND new init)
+    if("${COMMAND}" STREQUAL "new")
+        set(EXPECTED_HELP "${NEW_USAGE}")
+    else()
+        set(EXPECTED_HELP "${INIT_USAGE}")
+    endif()
+    assert_project_help_non_mutating(
+        "${COMMAND} help outside project" "${COMMAND}"
+        "${TEST_ROOT}/empty" "${EXPECTED_HELP}")
+    assert_project_help_non_mutating(
+        "${COMMAND} help inside project" "${COMMAND}"
+        "${TEST_ROOT}/project" "${EXPECTED_HELP}")
+endforeach()
 
 # Invocation mistakes use status 2, a command-qualified diagnostic, and only
 # the usage relevant to that command.

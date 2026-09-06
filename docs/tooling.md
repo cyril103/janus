@@ -108,10 +108,23 @@ figurent dans [Doctests Janus](doctests.md).
 
 ### Aide, erreurs et codes de sortie
 
-`janus --help` affiche l'aide générale. Les commandes d'exécution disposent
-aussi d'une aide ciblée : `janus check --help`, `janus build --help`,
-`janus run --help`, `janus test --help` et `janus doc --help`. L'aide est écrite sur la sortie
-standard, renvoie le code `0` et ne recherche ni projet ni chaîne d'outils.
+`janus --help` affiche l'aide générale. Les commandes de projet et d'exécution
+disposent aussi d'une aide ciblée :
+
+```bash
+janus new --help
+janus init --help
+janus check --help
+janus build --help
+janus run --help
+janus test --help
+janus doc --help
+```
+
+L'aide est écrite uniquement sur la sortie standard, renvoie le code `0` et ne
+recherche ni projet ni chaîne d'outils. En particulier, l'aide de `new` et
+`init` est résolue avant tout traitement du chemin : elle ne crée ni ne modifie
+aucun fichier, qu'elle soit demandée depuis un projet ou en dehors.
 
 `janus doc --stdlib --offline -o <répertoire>` génère la référence complète de
 la bibliothèque standard installée sans rechercher de manifeste ni accéder au
