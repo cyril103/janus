@@ -5,6 +5,14 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+### Outils éditeur
+
+- alignement de la visibilité LSP des extensions `private` sur l'identité
+  canonique de module du compilateur : complétion, hover, aide de signature,
+  définition et références fonctionnent désormais entre fichiers d'un même
+  module, sans exposer l'extension aux modules étrangers ; les buffers non
+  sauvegardés et URI normalisées sont couverts.
+
 ### Langage et sûreté mémoire
 
 - refus des méthodes `internal` comme implémentations d'un contrat de trait

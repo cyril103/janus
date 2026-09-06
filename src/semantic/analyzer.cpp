@@ -3,6 +3,7 @@
 #include "janus/constant/evaluator.hpp"
 #include "janus/diagnostics/compile_error.hpp"
 #include "janus/ownership/classifier.hpp"
+#include "janus/semantic/visibility.hpp"
 
 #include <algorithm>
 #include <array>
@@ -4474,9 +4475,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     };
     const auto extension_is_visible =
         [&](const ast::ExtensionDeclaration &candidate) {
+          if (!semantic::private_declaration_is_visible(
+                  candidate.is_private, candidate.module_name,
+                  context_module))
+            return false;
           if (candidate.module_name == context_module)
             return true;
-          if (candidate.is_private || !candidate.module_name.has_value())
+          if (!candidate.module_name.has_value())
             return false;
           return std::any_of(
               program.imports.begin(), program.imports.end(),

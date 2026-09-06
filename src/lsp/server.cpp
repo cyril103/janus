@@ -11,6 +11,7 @@
 #include "janus/frontend/parser.hpp"
 #include "janus/semantic/analyzer.hpp"
 #include "janus/semantic/compilation_session.hpp"
+#include "janus/semantic/visibility.hpp"
 
 #include <llvm/Support/JSON.h>
 #include <llvm/Support/raw_ostream.h>
@@ -23,6 +24,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -1052,6 +1054,50 @@ struct IndexedDocument {
   std::unordered_map<std::string, std::string> resolved_import_uris;
   bool file_backed{};
 };
+
+bool imports_module(const IndexedDocument &document, std::string_view module,
+                    std::string_view uri);
+
+bool same_semantic_module(const IndexedDocument &left,
+                          const IndexedDocument &right) {
+  if (left.uri == right.uri)
+    return true;
+  return left.module_name.has_value() && right.module_name.has_value() &&
+         left.module_name == right.module_name;
+}
+
+bool private_declaration_is_visible(
+    bool is_private, const IndexedDocument &declaration,
+    const IndexedDocument &context) {
+  const std::optional<std::string> declaring_identity{
+      declaration.module_name.has_value()
+          ? "module:" + *declaration.module_name
+          : "document:" + declaration.uri};
+  const std::optional<std::string> context_identity{
+      context.module_name.has_value() ? "module:" + *context.module_name
+                                      : "document:" + context.uri};
+  return janus::semantic::private_declaration_is_visible(
+      is_private, declaring_identity, context_identity);
+}
+
+bool extension_is_visible(const janus::ast::ExtensionDeclaration &extension,
+                          const IndexedDocument &declaration,
+                          const IndexedDocument &context) {
+  if (same_semantic_module(declaration, context))
+    return true;
+  if (!private_declaration_is_visible(extension.is_private, declaration,
+                                      context) ||
+      !declaration.module_name.has_value())
+    return false;
+  if (!imports_module(context, *declaration.module_name, declaration.uri))
+    return false;
+  return std::any_of(context.imports.begin(), context.imports.end(),
+                     [&](const janus::ast::ImportDeclaration &import) {
+                       return import.module_name == *declaration.module_name &&
+                              !import.is_qualified() &&
+                              !import.is_selective();
+                     });
+}
 
 bool imports_module(const IndexedDocument &document, std::string_view module,
                     std::string_view uri) {
@@ -3073,8 +3119,11 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                              workspace_uris_, search_paths, index_cache_);
     const std::vector<DocumentSymbol> &document_symbols =
         semantic_index.documents.front().index->symbols;
-    const auto bind_symbol = [&](const IndexedDocument &origin,
-                                 const LocatedIdentifier &requested)
+    std::function<std::optional<std::pair<std::string, DocumentSymbol>>(
+        const IndexedDocument &, const LocatedIdentifier &)>
+        bind_symbol;
+    bind_symbol = [&](const IndexedDocument &origin,
+                      const LocatedIdentifier &requested)
         -> std::optional<std::pair<std::string, DocumentSymbol>> {
       const DocumentSymbol *best = nullptr;
       if (!requested.qualifier)
@@ -3095,7 +3144,7 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
 
       std::vector<std::pair<std::string, DocumentSymbol>> candidates;
       for (const IndexedDocument &candidate : semantic_index.documents) {
-        bool visible_module = candidate.uri == origin.uri;
+        bool visible_module = same_semantic_module(candidate, origin);
         if (!visible_module && candidate.module_name.has_value())
           visible_module =
               imports_module(origin, *candidate.module_name, candidate.uri);
@@ -3103,16 +3152,102 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
           continue;
         for (const DocumentSymbol &symbol : candidate.index->symbols) {
           const bool exposed =
-              candidate.uri == origin.uri ||
+              same_semantic_module(candidate, origin) ||
               !candidate.module_name.has_value() ||
               import_exposes(origin, *candidate.module_name, symbol.name,
                              requested.qualifier, requested.name,
                              candidate.uri);
           if (!exposed || !symbol.is_top_level ||
               (candidate.uri == origin.uri && symbol.name != requested.name) ||
-              (symbol.is_private && candidate.uri != origin.uri))
+              !private_declaration_is_visible(symbol.is_private, candidate,
+                                              origin))
             continue;
           candidates.emplace_back(candidate.uri, symbol);
+        }
+      }
+      if (candidates.empty() && requested.qualifier.has_value()) {
+        const std::vector<frontend::Token> origin_tokens =
+            tokens(origin.index->source);
+        const auto member_token = std::find_if(
+            origin_tokens.begin(), origin_tokens.end(),
+            [&](const frontend::Token &token) {
+              return token.kind == frontend::TokenKind::Identifier &&
+                     token.location.offset == requested.location.offset;
+            });
+        if (member_token != origin_tokens.end()) {
+          const std::size_t member_index = static_cast<std::size_t>(
+              std::distance(origin_tokens.begin(), member_token));
+          if (member_index >= 2 &&
+              origin_tokens[member_index - 1].kind ==
+                  frontend::TokenKind::Dot) {
+            const auto receiver =
+                bind_symbol(origin,
+                            located_identifier(origin_tokens, member_index - 2));
+            if (receiver.has_value()) {
+              const std::size_t separator =
+                  receiver->second.detail.rfind(" : ");
+              if (separator != std::string::npos) {
+                std::string receiver_type =
+                    receiver->second.detail.substr(separator + 3);
+                if (const std::size_t arguments = receiver_type.find('[');
+                    arguments != std::string::npos)
+                  receiver_type.resize(arguments);
+                if (const std::size_t module = receiver_type.rfind('.');
+                    module != std::string::npos)
+                  receiver_type.erase(0, module + 1);
+                for (const IndexedDocument &candidate :
+                     semantic_index.documents) {
+                  try {
+                    frontend::Parser parser{candidate.index->source};
+                    const ast::Program program = parser.parse_program();
+                    for (const ast::ExtensionDeclaration &extension :
+                         program.extensions) {
+                      std::string target_type = extension.target_type.name;
+                      if (const std::size_t module = target_type.rfind('.');
+                          module != std::string::npos)
+                        target_type.erase(0, module + 1);
+                      if (target_type != receiver_type ||
+                          !extension_is_visible(extension, candidate, origin))
+                        continue;
+                      for (const ast::FunctionDeclaration &method :
+                           extension.methods) {
+                        if (method.name != requested.name)
+                          continue;
+                        const auto symbol = std::min_element(
+                            candidate.index->symbols.begin(),
+                            candidate.index->symbols.end(),
+                            [&](const DocumentSymbol &left,
+                                const DocumentSymbol &right) {
+                              const auto distance =
+                                  [&](const DocumentSymbol &item) {
+                                    if (item.name != method.name ||
+                                        item.kind !=
+                                            janus::lsp::IndexedSymbolKind::
+                                                Function)
+                                      return std::numeric_limits<std::size_t>::
+                                          max();
+                                    return item.location.offset >
+                                                   method.location.offset
+                                               ? item.location.offset -
+                                                     method.location.offset
+                                               : method.location.offset -
+                                                     item.location.offset;
+                                  };
+                              return distance(left) < distance(right);
+                            });
+                        if (symbol != candidate.index->symbols.end() &&
+                            symbol->name == method.name &&
+                            symbol->kind ==
+                                janus::lsp::IndexedSymbolKind::Function)
+                          candidates.emplace_back(candidate.uri, *symbol);
+                      }
+                    }
+                  } catch (const std::exception &) {
+                  }
+                }
+              }
+            }
+          }
         }
       }
       if (candidates.empty())
@@ -3164,6 +3299,35 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                     {"label", function_signature(function)},
                     {"parameters", std::move(parameters)},
                 });
+              }
+              for (const ast::ExtensionDeclaration &extension :
+                   program.extensions) {
+                if (!extension_is_visible(
+                        extension, indexed,
+                        semantic_index.documents.front()))
+                  continue;
+                for (const ast::FunctionDeclaration &function :
+                     extension.methods) {
+                  if (function.name != call->callee.name)
+                    continue;
+                  llvm::json::Array parameters;
+                  for (const ast::FunctionDeclaration::Parameter &parameter :
+                       function.parameters)
+                    parameters.emplace_back(llvm::json::Object{
+                        {"label", parameter.name + " : " +
+                                      type_reference(parameter.type)}});
+                  const std::size_t active =
+                      function.parameters.empty()
+                          ? 0
+                          : std::min(call->active_parameter,
+                                     function.parameters.size() - 1);
+                  if (signatures.empty())
+                    active_parameter = active;
+                  signatures.emplace_back(llvm::json::Object{
+                      {"label", function_signature(function) + " [extension]"},
+                      {"parameters", std::move(parameters)},
+                  });
+                }
               }
             } catch (const std::exception &) {
             }
@@ -3264,7 +3428,8 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
           if (signatures.empty())
             for (const IndexedDocument &indexed : semantic_index.documents) {
               const bool visible =
-                  indexed.uri == *uri ||
+                  same_semantic_module(
+                      indexed, semantic_index.documents.front()) ||
                   (indexed.module_name.has_value() &&
                    std::any_of(semantic_index.documents.front().imports.begin(),
                                semantic_index.documents.front().imports.end(),
@@ -3282,7 +3447,9 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                 for (const ast::ExtensionDeclaration &extension :
                      program.extensions) {
                   if (extension.target_type.name != receiver_class ||
-                      (extension.is_private && indexed.uri != *uri))
+                      !extension_is_visible(
+                          extension, indexed,
+                          semantic_index.documents.front()))
                     continue;
                   for (const ast::FunctionDeclaration &method :
                        extension.methods) {
@@ -3941,22 +4108,10 @@ std::vector<std::string> Server::handle_impl(std::string_view message) {
                 }
                 for (const ast::ExtensionDeclaration &declaration :
                      program.extensions) {
-                  const bool extension_visible =
-                      indexed.uri == *uri ||
-                      (indexed.module_name.has_value() &&
-                       std::any_of(
-                           semantic_index.documents.front().imports.begin(),
-                           semantic_index.documents.front().imports.end(),
-                           [&](const ast::ImportDeclaration &import) {
-                             return import.module_name ==
-                                        *indexed.module_name &&
-                                    !import.is_qualified() &&
-                                    !import.is_selective();
-                           }));
-                  if (!extension_visible)
-                    continue;
                   if (declaration.target_type.name != receiver_class ||
-                      (declaration.is_private && indexed.uri != *uri))
+                      !extension_is_visible(
+                          declaration, indexed,
+                          semantic_index.documents.front()))
                     continue;
                   for (const ast::FunctionDeclaration &member :
                        declaration.methods)

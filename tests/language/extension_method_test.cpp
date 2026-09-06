@@ -142,6 +142,28 @@ def main() : int {
   expect(private_analysis.extension_calls.size() == 1,
          "private extension adapts an imported type locally");
 
+  janus::ast::Program split_same_module = combine_modules(
+      "module split private extend Token { borrow def code() : int { return 7 } }",
+      "module split enum Token { Value } "
+      "def main() : int { return Token.Value().code() - 7 }");
+  const janus::semantic::AnalysisResult split_same_module_analysis =
+      analyzer.analyze(split_same_module);
+  expect(split_same_module_analysis.extension_calls.size() == 1,
+         "private extension remains visible across files of the same module");
+
+  janus::ast::Program split_foreign_module = combine_modules(
+      "module foreign private extend Token { borrow def hidden() : int { return 7 } }",
+      "module split enum Token { Value } "
+      "def main() : int { return Token.Value().hidden() }");
+  try {
+    static_cast<void>(analyzer.analyze(split_foreign_module));
+    expect(false, "private extension from another module must stay hidden");
+  } catch (const janus::CompileError &error) {
+    expect(std::string_view{error.what()}.find("has no method 'hidden'") !=
+               std::string_view::npos,
+           "foreign private extension reports the normal resolution error");
+  }
+
   janus::ast::Program ambiguous =
       combine_modules("module types enum Foreign { Value } "
                       "extend Foreign { borrow def code() : int { return 1 } } "

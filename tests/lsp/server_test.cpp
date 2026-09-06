@@ -611,6 +611,52 @@ int main(int argc, char **argv) {
                     "score(value : int) : int [extension]") !=
                 std::string::npos);
 
+  janus::lsp::Server private_extension_server;
+  static_cast<void>(private_extension_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///private-extension-dir/../private-extension-a.janus","text":"module shared_private_extension\nprivate extend Token { borrow def code(value : int) : int { return value } }\n"}}})"));
+  static_cast<void>(private_extension_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///private-extension-foreign.janus","text":"module foreign_private_extension\nprivate extend Token { borrow def foreignOnly() : int { return 0 } }\n"}}})"));
+  static_cast<void>(private_extension_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///private-extension-b.janus","text":"module shared_private_extension\nenum Token { Ready }\ndef inspect(token : Token) : int { token. return token.code(1) }\n"}}})"));
+  const std::string private_extension_completion =
+      private_extension_server.handle(
+          R"({"jsonrpc":"2.0","id":503,"method":"textDocument/completion","params":{"textDocument":{"uri":"file:///private-extension-b.janus"},"position":{"line":2,"character":41}}})")
+          .front();
+  JANUS_REQUIRE(private_extension_completion.find("\"label\":\"code\"") !=
+                std::string::npos);
+  JANUS_REQUIRE(private_extension_completion.find(
+                    "\"label\":\"foreignOnly\"") == std::string::npos);
+  static_cast<void>(private_extension_server.handle(
+      R"({"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///private-extension-b.janus","version":2},"contentChanges":[{"text":"module shared_private_extension\nenum Token { Ready }\ndef inspect(token : Token) : int { return token.code(1) }\n"}]}})"));
+  const std::string private_extension_signature =
+      private_extension_server.handle(
+          R"({"jsonrpc":"2.0","id":504,"method":"textDocument/signatureHelp","params":{"textDocument":{"uri":"file:///private-extension-b.janus"},"position":{"line":2,"character":54}}})")
+          .front();
+  JANUS_REQUIRE(private_extension_signature.find(
+                    "code(value : int) : int [extension]") !=
+                std::string::npos);
+  require_hover_result(
+      private_extension_server.handle(
+          R"({"jsonrpc":"2.0","id":505,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///private-extension-b.janus"},"position":{"line":2,"character":48}}})"),
+      "def code(value : int) : int", 2, 48, 52);
+  const std::string private_extension_definition =
+      private_extension_server.handle(
+          R"({"jsonrpc":"2.0","id":506,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///private-extension-b.janus"},"position":{"line":2,"character":48}}})")
+          .front();
+  JANUS_REQUIRE(private_extension_definition.find(
+                    "file:///private-extension-a.janus") !=
+                std::string::npos);
+  const std::string private_extension_references =
+      private_extension_server.handle(
+          R"({"jsonrpc":"2.0","id":507,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///private-extension-b.janus"},"position":{"line":2,"character":48},"context":{"includeDeclaration":true}}})")
+          .front();
+  JANUS_REQUIRE(private_extension_references.find(
+                    "file:///private-extension-a.janus") !=
+                std::string::npos);
+  JANUS_REQUIRE(private_extension_references.find(
+                    "file:///private-extension-b.janus") !=
+                std::string::npos);
+
   static_cast<void>(server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///array-member-completion.janus","text":"import std.array\n\ndef main() : int {\n    val xs = [1, 2, 3]\n    xs.\n    defer delete xs\n    return 0\n}\n"}}})"));
   const std::vector<std::string> array_member_completion = server.handle(

@@ -1197,11 +1197,31 @@ prioritaire et ne peut pas être remplacée. Plusieurs extensions visibles de
 même nom sont rejetées comme ambiguës.
 
 Une extension publique doit vivre dans le module qui définit le type. Un autre
-module peut déclarer une `private extend` locale sur un type importé. Seul un
-import simple active les extensions publiques ; un import qualifié ou sélectif
-ne les injecte pas dans la résolution des appels. `Option` et `Result` exposent
-leurs combinateurs sous forme de méthodes tout en conservant leurs fonctions
-libres pour la compatibilité.
+module peut déclarer une `private extend` locale sur un type importé. La
+visibilité `private` porte sur l'identité du module, pas sur le fichier : tous
+les fichiers qui déclarent le même module voient l'extension, tandis qu'un
+module différent ne la voit jamais. Cette règle est également appliquée par la
+complétion, le hover, l'aide de signature et la navigation LSP, y compris pour
+les buffers non sauvegardés et les URI normalisées.
+
+```janus
+// a.janus
+module lexer
+private extend Token { borrow def code() : int { return 7 } }
+
+// b.janus, également dans le module lexer
+module lexer
+val n : int = token.code()
+```
+
+Un fichier sans déclaration `module` conserve une identité limitée à son URI
+canonique : il ne partage donc pas ses extensions privées avec un autre fichier.
+En cas de nom de module absent, invalide ou ambigu, l'extension reste masquée et
+le diagnostic de résolution habituel est produit. Seul un import simple active
+les extensions publiques ; un import qualifié ou sélectif ne les injecte pas
+dans la résolution des appels. `Option` et `Result` exposent leurs combinateurs
+sous forme de méthodes tout en conservant leurs fonctions libres pour la
+compatibilité.
 
 La [RFC des méthodes d'extension](design/static-extension-methods.md) détaille
 la cohérence, la visibilité, l'ownership et l'abaissement sans vtable.
