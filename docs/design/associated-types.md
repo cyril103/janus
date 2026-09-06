@@ -62,7 +62,14 @@ un ensemble des projections en cours. Revoir une projection active produit un
 diagnostic de cycle immédiatement ; la recherche est donc bornée par le nombre
 de définitions de la classe. Une projection sans fournisseur ou fournie par
 plusieurs contraintes est rejetée par le frontend comme respectivement non
-contrainte ou ambiguë.
+contrainte ou ambiguë. La preuve est vérifiée dès chaque utilisation explicite
+du type, notamment dans les signatures et champs, les annotations locales, les
+paramètres de lambda et les arguments génériques. La recherche considère les
+contraintes de la déclaration propriétaire et celles de la fonction, qu'elles
+soient écrites dans la liste générique ou dans `where`, après résolution des
+imports et alias. Deux contraintes vers le même trait canonique constituent un
+seul fournisseur ; deux traits distincts déclarant le même nom associé restent
+ambigus.
 
 ## Compilation et outils
 
@@ -70,7 +77,10 @@ Les projections normalisées alimentent la monomorphisation et le backend LLVM ;
 elles ne changent pas le dispatch statique. Les déclarations et définitions font
 partie de l'empreinte d'interface du cache incrémental. L'index d'API et la
 documentation les publient comme symboles `associated-type`, et le lexer du LSP
-classe `type` comme mot-clé.
+classe `type` comme mot-clé. Le backend conserve un invariant défensif : si un
+type symbolique sans substitution l'atteint malgré l'analyse, la compilation
+échoue avec un diagnostic backend au lieu de supposer qu'une déclaration
+concrète existe.
 
 Le mangling des méthodes reste fondé sur les arguments génériques concrets. Le
 type associé normalisé participe déjà à leur signature LLVM, sans introduire de

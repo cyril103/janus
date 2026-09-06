@@ -3001,6 +3001,50 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         }
       };
 
+  const auto validate_associated_projection =
+      [&](const auto &self, const ast::TypeReference &reference,
+          const std::unordered_set<std::string> &type_parameters,
+          const std::vector<const std::vector<ast::TypeConstraint> *>
+              &constraint_scopes) -> void {
+        const std::size_t separator = reference.name.find('.');
+        if (separator != std::string::npos &&
+            type_parameters.contains(reference.name.substr(0, separator))) {
+          const std::string_view parameter =
+              std::string_view{reference.name}.substr(0, separator);
+          const std::string_view associated =
+              std::string_view{reference.name}.substr(separator + 1);
+          std::unordered_set<const ast::TraitDeclaration *> providers;
+          for (const std::vector<ast::TypeConstraint> *constraints :
+               constraint_scopes) {
+            for (const ast::TypeConstraint &constraint : *constraints) {
+              if (constraint.parameter != parameter)
+                continue;
+              const auto trait = traits.find(constraint.trait.name);
+              if (trait != traits.end() &&
+                  std::any_of(
+                      trait->second->associated_types.begin(),
+                      trait->second->associated_types.end(),
+                      [&](const ast::AssociatedTypeDeclaration &candidate) {
+                        return candidate.name == associated;
+                      }))
+                providers.insert(trait->second);
+            }
+          }
+          if (providers.empty())
+            throw CompileError{reference.location,
+                               "associated type projection '" +
+                                   reference.name +
+                                   "' is not provided by a trait constraint"};
+          if (providers.size() > 1)
+            throw CompileError{
+                reference.location,
+                "associated type projection '" + reference.name +
+                    "' is ambiguous between multiple trait constraints"};
+        }
+        for (const ast::TypeReference &argument : reference.type_arguments)
+          self(self, argument, type_parameters, constraint_scopes);
+      };
+
   for (const ast::TraitDeclaration &trait_declaration : program.traits) {
     std::unordered_set<std::string> trait_parameters;
     for (const std::string &parameter : trait_declaration.type_parameters) {
@@ -3051,6 +3095,12 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                  "' conflicts with a built-in type"};
       }
       validate_constraints(method.type_constraints, method_parameters);
+      const std::vector<const std::vector<ast::TypeConstraint> *>
+          constraint_scopes{&trait_declaration.type_constraints,
+                            &method.type_constraints};
+      validate_associated_projection(validate_associated_projection,
+                                     method.return_type, method_parameters,
+                                     constraint_scopes);
       std::unordered_set<std::string> value_parameters;
       for (const ast::FunctionDeclaration::Parameter &parameter :
            method.parameters) {
@@ -3058,6 +3108,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           throw CompileError{parameter.location, "parameter '" +
                                                      parameter.name +
                                                      "' is already declared"};
+        validate_associated_projection(validate_associated_projection,
+                                       parameter.type, method_parameters,
+                                       constraint_scopes);
         const SemanticType type =
             resolve_type(parameter.type, method_parameters, &class_arities);
         if (type.is_concrete() && type.concrete->kind() == TypeKind::Unit)
@@ -3075,8 +3128,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     const std::unordered_set<std::string> parameters{
         enum_declaration.type_parameters.begin(),
         enum_declaration.type_parameters.end()};
+    const std::vector<const std::vector<ast::TypeConstraint> *>
+        constraint_scopes;
+    for (const ast::TypeReference &implemented :
+         enum_declaration.implemented_traits)
+      validate_associated_projection(validate_associated_projection,
+                                     implemented, parameters,
+                                     constraint_scopes);
     for (const ast::EnumDeclaration::Case &enum_case : enum_declaration.cases) {
       for (const ast::TypeReference &payload_type : enum_case.payload_types) {
+        validate_associated_projection(validate_associated_projection,
+                                       payload_type, parameters,
+                                       constraint_scopes);
         const SemanticType resolved =
             resolve_type(payload_type, parameters, &class_arities);
         if (resolved.is_concrete() &&
@@ -3092,6 +3155,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         throw CompileError{associated.location, "associated type '" +
                                                     associated.name +
                                                     "' requires a definition"};
+      validate_associated_projection(
+          validate_associated_projection, *associated.definition, parameters,
+          constraint_scopes);
       if (!associated_types
                .emplace(associated.name,
                         resolve_type(*associated.definition, parameters,
@@ -3152,6 +3218,13 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                "' conflicts with a built-in type"};
     }
     validate_constraints(class_declaration.type_constraints, parameters);
+    const std::vector<const std::vector<ast::TypeConstraint> *>
+        constraint_scopes{&class_declaration.type_constraints};
+    for (const ast::TypeReference &implemented :
+         class_declaration.implemented_traits)
+      validate_associated_projection(validate_associated_projection,
+                                     implemented, parameters,
+                                     constraint_scopes);
     std::unordered_map<std::string, const ast::AssociatedTypeDeclaration *>
         class_associated_types;
     for (const ast::AssociatedTypeDeclaration &associated :
@@ -3183,6 +3256,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         throw CompileError{declaration->second->location,
                            "cyclic associated type definition involving '" +
                                class_declaration.name + "." + name + "'"};
+      validate_associated_projection(
+          validate_associated_projection, *declaration->second->definition,
+          associated_parameters, constraint_scopes);
       SemanticType resolved =
           resolve_type(*declaration->second->definition, associated_parameters,
                        &class_arities);
@@ -3227,6 +3303,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         throw CompileError{parameter.location, "constructor parameter '" +
                                                    parameter.name +
                                                    "' is already declared"};
+      validate_associated_projection(validate_associated_projection,
+                                     parameter.type, parameters,
+                                     constraint_scopes);
       const SemanticType parameter_type =
           resolve_type(parameter.type, parameters, &class_arities);
       if (parameter_type.is_concrete() &&
@@ -3240,6 +3319,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         throw CompileError{field.location, "constructor parameter '" +
                                                field.name +
                                                "' is already declared"};
+      validate_associated_projection(validate_associated_projection,
+                                     *field.declared_type, parameters,
+                                     constraint_scopes);
       const SemanticType field_type =
           resolve_type(*field.declared_type, parameters, &class_arities);
       if (field_type.is_concrete() &&
@@ -3248,6 +3330,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                            "Unit cannot be used as a field type"};
     }
     for (const ast::ValueDeclaration &field : class_declaration.fields) {
+      validate_associated_projection(validate_associated_projection,
+                                     *field.declared_type, parameters,
+                                     constraint_scopes);
       const SemanticType field_type =
           resolve_type(*field.declared_type, parameters, &class_arities);
       if (field_type.is_concrete() &&
@@ -3703,6 +3788,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                            "extension type parameter '" + parameter +
                                "' conflicts with a built-in type"};
     }
+    validate_associated_projection(
+        validate_associated_projection, extension.target_type,
+        extension_parameters, {});
     const SemanticType target = resolve_type(
         extension.target_type, extension_parameters, &class_arities,
         extension.module_name, &scoped_type_aliases);
@@ -3980,57 +4068,158 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     if (!is_destructor)
       validate_constraints(context.function->type_constraints, type_parameters);
 
-    const auto projection_provider_count = [&](std::string_view base,
-                                               std::string_view member) {
-      const auto constraints_contain =
-          [&](const std::vector<ast::TypeConstraint> &constraints) {
-            return static_cast<std::size_t>(std::count_if(
-                constraints.begin(), constraints.end(),
-                [&](const ast::TypeConstraint &constraint) -> bool {
-                  if (constraint.parameter != base)
-                    return false;
-                  const auto trait = traits.find(constraint.trait.name);
-                  return trait != traits.end() &&
-                         std::any_of(
-                             trait->second->associated_types.begin(),
-                             trait->second->associated_types.end(),
-                             [&](const ast::AssociatedTypeDeclaration &item) {
-                               return item.name == member;
-                             });
-                }));
-          };
-      return (!is_destructor
-                  ? constraints_contain(context.function->type_constraints)
-                  : 0) +
-             (owner != nullptr ? constraints_contain(owner->type_constraints)
-                               : 0);
-    };
-    const auto validate_projections =
-        [&](const auto &self, const ast::TypeReference &reference) -> void {
-      const std::size_t separator = reference.name.find('.');
-      if (separator != std::string::npos &&
-          type_parameters.contains(reference.name.substr(0, separator))) {
-        const std::size_t providers =
-            projection_provider_count(reference.name.substr(0, separator),
-                                      reference.name.substr(separator + 1));
-        if (providers == 0)
-          throw CompileError{reference.location,
-                             "associated type projection '" + reference.name +
-                                 "' is not provided by a trait constraint"};
-        if (providers > 1)
-          throw CompileError{
-              reference.location,
-              "associated type projection '" + reference.name +
-                  "' is ambiguous between multiple trait constraints"};
-      }
-      for (const ast::TypeReference &argument : reference.type_arguments)
-        self(self, argument);
-    };
+    std::vector<const std::vector<ast::TypeConstraint> *> constraint_scopes;
+    if (owner != nullptr)
+      constraint_scopes.push_back(&owner->type_constraints);
+    if (!is_destructor)
+      constraint_scopes.push_back(&context.function->type_constraints);
     if (!is_destructor) {
-      validate_projections(validate_projections, context.function->return_type);
+      validate_associated_projection(
+          validate_associated_projection, context.function->return_type,
+          type_parameters, constraint_scopes);
       for (const ast::FunctionDeclaration::Parameter &parameter : parameters)
-        validate_projections(validate_projections, parameter.type);
+        validate_associated_projection(validate_associated_projection,
+                                       parameter.type, type_parameters,
+                                       constraint_scopes);
     }
+
+    std::function<void(const ast::Expression &)> validate_expression_types;
+    std::function<void(const std::vector<ast::Statement> &)>
+        validate_statement_types;
+    const auto validate_type = [&](const ast::TypeReference &reference) {
+      validate_associated_projection(validate_associated_projection, reference,
+                                     type_parameters, constraint_scopes);
+    };
+    validate_expression_types = [&](const ast::Expression &expression) {
+      std::visit(
+          [&](const auto &node) {
+            using Node = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<Node,
+                                         ast::ArrayLiteralExpression>) {
+              for (const auto &element : node.elements)
+                validate_expression_types(*element);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::LambdaExpression>) {
+              for (const ast::LambdaExpression::Parameter &parameter :
+                   node.parameters)
+                if (parameter.type.has_value())
+                  validate_type(*parameter.type);
+              if (const auto *lambda_expression =
+                      std::get_if<std::unique_ptr<ast::Expression>>(&node.body))
+                validate_expression_types(**lambda_expression);
+              else
+                validate_statement_types(
+                    (*std::get<std::shared_ptr<ast::LambdaBlock>>(node.body))
+                        .statements);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::CallExpression> ||
+                                 std::is_same_v<Node,
+                                                ast::NewExpression>) {
+              for (const ast::TypeReference &argument : node.type_arguments)
+                validate_type(argument);
+              for (const auto &argument : node.arguments)
+                validate_expression_types(*argument);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MethodCallExpression>) {
+              validate_expression_types(*node.object);
+              for (const ast::TypeReference &argument : node.type_arguments)
+                validate_type(argument);
+              for (const auto &argument : node.arguments)
+                validate_expression_types(*argument);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MemberAccessExpression>) {
+              validate_expression_types(*node.object);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::IndexExpression>) {
+              validate_expression_types(*node.container);
+              validate_expression_types(*node.index);
+            } else if constexpr (std::is_same_v<Node, ast::IfExpression>) {
+              validate_expression_types(*node.condition);
+              validate_expression_types(*node.then_expression);
+              validate_expression_types(*node.else_expression);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MatchExpression>) {
+              validate_expression_types(*node.scrutinee);
+              for (const ast::MatchExpression::Arm &arm : node.arms) {
+                for (const ast::MatchPattern &pattern : arm.patterns)
+                  ast::visit_match_pattern(
+                      pattern, [&](const ast::MatchPattern &part) {
+                        if (part.literal)
+                          validate_expression_types(*part.literal);
+                      });
+                if (arm.guard)
+                  validate_expression_types(*arm.guard);
+                validate_expression_types(*arm.expression);
+              }
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MoveExpression> ||
+                                 std::is_same_v<Node, ast::TryExpression> ||
+                                 std::is_same_v<Node,
+                                                ast::UnaryExpression>) {
+              validate_expression_types(*node.operand);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::BinaryExpression>) {
+              validate_expression_types(*node.left);
+              validate_expression_types(*node.right);
+            }
+          },
+          expression.value);
+    };
+    validate_statement_types =
+        [&](const std::vector<ast::Statement> &statements) {
+          for (const ast::Statement &statement : statements)
+            std::visit(
+                [&](const auto &node) {
+                  using Node = std::decay_t<decltype(node)>;
+                  if constexpr (std::is_same_v<Node,
+                                               ast::ValueDeclaration>) {
+                    if (node.declared_type)
+                      validate_type(*node.declared_type);
+                    if (node.initializer)
+                      validate_expression_types(*node.initializer);
+                  } else if constexpr (std::is_same_v<
+                                           Node, ast::AssignmentStatement>) {
+                    if (node.index_target) {
+                      validate_expression_types(*node.index_target->container);
+                      validate_expression_types(*node.index_target->index);
+                    }
+                    validate_expression_types(node.expression);
+                  } else if constexpr (
+                      std::is_same_v<Node, ast::DeleteStatement> ||
+                      std::is_same_v<Node, ast::ExpressionStatement>) {
+                    validate_expression_types(node.expression);
+                  } else if constexpr (std::is_same_v<Node,
+                                                      ast::ReturnStatement>) {
+                    if (node.expression)
+                      validate_expression_types(*node.expression);
+                  } else if constexpr (std::is_same_v<Node,
+                                                      ast::DeferStatement>) {
+                    std::visit(
+                        [&](const auto &action) {
+                          validate_expression_types(action.expression);
+                        },
+                        node.action);
+                  } else if constexpr (std::is_same_v<
+                                           Node,
+                                           std::shared_ptr<ast::IfStatement>>) {
+                    validate_expression_types(node->condition);
+                    validate_statement_types(node->then_body);
+                    validate_statement_types(node->else_body);
+                  } else if constexpr (std::is_same_v<
+                                           Node, std::shared_ptr<
+                                                     ast::WhileStatement>>) {
+                    validate_expression_types(node->condition);
+                    validate_statement_types(node->body);
+                  } else if constexpr (std::is_same_v<
+                                           Node,
+                                           std::shared_ptr<ast::ForStatement>>) {
+                    validate_expression_types(node->iterator);
+                    validate_statement_types(node->body);
+                  }
+                },
+                statement);
+        };
+    validate_statement_types(body);
 
     const SemanticType return_type =
         is_destructor ? SemanticType{&Type::unit_type()}

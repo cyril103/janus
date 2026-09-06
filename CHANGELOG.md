@@ -15,6 +15,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- validation exhaustive des projections de types associés au point
+  d'utilisation : les annotations locales, champs, lambdas et arguments
+  génériques exigent désormais une preuve de trait unique issue des bornes en
+  portée, y compris via `where`, imports et alias ; les projections absentes ou
+  ambiguës sont rejetées au frontend et un garde-fou backend remplace l'ancien
+  risque de déréférencement invalide par un diagnostic structuré ;
 - correction de l'ABI des méthodes natives de struct : le receveur implicite
   `this` référence désormais directement le stockage en ligne transmis par
   l'appelant, y compris pour les lectures et mutations explicites de champs et

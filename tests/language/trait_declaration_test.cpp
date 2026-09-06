@@ -101,6 +101,7 @@ def visit[C <: Iterable[int] & Sized](sequence : C) : int {
 }
 
 def produce[P <: Producer](borrow producer : P) : P.Item {
+    var slot : P.Item
     return producer.next()
 }
 
@@ -315,6 +316,49 @@ def main() : int {
       "def invalid[T <: Left & Right](value : T) : T.Item { return value } "
       "def main() : int { return 0 }",
       "is ambiguous between multiple trait constraints");
+  expect_compile_error(
+      "def accepted[T]() : int { var slot : T.Item return 0 } "
+      "def main() : int { return accepted[int]() }",
+      "associated type projection 'T.Item' is not provided by a trait "
+      "constraint");
+  expect_compile_error(
+      "trait Producer { type Item } "
+      "def invalid[T]() : int where T <: Producer { "
+      "var slot : T.Missing return 0 } "
+      "def main() : int { return 0 }",
+      "associated type projection 'T.Missing' is not provided by a trait "
+      "constraint");
+  expect_compile_error(
+      "trait Left { type Item } trait Right { type Item } "
+      "def invalid[T]() : int where T <: Left & Right { "
+      "var slot : Ptr[T.Item] return 0 } "
+      "def main() : int { return 0 }",
+      "associated type projection 'T.Item' is ambiguous between multiple "
+      "trait constraints");
+  expect_compile_error(
+      "def identity[T]() : int { return 0 } "
+      "def invalid[T]() : int { return identity[T.Item]() } "
+      "def main() : int { return 0 }",
+      "associated type projection 'T.Item' is not provided by a trait "
+      "constraint");
+  expect_compile_error(
+      "def invalid[T]() : int { "
+      "val action = (value : T.Item) => 0 return action } "
+      "def main() : int { return 0 }",
+      "associated type projection 'T.Item' is not provided by a trait "
+      "constraint");
+  expect_compile_error(
+      "class Invalid[T](var slot : T.Item) {} "
+      "def main() : int { return 0 }",
+      "associated type projection 'T.Item' is not provided by a trait "
+      "constraint");
+  expect_compile_success(
+      "trait Producer { type Item } "
+      "class Holder[T <: Producer](var slot : T.Item) {} "
+      "def accepted[T]() : int where T <: Producer { "
+      "var slot : T.Item return 0 } "
+      "def main() : int { return 0 }",
+      "class fields and local projections accept in-scope trait bounds");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

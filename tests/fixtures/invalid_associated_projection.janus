@@ -1,0 +1,8 @@
+def accepted[T]() : int {
+    var slot : T.Item
+    return 0
+}
+
+def main() : int {
+    return accepted[int]()
+}

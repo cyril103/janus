@@ -1576,6 +1576,16 @@ if(BUILD_TESTING)
             "-DENABLE_UNDEFINED_SANITIZER=ON"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
+    add_test(
+        NAME language.associated_type_projection_requires_constraint
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/invalid_associated_projection.janus"
+            "-DEXPECTED_ERROR=associated type projection 'T.Item' is not provided by a trait constraint"
+            "-DEXPECT_NO_OUTPUT=ON"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_compile_error.cmake"
+    )
 
     add_test(
         NAME runtime.mutable_borrow

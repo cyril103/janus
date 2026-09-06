@@ -400,6 +400,10 @@ private:
       type_arguments.push_back(&resolve(argument, substitutions));
     const auto declaration =
         find_type_in_active_module(classes_, reference.name);
+    if (declaration == classes_.end())
+      throw janus::CompileError{
+          janus::DiagnosticCode::BackendLegacy, reference.location,
+          "backend cannot lower unresolved type '" + reference.name + "'"};
     return ensure_class(declaration->first, type_arguments);
   }
 

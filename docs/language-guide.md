@@ -873,10 +873,10 @@ dupliquées, étrangères au trait ou cycliques sont rejetées. Une projection
 spécialisée est normalisée vers son type concret avant la sélection ABI, y
 compris lorsqu'un appel est directement imbriqué dans un argument, un
 constructeur, un retour ou un callback. Une projection qui reste ambiguë ou non
-contrainte est diagnostiquée pendant l'analyse et n'atteint pas le backend. Les
-types associés génériques, leurs bornes et les égalités de projection dans
-`where` ne font pas partie de cette première version. Le contrat détaillé est fixé dans
-[la RFC des types associés](design/associated-types.md).
+contrainte est diagnostiquée pendant l'analyse et n'atteint pas le backend. Le contrôle couvre signatures, champs, annotations
+locales, lambdas et arguments génériques, même dans `Ptr[P.Item]`. Un trait unique doit fournir `Item`; les bornes génériques ou
+`where`, imports et alias sont équivalents. Les types associés génériques, leurs bornes et les égalités de projection dans
+`where` ne font pas partie de cette première version. Voir [la RFC des types associés](design/associated-types.md).
 
 Une méthode qui implémente un trait doit reprendre exactement son contrat après
 normalisation des paramètres génériques, des types associés et des noms

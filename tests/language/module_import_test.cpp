@@ -144,6 +144,39 @@ int main() {
   static_cast<void>(import_analyzer.analyze(contract_alias_program));
   expect(true, "trait contracts normalize renamed imported types and bounds");
 
+  std::filesystem::create_directories(import_root / "projection");
+  write_source(import_root / "projection" / "api.janus",
+               "module projection.api\n"
+               "trait Producer { type Item }\n");
+  write_source(import_root / "projection_alias.janus",
+               "import projection.api.{Producer as P}\n"
+               "def accepted[T]() : int where T <: P {\n"
+               "  var slot : T.Item\n"
+               "  return 0\n"
+               "}\n"
+               "def main() : int { return 0 }\n");
+  const janus::ast::Program projection_alias_program =
+      import_loader.load(import_root / "projection_alias.janus");
+  static_cast<void>(import_analyzer.analyze(projection_alias_program));
+  expect(true, "associated projections resolve through renamed trait imports");
+
+  write_source(import_root / "projection_unconstrained.janus",
+               "import projection.api as contracts\n"
+               "def invalid[T]() : int { var slot : T.Item return 0 }\n"
+               "def main() : int { return 0 }\n");
+  bool imported_projection_without_bound_rejected = false;
+  try {
+    static_cast<void>(import_analyzer.analyze(import_loader.load(
+        import_root / "projection_unconstrained.janus")));
+  } catch (const janus::CompileError &error) {
+    imported_projection_without_bound_rejected =
+        std::string_view{error.what()}.find(
+            "associated type projection 'T.Item' is not provided by a trait "
+            "constraint") != std::string_view::npos;
+  }
+  expect(imported_projection_without_bound_rejected,
+         "an imported associated type still requires an in-scope trait bound");
+
   write_source(import_root / "contract" / "visibility.janus",
                "module contract.visibility\n"
                "trait Named { borrow def name() : string }\n"
