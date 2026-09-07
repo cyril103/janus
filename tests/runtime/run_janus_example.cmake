@@ -24,8 +24,14 @@ endif()
 set(PROGRAM_OUTPUT_ARGS)
 set(PROGRAM_ENVIRONMENT_ARGS)
 set(NATIVE_MATH_LIBRARY)
+set(NATIVE_LINK_OPTIONS)
 if(UNIX AND NOT APPLE)
     set(NATIVE_MATH_LIBRARY -lm)
+endif()
+if(WIN32)
+    # Match the typical 8 MiB Unix process stack so deep runtime fixtures
+    # exercise the same destruction depth on every CI platform.
+    list(APPEND NATIVE_LINK_OPTIONS "-Wl,--stack,8388608")
 endif()
 if(DEFINED PROGRAM_ENVIRONMENT)
     list(APPEND PROGRAM_ENVIRONMENT_ARGS "${PROGRAM_ENVIRONMENT}")
@@ -53,6 +59,7 @@ execute_process(
         "${LLVM_IR}"
         "${RUNTIME}"
         ${NATIVE_MATH_LIBRARY}
+        ${NATIVE_LINK_OPTIONS}
         -o "${EXECUTABLE}"
     ERROR_VARIABLE CLANG_ERROR
     RESULT_VARIABLE CLANG_RESULT
