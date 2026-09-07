@@ -6183,9 +6183,10 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             DiagnosticCode::AnalyzerInvalidBorrowAccess, location,
             "cannot use expression of type '" + actual.name() +
                 "' where type '" + expected.name() + "' is required"};
-      throw CompileError{location, "cannot use expression of type '" +
-                                       actual.name() + "' where type '" +
-                                       expected.name() + "' is required"};
+      throw CompileError{DiagnosticCode::AnalyzerLegacy, location,
+                         "cannot use expression of type '" + actual.name() +
+                             "' where type '" + expected.name() +
+                             "' is required"};
     };
     const auto validate_return_expression =
         [&](const ast::ReturnStatement &return_statement,
@@ -7481,7 +7482,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                   module_namespace(class_declaration.module_name) !=
                       module_namespace(context_module))
                 throw CompileError{
-                    node.location,
+                    DiagnosticCode::AnalyzerLegacy, node.location,
                     "constructor '" + node.class_name +
                         "' is internal to namespace '" +
                         module_namespace(class_declaration.module_name) + "'"};

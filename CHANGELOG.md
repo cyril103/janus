@@ -168,6 +168,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
 - préservation de l'appel récursif terminal lors de la matérialisation d'une
   valeur `Unit`, afin que le backend puisse toujours vérifier et appliquer
   `musttail` ;
+- attribution explicite et portable de `JANA0999` aux diagnostics historiques
+  de compatibilité de type et de visibilité des constructeurs, y compris avec
+  le compilateur système de macOS ;
 - refus des copies implicites de classes et autres valeurs non `Copy` lors
   d'une affectation, d'un appel, d'un retour ou d'une construction d'agrégat,
   y compris à travers un paramètre générique ; le diagnostic `JANA0035`
