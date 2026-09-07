@@ -96,6 +96,9 @@ OWNER_MODULES = {
     "#336": {
         "std.index",
     },
+    "#351": {
+        "std.unicode",
+    },
 }
 IMPORT_RE = re.compile(r"^\s*import\s+([\w.]+)", re.MULTILINE)
 DOCUMENTATION_BLOCK_RE = re.compile(

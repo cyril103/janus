@@ -1,0 +1,30 @@
+/// Construit et valide des scalaires Unicode depuis leur valeur numérique.
+///
+/// [[checkedChar]] fournit la conversion sûre depuis une entrée `int` sans
+/// modifier le cast primitif brut.
+/// @example
+/// ```janus
+/// import std.unicode
+/// import std.option
+/// val letter : Option[char] = checkedChar(65)
+/// val surrogate : Option[char] = checkedChar(0xD800)
+/// ```
+module std.unicode
+
+import std.option
+
+/// Convertit une valeur numérique en `char` seulement si elle désigne un
+/// scalaire Unicode.
+///
+/// Les valeurs de `0` à `0xD7FF` et de `0xE000` à `0x10FFFF` sont acceptées.
+/// Les valeurs négatives, les surrogates UTF-16 et les valeurs supérieures à
+/// `0x10FFFF` produisent `None`. La fonction est constante et applique le même
+/// contrat à la compilation et à l’exécution.
+/// @param code Valeur numérique à valider.
+/// @return `Some(char)` pour un scalaire Unicode valide, sinon `None`.
+const def checkedChar(code : int) : Option[char] {
+    if code < 0 || code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF) {
+        return Option.None[char]()
+    }
+    return Option.Some[char](char(code))
+}

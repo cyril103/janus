@@ -341,6 +341,29 @@ def main() : int {
 La [matrice des conversions numériques](numeric-conversions.md) documente les
 trois politiques et tous leurs cas limites.
 
+### `std.unicode`
+
+`checkedChar` retourne une `Option` plutôt qu'un `Result` : toutes les valeurs
+refusées appartiennent à une unique catégorie, « pas un scalaire Unicode », et
+aucun diagnostic plus précis n'est nécessaire pour choisir une correction.
+L'API accepte un `int`, ce qui couvre tout le domaine Unicode ainsi que les
+valeurs négatives et la première valeur supérieure à `U+10FFFF`. Elle est
+`const def` et applique exactement les mêmes bornes à la compilation et à
+l'exécution.
+
+```janus
+// doctest: doctest name=stdlib-std-unicode
+import std.unicode
+import std.option
+def main() : int {
+    const valid : Option[char] = checkedChar(0x1F600)
+    val invalid : Option[char] = checkedChar(0xD800)
+    val accepted : bool = match valid { Some(value) => true, None => false }
+    val rejected : bool = match invalid { Some(value) => false, None => true }
+    return if accepted && rejected { 0 } else { 1 }
+}
+```
+
 ## Collections et hachage
 
 ### `std.hash_probe`

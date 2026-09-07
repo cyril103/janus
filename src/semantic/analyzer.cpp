@@ -2612,6 +2612,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               validate_const_purity(*callee);
             } else if constexpr (std::is_same_v<Node,
                                                 ast::MethodCallExpression>) {
+              for (const auto &argument : node.arguments)
+                check_expression(*argument, scope);
+              const auto enum_name = qualified_expression_name(*node.object);
+              if (enum_name.has_value() &&
+                  constant_constructor_resolver(
+                      *enum_name, std::optional<std::string>{node.method},
+                      node.type_arguments, node.location)
+                      .has_value())
+                return;
               throw CompileError{node.location,
                                  "const def '" + function.name +
                                      "' cannot perform a method/FFI/I-O call"};

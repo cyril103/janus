@@ -32,7 +32,9 @@ primitive numeric values and booleans. `append` concatenates a string view.
 `appendHex` and `appendFixed` provide common typed formatting. Floating output
 uses `.` and never depends on the process locale. Non-finite values are
 rejected by the builder. `appendChar` emits valid UTF-8 and substitutes U+FFFD
-for an invalid Unicode scalar.
+for an invalid Unicode scalar. Use `checkedChar` from `std.unicode` when the
+numeric source is not already proven valid; unlike the raw `char(integer)`
+cast, every `Some` returned by `checkedChar` encodes without substitution.
 
 The matching `parseInt`, `parseUInt`, `parseLong`, `parseULong`, `parseByte`,
 `parseUByte`, `parseShort`, `parseUShort`, `parseISize`, `parseUSize`,

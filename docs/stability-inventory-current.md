@@ -115,6 +115,7 @@ retrait requiert une note de migration.
 | `std.text` | `stable-candidate` | Cœur texte. |
 | `std.testing` | `stable-candidate` | Harnais natif nécessaire à l'écosystème. |
 | `std.time` | `stable-candidate` | Cœur système. |
+| `std.unicode` | `experimental` | Première conversion validée entier vers scalaire Unicode. |
 | `std.validated` | `experimental` | Abstraction applicative récente. |
 | `std.wall_time` | `stable-candidate` | Horloge monotone. |
 

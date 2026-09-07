@@ -325,6 +325,14 @@
       "symbols": ["Duration", "Duration.nanoseconds", "Duration.microseconds", "Duration.milliseconds", "Duration.seconds", "Instant", "Instant.durationSince", "Instant.elapsed", "nanoseconds", "microseconds", "milliseconds", "seconds", "monotonicNow"]
     },
     {
+      "name": "std.unicode",
+      "source": "stdlib/std/unicode.janus",
+      "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/text.md"],
+      "status": "experimental",
+      "signature_digest": "86d3464ee6d8e98b50f21942f0a6bbf0b93f1ca3ef17a5fcef6a5148886a3241",
+      "symbols": ["checkedChar"]
+    },
+    {
       "name": "std.validated",
       "source": "stdlib/std/validated.janus",
       "documentation": ["docs/language-guide.md", "docs/stdlib-reference.md", "docs/design/validated.md"],

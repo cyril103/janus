@@ -21,6 +21,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- ajout de `std.unicode.checkedChar(int)`, une `const def` qui retourne
+  `Option[char]`, accepte exactement les scalaires Unicode `0..D7FF` et
+  `E000..10FFFF`, et refuse les valeurs négatives, surrogates et hors domaine ;
+  les bornes et leur encodage UTF-8 sont couverts à la compilation et à
+  l'exécution, tandis que le cast brut `char(integer)` reste disponible et est
+  désormais documenté comme non validant ;
 - rejet à la déclaration des paramètres `borrow var` de toute `const def`, même
   inutilisée, avec le diagnostic structuré `JANA0036` positionné sur le
   qualificateur ; les paramètres sans ownership ou en emprunt partagé, ainsi
