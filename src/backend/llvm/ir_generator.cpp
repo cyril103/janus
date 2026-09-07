@@ -2407,12 +2407,15 @@ private:
                   ? resolve(*declaration->declared_type, substitutions)
                   : resolve(analysis_.local_types.at(declaration));
           if (declaration->is_constant) {
-            const janus::constant::Value &value =
-                analysis_.local_constant_values.at(declaration);
-            block_locals.emplace(
-                declaration->name,
-                Local{emit_static_initializer(value, type), &type, true});
-            continue;
+            const auto value =
+                analysis_.local_constant_values.find(declaration);
+            if (value != analysis_.local_constant_values.end()) {
+              block_locals.emplace(
+                  declaration->name,
+                  Local{emit_static_initializer(value->second, type), &type,
+                        true});
+              continue;
+            }
           }
           ::llvm::Value *borrowed_storage =
               declaration->is_borrowed && declaration->initializer.has_value()

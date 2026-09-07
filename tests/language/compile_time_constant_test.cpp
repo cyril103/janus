@@ -164,6 +164,72 @@ def main() : int { return answer }
 )"};
   static_cast<void>(analyzer.analyze(body_parser.parse_program()));
 
+  janus::frontend::Parser invoked_local_parser{R"(
+const offset : int = 100
+const def withLocals(value : int) : int {
+    const offset = value
+    const annotated : int = offset + 1
+    const inferred = offset + 1
+    const chained = annotated + inferred - offset - 1
+    return chained
+}
+const def recursiveLocals(value : int) : int {
+    const current = value + 1
+    if value == 0 {
+        return current
+    } else {
+        const nested : int = recursiveLocals(value - 1)
+        return current + nested
+    }
+}
+const compiled : int = withLocals(41)
+const recursive : int = recursiveLocals(2)
+staticAssert(compiled == 42)
+staticAssert(recursive == 6)
+def main() : int {
+    val runtimeInput : int = 41
+    return withLocals(runtimeInput)
+}
+)"};
+  const janus::ast::Program invoked_local_program =
+      invoked_local_parser.parse_program();
+  const janus::semantic::AnalysisResult invoked_local_analysis =
+      analyzer.analyze(invoked_local_program);
+  expect(std::get<std::uint64_t>(
+             invoked_local_analysis.global_constant_values.at("compiled").data) ==
+             42,
+         "annotated and inferred const-def locals use invocation parameters");
+  expect(std::get<std::uint64_t>(
+             invoked_local_analysis.global_constant_values.at("recursive").data) ==
+             6,
+         "recursive const-def invocations isolate their local environments");
+  llvm::LLVMContext invoked_local_context;
+  janus::backend::llvm::IrGenerator invoked_local_generator{
+      invoked_local_context};
+  const std::unique_ptr<llvm::Module> invoked_local_module =
+      invoked_local_generator.generate(invoked_local_program,
+                                       "invoked_local_constants");
+  std::string invoked_local_ir;
+  llvm::raw_string_ostream invoked_local_output{invoked_local_ir};
+  invoked_local_module->print(invoked_local_output, nullptr);
+  invoked_local_output.flush();
+  expect(invoked_local_ir.find("ret i32 42") == std::string::npos,
+         "runtime const-def locals remain computations of runtime arguments");
+
+  expect_compile_error(
+      "const def invalid(value : int) : int {\n"
+      "    val runtime : int = value\n"
+      "    const result = runtime + 1\n"
+      "    return result\n}\n"
+      "def main() : int { return 0 }",
+      "const def local declarations must be const");
+  expect_compile_error(
+      "const def invalid(value : int) : int {\n"
+      "    const result = missing + value\n"
+      "    return result\n}\n"
+      "def main() : int { return 0 }",
+      "unknown value 'missing'");
+
   janus::frontend::Parser float_parser{R"(
 const x : float = 16777216.0f + 1.0f
 def main() : int { return if x == 16777216.0f { 0 } else { 1 } }

@@ -474,6 +474,13 @@ la compilation. Un callback appelable depuis ce contexte s'écrit
 FFI, est défini dans
 [Contrat `pure def`](design/pure-functions.md).
 
+Dans une `const def`, une déclaration locale `const` peut dépendre des
+paramètres et des constantes locales précédentes. Son annotation peut être
+omise : le type sémantique inféré est conservé pour l'évaluation constante et
+pour l'appel runtime. Chaque invocation, notamment récursive, possède son
+propre environnement lexical. Les locales runtime, globales mutables et appels
+non constants restent refusés dès l'analyse de la déclaration.
+
 Les effets d'emprunt font partie du type d'une fonction. Ils s'écrivent sur
 les paramètres du type et de la closure :
 

@@ -1599,13 +1599,14 @@ Value evaluate_statements(
                                std::to_string(statement_budget) + ")"};
       if (const auto *declaration =
               std::get_if<ast::ValueDeclaration>(&statement)) {
-        if (!declaration->is_constant || !declaration->initializer ||
-            !declaration->declared_type)
+        if (!declaration->is_constant || !declaration->initializer)
           throw CompileError{declaration->location,
-                             "const def local declarations must be explicit "
-                             "constants"};
-        const Type *type = constant_cast_type(declaration->declared_type->name);
-        if (type == nullptr)
+                             "const def local declarations must be constants"};
+        const Type *type =
+            declaration->declared_type
+                ? constant_cast_type(declaration->declared_type->name)
+                : nullptr;
+        if (declaration->declared_type && type == nullptr)
           throw CompileError{declaration->location,
                              "unsupported local constant type in const def"};
         scope.insert_or_assign(

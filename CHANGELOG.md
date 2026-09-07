@@ -21,6 +21,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- évaluation des constantes locales de `const def` dans l'environnement lexical
+  propre à chaque invocation : elles peuvent désormais dépendre des paramètres,
+  des constantes globales et des locales précédentes, avec annotation explicite
+  ou type inféré conservé ; la génération runtime suit la même sémantique, les
+  récursions n'échangent aucun état et les références mutables ou ambiguës sont
+  toujours diagnostiquées à la déclaration ;
 - correction de `checkedCast` lors d'un rétrécissement flottant : une source
   finie hors des bornes exactes de la cible est désormais classée `Overflow` ou
   `Underflow` avant saturation, tandis que `PrecisionLoss` reste réservé aux

@@ -119,15 +119,27 @@ const height : int = 25
 const pixels : int = width * height
 
 const def align(value : usize, boundary : usize) : usize {
-    return ((value + boundary - usize(1)) / boundary) * boundary
+    const adjusted = value + boundary - usize(1)
+    const blocks : usize = adjusted / boundary
+    return blocks * boundary
 }
 
 staticAssert(pixels > 0, "dimensions invalides")
 ```
 
-Une `const def` est aussi une fonction ordinaire appelable à l'exécution. Dans
-la première version de l'évaluateur, son corps constant contient exactement un
-`return` et n'est pas générique. Les appels récursifs sont bornés à 128 niveaux
+Une `const def` est aussi une fonction ordinaire appelable à l'exécution. Ses
+constantes locales, annotées ou inférées, peuvent lire ses paramètres, les
+constantes globales visibles et les constantes locales déclarées avant elles.
+Elles sont évaluées dans un environnement lexical neuf à chaque invocation, y
+compris pour les appels récursifs et imbriqués ; un nom local masque donc la
+globale homonyme sans partager sa valeur avec un autre appel. À l'exécution,
+les mêmes déclarations sont calculées à partir des arguments runtime et gardent
+le type sémantique déterminé par l'analyseur.
+
+Les références ambiguës ou inconnues et les opérations interdites sont
+diagnostiquées à la déclaration de la `const def`, même si elle n'est jamais
+appelée. Une locale `val`/`var`, une globale mutable ou un appel non constant
+reste interdit dans ce contexte. Les appels récursifs sont bornés à 128 niveaux
 et une évaluation à 10 000 appels; le dépassement est diagnostiqué comme une
 limite de ressources, indépendamment d'une erreur de programme.
 
@@ -139,8 +151,7 @@ ressource et enums sans ressource sont admissibles au niveau module. Les
 tableaux, collections, pointeurs, classes propriétaires, valeurs avec
 destructeur et génériques constants sont volontairement exclus tant que leur
 identité, stockage statique et destruction ne sont pas spécifiés. Une constante
-locale suit les mêmes règles scalaires mais, dans cette version, ne référence
-pas encore une autre constante locale.
+locale suit les mêmes règles de valeurs admissibles.
 
 Les entiers suivent la largeur du type Janus, non celle de la machine hôte : un
 débordement, une division par zéro ou une conversion hors plage est une erreur.

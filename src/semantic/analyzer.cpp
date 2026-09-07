@@ -10035,7 +10035,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                                declaration->location,
                                "borrowed local requires an owning local or a "
                                "borrow-returning call"};
-          if (declaration->is_constant) {
+          // A const-def local is evaluated by evaluate_statements for each
+          // invocation. Its initializer may depend on parameters and earlier
+          // locals, so evaluating it here would incorrectly use the ambient
+          // (declaration-time) environment. The regular expression/type pass
+          // still validates it and records its inferred semantic type for the
+          // runtime lowering below.
+          if (declaration->is_constant &&
+              (is_destructor || is_global_initializer ||
+               !context.function->is_constant)) {
             if (!declaration->initializer.has_value() ||
                 declared_type.concrete == nullptr)
               throw CompileError{
