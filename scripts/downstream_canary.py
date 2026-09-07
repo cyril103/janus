@@ -13,10 +13,10 @@ import re
 from pathlib import Path, PurePosixPath
 
 
-JANUS8_REVISION = "cbeb0e4ad0de447da4a60e5598d8c16d244ce9aa"
+JANUS8_REVISION = "576487e68caa341d57dadd7c203f502905ccae57"
 JANUS8_COMMANDS = [["fmt", "--check"], ["check", "--all", "--deny-warnings"],
                    ["test", "--fail-if-empty"], ["build"]]
-JANUS_STUDIO_REVISION = "13f846ea7700a247342a87b91fc42b80a20c4a55"
+JANUS_STUDIO_REVISION = "c05410c831e31645c1b5801f888154ef684fc4ba"
 JANUS_STUDIO_COMMANDS = [["fmt", "--check"], ["check", "--all"],
                          ["test", "--fail-if-empty", "--release"],
                          ["build", "--release"]]

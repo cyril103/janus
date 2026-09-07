@@ -1,8 +1,8 @@
 # Canaris downstream Janus8 et Janus Studio
 
 Les publications stable et nightly épinglent Janus8 au commit complet
-`cbeb0e4ad0de447da4a60e5598d8c16d244ce9aa` et Janus Studio au commit
-`13f846ea7700a247342a87b91fc42b80a20c4a55`. Le gate extrait exclusivement
+`576487e68caa341d57dadd7c203f502905ccae57` et Janus Studio au commit
+`c05410c831e31645c1b5801f888154ef684fc4ba`. Le gate extrait exclusivement
 l’archive Linux candidate du workflow courant, valide son checksum SHA-256, son
 identité et la stdlib,
 puis exécute `fmt --check`, `check --all --deny-warnings`,
