@@ -15,7 +15,7 @@ Un paramètre de type remplace un type concret dans une déclaration. La fonctio
 ```janus
 // doctest: doctest name=generic-identity
 def identity[T](value : T) : T {
-    return value
+    return move value
 }
 
 def main() : int {
@@ -70,7 +70,7 @@ Le type `(int) => bool` désigne une fonction prenant un `int` et retournant un 
 
 ```janus
 // doctest: doctest name=function-value
-def apply(value : int, operation : (int) => int) : int {
+def apply(value : int, borrow operation : (int) => int) : int {
     return operation(value)
 }
 

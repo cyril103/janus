@@ -28,7 +28,7 @@ struct Summary(
     val average : double
 ) derives Copy, Equality, Debug {}
 
-def summarize(values : Array[int]) : Summary {
+def summarize(borrow values : Array[int]) : Summary {
     var count : int = 0
     var total : int = 0
     var best : int = 0
