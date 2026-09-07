@@ -4,6 +4,7 @@ parser-expected-expression.janus	JPAR0001	expected expression
 floating-literal-underflow.janus	JPAR0002	float literal underflows to zero
 floating-literal-overflow.janus	JPAR0003	double literal overflows to infinity
 analyzer-unknown-value.janus	JANA0001	unknown value
+const-def-mutable-borrow.janus	JANA0036	cannot use 'borrow var'
 module-not-found.janus	JMOD0001	cannot resolve imported module
 array-literal-empty-inference.janus	JANA0023	empty array literal requires an explicit Array[T] type
 array-literal-incompatible-element.janus	JANA0023	where type 'int' is required

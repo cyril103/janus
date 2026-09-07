@@ -93,6 +93,11 @@ liaisons locales `const`, budget de pas/mémoire et appels exclusivement vers
 d'autres `const def`. Une `pure def` peut allouer et exécuter les constructions
 runtime autorisées ; elle n'est donc pas automatiquement évaluable pendant la
 compilation. Une `pure def` peut appeler une `const def`, jamais l'inverse.
+Une `const def` peut recevoir un paramètre sans qualificateur ou avec un emprunt
+partagé, mais jamais un `borrow var` : cette capacité mutable runtime est
+refusée sur la déclaration avec `JANA0036`, indépendamment des appels. Ce choix
+ne change pas le contrat des `pure def` runtime, qui refusait déjà les
+paramètres `borrow var` avec son diagnostic de pureté propre.
 
 ## Diagnostics, modules et optimisation
 

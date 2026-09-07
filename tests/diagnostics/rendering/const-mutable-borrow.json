@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "0.5.2",
+  "diagnostics": [
+    {
+      "severity": "error",
+      "code": "JANA0036",
+      "message": "const def 'read' parameter 'value' cannot use 'borrow var'",
+      "primaryLocation": {
+        "file": "const-mutable-borrow.janus",
+        "position": {
+          "offset": 15,
+          "line": 1,
+          "column": 16
+        }
+      },
+      "notes": [],
+      "secondaryLocations": [],
+      "suggestions": []
+    }
+  ]
+}

@@ -43,9 +43,64 @@ void expect_compile_error(std::string_view source,
   }
 }
 
+void expect_compile_error(std::string_view source,
+                          janus::DiagnosticCode expected_code,
+                          std::uint32_t expected_line,
+                          std::uint32_t expected_column) {
+  try {
+    janus::frontend::Parser parser{source};
+    janus::semantic::Analyzer analyzer;
+    static_cast<void>(analyzer.analyze(parser.parse_program()));
+    expect(false, std::string{"invalid constant program must fail: "} +
+                      std::string{source});
+  } catch (const janus::CompileError &error) {
+    expect(error.diagnostic().code == expected_code,
+           "const mutable borrow has a stable diagnostic code");
+    expect(error.location().line == expected_line &&
+               error.location().column == expected_column,
+           "const mutable borrow diagnostic points at its qualifier");
+  }
+}
+
 } // namespace
 
 int main() {
+  constexpr std::string_view mutable_borrow_const_def =
+      "const def read(borrow var value : int) : int {\n"
+      "    return value\n"
+      "}\n"
+      "def main() : int { return 0 }\n";
+  janus::frontend::Parser ownership_parser{mutable_borrow_const_def};
+  const janus::ast::Program ownership_program =
+      ownership_parser.parse_program();
+  expect(ownership_program.functions.front().parameters.front().ownership ==
+             janus::ast::ParameterOwnership::BorrowMutable,
+         "parser records borrow var on a const def parameter");
+  expect(ownership_program.functions.front()
+                 .parameters.front()
+                 .ownership_location.has_value() &&
+             ownership_program.functions.front()
+                     .parameters.front()
+                     .ownership_location->line == 1 &&
+             ownership_program.functions.front()
+                     .parameters.front()
+                     .ownership_location->column == 16,
+         "parser records the const def parameter ownership qualifier location");
+  expect_compile_error(
+      mutable_borrow_const_def,
+      janus::DiagnosticCode::AnalyzerConstMutableBorrowParameter, 1, 16);
+
+  janus::frontend::Parser allowed_ownership_parser{R"(
+const seed : int = 41
+const def read(borrow value : int) : int { return value }
+const answer : int = read(seed)
+def edit(borrow var value : int) : int { return value }
+def main() : int { return answer - 41 }
+)"};
+  janus::semantic::Analyzer ownership_analyzer;
+  static_cast<void>(ownership_analyzer.analyze(
+      allowed_ownership_parser.parse_program()));
+
   janus::frontend::Parser parser{R"(
 const width : int = 80
 const height : int = 25

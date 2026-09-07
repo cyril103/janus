@@ -435,6 +435,7 @@ struct FunctionDeclaration {
     SourceLocation location;
     ParameterOwnership ownership{ParameterOwnership::Unspecified};
     bool is_scoped{};
+    std::optional<SourceLocation> ownership_location;
   };
 
   std::string name;

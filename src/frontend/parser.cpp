@@ -625,6 +625,10 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
       if (parameter_is_scoped)
         advance();
       const bool parameter_is_borrowed = current_.kind == TokenKind::Borrow;
+      const std::optional<SourceLocation> ownership_location =
+          parameter_is_borrowed
+              ? std::optional<SourceLocation>{current_.location}
+              : std::nullopt;
       if (parameter_is_borrowed)
         advance();
       const bool parameter_is_mutably_borrowed =
@@ -639,7 +643,7 @@ ast::FunctionDeclaration Parser::parse_trait_method() {
               ? ast::ParameterOwnership::BorrowMutable
               : (parameter_is_borrowed ? ast::ParameterOwnership::Borrow
                                        : ast::ParameterOwnership::Unspecified),
-          parameter_is_scoped});
+          parameter_is_scoped, ownership_location});
       if (current_.kind != TokenKind::Comma)
         break;
       advance();
@@ -1041,7 +1045,8 @@ ast::ClassDeclaration Parser::parse_class_declaration() {
         const Token parameter = expect(TokenKind::Identifier);
         static_cast<void>(expect(TokenKind::Colon));
         constructor_parameters.push_back(ast::FunctionDeclaration::Parameter{
-            std::string{parameter.identifier()}, parse_type(), parameter.location});
+            std::string{parameter.identifier()}, parse_type(), parameter.location,
+            ast::ParameterOwnership::Unspecified, false, std::nullopt});
       }
       if (current_.kind != TokenKind::Comma)
         break;
@@ -1322,8 +1327,10 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
       if (is_scoped)
         advance();
       ast::ParameterOwnership ownership = ast::ParameterOwnership::Unspecified;
+      std::optional<SourceLocation> ownership_location;
       if (current_.kind == TokenKind::Borrow ||
           current_.kind == TokenKind::Consume) {
+        ownership_location = current_.location;
         if (!is_external && current_.kind == TokenKind::Consume)
           throw CompileError{
               current_.location,
@@ -1348,7 +1355,7 @@ ast::FunctionDeclaration Parser::parse_function_declaration(bool is_constant,
       ast::TypeReference parameter_type = parse_type();
       parameters.push_back(ast::FunctionDeclaration::Parameter{
           std::string{parameter_name.identifier()}, std::move(parameter_type),
-          parameter_name.location, ownership, is_scoped});
+          parameter_name.location, ownership, is_scoped, ownership_location});
       if (current_.kind != TokenKind::Comma) {
         break;
       }

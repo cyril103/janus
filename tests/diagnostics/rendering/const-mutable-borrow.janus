@@ -1,0 +1,4 @@
+const def read(borrow var value : int) : int {
+    return value
+}
+def main() : int { return 0 }

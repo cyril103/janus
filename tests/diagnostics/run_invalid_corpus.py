@@ -46,7 +46,7 @@ def main() -> int:
             failures.append(f"{filename}: missing code {code}")
         if message not in output:
             failures.append(f"{filename}: missing message fragment {message!r}")
-        if code in {"JPAR0002", "JPAR0003"}:
+        if code in {"JPAR0002", "JPAR0003", "JANA0036"}:
             structured = subprocess.run(
                 [
                     str(args.janus),
@@ -78,6 +78,12 @@ def main() -> int:
                 elif message not in diagnostics[0].get("message", ""):
                     failures.append(
                         f"{filename}: JSON missing message fragment {message!r}"
+                    )
+                elif code == "JANA0036" and diagnostics[0].get(
+                    "primaryLocation", {}
+                ).get("position", {}).get("column") != 16:
+                    failures.append(
+                        f"{filename}: diagnostic does not point at 'borrow'"
                     )
 
     if failures:

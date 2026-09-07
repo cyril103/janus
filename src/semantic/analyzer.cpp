@@ -2561,8 +2561,15 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       return;
     state = PurityState::Visiting;
     std::unordered_set<std::string> locals;
-    for (const auto &parameter : function.parameters)
+    for (const auto &parameter : function.parameters) {
+      if (parameter.ownership == ast::ParameterOwnership::BorrowMutable)
+        throw CompileError{
+            DiagnosticCode::AnalyzerConstMutableBorrowParameter,
+            parameter.ownership_location.value_or(parameter.location),
+            "const def '" + function.name + "' parameter '" + parameter.name +
+                "' cannot use 'borrow var'"};
       locals.insert(parameter.name);
+    }
     std::function<void(const ast::Expression &,
                        const std::unordered_set<std::string> &)>
         check_expression;

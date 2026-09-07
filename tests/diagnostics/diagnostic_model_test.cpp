@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
       DiagnosticCode::AnalyzerInvalidTailrec,
       DiagnosticCode::AnalyzerNonTerminalTailrec,
       DiagnosticCode::AnalyzerIncompatibleTailrec,
+      DiagnosticCode::AnalyzerConstMutableBorrowParameter,
       DiagnosticCode::ModuleNotFound,
       DiagnosticCode::ModuleLegacy,
       DiagnosticCode::ConstantLegacy,

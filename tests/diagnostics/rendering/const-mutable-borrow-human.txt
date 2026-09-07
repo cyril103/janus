@@ -1,0 +1,4 @@
+const-mutable-borrow.janus:1:16: error: [JANA0036] const def 'read' parameter 'value' cannot use 'borrow var'
+  |
+1 | const def read(borrow var value : int) : int {
+  |                ^

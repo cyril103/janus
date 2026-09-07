@@ -61,6 +61,7 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::AnalyzerDeprecatedUse,
     DiagnosticCode::AnalyzerHighGrowthLoop,
     DiagnosticCode::AnalyzerImplicitOwnershipTransfer,
+    DiagnosticCode::AnalyzerConstMutableBorrowParameter,
     DiagnosticCode::ModuleNotFound,
     DiagnosticCode::ConstantLegacy,
     DiagnosticCode::BackendLegacy,
@@ -166,6 +167,12 @@ explain_diagnostic(DiagnosticCode code) noexcept {
             "implicit copy.",
             "Use `move value` to transfer ownership, or borrow the value "
             "explicitly."};
+  case DiagnosticCode::AnalyzerConstMutableBorrowParameter:
+    return {code, "mutable runtime capability in a constant function",
+            "A `const def` must not receive an exclusive mutable borrow from "
+            "runtime state.",
+            "Remove `var` from the borrow when shared access is sufficient, "
+            "or use a runtime `def`."};
   case DiagnosticCode::ModuleNotFound:
     return {code, "module not found",
             "Module resolution exhausted the project, dependency and standard-library roots.",

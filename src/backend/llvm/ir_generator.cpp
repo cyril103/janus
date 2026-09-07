@@ -3104,7 +3104,7 @@ private:
             janus::ast::FunctionDeclaration::Parameter{
                 std::move(name),
                 janus::ast::TypeReference{type_name, lambda.location, {}},
-                lambda.location, ownership});
+                lambda.location, ownership, false, std::nullopt});
         body_types.push_back(type);
       };
       for (const std::string &name : capture_names)
@@ -5210,7 +5210,7 @@ private:
                           janus::ast::ParameterOwnership::Consume
                       ? janus::ast::ParameterOwnership::Unspecified
                       : resolved.receiver_ownership,
-                  false};
+                  false, std::nullopt};
               std::vector<::llvm::Value *> arguments;
               arguments.reserve(node.arguments.size() + 1);
               arguments.push_back(

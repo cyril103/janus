@@ -107,6 +107,50 @@ def main() -> int:
         if actual_json != expected_json:
             failures.append(f"{name}: JSON fixture differs")
 
+    const_borrow_source = args.fixtures / "const-mutable-borrow.janus"
+    const_borrow_human = run(
+        args.janus,
+        args.fixtures,
+        ["check", const_borrow_source.name, "--diagnostic-format", "human"],
+    )
+    if const_borrow_human.returncode != 1 or const_borrow_human.stdout:
+        failures.append(
+            "const-mutable-borrow-human: "
+            f"status={const_borrow_human.returncode}, "
+            f"stdout={const_borrow_human.stdout!r}"
+        )
+    compare_snapshot(
+        "const-mutable-borrow-human",
+        const_borrow_human.stderr,
+        args.fixtures / "const-mutable-borrow-human.txt",
+        failures,
+    )
+
+    const_borrow_json = run(
+        args.janus,
+        args.fixtures,
+        ["check", const_borrow_source.name, "--diagnostic-format", "json"],
+    )
+    if const_borrow_json.returncode != 1 or const_borrow_json.stdout:
+        failures.append(
+            "const-mutable-borrow-json: "
+            f"status={const_borrow_json.returncode}, "
+            f"stdout={const_borrow_json.stdout!r}"
+        )
+    else:
+        try:
+            actual_const_borrow_json = json.loads(const_borrow_json.stderr)
+        except json.JSONDecodeError as error:
+            failures.append(f"const-mutable-borrow-json: invalid JSON: {error}")
+        else:
+            expected_const_borrow_json = json.loads(
+                (args.fixtures / "const-mutable-borrow.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            if actual_const_borrow_json != expected_const_borrow_json:
+                failures.append("const-mutable-borrow-json: snapshot differs")
+
     recovery = run(
         args.janus,
         args.fixtures,

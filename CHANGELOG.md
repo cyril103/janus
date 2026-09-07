@@ -21,6 +21,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- rejet à la déclaration des paramètres `borrow var` de toute `const def`, même
+  inutilisée, avec le diagnostic structuré `JANA0036` positionné sur le
+  qualificateur ; les paramètres sans ownership ou en emprunt partagé, ainsi
+  que le comportement existant des `def` ordinaires et `pure def`, sont
+  conservés ;
 - évaluation des constantes locales de `const def` dans l'environnement lexical
   propre à chaque invocation : elles peuvent désormais dépendre des paramètres,
   des constantes globales et des locales précédentes, avec annotation explicite

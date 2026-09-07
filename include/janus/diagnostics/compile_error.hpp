@@ -70,6 +70,7 @@ enum class DiagnosticCode {
   AnalyzerDeprecatedUse,
   AnalyzerHighGrowthLoop,
   AnalyzerImplicitOwnershipTransfer,
+  AnalyzerConstMutableBorrowParameter,
   ModuleNotFound,
   ConstantLegacy,
   BackendLegacy,
@@ -170,6 +171,8 @@ diagnostic_code_name(DiagnosticCode code) noexcept {
     return "JANA0034";
   case DiagnosticCode::AnalyzerImplicitOwnershipTransfer:
     return "JANA0035";
+  case DiagnosticCode::AnalyzerConstMutableBorrowParameter:
+    return "JANA0036";
   case DiagnosticCode::ModuleNotFound:
     return "JMOD0001";
   case DiagnosticCode::ConstantLegacy:

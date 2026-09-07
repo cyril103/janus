@@ -481,6 +481,22 @@ pour l'appel runtime. Chaque invocation, notamment récursive, possède son
 propre environnement lexical. Les locales runtime, globales mutables et appels
 non constants restent refusés dès l'analyse de la déclaration.
 
+Les paramètres sans qualificateur et les emprunts partagés restent utilisables
+par une `const def`, y compris lors d'un appel constant :
+
+```janus
+const seed : int = 41
+const def read(borrow value : int) : int { return value }
+const answer : int = read(seed)
+```
+
+En revanche, un paramètre `borrow var` donnerait à l'évaluation constante une
+capacité mutable issue du runtime. Sa déclaration est donc refusée avec
+`JANA0036`, même si la fonction ou le paramètre n'est jamais utilisé. Cette
+nouvelle validation ne modifie pas les autres déclarations : une `def`
+ordinaire peut recevoir cet emprunt, tandis que le contrat runtime d'une
+`pure def` le refusait déjà séparément.
+
 Les effets d'emprunt font partie du type d'une fonction. Ils s'écrivent sur
 les paramètres du type et de la closure :
 
