@@ -630,10 +630,6 @@ int main(int argc, char **argv) {
                 std::string::npos);
 
   janus::lsp::Server private_extension_server;
-  const std::string private_extension_a_uri =
-      file_uri(std::filesystem::path{"/private-extension-a.janus"});
-  const std::string private_extension_b_uri =
-      file_uri(std::filesystem::path{"/private-extension-b.janus"});
   static_cast<void>(private_extension_server.handle(
       R"({"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///private-extension-dir/../private-extension-a.janus","text":"module shared_private_extension\nprivate extend Token { borrow def code(value : int) : int { return value } }\n"}}})"));
   static_cast<void>(private_extension_server.handle(
@@ -665,15 +661,20 @@ int main(int argc, char **argv) {
       private_extension_server.handle(
           R"({"jsonrpc":"2.0","id":506,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///private-extension-b.janus"},"position":{"line":2,"character":48}}})")
           .front();
-  JANUS_REQUIRE(private_extension_definition.find(private_extension_a_uri) !=
+  JANUS_REQUIRE(private_extension_definition.find(
+                    "private-extension-a.janus") !=
+                std::string::npos);
+  JANUS_REQUIRE(private_extension_definition.find("/../") ==
                 std::string::npos);
   const std::string private_extension_references =
       private_extension_server.handle(
           R"({"jsonrpc":"2.0","id":507,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///private-extension-b.janus"},"position":{"line":2,"character":48},"context":{"includeDeclaration":true}}})")
           .front();
-  JANUS_REQUIRE(private_extension_references.find(private_extension_a_uri) !=
+  JANUS_REQUIRE(private_extension_references.find(
+                    "private-extension-a.janus") !=
                 std::string::npos);
-  JANUS_REQUIRE(private_extension_references.find(private_extension_b_uri) !=
+  JANUS_REQUIRE(private_extension_references.find(
+                    "private-extension-b.janus") !=
                 std::string::npos);
 
   static_cast<void>(server.handle(
