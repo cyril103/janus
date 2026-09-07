@@ -271,6 +271,22 @@ diagnostic `JPAR0004`. Le formatter conserve la casse et les zéros écrits dans
 l’échappement. Les contrôles et espaces invisibles sont autorisés comme valeurs
 de littéraux ; employer `\u{...}` les rend explicites pendant la revue.
 
+Le cast primitif `char(integer)` conserve les 32 bits numériques sans vérifier
+qu'ils forment un scalaire Unicode. Une valeur invalide reste donc observable
+avec `uint(value)` ; son encodage par `print`, `println`, `appendChar` ou une
+interpolation textuelle produit le caractère de remplacement `U+FFFD`. Pour une
+entrée `int` non fiable, utilisez `checkedChar` depuis `std.unicode` : cette
+fonction constante renvoie `Some(char)` pour `0..D7FF` et `E000..10FFFF`, et
+`None` pour une valeur négative, un surrogate ou une valeur hors domaine.
+
+```janus
+import std.unicode
+import std.option
+
+const letter : Option[char] = checkedChar(65)
+val rejected : Option[char] = checkedChar(0xD800)
+```
+
 `Unit` est un type de valeur composable : il peut être utilisé pour les
 locales, paramètres, champs, payloads d'enum, callbacks et spécialisations
 génériques. `if` et `match` peuvent également produire `Unit`. Sa valeur

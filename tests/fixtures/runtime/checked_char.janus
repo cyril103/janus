@@ -1,0 +1,55 @@
+import std.unicode
+import std.option
+
+const minimum : Option[char] = checkedChar(0)
+const beforeSurrogates : Option[char] = checkedChar(0xD7FF)
+const firstSurrogate : Option[char] = checkedChar(0xD800)
+const lastSurrogate : Option[char] = checkedChar(0xDFFF)
+const afterSurrogates : Option[char] = checkedChar(0xE000)
+const maximum : Option[char] = checkedChar(0x10FFFF)
+const aboveMaximum : Option[char] = checkedChar(0x110000)
+const negative : Option[char] = checkedChar(-1)
+
+staticAssert(match minimum { Some(value) => uint(value) == uint(0), None => false })
+staticAssert(match beforeSurrogates { Some(value) => uint(value) == uint(0xD7FF), None => false })
+staticAssert(match firstSurrogate { Some(value) => false, None => true })
+staticAssert(match lastSurrogate { Some(value) => false, None => true })
+staticAssert(match afterSurrogates { Some(value) => uint(value) == uint(0xE000), None => false })
+staticAssert(match maximum { Some(value) => uint(value) == uint(0x10FFFF), None => false })
+staticAssert(match aboveMaximum { Some(value) => false, None => true })
+staticAssert(match negative { Some(value) => false, None => true })
+
+def accepts(code : int) : bool {
+    return match checkedChar(code) { Some(value) => true, None => false }
+}
+
+def printScalar(code : int) : Unit {
+    return match checkedChar(code) {
+        Some(value) => println(value),
+        None => println("invalid")
+    }
+}
+
+def main() : int {
+    var code : int = 0
+    println(accepts(code))
+    code = 0xD7FF
+    println(accepts(code))
+    code = 0xD800
+    println(accepts(code))
+    code = 0xDFFF
+    println(accepts(code))
+    code = 0xE000
+    println(accepts(code))
+    code = 0x10FFFF
+    println(accepts(code))
+    code = 0x110000
+    println(accepts(code))
+    code = -1
+    println(accepts(code))
+
+    printScalar(0xD7FF)
+    printScalar(0xE000)
+    printScalar(0x10FFFF)
+    return 0
+}

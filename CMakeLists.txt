@@ -3714,6 +3714,19 @@ if(BUILD_TESTING)
     add_test(NAME language.numeric_conversion COMMAND numeric_conversion_test)
 
     add_test(
+        NAME runtime.checked_char
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/checked_char.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/checked_char_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/checked_char.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
+
+    add_test(
         NAME runtime.numeric_conversions
         COMMAND
             ${CMAKE_COMMAND}

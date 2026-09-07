@@ -17,7 +17,7 @@ TYPE_RE = re.compile(
     r"(?:(private|internal)\s+)?(class|struct|enum|trait)\s+([A-Za-z_]\w*)"
 )
 FUNCTION_RE = re.compile(
-    r"(?:(private|internal)\s+)?(?:(pure)\s+)?"
+    r"(?:(private|internal)\s+)?(?:(pure|const)\s+)?"
     r"(?:(extern(?:\(\"[^\"]+\"\))?)\s+)?(?:(consume)\s+)?"
     r"(?:borrow\s+)?def\s+([A-Za-z_]\w*)"
 )
@@ -64,7 +64,7 @@ BUILTIN_FUNCTIONS = {
     "print",
     "println",
     "realloc",
-}
+} | BUILTIN_TYPES
 NON_API_SUFFIXES = {
     "dll",
     "dylib",
