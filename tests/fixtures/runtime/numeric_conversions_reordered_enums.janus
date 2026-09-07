@@ -12,6 +12,20 @@ enum Result[T, E] {
     Ok(T)
 }
 
+def classifyFloat(value : double) : int {
+    return match checkedCast[float](value) {
+        Ok(converted) => 0,
+        Error(error) => match error {
+            Overflow => 10,
+            Underflow => 20,
+            IncompatibleSign => 30,
+            NonFinite => 40,
+            FractionalLoss => 50,
+            PrecisionLoss => 60
+        }
+    }
+}
+
 def main() : int {
     var zero : double = 0.0
     var runtimeExact : long = 42
@@ -21,6 +35,14 @@ def main() : int {
     var runtimeFraction : double = 12.5
     var runtimeInfinity : double = 1.0 / zero
     var runtimePrecision : long = 16777217
+    var floatMaximum : double = 3.4028234663852886e38
+    var justInsideFloatMaximum : double = 3.4028234663852882e38
+    var justAboveFloatMaximum : double = 3.402823466385289e38
+    var negativeFloatMinimum : double = -3.4028234663852886e38
+    var justInsideFloatMinimum : double = -3.4028234663852882e38
+    var justBelowFloatMinimum : double = -3.402823466385289e38
+    var runtimeNan : double = zero / zero
+    var runtimeNegativeInfinity : double = -runtimeInfinity
 
     println(match checkedCast[byte](runtimeExact) {
         Ok(value) => int(value), Error(error) => -100 - int(error)
@@ -43,5 +65,14 @@ def main() : int {
     println(match checkedCast[float](runtimePrecision) {
         Ok(value) => int(value), Error(error) => -100 - int(error)
     })
+    println(classifyFloat(floatMaximum))
+    println(classifyFloat(justInsideFloatMaximum))
+    println(classifyFloat(justAboveFloatMaximum))
+    println(classifyFloat(negativeFloatMinimum))
+    println(classifyFloat(justInsideFloatMinimum))
+    println(classifyFloat(justBelowFloatMinimum))
+    println(classifyFloat(runtimeNan))
+    println(classifyFloat(runtimeInfinity))
+    println(classifyFloat(runtimeNegativeInfinity))
     return 0
 }

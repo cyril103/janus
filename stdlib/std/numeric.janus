@@ -15,6 +15,6 @@ enum NumericCastError derives Copy, Equality, Debug {
     NonFinite,
     /// La source flottante possède une partie fractionnaire.
     FractionalLoss,
-    /// La cible flottante ne peut pas représenter exactement la source.
+    /// Une source dans les bornes finies de la cible flottante y est arrondie.
     PrecisionLoss
 }

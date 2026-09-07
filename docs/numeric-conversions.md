@@ -41,6 +41,23 @@ zéro signé est conservé entre flottants.
 | `+∞` / `-∞` | `NonFinite` | max(T) / min(T) ; pour une cible flottante, ±maximum fini |
 | `+0.0` / `-0.0` entre flottants | `Ok`, signe conservé | signe conservé |
 
+Pour un rétrécissement flottant, les bornes sont les valeurs finies exactes de
+la cible, comparées dans le type source avant toute conversion ou saturation.
+Ainsi, le premier voisin `double` au-dessus du maximum fini de `float` produit
+`Overflow`, et le premier voisin sous son opposé produit `Underflow`. Les
+voisins encore dans cet intervalle mais arrondis restent classés
+`PrecisionLoss`. `NaN` et les deux infinis restent toujours `NonFinite`.
+
+```janus
+val source : double = 3.402823466385289e38 // voisin après float.max
+val result = checkedCast[float](source)     // Error(Overflow)
+```
+
+Cette garantie repose sur les formats IEEE 754 `float` (binary32) et `double`
+(binary64) pris en charge par Janus. Elle ne distingue pas les valeurs normales
+des sous-normales tant qu'elles restent finies et dans la plage : une valeur
+arrondie dans cette zone est diagnostiquée uniformément par `PrecisionLoss`.
+
 En cas de plusieurs motifs possibles, `checkedCast` choisit dans cet ordre :
 `NonFinite`, incompatibilité de signe ou borne, puis perte fractionnaire ou de
 précision. `checkedCast` ne renvoie donc jamais une branche `Ok` silencieusement

@@ -1396,10 +1396,20 @@ private:
         fail(builder.CreateFCmpONE(source, truncated),
              error_case_value("FractionalLoss"));
       } else if (destination.bit_width() < source_type.bit_width()) {
-        ::llvm::Value *overflow = builder.CreateFCmpOEQ(
-            builder.CreateUnaryIntrinsic(::llvm::Intrinsic::fabs, converted),
-            ::llvm::ConstantFP::getInfinity(converted->getType()));
-        fail(overflow, error_case_value("Overflow"));
+        const double finite_maximum =
+            destination.bit_width() == 32
+                ? static_cast<double>(std::numeric_limits<float>::max())
+                : std::numeric_limits<double>::max();
+        fail(builder.CreateFCmpOGT(
+                 source,
+                 ::llvm::ConstantFP::get(source->getType(), finite_maximum),
+                 "checked.above.finite.maximum"),
+             error_case_value("Overflow"));
+        fail(builder.CreateFCmpOLT(
+                 source,
+                 ::llvm::ConstantFP::get(source->getType(), -finite_maximum),
+                 "checked.below.finite.minimum"),
+             error_case_value("Underflow"));
         ::llvm::Value *roundtrip =
             builder.CreateFPExt(converted, source->getType());
         fail(builder.CreateFCmpONE(source, roundtrip),

@@ -79,6 +79,7 @@ def main() : int {
     val unsignedValue : ulong = ulong(300)
     val fraction : double = -12.75
     val single : float = 16777216.0f
+    val aboveFloatMaximum : double = 3.402823466385289e38
 
     val a : byte = saturatingCast[byte](signedValue)
     val b : ubyte = saturatingCast[ubyte](unsignedValue)
@@ -89,6 +90,7 @@ def main() : int {
         Error(error) => 0.0
     }
     val f : Result[float, NumericCastError] = checkedCast[float](16777217)
+    val g : Result[float, NumericCastError] = checkedCast[float](aboveFloatMaximum)
     return int(a) + int(b) + int(c) + int(d) + int(e)
 }
 )";
@@ -120,6 +122,10 @@ def main() : int {
          "f-suffixed literal is represented directly as float");
   expect(ir.find("float 1.000000e+03") != std::string::npos,
          "scientific f-suffixed literal is represented as float");
+  expect(ir.find("checked.above.finite.maximum") != std::string::npos,
+         "checked floating narrowing compares the source to finite max");
+  expect(ir.find("checked.below.finite.minimum") != std::string::npos,
+         "checked floating narrowing compares the source to finite min");
 
   expect_compile_error(
       "def main() : int { val x : int = saturatingCast[int](true) return x }",

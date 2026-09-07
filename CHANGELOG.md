@@ -21,6 +21,11 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- correction de `checkedCast` lors d'un rétrécissement flottant : une source
+  finie hors des bornes exactes de la cible est désormais classée `Overflow` ou
+  `Underflow` avant saturation, tandis que `PrecisionLoss` reste réservé aux
+  valeurs dans la plage qui doivent être arrondies et `NonFinite` aux NaN et
+  infinis ;
 - correction de JANA0013 pour les casts entier vers flottant : l'analyseur
   compare désormais le domaine signé ou non signé complet aux 24/53 bits de
   précision IEEE 754, y compris pour `isize`/`usize` selon les cibles 32/64
