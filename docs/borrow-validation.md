@@ -1,6 +1,6 @@
 # Validation du système d'emprunts
 
-Le modèle d'emprunts lexicaux est validé à quatre niveaux complémentaires.
+Le modèle de régions d'emprunt est validé à quatre niveaux complémentaires.
 Cette matrice est le gate de non-régression associé à l'issue #265.
 
 | Garantie | Validation principale |
@@ -8,7 +8,7 @@ Cette matrice est le gate de non-régression associé à l'issue #265.
 | emprunts partagés, méthodes `borrow def`, branches et boucles | `language.immutable_borrow` |
 | exclusivité mutable, réemprunts et champs `borrow var` | `language.mutable_borrow` |
 | places de champs, overlap, projections génériques et imports | `language.immutable_borrow`, `language.mutable_borrow`, `language.module_import` |
-| destruction, mutation, réallocation, stockage et retours | `language.borrow_invalidation` |
+| dernière utilisation, branches, boucles, destruction, stockage et retours | `language.borrow_invalidation` |
 | appels imbriqués et closures bornées ou échappantes | `language.borrowed_calls_closures` |
 | conteneurs contigus partagés et mutables | `runtime.slices`, `runtime.slice_out_of_bounds` |
 | nettoyage lors d'une panique | `runtime.borrow_panic_cleanup` sous AddressSanitizer |
@@ -18,7 +18,8 @@ Cette matrice est le gate de non-régression associé à l'issue #265.
 Les violations sont réparties entre `JANA0024` et `JANA0028` : conflit,
 invalidation, échappement, accès interdit et source invalide. Le corpus invalide
 verrouille chaque code et un fragment de message. Les diagnostics d'invalidation
-ajoutent aussi une note indiquant quelle portée terminer avant l'opération.
+ajoutent aussi une note indiquant quelle portée terminer et une localisation
+secondaire de la dernière utilisation qui maintient la région active.
 
 Les fixtures runtime sont compilées nativement avec AddressSanitizer et la
 détection de fuites sur Linux. Les tests normaux, les bornes invalides et une

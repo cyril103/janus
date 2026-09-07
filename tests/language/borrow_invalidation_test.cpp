@@ -33,7 +33,8 @@ void expect_valid(std::string_view source) {
 void expect_compile_error(
     std::string_view source, std::string_view expected_message,
     std::optional<janus::DiagnosticCode> expected_code = std::nullopt,
-    std::string_view expected_note = {}) {
+    std::string_view expected_note = {},
+    std::string_view expected_related = {}) {
   try {
     janus::frontend::Parser parser{source};
     janus::semantic::Analyzer analyzer;
@@ -57,12 +58,151 @@ void expect_compile_error(
           });
       expect(found, "borrow diagnostic explains how to end the conflict");
     }
+    if (!expected_related.empty()) {
+      const bool found =
+          std::any_of(error.diagnostic().secondary_locations.begin(),
+                      error.diagnostic().secondary_locations.end(),
+                      [&](const janus::DiagnosticLocation &location) {
+                        return std::string_view{location.label}.find(
+                                   expected_related) != std::string_view::npos;
+                      });
+      expect(found, "borrow diagnostic identifies the retaining last use");
+    }
   }
 }
 
 } // namespace
 
 int main() {
+  expect_valid(R"(
+class Box(var value : int) {}
+def main() : int {
+  val box : Box = new Box(1)
+  borrow val view : Box = box
+  println(view.value)
+  delete box
+  return 0
+}
+)");
+
+  expect_valid(R"(
+class Resource(val value : int) {}
+def exercise(flag : bool) : int {
+  val resource : Resource = new Resource(1)
+  borrow val view : Resource = resource
+  if flag {
+    println(view.value)
+  } else {
+    delete resource
+    return 0
+  }
+  delete resource
+  return 0
+}
+def main() : int { return exercise(true) }
+)");
+
+  expect_compile_error(R"(
+class Resource(var value : int) {
+  def update(next : int) : Unit { value = next }
+}
+def exercise(flag : bool) : int {
+  val resource : Resource = new Resource(1)
+  borrow val view : Resource = resource
+  if flag {
+    resource.update(2)
+  }
+  return view.value
+}
+def main() : int { return exercise(true) }
+)",
+                       "cannot be mutated while borrowed by 'view'",
+                       janus::DiagnosticCode::AnalyzerBorrowInvalidation, {},
+                       "last use of 'view'");
+
+  expect_compile_error(R"(
+class Resource(val value : int) {}
+def exercise() : int {
+  val resource : Resource = new Resource(1)
+  borrow val view : Resource = resource
+  val callback : () => Unit = () => { println(view.value) }
+  callback()
+  delete resource
+  return 0
+}
+def main() : int { return exercise() }
+)",
+                       "while borrowed by 'callback'",
+                       janus::DiagnosticCode::AnalyzerBorrowInvalidation);
+
+  expect_valid(R"(
+class Resource(val value : int) {}
+def exercise() : int {
+  val resource : Resource = new Resource(1)
+  borrow val view : Resource = resource
+  val callback : () => Unit = () => { println(view.value) }
+  callback()
+  delete callback
+  delete resource
+  return 0
+}
+def main() : int { return exercise() }
+)");
+
+  expect_compile_error(R"(
+class Resource(var value : int) {
+  def update(next : int) : Unit { value = next }
+}
+def exercise(run : bool) : int {
+  val resource : Resource = new Resource(1)
+  borrow val view : Resource = resource
+  while run {
+    resource.update(2)
+    println(view.value)
+    break
+  }
+  delete resource
+  return 0
+}
+def main() : int { return exercise(true) }
+)",
+                       "cannot be mutated while borrowed by 'view'",
+                       janus::DiagnosticCode::AnalyzerBorrowInvalidation);
+
+  expect_valid(R"(
+class Resource(var value : int) {
+  def update(next : int) : Unit { value = next }
+}
+def exercise(run : bool) : int {
+  val resource : Resource = new Resource(1)
+  borrow val view : Resource = resource
+  while run {
+    println(view.value)
+    resource.update(2)
+    break
+  }
+  delete resource
+  return 0
+}
+def main() : int { return exercise(true) }
+)");
+
+  expect_valid(R"(
+class Resource(val value : int) {}
+def exercise(stop : bool) : int {
+  val resource : Resource = new Resource(1)
+  borrow val view : Resource = resource
+  if stop {
+    delete resource
+    return 0
+  }
+  val result : int = view.value
+  delete resource
+  return result
+}
+def main() : int { return exercise(false) }
+)");
+
   expect_valid(R"(
 class Resource(var value : int) {
   def update(next : int) : Unit { value = next }

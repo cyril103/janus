@@ -1,12 +1,13 @@
-# Décision de langage : emprunts lexicaux sûrs
+# Décision de langage : régions d'emprunt sûres
 
 Statut : acceptée et validée. Les emprunts partagés de l'issue #260, les
 emprunts mutables exclusifs de l'issue #261, les invalidations lexicales de
 l'issue #262, les transmissions bornées de l'issue #263, les vues contiguës de
 l'issue #264 et la matrice de validation de l'issue #265 sont implémentés. Les
 retours empruntés partagés et les effets d'emprunt des types de fonction sont
-également pris en charge. Les projections fines, les retours empruntés
-mutables et les régions à la dernière utilisation restent différés.
+également pris en charge. Les projections fines et les retours empruntés
+mutables restent différés. Les liaisons empruntées locales se terminent à leur
+dernière utilisation prouvée depuis l'issue #352.
 
 Cette décision définit le premier modèle général d'emprunts de Janus. Elle
 étend les garanties de [propriété des conteneurs](container-ownership.md) sans
@@ -521,10 +522,23 @@ invariants d'aliasing sans rendre nécessaire une collecte de mémoire cachée.
 6. construire `Slice[T]` et `MutableSlice[T]` sur ces garanties ;
 7. migrer les callbacks historiques et valider Janus Studio comme canari.
 
-Les étapes 2 à 7 sont disponibles avec des régions lexicales conservatrices :
-une liaison `borrow val` ou `borrow var` reste active jusqu'à la fin de son
-bloc. L'analyse plus fine à la dernière utilisation et les projections ne font
-donc pas encore partie de cette implémentation.
+Les étapes 2 à 7 sont disponibles. L'analyse rétrograde de l'issue #352 clôt
+une liaison locale `borrow val` ou `borrow var` après sa dernière utilisation
+possible sur chaque chemin. Les jonctions prennent l'union des utilisations
+encore accessibles et les retours ou paniques coupent le chemin courant. Les
+arêtes de retour des boucles sont traitées conservativement, sans itération non
+bornée du compilateur.
+
+Un emprunt stocké dans un objet, capturé par une closure ou lu par un `defer`
+conserve une région lexicale : il reste actif jusqu'à la destruction explicite
+de son porteur, l'exécution différée ou la fin du bloc. Ce repli est volontaire
+quand le compilateur ne peut pas prouver une dernière utilisation locale.
+
+La collecte des utilisations parcourt chaque bloc à rebours et ne réalise
+aucune recherche de point fixe non bornée. Pour un bloc de `S` instructions et
+`V` noms vivants, ses tables de suffixes sont bornées par `O(S × V)` ; les
+corpus canoniques `small` et `medium` restent couverts par le dashboard de
+performance du compilateur.
 
 L'étape 4 protège également les invalidations de la valeur entière : transfert,
 destruction, écrasement, méthode mutante, consommation native et réallocation

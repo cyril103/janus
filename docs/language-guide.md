@@ -1047,8 +1047,8 @@ peuvent pas être établis localement.
 
 `borrow val` crée un alias temporaire en lecture seule sans copier la valeur et
 sans lui transférer sa propriété. Le propriétaire ne peut être ni déplacé ni
-détruit avant la fin de la portée de l'alias. Plusieurs emprunts immuables
-peuvent coexister :
+détruit avant la dernière utilisation encore accessible de l'alias. Plusieurs
+emprunts immuables peuvent coexister :
 
 ```janus
 borrow val first : Document = document
@@ -1085,10 +1085,12 @@ borrow val view : Document = identity(document)
 Une fonction libre ainsi annotée possède exactement un paramètre emprunté,
 qui devient la source de durée de vie. Une méthode doit être `borrow def` et
 son résultat provient de `this`. Le résultat doit être lié par `borrow val` ;
-le propriétaire source reste gelé pendant la portée de cette liaison. Les
-durées de vie nommées ne sont pas encore prises en charge. Les régions restent
-lexicales : placez un emprunt local dans un bloc plus court pour réutiliser
-ensuite le propriétaire.
+le propriétaire source reste gelé jusqu'à la dernière utilisation possible de
+cette liaison. Les durées de vie nommées ne sont pas encore prises en charge.
+Une closure, un stockage ou un `defer` susceptible de conserver l'emprunt
+étend toutefois sa région jusqu'à la destruction du porteur, l'exécution
+différée ou la fin du bloc. Un sous-bloc reste le moyen explicite de borner ces
+cas conservateurs.
 `borrow var` crée un emprunt mutable exclusif. Le mot `var` donne le droit de
 modifier la valeur visée ; il ne permet pas de réassigner l'alias :
 
@@ -1163,8 +1165,8 @@ avec un champ constructeur `borrow val` ou `borrow var` maintient respectivement
 un emprunt partagé ou mutable jusqu'à sa
 destruction ou la fin de son bloc. Cet objet ne peut pas être copié dans un
 champ ou une globale, ni sortir de la fonction par `return`. Ces règles sont
-conservatrices et lexicales ; un bloc court permet de terminer explicitement
-la durée de vie observante.
+lexicales pour l'objet porteur ; un bloc court ou sa destruction explicite
+permet de terminer la durée de vie observante.
 
 Le module `std.slice` fournit des vues contiguës sur `Array[T]`, y compris pour
 les éléments propriétaires non `Copy`. `Slice[T]` permet la lecture partagée ;

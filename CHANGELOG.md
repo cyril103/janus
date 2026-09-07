@@ -21,6 +21,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- fin des liaisons locales `borrow val` et `borrow var` à leur dernière
+  utilisation prouvée sur chaque chemin : les propriétaires redeviennent
+  accessibles sans sous-bloc artificiel, tandis que branches, boucles,
+  retours, paniques et `defer` restent analysés conservativement ; les closures
+  et stockages prolongent toujours lexicalement l'emprunt, et `JANA0025`
+  localise désormais la dernière utilisation qui maintient la région active ;
 - ajout de `std.unicode.checkedChar(int)`, une `const def` qui retourne
   `Option[char]`, accepte exactement les scalaires Unicode `0..D7FF` et
   `E000..10FFFF`, et refuse les valeurs négatives, surrogates et hors domaine ;

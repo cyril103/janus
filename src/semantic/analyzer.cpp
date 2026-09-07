@@ -4657,6 +4657,16 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> borrowed_values;
     std::unordered_set<std::string> shared_borrow_values;
     std::unordered_set<std::string> mutable_borrow_values;
+    // Direct borrowed locals may stop constraining their source after their
+    // last reachable use. Borrow-carrying aggregates and closures are not put
+    // in this set: storing a borrow keeps its historical lexical lifetime.
+    std::unordered_set<std::string> nonlexical_borrow_values;
+    using BorrowUseMap = std::unordered_map<std::string, SourceLocation>;
+    BorrowUseMap known_borrow_uses;
+    const BorrowUseMap *active_borrow_uses = nullptr;
+    const BorrowUseMap *borrow_liveness_continuation = nullptr;
+    const BorrowUseMap *borrow_break_continuation = nullptr;
+    const BorrowUseMap *borrow_continue_continuation = nullptr;
     std::unordered_map<const ast::Expression *, SemanticType>
         inferred_expression_types;
     std::unordered_map<std::string, std::unordered_set<std::string>>
@@ -4723,6 +4733,18 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
     std::unordered_set<std::string> *active_deferred_reads = nullptr;
     std::unordered_map<std::string, std::string>
         *active_deferred_invalidations = nullptr;
+    const auto borrow_remains_live = [&](std::string_view borrower) {
+      if (!nonlexical_borrow_values.contains(std::string{borrower}) ||
+          inside_lambda)
+        return true;
+      if (active_borrow_uses != nullptr &&
+          active_borrow_uses->contains(std::string{borrower}))
+        return true;
+      return std::any_of(deferred_effects.begin(), deferred_effects.end(),
+                         [&](const DeferredEffect &effect) {
+                           return effect.reads.contains(std::string{borrower});
+                         });
+    };
     const auto is_scoped_tainted =
         [&](std::string_view name, const auto &self,
             std::unordered_set<std::string> &visited) -> bool {
@@ -4811,7 +4833,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
       for (const auto &[borrower, sources] : borrow_sources) {
         const auto symbol = active_symbols->find(borrower);
         if (symbol == active_symbols->end() ||
-            !symbol->second.may_be_initialized)
+            !symbol->second.may_be_initialized ||
+            !borrow_remains_live(borrower))
           continue;
         std::unordered_set<std::string> visited;
         const bool borrows_owner = std::any_of(
@@ -4820,6 +4843,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             });
         if (!borrows_owner)
           continue;
+        std::vector<DiagnosticLocation> related;
+        std::optional<SourceLocation> last_use;
+        if (nonlexical_borrow_values.contains(borrower) &&
+            active_borrow_uses != nullptr)
+          if (const auto use = active_borrow_uses->find(borrower);
+              use != active_borrow_uses->end())
+            last_use = use->second;
+        if (nonlexical_borrow_values.contains(borrower) &&
+            !last_use.has_value())
+          if (const auto use = known_borrow_uses.find(borrower);
+              use != known_borrow_uses.end())
+            last_use = use->second;
+        if (last_use.has_value())
+          related.push_back(DiagnosticLocation{
+              *last_use,
+              "last use of '" + borrower + "' keeping this borrow live"});
         throw CompileError{Diagnostic{
             DiagnosticSeverity::Error,
             DiagnosticCode::AnalyzerBorrowInvalidation,
@@ -4828,7 +4867,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             location,
             {"end the scope of '" + borrower +
              "' or destroy it before this operation"},
-            {},
+            std::move(related),
             {}}};
       }
     };
@@ -4860,7 +4899,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           continue;
         const auto symbol = active_symbols->find(borrower);
         if (symbol == active_symbols->end() ||
-            !symbol->second.may_be_initialized)
+            !symbol->second.may_be_initialized ||
+            !borrow_remains_live(borrower))
           continue;
         std::unordered_set<std::string> visited;
         if (std::any_of(
@@ -5387,6 +5427,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           closure_transfer_protected_values;
       const auto shared_borrow_values_before = shared_borrow_values;
       const auto mutable_borrow_values_before = mutable_borrow_values;
+      const auto nonlexical_borrow_values_before = nonlexical_borrow_values;
       const auto borrow_sources_before = borrow_sources;
       const auto pattern_borrow_sources_before = pattern_borrow_sources;
       const auto inferred_calls_before = result.inferred_generic_arguments;
@@ -5437,6 +5478,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
             closure_transfer_protected_values_before;
         shared_borrow_values = shared_borrow_values_before;
         mutable_borrow_values = mutable_borrow_values_before;
+        nonlexical_borrow_values = nonlexical_borrow_values_before;
         borrow_sources = borrow_sources_before;
         pattern_borrow_sources = pattern_borrow_sources_before;
         result.inferred_generic_arguments = inferred_calls_before;
@@ -6413,6 +6455,8 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
               const auto previous_borrowed_values = borrowed_values;
               const auto previous_shared_borrow_values = shared_borrow_values;
               const auto previous_mutable_borrow_values = mutable_borrow_values;
+              const auto previous_nonlexical_borrow_values =
+                  nonlexical_borrow_values;
               const auto previous_transfer_protected =
                   transfer_protected_values;
               const auto previous_closure_transfer_protected =
@@ -6452,6 +6496,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                 borrowed_values = previous_borrowed_values;
                 shared_borrow_values = previous_shared_borrow_values;
                 mutable_borrow_values = previous_mutable_borrow_values;
+                nonlexical_borrow_values = previous_nonlexical_borrow_values;
                 loop_depth = previous_loop_depth;
               };
               std::vector<SemanticType> signature;
@@ -9795,18 +9840,206 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           contextual_lambda_may_escape = previous_contextual_lambda_may_escape;
         };
 
+    const auto merge_borrow_uses = [](BorrowUseMap &destination,
+                                      const BorrowUseMap &source) {
+      for (const auto &[name, location] : source) {
+        const auto existing = destination.find(name);
+        if (existing == destination.end() ||
+            existing->second.offset < location.offset)
+          destination.insert_or_assign(name, location);
+      }
+    };
+    const auto record_borrow_use = [](BorrowUseMap &uses, std::string_view name,
+                                      SourceLocation location) {
+      const auto existing = uses.find(std::string{name});
+      if (existing == uses.end() || existing->second.offset < location.offset)
+        uses.insert_or_assign(std::string{name}, location);
+    };
+    std::function<void(const ast::Expression &, BorrowUseMap &)>
+        collect_expression_uses;
+    std::function<void(const ast::Statement &, BorrowUseMap &)>
+        collect_statement_uses;
+    const auto collect_block_uses = [&](const std::vector<ast::Statement> &body,
+                                        BorrowUseMap &uses) {
+      for (const ast::Statement &nested : body)
+        collect_statement_uses(nested, uses);
+    };
+    collect_expression_uses = [&](const ast::Expression &expression,
+                                  BorrowUseMap &uses) {
+      std::visit(
+          [&](const auto &node) {
+            using Node = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<Node, ast::IdentifierExpression>) {
+              record_borrow_use(uses, node.name, node.location);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::ArrayLiteralExpression>) {
+              for (const auto &element : node.elements)
+                collect_expression_uses(*element, uses);
+            } else if constexpr (std::is_same_v<Node, ast::LambdaExpression>) {
+              BorrowUseMap body_uses;
+              if (const auto *body =
+                      std::get_if<std::unique_ptr<ast::Expression>>(&node.body))
+                collect_expression_uses(**body, body_uses);
+              else
+                collect_block_uses(
+                    std::get<std::shared_ptr<ast::LambdaBlock>>(node.body)
+                        ->statements,
+                    body_uses);
+              for (const auto &parameter : node.parameters)
+                body_uses.erase(parameter.name);
+              merge_borrow_uses(uses, body_uses);
+            } else if constexpr (std::is_same_v<Node, ast::CallExpression>) {
+              record_borrow_use(uses, node.callee, node.location);
+              for (const auto &argument : node.arguments)
+                collect_expression_uses(*argument, uses);
+            } else if constexpr (std::is_same_v<Node, ast::NewExpression>) {
+              for (const auto &argument : node.arguments)
+                collect_expression_uses(*argument, uses);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MemberAccessExpression>) {
+              collect_expression_uses(*node.object, uses);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::MethodCallExpression>) {
+              collect_expression_uses(*node.object, uses);
+              for (const auto &argument : node.arguments)
+                collect_expression_uses(*argument, uses);
+            } else if constexpr (std::is_same_v<Node, ast::IndexExpression>) {
+              collect_expression_uses(*node.container, uses);
+              collect_expression_uses(*node.index, uses);
+            } else if constexpr (std::is_same_v<Node, ast::IfExpression>) {
+              collect_expression_uses(*node.condition, uses);
+              collect_expression_uses(*node.then_expression, uses);
+              collect_expression_uses(*node.else_expression, uses);
+            } else if constexpr (std::is_same_v<Node, ast::MatchExpression>) {
+              collect_expression_uses(*node.scrutinee, uses);
+              for (const auto &arm : node.arms) {
+                BorrowUseMap arm_uses;
+                if (arm.guard)
+                  collect_expression_uses(*arm.guard, arm_uses);
+                collect_expression_uses(*arm.expression, arm_uses);
+                for (const std::string &binding :
+                     ast::match_pattern_binding_names(arm))
+                  arm_uses.erase(binding);
+                merge_borrow_uses(uses, arm_uses);
+              }
+            } else if constexpr (std::is_same_v<Node, ast::MoveExpression> ||
+                                 std::is_same_v<Node, ast::TryExpression> ||
+                                 std::is_same_v<Node, ast::UnaryExpression>) {
+              collect_expression_uses(*node.operand, uses);
+            } else if constexpr (std::is_same_v<Node, ast::BinaryExpression>) {
+              collect_expression_uses(*node.left, uses);
+              collect_expression_uses(*node.right, uses);
+            }
+          },
+          expression.value);
+    };
+    collect_statement_uses = [&](const ast::Statement &statement,
+                                 BorrowUseMap &uses) {
+      std::visit(
+          [&](const auto &node) {
+            using Node = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<Node, ast::ValueDeclaration>) {
+              if (node.initializer)
+                collect_expression_uses(*node.initializer, uses);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::AssignmentStatement>) {
+              if (!node.object.empty())
+                record_borrow_use(uses, node.object, node.location);
+              record_borrow_use(uses, node.name, node.location);
+              if (node.index_target) {
+                collect_expression_uses(*node.index_target->container, uses);
+                collect_expression_uses(*node.index_target->index, uses);
+              }
+              collect_expression_uses(node.expression, uses);
+            } else if constexpr (std::is_same_v<Node, ast::DeleteStatement>) {
+              collect_expression_uses(node.expression, uses);
+            } else if constexpr (std::is_same_v<Node, ast::ReturnStatement>) {
+              if (node.expression)
+                collect_expression_uses(*node.expression, uses);
+            } else if constexpr (std::is_same_v<Node,
+                                                ast::ExpressionStatement>) {
+              collect_expression_uses(node.expression, uses);
+            } else if constexpr (std::is_same_v<Node, ast::DeferStatement>) {
+              std::visit(
+                  [&](const auto &action) {
+                    collect_expression_uses(action.expression, uses);
+                  },
+                  node.action);
+            } else if constexpr (std::is_same_v<
+                                     Node, std::shared_ptr<ast::IfStatement>>) {
+              collect_expression_uses(node->condition, uses);
+              collect_block_uses(node->then_body, uses);
+              collect_block_uses(node->else_body, uses);
+            } else if constexpr (std::is_same_v<
+                                     Node,
+                                     std::shared_ptr<ast::WhileStatement>>) {
+              collect_expression_uses(node->condition, uses);
+              collect_block_uses(node->body, uses);
+            } else if constexpr (std::is_same_v<Node, std::shared_ptr<
+                                                          ast::ForStatement>>) {
+              collect_expression_uses(node->iterator, uses);
+              BorrowUseMap body_uses;
+              collect_block_uses(node->body, body_uses);
+              body_uses.erase(node->binding);
+              merge_borrow_uses(uses, body_uses);
+            }
+          },
+          statement);
+    };
+    const auto statement_panics = [](const ast::Statement &statement) {
+      const auto *expression =
+          std::get_if<ast::ExpressionStatement>(&statement);
+      if (expression == nullptr)
+        return false;
+      const auto *call =
+          std::get_if<ast::CallExpression>(&expression->expression.value);
+      return call != nullptr && call->callee == "panic";
+    };
+
     std::unordered_map<std::string, constant::Value> local_constants;
     validate_block = [&](const std::vector<ast::Statement> &statements,
                          SymbolTable &block_symbols) {
       SymbolTable *previous_symbols = active_symbols;
+      const BorrowUseMap *previous_active_borrow_uses = active_borrow_uses;
+      const BorrowUseMap *previous_borrow_liveness_continuation =
+          borrow_liveness_continuation;
+      const BorrowUseMap *previous_borrow_break_continuation =
+          borrow_break_continuation;
+      const BorrowUseMap *previous_borrow_continue_continuation =
+          borrow_continue_continuation;
       const auto previous_local_constants = local_constants;
       const auto previous_deferred_values = deferred_values;
       const std::size_t previous_deferred_effect_count =
           deferred_effects.size();
       std::vector<std::pair<std::string, SourceLocation>> scope_declarations;
+      BorrowUseMap live = borrow_liveness_continuation == nullptr
+                              ? BorrowUseMap{}
+                              : *borrow_liveness_continuation;
+      std::vector<BorrowUseMap> live_at_statement(statements.size());
+      for (std::size_t index = statements.size(); index > 0; --index) {
+        const ast::Statement &candidate = statements[index - 1];
+        if (std::holds_alternative<ast::ReturnStatement>(candidate) ||
+            statement_panics(candidate))
+          live.clear();
+        else if (std::holds_alternative<ast::BreakStatement>(candidate))
+          live = borrow_break_continuation == nullptr
+                     ? BorrowUseMap{}
+                     : *borrow_break_continuation;
+        else if (std::holds_alternative<ast::ContinueStatement>(candidate))
+          live = borrow_continue_continuation == nullptr
+                     ? BorrowUseMap{}
+                     : *borrow_continue_continuation;
+        collect_statement_uses(candidate, live);
+        live_at_statement[index - 1] = live;
+      }
+      if (!live_at_statement.empty())
+        merge_borrow_uses(known_borrow_uses, live_at_statement.front());
       active_symbols = &block_symbols;
       bool has_terminator = false;
-      for (const ast::Statement &statement : statements) {
+      for (std::size_t statement_index = 0; statement_index < statements.size();
+           ++statement_index) {
+        const ast::Statement &statement = statements[statement_index];
+        active_borrow_uses = &live_at_statement[statement_index];
         if (has_terminator)
           throw CompileError{statement_location(statement),
                              "unreachable statement after control-flow "
@@ -9819,11 +10052,19 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               (*conditional)->location);
           SymbolTable then_symbols = block_symbols;
           SymbolTable else_symbols = block_symbols;
+          BorrowUseMap branch_continuation =
+              statement_index + 1 < live_at_statement.size()
+                  ? live_at_statement[statement_index + 1]
+                  : (borrow_liveness_continuation == nullptr
+                         ? BorrowUseMap{}
+                         : *borrow_liveness_continuation);
+          borrow_liveness_continuation = &branch_continuation;
           const bool then_returns =
               validate_block((*conditional)->then_body, then_symbols);
           const bool else_returns =
               !(*conditional)->else_body.empty() &&
               validate_block((*conditional)->else_body, else_symbols);
+          borrow_liveness_continuation = previous_borrow_liveness_continuation;
           active_symbols = &block_symbols;
           for (auto &[name, symbol] : block_symbols) {
             if (then_returns && !else_returns) {
@@ -9852,6 +10093,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                               SemanticType{&Type::bool_type()},
                               (*loop)->location);
           SymbolTable loop_symbols = block_symbols;
+          BorrowUseMap loop_continuation =
+              statement_index + 1 < live_at_statement.size()
+                  ? live_at_statement[statement_index + 1]
+                  : (borrow_liveness_continuation == nullptr
+                         ? BorrowUseMap{}
+                         : *borrow_liveness_continuation);
+          collect_statement_uses(statement, loop_continuation);
+          borrow_liveness_continuation = &loop_continuation;
+          BorrowUseMap break_continuation =
+              statement_index + 1 < live_at_statement.size()
+                  ? live_at_statement[statement_index + 1]
+                  : (previous_borrow_liveness_continuation == nullptr
+                         ? BorrowUseMap{}
+                         : *previous_borrow_liveness_continuation);
+          borrow_break_continuation = &break_continuation;
+          borrow_continue_continuation = &loop_continuation;
           const auto previous_transfer_protected = transfer_protected_values;
           for (const auto &[name, symbol] : block_symbols) {
             static_cast<void>(symbol);
@@ -9861,6 +10118,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           static_cast<void>(validate_block((*loop)->body, loop_symbols));
           --loop_depth;
           transfer_protected_values = previous_transfer_protected;
+          borrow_liveness_continuation = previous_borrow_liveness_continuation;
+          borrow_break_continuation = previous_borrow_break_continuation;
+          borrow_continue_continuation = previous_borrow_continue_continuation;
           active_symbols = &block_symbols;
           continue;
         }
@@ -9928,6 +10188,22 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           SymbolTable loop_symbols = block_symbols;
           loop_symbols.insert_or_assign((*loop)->binding,
                                         Symbol{*element_type, false, true});
+          BorrowUseMap loop_continuation =
+              statement_index + 1 < live_at_statement.size()
+                  ? live_at_statement[statement_index + 1]
+                  : (borrow_liveness_continuation == nullptr
+                         ? BorrowUseMap{}
+                         : *borrow_liveness_continuation);
+          collect_statement_uses(statement, loop_continuation);
+          borrow_liveness_continuation = &loop_continuation;
+          BorrowUseMap break_continuation =
+              statement_index + 1 < live_at_statement.size()
+                  ? live_at_statement[statement_index + 1]
+                  : (previous_borrow_liveness_continuation == nullptr
+                         ? BorrowUseMap{}
+                         : *previous_borrow_liveness_continuation);
+          borrow_break_continuation = &break_continuation;
+          borrow_continue_continuation = &loop_continuation;
           const auto previous_transfer_protected = transfer_protected_values;
           for (const auto &[name, symbol] : block_symbols) {
             static_cast<void>(symbol);
@@ -9943,6 +10219,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
           transfer_protected_values = previous_transfer_protected;
           closure_transfer_protected_values =
               previous_closure_transfer_protected;
+          borrow_liveness_continuation = previous_borrow_liveness_continuation;
+          borrow_break_continuation = previous_borrow_break_continuation;
+          borrow_continue_continuation = previous_borrow_continue_continuation;
           active_symbols = &block_symbols;
           if (consumes_source)
             if (const auto *identifier = std::get_if<ast::IdentifierExpression>(
@@ -10112,6 +10391,7 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                is_borrowed_pointer_expression(*declaration->initializer)))
             borrowed_values.insert(declaration->name);
           if (declaration->is_borrowed) {
+            nonlexical_borrow_values.insert(declaration->name);
             if (declaration->is_mutable)
               mutable_borrow_values.insert(declaration->name);
             else
@@ -11351,9 +11631,14 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
         borrowed_values.erase(name);
         shared_borrow_values.erase(name);
         mutable_borrow_values.erase(name);
+        nonlexical_borrow_values.erase(name);
         borrow_sources.erase(name);
       }
       active_symbols = previous_symbols;
+      active_borrow_uses = previous_active_borrow_uses;
+      borrow_liveness_continuation = previous_borrow_liveness_continuation;
+      borrow_break_continuation = previous_borrow_break_continuation;
+      borrow_continue_continuation = previous_borrow_continue_continuation;
       local_constants = previous_local_constants;
       deferred_values = previous_deferred_values;
       deferred_effects.resize(previous_deferred_effect_count);
