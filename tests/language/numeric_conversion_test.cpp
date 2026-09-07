@@ -7,10 +7,11 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include <iostream>
 #include <algorithm>
+#include <iostream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -38,6 +39,20 @@ void expect_compile_error(std::string_view source,
       ++failures;
     }
   }
+}
+
+std::size_t lossy_cast_warning_count(
+    std::string_view source,
+    janus::semantic::AnalysisOptions options = {}) {
+  janus::frontend::Parser parser{source};
+  const janus::semantic::AnalysisResult analysis =
+      janus::semantic::Analyzer{}.analyze(parser.parse_program(), options);
+  return static_cast<std::size_t>(std::count_if(
+      analysis.diagnostics.begin(), analysis.diagnostics.end(),
+      [](const janus::Diagnostic &diagnostic) {
+        return diagnostic.code ==
+               janus::DiagnosticCode::AnalyzerLossyNumericCast;
+      }));
 }
 
 } // namespace
@@ -154,6 +169,74 @@ def main() : int {
                           std::string::npos;
              }),
          "lossy-cast diagnostic recommends every explicit policy");
+
+  struct DomainCase {
+    std::string_view source;
+    std::string_view destination;
+    bool lossy_on_32_bit;
+    bool lossy_on_64_bit;
+  };
+  const std::vector<DomainCase> domain_cases{
+      {"short", "float", false, false},
+      {"ushort", "float", false, false},
+      {"int", "float", true, true},
+      {"uint", "float", true, true},
+      {"long", "float", true, true},
+      {"ulong", "float", true, true},
+      {"isize", "float", true, true},
+      {"usize", "float", true, true},
+      {"int", "double", false, false},
+      {"uint", "double", false, false},
+      {"long", "double", true, true},
+      {"ulong", "double", true, true},
+      {"isize", "double", false, true},
+      {"usize", "double", false, true},
+  };
+  for (const DomainCase &item : domain_cases) {
+    const std::string cast_source =
+        "def main() : int { val source : " + std::string{item.source} +
+        " = " + std::string{item.source} + "(1) val target : " +
+        std::string{item.destination} + " = " +
+        std::string{item.destination} + "(source) return 0 }";
+    for (const std::uint32_t pointer_width : {32U, 64U}) {
+      const bool expected = pointer_width == 32 ? item.lossy_on_32_bit
+                                                 : item.lossy_on_64_bit;
+      const std::size_t warnings = lossy_cast_warning_count(
+          cast_source,
+          {.target = {.triple = pointer_width == 32
+                                    ? "i686-unknown-linux-gnu"
+                                    : "x86_64-unknown-linux-gnu",
+                      .pointer_width = pointer_width}});
+      expect(warnings == (expected ? 1U : 0U),
+             std::string{item.source} + " to " +
+                 std::string{item.destination} + " on " +
+                 std::to_string(pointer_width) +
+                 "-bit targets follows the complete integer domain");
+    }
+  }
+
+  expect(lossy_cast_warning_count(R"(
+def main() : int {
+    val exactFloatBoundary : int = 16777216
+    val adjacentFloatValue : int = 16777217
+    val exactAsFloat : float = float(exactFloatBoundary)
+    val adjacentAsFloat : float = float(adjacentFloatValue)
+    val two : long = long(2)
+    val exactDoubleBoundary : long = two << usize(52)
+    val adjacentDoubleValue : long = exactDoubleBoundary + long(1)
+    val exactAsDouble : double = double(exactDoubleBoundary)
+    val adjacentAsDouble : double = double(adjacentDoubleValue)
+    return 0
+}
+)") == 4,
+         "integer variables at and above 2^24/2^53 report JANA0013");
+  expect(lossy_cast_warning_count(R"(
+def main() : int {
+    val contextual : float = float(16777217)
+    return 0
+}
+)") == 0,
+         "contextual integer literal casts keep their existing behavior");
 
   if (failures != 0) {
     std::cerr << failures << " assertion(s) failed\n";

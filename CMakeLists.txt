@@ -921,6 +921,12 @@ if(BUILD_TESTING)
                 "${PROJECT_SOURCE_DIR}/tests/fixtures/project-diagnostics"
     )
     add_test(
+        NAME diagnostics.lossy_numeric_cast
+        COMMAND "${Python3_EXECUTABLE}"
+                "${PROJECT_SOURCE_DIR}/tests/diagnostics/run_lossy_numeric_cast_cli.py"
+                --janus "$<TARGET_FILE:janus>"
+    )
+    add_test(
         NAME cli.check_top_level_val
         COMMAND janus check
                 "${PROJECT_SOURCE_DIR}/tests/fixtures/parser/top_level_val.janus"

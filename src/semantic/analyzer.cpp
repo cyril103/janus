@@ -506,6 +506,25 @@ std::string integer_range_description(const janus::Type &type) {
          std::to_string(type.bit_width()) + "-bit range";
 }
 
+std::uint32_t effective_integer_width(const janus::Type &type,
+                                      std::uint32_t pointer_width) {
+  if (type.kind() == janus::TypeKind::ISize ||
+      type.kind() == janus::TypeKind::USize)
+    return pointer_width;
+  return type.bit_width();
+}
+
+bool integer_domain_fits_floating_point(const janus::Type &source,
+                                        const janus::Type &destination,
+                                        std::uint32_t pointer_width) {
+  const std::uint32_t precision_bits =
+      destination.kind() == janus::TypeKind::Float ? 24 : 53;
+  const std::uint32_t value_bits =
+      effective_integer_width(source, pointer_width) -
+      (source.is_signed() ? 1U : 0U);
+  return value_bits <= precision_bits;
+}
+
 std::string global_key(const std::optional<std::string> &module,
                        std::string_view name) {
   return module.has_value() ? *module + "." + std::string{name}
@@ -7329,8 +7348,9 @@ AnalysisResult Analyzer::analyze(const ast::Program &program,
                         destination_type.concrete->bit_width() <
                         source_type.concrete->bit_width();
                   else
-                    lossy_numeric_cast = source_type.concrete->bit_width() >
-                                         destination_type.concrete->bit_width();
+                    lossy_numeric_cast = !integer_domain_fits_floating_point(
+                        *source_type.concrete, *destination_type.concrete,
+                        options.target.pointer_width);
                 }
                 if (lossy_numeric_cast)
                   emit_warning(

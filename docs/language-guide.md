@@ -296,8 +296,8 @@ Les entiers ont une taille fixe et portable :
 | `uint` | `0` à `4294967295` |
 | `long` | `-9223372036854775808` à `9223372036854775807` |
 | `ulong` | `0` à `18446744073709551615` |
-| `isize` | `-9223372036854775808` à `9223372036854775807` |
-| `usize` | `0` à `18446744073709551615` |
+| `isize` | plage signée 32 ou 64 bits selon la cible |
+| `usize` | plage non signée 32 ou 64 bits selon la cible |
 
 Les littéraux entiers sans cast ont le type `int`. La plage complète de `int`
 est acceptée, y compris `-2147483648`; `2147483648` et `-2147483649` sont
@@ -333,6 +333,16 @@ val opacity : float = float(0.75)
 Les casts depuis `double` vers un entier sont définis seulement pour les valeurs
 finies, représentables dans le type cible après troncature vers zéro. Les autres
 cas ne sont pas vérifiés par le langage.
+
+La largeur de stockage ne donne pas toute la précision d'un flottant : `float`
+conserve 24 bits significatifs et `double` en conserve 53. Un cast direct d'une
+variable `int` ou `uint` vers `float`, ou `long`/`ulong` vers `double`, émet donc
+JANA0013 même lorsque la valeur observée est exactement représentable. Les
+domaines de `short` vers `float` et de `int` vers `double` sont entièrement
+exacts et restent silencieux. Pour `isize` et `usize`, le diagnostic emploie la
+largeur 32 ou 64 bits de la cible. La
+[référence des conversions](numeric-conversions.md#diagnostic-des-casts-natifs-entier-vers-flottant)
+donne la matrice complète et les limites résiduelles des littéraux.
 
 ## Sortie canonique
 

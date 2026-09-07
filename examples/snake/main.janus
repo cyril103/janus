@@ -221,7 +221,7 @@ def main() : int {
     val resolutionLocation : int = neonShader.location("resolution")
     neonShader.setVector2(
     resolutionLocation,
-    vector2(float(screenWidth), float(screenHeight))
+    vector2(numericCast[float](screenWidth), numericCast[float](screenHeight))
     )
 
     val snake : Array[Cell] =

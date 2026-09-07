@@ -543,7 +543,7 @@ class Image internal(private val handle : Ptr[byte]) {
     /// @param y Coordonnée verticale.
     /// @param color Couleur appliquée.
     def drawPixel(x : int, y : int, color : Color) : Unit {
-        janus_graphics_draw_on_image(handle, 1, float(x), float(y), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
+        janus_graphics_draw_on_image(handle, 1, numericCast[float](x), numericCast[float](y), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
     }
 
     /// Trace un segment dans l’image CPU.
@@ -560,7 +560,7 @@ class Image internal(private val handle : Ptr[byte]) {
     /// @param radius Rayon de la forme.
     /// @param color Couleur appliquée.
     def drawCircle(center : Vector2, radius : int, color : Color) : Unit {
-        janus_graphics_draw_on_image(handle, 3, center.x, center.y, float(radius), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
+        janus_graphics_draw_on_image(handle, 3, center.x, center.y, numericCast[float](radius), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
     }
 
     /// Trace un cercle dans l’image CPU.
@@ -568,7 +568,7 @@ class Image internal(private val handle : Ptr[byte]) {
     /// @param radius Rayon de la forme.
     /// @param color Couleur appliquée.
     def drawCircleLines(center : Vector2, radius : int, color : Color) : Unit {
-        janus_graphics_draw_on_image(handle, 4, center.x, center.y, float(radius), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
+        janus_graphics_draw_on_image(handle, 4, center.x, center.y, numericCast[float](radius), numericCast[float](0.0), numericCast[float](0.0), numericCast[float](0.0), 0, color.packed())
     }
 
     /// Dessine un rectangle dans l’image CPU.
@@ -808,12 +808,12 @@ class Texture internal(private val handle : Ptr[byte]) {
     rotation : float,
     flipX : bool,
     flipY : bool,
-    tint : Color
+        tint : Color
     ) : Unit {
         val column : int = frame % columns
         val row : int = frame / columns
-        var sourceWidth : float = float(frameWidth)
-        var sourceHeight : float = float(frameHeight)
+        var sourceWidth : float = numericCast[float](frameWidth)
+        var sourceHeight : float = numericCast[float](frameHeight)
         if flipX {
             sourceWidth = -sourceWidth
         }
@@ -822,14 +822,14 @@ class Texture internal(private val handle : Ptr[byte]) {
         }
         janus_graphics_draw_texture_pro(
         handle,
-        float(column * frameWidth),
-        float(row * frameHeight),
+        numericCast[float](column * frameWidth),
+        numericCast[float](row * frameHeight),
         sourceWidth,
         sourceHeight,
         position.x,
         position.y,
-        float(frameWidth) * scale,
-        float(frameHeight) * scale,
+        numericCast[float](frameWidth) * scale,
+        numericCast[float](frameHeight) * scale,
         numericCast[float](0.0),
         numericCast[float](0.0),
         rotation,

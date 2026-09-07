@@ -68,6 +68,41 @@ runtime : il n'utilise ni cast C hors plage ni comportement indéfini de l'hôte
 Un `checkedCast` produit le même `Result` pour une entrée constante ou calculée
 à l'exécution ; sa construction reste actuellement émise dans l'IR.
 
+## Diagnostic des casts natifs entier vers flottant
+
+`float` et `double` disposent respectivement de 24 et 53 bits de précision
+significative IEEE 754, bit implicite compris. JANA0013 compare cette précision
+au domaine entier statique complet de la source, signe compris, et non à la
+seule largeur de stockage :
+
+| Source | vers `float` | vers `double` |
+|---|---|---|
+| `byte`, `ubyte`, `short`, `ushort` | exact sur tout le domaine | exact sur tout le domaine |
+| `int`, `uint` | JANA0013 | exact sur tout le domaine |
+| `long`, `ulong` | JANA0013 | JANA0013 |
+| `isize`, `usize` sur cible 32 bits | JANA0013 | exact sur tout le domaine |
+| `isize`, `usize` sur cible 64 bits | JANA0013 | JANA0013 |
+
+Ainsi, `2^24` est exactement représentable par un `float`, mais `2^24 + 1`
+est arrondi ; la même frontière vaut `2^53` pour un `double`. Comme le
+diagnostic raisonne sur le type et non sur le suivi de plage d'une variable,
+même une variable dont la valeur courante est exactement représentable avertit
+si une autre valeur de son type pourrait perdre de la précision. Utilisez alors
+une politique qui exprime l'invariant :
+
+```janus
+import std.numeric
+import std.result
+
+val source : int = 16777217
+val exact : Result[float, NumericCastError] = checkedCast[float](source)
+```
+
+Un cast direct d'un littéral entier reste traité selon les règles contextuelles
+existantes et ne produit pas ce warning ; JANA0013 ne tente donc pas encore de
+distinguer chaque littéral autour de ces frontières. Pour les casts de
+variables risqués, `janus check --deny-warnings` refuse le programme.
+
 ## Choisir une primitive
 
 - `checkedCast` pour refuser toute altération et expliquer l'échec ;

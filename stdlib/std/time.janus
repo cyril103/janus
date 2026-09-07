@@ -40,7 +40,7 @@ struct Duration(private val value : usize) {
     ///
     /// @return Nombre de nanosecondes divisé par 1 000 000 000.
     pure borrow def seconds() : double {
-        return double(value) / double(1000000000.0)
+        return numericCast[double](value) / double(1000000000.0)
     }
 }
 

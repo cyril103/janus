@@ -21,6 +21,12 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- correction de JANA0013 pour les casts entier vers flottant : l'analyseur
+  compare désormais le domaine signé ou non signé complet aux 24/53 bits de
+  précision IEEE 754, y compris pour `isize`/`usize` selon les cibles 32/64
+  bits ; `int`/`uint` vers `float` et `long`/`ulong` vers `double` ne passent
+  plus silencieusement, tandis que les domaines entièrement exacts et le
+  traitement existant des littéraux contextualisés restent inchangés ;
 - ajout des échappements de scalaires Unicode `\u{HEX}` à un à six chiffres
   dans les littéraux `char` et `string`, encodés en UTF-8 pour les chaînes ;
   les formes mal délimitées, non hexadécimales, surrogates et hors plage sont
