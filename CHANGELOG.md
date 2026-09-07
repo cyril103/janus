@@ -5,6 +5,8 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ## [Non publié]
 
+## [0.24.0] - 2026-09-07
+
 ### Outils en ligne de commande
 
 - `janus new --help` et `janus init --help` affichent désormais leur aide
@@ -163,6 +165,9 @@ utilise le versionnage sémantique à partir de sa première version publique.
   les retours `Unit`, refus `JANA0032` des retours agrégés/génériques non
   prouvables et des arêtes avec propriétaire vivant, puis assertion backend de
   chaque arête récursive attendue ;
+- préservation de l'appel récursif terminal lors de la matérialisation d'une
+  valeur `Unit`, afin que le backend puisse toujours vérifier et appliquer
+  `musttail` ;
 - refus des copies implicites de classes et autres valeurs non `Copy` lors
   d'une affectation, d'un appel, d'un retour ou d'une construction d'agrégat,
   y compris à travers un paramètre générique ; le diagnostic `JANA0035`
@@ -1218,6 +1223,7 @@ Première version expérimentale de Janus, distribuée pour Linux x86_64.
 - le langage, sa bibliothèque standard et le format des paquets restent
   expérimentaux et peuvent évoluer sans compatibilité ascendante avant 1.0.
 
+[0.24.0]: https://github.com/cyril103/janus/releases/tag/v0.24.0
 [0.23.1]: https://github.com/cyril103/janus/releases/tag/v0.23.1
 [0.23.0]: https://github.com/cyril103/janus/releases/tag/v0.23.0
 [0.22.0]: https://github.com/cyril103/janus/releases/tag/v0.22.0

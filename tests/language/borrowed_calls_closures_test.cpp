@@ -131,7 +131,7 @@ def main() : int {
   val victimMutable : Box = new Box(123)
   borrow var dangling : Box = selector.select(victimMutable)
   delete victimMutable
-  return 0
+  return dangling.value
 }
 )",
                        "owning value 'victimMutable' cannot be released while "
@@ -163,7 +163,7 @@ def main() : int {
   val victimRelay : Box = new Box(123)
   borrow val dangling : Box = selector.relay(victimRelay)
   delete victimRelay
-  return 0
+  return dangling.value
 }
 )",
                        "owning value 'victimRelay' cannot be released while "

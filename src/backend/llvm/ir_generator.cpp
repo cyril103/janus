@@ -2663,6 +2663,17 @@ private:
                 emit_expression(*return_statement.expression, return_type,
                                 substitutions, block_locals, builder);
         }
+        const bool tailrec_edge =
+            return_statement.expression.has_value() &&
+            analysis_.tailrec_edges.contains(&*return_statement.expression);
+        // Unit expressions materialize an aggregate token even when their
+        // side effect is a void call. Preserve the actual recursive call here
+        // so the terminal edge can still be checked and marked as musttail.
+        if (tailrec_edge && return_type.kind() == janus::TypeKind::Unit) {
+          ::llvm::BasicBlock *block = builder.GetInsertBlock();
+          if (block != nullptr && !block->empty())
+            return_value = &block->back();
+        }
         emit_active_cleanups(builder);
         if (owner == nullptr && function.name == "main")
           for (auto finalizer = global_finalizers_.rbegin();
@@ -2670,9 +2681,7 @@ private:
             builder.CreateCall(*finalizer);
         const bool emitted_musttail = mark_tail_call_if_eligible(
             return_value, *llvm_function, builder);
-        if (return_statement.expression.has_value() &&
-            analysis_.tailrec_edges.contains(&*return_statement.expression) &&
-            !emitted_musttail)
+        if (tailrec_edge && !emitted_musttail)
           throw janus::CompileError{
               janus::DiagnosticCode::AnalyzerIncompatibleTailrec,
               return_statement.location,

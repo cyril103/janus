@@ -7,5 +7,5 @@ def main() : int {
     val holder : Holder = new Holder(move values)
     borrow var locked : Holder = holder
     val observed : int = holder.values[usize(0)]
-    return observed
+    return observed + locked.values[usize(0)]
 }

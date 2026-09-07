@@ -49,7 +49,7 @@ CAST_EXCEPTIONS: dict[tuple[str, str, int, int], str] = {
     ("docs/design/container-ownership.md", "usize(0)", 175, 21): "pédagogique (index usize)",
     ("docs/design/container-ownership.md", "usize(0)", 176, 45): "pédagogique (index usize)",
     ("docs/design/container-ownership.md", "usize(0)", 189, 19): "pédagogique (index usize)",
-    ("docs/design/lexical-borrowing.md", "usize(0)", 491, 41): "pédagogique (index usize)",
+    ("docs/design/lexical-borrowing.md", "usize(0)", 492, 41): "pédagogique (index usize)",
     ("examples/casts.janus", "usize(1)", 11, 38): "pédagogique (casts)",
     ("examples/casts.janus", "usize(0)", 12, 16): "pédagogique (casts)",
     ("examples/casts.janus", "usize(0)", 13, 34): "pédagogique (casts)",

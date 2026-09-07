@@ -25,7 +25,7 @@ les sources canoniques est vérifiée séparément par les tests du site et de l
 | `docs/design/container-ownership.md` | 175:21 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/design/container-ownership.md` | 176:45 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/design/container-ownership.md` | 189:19 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
-| `docs/design/lexical-borrowing.md` | 491:41 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
+| `docs/design/lexical-borrowing.md` | 492:41 | cast littéral | `usize(0)` | pédagogique explicite | pédagogique (index usize) |
 | `docs/stdlib-reference.md` | 37:41 | cast littéral | `usize(2)` | test de couverture | nécessaire (opérande binaire usize) |
 | `docs/stdlib-reference.md` | 378:44 | cast littéral | `usize(8)` | test de couverture | nécessaire (opérande binaire usize) |
 | `docs/stdlib-reference.md` | 523:55 | cast littéral | `usize(5)` | test de couverture | nécessaire (opérande binaire usize) |
