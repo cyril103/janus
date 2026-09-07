@@ -62,7 +62,18 @@
       "patterns": [
         {
           "name": "constant.character.escape.janus",
-          "match": "\\\\."
+          "match": "\\\\(?:u\\{[0-9A-Fa-f]{1,6}\\}|[0nrt\\\\'\"])"
+        }
+      ]
+    },
+    {
+      "name": "string.quoted.single.janus",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.janus",
+          "match": "\\\\(?:u\\{[0-9A-Fa-f]{1,6}\\}|[0nrt\\\\'\"])"
         }
       ]
     },

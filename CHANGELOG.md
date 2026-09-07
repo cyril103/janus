@@ -21,6 +21,10 @@ utilise le versionnage sémantique à partir de sa première version publique.
 
 ### Langage et sûreté mémoire
 
+- ajout des échappements de scalaires Unicode `\u{HEX}` à un à six chiffres
+  dans les littéraux `char` et `string`, encodés en UTF-8 pour les chaînes ;
+  les formes mal délimitées, non hexadécimales, surrogates et hors plage sont
+  rejetées avec `JPAR0004`, tandis que le formatter conserve leur graphie ;
 - prise en charge déterministe des identifiants Unicode UTF-8 pour les valeurs,
   types, modules et membres selon `XID_Start`/`XID_Continue` Unicode 16.0, avec
   identité NFC partagée par la résolution, le mangling, le LSP et l'index API ;

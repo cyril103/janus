@@ -14,6 +14,23 @@ test("TextMate recognizes every supported integer spelling", () => {
     assert.match(spelling, regexp);
 });
 
+test("TextMate scopes Unicode scalar escapes in strings and characters", () => {
+  const quoted = grammar.patterns.filter((pattern) =>
+    pattern.name?.startsWith("string.quoted"),
+  );
+  assert.equal(quoted.length, 2);
+  for (const pattern of quoted) {
+    const escape = pattern.patterns.find(
+      (candidate) => candidate.name === "constant.character.escape.janus",
+    );
+    const escapeRegexp = new RegExp(`^(?:${escape.match})$`);
+    for (const spelling of ["\\u{41}", "\\u{00E9}", "\\u{1f600}", "\\n"])
+      assert.match(spelling, escapeRegexp);
+    for (const spelling of ["\\u{}", "\\u41", "\\u{1234567}", "\\u{xyz}"])
+      assert.doesNotMatch(spelling, escapeRegexp);
+  }
+});
+
 test("TextMate does not recognize malformed integer spellings", () => {
   for (const spelling of ["0x", "0b2", "0x_FF", "0xFF_", "0xF__F", "0_b1"])
     assert.doesNotMatch(spelling, regexp);

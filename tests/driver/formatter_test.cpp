@@ -37,6 +37,19 @@ int main() {
     std::cerr << "Unicode identifier spelling was not preserved\n";
     return 1;
   }
+  const std::string unicode_escape_source =
+      "def main() : int {\nval glyph : char = '\\u{00e9}'\n"
+      "val text : string = \"\\u{1f600}\"\nreturn 0\n}\n";
+  const std::string formatted_unicode_escape =
+      "def main() : int {\n    val glyph : char = '\\u{00e9}'\n"
+      "    val text : string = \"\\u{1f600}\"\n    return 0\n}\n";
+  if (janus::driver::format_source(unicode_escape_source) !=
+          formatted_unicode_escape ||
+      janus::driver::format_source(formatted_unicode_escape) !=
+          formatted_unicode_escape) {
+    std::cerr << "Unicode escape spelling was not preserved idempotently\n";
+    return 1;
+  }
   const std::string unit_source =
       "def identity(value : Unit) : Unit {\nval result : Unit = unit\nreturn result\n}\n";
   const std::string formatted_unit =

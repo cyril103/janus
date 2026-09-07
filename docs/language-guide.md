@@ -252,6 +252,25 @@ Types primitifs :
 | `isize` | taille ou différence d'adresses signée |
 | `Unit` | type unité, habité uniquement par la valeur `unit` |
 
+### Littéraux caractères et chaînes
+
+Un littéral `char` contient exactement un scalaire Unicode. Une chaîne
+`string` contient du texte UTF-8. Outre les échappements courts `\0`, `\n`,
+`\r`, `\t`, `\\`, `\'` et `\"`, les deux formes acceptent
+`\u{HEX}`, avec une à six chiffres hexadécimaux :
+
+```janus
+val letter : char = '\u{E9}'
+val emoji : string = "\u{1F600}"
+```
+
+La valeur entre accolades doit être un scalaire Unicode : les accolades vides
+ou manquantes, les caractères non hexadécimaux, les surrogates
+`U+D800`–`U+DFFF` et les valeurs supérieures à `U+10FFFF` produisent le
+diagnostic `JPAR0004`. Le formatter conserve la casse et les zéros écrits dans
+l’échappement. Les contrôles et espaces invisibles sont autorisés comme valeurs
+de littéraux ; employer `\u{...}` les rend explicites pendant la revue.
+
 `Unit` est un type de valeur composable : il peut être utilisé pour les
 locales, paramètres, champs, payloads d'enum, callbacks et spécialisations
 génériques. `if` et `match` peuvent également produire `Unit`. Sa valeur

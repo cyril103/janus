@@ -468,6 +468,18 @@ if(BUILD_TESTING)
             "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/contextual_constructor_inference_cli"
             -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
     )
+    add_test(
+        NAME language.unicode_escapes.runtime
+        COMMAND
+            ${CMAKE_COMMAND}
+            "-DJANUSC=$<TARGET_FILE:janusc>"
+            "-DCLANG=${CLANG_EXECUTABLE}"
+            "-DSOURCE=${PROJECT_SOURCE_DIR}/examples/unicode_escapes.janus"
+            "-DRUNTIME=$<TARGET_FILE:janus_runtime>"
+            "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/unicode_escapes_runtime"
+            "-DEXPECTED_OUTPUT=${PROJECT_SOURCE_DIR}/tests/fixtures/runtime/unicode_escapes.expected.txt"
+            -P "${PROJECT_SOURCE_DIR}/tests/runtime/run_janus_example.cmake"
+    )
 
     add_test(
         NAME tests.no_standard_assert
@@ -845,6 +857,17 @@ if(BUILD_TESTING)
             -Wpedantic
     )
     add_test(NAME parser.floating_literals COMMAND floating_literal_test)
+    add_executable(unicode_escape_test
+        tests/frontend/unicode_escape_test.cpp
+    )
+    target_link_libraries(unicode_escape_test PRIVATE janus_frontend)
+    target_compile_options(unicode_escape_test
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+    add_test(NAME parser.unicode_escapes COMMAND unicode_escape_test)
     add_executable(diagnostic_model_test
         tests/diagnostics/diagnostic_model_test.cpp
     )

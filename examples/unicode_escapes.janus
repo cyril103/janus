@@ -1,0 +1,7 @@
+def main() : int {
+    val letter : char = '\u{41}'
+    val text : string = "\u{E9}\u{1F600}"
+    print(letter)
+    println(text)
+    return 0
+}

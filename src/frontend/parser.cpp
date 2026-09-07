@@ -31,6 +31,10 @@
 
 namespace {
 
+bool is_unicode_scalar(char32_t value) noexcept {
+  return value <= 0x10FFFF && !(value >= 0xD800 && value <= 0xDFFF);
+}
+
 char32_t decode_utf8_scalar(std::string_view content, std::size_t &position,
                             janus::SourceLocation location,
                             std::string_view literal_kind) {
@@ -86,8 +90,7 @@ char32_t decode_utf8_scalar(std::string_view content, std::size_t &position,
     code_point = (code_point << 6) | (continuation & 0x3F);
   }
 
-  if (code_point < minimum || code_point > 0x10FFFF ||
-      (code_point >= 0xD800 && code_point <= 0xDFFF)) {
+  if (code_point < minimum || !is_unicode_scalar(code_point)) {
     throw janus::CompileError{location, "invalid Unicode scalar in " +
                                             std::string{literal_kind} +
                                             " literal"};
@@ -97,8 +100,67 @@ char32_t decode_utf8_scalar(std::string_view content, std::size_t &position,
   return code_point;
 }
 
-char decode_escape(char escaped, janus::SourceLocation location,
-                   std::string_view literal_kind) {
+[[noreturn]] void invalid_unicode_escape(janus::SourceLocation location,
+                                         std::string_view literal_kind,
+                                         std::string_view reason) {
+  throw janus::CompileError{
+      janus::DiagnosticCode::ParserInvalidUnicodeEscape, location,
+      "invalid Unicode escape in " + std::string{literal_kind} +
+          " literal: " + std::string{reason}};
+}
+
+unsigned hex_value(char digit) {
+  if (digit >= '0' && digit <= '9')
+    return static_cast<unsigned>(digit - '0');
+  if (digit >= 'a' && digit <= 'f')
+    return static_cast<unsigned>(digit - 'a') + 10;
+  return static_cast<unsigned>(digit - 'A') + 10;
+}
+
+char32_t decode_escape(std::string_view content, std::size_t &position,
+                       janus::SourceLocation location,
+                       std::string_view literal_kind) {
+  if (position + 1 >= content.size())
+    throw janus::CompileError{location, "incomplete escape in " +
+                                           std::string{literal_kind} +
+                                           " literal"};
+
+  const char escaped = content[position + 1];
+  if (escaped == 'u') {
+    if (position + 2 >= content.size() || content[position + 2] != '{')
+      invalid_unicode_escape(location, literal_kind,
+                             "expected '{' after '\\u'");
+
+    const std::size_t digits_start = position + 3;
+    const std::size_t closing = content.find('}', digits_start);
+    if (closing == std::string_view::npos)
+      invalid_unicode_escape(location, literal_kind, "missing closing '}'");
+    const std::size_t digit_count = closing - digits_start;
+    if (digit_count == 0)
+      invalid_unicode_escape(location, literal_kind,
+                             "expected at least one hexadecimal digit");
+    if (digit_count > 6)
+      invalid_unicode_escape(location, literal_kind,
+                             "expected at most six hexadecimal digits");
+
+    char32_t value = 0;
+    for (std::size_t index = digits_start; index < closing; ++index) {
+      const char digit = content[index];
+      if (!((digit >= '0' && digit <= '9') ||
+            (digit >= 'a' && digit <= 'f') ||
+            (digit >= 'A' && digit <= 'F')))
+        invalid_unicode_escape(location, literal_kind,
+                               "expected a hexadecimal digit");
+      value = static_cast<char32_t>((value << 4) | hex_value(digit));
+    }
+    if (!is_unicode_scalar(value))
+      invalid_unicode_escape(location, literal_kind,
+                             "value is not a Unicode scalar");
+    position = closing + 1;
+    return value;
+  }
+
+  position += 2;
   switch (escaped) {
   case '0':
     return '\0';
@@ -121,14 +183,27 @@ char decode_escape(char escaped, janus::SourceLocation location,
   }
 }
 
+void append_utf8(std::string &output, char32_t value) {
+  if (value <= 0x7F) {
+    output.push_back(static_cast<char>(value));
+  } else if (value <= 0x7FF) {
+    output.push_back(static_cast<char>(0xC0 | (value >> 6)));
+    output.push_back(static_cast<char>(0x80 | (value & 0x3F)));
+  } else if (value <= 0xFFFF) {
+    output.push_back(static_cast<char>(0xE0 | (value >> 12)));
+    output.push_back(static_cast<char>(0x80 | ((value >> 6) & 0x3F)));
+    output.push_back(static_cast<char>(0x80 | (value & 0x3F)));
+  } else {
+    output.push_back(static_cast<char>(0xF0 | (value >> 18)));
+    output.push_back(static_cast<char>(0x80 | ((value >> 12) & 0x3F)));
+    output.push_back(static_cast<char>(0x80 | ((value >> 6) & 0x3F)));
+    output.push_back(static_cast<char>(0x80 | (value & 0x3F)));
+  }
+}
+
 char32_t decode_character_literal(const janus::frontend::Token &token) {
   const std::string_view content =
       token.lexeme.substr(1, token.lexeme.size() - 2);
-
-  if (content.size() == 2 && content.front() == '\\') {
-    return static_cast<unsigned char>(
-        decode_escape(content.back(), token.location, "character"));
-  }
 
   if (content.empty()) {
     throw janus::CompileError{
@@ -137,8 +212,12 @@ char32_t decode_character_literal(const janus::frontend::Token &token) {
   }
 
   std::size_t position = 0;
-  const char32_t code_point =
-      decode_utf8_scalar(content, position, token.location, "character");
+  const char32_t code_point = content.front() == '\\'
+                                  ? decode_escape(content, position,
+                                                  token.location, "character")
+                                  : decode_utf8_scalar(content, position,
+                                                       token.location,
+                                                       "character");
   if (position != content.size()) {
     throw janus::CompileError{
         token.location,
@@ -156,13 +235,9 @@ std::string decode_string_literal(const janus::frontend::Token &token) {
   std::size_t position = 0;
   while (position < content.size()) {
     if (content[position] == '\\') {
-      if (position + 1 >= content.size()) {
-        throw janus::CompileError{token.location,
-                                  "incomplete escape in string literal"};
-      }
-      decoded.push_back(
-          decode_escape(content[position + 1], token.location, "string"));
-      position += 2;
+      const char32_t value =
+          decode_escape(content, position, token.location, "string");
+      append_utf8(decoded, value);
       continue;
     }
 

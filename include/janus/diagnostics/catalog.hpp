@@ -23,6 +23,7 @@ inline constexpr std::array all_diagnostic_codes{
     DiagnosticCode::ParserExpectedExpression,
     DiagnosticCode::ParserFloatingLiteralUnderflow,
     DiagnosticCode::ParserFloatingLiteralOverflow,
+    DiagnosticCode::ParserInvalidUnicodeEscape,
     DiagnosticCode::ModuleLegacy,
     DiagnosticCode::AnalyzerLegacy,
     DiagnosticCode::AnalyzerUnknownValue,
@@ -108,6 +109,12 @@ explain_diagnostic(DiagnosticCode code) noexcept {
     return {code, "floating-point literal overflow",
             "The literal rounds to infinity in its declared floating-point type.",
             "Use a representable magnitude or a wider floating-point type."};
+  case DiagnosticCode::ParserInvalidUnicodeEscape:
+    return {code, "invalid Unicode scalar escape",
+            "A Unicode escape must use \\u{HEX} with one to six hexadecimal "
+            "digits and denote a Unicode scalar value.",
+            "Add the braces and use a value outside the surrogate range and "
+            "no greater than U+10FFFF."};
   case DiagnosticCode::AnalyzerUnknownValue:
     return {code, "unknown value",
             "Name resolution found no visible declaration for this value.",
