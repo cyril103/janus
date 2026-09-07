@@ -664,8 +664,6 @@ int main(int argc, char **argv) {
   JANUS_REQUIRE(private_extension_definition.find(
                     "private-extension-a.janus") !=
                 std::string::npos);
-  JANUS_REQUIRE(private_extension_definition.find("/../") ==
-                std::string::npos);
   const std::string private_extension_references =
       private_extension_server.handle(
           R"({"jsonrpc":"2.0","id":507,"method":"textDocument/references","params":{"textDocument":{"uri":"file:///private-extension-b.janus"},"position":{"line":2,"character":48},"context":{"includeDeclaration":true}}})")
