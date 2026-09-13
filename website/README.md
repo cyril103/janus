@@ -31,6 +31,12 @@ python3 website/tests/check_public_links.py http://127.0.0.1:8000/
 kill "$server_pid"
 ```
 
+Le workflow Pages construit et teste les pull requests avec uniquement
+`contents: read`. Sur les pushes vers `main`, le job `build` transmet l'artefact
+au job `deploy`, qui configure Pages puis publie avec `pages: write` et
+`id-token: write`. Les tests de `website/tests/test_pages_workflow.py`, exécutés
+par la CI du site, contrôlent cette séparation des permissions.
+
 ## Nginx avec Docker Compose
 
 Le contexte de build doit rester la racine du dépôt afin d’inclure les documents canoniques :
